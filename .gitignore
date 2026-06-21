@@ -1,0 +1,8 @@
+.env
+creds_b64.txt
+auto_photo.jpg
+auto_story.mp4
+story_out.mp4
+test.jpg
+test_post.py
+*.pyc
