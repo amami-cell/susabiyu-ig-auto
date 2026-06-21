@@ -4,6 +4,18 @@ from google.oauth2.service_account import Credentials
 from googleapiclient.discovery import build
 from googleapiclient.http import MediaIoBaseDownload
 import requests as req
+
+def notify_line(telop,photo_name,genre):
+    lt=os.environ.get('LINE_CHANNEL_TOKEN','')
+    if not lt:return
+    msg=f'[ストーリー投稿完了]\n写真: {photo_name}\nジャンル: {genre}\nテロップ: {telop}'
+    try:
+        req.post('https://api.line.me/v2/bot/message/broadcast',
+            headers={'Authorization':f'Bearer {lt}','Content-Type':'application/json'},
+            json={'messages':[{'type':'text','text':msg}]})
+        print('[LINE] notified')
+    except Exception as e:print(f'[LINE] {e}')
+
 CRED_B64=os.environ.get("GOOGLE_CREDS_B64","")
 TOKEN=os.environ.get("IG_ACCESS_TOKEN","")
 SHEET_ID=os.environ.get("SHEET_ID","")
@@ -119,7 +131,7 @@ def main():
     img="/tmp/photo.jpg";dl(drive,photo["id"],img)
     telop=random.choice(TELOPS.get(genre,TELOPS["FOOD"]))
     out="/tmp/story.mp4";video(img,telop,out)
-    record(sheets,photo,genre);url=up(out);post(TOKEN,url)
+    record(sheets,photo,genre);url=up(out);post(TOKEN,url)\n    notify_line(telop,photo[" name\],genre)
     print("=== DONE ===")
 
 if __name__=="__main__":main()
