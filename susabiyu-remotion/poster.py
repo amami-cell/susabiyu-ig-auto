@@ -10,12 +10,9 @@ except Exception:
     HAS_G = False
 
 IGB = "https://graph.instagram.com/v23.0"
-
-# Configタブ内のトークン管理ブロック（衝突回避のため10行目以降を使用）
-TOK_CELL = "Config!B10"     # 現トークン
-EXP_CELL = "Config!B11"     # expires_in
-DATE_CELL = "Config!B12"    # 最終更新日
-REFRESH_EVERY_DAYS = 20     # 24h<…<60日 の安全圏で再更新
+UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) susabiyu-ig-bot/1.0"
+TOK_CELL = "Config!B10"; DATE_CELL = "Config!B12"
+REFRESH_EVERY_DAYS = 20
 
 def load_env():
     env = {}
@@ -38,6 +35,33 @@ TOKEN = ENV.get("IG_ACCESS_TOKEN", "")
 SHEET_ID = ENV.get("SHEET_ID", "")
 LINE_TOKEN = ENV.get("LINE_CHANNEL_TOKEN", "")
 
+def _u_catbox(path):
+    r = req.post("https://catbox.moe/user/api.php", data={"reqtype": "fileupload"},
+                 files={"fileToUpload": open(path, "rb")}, headers={"User-Agent": UA}, timeout=180)
+    return r.text.strip()
+
+def _u_0x0(path):
+    r = req.post("https://0x0.st", files={"file": open(path, "rb")},
+                 headers={"User-Agent": UA}, timeout=180)
+    return r.text.strip()
+
+def _u_tmpfiles(path):
+    r = req.post("https://tmpfiles.org/api/v1/upload", files={"file": open(path, "rb")},
+                 headers={"User-Agent": UA}, timeout=180)
+    u = r.json().get("data", {}).get("url", "")
+    return u.replace("://tmpfiles.org/", "://tmpfiles.org/dl/") if u else ""
+
+def up(path):
+    for name, fn in (("catbox", _u_catbox), ("0x0", _u_0x0), ("tmpfiles", _u_tmpfiles)):
+        try:
+            u = fn(path)
+        except Exception as e:
+            print("[UPLOAD] %s err: %s" % (name, e)); continue
+        if isinstance(u, str) and u.startswith("http"):
+            print("[UPLOAD] %s: %s" % (name, u)); return u
+        print("[UPLOAD] %s NG: %s" % (name, (u or "")[:80]))
+    raise SystemExit("アップロード失敗：全ホストでNG")
+
 def _sheets():
     if not HAS_G:
         return None
@@ -50,9 +74,19 @@ def _sheets():
         path = "creds.json"
     if not path:
         return None
-    cred = Credentials.from_service_account_file(
-        path, scopes=["https://www.googleapis.com/auth/spreadsheets"])
+    cred = Credentials.from_service_account_file(path, scopes=["https://www.googleapis.com/auth/spreadsheets"])
     return build("sheets", "v4", credentials=cred).spreadsheets()
+
+def _ensure_config(sh):
+    try:
+        meta = sh.get(spreadsheetId=SHEET_ID, fields="sheets.properties.title").execute()
+        titles = [s["properties"]["title"] for s in meta.get("sheets", [])]
+        if "Config" not in titles:
+            sh.batchUpdate(spreadsheetId=SHEET_ID,
+                body={"requests": [{"addSheet": {"properties": {"title": "Config"}}}]}).execute()
+            print("[TOKEN] Configタブを作成しました")
+    except Exception as e:
+        print("[TOKEN] Configタブ確認失敗:", e)
 
 def _cell(sh, rng):
     try:
@@ -69,6 +103,7 @@ def fresh_token():
     sh = _sheets()
     if not sh:
         return base
+    _ensure_config(sh)
     stored = _cell(sh, TOK_CELL)
     cur = stored or base
     if not cur:
@@ -95,22 +130,12 @@ def fresh_token():
         return cur
     try:
         today = datetime.date.today().strftime("%Y-%m-%d")
-        sh.values().update(
-            spreadsheetId=SHEET_ID, range="Config!A10:B12", valueInputOption="RAW",
-            body={"values": [["IG_TOKEN", new], ["EXPIRES_IN", exp], ["LAST_REFRESH", today]]}
-        ).execute()
+        sh.values().update(spreadsheetId=SHEET_ID, range="Config!A10:B12", valueInputOption="RAW",
+            body={"values": [["IG_TOKEN", new], ["EXPIRES_IN", exp], ["LAST_REFRESH", today]]}).execute()
         print("[TOKEN] 更新＆保存OK (expires_in=%s)" % exp)
     except Exception as e:
         print("[TOKEN] 書き戻し失敗（投稿は継続）:", e)
     return new
-
-def up(path):
-    r = req.post("https://catbox.moe/user/api.php",
-                 data={"reqtype": "fileupload"},
-                 files={"fileToUpload": open(path, "rb")})
-    url = r.text.strip()
-    print("[UPLOAD]", url)
-    return url
 
 def ig_post(token, url, is_video):
     B = IGB
@@ -120,8 +145,7 @@ def ig_post(token, url, is_video):
     key = "video_url" if is_video else "image_url"
     c = req.post(f"{B}/{uid}/media", data={key: url, "media_type": "STORIES", "access_token": token}).json()
     if "error" in c:
-        print("[POST] ERROR:", c["error"])
-        return False
+        print("[POST] ERROR:", c["error"]); return False
     cid = c["id"]
     for _ in range(30):
         s = req.get(f"{B}/{cid}", params={"fields": "status_code", "access_token": token}).json()
@@ -129,12 +153,12 @@ def ig_post(token, url, is_video):
         if sc == "FINISHED":
             break
         if sc == "ERROR":
-            print("[POST] status error")
-            return False
+            print("[POST] status error"); return False
         time.sleep(5)
     p = req.post(f"{B}/{uid}/media_publish", data={"creation_id": cid, "access_token": token}).json()
-    print("[POST] done!", p.get("id"))
-    return True
+    if "error" in p:
+        print("[POST] publish ERROR:", p["error"]); return False
+    print("[POST] done!", p.get("id")); return True
 
 def line_notify(text):
     if not LINE_TOKEN:
@@ -150,8 +174,7 @@ def line_notify(text):
 def post(media, is_video, phrase=""):
     token = fresh_token()
     if not token:
-        print("NG: IG_ACCESS_TOKEN が見つかりません（../.env を確認）")
-        return False
+        print("NG: IG_ACCESS_TOKEN が見つかりません（../.env を確認）"); return False
     url = up(media)
     ok = ig_post(token, url, is_video)
     if ok:
@@ -161,7 +184,6 @@ def post(media, is_video, phrase=""):
 
 if __name__ == "__main__":
     if len(sys.argv) < 2:
-        print("使い方: python poster.py out\\post.png")
-        raise SystemExit
+        print("使い方: python poster.py out\\post.png"); raise SystemExit
     m = sys.argv[1]
     post(m, m.lower().endswith(".mp4"), "テスト投稿")
