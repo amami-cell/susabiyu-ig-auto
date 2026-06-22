@@ -1,0 +1,15 @@
+﻿node_modules/
+out/
+creds.json
+.env
+public/photos/
+public/simple.jpg
+public/photostory.jpg
+public/tempo/
+public/typo/
+public/music/
+*.bak
+*.100bak
+*.simplebak
+small_images.txt
+line_message.txt

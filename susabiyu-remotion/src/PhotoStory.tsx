@@ -1,0 +1,59 @@
+﻿import { AbsoluteFill, Img, staticFile, useCurrentFrame, interpolate } from "remotion";
+import { loadFont } from "@remotion/google-fonts/YujiSyuku";
+import { photoStoryPhoto, photoStoryCaption, photoStoryHasLogo } from "./photoStoryData";
+
+const { fontFamily: brush } = loadFont();
+
+export const PhotoStory: React.FC<{ handle?: string }> = ({ handle = "@susabiyu_sanjyo" }) => {
+  const frame = useCurrentFrame();
+  const scale = interpolate(frame, [0, 150], [1.0, 1.06], { extrapolateRight: "clamp" });
+  const src = staticFile(photoStoryPhoto);
+  return (
+    <AbsoluteFill style={{ backgroundColor: "#000" }}>
+      <AbsoluteFill>
+        <Img src={src} style={{ width: "100%", height: "100%", objectFit: "cover", transform: "scale(" + scale + ")" }} />
+      </AbsoluteFill>
+      <AbsoluteFill
+        style={{
+          background:
+            "linear-gradient(180deg, rgba(0,0,0,0.45) 0%, rgba(0,0,0,0) 22%, rgba(0,0,0,0) 55%, rgba(0,0,0,0.88) 100%)",
+        }}
+      />
+      {photoStoryHasLogo ? (
+        <Img
+          src={staticFile("logo.png")}
+          style={{ position: "absolute", top: 70, right: 60, height: 120, width: "auto", objectFit: "contain", opacity: 0.85 }}
+        />
+      ) : null}
+      <div style={{ position: "absolute", bottom: 235, width: "100%", textAlign: "center", padding: "0 70px" }}>
+        <div
+          style={{
+            color: "#fff",
+            fontFamily: brush,
+            fontSize: 64,
+            letterSpacing: 6,
+            lineHeight: 1.5,
+            textShadow: "0 2px 24px rgba(0,0,0,0.95), 0 0 50px rgba(0,0,0,0.6)",
+          }}
+        >
+          {photoStoryCaption}
+        </div>
+      </div>
+      <div
+        style={{
+          position: "absolute",
+          bottom: 155,
+          width: "100%",
+          textAlign: "center",
+          color: "rgba(255,255,255,0.85)",
+          fontFamily: brush,
+          fontSize: 28,
+          letterSpacing: 4,
+          textShadow: "0 2px 12px rgba(0,0,0,0.9)",
+        }}
+      >
+        {handle}
+      </div>
+    </AbsoluteFill>
+  );
+};
