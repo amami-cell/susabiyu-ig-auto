@@ -5,7 +5,6 @@ import poster
 
 DRY = os.environ.get("DRY") == "1"
 
-# pattern -> (fetchスクリプト, render/still, Remotion合成ID, 出力, 動画か)
 REG = {
     "sushi":   ("fetch_drive_photos.py", "render", "SushiStory",  "out/post.mp4", True),
     "tempo":   ("fetch_tempo.py",        "render", "TempoStory",  "out/post.mp4", True),
@@ -61,7 +60,9 @@ def main():
     if DRY:
         print("(DRY中につき投稿はスキップ)")
         return
-    poster.post(media, is_video, "")
+    ok = poster.post(media, is_video, "", dec.get("slot", ""), pattern)
+    if not ok:
+        raise SystemExit("投稿失敗（アップロード/トークン/IGのいずれか）。ログを確認してください。")
 
 if __name__ == "__main__":
     main()
