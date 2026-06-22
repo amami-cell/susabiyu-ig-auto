@@ -99,9 +99,11 @@ def _cell(sh, rng):
 def fresh_token():
     base = TOKEN
     if not (HAS_G and SHEET_ID):
+        print("[TOKEN] シート未接続のため環境変数トークンを使用")
         return base
     sh = _sheets()
     if not sh:
+        print("[TOKEN] 認証情報なしのため環境変数トークンを使用")
         return base
     _ensure_config(sh)
     stored = _cell(sh, TOK_CELL)
@@ -109,14 +111,16 @@ def fresh_token():
     if not cur:
         return base
     last = _cell(sh, DATE_CELL)
-    need = True
+    age = None
     if last:
         try:
             d = datetime.datetime.strptime(last, "%Y-%m-%d").date()
-            need = (datetime.date.today() - d).days >= REFRESH_EVERY_DAYS
+            age = (datetime.date.today() - d).days
         except Exception:
-            need = True
-    if not need:
+            age = None
+    if age is not None and age < REFRESH_EVERY_DAYS:
+        print("[TOKEN] 保存済みトークンを使用（前回更新 %s / %d日経過 / 残り%d日で再更新）"
+              % (last, age, REFRESH_EVERY_DAYS - age))
         return cur
     new = None; exp = ""
     for url in (IGB + "/refresh_access_token", "https://graph.instagram.com/refresh_access_token"):
@@ -127,6 +131,7 @@ def fresh_token():
         if rr.get("access_token"):
             new = rr["access_token"]; exp = str(rr.get("expires_in", "")); break
     if not new:
+        print("[TOKEN] 更新スキップ（現トークン継続使用）")
         return cur
     try:
         today = datetime.date.today().strftime("%Y-%m-%d")
