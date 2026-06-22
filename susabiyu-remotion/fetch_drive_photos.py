@@ -93,6 +93,8 @@ print("全%d枚中 / 短辺%dpx以上: %d枚" % (len(allimg), MIN_SIDE, len(big)
 if big:
     allimg = big
 
+import usage
+allimg = usage.prefer(allimg, creds_path) or allimg
 by_cat = defaultdict(list)
 for im in allimg:
     by_cat[im["cat"]].append(im)
@@ -113,6 +115,7 @@ while len(picked) < N:
     if not progressed:
         break
 
+usage.record(creds_path, picked, "sushi")
 os.makedirs(OUT, exist_ok=True)
 for old in glob.glob(os.path.join(OUT, "*")):
     try:

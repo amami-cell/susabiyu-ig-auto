@@ -79,7 +79,10 @@ if not imgs:
 big = [f for f in imgs if short_side(f) >= MIN_SIDE]
 print("全%d枚中 / 短辺%dpx以上: %d枚" % (len(imgs), MIN_SIDE, len(big)))
 pool = big if big else sorted(imgs, key=short_side, reverse=True)[:1]
+import usage
+pool = usage.prefer(pool, creds_path) or pool
 pick = random.choice(pool)
+usage.record(creds_path, [pick], "photo")
 print("選択:", pick["name"], "(短辺", short_side(pick), "px)")
 
 req = drive.files().get_media(fileId=pick["id"])

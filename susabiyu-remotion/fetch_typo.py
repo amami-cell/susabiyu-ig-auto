@@ -69,6 +69,8 @@ if not cats:
     print("NG: 条件を満たす画像が見つかりません。")
     raise SystemExit
 
+import usage
+cats = usage.prefer_cats(cats, creds_path) or cats
 names = list(cats.keys())
 random.shuffle(names)
 for k in cats:
@@ -81,6 +83,7 @@ while len(picked) < N_PHOTOS and any(cats[k] for k in names):
         picked.append(cats[k].pop())
     i += 1
 
+usage.record(creds_path, picked, "typo")
 os.makedirs(OUT_DIR, exist_ok=True)
 items = []
 for idx, f in enumerate(picked):
