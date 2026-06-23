@@ -83,6 +83,9 @@ while len(picked) < N_PHOTOS and any(cats[k] for k in names):
         picked.append(cats[k].pop())
     i += 1
 
+_fx = [x for x in os.environ.get("FIXED_IDS", "").split(",") if x]
+if _fx:
+    picked = [drive.files().get(fileId=_i, fields="id,name,mimeType,imageMediaMetadata(width,height),createdTime", supportsAllDrives=True).execute() for _i in _fx]
 usage.record(creds_path, picked, "tempo")
 os.makedirs(OUT_DIR, exist_ok=True)
 items = []
@@ -111,6 +114,11 @@ print("MUSIC:", music)
 def esc(s):
     return s.replace("\\", "\\\\").replace('"', '\\"')
 
+import json as _pj, os as _po
+_po.makedirs("out", exist_ok=True)
+_pj.dump({"ids": [f["id"] for f in picked], "caption": "", "music": music}, open(_po.path.join("out", "picked.json"), "w", encoding="utf-8"), ensure_ascii=False)
+print("PICKED ->", "out/picked.json")
+music = os.environ.get("FIXED_MUSIC") or music
 lines = ["export const tempoPhotos = ["]
 for it in items:
     lines.append('  { src: "%s", caption: "%s" },' % (esc(it["src"]), esc(it["caption"])))

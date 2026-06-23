@@ -35,9 +35,10 @@ def plan_day(d, open_hour):
     """その日の3枠を日付シードでランダム割り当て。最低1回は動画を保証。"""
     slots = [open_hour, 18, 20]
     rng = random.Random(d.strftime("%Y%m%d"))
-    plan = {s: rng.choice(ALL) for s in slots}
-    if not any(plan[s] in VIDEO for s in slots):
-        plan[rng.choice(slots)] = rng.choice(VIDEO)
+    video_slot = rng.choice(slots)
+    plan = {}
+    for s in slots:
+        plan[s] = rng.choice(VIDEO) if s == video_slot else rng.choice(STILL)
     return slots, plan
 
 def decide(dt):

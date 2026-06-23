@@ -1,6 +1,6 @@
 ﻿import { AbsoluteFill, Img, staticFile } from "remotion";
 import { loadFont } from "@remotion/google-fonts/YujiSyuku";
-import { simplePhoto, simplePhrase, simpleHasLogo } from "./simpleData";
+import { simplePhoto, simplePhrase, simpleHasLogo, simpleW, simpleH } from "./simpleData";
 
 const { fontFamily: brush } = loadFont();
 
@@ -13,6 +13,12 @@ export const SimpleStory: React.FC<{ storeName?: string; handle?: string }> = ({
   handle = "@susabiyu_sanjyo",
 }) => {
   const src = staticFile(simplePhoto);
+  const FRAME_W = 1000;
+  const SAFE_H = 1052;
+  let dispScale = (simpleW > 0 && simpleH > 0) ? Math.min(FRAME_W / simpleW, SAFE_H / simpleH) : 0;
+  if (dispScale > 1.25) dispScale = 1.25;
+  const dispW = dispScale > 0 ? Math.round(simpleW * dispScale) : FRAME_W;
+  const dispH = dispScale > 0 ? Math.round(simpleH * dispScale) : undefined;
   return (
     <AbsoluteFill style={{ backgroundColor: BG }}>
       <AbsoluteFill>
@@ -37,18 +43,18 @@ export const SimpleStory: React.FC<{ storeName?: string; handle?: string }> = ({
       <div
         style={{
           position: "absolute",
-          top: 230,
+          top: 250,
           width: "100%",
           display: "flex",
           flexDirection: "column",
           alignItems: "center",
-          gap: 16,
+          gap: 10,
         }}
       >
         {simpleHasLogo ? (
-          <Img src={staticFile("logo.png")} style={{ height: 140, width: "auto", maxWidth: 440, objectFit: "contain" }} />
+          <Img src={staticFile("logo.png")} style={{ width: 70, height: "auto", objectFit: "contain" }} />
         ) : null}
-        <div style={{ color: GOLD, fontFamily: brush, fontSize: 40, letterSpacing: 10, textShadow: "0 2px 12px rgba(0,0,0,0.85)" }}>
+        <div style={{ color: GOLD, fontFamily: brush, fontSize: 32, letterSpacing: 8, textShadow: "0 2px 12px rgba(0,0,0,0.85)" }}>
           {storeName}
         </div>
       </div>
@@ -63,7 +69,7 @@ export const SimpleStory: React.FC<{ storeName?: string; handle?: string }> = ({
             lineHeight: 0,
           }}
         >
-          <Img src={src} style={{ display: "block", maxWidth: 1080 - M * 2, maxHeight: 1040, width: "auto", height: "auto" }} />
+          <Img src={src} style={{ display: "block", width: dispW, height: dispH, maxWidth: FRAME_W, maxHeight: SAFE_H }} />
         </div>
       </AbsoluteFill>
 

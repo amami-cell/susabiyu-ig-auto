@@ -81,7 +81,11 @@ print("全%d枚中 / 短辺%dpx以上: %d枚" % (len(imgs), MIN_SIDE, len(big)))
 pool = big if big else sorted(imgs, key=short_side, reverse=True)[:1]
 import usage
 pool = usage.prefer(pool, creds_path) or pool
-pick = random.choice(pool)
+_fx = [x for x in os.environ.get("FIXED_IDS", "").split(",") if x]
+if _fx:
+    pick = drive.files().get(fileId=_fx[0], fields="id,name,mimeType,imageMediaMetadata(width,height)", supportsAllDrives=True).execute()
+else:
+    pick = random.choice(pool)
 usage.record(creds_path, [pick], "photo")
 print("選択:", pick["name"], "(短辺", short_side(pick), "px)")
 
@@ -95,8 +99,13 @@ buf.close()
 print("PHOTO:", pick["name"], "-> public/photostory.jpg")
 
 phrases = json.load(open("phrases.json", encoding="utf-8"))
-phrase = random.choice(phrases)
+phrase = os.environ.get("FIXED_CAPTION") or random.choice(phrases)
 print("PHRASE:", phrase)
+import json as _pj, os as _po
+_po.makedirs("out", exist_ok=True)
+_pj.dump({"ids": [pick["id"]], "caption": phrase, "music": ""}, open(_po.path.join("out", "picked.json"), "w", encoding="utf-8"), ensure_ascii=False)
+print("PICKED ->", "out/picked.json")
+
 
 has_logo = os.path.exists(os.path.join("public", "logo.png"))
 

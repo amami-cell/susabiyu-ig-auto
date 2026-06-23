@@ -115,7 +115,15 @@ while len(picked) < N:
     if not progressed:
         break
 
+_fx = [x for x in os.environ.get("FIXED_IDS", "").split(",") if x]
+if _fx:
+    picked = [drive.files().get(fileId=_i, fields="id,name,mimeType,imageMediaMetadata(width,height),createdTime", supportsAllDrives=True).execute() for _i in _fx]
 usage.record(creds_path, picked, "sushi")
+import json as _pj, os as _po
+_po.makedirs("out", exist_ok=True)
+_pj.dump({"ids": [f["id"] for f in picked], "caption": "", "music": ""}, open(_po.path.join("out", "picked.json"), "w", encoding="utf-8"), ensure_ascii=False)
+print("PICKED ->", "out/picked.json")
+
 os.makedirs(OUT, exist_ok=True)
 for old in glob.glob(os.path.join(OUT, "*")):
     try:

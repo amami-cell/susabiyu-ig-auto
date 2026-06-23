@@ -1,7 +1,8 @@
-import os, io, glob, json, sys, random
+﻿import os, io, glob, json, sys, random
 
 FOOD_FOLDER = "14oKNgdXee2NrI7Dkmbrlbid4f0_VZ5Cv"
 OUT = os.path.join("public", "simple.jpg")
+MIN_SIDE = 1000
 
 try:
     from google.oauth2 import service_account
@@ -29,7 +30,7 @@ def find_creds():
 
 creds_path = sys.argv[1] if len(sys.argv) > 1 and os.path.exists(sys.argv[1]) else find_creds()
 if not creds_path:
-    print("NG: 認証JSON未指定。 python fetch_simple.py \"C:\\...\\infomart_automation.json\"")
+    print("NG: 認証JSON未指定。")
     raise SystemExit
 
 scopes = ["https://www.googleapis.com/auth/drive.readonly"]
@@ -49,7 +50,7 @@ def gather(root_id):
         while True:
             res = drive.files().list(
                 q="'%s' in parents and trashed=false" % fid,
-                fields="nextPageToken, files(id,name,mimeType)",
+                fields="nextPageToken, files(id,name,mimeType,imageMediaMetadata(width,height))",
                 pageSize=100, pageToken=page,
                 supportsAllDrives=True, includeItemsFromAllDrives=True,
             ).execute()
@@ -64,11 +65,29 @@ def gather(root_id):
                 break
     return images
 
+def short_side(f):
+    m = f.get("imageMediaMetadata") or {}
+    w = m.get("width", 0) or 0
+    h = m.get("height", 0) or 0
+    return min(w, h)
+
 imgs = gather(FOOD_FOLDER)
 if not imgs:
     print("NG: 画像が見つかりません。")
     raise SystemExit
-pick = random.choice(imgs)
+
+big = [f for f in imgs if short_side(f) >= MIN_SIDE]
+print("全%d枚中 / 短辺%dpx以上: %d枚" % (len(imgs), MIN_SIDE, len(big)))
+pool = big if big else sorted(imgs, key=short_side, reverse=True)[:1]
+import usage
+pool = usage.prefer(pool, creds_path) or pool
+_fx = [x for x in os.environ.get("FIXED_IDS", "").split(",") if x]
+if _fx:
+    pick = drive.files().get(fileId=_fx[0], fields="id,name,mimeType,imageMediaMetadata(width,height)", supportsAllDrives=True).execute()
+else:
+    pick = random.choice(pool)
+usage.record(creds_path, [pick], "simple")
+print("選択:", pick["name"], "(短辺", short_side(pick), "px)")
 
 req = drive.files().get_media(fileId=pick["id"])
 buf = io.FileIO(OUT, "wb")
@@ -79,10 +98,26 @@ while not done:
 buf.close()
 print("PHOTO:", pick["name"], "-> public/simple.jpg")
 
-# 決め言葉をランダム選択
 phrases = json.load(open("phrases.json", encoding="utf-8"))
-phrase = random.choice(phrases)
+phrase = os.environ.get("FIXED_CAPTION") or random.choice(phrases)
 print("PHRASE:", phrase)
+import json as _pj, os as _po
+_po.makedirs("out", exist_ok=True)
+_pj.dump({"ids": [pick["id"]], "caption": phrase, "music": ""}, open(_po.path.join("out", "picked.json"), "w", encoding="utf-8"), ensure_ascii=False)
+print("PICKED ->", "out/picked.json")
+
+
+_meta = pick.get("imageMediaMetadata") or {}
+pw = int(_meta.get("width") or 0)
+pph = int(_meta.get("height") or 0)
+if pw <= 0 or pph <= 0:
+    try:
+        from PIL import Image as _I
+        with _I.open(OUT) as _im:
+            pw, pph = _im.size
+    except Exception:
+        pw, pph = 0, 0
+print("DIM:", pw, "x", pph)
 
 has_logo = os.path.exists(os.path.join("public", "logo.png"))
 
@@ -91,6 +126,8 @@ ts = (
     'export const simplePhoto = "simple.jpg";\n'
     'export const simplePhrase = "%s";\n'
     'export const simpleHasLogo = %s;\n'
-) % (ph, "true" if has_logo else "false")
+    'export const simpleW = %d;\n'
+    'export const simpleH = %d;\n'
+) % (ph, "true" if has_logo else "false", pw, pph)
 open(os.path.join("src", "simpleData.ts"), "w", encoding="utf-8").write(ts)
 print("src/simpleData.ts 書き出し完了。 logo:", has_logo)
