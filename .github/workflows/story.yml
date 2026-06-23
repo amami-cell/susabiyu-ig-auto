@@ -1,23 +1,36 @@
-name: Auto Story Post
+﻿name: susabiyu-ig-story
 on:
   schedule:
-    - cron: '0 1 * * *'
-    - cron: '0 10 * * *'
-    - cron: '0 12 * * *'
+    - cron: '0 2 * * *'
+    - cron: '0 7 * * *'
+    - cron: '0 9 * * *'
+    - cron: '0 11 * * *'
   workflow_dispatch: {}
 jobs:
   post:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: susabiyu-remotion
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-      - name: Install FFmpeg
-        run: sudo apt-get update && sudo apt-get install -y ffmpeg fonts-noto-cjk
-      - name: Install deps
-        run: pip install google-api-python-client google-auth requests
+      - name: Install Chrome for Remotion
+        run: npx remotion browser ensure
+      - name: Install Python deps
+        run: pip install google-api-python-client google-auth requests jpholiday Pillow
+      - name: Install Node deps
+        run: npm ci
+      - name: Write creds.json
+        run: echo "$GOOGLE_CREDS_B64" | base64 -d > creds.json
+        env:
+          GOOGLE_CREDS_B64: ${{ secrets.GOOGLE_CREDS_B64 }}
       - name: Run
         env:
           GOOGLE_CREDS_B64: ${{ secrets.GOOGLE_CREDS_B64 }}
@@ -28,4 +41,4 @@ jobs:
           GENRE_INTERIOR_ID: ${{ secrets.GENRE_INTERIOR_ID }}
           GENRE_EVENT_ID: ${{ secrets.GENRE_EVENT_ID }}
           LINE_CHANNEL_TOKEN: ${{ secrets.LINE_CHANNEL_TOKEN }}
-        run: python auto_story_cloud.py
+        run: python run_post.py
