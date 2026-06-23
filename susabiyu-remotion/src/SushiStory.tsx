@@ -1,4 +1,4 @@
-import {
+﻿import {
   AbsoluteFill,
   Audio,
   Img,
@@ -103,21 +103,21 @@ const Slide: React.FC<{ src: string; caption: string }> = ({ src, caption }) => 
       <AbsoluteFill style={{ justifyContent: "center", alignItems: "center" }}>
         <div
           style={{
-            width: 1080 - MARGIN * 2,
-            height: 1040,
             borderRadius: 12,
             overflow: "hidden",
             border: "1px solid rgba(212,165,116,0.35)",
             boxShadow: "0 24px 70px rgba(0,0,0,0.6)",
+            lineHeight: 0,
           }}
         >
           <Img
             src={src}
             style={{
-              width: "100%",
-              height: "100%",
-              objectFit: "cover",
-              transform: `translateX(${drift}px) scale(${scale})`,
+              display: "block",
+              maxWidth: 1080 - MARGIN * 2,
+              maxHeight: 1040,
+              width: "auto",
+              height: "auto",
             }}
           />
         </div>

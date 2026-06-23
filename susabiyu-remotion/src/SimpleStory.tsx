@@ -1,4 +1,4 @@
-import { AbsoluteFill, Img, staticFile } from "remotion";
+﻿import { AbsoluteFill, Img, staticFile } from "remotion";
 import { loadFont } from "@remotion/google-fonts/YujiSyuku";
 import { simplePhoto, simplePhrase, simpleHasLogo } from "./simpleData";
 
@@ -56,15 +56,14 @@ export const SimpleStory: React.FC<{ storeName?: string; handle?: string }> = ({
       <AbsoluteFill style={{ justifyContent: "center", alignItems: "center" }}>
         <div
           style={{
-            width: 1080 - M * 2,
-            height: 1000,
             borderRadius: 14,
             overflow: "hidden",
             border: "1px solid rgba(212,165,116,0.4)",
             boxShadow: "0 24px 70px rgba(0,0,0,0.6)",
+            lineHeight: 0,
           }}
         >
-          <Img src={src} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+          <Img src={src} style={{ display: "block", maxWidth: 1080 - M * 2, maxHeight: 1040, width: "auto", height: "auto" }} />
         </div>
       </AbsoluteFill>
 

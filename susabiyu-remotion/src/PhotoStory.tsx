@@ -6,12 +6,18 @@ const { fontFamily: brush } = loadFont();
 
 export const PhotoStory: React.FC<{ handle?: string }> = ({ handle = "@susabiyu_sanjyo" }) => {
   const frame = useCurrentFrame();
-  const scale = interpolate(frame, [0, 150], [1.0, 1.06], { extrapolateRight: "clamp" });
+  const bgScale = interpolate(frame, [0, 150], [1.15, 1.22], { extrapolateRight: "clamp" });
   const src = staticFile(photoStoryPhoto);
   return (
     <AbsoluteFill style={{ backgroundColor: "#000" }}>
       <AbsoluteFill>
-        <Img src={src} style={{ width: "100%", height: "100%", objectFit: "cover", transform: "scale(" + scale + ")" }} />
+        <Img
+          src={src}
+          style={{ width: "100%", height: "100%", objectFit: "cover", filter: "blur(45px) brightness(0.5)", transform: "scale(" + bgScale + ")" }}
+        />
+      </AbsoluteFill>
+      <AbsoluteFill style={{ justifyContent: "center", alignItems: "center" }}>
+        <Img src={src} style={{ width: "100%", height: "100%", objectFit: "contain" }} />
       </AbsoluteFill>
       <AbsoluteFill
         style={{

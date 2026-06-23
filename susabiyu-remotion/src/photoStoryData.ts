@@ -1,3 +1,3 @@
 export const photoStoryPhoto = "photostory.jpg";
-export const photoStoryCaption = "季節は、握りで味わう。";
+export const photoStoryCaption = "夜の止まり木、開けてます。";
 export const photoStoryHasLogo = true;
