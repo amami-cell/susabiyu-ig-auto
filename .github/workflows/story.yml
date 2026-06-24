@@ -11,6 +11,10 @@ on:
         description: "DRY (generate only, no posting). 1=on"
         required: false
         default: "0"
+      at:
+        description: "Test time JST e.g. 2026-06-24 18:00 (empty=now)"
+        required: false
+        default: ""
 jobs:
   post:
     runs-on: ubuntu-latest
@@ -45,4 +49,4 @@ jobs:
           GENRE_EVENT_ID: ${{ secrets.GENRE_EVENT_ID }}
           LINE_CHANNEL_TOKEN: ${{ secrets.LINE_CHANNEL_TOKEN }}
           DRY: ${{ github.event.inputs.dry }}
-        run: python run_post.py
+        run: python run_post.py creds.json ${{ github.event.inputs.at }}
