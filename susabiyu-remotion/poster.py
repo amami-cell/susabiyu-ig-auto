@@ -59,7 +59,7 @@ def _u_0x0(path):
     return r.text.strip()
 
 def up(path):
-    for name, fn in (("tmpfiles", _u_tmpfiles), ("catbox", _u_catbox), ("0x0", _u_0x0)):
+    for name, fn in (("catbox", _u_catbox), ("tmpfiles", _u_tmpfiles), ("0x0", _u_0x0)):
         try:
             u = fn(path)
         except Exception as e:
@@ -220,4 +220,4 @@ if __name__ == "__main__":
     if len(sys.argv) < 2:
         print("使い方: python poster.py out\\post.png"); raise SystemExit
     m = sys.argv[1]
-    post(m, m.lower().endswith(".mp4"), "テスト投稿", "test", "manual")
+    post(m, m.lower().endswith(".mp4"), "テスト投稿", "test", "manual")
