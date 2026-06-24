@@ -1,45 +1,44 @@
 ﻿name: susabiyu-prepare
-
 on:
+  schedule:
+    - cron: '0 0 * * *'
   workflow_dispatch:
     inputs:
       date:
-        description: "対象日 例 2026-06-25 (空=今日+2日)"
+        description: "Target date JST e.g. 2026-06-26 (empty=2 days ahead)"
         required: false
         default: ""
-
 jobs:
   prepare:
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
     defaults:
       run:
         working-directory: susabiyu-remotion
     steps:
       - uses: actions/checkout@v4
-
       - uses: actions/setup-node@v4
         with:
-          node-version: "20"
-
+          node-version: '20'
       - uses: actions/setup-python@v5
         with:
-          python-version: "3.12"
-
-      - name: Chromium libs
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y libnss3 libdbus-1-3 libatk1.0-0 libatk-bridge2.0-0 libcups2 libdrm2 libxkbcommon0 libxcomposite1 libxdamage1 libxfixes3 libxrandr2 libgbm1 libasound2 libpango-1.0-0 libcairo2 fonts-noto-cjk
-
-      - name: Python deps
-        run: pip install google-api-python-client google-auth jpholiday requests Pillow
-
-      - name: Node deps
-        run: npm ci || npm install
-
+          python-version: '3.12'
+      - name: Install Python deps
+        run: pip install google-api-python-client google-auth requests jpholiday Pillow
+      - name: Install Node deps
+        run: npm ci
+      - name: Write creds.json
+        run: echo "$GOOGLE_CREDS_B64" | base64 -d > creds.json
+        env:
+          GOOGLE_CREDS_B64: ${{ secrets.GOOGLE_CREDS_B64 }}
       - name: Run prepare
         env:
           GOOGLE_CREDS_B64: ${{ secrets.GOOGLE_CREDS_B64 }}
           IG_ACCESS_TOKEN: ${{ secrets.IG_ACCESS_TOKEN }}
           SHEET_ID: ${{ secrets.SHEET_ID }}
+          GENRE_FOOD_ID: ${{ secrets.GENRE_FOOD_ID }}
+          GENRE_SAKE_ID: ${{ secrets.GENRE_SAKE_ID }}
+          GENRE_INTERIOR_ID: ${{ secrets.GENRE_INTERIOR_ID }}
+          GENRE_EVENT_ID: ${{ secrets.GENRE_EVENT_ID }}
           LINE_CHANNEL_TOKEN: ${{ secrets.LINE_CHANNEL_TOKEN }}
-        run: python prepare.py "" "${{ github.event.inputs.date }}"
+        run: python prepare.py creds.json "${{ github.event.inputs.date }}"
