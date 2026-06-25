@@ -37,5 +37,7 @@ jobs:
           GENRE_SAKE_ID: ${{ secrets.GENRE_SAKE_ID }}
           GENRE_INTERIOR_ID: ${{ secrets.GENRE_INTERIOR_ID }}
           GENRE_EVENT_ID: ${{ secrets.GENRE_EVENT_ID }}
+          GENRE_MUSIC_UPTEMPO_ID: ${{ secrets.GENRE_MUSIC_UPTEMPO_ID }}
+          GENRE_MUSIC_NORMAL_ID: ${{ secrets.GENRE_MUSIC_NORMAL_ID }}
           LINE_CHANNEL_TOKEN: ${{ secrets.LINE_CHANNEL_TOKEN }}
         run: python post_approved.py creds.json "${{ github.event.inputs.datetime }}"

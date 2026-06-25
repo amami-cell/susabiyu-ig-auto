@@ -37,6 +37,31 @@ scopes = ["https://www.googleapis.com/auth/drive.readonly"]
 creds = service_account.Credentials.from_service_account_file(creds_path, scopes=scopes)
 drive = build("drive", "v3", credentials=creds)
 
+import io as _io_ms
+from googleapiclient.http import MediaIoBaseDownload as _MIBD_ms
+def sync_music_from_drive(folder_id, local_dir):
+    if not folder_id:
+        return
+    try:
+        os.makedirs(local_dir, exist_ok=True)
+        for f in list_children(folder_id):
+            name = f.get("name", "")
+            if not name.lower().endswith((".mp3", ".m4a", ".wav")):
+                continue
+            dest = os.path.join(local_dir, name)
+            if os.path.exists(dest):
+                continue
+            req = drive.files().get_media(fileId=f["id"])
+            buf = _io_ms.FileIO(dest, "wb")
+            dl = _MIBD_ms(buf, req)
+            done = False
+            while not done:
+                _, done = dl.next_chunk()
+            buf.close()
+            print("[MUSIC DL]", name)
+    except Exception as e:
+        print("[MUSIC] sync skip:", e)
+
 def list_children(fid):
     out = []
     page = None
@@ -108,6 +133,7 @@ headline = os.environ.get("FIXED_CAPTION") or random.choice(phrases)
 print("HEADLINE:", headline)
 
 cands = ["bgm.mp3"]
+sync_music_from_drive(os.environ.get("GENRE_MUSIC_NORMAL_ID"), NORMAL_DIR)
 if os.path.isdir(NORMAL_DIR):
     cands += ["music/normal/" + t for t in os.listdir(NORMAL_DIR)
               if t.lower().endswith((".mp3", ".m4a", ".wav"))]
