@@ -1,0 +1,73 @@
+name: susabiyu-music-verify
+on:
+  push:
+    branches:
+      - claude/epic-maxwell-mj7dkg
+    paths:
+      - '.github/workflows/music_verify.yml'
+jobs:
+  music-verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: susabiyu-remotion
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install Python deps
+        run: pip install google-api-python-client google-auth requests jpholiday Pillow
+      - name: Write creds.json
+        run: echo "$GOOGLE_CREDS_B64" | base64 -d > creds.json
+        env:
+          GOOGLE_CREDS_B64: ${{ secrets.GOOGLE_CREDS_B64 }}
+      - name: Diagnose Drive music folders
+        env:
+          GENRE_MUSIC_UPTEMPO_ID: ${{ secrets.GENRE_MUSIC_UPTEMPO_ID }}
+          GENRE_MUSIC_NORMAL_ID: ${{ secrets.GENRE_MUSIC_NORMAL_ID }}
+        run: |
+          python - <<'PY'
+          import os
+          from google.oauth2 import service_account
+          from googleapiclient.discovery import build
+          scopes = ["https://www.googleapis.com/auth/drive.readonly"]
+          creds = service_account.Credentials.from_service_account_file("creds.json", scopes=scopes)
+          drive = build("drive", "v3", credentials=creds)
+          def children(fid):
+              out=[]; page=None
+              while True:
+                  r=drive.files().list(q="'%s' in parents and trashed=false"%fid,
+                      fields="nextPageToken, files(id,name,mimeType)", pageSize=100,
+                      pageToken=page, supportsAllDrives=True, includeItemsFromAllDrives=True).execute()
+                  out+=r.get("files",[]); page=r.get("nextPageToken")
+                  if not page: break
+              return out
+          for label, fid in [("UPTEMPO", os.environ.get("GENRE_MUSIC_UPTEMPO_ID")),
+                             ("NORMAL", os.environ.get("GENRE_MUSIC_NORMAL_ID"))]:
+              kids = children(fid) if fid else []
+              print("[DIAG] %s children: %d" % (label, len(kids)))
+              for k in kids:
+                  print("   -", k["name"], "|", k["mimeType"])
+          PY
+      - name: Clear committed local music (force real Drive download)
+        run: rm -rf public/music/uptempo public/music/normal
+      - name: Fetch tempo (uptempo music from Drive)
+        env:
+          GOOGLE_CREDS_B64: ${{ secrets.GOOGLE_CREDS_B64 }}
+          GENRE_MUSIC_UPTEMPO_ID: ${{ secrets.GENRE_MUSIC_UPTEMPO_ID }}
+          GENRE_MUSIC_NORMAL_ID: ${{ secrets.GENRE_MUSIC_NORMAL_ID }}
+        run: python fetch_tempo.py creds.json
+      - name: Fetch typo (normal music from Drive)
+        env:
+          GOOGLE_CREDS_B64: ${{ secrets.GOOGLE_CREDS_B64 }}
+          GENRE_MUSIC_UPTEMPO_ID: ${{ secrets.GENRE_MUSIC_UPTEMPO_ID }}
+          GENRE_MUSIC_NORMAL_ID: ${{ secrets.GENRE_MUSIC_NORMAL_ID }}
+        run: python fetch_typo.py creds.json
+      - name: Show downloaded music
+        run: |
+          echo "=== public/music/uptempo ==="
+          ls -la public/music/uptempo || true
+          echo "=== public/music/normal ==="
+          ls -la public/music/normal || true
