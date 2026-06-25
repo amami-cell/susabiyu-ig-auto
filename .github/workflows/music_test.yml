@@ -1,0 +1,39 @@
+name: susabiyu-music-test
+on:
+  workflow_dispatch: {}
+jobs:
+  music-test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: susabiyu-remotion
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install Python deps
+        run: pip install google-api-python-client google-auth requests jpholiday Pillow
+      - name: Write creds.json
+        run: echo "$GOOGLE_CREDS_B64" | base64 -d > creds.json
+        env:
+          GOOGLE_CREDS_B64: ${{ secrets.GOOGLE_CREDS_B64 }}
+      - name: Fetch tempo (uptempo music from Drive)
+        env:
+          GOOGLE_CREDS_B64: ${{ secrets.GOOGLE_CREDS_B64 }}
+          GENRE_MUSIC_UPTEMPO_ID: ${{ secrets.GENRE_MUSIC_UPTEMPO_ID }}
+          GENRE_MUSIC_NORMAL_ID: ${{ secrets.GENRE_MUSIC_NORMAL_ID }}
+        run: python fetch_tempo.py creds.json
+      - name: Fetch typo (normal music from Drive)
+        env:
+          GOOGLE_CREDS_B64: ${{ secrets.GOOGLE_CREDS_B64 }}
+          GENRE_MUSIC_UPTEMPO_ID: ${{ secrets.GENRE_MUSIC_UPTEMPO_ID }}
+          GENRE_MUSIC_NORMAL_ID: ${{ secrets.GENRE_MUSIC_NORMAL_ID }}
+        run: python fetch_typo.py creds.json
+      - name: Show downloaded music
+        run: |
+          echo "=== public/music/uptempo ==="
+          ls -la public/music/uptempo || true
+          echo "=== public/music/normal ==="
+          ls -la public/music/normal || true
