@@ -72,7 +72,7 @@ def main():
     creds = ""
     args = [a for a in sys.argv[1:] if a.strip()]
     if args and args[0].lower().endswith(".json"):
-        creds = args[0]
+        creds = args[0]; args = args[1:]
     if not creds and os.environ.get("GOOGLE_CREDS_B64"):
         open("creds.json", "wb").write(base64.b64decode(os.environ["GOOGLE_CREDS_B64"]))
         creds = "creds.json"
@@ -87,6 +87,12 @@ def main():
 
     today = datetime.datetime.now(JST).date()
     target = today + datetime.timedelta(days=2)
+    if args:
+        try:
+            target = datetime.date.fromisoformat(args[0][:10])
+            print("指定日を使用:", target)
+        except Exception:
+            print("日付形式が不正のため実行日+2日を使用:", args[0])
     hol, kind = day_kind(target)
     open_hour = 11 if hol else 16
     slots = [open_hour, 18, 20]
