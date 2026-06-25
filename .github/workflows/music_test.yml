@@ -1,6 +1,10 @@
 name: susabiyu-music-test
 on:
-  workflow_dispatch: {}
+  push:
+    branches:
+      - claude/epic-maxwell-mj7dkg
+    paths:
+      - '.github/workflows/music_test.yml'
 jobs:
   music-test:
     runs-on: ubuntu-latest
