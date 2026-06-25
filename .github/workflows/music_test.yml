@@ -23,6 +23,8 @@ jobs:
         run: echo "$GOOGLE_CREDS_B64" | base64 -d > creds.json
         env:
           GOOGLE_CREDS_B64: ${{ secrets.GOOGLE_CREDS_B64 }}
+      - name: Clear committed local music (force real Drive download)
+        run: rm -rf public/music/uptempo public/music/normal
       - name: Fetch tempo (uptempo music from Drive)
         env:
           GOOGLE_CREDS_B64: ${{ secrets.GOOGLE_CREDS_B64 }}
