@@ -85,7 +85,13 @@ def regenerate(creds, dt):
         picked_json = open(os.path.join("out", "picked.json"), encoding="utf-8").read()
     except Exception:
         pass
-    uri = thumb_data_uri(comp, is_video)
+    if is_video:
+        try:
+            uri = poster.up("out/post.mp4") or thumb_data_uri(comp, is_video)
+        except Exception:
+            uri = thumb_data_uri(comp, is_video)
+    else:
+        uri = thumb_data_uri(comp, is_video)
     cap = caption_of(pattern)
     return pattern, uri, cap, picked_json
 
