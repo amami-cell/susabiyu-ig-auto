@@ -1,15 +1,25 @@
-﻿import { AbsoluteFill, Img, staticFile, useCurrentFrame, interpolate } from "remotion";
+﻿import { AbsoluteFill, Img, Audio, staticFile, useCurrentFrame, useVideoConfig, interpolate } from "remotion";
 import { loadFont } from "@remotion/google-fonts/YujiSyuku";
-import { photoStoryPhoto, photoStoryCaption, photoStoryHasLogo } from "./photoStoryData";
+import { photoStoryPhoto, photoStoryCaption, photoStoryHasLogo, photoStoryMusic } from "./photoStoryData";
 
 const { fontFamily: brush } = loadFont();
 
 export const PhotoStory: React.FC<{ handle?: string }> = ({ handle = "@susabiyu_sanjyo" }) => {
   const frame = useCurrentFrame();
+  const { durationInFrames } = useVideoConfig();
   const bgScale = interpolate(frame, [0, 150], [1.15, 1.22], { extrapolateRight: "clamp" });
   const src = staticFile(photoStoryPhoto);
   return (
     <AbsoluteFill style={{ backgroundColor: "#000" }}>
+      <Audio
+        src={staticFile(photoStoryMusic)}
+        volume={(f) =>
+          interpolate(f, [0, 20, durationInFrames - 30, durationInFrames], [0, 0.5, 0.5, 0], {
+            extrapolateLeft: "clamp",
+            extrapolateRight: "clamp",
+          })
+        }
+      />
       <AbsoluteFill>
         <Img
           src={src}

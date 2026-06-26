@@ -1,4 +1,4 @@
-﻿import os, io, glob, json, sys
+﻿import os, io, glob, json, sys, random
 from collections import defaultdict
 
 FOOD_FOLDER = "14oKNgdXee2NrI7Dkmbrlbid4f0_VZ5Cv"
@@ -40,6 +40,51 @@ print("creds:", creds_path)
 scopes = ["https://www.googleapis.com/auth/drive.readonly"]
 creds = service_account.Credentials.from_service_account_file(creds_path, scopes=scopes)
 drive = build("drive", "v3", credentials=creds)
+
+NORMAL_DIR = os.path.join("public", "music", "normal")
+def _music_children(fid):
+    out = []
+    page = None
+    while True:
+        res = drive.files().list(q="'%s' in parents and trashed=false" % fid,
+            fields="nextPageToken, files(id,name)", pageSize=100, pageToken=page,
+            supportsAllDrives=True, includeItemsFromAllDrives=True).execute()
+        out += res.get("files", [])
+        page = res.get("nextPageToken")
+        if not page:
+            break
+    return out
+def sync_music_from_drive(folder_id, local_dir):
+    if not folder_id:
+        return
+    try:
+        os.makedirs(local_dir, exist_ok=True)
+        for f in _music_children(folder_id):
+            name = f.get("name", "")
+            if not name.lower().endswith((".mp3", ".m4a", ".wav")):
+                continue
+            dest = os.path.join(local_dir, name)
+            if os.path.exists(dest):
+                continue
+            req = drive.files().get_media(fileId=f["id"])
+            buf = io.FileIO(dest, "wb")
+            dl = MediaIoBaseDownload(buf, req)
+            done = False
+            while not done:
+                _, done = dl.next_chunk()
+            buf.close()
+            print("[MUSIC DL]", name)
+    except Exception as e:
+        print("[MUSIC] sync skip:", e)
+def pick_music():
+    music = "bgm.mp3"
+    sync_music_from_drive(os.environ.get("GENRE_MUSIC_NORMAL_ID"), NORMAL_DIR)
+    if os.path.isdir(NORMAL_DIR):
+        tracks = [t for t in os.listdir(NORMAL_DIR)
+                  if t.lower().endswith((".mp3", ".m4a", ".wav"))]
+        if tracks:
+            music = "music/normal/" + random.choice(tracks)
+    return os.environ.get("FIXED_MUSIC") or music
 
 def gather(root_id):
     images = []
@@ -119,9 +164,11 @@ _fx = [x for x in os.environ.get("FIXED_IDS", "").split(",") if x]
 if _fx:
     picked = [drive.files().get(fileId=_i, fields="id,name,mimeType,imageMediaMetadata(width,height),createdTime", supportsAllDrives=True).execute() for _i in _fx]
 usage.record(creds_path, picked, "sushi")
+music = pick_music()
+print("MUSIC:", music)
 import json as _pj, os as _po
 _po.makedirs("out", exist_ok=True)
-_pj.dump({"ids": [f["id"] for f in picked], "caption": "", "music": ""}, open(_po.path.join("out", "picked.json"), "w", encoding="utf-8"), ensure_ascii=False)
+_pj.dump({"ids": [f["id"] for f in picked], "caption": "", "music": music}, open(_po.path.join("out", "picked.json"), "w", encoding="utf-8"), ensure_ascii=False)
 print("PICKED ->", "out/picked.json")
 
 os.makedirs(OUT, exist_ok=True)
@@ -166,6 +213,8 @@ for src, cap in entries:
     lines.append('  { src: "%s", caption: "%s" },' % (src, cap2))
 lines.append("];")
 lines.append("export const hasLogo: boolean = %s;" % ("true" if has_logo else "false"))
+_m = music.replace("\\", "\\\\").replace('"', '\\"')
+lines.append('export const sushiMusic = "%s";' % _m)
 open(os.path.join("src", "photoData.ts"), "w", encoding="utf-8").write("\n".join(lines) + "\n")
 
 print("完了:", len(entries), "枚（カテゴリ分散・短辺%dpx以上）。 logo: %s" % (MIN_SIDE, has_logo))
