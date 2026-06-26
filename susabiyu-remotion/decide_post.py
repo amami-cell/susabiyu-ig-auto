@@ -31,14 +31,31 @@ def day_kind(d):
         return True, "祝日"
     return False, "平日"
 
+def _video_for_day(d):
+    """動画4種をなるべく均等に。4日ごとに全種が1回ずつ出る（ブロック内はシャッフル順）。
+    日付で決まるのでprepare/postで一致し、再実行しても同じ結果になる。"""
+    o = d.toordinal()
+    def order(b):
+        r = random.Random("vblock-%d" % b)
+        L = list(VIDEO)
+        r.shuffle(L)
+        return L
+    cur = order(o // 4)
+    # ブロック境界で前日と同じ動画にならないよう、先頭が前ブロック末尾と同じなら1つ回す
+    if cur[0] == order(o // 4 - 1)[3]:
+        cur = cur[1:] + cur[:1]
+    return cur[o % 4]
+
+
 def plan_day(d, open_hour):
-    """その日の3枠を日付シードでランダム割り当て。最低1回は動画を保証。"""
+    """その日の3枠を割り当て。動画は4種を均等に回す。静止画は日付シードでランダム。最低1回は動画。"""
     slots = [open_hour, 18, 20]
     rng = random.Random(d.strftime("%Y%m%d"))
     video_slot = rng.choice(slots)
+    vpat = _video_for_day(d)
     plan = {}
     for s in slots:
-        plan[s] = rng.choice(VIDEO) if s == video_slot else rng.choice(STILL)
+        plan[s] = vpat if s == video_slot else rng.choice(STILL)
     return slots, plan
 
 def decide(dt):
