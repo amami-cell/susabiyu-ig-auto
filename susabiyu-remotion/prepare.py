@@ -102,10 +102,22 @@ def main():
         raise SystemExit("シート接続に失敗（creds.json を確認）。")
     poster._ensure_tab(sh, APP_TAB)
     os.makedirs("out", exist_ok=True)
+    existing_when = set()
+    try:
+        _rows = sh.values().get(spreadsheetId=SHEET_ID, range=APP_TAB + "!A:B").execute().get("values", [])
+        for _r in _rows[1:]:
+            if len(_r) > 1 and str(_r[1]).strip():
+                existing_when.add(str(_r[1]).strip()[:16])
+        print("既存枠数:", len(existing_when))
+    except Exception as _e:
+        print("既存行の取得に失敗（重複チェックなしで続行）:", _e)
 
     made = []
     for hour in slots:
         dt = datetime.datetime(target.year, target.month, target.day, hour, 0, tzinfo=JST)
+        if dt.strftime("%Y-%m-%d %H:%M") in existing_when:
+            print("既存のためスキップ:", dt.strftime("%Y-%m-%d %H:%M"))
+            continue
         dec = decide(dt)
         pattern = dec["pattern"]
         fetch, comp, is_video = REG[pattern]
@@ -133,6 +145,9 @@ def main():
         print("[承認待ち] 登録:", token, pattern, "| サムネ", len(uri), "文字 |", cap)
         made.append((hour, PAT_JA.get(pattern, pattern), cap))
 
+    if not made:
+        print("対象日 %s は全枠が既に登録済み。新規登録もLINE通知もせずスキップしました。" % target)
+        return
     appurl = poster._cell(sh, "Config!B14")
     lines = ["【%d/%d(%s) 投稿の事前確認】" % (target.month, target.day, kind)]
     for hour, patja, cap in made:
@@ -140,7 +155,7 @@ def main():
     lines += ["", "確認・操作はこちら↓", appurl,
               "※各投稿の10分前まで操作可。無反応なら予定どおり自動投稿します。"]
     poster.line_notify("\n".join(lines))
-    print("完了: %s ぶん 3枠を承認待ちに登録しました。" % target)
+    print("完了: %s ぶん %d枠を承認待ちに登録しました。" % (target, len(made)))
 
 if __name__ == "__main__":
     main()
