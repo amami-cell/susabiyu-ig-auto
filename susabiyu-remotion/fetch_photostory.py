@@ -37,6 +37,51 @@ scopes = ["https://www.googleapis.com/auth/drive.readonly"]
 creds = service_account.Credentials.from_service_account_file(creds_path, scopes=scopes)
 drive = build("drive", "v3", credentials=creds)
 
+NORMAL_DIR = os.path.join("public", "music", "normal")
+def _music_children(fid):
+    out = []
+    page = None
+    while True:
+        res = drive.files().list(q="'%s' in parents and trashed=false" % fid,
+            fields="nextPageToken, files(id,name)", pageSize=100, pageToken=page,
+            supportsAllDrives=True, includeItemsFromAllDrives=True).execute()
+        out += res.get("files", [])
+        page = res.get("nextPageToken")
+        if not page:
+            break
+    return out
+def sync_music_from_drive(folder_id, local_dir):
+    if not folder_id:
+        return
+    try:
+        os.makedirs(local_dir, exist_ok=True)
+        for f in _music_children(folder_id):
+            name = f.get("name", "")
+            if not name.lower().endswith((".mp3", ".m4a", ".wav")):
+                continue
+            dest = os.path.join(local_dir, name)
+            if os.path.exists(dest):
+                continue
+            req = drive.files().get_media(fileId=f["id"])
+            buf = io.FileIO(dest, "wb")
+            dl = MediaIoBaseDownload(buf, req)
+            done = False
+            while not done:
+                _, done = dl.next_chunk()
+            buf.close()
+            print("[MUSIC DL]", name)
+    except Exception as e:
+        print("[MUSIC] sync skip:", e)
+def pick_music():
+    music = "bgm.mp3"
+    sync_music_from_drive(os.environ.get("GENRE_MUSIC_NORMAL_ID"), NORMAL_DIR)
+    if os.path.isdir(NORMAL_DIR):
+        tracks = [t for t in os.listdir(NORMAL_DIR)
+                  if t.lower().endswith((".mp3", ".m4a", ".wav"))]
+        if tracks:
+            music = "music/normal/" + random.choice(tracks)
+    return os.environ.get("FIXED_MUSIC") or music
+
 def gather(root_id):
     images = []
     stack = [root_id]
@@ -101,19 +146,23 @@ print("PHOTO:", pick["name"], "-> public/photostory.jpg")
 phrases = json.load(open("phrases.json", encoding="utf-8"))
 phrase = os.environ.get("FIXED_CAPTION") or random.choice(phrases)
 print("PHRASE:", phrase)
+music = pick_music()
+print("MUSIC:", music)
 import json as _pj, os as _po
 _po.makedirs("out", exist_ok=True)
-_pj.dump({"ids": [pick["id"]], "caption": phrase, "music": ""}, open(_po.path.join("out", "picked.json"), "w", encoding="utf-8"), ensure_ascii=False)
+_pj.dump({"ids": [pick["id"]], "caption": phrase, "music": music}, open(_po.path.join("out", "picked.json"), "w", encoding="utf-8"), ensure_ascii=False)
 print("PICKED ->", "out/picked.json")
 
 
 has_logo = os.path.exists(os.path.join("public", "logo.png"))
 
 ph = phrase.replace("\\", "\\\\").replace('"', '\\"')
+_m = music.replace("\\", "\\\\").replace('"', '\\"')
 ts = (
     'export const photoStoryPhoto = "photostory.jpg";\n'
     'export const photoStoryCaption = "%s";\n'
     'export const photoStoryHasLogo = %s;\n'
-) % (ph, "true" if has_logo else "false")
+    'export const photoStoryMusic = "%s";\n'
+) % (ph, "true" if has_logo else "false", _m)
 open(os.path.join("src", "photoStoryData.ts"), "w", encoding="utf-8").write(ts)
 print("src/photoStoryData.ts 書き出し完了。 logo:", has_logo)

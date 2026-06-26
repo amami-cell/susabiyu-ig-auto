@@ -10,7 +10,7 @@
   useVideoConfig,
 } from "remotion";
 import { loadFont } from "@remotion/google-fonts/YujiSyuku";
-import { photos, hasLogo } from "./photoData";
+import { photos, hasLogo, sushiMusic } from "./photoData";
 
 const { fontFamily: brush } = loadFont();
 
@@ -242,7 +242,7 @@ export const SushiStory: React.FC<{ storeName?: string; handle?: string }> = ({
   return (
     <AbsoluteFill style={{ backgroundColor: BG }}>
       <Audio
-        src={staticFile("bgm.mp3")}
+        src={staticFile(sushiMusic)}
         volume={(f) =>
           interpolate(f, [0, 28, durationInFrames - 45, durationInFrames], [0, 0.5, 0.5, 0], {
             extrapolateLeft: "clamp",

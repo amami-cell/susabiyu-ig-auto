@@ -6,3 +6,4 @@ export const photos: { src: string; caption: string }[] = [
   { src: "photos/05.jpg", caption: "寿司穴子" },
 ];
 export const hasLogo: boolean = true;
+export const sushiMusic = "bgm.mp3";
