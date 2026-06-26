@@ -39,7 +39,25 @@ def caption_of(pattern):
     m = re.search(r'export const ' + var + r'\s*=\s*"((?:[^"\\]|\\.)*)"', txt)
     return m.group(1).replace('\\"', '"').replace('\\\\', '\\') if m else ""
 
+def _blur_uri(png):
+    """極小ぼかしプレースホルダ（即時表示用のデータ・URI）。
+    約32px・1KB弱なのでセル上限内に収まり、ネット待ちゼロで即表示できる。
+    本体のフル解像度は別途読み込むので鮮明度は一切落ちない。"""
+    try:
+        from PIL import Image as _ImgB
+        im = _ImgB.open(png).convert("RGB")
+        w = 32
+        h = max(1, int(im.height * (w / im.width)))
+        im = im.resize((w, h))
+        b = io.BytesIO()
+        im.save(b, format="JPEG", quality=40)
+        return "data:image/jpeg;base64," + base64.b64encode(b.getvalue()).decode()
+    except Exception as e:
+        print("[BLUR] 生成失敗:", e)
+        return ""
+
 def thumb_data_uri(comp, is_video):
+    """(本体URL, ぼかしデータ・URI) を返す。本体はフル解像度のまま。"""
     png = "out/thumb.png"
     if os.path.exists(png):
         os.remove(png)
@@ -47,6 +65,7 @@ def thumb_data_uri(comp, is_video):
         run("npx remotion still " + comp + " " + png + " --frame 45 --scale 1.0 --timeout 120000")
     else:
         run("npx remotion still " + comp + " " + png + " --scale 1.0 --timeout 120000")
+    blur = _blur_uri(png)  # 先に即時表示用のぼかしを作る
     # 画像をアップロードしてURLを返す（セル50k上限回避・鮮明）
     try:
         _up = png
@@ -59,7 +78,7 @@ def thumb_data_uri(comp, is_video):
             print("[THUMB] JPEG変換失敗(PNGで続行):", _je)
         u = poster.up(_up)
         if u:
-            return u
+            return u, blur
     except Exception as e:
         print("[THUMB UP] 失敗:", e)
     # フォールバック：base64（控えめサイズでセル上限内）
@@ -71,10 +90,10 @@ def thumb_data_uri(comp, is_video):
         img = img.resize((w, h))
         buf = io.BytesIO()
         img.save(buf, format="JPEG", quality=65)
-        return "data:image/jpeg;base64," + base64.b64encode(buf.getvalue()).decode()
+        return "data:image/jpeg;base64," + base64.b64encode(buf.getvalue()).decode(), blur
     except Exception as e:
         print("[THUMB] 生成失敗:", e)
-        return ""
+        return "", blur
 
 def main():
     creds = ""
@@ -136,26 +155,29 @@ def main():
         except Exception:
             pass
         poster_uri = ""
+        blur = ""
         if is_video:
             run("npx remotion render " + comp + " out/post.mp4 --crf 26 --timeout 120000 --concurrency 1")
+            # ポスター静止画＋ぼかしを同じフレームから生成（先出し用）
             try:
-                uri = poster.up("out/post.mp4") or thumb_data_uri(comp, is_video)
+                poster_uri, blur = thumb_data_uri(comp, True)
             except Exception:
-                uri = thumb_data_uri(comp, is_video)
+                poster_uri, blur = "", ""
             try:
-                poster_uri = thumb_data_uri(comp, True)
+                mp4u = poster.up("out/post.mp4")
             except Exception:
-                poster_uri = ""
+                mp4u = ""
+            uri = mp4u or poster_uri  # 動画が上がらなければポスター静止画で代替
         else:
-            uri = thumb_data_uri(comp, is_video)
-        cap = caption_of(pattern)
-        token = "P" + dt.strftime("%Y%m%d%H") + "_" + pattern
-        when = dt.strftime("%Y-%m-%d %H:%M")
-        kindstr = "still"
-        sh.values().append(spreadsheetId=SHEET_ID, range=APP_TAB + "!A:L",
-            valueInputOption="RAW", insertDataOption="INSERT_ROWS",
-            body={"values": [[token, when, dec["slot"], pattern, uri, cap, kindstr, "pending", "", picked_json, "", poster_uri]]}).execute()
-        print("[承認待ち] 登録:", token, pattern, "| サムネ", len(uri), "文字 |", cap)
+            uri, blur = thumb_data_uri(comp, is_video)
+        cap = caption_of(pattern)
+        token = "P" + dt.strftime("%Y%m%d%H") + "_" + pattern
+        when = dt.strftime("%Y-%m-%d %H:%M")
+        kindstr = "still"
+        sh.values().append(spreadsheetId=SHEET_ID, range=APP_TAB + "!A:M",
+            valueInputOption="RAW", insertDataOption="INSERT_ROWS",
+            body={"values": [[token, when, dec["slot"], pattern, uri, cap, kindstr, "pending", "", picked_json, "", poster_uri, blur]]}).execute()
+        print("[承認待ち] 登録:", token, pattern, "| サムネ", len(uri), "文字 | blur", len(blur), "|", cap)
         made.append((hour, PAT_JA.get(pattern, pattern), cap))
 
     if not made:
