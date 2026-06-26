@@ -135,21 +135,26 @@ def main():
             picked_json = open(os.path.join("out", "picked.json"), encoding="utf-8").read()
         except Exception:
             pass
+        poster_uri = ""
         if is_video:
             run("npx remotion render " + comp + " out/post.mp4 --crf 26 --timeout 120000 --concurrency 1")
             try:
                 uri = poster.up("out/post.mp4") or thumb_data_uri(comp, is_video)
             except Exception:
                 uri = thumb_data_uri(comp, is_video)
+            try:
+                poster_uri = thumb_data_uri(comp, True)
+            except Exception:
+                poster_uri = ""
         else:
             uri = thumb_data_uri(comp, is_video)
         cap = caption_of(pattern)
         token = "P" + dt.strftime("%Y%m%d%H") + "_" + pattern
         when = dt.strftime("%Y-%m-%d %H:%M")
         kindstr = "still"
-        sh.values().append(spreadsheetId=SHEET_ID, range=APP_TAB + "!A:J",
+        sh.values().append(spreadsheetId=SHEET_ID, range=APP_TAB + "!A:L",
             valueInputOption="RAW", insertDataOption="INSERT_ROWS",
-            body={"values": [[token, when, dec["slot"], pattern, uri, cap, kindstr, "pending", "", picked_json]]}).execute()
+            body={"values": [[token, when, dec["slot"], pattern, uri, cap, kindstr, "pending", "", picked_json, "", poster_uri]]}).execute()
         print("[承認待ち] 登録:", token, pattern, "| サムネ", len(uri), "文字 |", cap)
         made.append((hour, PAT_JA.get(pattern, pattern), cap))
 
