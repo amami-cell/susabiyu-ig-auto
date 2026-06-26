@@ -1,6 +1,7 @@
 ﻿import { AbsoluteFill, Img, staticFile } from "remotion";
 import { loadFont } from "@remotion/google-fonts/YujiSyuku";
 import { simplePhoto, simplePhrase, simpleHasLogo, simpleW, simpleH } from "./simpleData";
+import { oneLineFont } from "./fit";
 
 const { fontFamily: brush } = loadFont();
 
@@ -89,10 +90,11 @@ export const SimpleStory: React.FC<{ storeName?: string; handle?: string }> = ({
           style={{
             color: "#fff",
             fontFamily: brush,
-            fontSize: 58,
+            fontSize: oneLineFont(simplePhrase, 940, 58, 4, 28),
             letterSpacing: 4,
             textAlign: "center",
-            lineHeight: 1.5,
+            whiteSpace: "nowrap",
+            lineHeight: 1.25,
             textShadow: "0 2px 22px rgba(0,0,0,0.9), 0 0 40px rgba(212,165,116,0.25)",
           }}
         >

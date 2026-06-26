@@ -1,6 +1,7 @@
 ﻿import { AbsoluteFill, Img, Audio, staticFile, useCurrentFrame, useVideoConfig, interpolate } from "remotion";
 import { loadFont } from "@remotion/google-fonts/YujiSyuku";
 import { photoStoryPhoto, photoStoryCaption, photoStoryHasLogo, photoStoryMusic } from "./photoStoryData";
+import { oneLineFont } from "./fit";
 
 const { fontFamily: brush } = loadFont();
 
@@ -46,9 +47,10 @@ export const PhotoStory: React.FC<{ handle?: string }> = ({ handle = "@susabiyu_
           style={{
             color: "#fff",
             fontFamily: brush,
-            fontSize: 64,
+            fontSize: oneLineFont(photoStoryCaption, 940, 64, 6, 30),
             letterSpacing: 6,
-            lineHeight: 1.5,
+            whiteSpace: "nowrap",
+            lineHeight: 1.25,
             textShadow: "0 2px 24px rgba(0,0,0,0.95), 0 0 50px rgba(0,0,0,0.6)",
           }}
         >
