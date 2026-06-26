@@ -47,8 +47,8 @@ def get_redo_count(row):
         return 0
 
 
-def update_preview_row(sh, rownum, pattern, uri, cap, picked_json, redo_count):
-    # E(\u30d7\u30ec\u30d3\u30e5\u30fc)=uri, F(caption)=cap, D(pattern)=pattern, J(picked_json), H=pending, I=now, K=redo_count
+def update_preview_row(sh, rownum, pattern, uri, cap, picked_json, redo_count, poster_uri="", blur=""):
+    # E(\u30d7\u30ec\u30d3\u30e5\u30fc)=uri, F(caption)=cap, D(pattern)=pattern, J(picked_json), H=pending, I=now, K=redo_count, L=poster, M=blur
     now = datetime.datetime.now(JST).strftime("%Y-%m-%d %H:%M")
     # D\u5217 pattern
     sh.values().update(spreadsheetId=SHEET_ID, range="%s!D%d" % (APP_TAB, rownum),
@@ -65,6 +65,9 @@ def update_preview_row(sh, rownum, pattern, uri, cap, picked_json, redo_count):
     # K redo_count
     sh.values().update(spreadsheetId=SHEET_ID, range="%s!K%d" % (APP_TAB, rownum),
         valueInputOption="RAW", body={"values": [[redo_count]]}).execute()
+    # L:M \u30dd\u30b9\u30bf\u30fc\u3068\u3076\u304b\u3057\uff08\u4f5c\u308a\u76f4\u3057\u5f8c\u3082\u5373\u6642\u8868\u793a\u3092\u6700\u65b0\u5316\uff09
+    sh.values().update(spreadsheetId=SHEET_ID, range="%s!L%d:M%d" % (APP_TAB, rownum, rownum),
+        valueInputOption="RAW", body={"values": [[poster_uri, blur]]}).execute()
 
 
 def regenerate(creds, dt):
@@ -85,15 +88,23 @@ def regenerate(creds, dt):
         picked_json = open(os.path.join("out", "picked.json"), encoding="utf-8").read()
     except Exception:
         pass
+    poster_uri = ""
+    blur = ""
     if is_video:
+        # ポスター静止画＋ぼかしを生成（先出し＆即時表示用）
         try:
-            uri = poster.up("out/post.mp4") or thumb_data_uri(comp, is_video)
+            poster_uri, blur = thumb_data_uri(comp, True)
         except Exception:
-            uri = thumb_data_uri(comp, is_video)
+            poster_uri, blur = "", ""
+        try:
+            mp4u = poster.up("out/post.mp4")
+        except Exception:
+            mp4u = ""
+        uri = mp4u or poster_uri  # 動画が上がらなければポスター静止画で代替
     else:
-        uri = thumb_data_uri(comp, is_video)
+        uri, blur = thumb_data_uri(comp, is_video)
     cap = caption_of(pattern)
-    return pattern, uri, cap, picked_json
+    return pattern, uri, cap, picked_json, blur, poster_uri
 
 
 def line_redo_notify(sh, dt, pattern, cap, redo_count):
@@ -187,8 +198,8 @@ def main():
             line_redo_limit_notify(sh, dt, pattern, col(5))
             print("\u4f5c\u308a\u76f4\u3057\u4e0a\u9650(%d) -> pending\u306b\u623b\u3057\u3066\u4e88\u5b9a\u6295\u7a3f" % MAX_REDO)
             return
-        new_pattern, uri, cap, new_picked = regenerate(creds, dt)
-        update_preview_row(sh, rownum, new_pattern, uri, cap, new_picked, redo_count + 1)
+        new_pattern, uri, cap, new_picked, new_blur, new_poster = regenerate(creds, dt)
+        update_preview_row(sh, rownum, new_pattern, uri, cap, new_picked, redo_count + 1, new_poster, new_blur)
         line_redo_notify(sh, dt, new_pattern, cap, redo_count + 1)
         print("\u4f5c\u308a\u76f4\u3057\u5b8c\u4e86 -> pending\u306b\u623b\u3057\u3066\u518d\u63d0\u6848 (%d/%d\u56de\u76ee, pattern=%s)" % (redo_count + 1, MAX_REDO, new_pattern))
         return
