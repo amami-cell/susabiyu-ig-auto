@@ -71,11 +71,17 @@ def thumb_data_uri(comp, is_video):
         _up = png
         try:
             from PIL import Image as _Img
-            _jpg = os.path.join("out", "thumb.jpg")
-            _Img.open(png).convert("RGB").save(_jpg, "JPEG", quality=92, optimize=True, progressive=True)
-            _up = _jpg
+            _src = _Img.open(png).convert("RGB")
+            try:
+                _wp = os.path.join("out", "thumb.webp")
+                _src.save(_wp, "WEBP", quality=92, method=6)  # フル解像度のまま・形式変更で軽量化（見た目同等）
+                _up = _wp
+            except Exception:
+                _jpg = os.path.join("out", "thumb.jpg")
+                _src.save(_jpg, "JPEG", quality=92, optimize=True, progressive=True)
+                _up = _jpg
         except Exception as _je:
-            print("[THUMB] JPEG変換失敗(PNGで続行):", _je)
+            print("[THUMB] 変換失敗(PNGで続行):", _je)
         u = poster.up(_up)
         if u:
             return u, blur
