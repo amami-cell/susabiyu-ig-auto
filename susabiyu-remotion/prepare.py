@@ -53,7 +53,7 @@ def thumb_data_uri(comp, is_video):
         try:
             from PIL import Image as _Img
             _jpg = os.path.join("out", "thumb.jpg")
-            _Img.open(png).convert("RGB").save(_jpg, "JPEG", quality=92)
+            _Img.open(png).convert("RGB").save(_jpg, "JPEG", quality=92, optimize=True, progressive=True)
             _up = _jpg
         except Exception as _je:
             print("[THUMB] JPEG変換失敗(PNGで続行):", _je)
@@ -136,7 +136,7 @@ def main():
         except Exception:
             pass
         if is_video:
-            run("npx remotion render " + comp + " out/post.mp4 --crf 23 --timeout 120000 --concurrency 1")
+            run("npx remotion render " + comp + " out/post.mp4 --crf 26 --timeout 120000 --concurrency 1")
             try:
                 uri = poster.up("out/post.mp4") or thumb_data_uri(comp, is_video)
             except Exception:
