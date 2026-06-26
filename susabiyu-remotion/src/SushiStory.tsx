@@ -11,6 +11,7 @@
 } from "remotion";
 import { loadFont } from "@remotion/google-fonts/YujiSyuku";
 import { photos, hasLogo, sushiMusic } from "./photoData";
+import { oneLineFont } from "./fit";
 
 const { fontFamily: brush } = loadFont();
 
@@ -136,7 +137,7 @@ const Slide: React.FC<{ src: string; caption: string }> = ({ src, caption }) => 
           }}
         >
           <div style={{ width: 56, height: 1, background: `linear-gradient(90deg, transparent, ${GOLD}, transparent)`, marginBottom: 22 }} />
-          <div style={{ color: "#fff", fontFamily: brush, fontSize: 62, letterSpacing: 6, textShadow: "0 2px 22px rgba(0,0,0,0.9)" }}>
+          <div style={{ color: "#fff", fontFamily: brush, fontSize: oneLineFont(caption, 980, 62, 6, 28), letterSpacing: 6, whiteSpace: "nowrap", textShadow: "0 2px 22px rgba(0,0,0,0.9)" }}>
             {caption}
           </div>
         </div>

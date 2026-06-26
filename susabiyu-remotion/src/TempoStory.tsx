@@ -1,6 +1,7 @@
 ﻿import { AbsoluteFill, Img, Audio, Sequence, staticFile, useCurrentFrame, interpolate, Easing } from "remotion";
 import { loadFont } from "@remotion/google-fonts/YujiSyuku";
 import { tempoPhotos, tempoMusic } from "./tempoData";
+import { oneLineFont } from "./fit";
 
 const { fontFamily: brush } = loadFont();
 const GOLD = "#d4a574";
@@ -28,7 +29,7 @@ const Slide: React.FC<{ src: string; caption: string }> = ({ src, caption }) => 
       <AbsoluteFill style={{ background: "linear-gradient(180deg, rgba(0,0,0,0) 62%, rgba(0,0,0,0.82) 100%)" }} />
       <div style={{ position: "absolute", bottom: 175, width: "100%", textAlign: "center", opacity: capO, transform: "translateY(" + capY + "px)" }}>
         <div style={{ display: "inline-block", backgroundColor: "rgba(20,11,7,0.78)", border: "2px solid " + GOLD, borderRadius: 14, padding: "12px 32px" }}>
-          <span style={{ color: "#fff", fontFamily: brush, fontSize: 50, letterSpacing: 4 }}>{caption}</span>
+          <span style={{ color: "#fff", fontFamily: brush, fontSize: oneLineFont(caption, 940, 50, 4, 26), letterSpacing: 4, whiteSpace: "nowrap" }}>{caption}</span>
         </div>
       </div>
     </AbsoluteFill>
