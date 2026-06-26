@@ -44,12 +44,20 @@ def thumb_data_uri(comp, is_video):
     if os.path.exists(png):
         os.remove(png)
     if is_video:
-        run("npx remotion still " + comp + " " + png + " --frame 45 --scale 1.0 --timeout 120000")
+        run("npx remotion still " + comp + " " + png + " --frame 45 --scale 0.6 --timeout 120000")
     else:
-        run("npx remotion still " + comp + " " + png + " --scale 1.0 --timeout 120000")
+        run("npx remotion still " + comp + " " + png + " --scale 0.6 --timeout 120000")
     # 画像をアップロードしてURLを返す（セル50k上限回避・鮮明）
     try:
-        u = poster.up(png)
+        _up = png
+        try:
+            from PIL import Image as _Img
+            _jpg = os.path.join("out", "thumb.jpg")
+            _Img.open(png).convert("RGB").save(_jpg, "JPEG", quality=72)
+            _up = _jpg
+        except Exception as _je:
+            print("[THUMB] JPEG変換失敗(PNGで続行):", _je)
+        u = poster.up(_up)
         if u:
             return u
     except Exception as e:
@@ -128,7 +136,7 @@ def main():
         except Exception:
             pass
         if is_video:
-            run("npx remotion render " + comp + " out/post.mp4 --crf 18 --timeout 120000 --concurrency 1")
+            run("npx remotion render " + comp + " out/post.mp4 --scale 0.5 --crf 28 --timeout 120000 --concurrency 1")
             try:
                 uri = poster.up("out/post.mp4") or thumb_data_uri(comp, is_video)
             except Exception:
