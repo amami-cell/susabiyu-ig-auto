@@ -98,7 +98,7 @@ def regenerate(creds, dt):
         except Exception:
             poster_uri, blur = "", ""
         try:
-            mp4u = poster.up("out/post.mp4")
+            mp4u = poster.up("out/post.mp4", cdn=True)
         except Exception:
             mp4u = ""
         uri = mp4u or poster_uri  # 動画が上がらなければポスター静止画で代替
