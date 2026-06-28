@@ -11,3 +11,13 @@ export function oneLineFont(
   const fit = (maxWidth - (n - 1) * letterSpacing) / (n * 1.06);
   return Math.max(minSize, Math.min(baseSize, Math.floor(fit)));
 }
+
+// 料理名の中の数字（半角0-9 / 全角０-９）を漢数字に置き換える。お品書きの体裁用。
+// 例: 「巻き寿司集合３」→「巻き寿司集合三」
+const _KMAP: Record<string, string> = {
+  "0": "〇", "1": "一", "2": "二", "3": "三", "4": "四", "5": "五", "6": "六", "7": "七", "8": "八", "9": "九",
+  "０": "〇", "１": "一", "２": "二", "３": "三", "４": "四", "５": "五", "６": "六", "７": "七", "８": "八", "９": "九",
+};
+export function kanjiNum(s: string): string {
+  return Array.from(s || "").map((c) => _KMAP[c] || c).join("");
+}

@@ -1,7 +1,7 @@
 import { AbsoluteFill, Img, Audio, staticFile, useCurrentFrame, interpolate, Easing } from "remotion";
 import { loadFont } from "@remotion/google-fonts/ShipporiMincho";
 import { typoPhotos, typoMusic } from "./typoData";
-import { oneLineFont } from "./fit";
+import { oneLineFont, kanjiNum } from "./fit";
 
 const { fontFamily: mincho } = loadFont();
 const PAPER = "#efe7d6";
@@ -56,7 +56,8 @@ const Reveal: React.FC<{ src: string; name: string; idx: number }> = ({ src, nam
   // 料理写真（名前のあとに出る）
   const phO = interpolate(t, [26, 46], [0, 1], clamp);
   const phS = interpolate(t, [26, 50], [0.9, 1], { ...clamp, easing: Easing.out(Easing.cubic) });
-  const fs = oneLineFont(name, 880, 86, 6, 46);
+  const disp = kanjiNum(name);
+  const fs = oneLineFont(disp, 880, 86, 6, 46);
   return (
     <AbsoluteFill style={{ opacity: all }}>
       {/* 何品目か */}
@@ -65,7 +66,7 @@ const Reveal: React.FC<{ src: string; name: string; idx: number }> = ({ src, nam
       </div>
       {/* 料理名（先） */}
       <div style={{ position: "absolute", top: 380, left: 0, width: "100%", textAlign: "center", opacity: nameO, transform: "translateY(" + nameY + "px)" }}>
-        <span style={{ color: INK, fontFamily: mincho, fontWeight: 600, fontSize: fs, letterSpacing: 6, whiteSpace: "nowrap" }}>{name}</span>
+        <span style={{ color: INK, fontFamily: mincho, fontWeight: 600, fontSize: fs, letterSpacing: 6, whiteSpace: "nowrap" }}>{disp}</span>
       </div>
       {/* 料理写真（後） */}
       <div style={{ position: "absolute", top: 560, left: "50%", width: 620, height: 620, marginLeft: -310, opacity: phO, transform: "scale(" + phS + ")" }}>
@@ -93,7 +94,8 @@ const FinalBoard: React.FC<{ storeName: string; handle: string }> = ({ storeName
         const rx = interpolate(t, [a, a + 16], [40, 0], { ...clamp, easing: Easing.out(Easing.cubic) });
         const cy = top + i * rh + rh / 2;
         const ph = Math.min(196, rh - 36);
-        const fs = oneLineFont(p.caption, 470, 50, 4, 30);
+        const nm = kanjiNum(p.caption);
+        const fs = oneLineFont(nm, 470, 50, 4, 30);
         return (
           <div key={i} style={{ position: "absolute", top: cy - rh / 2, left: 110, right: 110, height: rh, display: "flex", alignItems: "center", opacity: ro, transform: "translateX(" + rx + "px)" }}>
             <span style={{ color: SEAL, fontFamily: mincho, fontSize: 40, letterSpacing: 2, width: 56, textAlign: "center" }}>{KAN[i] || (i + 1)}</span>
@@ -101,7 +103,7 @@ const FinalBoard: React.FC<{ storeName: string; handle: string }> = ({ storeName
               <Img src={staticFile(p.src)} style={{ width: "100%", height: "100%", objectFit: "cover", border: "5px solid #fff", boxShadow: "0 10px 24px rgba(0,0,0,0.22)" }} />
             </div>
             <div style={{ flex: 1, marginLeft: 30, display: "flex", alignItems: "center" }}>
-              <span style={{ color: INK, fontFamily: mincho, fontWeight: 600, fontSize: fs, letterSpacing: 4, whiteSpace: "nowrap" }}>{p.caption}</span>
+              <span style={{ color: INK, fontFamily: mincho, fontWeight: 600, fontSize: fs, letterSpacing: 4, whiteSpace: "nowrap" }}>{nm}</span>
               <div style={{ flex: 1, borderBottom: "2px dotted rgba(42,36,28,0.3)", margin: "0 0 8px 18px" }} />
             </div>
           </div>
