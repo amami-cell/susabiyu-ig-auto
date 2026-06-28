@@ -66,8 +66,31 @@ def _u_litter(path, hours="72h"):
                  headers={"User-Agent": "Mozilla/5.0"}, timeout=120)
     return r.text.strip()
 
+def _u_r2(path):
+    """Cloudflare R2 にアップロードして公開CDN URLを返す（鍵が無ければ""=フォールバック）。
+    R2はS3互換。GitHub Secrets: R2_ACCOUNT_ID / R2_ACCESS_KEY_ID / R2_SECRET_ACCESS_KEY
+    / R2_BUCKET / R2_PUBLIC_BASE(例 https://pub-xxxx.r2.dev) を設定すると有効化される。"""
+    acct = os.environ.get("R2_ACCOUNT_ID"); kid = os.environ.get("R2_ACCESS_KEY_ID")
+    sec = os.environ.get("R2_SECRET_ACCESS_KEY"); bkt = os.environ.get("R2_BUCKET")
+    base = (os.environ.get("R2_PUBLIC_BASE") or "").rstrip("/")
+    if not (acct and kid and sec and bkt and base):
+        return ""  # 未設定: 使わない（従来ホストへフォールバック）
+    import boto3
+    from botocore.config import Config as _Cfg
+    ext = os.path.splitext(path)[1].lower()
+    ctype = {".jpg":"image/jpeg",".jpeg":"image/jpeg",".png":"image/png",
+             ".webp":"image/webp",".mp4":"video/mp4",".mov":"video/quicktime"}.get(ext,"application/octet-stream")
+    import random as _r
+    key = "preview/%s_%04d%s" % (datetime.datetime.now(JST).strftime("%Y%m%d%H%M%S"), _r.randint(0,9999), ext)
+    s3 = boto3.client("s3",
+        endpoint_url="https://%s.r2.cloudflarestorage.com" % acct,
+        aws_access_key_id=kid, aws_secret_access_key=sec,
+        region_name="auto", config=_Cfg(signature_version="s3v4"))
+    s3.upload_file(path, bkt, key, ExtraArgs={"ContentType": ctype})
+    return base + "/" + key
+
 def up(path):
-    for name, fn in (("litter", _u_litter), ("catbox", _u_catbox), ("tmpfiles", _u_tmpfiles), ("0x0", _u_0x0)):
+    for name, fn in (("r2", _u_r2), ("litter", _u_litter), ("catbox", _u_catbox), ("tmpfiles", _u_tmpfiles), ("0x0", _u_0x0)):
         try:
             u = fn(path)
         except Exception as e:
