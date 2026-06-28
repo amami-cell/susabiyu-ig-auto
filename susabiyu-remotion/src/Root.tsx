@@ -6,6 +6,9 @@ import { TempoStory } from "./TempoStory";
 import { TypoStory } from "./TypoStory";
 import { OshinaStory } from "./OshinaStory";
 import { OshinaTate } from "./OshinaTate";
+import { KaitenStory, KAITEN_DUR } from "./KaitenStory";
+import { OsusumeStory, OSUSUME_DUR } from "./OsusumeStory";
+import { GridZoom, GRIDZOOM_DUR } from "./GridZoom";
 import { photos } from "./photoData";
 import { tempoPhotos } from "./tempoData";
 import { typoPhotos } from "./typoData";
@@ -41,6 +44,9 @@ export const RemotionRoot: React.FC = () => {
       <Composition id="TypoStory" component={TypoStory} fps={FPS} width={1080} height={1920} durationInFrames={ydur} defaultProps={{ storeName: STORE, handle: "@susabiyu_sanjyo" }} />
       <Composition id="OshinaStory" component={OshinaStory} fps={FPS} width={1080} height={1920} durationInFrames={oshDur} defaultProps={{ storeName: STORE, handle: "@susabiyu_sanjyo" }} />
       <Composition id="OshinaTate" component={OshinaTate} fps={FPS} width={1080} height={1920} durationInFrames={oshtDur} defaultProps={{ storeName: STORE, handle: "@susabiyu_sanjyo" }} />
+      <Composition id="KaitenStory" component={KaitenStory} fps={FPS} width={1080} height={1920} durationInFrames={KAITEN_DUR} defaultProps={{ storeName: STORE, handle: "@susabiyu_sanjyo" }} />
+      <Composition id="OsusumeStory" component={OsusumeStory} fps={FPS} width={1080} height={1920} durationInFrames={OSUSUME_DUR} defaultProps={{ storeName: STORE, handle: "@susabiyu_sanjyo" }} />
+      <Composition id="GridZoom" component={GridZoom} fps={FPS} width={1080} height={1920} durationInFrames={GRIDZOOM_DUR} defaultProps={{ storeName: STORE, handle: "@susabiyu_sanjyo" }} />
     </>
   );
 };
