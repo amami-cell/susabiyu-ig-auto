@@ -76,7 +76,7 @@ def thumb_data_uri(comp, is_video):
             _up = _jpg
         except Exception as _je:
             print("[THUMB] JPEG変換失敗(PNGで続行):", _je)
-        u = poster.up(_up)
+        u = poster.up(_up, cdn=True)
         if u:
             return u, blur
     except Exception as e:
@@ -164,7 +164,7 @@ def main():
             except Exception:
                 poster_uri, blur = "", ""
             try:
-                mp4u = poster.up("out/post.mp4")
+                mp4u = poster.up("out/post.mp4", cdn=True)
             except Exception:
                 mp4u = ""
             uri = mp4u or poster_uri  # 動画が上がらなければポスター静止画で代替

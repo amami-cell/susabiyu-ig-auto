@@ -89,8 +89,40 @@ def _u_r2(path):
     s3.upload_file(path, bkt, key, ExtraArgs={"ContentType": ctype})
     return base + "/" + key
 
-def up(path):
-    for name, fn in (("r2", _u_r2), ("litter", _u_litter), ("catbox", _u_catbox), ("tmpfiles", _u_tmpfiles), ("0x0", _u_0x0)):
+def _u_jsdelivr(path):
+    """公開メディアリポにアップロードし、jsDelivrのCDN URL(コミットSHA固定)を返す。
+    GitHub Secrets: GH_MEDIA_TOKEN(contents:write) と GH_MEDIA_REPO("owner/repo")。
+    未設定なら "" を返し従来ホストへフォールバック。解像度は一切変えない。"""
+    import base64 as _b64, random as _r
+    tok = os.environ.get("GH_MEDIA_TOKEN"); repo = os.environ.get("GH_MEDIA_REPO")
+    branch = os.environ.get("GH_MEDIA_BRANCH", "main")
+    if not (tok and repo):
+        return ""
+    ext = os.path.splitext(path)[1].lower()
+    key = "preview/%s_%04d%s" % (datetime.datetime.now(JST).strftime("%Y%m%d%H%M%S"), _r.randint(0, 9999), ext)
+    with open(path, "rb") as _f:
+        content_b64 = _b64.b64encode(_f.read()).decode()
+    api = "https://api.github.com/repos/%s/contents/%s" % (repo, key)
+    headers = {"Authorization": "Bearer " + tok,
+               "Accept": "application/vnd.github+json",
+               "X-GitHub-Api-Version": "2022-11-28"}
+    r = req.put(api, headers=headers, timeout=120,
+                json={"message": "media " + key, "content": content_b64, "branch": branch})
+    if r.status_code not in (200, 201):
+        print("[UPLOAD] jsdelivr PUT %s: %s" % (r.status_code, r.text[:120])); return ""
+    sha = (r.json().get("commit") or {}).get("sha", "")
+    if not sha:
+        return ""
+    return "https://cdn.jsdelivr.net/gh/%s@%s/%s" % (repo, sha, key)
+
+def up(path, cdn=False):
+    # cdn=True: 確認画面で人が何度も見るプレビュー → jsDelivr(CDN)優先
+    # cdn=False: IGが一度だけ取得する投稿用 → 即時性の高いlitterbox優先
+    if cdn:
+        chain = (("jsdelivr", _u_jsdelivr), ("r2", _u_r2), ("litter", _u_litter), ("catbox", _u_catbox), ("tmpfiles", _u_tmpfiles), ("0x0", _u_0x0))
+    else:
+        chain = (("litter", _u_litter), ("catbox", _u_catbox), ("tmpfiles", _u_tmpfiles), ("0x0", _u_0x0))
+    for name, fn in chain:
         try:
             u = fn(path)
         except Exception as e:
