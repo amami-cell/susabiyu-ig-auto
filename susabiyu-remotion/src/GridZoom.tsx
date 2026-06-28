@@ -18,6 +18,14 @@ const HOLD = 40;          // 選択を見せる間
 const ZS = TAP + HOLD;    // ズーム開始(=140)
 const ZE = ZS + 84;       // ズーム終了(=224) … じわじわ拡大
 
+// 料理を切らずに見せる：同じ写真をぼかして背景に敷き、本体はcontainで全体表示
+const Dish: React.FC<{ src: string; zoom?: number }> = ({ src, zoom = 1 }) => (
+  <>
+    <Img src={staticFile(src)} style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", filter: "blur(16px) brightness(0.5)", transform: "scale(" + (1.12 * zoom) + ")" }} />
+    <Img src={staticFile(src)} style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "contain", transform: "scale(" + zoom + ")" }} />
+  </>
+);
+
 // グリッド→（携帯で選んだ風：枠が光る・他が暗くなる）→タップ写真がじわじわ拡大して主役へ。
 export const GridZoom: React.FC<{ storeName?: string; handle?: string }> = ({ storeName = "すさび湯 河原町三条店", handle = "@susabiyu_sanjyo" }) => {
   const f = useCurrentFrame();
@@ -86,26 +94,24 @@ export const GridZoom: React.FC<{ storeName?: string; handle?: string }> = ({ st
           const y = PAD + row * (ch + GAP);
           const a = i * 8;
           return (
-            <div key={i} style={{ position: "absolute", left: x, top: y, width: cw, height: ch, opacity: popO(a), transform: "scale(" + popS(a) + ")", overflow: "hidden", borderRadius: 8, border: "4px solid #fff", boxShadow: "0 10px 24px rgba(0,0,0,0.3)" }}>
-              <Img src={staticFile(p.src)} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+            <div key={i} style={{ position: "absolute", left: x, top: y, width: cw, height: ch, opacity: popO(a), transform: "scale(" + popS(a) + ")", overflow: "hidden", borderRadius: 8, border: "4px solid #fff", boxShadow: "0 10px 24px rgba(0,0,0,0.3)", backgroundColor: "#000" }}>
+              <Dish src={p.src} />
             </div>
           );
         })}
       </AbsoluteFill>
 
-      {/* 中央にすさび湯ロゴ（グリッド中・タップで消える） */}
+      {/* 中央にすさび湯ロゴ（白抜き・背景なし。タップで消える） */}
       <AbsoluteFill style={{ justifyContent: "center", alignItems: "center", opacity: gridLabO }}>
-        <div style={{ width: 700, padding: "44px 56px", background: "rgba(255,255,255,0.95)", borderRadius: 28, boxShadow: "0 18px 50px rgba(0,0,0,0.5)" }}>
-          <Img src={staticFile("storelogo.jpg")} style={{ width: "100%", height: "auto", display: "block" }} />
-        </div>
+        <Img src={staticFile("storelogo_white.png")} style={{ width: 780, height: "auto", filter: "drop-shadow(0 8px 22px rgba(0,0,0,0.75))" }} />
       </AbsoluteFill>
 
       {/* 暗幕：タップで他を暗く（選択を際立たせる） */}
       <AbsoluteFill style={{ backgroundColor: "#000", opacity: dimO * othersO }} />
 
       {/* 主役セル（0番）：グリッド位置→フルスクリーンへズーム。タップで弾む */}
-      <div style={{ position: "absolute", left: hl, top: ht, width: hw, height: hh, overflow: "hidden", borderRadius: hrad, border: hbord + "px solid #fff", boxShadow: "0 10px 24px rgba(0,0,0,0.3)", transform: "scale(" + tapBounce + ")" }}>
-        <Img src={staticFile(hero.src)} style={{ width: "100%", height: "100%", objectFit: "cover", transform: "scale(" + heroZoom + ")" }} />
+      <div style={{ position: "absolute", left: hl, top: ht, width: hw, height: hh, overflow: "hidden", borderRadius: hrad, border: hbord + "px solid #fff", boxShadow: "0 10px 24px rgba(0,0,0,0.3)", transform: "scale(" + tapBounce + ")", backgroundColor: "#000" }}>
+        <Dish src={hero.src} zoom={heroZoom} />
         <div style={{ position: "absolute", inset: 0, background: "#fff", opacity: flashO }} />
       </div>
 
