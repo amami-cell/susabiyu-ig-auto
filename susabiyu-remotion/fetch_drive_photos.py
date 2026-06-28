@@ -189,7 +189,7 @@ for i, f in enumerate(picked, 1):
     download(f["id"], dest)
     cap = os.path.splitext(f["name"])[0]
     entries.append(("photos/%02d%s" % (i, ext), cap))
-    print("DL:", dest, "| [%s]" % f["cat"], "caption:", cap)
+    print("DL:", dest, "| [%s]" % f.get("cat", "?"), "caption:", cap)
 
 logo_path = os.path.join("public", "logo.png")
 has_logo = False
