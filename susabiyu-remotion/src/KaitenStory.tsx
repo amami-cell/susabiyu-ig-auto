@@ -36,7 +36,7 @@ export const KaitenStory: React.FC<{ storeName?: string; handle?: string }> = ({
 
       {/* 上：板前さんの寿司盛り合わせ写真（アップ＝cover。盛りが中央に来るよう横位置を調整） */}
       <div style={{ position: "absolute", top: 0, left: 0, width: 1080, height: HERO_H, overflow: "hidden", backgroundColor: "#0e0a06" }}>
-        <Img src={staticFile("itamae.jpg")} style={{ width: "100%", height: "100%", objectFit: "cover", objectPosition: "59% 40%", transform: "scale(" + heroScale + ")" }} />
+        <Img src={staticFile("itamae.jpg")} style={{ width: "100%", height: "100%", objectFit: "cover", objectPosition: "66% 40%", transform: "scale(" + heroScale + ")" }} />
         <AbsoluteFill style={{ background: "linear-gradient(to bottom, rgba(0,0,0,0.32) 0%, rgba(0,0,0,0) 26%, rgba(0,0,0,0) 60%, rgba(20,12,6,0.92) 100%)" }} />
         {/* 見出し */}
         <div style={{ position: "absolute", bottom: 46, left: 0, width: "100%", textAlign: "center", opacity: titleO, transform: "translateY(" + titleY + "px)" }}>
