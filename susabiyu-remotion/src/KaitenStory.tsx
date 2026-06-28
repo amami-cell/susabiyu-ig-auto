@@ -24,7 +24,7 @@ const clamp = { extrapolateLeft: "clamp" as const, extrapolateRight: "clamp" as 
 export const KaitenStory: React.FC<{ storeName?: string; handle?: string }> = ({ storeName = "すさび湯 河原町三条店", handle = "@susabiyu_sanjyo" }) => {
   const f = useCurrentFrame();
   const introO = interpolate(f, [0, 12, 48, 62], [0, 1, 1, 0], clamp);
-  const heroScale = interpolate(f, [0, DUR], [1.0, 1.045], clamp);
+  const heroScale = interpolate(f, [0, DUR], [1.05, 1.12], clamp);
   const titleO = interpolate(f, [56, 72], [0, 1], clamp);
   const titleY = interpolate(f, [56, 74], [28, 0], clamp);
   const footO = interpolate(f, [DUR - 60, DUR - 46], [0, 1], clamp);
@@ -34,13 +34,10 @@ export const KaitenStory: React.FC<{ storeName?: string; handle?: string }> = ({
     <AbsoluteFill style={{ backgroundColor: BG }}>
       <Audio src={staticFile(kaitenMusic)} volume={(ff) => interpolate(ff, [0, 15, DUR - 22, DUR], [0, 0.9, 0.9, 0], clamp)} />
 
-      {/* 上：板前さんの寿司盛り合わせ写真（写真全体を中央に＝盛りが真ん中。背景はぼかしで埋める） */}
+      {/* 上：板前さんの寿司盛り合わせ写真（アップ＝cover。盛りが中央に来るよう横位置を調整） */}
       <div style={{ position: "absolute", top: 0, left: 0, width: 1080, height: HERO_H, overflow: "hidden", backgroundColor: "#0e0a06" }}>
-        <Img src={staticFile("itamae.jpg")} style={{ width: "100%", height: "100%", objectFit: "cover", transform: "scale(1.2)", filter: "blur(26px) brightness(0.5)" }} />
-        <AbsoluteFill style={{ justifyContent: "center", alignItems: "center" }}>
-          <Img src={staticFile("itamae.jpg")} style={{ width: "100%", height: "100%", objectFit: "contain", transform: "scale(" + heroScale + ")" }} />
-        </AbsoluteFill>
-        <AbsoluteFill style={{ background: "linear-gradient(to bottom, rgba(0,0,0,0.3) 0%, rgba(0,0,0,0) 24%, rgba(0,0,0,0) 64%, rgba(20,12,6,0.94) 100%)" }} />
+        <Img src={staticFile("itamae.jpg")} style={{ width: "100%", height: "100%", objectFit: "cover", objectPosition: "59% 40%", transform: "scale(" + heroScale + ")" }} />
+        <AbsoluteFill style={{ background: "linear-gradient(to bottom, rgba(0,0,0,0.32) 0%, rgba(0,0,0,0) 26%, rgba(0,0,0,0) 60%, rgba(20,12,6,0.92) 100%)" }} />
         {/* 見出し */}
         <div style={{ position: "absolute", bottom: 46, left: 0, width: "100%", textAlign: "center", opacity: titleO, transform: "translateY(" + titleY + "px)" }}>
           <div style={{ display: "inline-block", background: RED, color: CREAM, fontFamily: mincho, fontWeight: 700, fontSize: 42, letterSpacing: 12, padding: "13px 40px", borderRadius: 8, boxShadow: "0 8px 20px rgba(0,0,0,0.4)" }}>本日の鮮魚</div>
