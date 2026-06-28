@@ -1,6 +1,6 @@
 {
-  "name": "すさび湯 投稿確認",
-  "short_name": "すさび湯確認",
+  "name": "initiate instagram",
+  "short_name": "initiate instagram",
   "description": "インスタ投稿の事前確認・承認アプリ",
   "start_url": "./?source=pwa",
   "scope": "./",
