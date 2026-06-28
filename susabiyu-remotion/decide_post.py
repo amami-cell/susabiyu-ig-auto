@@ -17,7 +17,7 @@ WD = ["月", "火", "水", "木", "金", "土", "日"]
 
 # 基本: 動画4 / 静止画2。新パターンは「見本で採用」されたら動画ローテに加わる。
 CORE_VIDEO = ["sushi", "tempo", "typo", "photo"]   # 既定で投稿に使う基本4種
-NEW_VIDEO = ["oshina", "oshinatate"]               # 見本採用で追加される新型
+NEW_VIDEO = ["oshina", "oshinatate", "kaiten", "osusume", "gridzoom"]  # 見本採用で追加される新型
 VIDEO = CORE_VIDEO + NEW_VIDEO
 STILL = ["simple", "caption"]
 ALL = VIDEO + STILL
@@ -25,6 +25,7 @@ LABEL = {
     "sushi": "動王道", "tempo": "動賑やか", "typo": "動雑誌",
     "photo": "動全画", "simple": "静額装", "caption": "静写真",
     "oshina": "動品書", "oshinatate": "動品縦",
+    "kaiten": "動回転", "osusume": "動限定", "gridzoom": "動格子",
 }
 
 def day_kind(d):
