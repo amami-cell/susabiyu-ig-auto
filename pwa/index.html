@@ -23,8 +23,11 @@
     backdrop-filter:saturate(180%) blur(12px);border-bottom:1px solid var(--line)}
   .bar .logo{width:26px;height:26px;border-radius:7px;background:linear-gradient(135deg,#2bb673,#1f9d55);
     display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:800;color:#fff}
-  .bar h1{font-size:16px;margin:0;font-weight:700;letter-spacing:.2px}
-  .bar .dot{margin-left:auto;font-size:12px;color:var(--sub);display:flex;align-items:center;gap:6px}
+  .bar h1{font-size:16px;margin:0;font-weight:700;letter-spacing:.2px;flex:1}
+  .bar .push{border:1px solid var(--line);background:#222835;color:var(--fg);
+    font-size:12px;font-weight:700;padding:6px 11px;border-radius:999px;display:none}
+  .bar .push.on{background:#10301f;color:var(--accent);border-color:#1f4d33}
+  .bar .dot{font-size:12px;color:var(--sub);display:flex;align-items:center;gap:6px;margin-left:10px}
   .bar .dot i{width:8px;height:8px;border-radius:50%;background:#3a3f4a;display:inline-block}
   .bar .dot.live i{background:var(--accent);box-shadow:0 0 0 0 rgba(127,209,160,.5);animation:pulse 2s infinite}
   @keyframes pulse{0%{box-shadow:0 0 0 0 rgba(127,209,160,.5)}70%{box-shadow:0 0 0 7px rgba(127,209,160,0)}100%{box-shadow:0 0 0 0 rgba(127,209,160,0)}}
@@ -79,6 +82,7 @@
   <div class="bar">
     <div class="logo">す</div>
     <h1>投稿の事前確認</h1>
+    <button class="push" id="pushBtn">🔔 通知ON</button>
     <div class="dot" id="live"><i></i><span id="liveTxt">接続中…</span></div>
   </div>
   <div id="feed">
