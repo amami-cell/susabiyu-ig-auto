@@ -5,7 +5,7 @@ import poster
 
 SHEET_ID = "13zKaUblOwmgZ-lgCfxylCLlW2Fqutqct5h5TvMRWv30"
 APP_TAB = "承認待ち"
-PAT_JA = {"sushi":"王道","tempo":"賑やか","typo":"雑誌風","photo":"全画面","simple":"額装","caption":"写真キャプション", "oshina":"お品書き"}
+PAT_JA = {"sushi":"王道","tempo":"賑やか","typo":"雑誌風","photo":"全画面","simple":"額装","caption":"写真キャプション", "oshina":"お品書き","oshinatate":"お品書き(縦書き)"}
 REG = {
   "sushi":   ("fetch_drive_photos.py","SushiStory",True),
   "tempo":   ("fetch_tempo.py","TempoStory",True),
@@ -14,6 +14,7 @@ REG = {
   "simple":  ("fetch_simple.py","SimpleStory",False),
   "caption": ("fetch_photostory.py","PhotoStory",False),
   "oshina":    ("fetch_typo.py","OshinaStory",True),
+  "oshinatate":("fetch_typo.py","OshinaTate",True),
 }
 CAP_VAR = {
   "photo":("photoStoryData.ts","photoStoryCaption"),

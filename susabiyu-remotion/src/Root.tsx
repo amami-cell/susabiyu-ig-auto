@@ -5,6 +5,7 @@ import { PhotoStory } from "./PhotoStory";
 import { TempoStory } from "./TempoStory";
 import { TypoStory } from "./TypoStory";
 import { OshinaStory } from "./OshinaStory";
+import { OshinaTate } from "./OshinaTate";
 import { photos } from "./photoData";
 import { tempoPhotos } from "./tempoData";
 import { typoPhotos } from "./typoData";
@@ -30,6 +31,7 @@ export const RemotionRoot: React.FC = () => {
   const ny = Math.max(typoPhotos.length, 1);
   const ydur = TY_TITLE + ny * TY_PER + TY_OUTRO;
   const oshDur = 50 + ny * 88 + 120;   // OshinaStory: INTRO + N*PER + FINALE
+  const oshtDur = 42 + ny * 50 + 96;   // OshinaTate(縦書き): INTRO + N*STEP + HOLD
   return (
     <>
       <Composition id="SushiStory" component={SushiStory} fps={FPS} width={1080} height={1920} durationInFrames={dur} defaultProps={{ storeName: STORE, handle: "@susabiyu_sanjyo" }} />
@@ -38,6 +40,7 @@ export const RemotionRoot: React.FC = () => {
       <Composition id="TempoStory" component={TempoStory} fps={FPS} width={1080} height={1920} durationInFrames={tdur} defaultProps={{ storeName: STORE, handle: "@susabiyu_sanjyo" }} />
       <Composition id="TypoStory" component={TypoStory} fps={FPS} width={1080} height={1920} durationInFrames={ydur} defaultProps={{ storeName: STORE, handle: "@susabiyu_sanjyo" }} />
       <Composition id="OshinaStory" component={OshinaStory} fps={FPS} width={1080} height={1920} durationInFrames={oshDur} defaultProps={{ storeName: STORE, handle: "@susabiyu_sanjyo" }} />
+      <Composition id="OshinaTate" component={OshinaTate} fps={FPS} width={1080} height={1920} durationInFrames={oshtDur} defaultProps={{ storeName: STORE, handle: "@susabiyu_sanjyo" }} />
     </>
   );
 };
