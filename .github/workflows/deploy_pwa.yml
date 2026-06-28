@@ -1,0 +1,44 @@
+name: deploy-pwa
+on:
+  workflow_dispatch:
+  push:
+    branches: [ main ]
+    paths: [ 'pwa/**', '.github/workflows/deploy_pwa.yml' ]
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Inject GAS URL into config.js
+        env:
+          GAS_EXEC_URL: ${{ secrets.GAS_EXEC_URL }}
+        run: |
+          if [ -n "$GAS_EXEC_URL" ]; then
+            sed -i "s#PASTE_YOUR_GAS_EXEC_URL_HERE#${GAS_EXEC_URL}#" pwa/config.js
+            echo "GAS URL injected."
+          else
+            echo "WARNING: GAS_EXEC_URL secret is empty; app will not connect until set."
+          fi
+      - name: Publish pwa/ to public site repo (app/ subfolder)
+        env:
+          TOKEN: ${{ secrets.GH_MEDIA_TOKEN }}
+          MEDIA_REPO: ${{ secrets.GH_MEDIA_REPO }}
+        run: |
+          if [ -z "$TOKEN" ] || [ -z "$MEDIA_REPO" ]; then
+            echo "ERROR: GH_MEDIA_TOKEN / GH_MEDIA_REPO not set"; exit 1
+          fi
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git clone --depth 1 "https://x-access-token:${TOKEN}@github.com/${MEDIA_REPO}.git" _site
+          rm -rf _site/app
+          mkdir -p _site/app
+          cp -r pwa/. _site/app/
+          touch _site/.nojekyll
+          cd _site
+          git add app .nojekyll
+          if git diff --cached --quiet; then
+            echo "No changes to deploy."; exit 0
+          fi
+          git commit -m "deploy PWA app"
+          git push
+          echo "Deployed. Pages URL (after enabling Pages): https://${MEDIA_REPO%%/*}.github.io/${MEDIA_REPO#*/}/app/"
