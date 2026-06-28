@@ -2,7 +2,7 @@
    ・アプリのガワ(shell)を precache → 2回目以降は“開いた瞬間”に表示
    ・jsDelivr のメディアは stale-while-revalidate でランタイムキャッシュ
    ・GAS(JSONP)などデータ通信はキャッシュしない（常に最新を取りに行く） */
-var VER = "susabiyu-v1";
+var VER = "susabiyu-v2";
 var SHELL = VER + "-shell";
 var MEDIA = VER + "-media";
 var SHELL_FILES = [
@@ -32,8 +32,11 @@ self.addEventListener("fetch", function (e) {
   // データ通信(GAS等)は素通し（キャッシュしない）
   if (url.hostname.indexOf("script.google") >= 0 || url.hostname.indexOf("googleusercontent") >= 0) return;
 
-  // メディア(jsDelivr等画像/動画): stale-while-revalidate
-  if (url.hostname.indexOf("jsdelivr.net") >= 0 || /\.(jpg|jpeg|png|webp|mp4|mov|webm)$/i.test(url.pathname)) {
+  // 動画はSWを通さず素通し（Range通信をブラウザに任せる＝ホーム保存(standalone)でも再生できる）
+  if (/\.(mp4|mov|webm)$/i.test(url.pathname)) return;
+
+  // 画像のみ stale-while-revalidate でキャッシュ
+  if (url.hostname.indexOf("jsdelivr.net") >= 0 || /\.(jpg|jpeg|png|webp)$/i.test(url.pathname)) {
     e.respondWith(caches.open(MEDIA).then(function (cache) {
       return cache.match(req).then(function (hit) {
         var net = fetch(req).then(function (res) {
