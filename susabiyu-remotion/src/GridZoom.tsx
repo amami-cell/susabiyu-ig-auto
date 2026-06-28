@@ -45,13 +45,21 @@ export const GridZoom: React.FC<{ storeName?: string; handle?: string }> = ({ st
   const othersO = interpolate(f, [ZS, ZS + 26], [1, 0], clamp);
   const gridLabO = interpolate(f, [10, 24, TAP, TAP + 14], [0, 1, 1, 0], clamp);
 
-  // カーソル（指）の動き：右下→主役セル中央。TAPで波紋。
-  const curO = interpolate(f, [40, 54, TAP + 20, TAP + 34], [0, 1, 1, 0], clamp);
-  const curX = interpolate(f, [56, TAP], [840, hcx], { ...clamp, easing: Easing.inOut(Easing.cubic) });
-  const curY = interpolate(f, [56, TAP], [1560, hcy], { ...clamp, easing: Easing.inOut(Easing.cubic) });
-  const press = interpolate(f, [TAP - 8, TAP, TAP + 8], [1, 0.82, 1], clamp);
-  const ripO = interpolate(f, [TAP, TAP + 26], [0.7, 0], clamp);
-  const ripS = interpolate(f, [TAP, TAP + 26], [0.3, 2.4], clamp);
+  // カーソル（指）の動き：右下→主役セル中央。TAPで大きく押し込み＆波紋（大袈裟に）。
+  const curO = interpolate(f, [38, 52, TAP + 26, TAP + 40], [0, 1, 1, 0], clamp);
+  const curX = interpolate(f, [54, TAP], [880, hcx], { ...clamp, easing: Easing.inOut(Easing.cubic) });
+  const curY = interpolate(f, [54, TAP], [1580, hcy], { ...clamp, easing: Easing.inOut(Easing.cubic) });
+  // 押し込み：近づいて一度ぐっと縮み、離す
+  const press = interpolate(f, [TAP - 12, TAP, TAP + 10], [1, 0.6, 1], clamp);
+  // 波紋を2連で大きく
+  const rip1O = interpolate(f, [TAP, TAP + 30], [0.85, 0], clamp);
+  const rip1S = interpolate(f, [TAP, TAP + 30], [0.25, 3.2], { ...clamp, easing: Easing.out(Easing.cubic) });
+  const rip2O = interpolate(f, [TAP + 8, TAP + 40], [0.7, 0], clamp);
+  const rip2S = interpolate(f, [TAP + 8, TAP + 40], [0.25, 3.6], { ...clamp, easing: Easing.out(Easing.cubic) });
+  // 選ばれたセルが弾む（タップの手応え）
+  const tapBounce = interpolate(f, [TAP - 8, TAP, TAP + 8, TAP + 18], [1, 0.93, 1.04, 1], clamp);
+  // タップ瞬間の白フラッシュ
+  const flashO = interpolate(f, [TAP, TAP + 4, TAP + 16], [0, 0.5, 0], clamp);
   // 選択枠（主役セルが選ばれた印）
   const selO = interpolate(f, [TAP, TAP + 10, ZS, ZS + 8], [0, 1, 1, 0], clamp);
 
@@ -87,17 +95,22 @@ export const GridZoom: React.FC<{ storeName?: string; handle?: string }> = ({ st
         </div>
       </AbsoluteFill>
 
-      {/* 主役セル（0番）：グリッド位置→フルスクリーンへズーム */}
-      <div style={{ position: "absolute", left: hl, top: ht, width: hw, height: hh, overflow: "hidden", borderRadius: hrad, border: hbord + "px solid #fff", boxShadow: "0 10px 24px rgba(0,0,0,0.3)" }}>
+      {/* 主役セル（0番）：グリッド位置→フルスクリーンへズーム。タップで弾む */}
+      <div style={{ position: "absolute", left: hl, top: ht, width: hw, height: hh, overflow: "hidden", borderRadius: hrad, border: hbord + "px solid #fff", boxShadow: "0 10px 24px rgba(0,0,0,0.3)", transform: "scale(" + tapBounce + ")" }}>
         <Img src={staticFile(hero.src)} style={{ width: "100%", height: "100%", objectFit: "cover", transform: "scale(" + heroZoom + ")" }} />
+        <div style={{ position: "absolute", inset: 0, background: "#fff", opacity: flashO }} />
       </div>
 
       {/* 選択枠 */}
-      <div style={{ position: "absolute", left: hx0 - 4, top: hy0 - 4, width: cw + 8, height: ch + 8, borderRadius: 12, border: "6px solid " + GOLD, boxShadow: "0 0 0 4px rgba(216,178,90,0.4)", opacity: selO }} />
+      <div style={{ position: "absolute", left: hx0 - 4, top: hy0 - 4, width: cw + 8, height: ch + 8, borderRadius: 12, border: "8px solid " + GOLD, boxShadow: "0 0 0 5px rgba(216,178,90,0.45)", opacity: selO }} />
 
-      {/* タップ波紋＋カーソル */}
-      <div style={{ position: "absolute", left: hcx, top: hcy, width: 200, height: 200, marginLeft: -100, marginTop: -100, borderRadius: "50%", border: "5px solid " + WHITE, opacity: ripO, transform: "scale(" + ripS + ")" }} />
-      <div style={{ position: "absolute", left: curX, top: curY, width: 86, height: 86, marginLeft: -43, marginTop: -43, borderRadius: "50%", background: "rgba(255,255,255,0.28)", border: "4px solid rgba(255,255,255,0.9)", opacity: curO, transform: "scale(" + press + ")" }} />
+      {/* タップ波紋（2連で大きく） */}
+      <div style={{ position: "absolute", left: hcx, top: hcy, width: 220, height: 220, marginLeft: -110, marginTop: -110, borderRadius: "50%", border: "7px solid " + WHITE, opacity: rip1O, transform: "scale(" + rip1S + ")" }} />
+      <div style={{ position: "absolute", left: hcx, top: hcy, width: 220, height: 220, marginLeft: -110, marginTop: -110, borderRadius: "50%", border: "5px solid " + GOLD, opacity: rip2O, transform: "scale(" + rip2S + ")" }} />
+      {/* 指カーソル（大きめ＋指先ドット） */}
+      <div style={{ position: "absolute", left: curX, top: curY, width: 120, height: 120, marginLeft: -60, marginTop: -60, borderRadius: "50%", background: "rgba(255,255,255,0.25)", border: "6px solid rgba(255,255,255,0.95)", boxShadow: "0 8px 22px rgba(0,0,0,0.35)", opacity: curO, transform: "scale(" + press + ")" }}>
+        <div style={{ position: "absolute", left: "50%", top: "50%", width: 34, height: 34, marginLeft: -17, marginTop: -17, borderRadius: "50%", background: "rgba(255,255,255,0.95)" }} />
+      </div>
 
       {/* 主役の見出し・名前（ズーム後） */}
       <AbsoluteFill style={{ pointerEvents: "none" }}>
