@@ -291,9 +291,33 @@
     });
   }
 
+  /* ---------- 通知タップで該当投稿へジャンプ ---------- */
+  function getParam(name) {
+    var m = new RegExp("[?&]" + name + "=([^&]+)").exec(location.search || "");
+    return m ? decodeURIComponent(m[1]) : "";
+  }
+  function focusCard(token) {
+    if (!token) return;
+    var tries = 0;
+    (function tryScroll() {
+      var c = cardEls[token];
+      if (c) {
+        c.scrollIntoView({ behavior: "smooth", block: "center" });
+        c.classList.add("flash"); setTimeout(function () { c.classList.remove("flash"); }, 2200);
+        return;
+      }
+      if (++tries < 20) setTimeout(tryScroll, 300);  // データ到着を待つ
+    })();
+  }
+
   /* ---------- boot ---------- */
-  load().then(function () { setRate(POLL); });
+  load().then(function () { setRate(POLL); focusCard(getParam("focus")); });
   document.addEventListener("visibilitychange", function () { if (!document.hidden) poll(); });
+  if ("serviceWorker" in navigator && navigator.serviceWorker) {
+    navigator.serviceWorker.addEventListener("message", function (ev) {
+      if (ev.data && ev.data.type === "focus") { poll(); focusCard(ev.data.token); }
+    });
+  }
   maybeIosHint();
   refreshPushBtn();
 })();
