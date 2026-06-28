@@ -91,8 +91,12 @@ export const GridZoom: React.FC<{ storeName?: string; handle?: string }> = ({ st
             </div>
           );
         })}
-        <div style={{ position: "absolute", top: 70, left: 0, width: "100%", textAlign: "center", opacity: gridLabO }}>
-          <span style={{ color: WHITE, fontFamily: mincho, fontWeight: 700, fontSize: 38, letterSpacing: 8, background: "rgba(12,10,8,0.6)", padding: "10px 26px", borderRadius: 8 }}>気になる一枚を…</span>
+      </AbsoluteFill>
+
+      {/* 中央にすさび湯ロゴ（グリッド中・タップで消える） */}
+      <AbsoluteFill style={{ justifyContent: "center", alignItems: "center", opacity: gridLabO }}>
+        <div style={{ width: 700, padding: "44px 56px", background: "rgba(255,255,255,0.95)", borderRadius: 28, boxShadow: "0 18px 50px rgba(0,0,0,0.5)" }}>
+          <Img src={staticFile("storelogo.jpg")} style={{ width: "100%", height: "auto", display: "block" }} />
         </div>
       </AbsoluteFill>
 
