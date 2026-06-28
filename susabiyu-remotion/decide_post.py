@@ -15,13 +15,16 @@ except ImportError:
 
 WD = ["月", "火", "水", "木", "金", "土", "日"]
 
-# 6パターン（動画4 / 静止画2）
-VIDEO = ["sushi", "tempo", "typo", "photo"]
+# 基本: 動画4 / 静止画2。新パターンは「見本で採用」されたら動画ローテに加わる。
+CORE_VIDEO = ["sushi", "tempo", "typo", "photo"]   # 既定で投稿に使う基本4種
+NEW_VIDEO = ["netatelop", "cinema", "oshina"]      # 見本採用で追加される新型
+VIDEO = CORE_VIDEO + NEW_VIDEO
 STILL = ["simple", "caption"]
 ALL = VIDEO + STILL
 LABEL = {
     "sushi": "動王道", "tempo": "動賑やか", "typo": "動雑誌",
     "photo": "動全画", "simple": "静額装", "caption": "静写真",
+    "netatelop": "動ネタ名", "cinema": "動シネマ", "oshina": "動品書",
 }
 
 def day_kind(d):
@@ -39,7 +42,7 @@ def _enabled_videos():
     global _ENABLED_CACHE
     if _ENABLED_CACHE is not None:
         return _ENABLED_CACHE
-    vids = list(VIDEO)
+    vids = list(CORE_VIDEO)  # シート不可時の安全側＝基本4種のみ（新型は採用されるまで投稿しない）
     try:
         import poster
         sh = poster._sheets()
@@ -71,7 +74,7 @@ def _video_for_day(d):
     vids = _enabled_videos()
     n = len(vids) or 1
     if not vids:
-        vids = list(VIDEO)
+        vids = list(CORE_VIDEO)
         n = len(vids)
     o = d.toordinal()
     def order(b):

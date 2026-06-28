@@ -4,6 +4,9 @@ import { SimpleStory } from "./SimpleStory";
 import { PhotoStory } from "./PhotoStory";
 import { TempoStory } from "./TempoStory";
 import { TypoStory } from "./TypoStory";
+import { NetaTelop } from "./NetaTelop";
+import { CinemaStory } from "./CinemaStory";
+import { OshinaStory } from "./OshinaStory";
 import { photos } from "./photoData";
 import { tempoPhotos } from "./tempoData";
 import { typoPhotos } from "./typoData";
@@ -28,6 +31,9 @@ export const RemotionRoot: React.FC = () => {
   const tdur = T_INTRO + nt * T_PER + T_OUTRO;
   const ny = Math.max(typoPhotos.length, 1);
   const ydur = TY_TITLE + ny * TY_PER + TY_OUTRO;
+  const netaDur = 40 + ny * 60 + 44;   // NetaTelop: INTRO + N*PER + OUTRO
+  const cinDur = 46 + ny * 80 + 50;    // CinemaStory
+  const oshDur = 34 + ny * 24 + 46;    // OshinaStory
   return (
     <>
       <Composition id="SushiStory" component={SushiStory} fps={FPS} width={1080} height={1920} durationInFrames={dur} defaultProps={{ storeName: STORE, handle: "@susabiyu_sanjyo" }} />
@@ -35,6 +41,9 @@ export const RemotionRoot: React.FC = () => {
       <Composition id="PhotoStory" component={PhotoStory} fps={FPS} width={1080} height={1920} durationInFrames={150} defaultProps={{ handle: "@susabiyu_sanjyo" }} />
       <Composition id="TempoStory" component={TempoStory} fps={FPS} width={1080} height={1920} durationInFrames={tdur} defaultProps={{ storeName: STORE, handle: "@susabiyu_sanjyo" }} />
       <Composition id="TypoStory" component={TypoStory} fps={FPS} width={1080} height={1920} durationInFrames={ydur} defaultProps={{ storeName: STORE, handle: "@susabiyu_sanjyo" }} />
+      <Composition id="NetaTelop" component={NetaTelop} fps={FPS} width={1080} height={1920} durationInFrames={netaDur} defaultProps={{ storeName: STORE, handle: "@susabiyu_sanjyo" }} />
+      <Composition id="CinemaStory" component={CinemaStory} fps={FPS} width={1080} height={1920} durationInFrames={cinDur} defaultProps={{ storeName: STORE, handle: "@susabiyu_sanjyo" }} />
+      <Composition id="OshinaStory" component={OshinaStory} fps={FPS} width={1080} height={1920} durationInFrames={oshDur} defaultProps={{ storeName: STORE, handle: "@susabiyu_sanjyo" }} />
     </>
   );
 };
