@@ -333,25 +333,20 @@
       '<div class="head"><span class="pat">' + esc(it.label || it.pattern) + '</span>' +
       '<span class="gstate ' + (on ? "on" : "off") + '">' + (on ? "採用中" : "無し") + '</span></div>' +
       media +
-      '<div class="gtoggle">' +
-        '<button class="adopt' + (on ? " active" : "") + '">採用する</button>' +
-        '<button class="skip' + (on ? "" : " active") + '">無しにする</button>' +
-      '</div>';
-    var bs = card.querySelectorAll(".gtoggle button");
-    bs[0].onclick = function () { setPattern(card, it.pattern, true); };
-    bs[1].onclick = function () { setPattern(card, it.pattern, false); };
-    paintToggle(card, on);  // 初期状態（採用中はそのボタンを押せなくする）
+      '<button class="gbtn"></button>' +
+      '<div class="ghintline">タップで「採用／無し」を切り替え</div>';
+    var btn = card.querySelector(".gbtn");
+    btn.onclick = function () { setPattern(card, it.pattern, card.dataset.on !== "1"); };
+    paintToggle(card, on);  // 初期状態を反映
     return card;
   }
+  // 1つのトグルボタンで採用⇄無しを切替（常に押せる）。状態はカードに保持
   function paintToggle(card, on) {
+    card.dataset.on = on ? "1" : "0";
     var st = card.querySelector(".gstate");
     if (st) { st.className = "gstate " + (on ? "on" : "off"); st.textContent = on ? "採用中" : "無し"; }
-    var bs = card.querySelectorAll(".gtoggle button");
-    if (bs.length === 2) {
-      // いま選ばれている方を「採用中／無し」として無効化（押せない）。反対側だけ押せる＝切替は可能
-      bs[0].classList.toggle("active", on);  bs[0].disabled = on;   bs[0].textContent = on ? "採用中" : "採用する";
-      bs[1].classList.toggle("active", !on); bs[1].disabled = !on;  bs[1].textContent = !on ? "無し" : "無しにする";
-    }
+    var btn = card.querySelector(".gbtn");
+    if (btn) { btn.className = "gbtn " + (on ? "on" : "off"); btn.textContent = on ? "✓ 採用中（タップで無しに）" : "無し（タップで採用）"; }
   }
   function setPattern(card, key, on) {
     paintToggle(card, on);  // 楽観反映
