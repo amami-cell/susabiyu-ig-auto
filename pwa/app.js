@@ -298,15 +298,18 @@
   }
   function focusCard(token) {
     if (!token) return;
-    var tries = 0;
-    (function tryScroll() {
+    var tries = 0, done = 0;
+    (function step() {
       var c = cardEls[token];
       if (c) {
-        c.scrollIntoView({ behavior: "smooth", block: "center" });
-        c.classList.add("flash"); setTimeout(function () { c.classList.remove("flash"); }, 2200);
+        // 即時で上揃え（上からスクロールせず、その投稿が開いた状態にする）
+        c.scrollIntoView({ behavior: "auto", block: "start" });
+        if (done === 0) { c.classList.add("flash"); setTimeout(function () { c.classList.remove("flash"); }, 2200); }
+        done++;
+        if (done < 5) setTimeout(step, 250);  // 画像読込などのズレを数回補正（手前で止まる対策）
         return;
       }
-      if (++tries < 20) setTimeout(tryScroll, 300);  // データ到着を待つ
+      if (++tries < 25) setTimeout(step, 250);  // データ到着を待つ
     })();
   }
 
