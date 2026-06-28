@@ -20,7 +20,8 @@ def run(cmd):
     print(">>", cmd)
     r = subprocess.run(cmd, shell=True)
     if r.returncode != 0:
-        raise SystemExit("\u30b3\u30de\u30f3\u30c9\u5931\u6557: " + cmd)
+        # RuntimeError \u306b\u3057\u3066\u4e0a\u4f4d\u306e\u30ea\u30c8\u30e9\u30a4/\u901a\u77e5\u3067\u6355\u6349\u3067\u304d\u308b\u3088\u3046\u306b\u3059\u308b
+        raise RuntimeError("\u30b3\u30de\u30f3\u30c9\u5931\u6557: " + cmd)
 
 
 def find_row(sh, when_str):
@@ -149,6 +150,26 @@ def line_redo_limit_notify(sh, dt, pattern, cap):
         print("LINE\u901a\u77e5\u5931\u6557(\u7d99\u7d9a):", e)
 
 
+def _notify_post_failure(dt, pattern, cap, err):
+    """\u6295\u7a3f\u304c\uff08\u30ea\u30c8\u30e9\u30a4\u3057\u3066\u3082\uff09\u5931\u6557\u3057\u305f\u6642\u306b\u3001\u9ed9\u3063\u3066\u672a\u6295\u7a3f\u306b\u305b\u305aLINE\u3067\u77e5\u3089\u305b\u308b\u3002"""
+    try:
+        patja = prepare.PAT_JA.get(pattern, pattern)
+    except Exception:
+        patja = pattern
+    lines = [
+        "\u26a0\ufe0f\u3010\u81ea\u52d5\u6295\u7a3f\u306b\u5931\u6557\u3011%d/%d %02d:00" % (dt.month, dt.day, dt.hour),
+        "\u30d1\u30bf\u30fc\u30f3: %s" % patja,
+        "\u5185\u5bb9: %s" % (cap or "\uff08\u52d5\u753b\uff09"),
+        "\u30a8\u30e9\u30fc: %s" % (str(err)[:200]),
+        "",
+        "\u203b\u67a0\u306f\u672a\u6295\u7a3f\u306e\u307e\u307e\u6b8b\u3057\u3066\u3044\u307e\u3059\u3002\u6b21\u306e\u8d77\u52d5\u3067\u518d\u8a66\u884c\u3055\u308c\u307e\u3059\u3002",
+    ]
+    try:
+        poster.line_notify("\n".join(lines))
+    except Exception as e:
+        print("LINE\u901a\u77e5\u5931\u6557(\u7d99\u7d9a):", e)
+
+
 def main():
     creds = ""
     args = [a for a in sys.argv[1:] if a.strip()]
@@ -222,21 +243,57 @@ def main():
 
     fetch, comp, is_video = REG[pattern]
     cf = ' "' + creds + '"' if creds else ""
-    run("python " + fetch + cf)
-    if is_video:
-        run("npx remotion render " + comp + " out/post.mp4 --crf 18 --timeout 120000 --concurrency 1")
-    else:
-        run("npx remotion still " + comp + " out/post.png")
     media = os.path.join("out", os.path.basename("out/post.mp4" if is_video else "out/post.png"))
 
-    if DRY:
-        print("[DRY] \u751f\u6210\u5b8c\u4e86:", media, "\uff08\u6295\u7a3f\u306f\u3057\u307e\u305b\u3093\uff09"); return
-    ok = poster.post(media, is_video, caption, slot, pattern)
-    if not ok:
-        raise SystemExit("\u6295\u7a3f\u5931\u6557")
-    set_status(sh, rownum, "posted")
-    print("\u6295\u7a3f\u5b8c\u4e86 & \u72b6\u614b\u3092posted\u306b\u66f4\u65b0")
+    # \u751f\u6210\u2192\u6295\u7a3f\u3092\u6700\u59272\u56de\u8a66\u884c\uff08\u4e00\u6642\u7684\u306a\u30cd\u30c3\u30c8/IG/Drive\u969c\u5bb3\u3067\u843d\u3061\u306a\u3044\u3088\u3046\u306b\uff09\u3002
+    # \u5931\u6557\u3057\u3066\u3082status\u306fapproved/pending\u306e\u307e\u307e\u6b8b\u3057\u3001LINE\u3067\u901a\u77e5\u3059\u308b\u3002
+    import time as _time
+    ATTEMPTS = 2
+    last_err = None
+    posted = False  # \u4e00\u5ea6\u3067\u3082\u6295\u7a3f\u6210\u529f\u3057\u305f\u3089\u3001\u30ea\u30c8\u30e9\u30a4\u3057\u3066\u3082\u4e8c\u5ea6\u3068\u6295\u7a3f\u3057\u306a\u3044\uff08\u4e8c\u91cd\u6295\u7a3f\u9632\u6b62\uff09
+    for attempt in range(1, ATTEMPTS + 1):
+        try:
+            if not posted:
+                run("python " + fetch + cf)
+                if is_video:
+                    run("npx remotion render " + comp + " out/post.mp4 --crf 18 --timeout 120000 --concurrency 1")
+                else:
+                    run("npx remotion still " + comp + " out/post.png")
+                if DRY:
+                    print("[DRY] \u751f\u6210\u5b8c\u4e86:", media, "\uff08\u6295\u7a3f\u306f\u3057\u307e\u305b\u3093\uff09"); return
+                # \u4e8c\u91cd\u6295\u7a3f\u9632\u6b62: \u6295\u7a3f\u76f4\u524d\u306b\u6700\u65b0\u30b9\u30c6\u30fc\u30bf\u30b9\u3092\u518d\u78ba\u8a8d\u3002\u4ed6\u30c8\u30ea\u30ac\u304c\u6295\u7a3f\u6e08\u307f\u306a\u3089\u30b9\u30ad\u30c3\u30d7
+                _, fresh = find_row(sh, when_str)
+                if fresh is not None and len(fresh) > 7 and str(fresh[7]) == "posted":
+                    print("\u4ed6\u30c8\u30ea\u30ac\u30fc\u304c\u65e2\u306b\u6295\u7a3f\u6e08 -> \u30b9\u30ad\u30c3\u30d7"); return
+                ok = poster.post(media, is_video, caption, slot, pattern)
+                if not ok:
+                    raise RuntimeError("IG\u6295\u7a3fAPI\u304c\u5931\u6557\u3092\u8fd4\u3057\u307e\u3057\u305f")
+                posted = True
+            # \u3053\u3053\u307e\u3067\u6765\u305f\u3089\u6295\u7a3f\u306f\u6210\u529f\u6e08\u307f\u3002\u3042\u3068\u306f\u30b9\u30c6\u30fc\u30bf\u30b9\u66f4\u65b0\uff08\u5931\u6557\u3057\u3066\u3082\u518d\u6295\u7a3f\u306f\u3057\u306a\u3044\uff09
+            set_status(sh, rownum, "posted")
+            print("\u6295\u7a3f\u5b8c\u4e86 & \u72b6\u614b\u3092posted\u306b\u66f4\u65b0")
+            return
+        except Exception as e:
+            last_err = e
+            print("[POST] \u8a66\u884c%d/%d \u5931\u6557:" % (attempt, ATTEMPTS), e)
+            if attempt < ATTEMPTS:
+                _time.sleep(8)
+
+    # \u5168\u8a66\u884c\u5931\u6557 -> \u901a\u77e5\u3057\u3066\u7570\u5e38\u7d42\u4e86\uff08\u67a0\u306f\u672a\u6295\u7a3f\u306e\u307e\u307e=\u518d\u8a66\u884c\u53ef\u80fd\uff09
+    _notify_post_failure(dt, pattern, caption, last_err)
+    raise SystemExit("\u6295\u7a3f\u306b\u5931\u6557\u3057\u307e\u3057\u305f(%d\u56de\u8a66\u884c): %s" % (ATTEMPTS, last_err))
 
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except SystemExit:
+        raise  # \u65e2\u306b\u901a\u77e5\u6e08\u307f or \u6b63\u5e38\u30b9\u30ad\u30c3\u30d7\u3002Action\u306b\u306f\u5931\u6557\u3068\u3057\u3066\u6b8b\u3059
+    except BaseException as e:
+        # \u60f3\u5b9a\u5916\u306e\u7570\u5e38\u7d42\u4e86\u3067\u3082\u9ed9\u3089\u305b\u306a\u3044\uff08\u4f5c\u308a\u76f4\u3057\u5931\u6557\u306a\u3069\u3082\u542b\u3081\u3066\u901a\u77e5\uff09
+        try:
+            poster.line_notify("\u26a0\ufe0f\u3010\u81ea\u52d5\u6295\u7a3f\u51e6\u7406\u304c\u7570\u5e38\u7d42\u4e86\u3011\n" + str(e)[:300] +
+                               "\n\u203b\u672a\u6295\u7a3f\u306e\u53ef\u80fd\u6027\u304c\u3042\u308a\u307e\u3059\u3002\u78ba\u8a8d\u753b\u9762\u3092\u3054\u78ba\u8a8d\u304f\u3060\u3055\u3044\u3002")
+        except Exception:
+            pass
+        raise
