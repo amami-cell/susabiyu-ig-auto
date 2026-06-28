@@ -1,0 +1,1 @@
+jsDelivr CDN serving test for susabiyu media pipeline. If you can read this via cdn.jsdelivr.net, the no-card media CDN works.
