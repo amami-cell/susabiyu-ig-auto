@@ -226,6 +226,16 @@ def main():
         new_pattern, uri, cap, new_picked, new_blur, new_poster = regenerate(creds, dt)
         update_preview_row(sh, rownum, new_pattern, uri, cap, new_picked, redo_count + 1, new_poster, new_blur)
         line_redo_notify(sh, dt, new_pattern, cap, redo_count + 1)
+        # PWA\u8cfc\u8aad\u8005(\u81ea\u5206\u30fb\u4ed6\u306e\u4eba)\u5168\u54e1\u306bWeb Push\uff08\u4f5c\u308a\u76f4\u3057\u5b8c\u4e86\uff09\u3002\u8a72\u5f53\u67a0\u3078\u30b8\u30e3\u30f3\u30d7\u3067\u304d\u308b\u3088\u3046focus=token
+        try:
+            token = str(col(0))
+            patja = prepare.PAT_JA.get(new_pattern, new_pattern)
+            pwa_url = os.environ.get("PWA_URL") or "https://amami-cell.github.io/susabiyu-media/app/"
+            prepare.send_push(sh, "\u4f5c\u308a\u76f4\u3057\u5b8c\u4e86",
+                              "%d/%d %02d:00 %s \u3092\u4f5c\u308a\u76f4\u3057\u307e\u3057\u305f\u3002\u3054\u78ba\u8a8d\u304f\u3060\u3055\u3044" % (dt.month, dt.day, dt.hour, patja),
+                              pwa_url, token)
+        except Exception as e:
+            print("[PUSH] \u4f5c\u308a\u76f4\u3057\u901a\u77e5 \u5931\u6557(\u7d99\u7d9a):", e)
         print("\u4f5c\u308a\u76f4\u3057\u5b8c\u4e86 -> pending\u306b\u623b\u3057\u3066\u518d\u63d0\u6848 (%d/%d\u56de\u76ee, pattern=%s)" % (redo_count + 1, MAX_REDO, new_pattern))
         return
 
