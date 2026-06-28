@@ -18,6 +18,7 @@
   var liveTxt = document.getElementById("liveTxt");
   var toastEl = document.getElementById("toast");
   var cardEls = {};      // token -> card element
+  var pendingActs = {};  // token -> 楽観状態（サーバ反映までポーリングで巻き戻さない）
   var firstLoad = true;
   var lastSig = null;
   var timer = null;
@@ -113,6 +114,7 @@
     var card = document.createElement("div");
     card.className = "card";
     card.setAttribute("data-token", it.token);
+    card.dataset.url = it.url || "";
     var rem = remainText(it);
     card.innerHTML =
       '<div class="head"><span class="time">' + esc(it.when) + '</span>' +
@@ -130,6 +132,7 @@
     var bs = card.querySelectorAll(".btns button");
     for (var i = 0; i < bs.length; i++) bs[i].disabled = true;
     var optimistic = action === "ok" ? "approved" : action === "redo" ? "redo" : "rejected";
+    pendingActs[token] = optimistic;   // サーバ反映までポーリングで巻き戻さない
     applyStatus(card, { token: token, status: optimistic });
     toast(action === "ok" ? "承認しました" : action === "redo" ? "作り直しを開始しました" : "取りやめました");
     jsonp({ api: "act", token: token, action: action }).then(function (res) {
@@ -137,11 +140,12 @@
       if (r.indexOf("locked:") === 0) {
         var cur = r.split(":")[1];
         toast("他の方が「" + (cur === "approved" ? "投稿OK" : cur === "rejected" ? "やめる" : "作り直し") + "」済みです");
-        applyStatus(card, { token: token, status: cur });
-      } else if (r === "busy") { toast("混雑中。再取得します"); load(); }
-      else if (r === "notfound") { applyStatus(card, { token: token, status: "gone" }); }
-      else if (action === "redo") { fast(); }
+        pendingActs[token] = cur; applyStatus(card, { token: token, status: cur });
+      } else if (r === "busy") { delete pendingActs[token]; toast("混雑中。再取得します"); load(); }
+      else if (r === "notfound") { delete pendingActs[token]; applyStatus(card, { token: token, status: "gone" }); }
+      else { pendingActs[token] = optimistic; if (action === "redo") fast(); }
     }).catch(function () {
+      delete pendingActs[token];
       toast("通信エラー。元に戻します");
       applyStatus(card, { token: token, status: "pending" });
     });
@@ -161,12 +165,24 @@
         cardEls[it.token] = card;
         feed.appendChild(card);
       } else {
-        // メディアは触らず、状態と残り時間だけ更新（チラつき防止）
+        // 残り時間は常に更新
+        var rem = card.querySelector(".remain");
+        if (rem) rem.textContent = remainText(it);
+        // 操作直後はサーバ反映まで楽観状態を維持（ポーリングで巻き戻さない）
+        if (pendingActs[it.token]) {
+          if (it.status === pendingActs[it.token]) { delete pendingActs[it.token]; }
+          else { return; }  // まだ反映前 → 状態/メディアは触らない（returnでこの枠だけスキップ）
+        }
+        // メディアが変わった（作り直し完了など）ら差し替え。それ以外は触らずチラつき防止
+        if ((card.dataset.url || "") !== (it.url || "")) {
+          card.dataset.url = it.url || "";
+          var mw = card.querySelector(".mediaWrap");
+          if (mw) mw.outerHTML = mediaHtml(it);
+          var cp = card.querySelector(".cap");
+          if (cp) cp.textContent = it.caption || "（動画）";
+        }
         var prev = card.getAttribute("data-status");
         if (prev !== it.status) applyStatus(card, it);
-        var rem = card.querySelector(".remain");
-        var rt = remainText(it);
-        if (rem) rem.textContent = rt;
       }
     });
     // 消えた枠（=投稿済みなど）はフェードして除去
