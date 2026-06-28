@@ -10,6 +10,8 @@ REG = prepare.REG
 PAT_JA = prepare.PAT_JA
 JST = prepare.JST
 HEADER = ["pattern", "label", "url", "poster", "blur", "enabled", "updated"]
+# 既定で採用(=投稿に使う)のは基本4種だけ。新パターンは見本で採用されるまで「無し(0)」。
+CORE = {"sushi", "tempo", "typo", "photo"}
 
 
 def _ensure_creds():
@@ -39,9 +41,10 @@ def upsert(sh, key, label, url, poster_uri, blur):
             valueInputOption="RAW",
             body={"values": [[key, label, url, poster_uri, blur, enabled, now]]}).execute()
     else:
+        default_enabled = "1" if key in CORE else "0"
         sh.values().append(spreadsheetId=SHEET_ID, range=TAB + "!A:G",
             valueInputOption="RAW", insertDataOption="INSERT_ROWS",
-            body={"values": [[key, label, url, poster_uri, blur, "1", now]]}).execute()
+            body={"values": [[key, label, url, poster_uri, blur, default_enabled, now]]}).execute()
     print("[SAMPLE] %s 保存: %s" % (key, url[:60]))
 
 
