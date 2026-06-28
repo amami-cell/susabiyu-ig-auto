@@ -58,7 +58,7 @@
     if (isVideo(it)) {
       var p = it.poster ? ' poster="' + it.poster + '"' : '';
       return '<div class="mediaWrap"><video class="media" style="' + bg(it.blur) + '" src="' + it.url + '"' + p +
-             ' controls playsinline preload="none"></video><div class="badge">▶ タップで再生（音が出ます）</div></div>';
+             ' controls playsinline preload="metadata"></video><div class="badge">▶ タップで再生（音が出ます）</div></div>';
     }
     if (it.url) {
       return '<div class="mediaWrap"><img class="media" style="' + bg(it.blur) + '" src="' + it.url +
