@@ -241,8 +241,59 @@
     }
   }
 
+  /* ---------- Web Push 購読 ---------- */
+  function urlB64ToU8(s) {
+    var pad = "=".repeat((4 - (s.length % 4)) % 4);
+    var b = (s + pad).replace(/-/g, "+").replace(/_/g, "/");
+    var raw = atob(b), arr = new Uint8Array(raw.length);
+    for (var i = 0; i < raw.length; i++) arr[i] = raw.charCodeAt(i);
+    return arr;
+  }
+  function b64(s) { return btoa(unescape(encodeURIComponent(s))); }
+  function pushSupported() {
+    return ("serviceWorker" in navigator) && ("PushManager" in window) && ("Notification" in window);
+  }
+  function refreshPushBtn() {
+    var btn = document.getElementById("pushBtn"); if (!btn) return;
+    btn.onclick = enablePush;
+    var isIos = /iphone|ipad|ipod/i.test(navigator.userAgent);
+    var standalone = ("standalone" in navigator) && navigator.standalone;
+    if (pushSupported()) {
+      navigator.serviceWorker.ready.then(function (reg) { return reg.pushManager.getSubscription(); })
+        .then(function (sub) {
+          btn.style.display = "inline-block";
+          if (sub && Notification.permission === "granted") { btn.textContent = "🔔 通知ON"; btn.classList.add("on"); }
+          else { btn.textContent = "🔔 通知を受け取る"; btn.classList.remove("on"); }
+        }).catch(function () { btn.style.display = "inline-block"; });
+    } else if (isIos && !standalone) {
+      btn.style.display = "inline-block"; btn.textContent = "🔔 通知"; btn.classList.remove("on");
+    } else { btn.style.display = "none"; }
+  }
+  function enablePush() {
+    var isIos = /iphone|ipad|ipod/i.test(navigator.userAgent);
+    var standalone = ("standalone" in navigator) && navigator.standalone;
+    if (isIos && !standalone) {
+      var el = document.getElementById("ios"); if (el) el.style.display = "block";
+      toast("iPhoneは『ホーム画面に追加』してから通知をオンにできます"); return;
+    }
+    if (!pushSupported()) { toast("この端末/ブラウザは通知に未対応です"); return; }
+    if (!CFG.VAPID_PUBLIC) { toast("通知の設定(VAPID)が未設定です"); return; }
+    Notification.requestPermission().then(function (perm) {
+      if (perm !== "granted") { toast("通知が許可されませんでした"); return; }
+      navigator.serviceWorker.ready.then(function (reg) {
+        return reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: urlB64ToU8(CFG.VAPID_PUBLIC) });
+      }).then(function (sub) {
+        return jsonp({ api: "subscribe", sub: b64(JSON.stringify(sub)) });
+      }).then(function (res) {
+        if (res && res.error === "auth") { askKey("確認コードを入力してください"); return; }
+        toast("通知をオンにしました 🔔"); refreshPushBtn();
+      }).catch(function (e) { toast("通知の登録に失敗: " + ((e && e.message) || e)); });
+    });
+  }
+
   /* ---------- boot ---------- */
   load().then(function () { setRate(POLL); });
   document.addEventListener("visibilitychange", function () { if (!document.hidden) poll(); });
   maybeIosHint();
+  refreshPushBtn();
 })();
