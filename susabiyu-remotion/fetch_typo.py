@@ -105,7 +105,9 @@ i = 0
 while len(picked) < N_PHOTOS and any(cats[k] for k in names):
     k = names[i % len(names)]
     if cats[k]:
-        picked.append(cats[k].pop())
+        _img = cats[k].pop()
+        _img["cat"] = k
+        picked.append(_img)
     i += 1
 
 _fx = [x for x in os.environ.get("FIXED_IDS", "").split(",") if x]
@@ -128,9 +130,9 @@ for idx, f in enumerate(picked):
     items.append({"src": "typo/" + local, "caption": caption})
     print("PHOTO %d:" % idx, f["name"], "(短辺", short_side(f), "px)")
 
-phrases = json.load(open("phrases.json", encoding="utf-8"))
-headline = os.environ.get("FIXED_CAPTION") or random.choice(phrases)
-print("HEADLINE:", headline)
+import captions
+headline = captions.pick([f.get("cat", "") for f in picked])
+print("HEADLINE:", headline, "| cats:", [f.get("cat", "?") for f in picked])
 
 cands = ["bgm.mp3"]
 sync_music_from_drive(os.environ.get("GENRE_MUSIC_NORMAL_ID"), NORMAL_DIR)
