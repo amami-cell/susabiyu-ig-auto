@@ -95,6 +95,21 @@ def thumb_data_uri(comp, is_video):
         print("[THUMB] 生成失敗:", e)
         return "", blur
 
+def _faststart(mp4):
+    """mp4のmoov索引を先頭へ移動（再エンコード無し＝画質そのまま）。
+    ブラウザが頭だけ読んで即再生開始できる。ffmpeg不在なら無変換で継続。"""
+    try:
+        import subprocess as _sp
+        out = mp4[:-4] + "_fs.mp4" if mp4.endswith(".mp4") else mp4 + "_fs.mp4"
+        r = _sp.run(["ffmpeg", "-y", "-i", mp4, "-c", "copy", "-movflags", "+faststart", out],
+                    stdout=_sp.DEVNULL, stderr=_sp.DEVNULL)
+        if r.returncode == 0 and os.path.exists(out) and os.path.getsize(out) > 0:
+            os.replace(out, mp4); print("[FASTSTART] OK", mp4)
+        else:
+            print("[FASTSTART] skip (ffmpeg rc=%s)" % r.returncode)
+    except Exception as e:
+        print("[FASTSTART] skip:", e)
+
 def send_push(sh, title, body, url, focus=""):
     """承認待ちが新規作成された時、購読者へWeb Push通知（音/バナー）。失敗してもprepareは継続。"""
     raw = (os.environ.get("VAPID_PRIVATE_KEY") or "").strip()
@@ -205,6 +220,7 @@ def main():
         blur = ""
         if is_video:
             run("npx remotion render " + comp + " out/post.mp4 --crf 26 --timeout 120000 --concurrency 1")
+            _faststart("out/post.mp4")
             # ポスター静止画＋ぼかしを同じフレームから生成（先出し用）
             try:
                 poster_uri, blur = thumb_data_uri(comp, True)

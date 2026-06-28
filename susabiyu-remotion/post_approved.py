@@ -82,6 +82,10 @@ def regenerate(creds, dt):
     run("python " + fetch + cf)
     if is_video:
         run("npx remotion render " + comp + " out/post.mp4 --crf 18 --timeout 120000 --concurrency 1")
+        try:
+            prepare._faststart("out/post.mp4")  # 確認用プレビューの即再生（画質そのまま）
+        except Exception:
+            pass
     else:
         run("npx remotion still " + comp + " out/post.png")
     picked_json = ""
