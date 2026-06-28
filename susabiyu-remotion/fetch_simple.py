@@ -39,10 +39,10 @@ drive = build("drive", "v3", credentials=creds)
 
 def gather(root_id):
     images = []
-    stack = [root_id]
+    stack = [(root_id, None)]
     seen = set()
     while stack:
-        fid = stack.pop()
+        fid, fname = stack.pop()
         if fid in seen:
             continue
         seen.add(fid)
@@ -57,8 +57,9 @@ def gather(root_id):
             for f in res.get("files", []):
                 mt = f["mimeType"]
                 if mt == "application/vnd.google-apps.folder":
-                    stack.append(f["id"])
+                    stack.append((f["id"], f["name"]))
                 elif mt.startswith("image/"):
+                    f["cat"] = fname or "その他"
                     images.append(f)
             page = res.get("nextPageToken")
             if not page:
@@ -98,9 +99,9 @@ while not done:
 buf.close()
 print("PHOTO:", pick["name"], "-> public/simple.jpg")
 
-phrases = json.load(open("phrases.json", encoding="utf-8"))
-phrase = os.environ.get("FIXED_CAPTION") or random.choice(phrases)
-print("PHRASE:", phrase)
+import captions
+phrase = captions.pick([pick.get("cat", "")])
+print("PHRASE:", phrase, "| cat:", pick.get("cat", "?"))
 import json as _pj, os as _po
 _po.makedirs("out", exist_ok=True)
 _pj.dump({"ids": [pick["id"]], "caption": phrase, "music": ""}, open(_po.path.join("out", "picked.json"), "w", encoding="utf-8"), ensure_ascii=False)
