@@ -31,20 +31,59 @@ def day_kind(d):
         return True, "祝日"
     return False, "平日"
 
+_ENABLED_CACHE = None
+def _enabled_videos():
+    """ギャラリーで「採用」になっている動画パターンだけを返す。
+    スプレッドの「パターン」タブ(A=pattern, F=enabled)を読む。
+    シート未接続や全無効など取得できないときは安全側で全動画パターンを使う。"""
+    global _ENABLED_CACHE
+    if _ENABLED_CACHE is not None:
+        return _ENABLED_CACHE
+    vids = list(VIDEO)
+    try:
+        import poster
+        sh = poster._sheets()
+        if sh and poster.SHEET_ID:
+            rows = sh.values().get(spreadsheetId=poster.SHEET_ID,
+                                   range="パターン!A:F").execute().get("values", [])
+            off = ("0", "false", "no", "off", "×", "x", "無", "なし")
+            en = []
+            for i, r in enumerate(rows):
+                if i == 0 or not r:
+                    continue
+                key = str(r[0]).strip()
+                val = (str(r[5]).strip().lower() if len(r) > 5 and str(r[5]).strip() != "" else "1")
+                if key in VIDEO and val not in off:
+                    en.append(key)
+            keep = [k for k in VIDEO if k in en]  # VIDEOの並び順を保つ＝決定的
+            if keep:
+                vids = keep
+            print("[ENABLED] 採用動画パターン:", vids)
+    except Exception as e:
+        print("[ENABLED] パターン取得失敗（全動画パターン使用）:", e)
+    _ENABLED_CACHE = vids
+    return vids
+
+
 def _video_for_day(d):
-    """動画4種をなるべく均等に。4日ごとに全種が1回ずつ出る（ブロック内はシャッフル順）。
+    """採用中の動画パターンをなるべく均等に。N日ごとに全採用種が1回ずつ出る。
     日付で決まるのでprepare/postで一致し、再実行しても同じ結果になる。"""
+    vids = _enabled_videos()
+    n = len(vids) or 1
+    if not vids:
+        vids = list(VIDEO)
+        n = len(vids)
     o = d.toordinal()
     def order(b):
         r = random.Random("vblock-%d" % b)
-        L = list(VIDEO)
+        L = list(vids)
         r.shuffle(L)
         return L
-    cur = order(o // 4)
+    cur = order(o // n)
     # ブロック境界で前日と同じ動画にならないよう、先頭が前ブロック末尾と同じなら1つ回す
-    if cur[0] == order(o // 4 - 1)[3]:
+    if n > 1 and cur[0] == order(o // n - 1)[n - 1]:
         cur = cur[1:] + cur[:1]
-    return cur[o % 4]
+    return cur[o % n]
 
 
 def plan_day(d, open_hour):

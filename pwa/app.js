@@ -313,6 +313,81 @@
     })();
   }
 
+  /* ---------- 見本ギャラリー（採用/無しの判断用） ---------- */
+  var galleryEl = document.getElementById("gallery");
+  var tabFeed = document.getElementById("tabFeed");
+  var tabGallery = document.getElementById("tabGallery");
+  var galleryLoaded = false;
+
+  function galleryCard(it) {
+    var card = document.createElement("div");
+    card.className = "card";
+    card.setAttribute("data-pattern", it.pattern);
+    var on = String(it.enabled) !== "0" && String(it.enabled).toLowerCase() !== "false";
+    var p = it.poster ? ' poster="' + esc(it.poster) + '"' : "";
+    var media = it.url
+      ? '<div class="mediaWrap"><video class="media" style="' + bg(it.blur) + '" src="' + esc(it.url) + '"' + p +
+        ' controls playsinline preload="none"></video><div class="badge">▶ タップで再生（音が出ます）</div></div>'
+      : '<div class="mediaWrap"><div class="media" style="height:180px;display:flex;align-items:center;justify-content:center;color:#9aa3b2">見本を生成中…</div></div>';
+    card.innerHTML =
+      '<div class="head"><span class="pat">' + esc(it.label || it.pattern) + '</span>' +
+      '<span class="gstate ' + (on ? "on" : "off") + '">' + (on ? "採用中" : "無し") + '</span></div>' +
+      media +
+      '<div class="gtoggle">' +
+        '<button class="adopt' + (on ? " active" : "") + '">採用する</button>' +
+        '<button class="skip' + (on ? "" : " active") + '">無しにする</button>' +
+      '</div>';
+    var bs = card.querySelectorAll(".gtoggle button");
+    bs[0].onclick = function () { setPattern(card, it.pattern, true); };
+    bs[1].onclick = function () { setPattern(card, it.pattern, false); };
+    return card;
+  }
+  function paintToggle(card, on) {
+    var st = card.querySelector(".gstate");
+    if (st) { st.className = "gstate " + (on ? "on" : "off"); st.textContent = on ? "採用中" : "無し"; }
+    var bs = card.querySelectorAll(".gtoggle button");
+    if (bs.length === 2) { bs[0].classList.toggle("active", on); bs[1].classList.toggle("active", !on); }
+  }
+  function setPattern(card, key, on) {
+    paintToggle(card, on);  // 楽観反映
+    toast(on ? "採用にしました" : "無しにしました");
+    jsonp({ api: "pattern", pattern: key, on: on ? 1 : 0 }).then(function (res) {
+      if (res && res.error) { toast("反映できませんでした"); paintToggle(card, !on); }
+    }).catch(function () { toast("通信エラー。元に戻します"); paintToggle(card, !on); });
+  }
+  function loadPatterns() {
+    galleryEl.innerHTML = '<div class="ghint">見本を読み込んでいます…</div>';
+    jsonp({ api: "patterns" }).then(function (data) {
+      if (data && data.error === "auth") { askKey("確認コードを入力してください"); return loadPatterns(); }
+      var items = (data && data.items) || [];
+      galleryEl.innerHTML = "";
+      var hint = document.createElement("div");
+      hint.className = "ghint";
+      hint.innerHTML = "各動画パターンの見本です。<b style='color:#7fd1a0'>採用する</b>を選ぶと、その型だけが日々の投稿ローテーションに使われます。<br>（店舗ごとの好みに合わせて選べます）";
+      galleryEl.appendChild(hint);
+      if (!items.length) {
+        var e = document.createElement("div");
+        e.className = "empty";
+        e.innerHTML = "見本がまだありません。<br>サンプル生成（samples）を実行すると、ここに各パターンの動画が並びます。";
+        galleryEl.appendChild(e);
+        return;
+      }
+      items.forEach(function (it) { galleryEl.appendChild(galleryCard(it)); });
+    }).catch(function (e) {
+      galleryEl.innerHTML = '<div class="empty">見本を取得できませんでした。<br><small>' + esc(e.message) + '</small></div>';
+    });
+  }
+  function switchTab(toGallery) {
+    tabFeed.classList.toggle("on", !toGallery);
+    tabGallery.classList.toggle("on", toGallery);
+    feed.style.display = toGallery ? "none" : "";
+    galleryEl.style.display = toGallery ? "" : "none";
+    if (toGallery && !galleryLoaded) { galleryLoaded = true; loadPatterns(); }
+    else if (toGallery) { loadPatterns(); }
+  }
+  if (tabFeed) tabFeed.onclick = function () { switchTab(false); };
+  if (tabGallery) tabGallery.onclick = function () { switchTab(true); };
+
   /* ---------- boot ---------- */
   load().then(function () { setRate(POLL); focusCard(getParam("focus")); });
   document.addEventListener("visibilitychange", function () { if (!document.hidden) poll(); });

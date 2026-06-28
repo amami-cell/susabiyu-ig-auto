@@ -26,6 +26,23 @@
   .bar .logo{width:26px;height:26px;border-radius:7px;background:linear-gradient(135deg,#2bb673,#1f9d55);
     display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:800;color:#fff}
   .bar h1{font-size:16px;margin:0;font-weight:700;letter-spacing:.2px;flex:1}
+  .tabs{display:flex;gap:6px;flex:1}
+  .tab{border:1px solid var(--line);background:#181c23;color:var(--sub);font-size:13px;font-weight:800;
+    padding:7px 16px;border-radius:999px;transition:.12s}
+  .tab.on{background:#10301f;color:var(--accent);border-color:#1f4d33}
+  .tab:active{transform:scale(.96)}
+  #gallery{padding:14px 14px 28px;max-width:560px;margin:0 auto}
+  .ghint{color:var(--sub);font-size:13px;line-height:1.7;text-align:center;margin:10px 2px 16px}
+  .gstate{font-size:13px;font-weight:800;padding:3px 11px;border-radius:999px;margin-left:auto}
+  .gstate.on{color:var(--accent);background:#10301f}
+  .gstate.off{color:#aeb6c2;background:#23262d}
+  .gtoggle{display:flex;gap:8px;margin-top:10px}
+  .gtoggle button{flex:1;border:0;border-radius:13px;padding:13px 0;font-size:15px;font-weight:800;color:#fff;
+    transition:transform .06s,opacity .15s;opacity:.5}
+  .gtoggle .adopt{background:var(--ok)}
+  .gtoggle .skip{background:var(--ng)}
+  .gtoggle button.active{opacity:1;box-shadow:0 0 0 3px rgba(127,209,160,.35)}
+  .gtoggle button:active{transform:scale(.96)}
   .bar .push{border:1px solid var(--line);background:#222835;color:var(--fg);
     font-size:12px;font-weight:700;padding:6px 11px;border-radius:999px;display:none}
   .bar .push.on{background:#10301f;color:var(--accent);border-color:#1f4d33}
@@ -85,7 +102,10 @@
 <body>
   <div class="bar">
     <div class="logo">す</div>
-    <h1>投稿の事前確認</h1>
+    <div class="tabs">
+      <button class="tab on" id="tabFeed">確認</button>
+      <button class="tab" id="tabGallery">見本</button>
+    </div>
     <button class="push" id="pushBtn">🔔 通知ON</button>
     <div class="dot" id="live"><i></i><span id="liveTxt">接続中…</span></div>
   </div>
@@ -93,6 +113,7 @@
     <div class="sk"><div class="b l1"></div><div class="b img"></div><div class="b l2"></div></div>
     <div class="sk"><div class="b l1"></div><div class="b img"></div><div class="b l2"></div></div>
   </div>
+  <div id="gallery" style="display:none"></div>
   <div id="toast"></div>
   <div id="ios">
     <span class="x" onclick="document.getElementById('ios').style.display='none'">✕</span>
