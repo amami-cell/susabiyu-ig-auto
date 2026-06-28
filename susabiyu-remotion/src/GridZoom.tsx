@@ -29,7 +29,11 @@ const Dish: React.FC<{ src: string; zoom?: number }> = ({ src, zoom = 1 }) => (
 // グリッド→（携帯で選んだ風：枠が光る・他が暗くなる）→タップ写真がじわじわ拡大して主役へ。
 export const GridZoom: React.FC<{ storeName?: string; handle?: string }> = ({ storeName = "すさび湯 河原町三条店", handle = "@susabiyu_sanjyo" }) => {
   const f = useCurrentFrame();
-  const photos = tempoPhotos.slice(0, 6);
+  // 選ばれる（=主役/index0）写真は寿司カテゴリにする。グリッド自体は変化をつけて並べる。
+  const _all = tempoPhotos.slice(0, 6);
+  const _isSushi = (c: string) => /寿司|鮨|握り|にぎり|巻き|刺身/.test(c || "");
+  const _si = _all.findIndex((p) => _isSushi(p.caption));
+  const photos = _si > 0 ? [_all[_si]].concat(_all.filter((_, i) => i !== _si)) : _all;
   const n = Math.max(photos.length, 1);
   const rows = Math.ceil(n / COLS);
   const cw = (1080 - PAD * 2 - GAP * (COLS - 1)) / COLS;
@@ -130,7 +134,7 @@ export const GridZoom: React.FC<{ storeName?: string; handle?: string }> = ({ st
         <AbsoluteFill style={{ background: "linear-gradient(to bottom, rgba(0,0,0,0.4) 0%, rgba(0,0,0,0) 30%, rgba(0,0,0,0) 48%, rgba(0,0,0,0.85) 100%)", opacity: labO }} />
         <div style={{ position: "absolute", top: 130, left: 80, opacity: labO, display: "flex", alignItems: "center", gap: 14 }}>
           <div style={{ width: 30, height: 2, backgroundColor: GOLD }} />
-          <span style={{ color: GOLD, fontFamily: mincho, fontSize: 28, letterSpacing: 10 }}>これに決めた</span>
+          <span style={{ color: GOLD, fontFamily: mincho, fontSize: 28, letterSpacing: 8 }}>本日のおすすめ。</span>
         </div>
         <div style={{ position: "absolute", bottom: 250, left: 80, right: 80, opacity: nameO, transform: "translateY(" + nameY + "px)" }}>
           <div style={{ width: 110, height: 5, backgroundColor: GOLD, marginBottom: 22 }} />
