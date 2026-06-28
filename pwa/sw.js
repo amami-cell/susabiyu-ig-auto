@@ -2,7 +2,7 @@
    ・アプリのガワ(shell)を precache → 2回目以降は“開いた瞬間”に表示
    ・jsDelivr のメディアは stale-while-revalidate でランタイムキャッシュ
    ・GAS(JSONP)などデータ通信はキャッシュしない（常に最新を取りに行く） */
-var VER = "susabiyu-v3";
+var VER = "susabiyu-v4";
 var SHELL = VER + "-shell";
 var MEDIA = VER + "-media";
 var SHELL_FILES = [
@@ -69,15 +69,21 @@ self.addEventListener("push", function (e) {
   var body = data.body || "新しい投稿の確認待ちがあります";
   e.waitUntil(self.registration.showNotification(title, {
     body: body, icon: "./icons/icon-192.png", badge: "./icons/icon-192.png",
-    vibrate: [80, 40, 80], tag: data.tag || "susabiyu", renotify: true,
-    data: { url: data.url || "./" }
+    vibrate: [120, 60, 120], tag: data.tag || "susabiyu", renotify: true,
+    silent: false, requireInteraction: false,
+    data: { url: data.url || "./", focus: data.focus || "" }
   }));
 });
 self.addEventListener("notificationclick", function (e) {
   e.notification.close();
-  var target = (e.notification.data && e.notification.data.url) || "./";
+  var d = e.notification.data || {};
+  var focus = d.focus || "";
+  var base = d.url || "./";
+  var target = base + (focus ? (base.indexOf("?") >= 0 ? "&" : "?") + "focus=" + encodeURIComponent(focus) : "");
   e.waitUntil(clients.matchAll({ type: "window", includeUncontrolled: true }).then(function (cl) {
-    for (var i = 0; i < cl.length; i++) { if ("focus" in cl[i]) return cl[i].focus(); }
+    for (var i = 0; i < cl.length; i++) {
+      if ("focus" in cl[i]) { try { cl[i].postMessage({ type: "focus", token: focus }); } catch (x) {} return cl[i].focus(); }
+    }
     if (clients.openWindow) return clients.openWindow(target);
   }));
 });

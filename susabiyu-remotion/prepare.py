@@ -95,7 +95,7 @@ def thumb_data_uri(comp, is_video):
         print("[THUMB] 生成失敗:", e)
         return "", blur
 
-def send_push(sh, title, body, url):
+def send_push(sh, title, body, url, focus=""):
     """承認待ちが新規作成された時、購読者へWeb Push通知（音/バナー）。失敗してもprepareは継続。"""
     raw = (os.environ.get("VAPID_PRIVATE_KEY") or "").strip()
     subject = (os.environ.get("VAPID_SUBJECT") or "mailto:admin@example.com").strip()
@@ -120,7 +120,7 @@ def send_push(sh, title, body, url):
     except Exception as e:
         print("[PUSH] 購読の読取失敗:", e); return
     import json as _pjson
-    payload = _pjson.dumps({"title": title, "body": body, "url": url})
+    payload = _pjson.dumps({"title": title, "body": body, "url": url, "focus": focus})
     sent = 0; gone = 0
     for r in rows[1:]:
         if len(r) < 2 or not str(r[1]).strip():
@@ -186,6 +186,7 @@ def main():
         print("既存行の取得に失敗（重複チェックなしで続行）:", _e)
 
     made = []
+    first_token = ""
     for hour in slots:
         dt = datetime.datetime(target.year, target.month, target.day, hour, 0, tzinfo=JST)
         if dt.strftime("%Y-%m-%d %H:%M") in existing_when:
@@ -218,6 +219,7 @@ def main():
             uri, blur = thumb_data_uri(comp, is_video)
         cap = caption_of(pattern)
         token = "P" + dt.strftime("%Y%m%d%H") + "_" + pattern
+        if not first_token: first_token = token
         when = dt.strftime("%Y-%m-%d %H:%M")
         kindstr = "still"
         sh.values().append(spreadsheetId=SHEET_ID, range=APP_TAB + "!A:M",
@@ -238,7 +240,7 @@ def main():
     poster.line_notify("\n".join(lines))
     try:
         pwa_url = os.environ.get("PWA_URL") or "https://amami-cell.github.io/susabiyu-media/app/"
-        send_push(sh, "すさび湯 確認", "%d/%d の投稿 %d件が確認待ちです" % (target.month, target.day, len(made)), pwa_url)
+        send_push(sh, "すさび湯 確認", "%d/%d の投稿 %d件が確認待ちです" % (target.month, target.day, len(made)), pwa_url, first_token)
     except Exception as e:
         print("[PUSH] 失敗(継続):", e)
     print("完了: %s ぶん %d枠を承認待ちに登録しました。" % (target, len(made)))
