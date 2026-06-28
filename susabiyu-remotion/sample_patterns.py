@@ -70,7 +70,7 @@ def main():
             os.environ.pop(k, None)
         try:
             prepare.run('python ' + fetch + ' "creds.json"')
-            prepare.run("npx remotion render " + comp + " out/post.mp4 --crf 26 --timeout 120000 --concurrency 1")
+            prepare.run("npx remotion render " + comp + " out/post.mp4 --crf 18 --timeout 120000 --concurrency 1")
             prepare._faststart("out/post.mp4")
             poster_uri, blur = prepare.thumb_data_uri(comp, True)
             try:
