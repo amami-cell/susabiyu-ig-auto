@@ -120,7 +120,7 @@ def send_push(sh, title, body, url, focus=""):
     except Exception as e:
         print("[PUSH] 購読の読取失敗:", e); return
     import json as _pjson
-    payload = _pjson.dumps({"title": title, "body": body, "url": url, "focus": focus})
+    payload = _pjson.dumps({"title": title, "body": body, "url": url, "focus": focus, "tag": (focus or "susabiyu")})
     sent = 0; gone = 0
     for r in rows[1:]:
         if len(r) < 2 or not str(r[1]).strip():
