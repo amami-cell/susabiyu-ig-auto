@@ -62,7 +62,7 @@
     }
     if (it.url) {
       return '<div class="mediaWrap"><img class="media" style="' + bg(it.blur) + '" src="' + it.url +
-             '" alt="preview" decoding="async"></div>';
+             '" alt="preview" decoding="async" loading="eager" fetchpriority="high"></div>';
     }
     return '<div class="mediaWrap"><div class="media" style="height:180px"></div></div>';
   }
