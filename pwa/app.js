@@ -340,13 +340,18 @@
     var bs = card.querySelectorAll(".gtoggle button");
     bs[0].onclick = function () { setPattern(card, it.pattern, true); };
     bs[1].onclick = function () { setPattern(card, it.pattern, false); };
+    paintToggle(card, on);  // 初期状態（採用中はそのボタンを押せなくする）
     return card;
   }
   function paintToggle(card, on) {
     var st = card.querySelector(".gstate");
     if (st) { st.className = "gstate " + (on ? "on" : "off"); st.textContent = on ? "採用中" : "無し"; }
     var bs = card.querySelectorAll(".gtoggle button");
-    if (bs.length === 2) { bs[0].classList.toggle("active", on); bs[1].classList.toggle("active", !on); }
+    if (bs.length === 2) {
+      // いま選ばれている方を「採用中／無し」として無効化（押せない）。反対側だけ押せる＝切替は可能
+      bs[0].classList.toggle("active", on);  bs[0].disabled = on;   bs[0].textContent = on ? "採用中" : "採用する";
+      bs[1].classList.toggle("active", !on); bs[1].disabled = !on;  bs[1].textContent = !on ? "無し" : "無しにする";
+    }
   }
   function setPattern(card, key, on) {
     paintToggle(card, on);  // 楽観反映
@@ -387,6 +392,14 @@
   }
   if (tabFeed) tabFeed.onclick = function () { switchTab(false); };
   if (tabGallery) tabGallery.onclick = function () { switchTab(true); };
+
+  /* ---------- 店舗屋号をタイトルに ---------- */
+  (function setStoreName() {
+    var el = document.getElementById("storeName");
+    var name = (CFG.STORE_NAME || "").trim();
+    if (el && name) { el.textContent = name; }
+    if (name) { document.title = name; }
+  })();
 
   /* ---------- boot ---------- */
   load().then(function () { setRate(POLL); focusCard(getParam("focus")); });
