@@ -47,10 +47,10 @@ export const OsusumeStory: React.FC<{ storeName?: string; handle?: string }> = (
       </div>
 
       {/* 店主おすすめ スタンプ */}
-      <div style={{ position: "absolute", top: 300, right: 84, width: 250, height: 250, transform: "scale(" + stampS + ") rotate(" + stampR + "deg)" }}>
-        <div style={{ width: "100%", height: "100%", borderRadius: "50%", border: "6px solid " + GOLD, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", background: "rgba(120,20,16,0.86)", boxShadow: "0 12px 30px rgba(0,0,0,0.45)" }}>
-          <span style={{ color: GOLD, fontFamily: mincho, fontSize: 30, letterSpacing: 8, marginBottom: 4 }}>店主</span>
-          <span style={{ color: WHITE, fontFamily: mincho, fontWeight: 700, fontSize: 58, letterSpacing: 4, lineHeight: 1 }}>おすすめ</span>
+      <div style={{ position: "absolute", top: 296, right: 70, width: 272, height: 272, transform: "scale(" + stampS + ") rotate(" + stampR + "deg)" }}>
+        <div style={{ width: "100%", height: "100%", borderRadius: "50%", border: "6px solid " + GOLD, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", background: "rgba(120,20,16,0.88)", boxShadow: "0 12px 30px rgba(0,0,0,0.45)" }}>
+          <span style={{ color: GOLD, fontFamily: mincho, fontSize: 30, letterSpacing: 8, marginBottom: 6, whiteSpace: "nowrap" }}>店主の</span>
+          <span style={{ color: WHITE, fontFamily: mincho, fontWeight: 700, fontSize: 50, letterSpacing: 2, lineHeight: 1, whiteSpace: "nowrap" }}>おすすめ</span>
         </div>
       </div>
 
