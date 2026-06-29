@@ -236,6 +236,55 @@ def setredo(whens):
             print("[SETREDO] %s 見つからず" % w)
 
 
+def heal():
+    """一時ホスト(litterbox等)に保存されたプレビューを、まだ生きているうちに
+    永続(jsDelivr/R2)へ再アップロードして差し替える。確認画面の画像が消えないように。"""
+    sh = poster._sheets()
+    if sh is None:
+        raise SystemExit("シート接続失敗")
+    tab = "承認待ち"
+    data = sh.values().get(spreadsheetId=poster.SHEET_ID, range=tab + "!A:M").execute().get("values", [])
+    TEMP = ("litter.catbox.moe", "tmpfiles.org", "0x0.st", "//catbox.moe", "files.catbox.moe")
+    r2base = (os.environ.get("R2_PUBLIC_BASE") or "").rstrip("/")
+    os.makedirs("out", exist_ok=True)
+    healed = 0
+    target = 0
+    for i, r in enumerate(data):
+        if i == 0:
+            continue
+        st = str(r[7]) if len(r) > 7 else ""
+        if st not in ("pending", "redo", "approved"):
+            continue
+        url = str(r[4]) if len(r) > 4 else ""
+        if not url or "cdn.jsdelivr.net" in url or (r2base and r2base in url):
+            continue  # 既に永続
+        if not any(h in url for h in TEMP):
+            continue  # 不明なホストは触らない
+        target += 1
+        try:
+            resp = req.get(url, timeout=90)
+            if resp.status_code != 200 or not resp.content:
+                print("[HEAL] %s 取得不可(%s)＝期限切れ。要再生成" % (str(r[1])[:16], resp.status_code))
+                continue
+            ext = ".mp4" if (".mp4" in url.lower() or ".mov" in url.lower()) else ".jpg"
+            p = os.path.join("out", "heal" + ext)
+            open(p, "wb").write(resp.content)
+            newu = poster.up(p, cdn=True)
+            if "cdn.jsdelivr.net" in newu or (r2base and r2base in newu):
+                sh.values().update(spreadsheetId=poster.SHEET_ID, range="%s!E%d" % (tab, i + 1),
+                                   valueInputOption="RAW", body={"values": [[newu]]}).execute()
+                print("[HEAL] %s 永続化: %s" % (str(r[1])[:16], newu[:55]))
+                healed += 1
+            else:
+                print("[HEAL] %s 永続化できず（一時のまま）" % str(r[1])[:16])
+            if healed >= 4:
+                print("[HEAL] レート保護のため今回はここまで")
+                break
+        except Exception as e:
+            print("[HEAL] err %s: %s" % (str(r[1])[:16], e))
+    print("[HEAL] 一時ホスト対象 %d / 永続化 %d" % (target, healed))
+
+
 def main():
     raw = " ".join(sys.argv[1:]).strip() if len(sys.argv) > 1 else "check"
     parts = [p.strip() for p in raw.split("|")]
@@ -248,8 +297,10 @@ def main():
         diag()
     elif mode == "setredo":
         setredo(parts[1:])
+    elif mode == "heal":
+        heal()
     else:
-        print("usage: python insights.py [check|collect|diag|'setredo|<when>|<when>...']")
+        print("usage: python insights.py [check|collect|diag|heal|'setredo|<when>...']")
 
 
 if __name__ == "__main__":
