@@ -6,6 +6,14 @@
   var GAS = (CFG.GAS_URL || "").trim();
   var POLL = CFG.POLL_MS || 7000;
   var KEY = localStorage.getItem("sb_key") || "";
+  var ADMIN = localStorage.getItem("sb_admin") || "";   // 管理者コード（採用/無しの変更に必要。空＝閲覧のみ）
+  var NOTIF = loadNotif();                                // 通知カテゴリの個別ON/OFF
+  function loadNotif() {
+    try { var o = JSON.parse(localStorage.getItem("sb_notif") || "{}"); return o && typeof o === "object" ? o : {}; }
+    catch (e) { return {}; }
+  }
+  function notifOn(k) { return String(NOTIF[k] !== undefined ? NOTIF[k] : 1) !== "0"; }
+  function saveNotifLocal() { try { localStorage.setItem("sb_notif", JSON.stringify(NOTIF)); } catch (e) {} }
 
   function askKey(msg) {
     var k = window.prompt(msg || "確認コードを入力してください", "");
@@ -34,6 +42,7 @@
       function cleanup() { clearTimeout(to); delete window[cb]; if (s.parentNode) s.parentNode.removeChild(s); }
       window[cb] = function (data) { cleanup(); resolve(data); };
       if (KEY) params.key = KEY;
+      if (ADMIN && params.owner === undefined) params.owner = ADMIN;
       var q = Object.keys(params).map(function (k) { return k + "=" + encodeURIComponent(params[k]); }).join("&");
       s.src = GAS + (GAS.indexOf("?") >= 0 ? "&" : "?") + q + "&cb=" + cb;
       s.onerror = function () { cleanup(); reject(new Error("network")); };
@@ -262,8 +271,12 @@
       navigator.serviceWorker.ready.then(function (reg) { return reg.pushManager.getSubscription(); })
         .then(function (sub) {
           btn.style.display = "inline-block";
-          if (sub && Notification.permission === "granted") { btn.textContent = "🔔 通知ON"; btn.classList.add("on"); }
-          else { btn.textContent = "🔔 通知を受け取る"; btn.classList.remove("on"); }
+          if (sub && Notification.permission === "granted") {
+            btn.textContent = "🔔 通知ON"; btn.classList.add("on");
+            btn.onclick = function () { openNotifSettings(sub); };  // ON中はタップで個別設定
+          } else {
+            btn.textContent = "🔔 通知を受け取る"; btn.classList.remove("on"); btn.onclick = enablePush;
+          }
         }).catch(function () { btn.style.display = "inline-block"; });
     } else if (isIos && !standalone) {
       btn.style.display = "inline-block"; btn.textContent = "🔔 通知"; btn.classList.remove("on");
@@ -283,11 +296,62 @@
       navigator.serviceWorker.ready.then(function (reg) {
         return reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: urlB64ToU8(CFG.VAPID_PUBLIC) });
       }).then(function (sub) {
-        return jsonp({ api: "subscribe", sub: b64(JSON.stringify(sub)) });
-      }).then(function (res) {
-        if (res && res.error === "auth") { askKey("確認コードを入力してください"); return; }
-        toast("通知をオンにしました 🔔"); refreshPushBtn();
+        return jsonp({ api: "subscribe", sub: b64(JSON.stringify(sub)), prefs: JSON.stringify(NOTIF), ep: sub.endpoint }).then(function (res) {
+          if (res && res.error === "auth") { askKey("確認コードを入力してください"); return; }
+          toast("通知をオンにしました 🔔"); refreshPushBtn(); openNotifSettings(sub);
+        });
       }).catch(function (e) { toast("通知の登録に失敗: " + ((e && e.message) || e)); });
+    });
+  }
+
+  /* ---------- モーダル（汎用） ---------- */
+  function modal(title, fill) {
+    var ov = document.createElement("div"); ov.className = "modalOv";
+    var sheet = document.createElement("div"); sheet.className = "modal";
+    sheet.innerHTML = '<div class="mhead"><span>' + esc(title) + '</span><button class="mx">✕</button></div><div class="mbody"></div>';
+    ov.appendChild(sheet); document.body.appendChild(ov);
+    sheet.querySelector(".mx").onclick = function () { closeModal(ov); };
+    ov.onclick = function (e) { if (e.target === ov) closeModal(ov); };
+    fill(sheet.querySelector(".mbody"), ov);
+    requestAnimationFrame(function () { ov.classList.add("show"); });
+    return ov;
+  }
+  function closeModal(ov) {
+    ov.classList.remove("show");
+    setTimeout(function () { if (ov.parentNode) ov.parentNode.removeChild(ov); }, 220);
+  }
+
+  /* ---------- 通知の個別ON/OFF設定 ---------- */
+  var NOTIF_CATS = [
+    { key: "ig", label: "Instagram投稿完了", desc: "実際にInstagramへ投稿された時" },
+    { key: "confirm", label: "確認用の作成完了", desc: "確認用の動画・画像ができた時" },
+    { key: "redo", label: "作り直しの作成完了", desc: "作り直した動画・画像ができた時" }
+  ];
+  function openNotifSettings(sub) {
+    modal("通知の設定", function (body, ov) {
+      var lead = document.createElement("div"); lead.className = "mlead";
+      lead.textContent = "受け取りたい通知だけをオンにできます（この端末ごとの設定）。";
+      body.appendChild(lead);
+      NOTIF_CATS.forEach(function (c) {
+        var row = document.createElement("label"); row.className = "swrow";
+        row.innerHTML = '<div class="swtxt"><b>' + esc(c.label) + '</b><small>' + esc(c.desc) + '</small></div>' +
+          '<span class="sw"><input type="checkbox"' + (notifOn(c.key) ? " checked" : "") + '><i></i></span>';
+        var cb = row.querySelector("input");
+        cb.onchange = function () {
+          NOTIF[c.key] = cb.checked ? 1 : 0; saveNotifLocal();
+          if (sub) jsonp({ api: "notifprefs", ep: sub.endpoint, prefs: JSON.stringify(NOTIF) }).then(function (res) {
+            if (res && res.error === "auth") askKey("確認コードを入力してください");
+          });
+          toast((cb.checked ? "ON：" : "OFF：") + c.label);
+        };
+        body.appendChild(row);
+      });
+      var stop = document.createElement("button"); stop.className = "mbtn off"; stop.textContent = "通知をすべてオフにする";
+      stop.onclick = function () {
+        if (sub) { try { sub.unsubscribe(); } catch (e) {} }
+        toast("通知をオフにしました"); closeModal(ov); refreshPushBtn();
+      };
+      body.appendChild(stop);
     });
   }
 
@@ -329,15 +393,19 @@
       ? '<div class="mediaWrap"><video class="media" style="' + bg(it.blur) + '" src="' + esc(it.url) + '"' + p +
         ' controls playsinline preload="none"></video><div class="badge">▶ タップで再生（音が出ます）</div></div>'
       : '<div class="mediaWrap"><div class="media" style="height:180px;display:flex;align-items:center;justify-content:center;color:#9aa3b2">見本を生成中…</div></div>';
+    var segHtml = ADMIN
+      ? '<div class="seg"><button class="seg-on">採用する</button><button class="seg-off">無しにする</button></div>' +
+        '<div class="ghintline">「採用する」を選んだパターンだけが投稿に使われます</div>'
+      : '<div class="ghintline">採用／無しの変更は管理者のみです。<br>再生して確認できます。</div>';
     card.innerHTML =
       '<div class="head"><span class="pat">' + esc(it.label || it.pattern) + '</span>' +
       '<span class="gstate ' + (on ? "on" : "off") + '">' + (on ? "採用中" : "無し") + '</span></div>' +
-      media +
-      '<div class="seg"><button class="seg-on">採用する</button><button class="seg-off">無しにする</button></div>' +
-      '<div class="ghintline">「採用する」を選んだパターンだけが投稿に使われます</div>';
+      media + segHtml;
     var sOn = card.querySelector(".seg-on"), sOff = card.querySelector(".seg-off");
-    sOn.onclick = function () { if (card.dataset.on !== "1") setPattern(card, it.pattern, true); };
-    sOff.onclick = function () { if (card.dataset.on !== "0") setPattern(card, it.pattern, false); };
+    if (sOn && sOff) {
+      sOn.onclick = function () { if (card.dataset.on !== "1") setPattern(card, it.pattern, true); };
+      sOff.onclick = function () { if (card.dataset.on !== "0") setPattern(card, it.pattern, false); };
+    }
     paintToggle(card, on);  // 初期状態を反映
     return card;
   }
@@ -356,9 +424,21 @@
     paintToggle(card, on);  // 楽観反映
     toast(on ? "採用にしました" : "無しにしました");
     jsonp({ api: "pattern", pattern: key, on: on ? 1 : 0 }).then(function (res) {
+      if (res && res.error === "owner") { toast("管理者コードが必要です"); paintToggle(card, !on); lockAdmin(); return; }
       if (res && res.error) { toast("反映できませんでした"); paintToggle(card, !on); }
     }).catch(function () { toast("通信エラー。元に戻します"); paintToggle(card, !on); });
   }
+  function unlockAdmin() {
+    var code = window.prompt("管理者コードを入力（採用／無しを変更できます）", "");
+    if (code == null) return;
+    code = String(code).trim(); if (!code) return;
+    jsonp({ api: "owner", owner: code }).then(function (res) {
+      if (res && res.error === "auth") { askKey("確認コードを入力してください"); return; }
+      if (res && res.owner) { ADMIN = code; localStorage.setItem("sb_admin", code); toast("管理者モードON"); loadPatterns(); }
+      else { toast("管理者コードが違います"); }
+    }).catch(function () { toast("通信エラー"); });
+  }
+  function lockAdmin() { ADMIN = ""; localStorage.removeItem("sb_admin"); loadPatterns(); }
   function loadPatterns() {
     galleryEl.innerHTML = '<div class="ghint">見本を読み込んでいます…</div>';
     jsonp({ api: "patterns" }).then(function (data) {
@@ -369,6 +449,16 @@
       hint.className = "ghint";
       hint.innerHTML = "各動画パターンの見本です。<b style='color:#7fd1a0'>採用する</b>を選ぶと、その型だけが日々の投稿ローテーションに使われます。<br>（店舗ごとの好みに合わせて選べます）";
       galleryEl.appendChild(hint);
+      var adminBar = document.createElement("div"); adminBar.className = "adminbar";
+      if (ADMIN) {
+        adminBar.innerHTML = '<span class="abadge">🔓 管理者モード</span><button class="alink" id="adminLock">解除する</button>';
+        galleryEl.appendChild(adminBar);
+        var lk = adminBar.querySelector("#adminLock"); if (lk) lk.onclick = lockAdmin;
+      } else {
+        adminBar.innerHTML = '<button class="alink" id="adminUnlock">🔑 管理者モード（採用／無しを変更）</button>';
+        galleryEl.appendChild(adminBar);
+        var ul = adminBar.querySelector("#adminUnlock"); if (ul) ul.onclick = unlockAdmin;
+      }
       if (!items.length) {
         var e = document.createElement("div");
         e.className = "empty";

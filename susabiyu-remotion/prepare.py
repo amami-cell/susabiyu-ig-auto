@@ -117,7 +117,7 @@ def _faststart(mp4):
     except Exception as e:
         print("[FASTSTART] skip:", e)
 
-def send_push(sh, title, body, url, focus=""):
+def send_push(sh, title, body, url, focus="", category=""):
     """承認待ちが新規作成された時、購読者へWeb Push通知（音/バナー）。失敗してもprepareは継続。"""
     raw = (os.environ.get("VAPID_PRIVATE_KEY") or "").strip()
     subject = (os.environ.get("VAPID_SUBJECT") or "mailto:admin@example.com").strip()
@@ -138,15 +138,22 @@ def send_push(sh, title, body, url, focus=""):
     except Exception as e:
         print("[PUSH] 秘密鍵の復元失敗:", e); return
     try:
-        rows = sh.values().get(spreadsheetId=SHEET_ID, range="購読!A:B").execute().get("values", [])
+        rows = sh.values().get(spreadsheetId=SHEET_ID, range="購読!A:D").execute().get("values", [])
     except Exception as e:
         print("[PUSH] 購読の読取失敗:", e); return
     import json as _pjson
-    payload = _pjson.dumps({"title": title, "body": body, "url": url, "focus": focus, "tag": (focus or "susabiyu")})
+    payload = _pjson.dumps({"title": title, "body": body, "url": url, "focus": focus, "category": category, "tag": (focus or category or "susabiyu")})
     sent = 0; gone = 0
     for r in rows[1:]:
         if len(r) < 2 or not str(r[1]).strip():
             continue
+        if category:
+            _pr = {}
+            if len(r) > 3 and str(r[3]).strip():
+                try: _pr = _pjson.loads(r[3])
+                except Exception: _pr = {}
+            if str(_pr.get(category, 1)).lower() in ("0", "false", "off", "no", "なし"):
+                continue
         try:
             sub = _pjson.loads(r[1])
         except Exception:
@@ -263,7 +270,7 @@ def main():
     poster.line_notify("\n".join(lines))
     try:
         pwa_url = os.environ.get("PWA_URL") or "https://amami-cell.github.io/susabiyu-media/app/"
-        send_push(sh, "すさび湯 確認", "%d/%d の投稿 %d件が確認待ちです" % (target.month, target.day, len(made)), pwa_url, first_token)
+        send_push(sh, "すさび湯 確認", "%d/%d の投稿 %d件が確認待ちです" % (target.month, target.day, len(made)), pwa_url, first_token, category="confirm")
     except Exception as e:
         print("[PUSH] 失敗(継続):", e)
     print("完了: %s ぶん %d枠を承認待ちに登録しました。" % (target, len(made)))
