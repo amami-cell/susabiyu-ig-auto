@@ -5,7 +5,7 @@ import poster
 
 SHEET_ID = "13zKaUblOwmgZ-lgCfxylCLlW2Fqutqct5h5TvMRWv30"
 APP_TAB = "承認待ち"
-PAT_JA = {"sushi":"王道","tempo":"賑やか","typo":"雑誌風","photo":"全画面","simple":"額装","caption":"写真キャプション", "oshina":"お品書き","oshinatate":"お品書き(縦書き)","kaiten":"回転レーン","osusume":"店主おすすめ","gridzoom":"グリッド→ズーム"}
+PAT_JA = {"sushi":"王道","tempo":"賑やか","typo":"雑誌風","photo":"全画面","simple":"額装","caption":"写真キャプション", "oshina":"お品書き","oshinatate":"お品書き(縦書き)","kaiten":"回転レーン","osusume":"店主おすすめ","gridzoom":"グリッド→ズーム","aburi":"炙り","noren":"暖簾くぐり","season":"季節の旬"}
 REG = {
   "sushi":   ("fetch_drive_photos.py","SushiStory",True),
   "tempo":   ("fetch_tempo.py","TempoStory",True),
@@ -18,6 +18,9 @@ REG = {
   "kaiten":   ("fetch_kaiten.py","KaitenStory",True),
   "osusume":  ("fetch_typo.py","OsusumeStory",True),
   "gridzoom": ("fetch_tempo.py","GridZoom",True),
+  "aburi":   ("fetch_kaiten.py","AburiStory",True),
+  "noren":   ("fetch_typo.py","NorenStory",True),
+  "season":  ("fetch_typo.py","SeasonStory",True),
 }
 CAP_VAR = {
   "photo":("photoStoryData.ts","photoStoryCaption"),
