@@ -277,8 +277,8 @@ def heal():
                 healed += 1
             else:
                 print("[HEAL] %s 永続化できず（一時のまま）" % str(r[1])[:16])
-            if healed >= 4:
-                print("[HEAL] レート保護のため今回はここまで")
+            if healed >= 8:
+                print("[HEAL] レート保護のため今回はここまで（残りは次回）")
                 break
         except Exception as e:
             print("[HEAL] err %s: %s" % (str(r[1])[:16], e))
