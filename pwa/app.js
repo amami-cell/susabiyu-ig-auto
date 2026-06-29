@@ -560,7 +560,10 @@
   var tabReport = document.getElementById("tabReport");
   function startGalleryPoll() { stopGalleryPoll(); galleryTimer = setInterval(loadPatterns, 5000); }
   function stopGalleryPoll() { if (galleryTimer) { clearInterval(galleryTimer); galleryTimer = null; } }
+  var currentTab = "feed";
+  function loaderFor(name) { return name === "gallery" ? loadPatterns : (name === "report" ? loadReport : load); }
   function switchTo(name) {
+    currentTab = name;
     tabFeed.classList.toggle("on", name === "feed");
     tabGallery.classList.toggle("on", name === "gallery");
     if (tabReport) tabReport.classList.toggle("on", name === "report");
@@ -586,6 +589,60 @@
   if (tabFeed) tabFeed.onclick = function () { tapTab(tabFeed, "feed", load); };
   if (tabGallery) tabGallery.onclick = function () { tapTab(tabGallery, "gallery", loadPatterns); };
   if (tabReport) tabReport.onclick = function () { tapTab(tabReport, "report", loadReport); };
+
+  /* ---------- 引っ張って更新（pull-to-refresh）：最上部で下スワイプ→振動→更新 ---------- */
+  (function () {
+    var ptr = document.getElementById("ptr");
+    if (!ptr) return;
+    var startY = null, ready = false, busy = false, primed = false;
+    var TRIGGER = 70;   // この距離まで引いたら発動
+    function atTop() { return (window.scrollY || document.documentElement.scrollTop || 0) <= 0; }
+    function setPull(dy) {
+      var y = Math.min(dy * 0.5, 100);        // 抵抗感を出す
+      ptr.style.transition = "none";
+      ptr.style.opacity = String(Math.min(y / 36, 1));
+      ptr.style.transform = "translateY(" + (y - 46) + "px)";
+      ptr.querySelector("i").style.transform = "rotate(" + Math.min(y * 3, 270) + "deg)";
+      var nowReady = dy >= TRIGGER;
+      if (nowReady && !ready) haptic(12);      // 発動ラインを越えた瞬間に軽く振動
+      ready = nowReady;
+    }
+    function reset() {
+      ptr.style.transition = "transform .25s ease, opacity .25s ease";
+      ptr.style.opacity = "0"; ptr.style.transform = "translateY(-54px)";
+      ptr.querySelector("i").style.transform = "";
+    }
+    function refreshing() {
+      busy = true; ptr.classList.add("spin");
+      ptr.style.transition = "transform .2s ease, opacity .2s ease";
+      ptr.style.opacity = "1"; ptr.style.transform = "translateY(46px)";
+      ptr.querySelector("i").style.transform = "";
+    }
+    document.addEventListener("touchstart", function (e) {
+      if (busy || e.touches.length !== 1 || document.querySelector(".modalOv")) { primed = false; startY = null; return; }
+      primed = atTop();
+      startY = primed ? e.touches[0].clientY : null;
+    }, { passive: true });
+    document.addEventListener("touchmove", function (e) {
+      if (busy || startY == null) return;
+      var dy = e.touches[0].clientY - startY;
+      if (dy > 0 && atTop()) { e.preventDefault(); setPull(dy); }
+      else { startY = null; ready = false; reset(); }
+    }, { passive: false });
+    document.addEventListener("touchend", function () {
+      if (busy || startY == null) return;
+      var go = ready; startY = null; ready = false;
+      if (!go) { reset(); return; }
+      haptic(25);                              // 更新確定で“しっかり”振動
+      refreshing();
+      toastBusy("更新中…");
+      var done = function () {
+        busy = false; ptr.classList.remove("spin"); reset();
+        haptic(8); toast("✓ 最新にしました");
+      };
+      Promise.resolve(loaderFor(currentTab)()).then(done, done);
+    });
+  })();
 
   /* ---------- レポート（インサイト・全員閲覧可・操作なし） ---------- */
   var reportData = null;
