@@ -2,7 +2,7 @@
    ・アプリのガワ(shell)を precache → 2回目以降は“開いた瞬間”に表示
    ・jsDelivr のメディアは stale-while-revalidate でランタイムキャッシュ
    ・GAS(JSONP)などデータ通信はキャッシュしない（常に最新を取りに行く） */
-var VER = "susabiyu-v10";
+var VER = "susabiyu-v11";
 var SHELL = VER + "-shell";
 var MEDIA = VER + "-media";
 var SHELL_FILES = [
@@ -61,18 +61,52 @@ self.addEventListener("fetch", function (e) {
   }
 });
 
-/* ---- Web Push 受信（フェーズ3で本格運用。今は受け口だけ用意） ---- */
+/* ---- アプリアイコンのバッジ（LINEのような未読件数） ---- */
+var BADGE_CACHE = "susabiyu-badge";
+function badgeGet() {
+  return caches.open(BADGE_CACHE).then(function (c) { return c.match("/n"); })
+    .then(function (r) { return r ? r.text() : "0"; })
+    .then(function (t) { return parseInt(t, 10) || 0; }).catch(function () { return 0; });
+}
+function badgeStore(n) {
+  return caches.open(BADGE_CACHE).then(function (c) { return c.put("/n", new Response(String(n))); }).catch(function () {});
+}
+function badgeShow(n) {
+  try {
+    if (n > 0 && self.navigator && self.navigator.setAppBadge) return self.navigator.setAppBadge(n);
+    if (self.navigator && self.navigator.clearAppBadge) return self.navigator.clearAppBadge();
+  } catch (e) {}
+}
+
+/* ---- Web Push 受信（通知 + アイコンバッジ＋1） ---- */
 self.addEventListener("push", function (e) {
   var data = {};
   try { data = e.data ? e.data.json() : {}; } catch (x) {}
   var title = data.title || "すさび湯 確認";
   var body = data.body || "新しい投稿の確認待ちがあります";
-  e.waitUntil(self.registration.showNotification(title, {
-    body: body, icon: "./icons/icon-192.png", badge: "./icons/icon-192.png",
-    vibrate: [120, 60, 120], tag: data.tag || "susabiyu", renotify: true,
-    silent: false, requireInteraction: false,
-    data: { url: data.url || "./", focus: data.focus || "" }
-  }));
+  e.waitUntil((function () {
+    return self.clients.matchAll({ type: "window", includeUncontrolled: true }).then(function (cl) {
+      var visible = cl.some(function (c) { return c.visibilityState === "visible" || c.focused; });
+      // アプリを見ている時はバッジを増やさない（見たら未読ではない）
+      return (visible ? Promise.resolve(0) : badgeGet().then(function (n) { return n + 1; }));
+    }).then(function (n) {
+      return badgeStore(n).then(function () { return badgeShow(n); });
+    }).then(function () {
+      return self.registration.showNotification(title, {
+        body: body, icon: "./icons/icon-192.png", badge: "./icons/icon-192.png",
+        vibrate: [120, 60, 120], tag: data.tag || "susabiyu", renotify: true,
+        silent: false, requireInteraction: false,
+        data: { url: data.url || "./", focus: data.focus || "" }
+      });
+    });
+  })());
+});
+
+/* ---- 画面からの指示でバッジをクリア ---- */
+self.addEventListener("message", function (e) {
+  if (e.data && e.data.type === "clearBadge") {
+    e.waitUntil(badgeStore(0).then(function () { return badgeShow(0); }));
+  }
 });
 self.addEventListener("notificationclick", function (e) {
   e.notification.close();
