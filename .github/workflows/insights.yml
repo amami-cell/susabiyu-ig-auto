@@ -1,0 +1,34 @@
+name: susabiyu-insights
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: "check（権限確認） / collect（日次収集）"
+        required: false
+        default: "check"
+  schedule:
+    - cron: '30 14 * * *'   # 毎日 23:30 JST に日次収集
+jobs:
+  insights:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: susabiyu-remotion
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install Python deps
+        run: pip install google-api-python-client google-auth requests
+      - name: Write creds.json
+        run: echo "$GOOGLE_CREDS_B64" | base64 -d > creds.json
+        env:
+          GOOGLE_CREDS_B64: ${{ secrets.GOOGLE_CREDS_B64 }}
+      - name: Run insights
+        env:
+          GOOGLE_CREDS_B64: ${{ secrets.GOOGLE_CREDS_B64 }}
+          IG_ACCESS_TOKEN: ${{ secrets.IG_ACCESS_TOKEN }}
+          SHEET_ID: ${{ secrets.SHEET_ID }}
+        run: python insights.py "${{ github.event.inputs.mode || 'collect' }}"
