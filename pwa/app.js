@@ -94,9 +94,9 @@
   /* ---------- card body by status ---------- */
   function slotHtml(it) {
     if (it.status === "redo")
-      return '<div class="redoing"><span class="spin"></span>作り直しています…（完成したら自動更新）</div>';
+      return '<div class="redoing"><span class="spin"></span>作り直しています…（1〜3分・完成したら自動更新）</div>';
     if (it.status === "approved")
-      return '<div class="banner okb">✓ 承認済み（予定時刻に投稿されます）</div>';
+      return '<div class="banner okb" data-unapprove="1">✓ 承認済み（予定時刻に投稿されます）<small>タップで承認取消（管理者）</small></div>';
     if (it.status === "rejected")
       return '<div class="banner ngb">— 取りやめました</div>';
     if (it.status === "gone")
@@ -118,6 +118,24 @@
     var slot = card.querySelector(".slot");
     if (slot) { slot.innerHTML = slotHtml(it); wireButtons(card, it); }
     card.classList.toggle("done", it.status === "approved" || it.status === "rejected" || it.status === "gone");
+    // 承認済みバナーをタップ→管理者コードで承認取消
+    var ub = card.querySelector('.banner.okb[data-unapprove]');
+    if (ub) ub.onclick = function () { unapprove(card, it.token); };
+    // 作り直しが長引いた時の逃げ道（5分でフォールバックを表示）
+    if (card._redoTimer) { clearTimeout(card._redoTimer); card._redoTimer = null; }
+    if (it.status === "redo") {
+      card._redoTimer = setTimeout(function () {
+        var sl = card.querySelector(".slot");
+        if (sl && card.getAttribute("data-status") === "redo") {
+          var ex = document.createElement("div"); ex.className = "redoslow";
+          ex.innerHTML = "時間がかかっています。<button class=\"mlink\" data-r=\"again\">もう一度</button>・<button class=\"mlink\" data-r=\"stop\">やめる</button>";
+          sl.appendChild(ex);
+          var ag = ex.querySelector('[data-r="again"]'), sp = ex.querySelector('[data-r="stop"]');
+          if (ag) ag.onclick = function () { act(card, card.dataset.token, "redo"); };
+          if (sp) sp.onclick = function () { act(card, card.dataset.token, "cancel"); };
+        }
+      }, 5 * 60 * 1000);
+    }
   }
   function buildCard(it) {
     var card = document.createElement("div");
@@ -158,6 +176,39 @@
       toast("通信エラー。元に戻します");
       applyStatus(card, { token: token, status: "pending" });
     });
+  }
+
+  // 承認の取り消し（管理者コード必須）。取り消すと未承認(pending)に戻るが、
+  // 「やめる」を押さない限り予定どおり自動投稿される。
+  function unapprove(card, token) {
+    function go() {
+      pendingActs[token] = "pending";
+      applyStatus(card, { token: token, status: "pending" });
+      toast("承認を取り消しました（やめない限り自動投稿します）");
+      jsonp({ api: "act", token: token, action: "unapprove" }).then(function (res) {
+        if (res && res.error === "owner") {
+          toast("管理者コードが必要です"); delete pendingActs[token];
+          applyStatus(card, { token: token, status: "approved" }); lockAdmin(); return;
+        }
+        var r = (res && res.result) || "";
+        if (r === "pending") { pendingActs[token] = "pending"; }
+        else if (r.indexOf("locked:") === 0) {
+          var cur = r.split(":")[1]; delete pendingActs[token];
+          applyStatus(card, { token: token, status: cur }); toast("取り消せませんでした");
+        } else { delete pendingActs[token]; load(); }
+      }).catch(function () {
+        delete pendingActs[token]; toast("通信エラー");
+        applyStatus(card, { token: token, status: "approved" });
+      });
+    }
+    if (ADMIN) { go(); return; }
+    var code = window.prompt("承認を取り消すには管理者コードを入力してください", "");
+    if (code == null) return; code = String(code).trim(); if (!code) return;
+    jsonp({ api: "owner", owner: code }).then(function (res) {
+      if (res && res.error === "auth") { askKey("確認コードを入力してください"); return; }
+      if (res && res.owner) { ADMIN = code; localStorage.setItem("sb_admin", code); go(); }
+      else { toast("管理者コードが違います"); }
+    }).catch(function () { toast("通信エラー"); });
   }
 
   /* ---------- render / diff ---------- */

@@ -223,8 +223,29 @@ def main():
             line_redo_limit_notify(sh, dt, pattern, col(5))
             print("\u4f5c\u308a\u76f4\u3057\u4e0a\u9650(%d) -> pending\u306b\u623b\u3057\u3066\u4e88\u5b9a\u6295\u7a3f" % MAX_REDO)
             return
-        new_pattern, uri, cap, new_picked, new_blur, new_poster = regenerate(creds, dt)
-        update_preview_row(sh, rownum, new_pattern, uri, cap, new_picked, redo_count + 1, new_poster, new_blur)
+        try:
+            new_pattern, uri, cap, new_picked, new_blur, new_poster = regenerate(creds, dt)
+            update_preview_row(sh, rownum, new_pattern, uri, cap, new_picked, redo_count + 1, new_poster, new_blur)
+        except BaseException as e:
+            # 失敗しても「作り直し中(redo)」のまま固まらせない。元の内容で予定どおり投稿できるようpendingに戻す。
+            print("[REDO] 作り直し失敗 -> pendingに戻す:", e)
+            try:
+                set_status(sh, rownum, "pending")
+            except Exception as e2:
+                print("[REDO] pending復帰も失敗:", e2)
+            try:
+                poster.line_notify("⚠️【作り直し失敗】%s の作り直しに失敗しました。元の内容のまま予定どおり自動投稿します。\n%s" % (when_str, str(e)[:200]))
+            except Exception:
+                pass
+            try:
+                token = str(col(0))
+                pwa_url = os.environ.get("PWA_URL") or "https://amami-cell.github.io/susabiyu-media/app/"
+                prepare.send_push(sh, "作り直しできませんでした",
+                                  "%d/%d %02d:00 は元の内容のまま予定どおり投稿します。" % (dt.month, dt.day, dt.hour),
+                                  pwa_url, token, category="redo")
+            except Exception:
+                pass
+            return
         line_redo_notify(sh, dt, new_pattern, cap, redo_count + 1)
         # PWA\u8cfc\u8aad\u8005(\u81ea\u5206\u30fb\u4ed6\u306e\u4eba)\u5168\u54e1\u306bWeb Push\uff08\u4f5c\u308a\u76f4\u3057\u5b8c\u4e86\uff09\u3002\u8a72\u5f53\u67a0\u3078\u30b8\u30e3\u30f3\u30d7\u3067\u304d\u308b\u3088\u3046focus=token
         try:
