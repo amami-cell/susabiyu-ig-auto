@@ -2,7 +2,7 @@
    ・アプリのガワ(shell)を precache → 2回目以降は“開いた瞬間”に表示
    ・jsDelivr のメディアは stale-while-revalidate でランタイムキャッシュ
    ・GAS(JSONP)などデータ通信はキャッシュしない（常に最新を取りに行く） */
-var VER = "susabiyu-v12";
+var VER = "susabiyu-v13";
 var SHELL = VER + "-shell";
 var MEDIA = VER + "-media";
 var SHELL_FILES = [

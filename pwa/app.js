@@ -63,15 +63,16 @@
   function bg(blur) {
     return blur ? 'background:#000 url(' + blur + ') center/cover no-repeat' : 'background:#000';
   }
+  window.__mediaErr = function (el) { var w = el && el.closest && el.closest(".mediaWrap"); if (w) w.classList.add("mediaerr"); };
   function mediaHtml(it) {
     if (isVideo(it)) {
       var p = it.poster ? ' poster="' + it.poster + '"' : '';
       return '<div class="mediaWrap"><video class="media" style="' + bg(it.blur) + '" src="' + it.url + '"' + p +
-             ' controls playsinline preload="metadata"></video><div class="badge">▶ タップで再生（音が出ます）</div></div>';
+             ' controls playsinline preload="metadata" onerror="window.__mediaErr&&window.__mediaErr(this)"></video><div class="badge">▶ タップで再生（音が出ます）</div></div>';
     }
     if (it.url) {
       return '<div class="mediaWrap"><img class="media" style="' + bg(it.blur) + '" src="' + it.url +
-             '" alt="preview" decoding="async" loading="eager" fetchpriority="high"></div>';
+             '" alt="preview" decoding="async" loading="eager" fetchpriority="high" onerror="window.__mediaErr&&window.__mediaErr(this)"></div>';
     }
     return '<div class="mediaWrap"><div class="media" style="height:180px"></div></div>';
   }
@@ -445,7 +446,7 @@
     var p = it.poster ? ' poster="' + esc(it.poster) + '"' : "";
     var media = it.url
       ? '<div class="mediaWrap"><video class="media" style="' + bg(it.blur) + '" src="' + esc(it.url) + '"' + p +
-        ' controls playsinline preload="metadata"></video><div class="badge">▶ タップで再生（音が出ます）</div></div>'
+        ' controls playsinline preload="metadata" onerror="window.__mediaErr&&window.__mediaErr(this)"></video><div class="badge">▶ タップで再生（音が出ます）</div></div>'
       : '<div class="mediaWrap"><div class="media" style="height:180px;display:flex;align-items:center;justify-content:center;color:#9aa3b2">見本を生成中…</div></div>';
     // 採用ボタンと注意書きは両方DOMに入れ、表示は #gallery.admin クラスでCSS切替（再描画なし＝カクつかない）
     card.innerHTML =
@@ -558,8 +559,18 @@
     if (toGallery) { galleryLoaded = true; loadPatterns(); startGalleryPoll(); }  // 開く度に最新へ＋表示中は5秒ごとに同期
     else { stopGalleryPoll(); }
   }
-  if (tabFeed) tabFeed.onclick = function () { switchTab(false); };
-  if (tabGallery) tabGallery.onclick = function () { switchTab(true); };
+  // タブをタップ＝その場で最新に更新（画像が出ていない時の手動リフレッシュ）
+  if (tabFeed) tabFeed.onclick = function () { switchTab(false); load(); toast("最新に更新しました"); };
+  if (tabGallery) tabGallery.onclick = function () { switchTab(true); loadPatterns(); toast("最新に更新しました"); };
+  // 画像/動画が読み込めなかった枠をタップ → その場で再取得
+  if (feed) feed.addEventListener("click", function (e) {
+    var w = e.target && e.target.closest && e.target.closest(".mediaWrap.mediaerr");
+    if (w) { toast("再読み込みします"); load(); }
+  });
+  if (galleryEl) galleryEl.addEventListener("click", function (e) {
+    var w = e.target && e.target.closest && e.target.closest(".mediaWrap.mediaerr");
+    if (w) { toast("再読み込みします"); loadPatterns(); }
+  });
 
   /* ---------- 店舗屋号をタイトルに ---------- */
   (function setStoreName() {

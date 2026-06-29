@@ -209,16 +209,47 @@ def diag():
     print("[DIAG] 目安: url_len=0は画像なし / data-URIが50000ちょうど付近は切れの疑い")
 
 
+def setredo(whens):
+    """指定枠の status を redo にする（再生成の前段。投稿はしない）。
+    使い方の例: insights.py "setredo|2026-06-30 16:00|2026-06-30 20:00" """
+    sh = poster._sheets()
+    if sh is None:
+        raise SystemExit("シート接続失敗")
+    tab = "承認待ち"
+    data = sh.values().get(spreadsheetId=poster.SHEET_ID, range=tab + "!A:M").execute().get("values", [])
+    now = datetime.datetime.now(JST).strftime("%Y-%m-%d %H:%M")
+    for w in whens:
+        w = w.strip()
+        if not w:
+            continue
+        found = False
+        for i, r in enumerate(data):
+            if i == 0:
+                continue
+            if len(r) > 1 and str(r[1]).strip()[:16] == w[:16]:
+                sh.values().update(spreadsheetId=poster.SHEET_ID, range="%s!H%d:I%d" % (tab, i + 1, i + 1),
+                                   valueInputOption="RAW", body={"values": [["redo", now]]}).execute()
+                print("[SETREDO] %s -> redo（このあとredo.ymlで再生成）" % w)
+                found = True
+                break
+        if not found:
+            print("[SETREDO] %s 見つからず" % w)
+
+
 def main():
-    mode = (sys.argv[1] if len(sys.argv) > 1 else "check").strip()
+    raw = " ".join(sys.argv[1:]).strip() if len(sys.argv) > 1 else "check"
+    parts = [p.strip() for p in raw.split("|")]
+    mode = parts[0] or "check"
     if mode == "check":
         check()
     elif mode == "collect":
         collect()
     elif mode == "diag":
         diag()
+    elif mode == "setredo":
+        setredo(parts[1:])
     else:
-        print("usage: python insights.py [check|collect|diag]")
+        print("usage: python insights.py [check|collect|diag|'setredo|<when>|<when>...']")
 
 
 if __name__ == "__main__":
