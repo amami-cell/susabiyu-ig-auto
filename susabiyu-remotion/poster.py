@@ -119,7 +119,7 @@ def up(path, cdn=False):
     # cdn=True: 確認画面で人が何度も見るプレビュー → jsDelivr(CDN)優先
     # cdn=False: IGが一度だけ取得する投稿用 → 即時性の高いlitterbox優先
     if cdn:
-        chain = (("jsdelivr", _u_jsdelivr), ("r2", _u_r2), ("litter", _u_litter), ("catbox", _u_catbox), ("tmpfiles", _u_tmpfiles), ("0x0", _u_0x0))
+        chain = (("jsdelivr", _u_jsdelivr), ("jsdelivr2", _u_jsdelivr), ("r2", _u_r2), ("catbox", _u_catbox), ("0x0", _u_0x0))
     else:
         chain = (("litter", _u_litter), ("catbox", _u_catbox), ("tmpfiles", _u_tmpfiles), ("0x0", _u_0x0))
     for name, fn in chain:
