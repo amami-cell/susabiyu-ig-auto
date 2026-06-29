@@ -9,15 +9,15 @@ const RED = "#c0392b";
 const GOLD = "#d8b25a";
 const CREAM = "#fff7e9";
 const INK = "#2a1d10";
-const PLATE = 380;       // 1皿のスロット幅
-const SPEED = 5;         // 流れる速さ(px/frame)
+const PLATE = 470;       // 1皿のスロット幅
+const SPEED = 6;         // 流れる速さ(px/frame)
 const DUR = 360;         // 約12秒
 const N = Math.max(kaitenPhotos.length, 1);
 const LOOP = N * PLATE;
-const PLATE_IMG = 248;
-const HERO_H = 1060;     // 上の板前写真の高さ
-const LANE_TOP = 1108;
-const LANE_H = 470;
+const PLATE_IMG = 348;   // 丸皿の写真サイズ（大きめ）
+const HERO_H = 1040;     // 上の板前写真の高さ
+const LANE_TOP = 1086;
+const LANE_H = 560;
 const clamp = { extrapolateLeft: "clamp" as const, extrapolateRight: "clamp" as const };
 
 // 回転レーン風（寿司限定）：上に板前さんの寿司盛り合わせ写真、その下に寿司の皿が流れる。
@@ -52,7 +52,7 @@ export const KaitenStory: React.FC<{ storeName?: string; handle?: string }> = ({
       <div style={{ position: "absolute", top: LANE_TOP + 34, left: 0, height: LANE_H - 60, width: "100%", overflow: "hidden" }}>
         <div style={{ position: "absolute", left: 0, top: 0, height: "100%", display: "flex", alignItems: "center", transform: "translateX(" + shiftX + "px)" }}>
           {reps.map((r) => kaitenPhotos.map((p, i) => {
-            const fs = oneLineFont(p.caption, PLATE_IMG, 30, 2, 20);
+            const fs = oneLineFont(p.caption, PLATE_IMG, 36, 2, 24);
             return (
               <div key={r + "-" + i} style={{ width: PLATE, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center" }}>
                 <div style={{ width: PLATE_IMG + 24, height: PLATE_IMG + 24, borderRadius: "50%", background: "radial-gradient(circle at 50% 36%, #ffffff, #e9ddc6)", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 14px 26px rgba(0,0,0,0.4)" }}>
