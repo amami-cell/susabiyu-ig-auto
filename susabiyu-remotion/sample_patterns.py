@@ -48,6 +48,36 @@ def upsert(sh, key, label, url, poster_uri, blur):
     print("[SAMPLE] %s 保存: %s" % (key, url[:60]))
 
 
+def prune(sh, valid_keys):
+    """現在のコード(REG)に無いパターン＝過去に作って削除した見本の行を「パターン」タブから物理削除する。
+    これでギャラリーから消える。今後コードから外したパターンも自動で見本から消える。"""
+    try:
+        meta = sh.get(spreadsheetId=SHEET_ID, fields="sheets(properties(sheetId,title))").execute()
+        sid = None
+        for s in meta.get("sheets", []):
+            if s["properties"]["title"] == TAB:
+                sid = s["properties"]["sheetId"]
+                break
+        if sid is None:
+            return
+        rows = sh.values().get(spreadsheetId=SHEET_ID, range=TAB + "!A:G").execute().get("values", [])
+        drop = []
+        for i, r in enumerate(rows):
+            if i == 0 or not r:
+                continue
+            key = str(r[0]).strip()
+            if key and key not in valid_keys:
+                drop.append(i)
+        if not drop:
+            return
+        reqs = [{"deleteDimension": {"range": {"sheetId": sid, "dimension": "ROWS",
+                "startIndex": i, "endIndex": i + 1}}} for i in sorted(drop, reverse=True)]
+        sh.batchUpdate(spreadsheetId=SHEET_ID, body={"requests": reqs}).execute()
+        print("[PRUNE] 旧パターン行を削除:", [str(rows[i][0]) for i in drop])
+    except Exception as e:
+        print("[PRUNE] 削除スキップ:", e)
+
+
 def main():
     _ensure_creds()
     if not os.path.exists("creds.json"):
@@ -56,6 +86,7 @@ def main():
     if sh is None:
         raise SystemExit("シート接続に失敗。")
     poster._ensure_tab(sh, TAB)
+    prune(sh, set(REG.keys()))  # コードから消したパターンの見本行を掃除
     only = set(a.strip() for a in sys.argv[1:] if a.strip())  # 任意: 対象パターンkeyを指定
     os.makedirs("out", exist_ok=True)
     made = 0
