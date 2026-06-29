@@ -15,8 +15,7 @@ const clamp = { extrapolateLeft: "clamp" as const, extrapolateRight: "clamp" as 
 export const NorenStory: React.FC<{ storeName?: string; handle?: string }> = ({ storeName = "すさび湯 河原町三条店", handle = "@susabiyu_sanjyo" }) => {
   const f = useCurrentFrame();
   const hero = typoPhotos[0] || { src: "", caption: "" };
-  const zoom = interpolate(f, [0, DUR], [1.0, 1.12], clamp);
-  const bgScale = interpolate(f, [0, DUR], [1.16, 1.3], clamp);
+  const zoom = interpolate(f, [0, DUR], [1.0, 1.13], clamp);
   const norenTextO = interpolate(f, [0, 10, 36, 50], [0, 1, 1, 0], clamp);
   const welcomeO = interpolate(f, [86, 102], [0, 1], clamp);
   const welcomeY = interpolate(f, [86, 104], [30, 0], { ...clamp, easing: Easing.out(Easing.cubic) });
@@ -28,12 +27,9 @@ export const NorenStory: React.FC<{ storeName?: string; handle?: string }> = ({ 
   return (
     <AbsoluteFill style={{ backgroundColor: "#0c0a08" }}>
       <Audio src={staticFile(typoMusic)} volume={(ff) => interpolate(ff, [0, 14, DUR - 20, DUR], [0, 0.85, 0.85, 0], clamp)} />
-      {/* 奥の料理（切らずに全体表示・通常→アップ。背景はぼかしで埋める） */}
+      {/* 奥の料理（画面いっぱい・通常→アップ。料理が中央に来るよう配置） */}
       <AbsoluteFill style={{ backgroundColor: "#0c0a08" }}>
-        <Img src={staticFile(hero.src)} style={{ width: "100%", height: "100%", objectFit: "cover", filter: "blur(26px) brightness(0.5)", transform: "scale(" + bgScale + ")" }} />
-        <AbsoluteFill style={{ justifyContent: "center", alignItems: "center" }}>
-          <Img src={staticFile(hero.src)} style={{ width: "100%", height: "100%", objectFit: "contain", transform: "scale(" + zoom + ")" }} />
-        </AbsoluteFill>
+        <Img src={staticFile(hero.src)} style={{ width: "100%", height: "100%", objectFit: "cover", objectPosition: "center 42%", transform: "scale(" + zoom + ")" }} />
         <AbsoluteFill style={{ background: "linear-gradient(to bottom, rgba(0,0,0,0.32) 0%, rgba(0,0,0,0) 30%, rgba(0,0,0,0) 52%, rgba(0,0,0,0.86) 100%)" }} />
       </AbsoluteFill>
 
