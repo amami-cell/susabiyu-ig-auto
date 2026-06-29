@@ -4,7 +4,7 @@
   "use strict";
   var CFG = window.SUSABIYU || {};
   var GAS = (CFG.GAS_URL || "").trim();
-  var POLL = CFG.POLL_MS || 7000;
+  var POLL = CFG.POLL_MS || 4000;
   var KEY = localStorage.getItem("sb_key") || "";
   var ADMIN = localStorage.getItem("sb_admin") || "";   // 管理者コード（採用/無しの変更に必要。空＝閲覧のみ）
   var NOTIF = loadNotif();                                // 通知カテゴリの個別ON/OFF
@@ -382,6 +382,9 @@
   var tabFeed = document.getElementById("tabFeed");
   var tabGallery = document.getElementById("tabGallery");
   var galleryLoaded = false;
+  var galleryTimer = null;
+  var pendingPat = {};  // pattern -> 望む状態 "1"/"0"（楽観。サーバ反映までポーリングで戻さない）
+  function normOn(v) { return (String(v) !== "0" && String(v).toLowerCase() !== "false") ? "1" : "0"; }
 
   function galleryCard(it) {
     var card = document.createElement("div");
@@ -391,7 +394,7 @@
     var p = it.poster ? ' poster="' + esc(it.poster) + '"' : "";
     var media = it.url
       ? '<div class="mediaWrap"><video class="media" style="' + bg(it.blur) + '" src="' + esc(it.url) + '"' + p +
-        ' controls playsinline preload="none"></video><div class="badge">▶ タップで再生（音が出ます）</div></div>'
+        ' controls playsinline preload="metadata"></video><div class="badge">▶ タップで再生（音が出ます）</div></div>'
       : '<div class="mediaWrap"><div class="media" style="height:180px;display:flex;align-items:center;justify-content:center;color:#9aa3b2">見本を生成中…</div></div>';
     // 採用ボタンと注意書きは両方DOMに入れ、表示は #gallery.admin クラスでCSS切替（再描画なし＝カクつかない）
     card.innerHTML =
@@ -420,11 +423,12 @@
   }
   function setPattern(card, key, on) {
     paintToggle(card, on);  // 楽観反映
+    pendingPat[key] = on ? "1" : "0";  // ポーリングで戻されないよう保持
     toast(on ? "採用にしました" : "無しにしました");
     jsonp({ api: "pattern", pattern: key, on: on ? 1 : 0 }).then(function (res) {
-      if (res && res.error === "owner") { toast("管理者コードが必要です"); paintToggle(card, !on); lockAdmin(); return; }
-      if (res && res.error) { toast("反映できませんでした"); paintToggle(card, !on); }
-    }).catch(function () { toast("通信エラー。元に戻します"); paintToggle(card, !on); });
+      if (res && res.error === "owner") { toast("管理者コードが必要です"); delete pendingPat[key]; paintToggle(card, !on); lockAdmin(); return; }
+      if (res && res.error) { toast("反映できませんでした"); delete pendingPat[key]; paintToggle(card, !on); }
+    }).catch(function () { toast("通信エラー。元に戻します"); delete pendingPat[key]; paintToggle(card, !on); });
   }
   function applyAdminClass() {
     if (galleryEl) galleryEl.classList.toggle("admin", !!ADMIN);
@@ -456,6 +460,13 @@
   function patternsCacheSet(items) { try { localStorage.setItem("sb_patterns", JSON.stringify(items)); } catch (e) {} }
   function hasCards() { return !!galleryEl.querySelector(".card"); }
   function renderGallery(items) {
+    // 自分が今押した採用/無し（楽観）はサーバ反映までキープ。追いついたら解除。
+    items = items.map(function (it) {
+      var want = pendingPat[it.pattern];
+      if (want === undefined) return it;
+      if (normOn(it.enabled) === want) { delete pendingPat[it.pattern]; return it; }
+      var c = {}; for (var k in it) c[k] = it[k]; c.enabled = want; return c;
+    });
     // 内容が前回と同じなら作り直さない（動画の再読込＝カクつきを防ぐ）
     var sig = JSON.stringify(items.map(function (it) { return [it.pattern, it.url, it.enabled, it.label, it.poster ? 1 : 0]; }));
     if (sig === lastGallerySig && hasCards()) { applyAdminClass(); return; }
@@ -486,12 +497,15 @@
       if (!hasCards()) galleryEl.innerHTML = '<div class="empty">見本を取得できませんでした。<br><small>' + esc(e.message) + '</small></div>';
     });
   }
+  function startGalleryPoll() { stopGalleryPoll(); galleryTimer = setInterval(loadPatterns, 5000); }
+  function stopGalleryPoll() { if (galleryTimer) { clearInterval(galleryTimer); galleryTimer = null; } }
   function switchTab(toGallery) {
     tabFeed.classList.toggle("on", !toGallery);
     tabGallery.classList.toggle("on", toGallery);
     feed.style.display = toGallery ? "none" : "";
     galleryEl.style.display = toGallery ? "" : "none";
-    if (toGallery && !galleryLoaded) { galleryLoaded = true; loadPatterns(); }
+    if (toGallery) { galleryLoaded = true; loadPatterns(); startGalleryPoll(); }  // 開く度に最新へ＋表示中は5秒ごとに同期
+    else { stopGalleryPoll(); }
   }
   if (tabFeed) tabFeed.onclick = function () { switchTab(false); };
   if (tabGallery) tabGallery.onclick = function () { switchTab(true); };
@@ -506,7 +520,12 @@
 
   /* ---------- boot ---------- */
   load().then(function () { setRate(POLL); focusCard(getParam("focus")); });
-  document.addEventListener("visibilitychange", function () { if (!document.hidden) poll(); });
+  document.addEventListener("visibilitychange", function () {
+    if (!document.hidden) {
+      poll();  // 復帰したら即同期
+      if (galleryEl && galleryEl.style.display !== "none") { loadPatterns(); startGalleryPoll(); }
+    } else { stopGalleryPoll(); }
+  });
   if ("serviceWorker" in navigator && navigator.serviceWorker) {
     navigator.serviceWorker.addEventListener("message", function (ev) {
       if (ev.data && ev.data.type === "focus") { poll(); focusCard(ev.data.token); }
@@ -514,4 +533,6 @@
   }
   maybeIosHint();
   refreshPushBtn();
+  // 見本を起動後すぐ裏で先読み（隠れたまま組み立て）→ 初回タップでも即表示。フィード表示を優先して遅延。
+  setTimeout(function () { if (!galleryLoaded) { galleryLoaded = true; loadPatterns(); } }, 1200);
 })();
