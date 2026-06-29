@@ -576,14 +576,10 @@
   // タブをタップ＝はっきり反応：振動→押せた感→「更新中…」スピナー→完了で「✓」
   function tapTab(tab, name, loader) {
     haptic(18);
-    if (tab) { tab.classList.remove("tapped"); void tab.offsetWidth; tab.classList.add("tapped"); tab.classList.add("loading"); }
+    if (tab) { tab.classList.remove("tapped"); void tab.offsetWidth; tab.classList.add("tapped"); }  // 弾むのは1回だけ
     switchTo(name);
     toastBusy("更新中…");
-    var done = function () {
-      if (tab) tab.classList.remove("loading");
-      haptic(8);
-      toast("✓ 最新にしました");
-    };
+    var done = function () { haptic(8); toast("✓ 最新にしました"); };
     Promise.resolve(loader()).then(done, done);
   }
   if (tabFeed) tabFeed.onclick = function () { tapTab(tabFeed, "feed", load); };
@@ -593,51 +589,57 @@
   /* ---------- 引っ張って更新（pull-to-refresh）：最上部で下スワイプ→振動→更新 ---------- */
   (function () {
     var ptr = document.getElementById("ptr");
-    if (!ptr) return;
-    var startY = null, ready = false, busy = false, primed = false;
+    var appEl = document.getElementById("app");
+    if (!ptr || !appEl) return;
+    var arrow = ptr.querySelector("i");
+    var startY = null, ready = false, busy = false;
     var TRIGGER = 70;   // この距離まで引いたら発動
     function atTop() { return (window.scrollY || document.documentElement.scrollTop || 0) <= 0; }
     function setPull(dy) {
-      var y = Math.min(dy * 0.5, 100);        // 抵抗感を出す
+      var y = Math.min(dy * 0.5, 120);        // 抵抗感を出す
+      appEl.style.transition = "none";
+      appEl.style.transform = "translateY(" + y + "px)";   // 画面の中身も一緒に下がる
       ptr.style.transition = "none";
-      ptr.style.opacity = String(Math.min(y / 36, 1));
-      ptr.style.transform = "translateY(" + (y - 46) + "px)";
-      ptr.querySelector("i").style.transform = "rotate(" + Math.min(y * 3, 270) + "deg)";
+      ptr.style.opacity = String(Math.min(y / 32, 1));
+      ptr.style.transform = "translateY(" + (Math.min(y, 92) - 46) + "px)";   // 開いた隙間にスピナー
+      arrow.style.transform = "rotate(" + Math.min(y * 3, 270) + "deg)";
       var nowReady = dy >= TRIGGER;
       if (nowReady && !ready) haptic(12);      // 発動ラインを越えた瞬間に軽く振動
       ready = nowReady;
     }
-    function reset() {
+    function springBack() {
+      appEl.style.transition = "transform .3s cubic-bezier(.2,.8,.3,1)";
+      appEl.style.transform = "translateY(0)";
       ptr.style.transition = "transform .25s ease, opacity .25s ease";
       ptr.style.opacity = "0"; ptr.style.transform = "translateY(-54px)";
-      ptr.querySelector("i").style.transform = "";
+      arrow.style.transform = "";
     }
     function refreshing() {
-      busy = true; ptr.classList.add("spin");
+      busy = true; ptr.classList.add("spin"); arrow.style.transform = "";
+      appEl.style.transition = "transform .2s ease";
+      appEl.style.transform = "translateY(54px)";          // 更新中は少し開けたまま
       ptr.style.transition = "transform .2s ease, opacity .2s ease";
-      ptr.style.opacity = "1"; ptr.style.transform = "translateY(46px)";
-      ptr.querySelector("i").style.transform = "";
+      ptr.style.opacity = "1"; ptr.style.transform = "translateY(10px)";
     }
     document.addEventListener("touchstart", function (e) {
-      if (busy || e.touches.length !== 1 || document.querySelector(".modalOv")) { primed = false; startY = null; return; }
-      primed = atTop();
-      startY = primed ? e.touches[0].clientY : null;
+      if (busy || e.touches.length !== 1 || document.querySelector(".modalOv")) { startY = null; return; }
+      startY = atTop() ? e.touches[0].clientY : null;
     }, { passive: true });
     document.addEventListener("touchmove", function (e) {
       if (busy || startY == null) return;
       var dy = e.touches[0].clientY - startY;
       if (dy > 0 && atTop()) { e.preventDefault(); setPull(dy); }
-      else { startY = null; ready = false; reset(); }
+      else { startY = null; ready = false; springBack(); }
     }, { passive: false });
     document.addEventListener("touchend", function () {
       if (busy || startY == null) return;
       var go = ready; startY = null; ready = false;
-      if (!go) { reset(); return; }
+      if (!go) { springBack(); return; }
       haptic(25);                              // 更新確定で“しっかり”振動
       refreshing();
       toastBusy("更新中…");
       var done = function () {
-        busy = false; ptr.classList.remove("spin"); reset();
+        busy = false; ptr.classList.remove("spin"); springBack();
         haptic(8); toast("✓ 最新にしました");
       };
       Promise.resolve(loaderFor(currentTab)()).then(done, done);
