@@ -514,4 +514,6 @@
   }
   maybeIosHint();
   refreshPushBtn();
+  // 見本を起動後すぐ裏で先読み（隠れたまま組み立て）→ 初回タップでも即表示。フィード表示を優先して遅延。
+  setTimeout(function () { if (!galleryLoaded) { galleryLoaded = true; loadPatterns(); } }, 1200);
 })();
