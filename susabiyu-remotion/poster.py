@@ -106,10 +106,18 @@ def _u_jsdelivr(path):
     headers = {"Authorization": "Bearer " + tok,
                "Accept": "application/vnd.github+json",
                "X-GitHub-Api-Version": "2022-11-28"}
-    r = req.put(api, headers=headers, timeout=120,
-                json={"message": "media " + key, "content": content_b64, "branch": branch})
-    if r.status_code not in (200, 201):
+    r = None
+    for _att in range(4):
+        r = req.put(api, headers=headers, timeout=120,
+                    json={"message": "media " + key, "content": content_b64, "branch": branch})
+        if r.status_code in (200, 201):
+            break
+        if r.status_code in (403, 429):  # レート/二次制限は一時的 → 待って再試行
+            _w = 6 * (2 ** _att)
+            print("[UPLOAD] jsdelivr %s rate-limit wait %ds" % (r.status_code, _w)); time.sleep(_w); continue
         print("[UPLOAD] jsdelivr PUT %s: %s" % (r.status_code, r.text[:120])); return ""
+    if r is None or r.status_code not in (200, 201):
+        print("[UPLOAD] jsdelivr retried but NG"); return ""
     sha = (r.json().get("commit") or {}).get("sha", "")
     if not sha:
         return ""
