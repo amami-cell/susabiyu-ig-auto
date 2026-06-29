@@ -58,6 +58,13 @@ TRY_MEDIA_METRICS = [
     "plays,reach,likes,saved,shares",               # reels系
     "impressions,reach,saved",
 ]
+TRY_STORY_METRICS = [
+    "reach,replies,total_interactions",
+    "views,reach,replies",
+    "navigation",
+    "reach,replies,profile_visits,follows,shares",
+    "reach,replies,total_interactions,navigation,profile_activity",
+]
 
 
 def check():
@@ -102,6 +109,23 @@ def check():
             else:
                 print("    - %-44s OK %s" % (ms, json.dumps(r.get("data"), ensure_ascii=False)[:160]))
 
+    print("[CHECK] 直近ストーリーズ & インサイト（このシステムはストーリーズ投稿）")
+    st = req.get(IGB + "/" + str(uid) + "/stories",
+                 params={"fields": "id,media_type,media_product_type,timestamp", "access_token": token}, timeout=30).json()
+    if "data" not in st:
+        print("  ストーリーズ取得NG:", json.dumps(st, ensure_ascii=False)[:200])
+    else:
+        print("  現在ライブのストーリーズ件数:", len(st["data"]))
+        for sd in st["data"][:3]:
+            sid = sd["id"]
+            print("  story %s (%s/%s, %s)" % (sid, sd.get("media_product_type"), sd.get("media_type"), sd.get("timestamp")))
+            for ms in TRY_STORY_METRICS:
+                r = req.get(IGB + "/" + str(sid) + "/insights", params={"metric": ms, "access_token": token}, timeout=30).json()
+                if "error" in r:
+                    print("    - %-46s NG %s" % (ms, r["error"].get("message", "")[:90]))
+                else:
+                    print("    - %-46s OK %s" % (ms, json.dumps(r.get("data"), ensure_ascii=False)[:170]))
+
 
 def _ensure(sh, tab, header):
     poster._ensure_tab(sh, tab)
@@ -130,6 +154,96 @@ def _val(token, uid, metric, extra, sp, up):
         return tot if got else None
     except Exception:
         return None
+
+
+def _first(d):
+    tv = d.get("total_value")
+    if tv and "value" in tv:
+        return tv["value"]
+    vs = d.get("values") or []
+    return vs[0].get("value") if vs else None
+
+
+def _post_insights(token, mid, metrics):
+    """投稿1件の指標を取る。組み合わせが弾かれたら個別に取り直す。"""
+    out = {}
+    try:
+        r = req.get(IGB + "/" + str(mid) + "/insights",
+                    params={"metric": ",".join(metrics), "access_token": token}, timeout=30).json()
+    except Exception:
+        r = {}
+    if "data" in r:
+        for d in r["data"]:
+            out[d["name"]] = _first(d)
+        return out
+    for m in metrics:
+        try:
+            rr = req.get(IGB + "/" + str(mid) + "/insights",
+                         params={"metric": m, "access_token": token}, timeout=30).json()
+            if "data" in rr:
+                for d in rr["data"]:
+                    out[d["name"]] = _first(d)
+        except Exception:
+            pass
+    return out
+
+
+STORY_METRICS = ["reach", "views", "replies", "total_interactions", "navigation", "profile_visits", "follows", "shares"]
+FEED_METRICS = ["reach", "views", "likes", "saved", "shares", "comments", "total_interactions"]
+
+
+def _collect_posts(sh, token, uid):
+    """投稿ごとの指標を POST_TAB に収集（media_idで重複更新）。
+    ・ストーリーズは24hで消えるので、毎日collectを回してライブ中に拾う。
+    ・フィード/リールは累積指標なので毎回最新スナップショットで上書き。"""
+    today = datetime.datetime.now(JST).strftime("%Y-%m-%d")
+    items = []
+    try:
+        st = req.get(IGB + "/" + str(uid) + "/stories",
+                     params={"fields": "id,media_type,media_product_type,timestamp,permalink", "access_token": token}, timeout=30).json()
+        for md in st.get("data", []):
+            items.append(("story", md))
+        print("[POSTS] ライブ中ストーリーズ:", len(st.get("data", [])))
+    except Exception as e:
+        print("[POSTS] stories取得失敗:", e)
+    try:
+        m = req.get(IGB + "/" + str(uid) + "/media",
+                    params={"fields": "id,media_type,media_product_type,timestamp,permalink,caption", "limit": 25, "access_token": token}, timeout=30).json()
+        for md in m.get("data", []):
+            mp = (md.get("media_product_type") or "").upper()
+            items.append(("reel" if mp == "REELS" else "feed", md))
+        print("[POSTS] 直近フィード/リール:", len(m.get("data", [])))
+    except Exception as e:
+        print("[POSTS] media取得失敗:", e)
+
+    rows = sh.values().get(spreadsheetId=poster.SHEET_ID, range=POST_TAB + "!A:M").execute().get("values", [])
+    idx = {}
+    for i, r in enumerate(rows):
+        if i == 0 or len(r) < 2:
+            continue
+        idx[str(r[1])] = i + 1
+    appends = []
+    n = 0
+    for kind, md in items:
+        mid = str(md["id"])
+        metrics = STORY_METRICS if kind == "story" else FEED_METRICS
+        ins = _post_insights(token, mid, metrics)
+        cap = (md.get("caption") or "").replace("\n", " ").replace("\r", " ")[:80]
+        line = [today, mid, kind, md.get("timestamp", ""), cap,
+                ins.get("reach", ""), ins.get("views", ""), ins.get("likes", ""),
+                ins.get("saved", ""), ins.get("shares", ""), ins.get("comments", ""),
+                ins.get("replies", ""), json.dumps(ins, ensure_ascii=False)]
+        if mid in idx:
+            i = idx[mid]
+            sh.values().update(spreadsheetId=poster.SHEET_ID, range="%s!A%d:M%d" % (POST_TAB, i, i),
+                               valueInputOption="RAW", body={"values": [line]}).execute()
+        else:
+            appends.append(line)
+        n += 1
+    if appends:
+        sh.values().append(spreadsheetId=poster.SHEET_ID, range=POST_TAB + "!A:M",
+                           valueInputOption="RAW", insertDataOption="INSERT_ROWS", body={"values": appends}).execute()
+    print("[POSTS] %d件の投稿指標を収集（新規%d / 更新%d）" % (n, len(appends), n - len(appends)))
 
 
 def collect():
@@ -182,6 +296,12 @@ def collect():
         sh.values().append(spreadsheetId=poster.SHEET_ID, range=DAILY_TAB + "!A:I",
                            valueInputOption="RAW", insertDataOption="INSERT_ROWS", body={"values": [line]}).execute()
         print("[COLLECT] %s 追加: フォロワー%s リーチ%s 閲覧%s" % (y, followers, reach, views))
+
+    # 投稿ごとの指標（ストーリーズ／フィード／リール）も収集
+    try:
+        _collect_posts(sh, token, uid)
+    except Exception as e:
+        print("[POSTS] 収集スキップ:", e)
 
 
 def diag():

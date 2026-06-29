@@ -716,7 +716,41 @@
     function pctOf(c, p) { return (p == null || p === 0) ? null : Math.round((c - p) / p * 1000) / 10; }
     var reachPct = pctOf(cur.reach, p_("reach"));
     var linkRate = cur.pviews ? Math.round(cur.links / cur.pviews * 1000) / 10 : null;
+    // 投稿（ストーリーズ/フィード）セクションを組み立て
+    var pd = d.posts;
+    function fmtPost(p) {
+      var badge = p.kind === "story" ? "ストーリーズ" : (p.kind === "reel" ? "リール" : "フィード");
+      var cap = p.caption ? esc(String(p.caption).slice(0, 38)) : "（キャプションなし）";
+      var sub = p.kind === "story"
+        ? ("閲覧 " + fmtN(p.views) + "・タップ " + fmtN(p.navigation) + "・返信 " + fmtN(p.replies))
+        : ("閲覧 " + fmtN(p.views) + "・いいね " + fmtN(p.likes) + "・保存 " + fmtN(p.saved));
+      return '<div class="reppost"><div class="rl"><span class="rb ' + esc(p.kind) + '">' + badge + '</span>' +
+        '<span class="rd">' + esc(p.date) + '</span></div>' +
+        '<div class="rc">' + cap + '</div>' +
+        '<div class="rr"><b>リーチ ' + fmtN(p.reach) + '</b><small>' + sub + '</small></div></div>';
+    }
+    var postsHtml = "";
+    if (pd && pd.top && pd.top.length) {
+      var sa = pd.storyAvg || {};
+      var storyKpis = pd.storyN ? ('<div class="repkpis">' +
+        '<div class="repkpi"><div class="l">平均リーチ</div><div class="v">' + fmtN(sa.reach) + '</div></div>' +
+        '<div class="repkpi"><div class="l">平均閲覧</div><div class="v">' + fmtN(sa.views) + '</div></div>' +
+        '<div class="repkpi"><div class="l">平均タップ</div><div class="v">' + fmtN(sa.navigation) + '</div></div>' +
+        '<div class="repkpi"><div class="l">平均返信</div><div class="v">' + fmtN(sa.replies) + '</div></div>' +
+        '</div>') : "";
+      postsHtml =
+        (pd.storyN ? '<div class="repsec"><h3>ストーリーズの反応（直近・1本あたり平均）</h3>' + storyKpis +
+          '<div class="repnote">' + pd.storyN + '本の平均。タップ＝次へ/前へ/外部リンク等の操作数。</div></div>' : "") +
+        '<div class="repsec"><h3>ベスト投稿 TOP' + pd.top.length + '（リーチ順）</h3><div class="repposts">' +
+        pd.top.map(fmtPost).join("") + '</div></div>';
+    }
+
     var good = [], warn = [], act = [];
+    if (pd && pd.top && pd.top.length) {
+      var bestP = pd.top[0];
+      good.push("最も伸びた投稿はリーチ <b>" + fmtN(bestP.reach) + "</b>（" + esc(bestP.date) + "・" + (bestP.kind === "story" ? "ストーリーズ" : "フィード") + "）。");
+      if (pd.storyN && pd.storyAvg) good.push("ストーリーズ平均リーチ <b>" + fmtN(pd.storyAvg.reach) + "</b>／平均タップ <b>" + fmtN(pd.storyAvg.navigation) + "</b>。");
+    }
     if (reachPct != null && reachPct > 0) good.push("リーチが前期間比 <b>+" + reachPct + "%</b>。露出が伸びています。");
     if (fNet > 0) good.push("フォロワーが <b>+" + fNet + "</b>（計 " + fmtN(cur.followersEnd) + "）。");
     if (cur.links > 0) good.push("リンクタップ <b>" + fmtN(cur.links) + "</b>。行動につながっています。");
@@ -737,6 +771,7 @@
       '<div class="repdoc">' + head + period + '</div>' +
       '<div class="repsec"><h3>アカウント全体</h3><div class="repkpis">' + kpis + '</div></div>' +
       '<div class="repsec"><h3>リーチの推移（日別）</h3><div class="repbars">' + bars + '</div><div class="repax"><span>' + firstD + '</span><span>' + lastD + '</span></div></div>' +
+      postsHtml +
       '<div class="repsec"><h3>分析・まとめ</h3><div class="repanal">' +
         '<div class="repcard good"><h4>強み・良かった点</h4><ul>' + lis(good) + '</ul></div>' +
         '<div class="repcard warn"><h4>反省点・課題</h4><ul>' + lis(warn) + '</ul></div>' +
