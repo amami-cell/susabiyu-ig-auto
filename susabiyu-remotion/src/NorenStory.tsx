@@ -15,7 +15,8 @@ const clamp = { extrapolateLeft: "clamp" as const, extrapolateRight: "clamp" as 
 export const NorenStory: React.FC<{ storeName?: string; handle?: string }> = ({ storeName = "すさび湯 河原町三条店", handle = "@susabiyu_sanjyo" }) => {
   const f = useCurrentFrame();
   const hero = typoPhotos[0] || { src: "", caption: "" };
-  const zoom = interpolate(f, [0, DUR], [1.06, 1.14], clamp);
+  const zoom = interpolate(f, [0, DUR], [1.0, 1.12], clamp);
+  const bgScale = interpolate(f, [0, DUR], [1.16, 1.3], clamp);
   const norenTextO = interpolate(f, [0, 10, 36, 50], [0, 1, 1, 0], clamp);
   const welcomeO = interpolate(f, [86, 102], [0, 1], clamp);
   const welcomeY = interpolate(f, [86, 104], [30, 0], { ...clamp, easing: Easing.out(Easing.cubic) });
@@ -27,9 +28,12 @@ export const NorenStory: React.FC<{ storeName?: string; handle?: string }> = ({ 
   return (
     <AbsoluteFill style={{ backgroundColor: "#0c0a08" }}>
       <Audio src={staticFile(typoMusic)} volume={(ff) => interpolate(ff, [0, 14, DUR - 20, DUR], [0, 0.85, 0.85, 0], clamp)} />
-      {/* 奥の料理 */}
-      <AbsoluteFill>
-        <Img src={staticFile(hero.src)} style={{ width: "100%", height: "100%", objectFit: "cover", transform: "scale(" + zoom + ")" }} />
+      {/* 奥の料理（切らずに全体表示・通常→アップ。背景はぼかしで埋める） */}
+      <AbsoluteFill style={{ backgroundColor: "#0c0a08" }}>
+        <Img src={staticFile(hero.src)} style={{ width: "100%", height: "100%", objectFit: "cover", filter: "blur(26px) brightness(0.5)", transform: "scale(" + bgScale + ")" }} />
+        <AbsoluteFill style={{ justifyContent: "center", alignItems: "center" }}>
+          <Img src={staticFile(hero.src)} style={{ width: "100%", height: "100%", objectFit: "contain", transform: "scale(" + zoom + ")" }} />
+        </AbsoluteFill>
         <AbsoluteFill style={{ background: "linear-gradient(to bottom, rgba(0,0,0,0.32) 0%, rgba(0,0,0,0) 30%, rgba(0,0,0,0) 52%, rgba(0,0,0,0.86) 100%)" }} />
       </AbsoluteFill>
 
@@ -48,7 +52,7 @@ export const NorenStory: React.FC<{ storeName?: string; handle?: string }> = ({ 
 
       {/* いらっしゃいませ */}
       <div style={{ position: "absolute", top: 150, left: 0, width: "100%", textAlign: "center", opacity: welcomeO, transform: "translateY(" + welcomeY + "px)" }}>
-        <span style={{ display: "inline-block", background: "rgba(28,52,84,0.86)", color: WHITE, fontFamily: mincho, fontWeight: 700, fontSize: 44, letterSpacing: 10, padding: "14px 40px", borderRadius: 8 }}>いらっしゃいませ</span>
+        <span style={{ display: "inline-block", background: "rgba(28,52,84,0.86)", color: WHITE, fontFamily: mincho, fontWeight: 700, fontSize: 38, letterSpacing: 6, padding: "14px 36px", borderRadius: 8 }}>ご来店お待ちしております。</span>
       </div>
 
       {/* 料理名 */}
