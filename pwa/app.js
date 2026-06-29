@@ -577,18 +577,31 @@
     if (name === "gallery") { galleryLoaded = true; startGalleryPoll(); }
     else { stopGalleryPoll(); }
   }
-  // タブをタップ＝はっきり反応：振動→押せた感→「更新中…」スピナー→完了で「✓」
-  function tapTab(tab, name, loader) {
-    haptic(18);
-    if (tab) { tab.classList.remove("tapped"); void tab.offsetWidth; tab.classList.add("tapped"); }  // 弾むのは1回だけ
-    switchTo(name);
-    toastBusy("更新中…");
-    var done = function () { haptic(8); toast("✓ 最新にしました"); };
-    Promise.resolve(loader()).then(done, done);
+  // そのタブに表示内容がもうあるか（＝切替時に再読込しなくてよいか）
+  function tabHasContent(name) {
+    if (name === "gallery") return galleryLoaded;
+    if (name === "report") return !!reportData;
+    return true;   // 確認は常時ポーリングで最新
   }
-  if (tabFeed) tabFeed.onclick = function () { tapTab(tabFeed, "feed", load); };
-  if (tabGallery) tabGallery.onclick = function () { tapTab(tabGallery, "gallery", loadPatterns); };
-  if (tabReport) tabReport.onclick = function () { tapTab(tabReport, "report", loadReport); };
+  // タブの動き：
+  //  ・別のタブ（カテゴリ切替）＝静かに表示するだけ（更新の演出は出さない）。初回だけ読み込む。
+  //  ・今開いているのと同じタブを再タップ＝その場で更新（振動＋更新中→✓）
+  function selectTab(tab, name, loader) {
+    if (tab) { tab.classList.remove("tapped"); void tab.offsetWidth; tab.classList.add("tapped"); }  // 押せた感（1回）
+    if (currentTab === name) {
+      haptic(18);
+      toastBusy("更新中…");
+      var done = function () { haptic(8); toast("✓ 最新にしました"); };
+      Promise.resolve(loader()).then(done, done);
+    } else {
+      var had = tabHasContent(name);
+      switchTo(name);
+      if (!had) loader();   // 初回表示のときだけ読み込む（カテゴリ切替で毎回“更新”しない）
+    }
+  }
+  if (tabFeed) tabFeed.onclick = function () { selectTab(tabFeed, "feed", load); };
+  if (tabGallery) tabGallery.onclick = function () { selectTab(tabGallery, "gallery", loadPatterns); };
+  if (tabReport) tabReport.onclick = function () { selectTab(tabReport, "report", loadReport); };
 
   /* ---------- 引っ張って更新（pull-to-refresh）：最上部で下スワイプ→振動→更新 ---------- */
   (function () {
