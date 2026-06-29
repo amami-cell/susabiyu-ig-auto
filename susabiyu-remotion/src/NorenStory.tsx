@@ -15,7 +15,8 @@ const clamp = { extrapolateLeft: "clamp" as const, extrapolateRight: "clamp" as 
 export const NorenStory: React.FC<{ storeName?: string; handle?: string }> = ({ storeName = "すさび湯 河原町三条店", handle = "@susabiyu_sanjyo" }) => {
   const f = useCurrentFrame();
   const hero = typoPhotos[0] || { src: "", caption: "" };
-  const zoom = interpolate(f, [0, DUR], [1.0, 1.13], clamp);
+  const zoom = interpolate(f, [0, DUR], [1.0, 1.08], clamp);
+  const bgScale = interpolate(f, [0, DUR], [1.12, 1.24], clamp);
   const norenTextO = interpolate(f, [0, 10, 36, 50], [0, 1, 1, 0], clamp);
   const welcomeO = interpolate(f, [86, 102], [0, 1], clamp);
   const welcomeY = interpolate(f, [86, 104], [30, 0], { ...clamp, easing: Easing.out(Easing.cubic) });
@@ -27,10 +28,13 @@ export const NorenStory: React.FC<{ storeName?: string; handle?: string }> = ({ 
   return (
     <AbsoluteFill style={{ backgroundColor: "#0c0a08" }}>
       <Audio src={staticFile(typoMusic)} volume={(ff) => interpolate(ff, [0, 14, DUR - 20, DUR], [0, 0.85, 0.85, 0], clamp)} />
-      {/* 奥の料理（画面いっぱい・通常→アップ。料理が中央に来るよう配置） */}
+      {/* 奥の料理（切らず全体表示・通常→アップ。背景は同じ写真の明るめぼかしで全面を埋める＝余白を作らない） */}
       <AbsoluteFill style={{ backgroundColor: "#0c0a08" }}>
-        <Img src={staticFile(hero.src)} style={{ width: "100%", height: "100%", objectFit: "cover", objectPosition: "center 42%", transform: "scale(" + zoom + ")" }} />
-        <AbsoluteFill style={{ background: "linear-gradient(to bottom, rgba(0,0,0,0.32) 0%, rgba(0,0,0,0) 30%, rgba(0,0,0,0) 52%, rgba(0,0,0,0.86) 100%)" }} />
+        <Img src={staticFile(hero.src)} style={{ width: "100%", height: "100%", objectFit: "cover", filter: "blur(30px) brightness(0.72)", transform: "scale(" + bgScale + ")" }} />
+        <AbsoluteFill style={{ justifyContent: "center", alignItems: "center" }}>
+          <Img src={staticFile(hero.src)} style={{ width: "100%", height: "100%", objectFit: "contain", transform: "scale(" + zoom + ")" }} />
+        </AbsoluteFill>
+        <AbsoluteFill style={{ background: "linear-gradient(to bottom, rgba(8,6,4,0.5) 0%, rgba(8,6,4,0.06) 20%, rgba(0,0,0,0) 44%, rgba(8,6,4,0.34) 64%, rgba(8,6,4,0.92) 100%)" }} />
       </AbsoluteFill>
 
       {/* 暖簾（3枚）が持ち上がって開く */}
@@ -46,19 +50,19 @@ export const NorenStory: React.FC<{ storeName?: string; handle?: string }> = ({ 
         <div style={{ marginTop: 30, color: GOLD, fontFamily: mincho, fontWeight: 700, fontSize: 40, letterSpacing: 18, border: "3px solid " + GOLD, padding: "8px 26px", borderRadius: 6 }}>営業中</div>
       </AbsoluteFill>
 
-      {/* いらっしゃいませ */}
-      <div style={{ position: "absolute", top: 150, left: 0, width: "100%", textAlign: "center", opacity: welcomeO, transform: "translateY(" + welcomeY + "px)" }}>
-        <span style={{ display: "inline-block", background: "rgba(28,52,84,0.86)", color: WHITE, fontFamily: mincho, fontWeight: 700, fontSize: 38, letterSpacing: 6, padding: "14px 36px", borderRadius: 8 }}>ご来店お待ちしております。</span>
+      {/* 下部に集約：ご来店メッセージ → 料理名 → 屋号 */}
+      <div style={{ position: "absolute", bottom: 340, left: 0, width: "100%", textAlign: "center", opacity: welcomeO, transform: "translateY(" + welcomeY + "px)" }}>
+        <span style={{ display: "inline-block", background: "rgba(28,52,84,0.88)", color: WHITE, fontFamily: mincho, fontWeight: 700, fontSize: 36, letterSpacing: 6, padding: "13px 34px", borderRadius: 8, boxShadow: "0 8px 22px rgba(0,0,0,0.45)" }}>ご来店お待ちしております。</span>
       </div>
 
       {/* 料理名 */}
-      <div style={{ position: "absolute", bottom: 240, left: 80, right: 80, opacity: nameO, transform: "translateY(" + nameY + "px)" }}>
-        <div style={{ width: 110, height: 5, backgroundColor: GOLD, marginBottom: 20 }} />
-        <div style={{ color: WHITE, fontFamily: mincho, fontWeight: 700, fontSize: nm, letterSpacing: 4, whiteSpace: "nowrap", textShadow: "0 4px 20px rgba(0,0,0,0.7)" }}>{hero.caption}</div>
+      <div style={{ position: "absolute", bottom: 196, left: 80, right: 80, opacity: nameO, transform: "translateY(" + nameY + "px)" }}>
+        <div style={{ width: 110, height: 5, backgroundColor: GOLD, marginBottom: 18 }} />
+        <div style={{ color: WHITE, fontFamily: mincho, fontWeight: 700, fontSize: nm, letterSpacing: 4, whiteSpace: "nowrap", textShadow: "0 4px 20px rgba(0,0,0,0.8)" }}>{hero.caption}</div>
       </div>
 
       {/* 屋号 */}
-      <div style={{ position: "absolute", bottom: 120, left: 0, width: "100%", textAlign: "center", opacity: footO }}>
+      <div style={{ position: "absolute", bottom: 104, left: 0, width: "100%", textAlign: "center", opacity: footO }}>
         <div style={{ color: WHITE, fontFamily: mincho, fontSize: 28, letterSpacing: 5 }}>{storeName}　{handle}</div>
       </div>
     </AbsoluteFill>
