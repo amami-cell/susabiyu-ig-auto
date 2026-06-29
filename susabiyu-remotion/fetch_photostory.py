@@ -140,10 +140,6 @@ pool = usage.prefer(pool, creds_path) or pool
 _fx = [x for x in os.environ.get("FIXED_IDS", "").split(",") if x]
 if _fx:
     pick = drive.files().get(fileId=_fx[0], fields="id,name,mimeType,imageMediaMetadata(width,height)", supportsAllDrives=True).execute()
-elif os.environ.get("PREVIEW_ATMO"):
-    # プレビュー専用：外観/内観・コースを確実に全画面で見せる（あとで削除する一時動作）
-    _ap = [f for f in pool if f.get("genre") == "atmo"] or pool
-    pick = random.choice(_ap)
 else:
     pick = random.choice(pool)
 usage.record(creds_path, [pick], "photo")
