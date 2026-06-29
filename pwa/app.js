@@ -518,11 +518,25 @@
     if (name) { document.title = name; }
   })();
 
+  /* ---------- アイコンのバッジをクリア（開いた＝未読を見た） ---------- */
+  function clearBadge() {
+    try { if (navigator.clearAppBadge) navigator.clearAppBadge(); } catch (e) {}
+    if (navigator.serviceWorker && navigator.serviceWorker.ready) {
+      navigator.serviceWorker.ready.then(function (reg) {
+        var sw = reg.active || (navigator.serviceWorker && navigator.serviceWorker.controller);
+        if (sw) sw.postMessage({ type: "clearBadge" });
+      }).catch(function () {});
+    }
+  }
+
   /* ---------- boot ---------- */
   load().then(function () { setRate(POLL); focusCard(getParam("focus")); });
+  clearBadge();
+  window.addEventListener("focus", clearBadge);
   document.addEventListener("visibilitychange", function () {
     if (!document.hidden) {
       poll();  // 復帰したら即同期
+      clearBadge();
       if (galleryEl && galleryEl.style.display !== "none") { loadPatterns(); startGalleryPoll(); }
     } else { stopGalleryPoll(); }
   });
