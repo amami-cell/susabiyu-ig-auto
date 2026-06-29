@@ -549,19 +549,136 @@
       if (!hasCards()) galleryEl.innerHTML = '<div class="empty">見本を取得できませんでした。<br><small>' + esc(e.message) + '</small></div>';
     });
   }
+  var reportEl = document.getElementById("report");
+  var tabReport = document.getElementById("tabReport");
   function startGalleryPoll() { stopGalleryPoll(); galleryTimer = setInterval(loadPatterns, 5000); }
   function stopGalleryPoll() { if (galleryTimer) { clearInterval(galleryTimer); galleryTimer = null; } }
-  function switchTab(toGallery) {
-    tabFeed.classList.toggle("on", !toGallery);
-    tabGallery.classList.toggle("on", toGallery);
-    feed.style.display = toGallery ? "none" : "";
-    galleryEl.style.display = toGallery ? "" : "none";
-    if (toGallery) { galleryLoaded = true; loadPatterns(); startGalleryPoll(); }  // 開く度に最新へ＋表示中は5秒ごとに同期
+  function switchTo(name) {
+    tabFeed.classList.toggle("on", name === "feed");
+    tabGallery.classList.toggle("on", name === "gallery");
+    if (tabReport) tabReport.classList.toggle("on", name === "report");
+    feed.style.display = name === "feed" ? "" : "none";
+    galleryEl.style.display = name === "gallery" ? "" : "none";
+    if (reportEl) reportEl.style.display = name === "report" ? "" : "none";
+    if (name === "gallery") { galleryLoaded = true; loadPatterns(); startGalleryPoll(); }
     else { stopGalleryPoll(); }
+    if (name === "report") loadReport();
   }
-  // タブをタップ＝その場で最新に更新（画像が出ていない時の手動リフレッシュ）
-  if (tabFeed) tabFeed.onclick = function () { switchTab(false); load(); toast("最新に更新しました"); };
-  if (tabGallery) tabGallery.onclick = function () { switchTab(true); loadPatterns(); toast("最新に更新しました"); };
+  // タブをタップ＝その場で最新に更新
+  if (tabFeed) tabFeed.onclick = function () { switchTo("feed"); load(); toast("最新に更新しました"); };
+  if (tabGallery) tabGallery.onclick = function () { switchTo("gallery"); loadPatterns(); toast("最新に更新しました"); };
+  if (tabReport) tabReport.onclick = function () { switchTo("report"); loadReport(); toast("最新に更新しました"); };
+
+  /* ---------- レポート（インサイト・全員閲覧可・操作なし） ---------- */
+  var reportData = null;
+  function loadReport() {
+    if (!reportEl) return;
+    if (!reportData) reportEl.innerHTML = '<div class="rephint">レポートを読み込んでいます…</div>';
+    jsonp({ api: "report" }).then(function (data) {
+      if (data && data.error === "auth") { askKey("確認コードを入力してください"); return; }
+      reportData = data || {};
+      renderReport(reportData);
+    }).catch(function (e) {
+      if (!reportData) reportEl.innerHTML = '<div class="rephint">レポートを取得できませんでした。<br>' + esc((e && e.message) || e) + '</div>';
+    });
+  }
+  function fmtN(n) { n = Math.round(Number(n) || 0); return String(n).replace(/\B(?=(\d{3})+(?!\d))/g, ","); }
+  function deltaHtml(cur, prev) {
+    if (prev == null || prev === 0) return '<span class="d flat">—</span>';
+    var pct = Math.round((cur - prev) / prev * 1000) / 10;
+    var cls = pct > 0 ? "up" : (pct < 0 ? "down" : "flat");
+    var ar = pct > 0 ? "▲ +" : (pct < 0 ? "▼ " : "± ");
+    return '<span class="d ' + cls + '">' + ar + Math.abs(pct) + '%</span>';
+  }
+  function renderReport(d) {
+    var store = CFG.STORE_NAME || "すさび湯三条";
+    var head = '<div class="rephd"><div class="t">Instagram インサイトレポート</div><div class="s">' + esc(store) + '　@susabiyu_sanjyo</div>';
+    if (!d || !d.days || !d.cur) {
+      reportEl.innerHTML = '<div class="repbar"><button id="repReload">↻ 更新</button></div>' +
+        '<div class="repdoc">' + head + '</div></div>' +
+        '<div class="rephint">データを集計中です。毎日自動で蓄積され、数日たつとレポートが表示されます。<br>30日たつと「直近30日 vs 前30日」の比較が満額になります。</div>';
+      var rb0 = document.getElementById("repReload"); if (rb0) rb0.onclick = loadReport;
+      return;
+    }
+    var cur = d.cur, prev = d.prev || {};
+    var fNet = cur.followersEnd - cur.followersStart;
+    var pNet = (prev && prev.followersEnd != null) ? (prev.followersEnd - prev.followersStart) : null;
+    function p_(k) { return (prev && prev[k] != null) ? prev[k] : null; }
+    function kpi(label, c, p, opts) {
+      opts = opts || {};
+      var vs = (opts.plus && c > 0 ? "+" : "") + fmtN(c);
+      var ps = p == null ? null : ((opts.plus && p > 0 ? "+" : "") + fmtN(p));
+      return '<div class="repkpi"><div class="l">' + esc(label) + '</div><div class="v">' + vs +
+        (opts.sub ? ' <small>' + esc(opts.sub) + '</small>' : '') + '</div>' + deltaHtml(c, p) +
+        (ps != null ? '<div class="prev">前期間 ' + ps + '</div>' : '') + '</div>';
+    }
+    var kpis = kpi("リーチ", cur.reach, p_("reach")) + kpi("閲覧数", cur.views, p_("views")) +
+      kpi("プロフィール表示", cur.pviews, p_("pviews")) +
+      kpi("フォロワー純増", fNet, pNet, { plus: true, sub: "計 " + fmtN(cur.followersEnd) });
+    var vals = (d.series || []).map(function (s) { return Number(s.reach) || 0; });
+    var mx = Math.max.apply(null, vals.concat([1]));
+    var bars = vals.map(function (v) { return '<i style="height:' + Math.max(2, Math.round(v / mx * 100)) + '%"></i>'; }).join("");
+    var firstD = vals.length ? d.series[0].date.slice(5) : "", lastD = vals.length ? d.series[d.series.length - 1].date.slice(5) : "";
+    function pctOf(c, p) { return (p == null || p === 0) ? null : Math.round((c - p) / p * 1000) / 10; }
+    var reachPct = pctOf(cur.reach, p_("reach"));
+    var linkRate = cur.pviews ? Math.round(cur.links / cur.pviews * 1000) / 10 : null;
+    var good = [], warn = [], act = [];
+    if (reachPct != null && reachPct > 0) good.push("リーチが前期間比 <b>+" + reachPct + "%</b>。露出が伸びています。");
+    if (fNet > 0) good.push("フォロワーが <b>+" + fNet + "</b>（計 " + fmtN(cur.followersEnd) + "）。");
+    if (cur.links > 0) good.push("リンクタップ <b>" + fmtN(cur.links) + "</b>。行動につながっています。");
+    if (linkRate != null && linkRate < 4) warn.push("誘導率（リンク÷プロフ表示）が <b>" + linkRate + "%</b> と低め。CTA強化の余地。");
+    if (reachPct != null && reachPct < 0) warn.push("リーチが前期間比 <b>" + reachPct + "%</b>。投稿時間や内容を見直し。");
+    if (fNet <= 0) warn.push("フォロワー純増が <b>" + fNet + "</b>。導線・頻度を確認。");
+    act.push("反応が良い<b>夜の時間帯</b>に限定・数量の告知を集中。");
+    act.push("ストーリーズ1枚目を<b>料理ドアップ＋一言</b>に（到達率・完了率UP）。");
+    act.push("プロフィールの<b>予約リンク</b>を毎回明示して誘導率を底上げ。");
+    if (!good.length) good.push("データが増えるほど、効いている施策が見えてきます。");
+    if (!warn.length) warn.push("大きな課題は見当たりません。継続して様子を見ましょう。");
+    function lis(a) { return a.map(function (x) { return "<li>" + x + "</li>"; }).join(""); }
+    var period = '<div class="p">直近' + d.days + '日' + (d.latestDate ? '（〜' + esc(d.latestDate) + '）' : '') +
+      '<small>' + ((pNet != null || p_("reach") != null) ? '前' + d.days + '日と比較' : 'データ蓄積中（30日で前期間比較が満額に）') + '</small></div>';
+    reportEl.innerHTML =
+      '<div class="repbar"><button id="repReload">↻ 更新</button><button id="repPdf" class="pdf">📄 PDFで保存（A4）</button></div>' +
+      '<div class="rephint">この画面は誰でも閲覧できます（操作はありません）。PDFはA4資料として保存できます。</div>' +
+      '<div class="repdoc">' + head + period + '</div>' +
+      '<div class="repsec"><h3>アカウント全体</h3><div class="repkpis">' + kpis + '</div></div>' +
+      '<div class="repsec"><h3>リーチの推移（日別）</h3><div class="repbars">' + bars + '</div><div class="repax"><span>' + firstD + '</span><span>' + lastD + '</span></div></div>' +
+      '<div class="repsec"><h3>分析・まとめ</h3><div class="repanal">' +
+        '<div class="repcard good"><h4>強み・良かった点</h4><ul>' + lis(good) + '</ul></div>' +
+        '<div class="repcard warn"><h4>反省点・課題</h4><ul>' + lis(warn) + '</ul></div>' +
+        '<div class="repcard act"><h4>今後の施策</h4><ul>' + lis(act) + '</ul></div>' +
+      '</div></div>' +
+      '<div class="repfoot">データ元：Instagram Graph API（毎日自動収集）／分析は数値から自動生成</div></div>';
+    var rb = document.getElementById("repReload"); if (rb) rb.onclick = loadReport;
+    var pb = document.getElementById("repPdf"); if (pb) pb.onclick = downloadReportPdf;
+  }
+  function loadScriptOnce(src, cb) {
+    var s = document.createElement("script"); s.src = src;
+    s.onload = cb; s.onerror = function () { toast("PDFライブラリの読込に失敗"); };
+    document.head.appendChild(s);
+  }
+  function downloadReportPdf() {
+    var src = reportEl.querySelector(".repdoc");
+    if (!src) { toast("レポートがありません"); return; }
+    function go() {
+      if (!window.html2pdf) { toast("PDF生成に失敗"); return; }
+      toast("PDFを作成中…");
+      var holder = document.createElement("div");
+      holder.style.cssText = "position:fixed;left:-99999px;top:0;width:794px;background:#fff";
+      var clone = src.cloneNode(true); clone.classList.add("a4");
+      holder.appendChild(clone); document.body.appendChild(holder);
+      window.html2pdf().set({
+        margin: 6,
+        filename: "susabiyu_insight_" + ((reportData && reportData.latestDate) || "report") + ".pdf",
+        image: { type: "jpeg", quality: 0.95 },
+        html2canvas: { scale: 2, backgroundColor: "#ffffff", useCORS: true },
+        jsPDF: { unit: "mm", format: "a4", orientation: "portrait" },
+        pagebreak: { mode: ["css", "avoid-all"] }
+      }).from(clone).save().then(function () { holder.remove(); }).catch(function () { holder.remove(); toast("PDF作成に失敗"); });
+    }
+    if (window.html2pdf) go();
+    else loadScriptOnce("https://cdn.jsdelivr.net/npm/html2pdf.js@0.10.3/dist/html2pdf.bundle.min.js", go);
+  }
   // 画像/動画が読み込めなかった枠をタップ → その場で再取得
   if (feed) feed.addEventListener("click", function (e) {
     var w = e.target && e.target.closest && e.target.closest(".mediaWrap.mediaerr");
