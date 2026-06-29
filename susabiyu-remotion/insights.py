@@ -184,14 +184,41 @@ def collect():
         print("[COLLECT] %s 追加: フォロワー%s リーチ%s 閲覧%s" % (y, followers, reach, views))
 
 
+def diag():
+    """確認用フィード（承認待ちタブ）の各枠で、プレビューURL/ポスター/ぼかしの状態を出す。
+    画像が出ない原因（url空 / data-URI切れ等）の切り分け用。"""
+    sh = poster._sheets()
+    if sh is None:
+        raise SystemExit("シート接続失敗")
+    tab = "承認待ち"
+    data = sh.values().get(spreadsheetId=poster.SHEET_ID, range=tab + "!A:M").execute().get("values", [])
+    print("[DIAG] 行数:", len(data))
+    for i, r in enumerate(data):
+        if i == 0:
+            continue
+        def c(n):
+            return str(r[n]) if len(r) > n else ""
+        st = c(7)
+        if st not in ("pending", "redo", "approved"):
+            continue
+        url = c(4); pos = c(11); blur = c(12)
+        head = url.replace("\n", " ")[:46]
+        kind = "video" if (".mp4" in url.lower() or ".mov" in url.lower() or c(6) == "video") else "still/other"
+        print("  %s | %-8s | %-10s | %-11s | url_len=%5d head=%s | poster_len=%5d | blur_len=%5d"
+              % (c(1)[:16], st, c(3), kind, len(url), head, len(pos), len(blur)))
+    print("[DIAG] 目安: url_len=0は画像なし / data-URIが50000ちょうど付近は切れの疑い")
+
+
 def main():
     mode = (sys.argv[1] if len(sys.argv) > 1 else "check").strip()
     if mode == "check":
         check()
     elif mode == "collect":
         collect()
+    elif mode == "diag":
+        diag()
     else:
-        print("usage: python insights.py [check|collect]")
+        print("usage: python insights.py [check|collect|diag]")
 
 
 if __name__ == "__main__":
