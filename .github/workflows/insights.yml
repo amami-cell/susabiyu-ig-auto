@@ -3,11 +3,11 @@ on:
   workflow_dispatch:
     inputs:
       mode:
-        description: "check（権限確認） / collect（日次収集）"
+        description: "check / collect / diag / heal / 'setredo|<when>|...'"
         required: false
         default: "check"
   schedule:
-    - cron: '30 14 * * *'   # 毎日 23:30 JST に日次収集
+    - cron: '30 14 * * *'   # 毎日 23:30 JST に日次収集＋heal
 jobs:
   insights:
     runs-on: ubuntu-latest
@@ -31,4 +31,14 @@ jobs:
           GOOGLE_CREDS_B64: ${{ secrets.GOOGLE_CREDS_B64 }}
           IG_ACCESS_TOKEN: ${{ secrets.IG_ACCESS_TOKEN }}
           SHEET_ID: ${{ secrets.SHEET_ID }}
-        run: python insights.py "${{ github.event.inputs.mode || 'collect' }}"
+          GH_MEDIA_TOKEN: ${{ secrets.GH_MEDIA_TOKEN }}
+          GH_MEDIA_REPO: ${{ secrets.GH_MEDIA_REPO }}
+          R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          R2_BUCKET: ${{ secrets.R2_BUCKET }}
+          R2_PUBLIC_BASE: ${{ secrets.R2_PUBLIC_BASE }}
+        run: |
+          MODE="${{ github.event.inputs.mode || 'collect' }}"
+          python insights.py "$MODE"
+          if [ "${{ github.event_name }}" = "schedule" ]; then python insights.py heal; fi
