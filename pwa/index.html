@@ -138,6 +138,51 @@
   .mbtn{margin-top:16px;border:0;border-radius:13px;padding:13px 0;font-size:15px;font-weight:800}
   .mbtn.off{background:#23262d;color:#e2675c}
   .mbtn:active{transform:scale(.98)}
+  /* ===== レポート（画面=モバイル最適化 / PDF=A4資料） ===== */
+  #report{padding:14px 12px 36px;max-width:560px;margin:0 auto}
+  .repbar{display:flex;gap:8px;margin:2px 2px 14px}
+  .repbar button{flex:1;border:1px solid var(--line);background:#181c23;color:var(--fg);font-size:14px;font-weight:800;
+    padding:11px 0;border-radius:12px}
+  .repbar button.pdf{background:#10301f;color:var(--accent);border-color:#1f4d33}
+  .repbar button:active{transform:scale(.98)}
+  .rephint{color:var(--sub);font-size:12px;text-align:center;margin:0 4px 14px;line-height:1.6}
+  .repdoc{background:#fff;color:#1b2433;border-radius:14px;overflow:hidden}
+  .rephd{background:linear-gradient(135deg,#1b2433,#2e3c52);color:#fff;padding:22px 22px}
+  .rephd .t{font-size:20px;font-weight:800;letter-spacing:.5px}
+  .rephd .s{font-size:13px;color:#cdd6e4;margin-top:4px}
+  .rephd .p{font-size:14px;font-weight:700;margin-top:12px}
+  .rephd .p small{display:block;font-size:12px;color:#aebbcf;font-weight:400;margin-top:3px}
+  .repsec{padding:16px 18px 4px}
+  .repsec h3{font-size:15px;font-weight:800;color:#1b2433;margin:0 0 12px;display:flex;align-items:center;gap:8px}
+  .repsec h3::before{content:"";width:6px;height:18px;background:#e0a93b;border-radius:3px}
+  .repkpis{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:8px}
+  .repkpi{background:#f4f6f9;border-radius:12px;padding:14px 14px}
+  .repkpi .l{font-size:12px;color:#6c7689;font-weight:700}
+  .repkpi .v{font-size:26px;font-weight:800;color:#1b2433;margin-top:3px;line-height:1.1}
+  .repkpi .v small{font-size:13px;color:#8a94a6;font-weight:700}
+  .repkpi .d{display:inline-block;margin-top:8px;font-size:12px;font-weight:800;padding:3px 9px;border-radius:999px}
+  .repkpi .prev{font-size:11px;color:#9aa3b2;margin-top:6px}
+  .up{color:#127a40;background:#e3f5ea}.down{color:#b23b3b;background:#fbe7e7}.flat{color:#6c7689;background:#eceff3}
+  .repbars{display:flex;align-items:flex-end;gap:3px;height:120px;background:#f4f6f9;border-radius:12px;padding:12px 12px 8px}
+  .repbars i{flex:1;background:#33507f;border-radius:3px 3px 0 0;min-height:2px;opacity:.9}
+  .repax{display:flex;justify-content:space-between;font-size:11px;color:#9aa3b2;margin:6px 4px 0}
+  .repanal{display:flex;flex-direction:column;gap:10px}
+  .repcard{background:#fff;border:1px solid #eef1f5;border-left:6px solid #ccc;border-radius:12px;padding:14px 16px}
+  .repcard.good{border-left-color:#2bb673}.repcard.warn{border-left-color:#e0a93b}.repcard.act{border-left-color:#3b6fd6}
+  .repcard h4{font-size:14px;font-weight:800;margin:0 0 8px}
+  .repcard.good h4{color:#127a40}.repcard.warn h4{color:#a9781a}.repcard.act h4{color:#2a55b0}
+  .repcard ul{margin:0;padding:0;list-style:none}
+  .repcard li{font-size:13.5px;line-height:1.65;color:#384153;padding:5px 0 5px 16px;position:relative}
+  .repcard li::before{content:"";position:absolute;left:2px;top:12px;width:7px;height:7px;border-radius:50%;background:#c4ccd8}
+  .repcard.good li::before{background:#2bb673}.repcard.warn li::before{background:#e0a93b}.repcard.act li::before{background:#3b6fd6}
+  .repcard li b{color:#1b2433;font-weight:800}
+  .repfoot{color:#9aa3b2;font-size:11px;text-align:center;padding:14px 16px 18px;line-height:1.6}
+  /* A4 出力モード（PDF生成時にクローンへ付与） */
+  .repdoc.a4{width:794px;border-radius:0}
+  .repdoc.a4 .repsec{padding:18px 26px 6px}
+  .repdoc.a4 .rephd{padding:28px 26px}
+  .repdoc.a4 .repkpis{grid-template-columns:1fr 1fr 1fr 1fr}
+  .repdoc.a4 .repkpi .v{font-size:24px}
 </style>
 </head>
 <body>
@@ -151,6 +196,7 @@
     <div class="tabs">
       <button class="tab on" id="tabFeed">確認</button>
       <button class="tab" id="tabGallery">見本</button>
+      <button class="tab" id="tabReport">レポート</button>
     </div>
   </header>
   <div id="feed">
@@ -158,6 +204,7 @@
     <div class="sk"><div class="b l1"></div><div class="b img"></div><div class="b l2"></div></div>
   </div>
   <div id="gallery" style="display:none"></div>
+  <div id="report" style="display:none"></div>
   <div id="toast"></div>
   <div id="ios">
     <span class="x" onclick="document.getElementById('ios').style.display='none'">✕</span>
