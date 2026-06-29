@@ -98,6 +98,35 @@
   #ios{display:none;position:fixed;left:12px;right:12px;bottom:calc(env(safe-area-inset-bottom) + 14px);z-index:25;
     background:#1b2029;border:1px solid var(--line);border-radius:14px;padding:12px 14px;font-size:13px;line-height:1.6;color:var(--fg)}
   #ios b{color:var(--accent)}#ios .x{float:right;color:var(--sub);font-weight:800;padding:0 4px}
+  /* 管理者バー（見本ギャラリー） */
+  .adminbar{display:flex;align-items:center;justify-content:center;gap:10px;margin:0 2px 16px}
+  .adminbar .abadge{font-size:13px;font-weight:800;color:var(--accent);background:#10301f;padding:6px 13px;border-radius:999px}
+  .adminbar .alink{border:1px solid var(--line);background:#181c23;color:var(--sub);font-size:13px;font-weight:700;
+    padding:8px 15px;border-radius:999px}
+  .adminbar .alink:active{transform:scale(.97)}
+  /* モーダル（通知の個別設定など） */
+  .modalOv{position:fixed;inset:0;z-index:40;background:rgba(0,0,0,.5);display:flex;align-items:flex-end;
+    justify-content:center;opacity:0;transition:opacity .2s;pointer-events:none}
+  .modalOv.show{opacity:1;pointer-events:auto}
+  .modal{width:100%;max-width:560px;background:var(--card);border:1px solid var(--line);border-bottom:0;
+    border-radius:18px 18px 0 0;padding:4px 16px calc(env(safe-area-inset-bottom) + 18px);
+    transform:translateY(24px);transition:transform .2s}
+  .modalOv.show .modal{transform:none}
+  .mhead{display:flex;align-items:center;justify-content:space-between;padding:14px 2px 8px;font-size:16px;font-weight:800}
+  .mhead .mx{border:0;background:transparent;color:var(--sub);font-size:18px;font-weight:800;padding:4px 8px}
+  .mbody{display:flex;flex-direction:column}
+  .mlead{color:var(--sub);font-size:13px;line-height:1.6;margin:0 2px 6px}
+  .swrow{display:flex;align-items:center;gap:12px;padding:14px 4px;border-top:1px solid var(--line)}
+  .swtxt{flex:1}.swtxt b{font-size:15px;font-weight:700}.swtxt small{display:block;color:var(--sub);font-size:12px;margin-top:3px}
+  .sw{position:relative;width:50px;height:30px;flex:0 0 auto}
+  .sw input{position:absolute;inset:0;opacity:0;margin:0;z-index:2}
+  .sw i{position:absolute;inset:0;background:#3a3f4a;border-radius:999px;transition:.18s}
+  .sw i::after{content:"";position:absolute;top:3px;left:3px;width:24px;height:24px;background:#fff;border-radius:50%;transition:.18s}
+  .sw input:checked + i{background:var(--ok)}
+  .sw input:checked + i::after{transform:translateX(20px)}
+  .mbtn{margin-top:16px;border:0;border-radius:13px;padding:13px 0;font-size:15px;font-weight:800}
+  .mbtn.off{background:#23262d;color:#e2675c}
+  .mbtn:active{transform:scale(.98)}
 </style>
 </head>
 <body>

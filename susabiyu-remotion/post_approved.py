@@ -233,7 +233,7 @@ def main():
             pwa_url = os.environ.get("PWA_URL") or "https://amami-cell.github.io/susabiyu-media/app/"
             prepare.send_push(sh, "\u4f5c\u308a\u76f4\u3057\u5b8c\u4e86",
                               "%d/%d %02d:00 %s \u3092\u4f5c\u308a\u76f4\u3057\u307e\u3057\u305f\u3002\u3054\u78ba\u8a8d\u304f\u3060\u3055\u3044" % (dt.month, dt.day, dt.hour, patja),
-                              pwa_url, token)
+                              pwa_url, token, category="redo")
         except Exception as e:
             print("[PUSH] \u4f5c\u308a\u76f4\u3057\u901a\u77e5 \u5931\u6557(\u7d99\u7d9a):", e)
         print("\u4f5c\u308a\u76f4\u3057\u5b8c\u4e86 -> pending\u306b\u623b\u3057\u3066\u518d\u63d0\u6848 (%d/%d\u56de\u76ee, pattern=%s)" % (redo_count + 1, MAX_REDO, new_pattern))
@@ -286,6 +286,15 @@ def main():
             # \u3053\u3053\u307e\u3067\u6765\u305f\u3089\u6295\u7a3f\u306f\u6210\u529f\u6e08\u307f\u3002\u3042\u3068\u306f\u30b9\u30c6\u30fc\u30bf\u30b9\u66f4\u65b0\uff08\u5931\u6557\u3057\u3066\u3082\u518d\u6295\u7a3f\u306f\u3057\u306a\u3044\uff09
             set_status(sh, rownum, "posted")
             print("\u6295\u7a3f\u5b8c\u4e86 & \u72b6\u614b\u3092posted\u306b\u66f4\u65b0")
+            # PWA\u8cfc\u8aad\u8005\u3078Web Push\uff08Instagram\u6295\u7a3f\u5b8c\u4e86\uff09\u3002\u30ab\u30c6\u30b4\u30ea ig\uff08\u500b\u5225ON/OFF\u5bfe\u8c61\uff09
+            try:
+                patja = prepare.PAT_JA.get(pattern, pattern)
+                pwa_url = os.environ.get("PWA_URL") or "https://amami-cell.github.io/susabiyu-media/app/"
+                prepare.send_push(sh, "Instagram\u6295\u7a3f\u5b8c\u4e86",
+                                  "%d/%d %02d:00 %s \u3092\u6295\u7a3f\u3057\u307e\u3057\u305f" % (dt.month, dt.day, dt.hour, patja),
+                                  pwa_url, "", category="ig")
+            except Exception as _pe:
+                print("[PUSH] \u6295\u7a3f\u5b8c\u4e86\u901a\u77e5 \u5931\u6557(\u7d99\u7d9a):", _pe)
             return
         except Exception as e:
             last_err = e
