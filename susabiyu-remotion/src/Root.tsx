@@ -11,7 +11,6 @@ import { OsusumeStory, OSUSUME_DUR } from "./OsusumeStory";
 import { GridZoom, GRIDZOOM_DUR } from "./GridZoom";
 import { NorenStory, NOREN_DUR } from "./NorenStory";
 import { SeasonStory, SEASON_DUR } from "./SeasonStory";
-import { Polaroid, POLAROID_DUR } from "./Polaroid";
 import { photos } from "./photoData";
 import { tempoPhotos } from "./tempoData";
 import { typoPhotos } from "./typoData";
@@ -52,7 +51,6 @@ export const RemotionRoot: React.FC = () => {
       <Composition id="GridZoom" component={GridZoom} fps={FPS} width={1080} height={1920} durationInFrames={GRIDZOOM_DUR} defaultProps={{ storeName: STORE, handle: "@susabiyu_sanjyo" }} />
       <Composition id="NorenStory" component={NorenStory} fps={FPS} width={1080} height={1920} durationInFrames={NOREN_DUR} defaultProps={{ storeName: STORE, handle: "@susabiyu_sanjyo" }} />
       <Composition id="SeasonStory" component={SeasonStory} fps={FPS} width={1080} height={1920} durationInFrames={SEASON_DUR} defaultProps={{ storeName: STORE, handle: "@susabiyu_sanjyo" }} />
-      <Composition id="Polaroid" component={Polaroid} fps={FPS} width={1080} height={1920} durationInFrames={POLAROID_DUR} defaultProps={{ storeName: STORE, handle: "@susabiyu_sanjyo" }} />
     </>
   );
 };
