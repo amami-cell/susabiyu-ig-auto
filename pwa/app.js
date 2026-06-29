@@ -393,19 +393,17 @@
       ? '<div class="mediaWrap"><video class="media" style="' + bg(it.blur) + '" src="' + esc(it.url) + '"' + p +
         ' controls playsinline preload="none"></video><div class="badge">▶ タップで再生（音が出ます）</div></div>'
       : '<div class="mediaWrap"><div class="media" style="height:180px;display:flex;align-items:center;justify-content:center;color:#9aa3b2">見本を生成中…</div></div>';
-    var segHtml = ADMIN
-      ? '<div class="seg"><button class="seg-on">採用する</button><button class="seg-off">無しにする</button></div>' +
-        '<div class="ghintline">「採用する」を選んだパターンだけが投稿に使われます</div>'
-      : '<div class="ghintline">採用／無しの変更は管理者のみです。<br>再生して確認できます。</div>';
+    // 採用ボタンと注意書きは両方DOMに入れ、表示は #gallery.admin クラスでCSS切替（再描画なし＝カクつかない）
     card.innerHTML =
       '<div class="head"><span class="pat">' + esc(it.label || it.pattern) + '</span>' +
       '<span class="gstate ' + (on ? "on" : "off") + '">' + (on ? "採用中" : "無し") + '</span></div>' +
-      media + segHtml;
+      media +
+      '<div class="seg"><button class="seg-on">採用する</button><button class="seg-off">無しにする</button></div>' +
+      '<div class="ghintline">「採用する」を選んだパターンだけが投稿に使われます</div>' +
+      '<div class="gnote">採用／無しの変更は管理者のみです。再生して確認できます。</div>';
     var sOn = card.querySelector(".seg-on"), sOff = card.querySelector(".seg-off");
-    if (sOn && sOff) {
-      sOn.onclick = function () { if (card.dataset.on !== "1") setPattern(card, it.pattern, true); };
-      sOff.onclick = function () { if (card.dataset.on !== "0") setPattern(card, it.pattern, false); };
-    }
+    sOn.onclick = function () { if (card.dataset.on !== "1") setPattern(card, it.pattern, true); };
+    sOff.onclick = function () { if (card.dataset.on !== "0") setPattern(card, it.pattern, false); };
     paintToggle(card, on);  // 初期状態を反映
     return card;
   }
@@ -428,47 +426,64 @@
       if (res && res.error) { toast("反映できませんでした"); paintToggle(card, !on); }
     }).catch(function () { toast("通信エラー。元に戻します"); paintToggle(card, !on); });
   }
+  function applyAdminClass() {
+    if (galleryEl) galleryEl.classList.toggle("admin", !!ADMIN);
+    refreshAdminBar();
+  }
+  function refreshAdminBar() {
+    var bar = document.getElementById("adminBar"); if (!bar) return;
+    if (ADMIN) {
+      bar.innerHTML = '<span class="abadge">🔓 管理者モード</span><button class="alink" id="adminLock">解除する</button>';
+      var lk = bar.querySelector("#adminLock"); if (lk) lk.onclick = lockAdmin;
+    } else {
+      bar.innerHTML = '<button class="alink" id="adminUnlock">🔑 管理者モード（採用／無しを変更）</button>';
+      var ul = bar.querySelector("#adminUnlock"); if (ul) ul.onclick = unlockAdmin;
+    }
+  }
   function unlockAdmin() {
     var code = window.prompt("管理者コードを入力（採用／無しを変更できます）", "");
     if (code == null) return;
     code = String(code).trim(); if (!code) return;
     jsonp({ api: "owner", owner: code }).then(function (res) {
       if (res && res.error === "auth") { askKey("確認コードを入力してください"); return; }
-      if (res && res.owner) { ADMIN = code; localStorage.setItem("sb_admin", code); toast("管理者モードON"); loadPatterns(); }
+      if (res && res.owner) { ADMIN = code; localStorage.setItem("sb_admin", code); toast("管理者モードON"); applyAdminClass(); }
       else { toast("管理者コードが違います"); }
     }).catch(function () { toast("通信エラー"); });
   }
-  function lockAdmin() { ADMIN = ""; localStorage.removeItem("sb_admin"); loadPatterns(); }
+  function lockAdmin() { ADMIN = ""; localStorage.removeItem("sb_admin"); applyAdminClass(); }
+  var lastGallerySig = "";
+  function patternsCacheGet() { try { return JSON.parse(localStorage.getItem("sb_patterns") || "null"); } catch (e) { return null; } }
+  function patternsCacheSet(items) { try { localStorage.setItem("sb_patterns", JSON.stringify(items)); } catch (e) {} }
+  function hasCards() { return !!galleryEl.querySelector(".card"); }
+  function renderGallery(items) {
+    // 内容が前回と同じなら作り直さない（動画の再読込＝カクつきを防ぐ）
+    var sig = JSON.stringify(items.map(function (it) { return [it.pattern, it.url, it.enabled, it.label, it.poster ? 1 : 0]; }));
+    if (sig === lastGallerySig && hasCards()) { applyAdminClass(); return; }
+    lastGallerySig = sig;
+    galleryEl.innerHTML = "";
+    var hint = document.createElement("div"); hint.className = "ghint";
+    hint.innerHTML = "各動画パターンの見本です。<b style='color:#7fd1a0'>採用する</b>を選ぶと、その型だけが日々の投稿ローテーションに使われます。<br>（店舗ごとの好みに合わせて選べます）";
+    galleryEl.appendChild(hint);
+    var bar = document.createElement("div"); bar.className = "adminbar"; bar.id = "adminBar"; galleryEl.appendChild(bar);
+    if (!items.length) {
+      var e = document.createElement("div"); e.className = "empty";
+      e.innerHTML = "見本がまだありません。<br>サンプル生成（samples）を実行すると、ここに各パターンの動画が並びます。";
+      galleryEl.appendChild(e); applyAdminClass(); return;
+    }
+    items.forEach(function (it) { galleryEl.appendChild(galleryCard(it)); });
+    applyAdminClass();
+  }
   function loadPatterns() {
-    galleryEl.innerHTML = '<div class="ghint">見本を読み込んでいます…</div>';
+    var cached = patternsCacheGet();
+    if (cached && !hasCards()) renderGallery(cached);                 // 前回内容を即表示（待たせない）
+    else if (!cached && !hasCards()) galleryEl.innerHTML = '<div class="ghint">見本を読み込んでいます…</div>';
     jsonp({ api: "patterns" }).then(function (data) {
       if (data && data.error === "auth") { askKey("確認コードを入力してください"); return loadPatterns(); }
       var items = (data && data.items) || [];
-      galleryEl.innerHTML = "";
-      var hint = document.createElement("div");
-      hint.className = "ghint";
-      hint.innerHTML = "各動画パターンの見本です。<b style='color:#7fd1a0'>採用する</b>を選ぶと、その型だけが日々の投稿ローテーションに使われます。<br>（店舗ごとの好みに合わせて選べます）";
-      galleryEl.appendChild(hint);
-      var adminBar = document.createElement("div"); adminBar.className = "adminbar";
-      if (ADMIN) {
-        adminBar.innerHTML = '<span class="abadge">🔓 管理者モード</span><button class="alink" id="adminLock">解除する</button>';
-        galleryEl.appendChild(adminBar);
-        var lk = adminBar.querySelector("#adminLock"); if (lk) lk.onclick = lockAdmin;
-      } else {
-        adminBar.innerHTML = '<button class="alink" id="adminUnlock">🔑 管理者モード（採用／無しを変更）</button>';
-        galleryEl.appendChild(adminBar);
-        var ul = adminBar.querySelector("#adminUnlock"); if (ul) ul.onclick = unlockAdmin;
-      }
-      if (!items.length) {
-        var e = document.createElement("div");
-        e.className = "empty";
-        e.innerHTML = "見本がまだありません。<br>サンプル生成（samples）を実行すると、ここに各パターンの動画が並びます。";
-        galleryEl.appendChild(e);
-        return;
-      }
-      items.forEach(function (it) { galleryEl.appendChild(galleryCard(it)); });
+      patternsCacheSet(items);
+      renderGallery(items);                                            // 変化が無ければ作り直さない
     }).catch(function (e) {
-      galleryEl.innerHTML = '<div class="empty">見本を取得できませんでした。<br><small>' + esc(e.message) + '</small></div>';
+      if (!hasCards()) galleryEl.innerHTML = '<div class="empty">見本を取得できませんでした。<br><small>' + esc(e.message) + '</small></div>';
     });
   }
   function switchTab(toGallery) {
@@ -477,7 +492,6 @@
     feed.style.display = toGallery ? "none" : "";
     galleryEl.style.display = toGallery ? "" : "none";
     if (toGallery && !galleryLoaded) { galleryLoaded = true; loadPatterns(); }
-    else if (toGallery) { loadPatterns(); }
   }
   if (tabFeed) tabFeed.onclick = function () { switchTab(false); };
   if (tabGallery) tabGallery.onclick = function () { switchTab(true); };
