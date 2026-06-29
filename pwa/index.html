@@ -40,9 +40,7 @@
   /* タップした瞬間の“押せた感”（弾むアニメ＋リング） */
   .tab.tapped{animation:tabtap .45s cubic-bezier(.2,.7,.3,1)}
   @keyframes tabtap{0%{transform:scale(.88);box-shadow:0 0 0 0 rgba(127,209,160,.6)}45%{transform:scale(1.06)}100%{transform:scale(1);box-shadow:0 0 0 10px rgba(127,209,160,0)}}
-  /* 更新中：レイアウトを崩さずリングが脈打つ */
-  .tab.loading{animation:tabglow .85s ease-in-out infinite}
-  @keyframes tabglow{0%,100%{box-shadow:0 0 0 0 rgba(127,209,160,0)}50%{box-shadow:0 0 0 4px rgba(127,209,160,.5)}}
+  #app{will-change:transform}
   /* トーストの更新中スピナー */
   .tspin{display:inline-block;width:13px;height:13px;margin-right:8px;vertical-align:-2px;
     border:2px solid rgba(255,255,255,.35);border-top-color:#fff;border-radius:50%;animation:sp .6s linear infinite}
@@ -202,6 +200,7 @@
 </head>
 <body>
   <div id="ptr"><i></i></div>
+  <div id="app">
   <header class="topbar">
     <div class="bar">
       <img class="logo" src="./icons/storelogo_white.png" alt="すさび湯三条">
@@ -221,6 +220,7 @@
   </div>
   <div id="gallery" style="display:none"></div>
   <div id="report" style="display:none"></div>
+  </div><!-- /#app -->
   <div id="toast"></div>
   <div id="ios">
     <span class="x" onclick="document.getElementById('ios').style.display='none'">✕</span>
@@ -231,8 +231,21 @@
   <script src="./app.js"></script>
   <script>
     if ("serviceWorker" in navigator) {
+      var __hadCtrl = !!navigator.serviceWorker.controller;
+      var __refreshing = false;
+      // 新しいバージョンが有効化されたら一度だけ自動リロード（初回インストールは除外＝ループ防止）
+      navigator.serviceWorker.addEventListener("controllerchange", function () {
+        if (__refreshing || !__hadCtrl) return;
+        __refreshing = true; location.reload();
+      });
       window.addEventListener("load", function () {
-        navigator.serviceWorker.register("./sw.js").catch(function(){});
+        navigator.serviceWorker.register("./sw.js").then(function (reg) {
+          if (reg) { try { reg.update(); } catch (e) {} }
+          // アプリに戻ってきた時にも更新を確認（最新を取りに行く）
+          document.addEventListener("visibilitychange", function () {
+            if (document.visibilityState === "visible" && reg) { try { reg.update(); } catch (e) {} }
+          });
+        }).catch(function () {});
       });
     }
   </script>
