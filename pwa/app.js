@@ -55,6 +55,13 @@
     toastEl.textContent = t; toastEl.classList.add("show");
     clearTimeout(window._tt); window._tt = setTimeout(function () { toastEl.classList.remove("show"); }, 1700);
   }
+  // 端末バイブ（対応端末のみ。iOSのWebは非対応なので視覚で補う）
+  function haptic(ms) { try { if (navigator.vibrate) navigator.vibrate(ms || 15); } catch (e) {} }
+  // 更新中トースト（スピナー付き・自動で消さない＝完了時にtoast()で置き換える）
+  function toastBusy(t) {
+    toastEl.innerHTML = '<span class="tspin"></span>' + (t || "更新中…");
+    toastEl.classList.add("show"); clearTimeout(window._tt);
+  }
   function isVideo(it) {
     var u = (it.url || "").toLowerCase();
     if (u.indexOf(".mp4") >= 0 || u.indexOf(".mov") >= 0 || u.indexOf(".webm") >= 0) return true;
@@ -540,7 +547,7 @@
     var cached = patternsCacheGet();
     if (cached && !hasCards()) renderGallery(cached);                 // 前回内容を即表示（待たせない）
     else if (!cached && !hasCards()) galleryEl.innerHTML = '<div class="ghint">見本を読み込んでいます…</div>';
-    jsonp({ api: "patterns" }).then(function (data) {
+    return jsonp({ api: "patterns" }).then(function (data) {
       if (data && data.error === "auth") { askKey("確認コードを入力してください"); return loadPatterns(); }
       var items = (data && data.items) || [];
       patternsCacheSet(items);
@@ -560,21 +567,32 @@
     feed.style.display = name === "feed" ? "" : "none";
     galleryEl.style.display = name === "gallery" ? "" : "none";
     if (reportEl) reportEl.style.display = name === "report" ? "" : "none";
-    if (name === "gallery") { galleryLoaded = true; loadPatterns(); startGalleryPoll(); }
+    if (name === "gallery") { galleryLoaded = true; startGalleryPoll(); }
     else { stopGalleryPoll(); }
-    if (name === "report") loadReport();
   }
-  // タブをタップ＝その場で最新に更新
-  if (tabFeed) tabFeed.onclick = function () { switchTo("feed"); load(); toast("最新に更新しました"); };
-  if (tabGallery) tabGallery.onclick = function () { switchTo("gallery"); loadPatterns(); toast("最新に更新しました"); };
-  if (tabReport) tabReport.onclick = function () { switchTo("report"); loadReport(); toast("最新に更新しました"); };
+  // タブをタップ＝はっきり反応：振動→押せた感→「更新中…」スピナー→完了で「✓」
+  function tapTab(tab, name, loader) {
+    haptic(18);
+    if (tab) { tab.classList.remove("tapped"); void tab.offsetWidth; tab.classList.add("tapped"); tab.classList.add("loading"); }
+    switchTo(name);
+    toastBusy("更新中…");
+    var done = function () {
+      if (tab) tab.classList.remove("loading");
+      haptic(8);
+      toast("✓ 最新にしました");
+    };
+    Promise.resolve(loader()).then(done, done);
+  }
+  if (tabFeed) tabFeed.onclick = function () { tapTab(tabFeed, "feed", load); };
+  if (tabGallery) tabGallery.onclick = function () { tapTab(tabGallery, "gallery", loadPatterns); };
+  if (tabReport) tabReport.onclick = function () { tapTab(tabReport, "report", loadReport); };
 
   /* ---------- レポート（インサイト・全員閲覧可・操作なし） ---------- */
   var reportData = null;
   function loadReport() {
     if (!reportEl) return;
     if (!reportData) reportEl.innerHTML = '<div class="rephint">レポートを読み込んでいます…</div>';
-    jsonp({ api: "report" }).then(function (data) {
+    return jsonp({ api: "report" }).then(function (data) {
       if (data && data.error === "auth") { askKey("確認コードを入力してください"); return; }
       reportData = data || {};
       renderReport(reportData);
