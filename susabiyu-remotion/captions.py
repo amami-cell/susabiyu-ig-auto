@@ -13,15 +13,17 @@ _SUSHI_KEYS = ("寿司", "鮨", "握り", "にぎり", "刺身", "鮮魚", "海�
 
 
 def load():
-    """phrases.json を {"generic":[...], "sushi":[...]} で返す。
+    """phrases.json を {"generic":[...], "sushi":[...], "atmosphere":[...]} で返す。
     旧形式（ただのリスト）の場合は全件“汎用”として安全側で扱う。"""
     try:
         d = json.load(open("phrases.json", encoding="utf-8"))
     except Exception:
-        return {"generic": [], "sushi": []}
+        return {"generic": [], "sushi": [], "atmosphere": []}
     if isinstance(d, list):
-        return {"generic": list(d), "sushi": []}
-    return {"generic": list(d.get("generic", [])), "sushi": list(d.get("sushi", []))}
+        return {"generic": list(d), "sushi": [], "atmosphere": []}
+    return {"generic": list(d.get("generic", [])),
+            "sushi": list(d.get("sushi", [])),
+            "atmosphere": list(d.get("atmosphere", []))}
 
 
 def is_sushi_cat(cat):
@@ -44,3 +46,18 @@ def pick(cats):
     if not pool:
         pool = ph["generic"] or ph["sushi"]
     return random.choice(pool) if pool else ""
+
+
+def pick_atmosphere():
+    """ドリンク・外観・内観・コース用。料理を一切感じさせない“雰囲気フレーズ”のみ。
+    肴・旬・ひと皿などの料理語は atmosphere プールに含めない設計。
+    FIXED_CAPTION があればそれを最優先（やり直し・固定再現用）。"""
+    fixed = os.environ.get("FIXED_CAPTION")
+    if fixed:
+        return fixed
+    ph = load()
+    pool = list(ph.get("atmosphere") or [])
+    if not pool:
+        _food = ("肴", "旬", "ひと皿", "一皿", "握", "寿司", "鮨", "おすすめ揃")
+        pool = [s for s in ph.get("generic", []) if not any(k in s for k in _food)]
+    return random.choice(pool) if pool else "京都の夜は、すさびで。"

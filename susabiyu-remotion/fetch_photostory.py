@@ -1,6 +1,9 @@
 ﻿import os, io, glob, json, sys, random
 
 FOOD_FOLDER = "14oKNgdXee2NrI7Dkmbrlbid4f0_VZ5Cv"
+# 1枚見せの全画面動画には「外観/内観・コース」も織り交ぜる（画面に商品名＝ファイル名は出ず雰囲気フレーズのみ）。
+INTERIOR_FOLDER = os.environ.get("GENRE_INTERIOR_ID") or "17h9qNWIEisEaEqNUuH-6XA39eVxgfHQW"  # 外観・内観
+EVENT_FOLDER    = os.environ.get("GENRE_EVENT_ID") or "1J4NMPxNW3T3IVLmj470-urEhTEicwW5w"  # コース
 OUT = os.path.join("public", "photostory.jpg")
 MIN_SIDE = 1080
 
@@ -117,7 +120,14 @@ def short_side(f):
     h = m.get("height", 0) or 0
     return min(w, h)
 
-imgs = gather(FOOD_FOLDER)
+food = gather(FOOD_FOLDER)
+for f in food:
+    f["genre"] = "food"
+atmo = gather(INTERIOR_FOLDER) + gather(EVENT_FOLDER)   # 外観/内観・コース
+for f in atmo:
+    f["genre"] = "atmo"
+imgs = food + atmo
+print("素材: 料理=%d枚 / 外観内観コース=%d枚" % (len(food), len(atmo)))
 if not imgs:
     print("NG: 画像が見つかりません。")
     raise SystemExit
@@ -145,8 +155,11 @@ buf.close()
 print("PHOTO:", pick["name"], "-> public/photostory.jpg")
 
 import captions
-phrase = captions.pick([pick.get("cat", "")])
-print("PHRASE:", phrase, "| cat:", pick.get("cat", "?"))
+if pick.get("genre") == "atmo":
+    phrase = captions.pick_atmosphere()   # 外観/内観・コースは料理を感じさせない雰囲気フレーズのみ
+else:
+    phrase = captions.pick([pick.get("cat", "")])
+print("PHRASE:", phrase, "| cat:", pick.get("cat", "?"), "| genre:", pick.get("genre", "food"))
 music = pick_music()
 print("MUSIC:", music)
 import json as _pj, os as _po
