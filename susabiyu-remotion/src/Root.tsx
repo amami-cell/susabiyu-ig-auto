@@ -12,8 +12,6 @@ import { GridZoom, GRIDZOOM_DUR } from "./GridZoom";
 import { NorenStory, NOREN_DUR } from "./NorenStory";
 import { SeasonStory, SEASON_DUR } from "./SeasonStory";
 import { Polaroid, POLAROID_DUR } from "./Polaroid";
-import { Yuge, YUGE_DUR } from "./Yuge";
-import { FilmStrip, FILMSTRIP_DUR } from "./FilmStrip";
 import { photos } from "./photoData";
 import { tempoPhotos } from "./tempoData";
 import { typoPhotos } from "./typoData";
@@ -55,8 +53,6 @@ export const RemotionRoot: React.FC = () => {
       <Composition id="NorenStory" component={NorenStory} fps={FPS} width={1080} height={1920} durationInFrames={NOREN_DUR} defaultProps={{ storeName: STORE, handle: "@susabiyu_sanjyo" }} />
       <Composition id="SeasonStory" component={SeasonStory} fps={FPS} width={1080} height={1920} durationInFrames={SEASON_DUR} defaultProps={{ storeName: STORE, handle: "@susabiyu_sanjyo" }} />
       <Composition id="Polaroid" component={Polaroid} fps={FPS} width={1080} height={1920} durationInFrames={POLAROID_DUR} defaultProps={{ storeName: STORE, handle: "@susabiyu_sanjyo" }} />
-      <Composition id="Yuge" component={Yuge} fps={FPS} width={1080} height={1920} durationInFrames={YUGE_DUR} defaultProps={{ storeName: STORE, handle: "@susabiyu_sanjyo" }} />
-      <Composition id="FilmStrip" component={FilmStrip} fps={FPS} width={1080} height={1920} durationInFrames={FILMSTRIP_DUR} defaultProps={{ storeName: STORE, handle: "@susabiyu_sanjyo" }} />
     </>
   );
 };

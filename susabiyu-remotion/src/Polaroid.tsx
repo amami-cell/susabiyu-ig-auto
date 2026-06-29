@@ -23,7 +23,6 @@ export const Polaroid: React.FC<{ storeName?: string; handle?: string }> = ({ st
   const f = useCurrentFrame();
   const prints = tempoPhotos.slice(0, 6);
   const titleO = interpolate(f, [0, 14], [0, 1], clamp);
-  const footO = interpolate(f, [DUR - 40, DUR - 26], [0, 1], clamp);
   return (
     <AbsoluteFill style={{ background: "radial-gradient(circle at 50% 30%, #efe2cb 0%, #e3d2b3 55%, #d2bd95 100%)" }}>
       <Audio src={staticFile(tempoMusic)} volume={(ff) => interpolate(ff, [0, 14, DUR - 20, DUR], [0, 0.85, 0.85, 0], clamp)} />
@@ -50,14 +49,10 @@ export const Polaroid: React.FC<{ storeName?: string; handle?: string }> = ({ st
         );
       })}
 
-      {/* 上のマスキングテープ風タイトル */}
-      <div style={{ position: "absolute", top: 96, left: 0, width: "100%", textAlign: "center", opacity: titleO }}>
-        <span style={{ display: "inline-block", background: RED, color: "#fbf3e2", fontFamily: mincho, fontWeight: 700, fontSize: 40, letterSpacing: 10, padding: "12px 40px", borderRadius: 4, transform: "rotate(-2deg)", boxShadow: "0 8px 20px rgba(0,0,0,0.25)" }}>本日の品、ぜんぶ。</span>
-      </div>
-
-      {/* 屋号 */}
-      <div style={{ position: "absolute", bottom: 70, left: 0, width: "100%", textAlign: "center", opacity: footO }}>
-        <div style={{ display: "inline-block", background: "rgba(58,44,28,0.9)", color: "#fbf3e2", fontFamily: mincho, fontWeight: 700, fontSize: 30, letterSpacing: 5, padding: "10px 30px", borderRadius: 999 }}>{storeName}　{handle}</div>
+      {/* 上のマスキングテープ風タイトル＋店舗名・アカウント */}
+      <div style={{ position: "absolute", top: 88, left: 0, width: "100%", textAlign: "center", opacity: titleO }}>
+        <span style={{ display: "inline-block", background: RED, color: "#fbf3e2", fontFamily: mincho, fontWeight: 700, fontSize: 40, letterSpacing: 10, padding: "12px 44px", borderRadius: 4, transform: "rotate(-2deg)", boxShadow: "0 8px 20px rgba(0,0,0,0.25)" }}>本日の品</span>
+        <div style={{ marginTop: 22, color: INK, fontFamily: mincho, fontWeight: 700, fontSize: 30, letterSpacing: 4 }}>{storeName}　{handle}</div>
       </div>
     </AbsoluteFill>
   );

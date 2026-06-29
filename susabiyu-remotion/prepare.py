@@ -5,7 +5,7 @@ import poster
 
 SHEET_ID = "13zKaUblOwmgZ-lgCfxylCLlW2Fqutqct5h5TvMRWv30"
 APP_TAB = "承認待ち"
-PAT_JA = {"sushi":"王道","tempo":"賑やか","typo":"雑誌風","photo":"全画面","simple":"額装","caption":"写真キャプション", "oshina":"お品書き","oshinatate":"お品書き(縦書き)","kaiten":"回転レーン","osusume":"店主おすすめ","gridzoom":"グリッド→ズーム","noren":"暖簾くぐり","season":"季節の旬","polaroid":"ポラロイド","yuge":"湯気の一皿","filmstrip":"フィルム"}
+PAT_JA = {"sushi":"王道","tempo":"賑やか","typo":"雑誌風","photo":"全画面","simple":"額装","caption":"写真キャプション", "oshina":"お品書き","oshinatate":"お品書き(縦書き)","kaiten":"回転レーン","osusume":"店主おすすめ","gridzoom":"グリッド→ズーム","noren":"暖簾くぐり","season":"季節の旬","polaroid":"ポラロイド"}
 REG = {
   "sushi":   ("fetch_drive_photos.py","SushiStory",True),
   "tempo":   ("fetch_tempo.py","TempoStory",True),
@@ -21,8 +21,6 @@ REG = {
   "noren":   ("fetch_typo.py","NorenStory",True),
   "season":  ("fetch_typo.py","SeasonStory",True),
   "polaroid": ("fetch_tempo.py","Polaroid",True),
-  "yuge":     ("fetch_typo.py","Yuge",True),
-  "filmstrip":("fetch_tempo.py","FilmStrip",True),
 }
 CAP_VAR = {
   "photo":("photoStoryData.ts","photoStoryCaption"),
