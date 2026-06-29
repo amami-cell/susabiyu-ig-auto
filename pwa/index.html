@@ -17,9 +17,15 @@
   *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
   :root{--bg:#0f1115;--card:#181c23;--line:#262c36;--fg:#eaeef2;--sub:#9aa3b2;
         --ok:#1f9d55;--rd:#3b6fd6;--ng:#444b57;--accent:#7fd1a0}
-  html,body{margin:0;background:var(--bg);color:var(--fg);
+  html,body{margin:0;background:var(--bg);color:var(--fg);overscroll-behavior-y:contain;
     font-family:-apple-system,BlinkMacSystemFont,"Hiragino Kaku Gothic ProN","Noto Sans JP",sans-serif}
   body{padding:0 0 env(safe-area-inset-bottom)}
+  /* 引っ張って更新（pull-to-refresh）のインジケーター */
+  #ptr{position:fixed;top:calc(env(safe-area-inset-top) + 6px);left:50%;margin-left:-19px;width:38px;height:38px;
+    border-radius:50%;background:#181c23;border:1px solid var(--line);display:flex;align-items:center;justify-content:center;
+    z-index:60;opacity:0;transform:translateY(-54px);box-shadow:0 6px 18px rgba(0,0,0,.45);pointer-events:none}
+  #ptr i{display:block;width:18px;height:18px;border-radius:50%;border:2px solid rgba(127,209,160,.3);border-top-color:var(--accent)}
+  #ptr.spin i{animation:sp .6s linear infinite}
   .topbar{position:sticky;top:0;z-index:10;background:rgba(15,17,21,.86);
     backdrop-filter:saturate(180%) blur(12px);border-bottom:1px solid var(--line)}
   .bar{display:flex;align-items:center;gap:10px;
@@ -30,7 +36,16 @@
   .tab{border:1px solid var(--line);background:#181c23;color:var(--sub);font-size:13px;font-weight:800;
     padding:7px 16px;border-radius:999px;transition:.12s}
   .tab.on{background:#10301f;color:var(--accent);border-color:#1f4d33}
-  .tab:active{transform:scale(.96)}
+  .tab:active{transform:scale(.92)}
+  /* タップした瞬間の“押せた感”（弾むアニメ＋リング） */
+  .tab.tapped{animation:tabtap .45s cubic-bezier(.2,.7,.3,1)}
+  @keyframes tabtap{0%{transform:scale(.88);box-shadow:0 0 0 0 rgba(127,209,160,.6)}45%{transform:scale(1.06)}100%{transform:scale(1);box-shadow:0 0 0 10px rgba(127,209,160,0)}}
+  /* 更新中：レイアウトを崩さずリングが脈打つ */
+  .tab.loading{animation:tabglow .85s ease-in-out infinite}
+  @keyframes tabglow{0%,100%{box-shadow:0 0 0 0 rgba(127,209,160,0)}50%{box-shadow:0 0 0 4px rgba(127,209,160,.5)}}
+  /* トーストの更新中スピナー */
+  .tspin{display:inline-block;width:13px;height:13px;margin-right:8px;vertical-align:-2px;
+    border:2px solid rgba(255,255,255,.35);border-top-color:#fff;border-radius:50%;animation:sp .6s linear infinite}
   #gallery{padding:14px 14px 28px;max-width:560px;margin:0 auto}
   .ghint{color:var(--sub);font-size:13px;line-height:1.7;text-align:center;margin:10px 2px 16px}
   .gstate{font-size:13px;font-weight:800;padding:3px 11px;border-radius:999px;margin-left:auto}
@@ -186,6 +201,7 @@
 </style>
 </head>
 <body>
+  <div id="ptr"><i></i></div>
   <header class="topbar">
     <div class="bar">
       <img class="logo" src="./icons/storelogo_white.png" alt="すさび湯三条">

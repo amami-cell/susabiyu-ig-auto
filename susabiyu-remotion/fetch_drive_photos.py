@@ -3,6 +3,8 @@ from collections import defaultdict
 
 FOOD_FOLDER = "14oKNgdXee2NrI7Dkmbrlbid4f0_VZ5Cv"
 LOGO_FOLDER = "1wAXPa6v3F-YC7dj6-j243xEkxra8RKOf"
+# 複数枚動画には「ドリンク」を少数派で混ぜる（全体枚数より比率少なめ）。
+SAKE_FOLDER = os.environ.get("GENRE_SAKE_ID") or "1vIAC9frejCyGhQAizT1Wsgmlaj8ULhTb"
 N = 5
 MIN_SIDE = 800
 OUT = os.path.join("public", "photos")
@@ -146,19 +148,30 @@ for im in allimg:
 for c in by_cat:
     by_cat[c].sort(key=lambda x: x.get("createdTime", ""), reverse=True)
 cats = sorted(by_cat.keys(), key=lambda c: by_cat[c][0].get("createdTime", ""), reverse=True)
+
+# ドリンク（少数派）を収集して末尾に少数だけ足す
+drinks = [f for f in gather(SAKE_FOLDER) if short_side(f) >= MIN_SIDE]
+import random as _rnd
+_rnd.shuffle(drinks)
+drink_cap = max(1, N // 4)               # 全体の約1/4まで＝少数派
+n_drink = min(drink_cap, len(drinks))
+food_target = max(1, N - n_drink)        # ドリンクの枠を空けて料理を主役に
+
 picked = []
 idx = defaultdict(int)
-while len(picked) < N:
+while len(picked) < food_target:
     progressed = False
     for c in cats:
         if idx[c] < len(by_cat[c]):
             picked.append(by_cat[c][idx[c]])
             idx[c] += 1
             progressed = True
-            if len(picked) >= N:
+            if len(picked) >= food_target:
                 break
     if not progressed:
         break
+picked += drinks[:n_drink]               # 末尾に少数派でドリンク
+print("採用: 料理%d枚 + ドリンク%d枚（ドリンクは少数派）" % (len(picked) - min(n_drink, len(drinks)), min(n_drink, len(drinks))))
 
 _fx = [x for x in os.environ.get("FIXED_IDS", "").split(",") if x]
 if _fx:

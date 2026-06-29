@@ -1,6 +1,8 @@
 ﻿import os, io, glob, json, sys, random
 
 FOOD_FOLDER = "14oKNgdXee2NrI7Dkmbrlbid4f0_VZ5Cv"
+# 複数枚動画には「ドリンク」を少数派で混ぜる（全体枚数より比率少なめ）。
+SAKE_FOLDER = os.environ.get("GENRE_SAKE_ID") or "1vIAC9frejCyGhQAizT1Wsgmlaj8ULhTb"
 N_PHOTOS = 6
 MIN_SIDE = 800
 OUT_DIR = os.path.join("public", "tempo")
@@ -94,6 +96,22 @@ if not cats:
     print("NG: 条件を満たす画像が見つかりません。")
     raise SystemExit
 
+# ドリンク（少数派）を収集：SAKE配下（カテゴリ別サブフォルダ）の画像。
+def _gather_drinks(root):
+    out = []
+    for f in list_children(root):
+        if f["mimeType"] == "application/vnd.google-apps.folder":
+            out += [g for g in list_children(f["id"])
+                    if g["mimeType"].startswith("image/") and short_side(g) >= MIN_SIDE]
+        elif f["mimeType"].startswith("image/") and short_side(f) >= MIN_SIDE:
+            out.append(f)
+    return out
+
+drinks = _gather_drinks(SAKE_FOLDER)
+random.shuffle(drinks)
+drink_cap = max(1, N_PHOTOS // 4)          # 全体の約1/4までを上限＝少数派
+n_drink = min(drink_cap, len(drinks))
+
 import usage
 cats = usage.prefer_cats(cats, creds_path) or cats
 names = list(cats.keys())
@@ -102,11 +120,15 @@ for k in cats:
     random.shuffle(cats[k])
 picked = []
 i = 0
-while len(picked) < N_PHOTOS and any(cats[k] for k in names):
+food_target = max(1, N_PHOTOS - n_drink)   # ドリンクの枠を空けて料理を主役に
+while len(picked) < food_target and any(cats[k] for k in names):
     k = names[i % len(names)]
     if cats[k]:
         picked.append(cats[k].pop())
     i += 1
+# ドリンクは末尾に少数派で追加（先頭=主役は料理のまま。格子パターンのヒーローも料理になる）
+picked += drinks[:n_drink]
+print("採用: 料理%d枚 + ドリンク%d枚（ドリンクは少数派）" % (len(picked) - min(n_drink, len(drinks)), min(n_drink, len(drinks))))
 
 _fx = [x for x in os.environ.get("FIXED_IDS", "").split(",") if x]
 if _fx:
