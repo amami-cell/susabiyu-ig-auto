@@ -15,9 +15,12 @@
   function notifOn(k) { return String(NOTIF[k] !== undefined ? NOTIF[k] : 1) !== "0"; }
   function saveNotifLocal() { try { localStorage.setItem("sb_notif", JSON.stringify(NOTIF)); } catch (e) {} }
 
-  function askKey(msg) {
+  var keyGen = 0;   // キー入力ごとに+1。送信後に別要求でキーが入った場合の“二重入力”を防ぐ
+  function askKey(msg, genAtSend) {
+    // この要求を投げた後に、別の要求でキーが入力済みなら聞かない（＝1回で済む）
+    if (genAtSend !== undefined && genAtSend !== keyGen) return KEY;
     var k = window.prompt(msg || "確認コードを入力してください", "");
-    if (k != null) { KEY = k.trim(); localStorage.setItem("sb_key", KEY); }
+    if (k != null) { KEY = k.trim(); localStorage.setItem("sb_key", KEY); keyGen++; }
     return KEY;
   }
 
@@ -40,7 +43,8 @@
       var s = document.createElement("script");
       var to = setTimeout(function () { cleanup(); reject(new Error("timeout")); }, 15000);
       function cleanup() { clearTimeout(to); delete window[cb]; if (s.parentNode) s.parentNode.removeChild(s); }
-      window[cb] = function (data) { cleanup(); resolve(data); };
+      var genAtSend = keyGen;   // この要求を投げた時点のキー世代
+      window[cb] = function (data) { cleanup(); if (data && typeof data === "object") { try { data._gen = genAtSend; } catch (e) {} } resolve(data); };
       if (KEY) params.key = KEY;
       if (ADMIN && params.owner === undefined) params.owner = ADMIN;
       var q = Object.keys(params).map(function (k) { return k + "=" + encodeURIComponent(params[k]); }).join("&");
@@ -213,7 +217,7 @@
     var code = window.prompt("承認を取り消すには管理者コードを入力してください", "");
     if (code == null) return; code = String(code).trim(); if (!code) return;
     jsonp({ api: "owner", owner: code }).then(function (res) {
-      if (res && res.error === "auth") { askKey("確認コードを入力してください"); return; }
+      if (res && res.error === "auth") { askKey("確認コードを入力してください", res._gen); return; }
       if (res && res.owner) { ADMIN = code; localStorage.setItem("sb_admin", code); go(); }
       else { toast("管理者コードが違います"); }
     }).catch(function () { toast("通信エラー"); });
@@ -276,7 +280,7 @@
     return jsonp({ api: "list" }).then(function (data) {
       if (data && data.error === "auth") {
         setLive(false);
-        askKey("確認コードが違います。もう一度入力してください");
+        askKey("確認コードが違います。もう一度入力してください", data._gen);
         return load();
       }
       setLive(true);
@@ -356,7 +360,7 @@
         return reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: urlB64ToU8(CFG.VAPID_PUBLIC) });
       }).then(function (sub) {
         return jsonp({ api: "subscribe", sub: b64(JSON.stringify(sub)), prefs: JSON.stringify(NOTIF), ep: sub.endpoint }).then(function (res) {
-          if (res && res.error === "auth") { askKey("確認コードを入力してください"); return; }
+          if (res && res.error === "auth") { askKey("確認コードを入力してください", res._gen); return; }
           toast("通知をオンにしました 🔔"); refreshPushBtn(); openNotifSettings(sub);
         });
       }).catch(function (e) { toast("通知の登録に失敗: " + ((e && e.message) || e)); });
@@ -399,7 +403,7 @@
         cb.onchange = function () {
           NOTIF[c.key] = cb.checked ? 1 : 0; saveNotifLocal();
           if (sub) jsonp({ api: "notifprefs", ep: sub.endpoint, prefs: JSON.stringify(NOTIF) }).then(function (res) {
-            if (res && res.error === "auth") askKey("確認コードを入力してください");
+            if (res && res.error === "auth") askKey("確認コードを入力してください", res._gen);
           });
           toast((cb.checked ? "ON：" : "OFF：") + c.label);
         };
@@ -508,7 +512,7 @@
     if (code == null) return;
     code = String(code).trim(); if (!code) return;
     jsonp({ api: "owner", owner: code }).then(function (res) {
-      if (res && res.error === "auth") { askKey("確認コードを入力してください"); return; }
+      if (res && res.error === "auth") { askKey("確認コードを入力してください", res._gen); return; }
       if (res && res.owner) { ADMIN = code; localStorage.setItem("sb_admin", code); toast("管理者モードON"); applyAdminClass(); }
       else { toast("管理者コードが違います"); }
     }).catch(function () { toast("通信エラー"); });
@@ -548,7 +552,7 @@
     if (cached && !hasCards()) renderGallery(cached);                 // 前回内容を即表示（待たせない）
     else if (!cached && !hasCards()) galleryEl.innerHTML = '<div class="ghint">見本を読み込んでいます…</div>';
     return jsonp({ api: "patterns" }).then(function (data) {
-      if (data && data.error === "auth") { askKey("確認コードを入力してください"); return loadPatterns(); }
+      if (data && data.error === "auth") { askKey("確認コードを入力してください", data._gen); return loadPatterns(); }
       var items = (data && data.items) || [];
       patternsCacheSet(items);
       renderGallery(items);                                            // 変化が無ければ作り直さない
@@ -652,7 +656,7 @@
     if (!reportEl) return;
     if (!reportData) reportEl.innerHTML = '<div class="rephint">レポートを読み込んでいます…</div>';
     return jsonp({ api: "report" }).then(function (data) {
-      if (data && data.error === "auth") { askKey("確認コードを入力してください"); return; }
+      if (data && data.error === "auth") { askKey("確認コードを入力してください", data._gen); return; }
       reportData = data || {};
       renderReport(reportData);
     }).catch(function (e) {
@@ -804,5 +808,5 @@
   maybeIosHint();
   refreshPushBtn();
   // 見本を起動後すぐ裏で先読み（隠れたまま組み立て）→ 初回タップでも即表示。フィード表示を優先して遅延。
-  setTimeout(function () { if (!galleryLoaded) { galleryLoaded = true; loadPatterns(); } }, 1200);
+  setTimeout(function () { if (KEY && !galleryLoaded) { galleryLoaded = true; loadPatterns(); } }, 1200);
 })();
