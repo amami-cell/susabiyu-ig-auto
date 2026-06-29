@@ -58,6 +58,13 @@ TRY_MEDIA_METRICS = [
     "plays,reach,likes,saved,shares",               # reels系
     "impressions,reach,saved",
 ]
+TRY_STORY_METRICS = [
+    "reach,replies,total_interactions",
+    "views,reach,replies",
+    "navigation",
+    "reach,replies,profile_visits,follows,shares",
+    "reach,replies,total_interactions,navigation,profile_activity",
+]
 
 
 def check():
@@ -101,6 +108,23 @@ def check():
                 print("    - %-44s NG %s" % (ms, r["error"].get("message", "")[:80]))
             else:
                 print("    - %-44s OK %s" % (ms, json.dumps(r.get("data"), ensure_ascii=False)[:160]))
+
+    print("[CHECK] 直近ストーリーズ & インサイト（このシステムはストーリーズ投稿）")
+    st = req.get(IGB + "/" + str(uid) + "/stories",
+                 params={"fields": "id,media_type,media_product_type,timestamp", "access_token": token}, timeout=30).json()
+    if "data" not in st:
+        print("  ストーリーズ取得NG:", json.dumps(st, ensure_ascii=False)[:200])
+    else:
+        print("  現在ライブのストーリーズ件数:", len(st["data"]))
+        for sd in st["data"][:3]:
+            sid = sd["id"]
+            print("  story %s (%s/%s, %s)" % (sid, sd.get("media_product_type"), sd.get("media_type"), sd.get("timestamp")))
+            for ms in TRY_STORY_METRICS:
+                r = req.get(IGB + "/" + str(sid) + "/insights", params={"metric": ms, "access_token": token}, timeout=30).json()
+                if "error" in r:
+                    print("    - %-46s NG %s" % (ms, r["error"].get("message", "")[:90]))
+                else:
+                    print("    - %-46s OK %s" % (ms, json.dumps(r.get("data"), ensure_ascii=False)[:170]))
 
 
 def _ensure(sh, tab, header):
