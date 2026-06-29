@@ -201,11 +201,18 @@ def diag():
         st = c(7)
         if st not in ("pending", "redo", "approved"):
             continue
-        url = c(4); pos = c(11); blur = c(12)
-        head = url.replace("\n", " ")[:46]
-        kind = "video" if (".mp4" in url.lower() or ".mov" in url.lower() or c(6) == "video") else "still/other"
-        print("  %s | %-8s | %-10s | %-11s | url_len=%5d head=%s | poster_len=%5d | blur_len=%5d"
-              % (c(1)[:16], st, c(3), kind, len(url), head, len(pos), len(blur)))
+        url = c(4)
+        host = "jsdelivr" if "cdn.jsdelivr.net" in url else ("litter" if "litter" in url else ("none" if not url else "other"))
+        alive = "?"
+        if url:
+            try:
+                hr = req.get(url, stream=True, timeout=30)
+                alive = "OK" if hr.status_code == 200 else ("DEAD(%d)" % hr.status_code)
+                hr.close()
+            except Exception:
+                alive = "DEAD(err)"
+        print("  %s | %-8s | %-10s | host=%-8s | %-9s | %s"
+              % (c(1)[:16], st, c(3), host, alive, url.replace("\n", " ")[:60]))
     print("[DIAG] 目安: url_len=0は画像なし / data-URIが50000ちょうど付近は切れの疑い")
 
 
