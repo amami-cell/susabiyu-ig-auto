@@ -9,6 +9,9 @@ import { OshinaTate } from "./OshinaTate";
 import { KaitenStory, KAITEN_DUR } from "./KaitenStory";
 import { OsusumeStory, OSUSUME_DUR } from "./OsusumeStory";
 import { GridZoom, GRIDZOOM_DUR } from "./GridZoom";
+import { AburiStory, ABURI_DUR } from "./AburiStory";
+import { NorenStory, NOREN_DUR } from "./NorenStory";
+import { SeasonStory, SEASON_DUR } from "./SeasonStory";
 import { photos } from "./photoData";
 import { tempoPhotos } from "./tempoData";
 import { typoPhotos } from "./typoData";
@@ -47,6 +50,9 @@ export const RemotionRoot: React.FC = () => {
       <Composition id="KaitenStory" component={KaitenStory} fps={FPS} width={1080} height={1920} durationInFrames={KAITEN_DUR} defaultProps={{ storeName: STORE, handle: "@susabiyu_sanjyo" }} />
       <Composition id="OsusumeStory" component={OsusumeStory} fps={FPS} width={1080} height={1920} durationInFrames={OSUSUME_DUR} defaultProps={{ storeName: STORE, handle: "@susabiyu_sanjyo" }} />
       <Composition id="GridZoom" component={GridZoom} fps={FPS} width={1080} height={1920} durationInFrames={GRIDZOOM_DUR} defaultProps={{ storeName: STORE, handle: "@susabiyu_sanjyo" }} />
+      <Composition id="AburiStory" component={AburiStory} fps={FPS} width={1080} height={1920} durationInFrames={ABURI_DUR} defaultProps={{ storeName: STORE, handle: "@susabiyu_sanjyo" }} />
+      <Composition id="NorenStory" component={NorenStory} fps={FPS} width={1080} height={1920} durationInFrames={NOREN_DUR} defaultProps={{ storeName: STORE, handle: "@susabiyu_sanjyo" }} />
+      <Composition id="SeasonStory" component={SeasonStory} fps={FPS} width={1080} height={1920} durationInFrames={SEASON_DUR} defaultProps={{ storeName: STORE, handle: "@susabiyu_sanjyo" }} />
     </>
   );
 };
