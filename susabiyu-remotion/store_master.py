@@ -18,7 +18,13 @@ IGB = "https://graph.instagram.com/v23.0"
 SHEET_ID = os.environ.get("SHEET_ID", "13zKaUblOwmgZ-lgCfxylCLlW2Fqutqct5h5TvMRWv30")
 MASTER_TAB = "店舗マスター"
 INTAKE_TAB = "店舗受付"
+ROSTER_TAB = "提出チェック"
 SHARE_EMAIL = os.environ.get("SHARE_EMAIL", "amami@8sin.co.jp")
+
+# 提出チェック（私が店名を入れる→未提出が一目で分かる）。あなた専用・各店には共有しない。
+ROSTER_HEADER = ["店舗名", "表示名（私が記載）", "アイコン短縮名（私が記載）",
+                 "Instagramアカウント名（@〜）", "ログインID/メール", "パスワード",
+                 "担当者・連絡先", "提出状況", "備考"]
 
 # 各店（みんな）に書き込んでもらう入力用の見出し
 INTAKE_HEADER = ["店舗名（正式）", "表示名（確認画面に出る店舗名・そのままでOK）",
@@ -202,6 +208,23 @@ def intake():
     print("[MASTER] 『店舗受付』タブを用意しました（各店はここに記入）")
 
 
+def roster():
+    """『提出チェック』タブを用意。A列に店名を入れると、@名＋パスワードが揃った店は
+    自動で『✅提出済み』、未記入は『⬜未提出』と表示（誰が未提出か一目で分かる）。
+    ※あなた専用の管理タブ。各店には共有しない（パスワードを含むため）。"""
+    cr = _creds(); sh = _sheets(cr)
+    _ensure_tab(sh, ROSTER_TAB)
+    sh.values().update(spreadsheetId=SHEET_ID, range=ROSTER_TAB + "!A1:I1",
+        valueInputOption="RAW", body={"values": [ROSTER_HEADER]}).execute()
+    # H列＝提出状況を自動判定（ARRAYFORMULA）。A列(店名)がある行だけ判定。
+    formula = ('=ARRAYFORMULA(IF(A2:A="","",'
+               'IF((D2:D<>"")*(F2:F<>""),"✅提出済み",'
+               'IF((D2:D<>"")+(F2:F<>""),"△一部","⬜未提出"))))')
+    sh.values().update(spreadsheetId=SHEET_ID, range=ROSTER_TAB + "!H2",
+        valueInputOption="USER_ENTERED", body={"values": [[formula]]}).execute()
+    print("[ROSTER] 『提出チェック』タブを用意しました（A列に店名を入力／H列は自動判定・消さない）")
+
+
 def requestsheet():
     """各店に配る『記入用の独立スプレッドシート』を作成。本体（機密）とは別ファイルなので安全に共有可。
     列は『店舗受付』と同じ＝記入後そのまま本体の受付タブへコピペできる。
@@ -303,5 +326,7 @@ if __name__ == "__main__":
         intake()
     elif mode == "requestsheet":
         requestsheet()
+    elif mode == "roster":
+        roster()
     else:
-        print("使い方: python store_master.py init | setup [store_id] | columns | intake | requestsheet | all")
+        print("使い方: python store_master.py init | setup [store_id] | columns | intake | requestsheet | roster | all")
