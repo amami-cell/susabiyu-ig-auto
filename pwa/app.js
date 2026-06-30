@@ -680,12 +680,12 @@
 
   /* ---------- レポート（インサイト・全員閲覧可・操作なし） ---------- */
   var reportData = null;
-  var repMode = "month";   // 比較期間: day / week / month
+  var repMode = "month";   // 比較期間: week(7日) / biweek(14日) / month(30日)
   var repMetric = "reach"; // 推移グラフの指標: reach / views / pviews / followers
   var REP_METRICS = { reach: "リーチ", views: "閲覧数", pviews: "プロフィール表示", followers: "フォロワー" };
   var repTopPosts = [];    // ベスト投稿（拡大表示用）
   function repDateMs(s) { var t = Date.parse(String(s)); return isNaN(t) ? 0 : t; }
-  // 選択期間（win日）でベスト投稿・ストーリーズ平均を集計（前日/週間→7日、月間→30日）
+  // 選択期間（win日）でベスト投稿・ストーリーズ平均を集計（週間→7日／14日間→14日／月間→30日）
   function computePostsWindow(pd, win) {
     if (!pd) return { top: [], storyAvg: {}, storyN: 0, feedN: 0 };
     var all = (pd.all && pd.all.length) ? pd.all : (pd.top || []);
@@ -728,7 +728,8 @@
     if (p.mtype === "video" && p.full) {
       inner = '<video class="lbm" src="' + esc(p.full) + '" controls autoplay playsinline webkit-playsinline loop></video>';
     } else if (p.full || p.thumb) {
-      inner = '<img class="lbm" src="' + esc(p.full || p.thumb) + '" alt="">';
+      // 一覧で読み込み済みのサムネを即表示→裏で高解像度に差し替え（体感を速く）
+      inner = '<img class="lbm" src="' + esc(p.thumb || p.full) + '" alt="" decoding="async">';
     } else {
       inner = '<div class="lbnone">画像を準備中です</div>';
     }
@@ -741,6 +742,12 @@
     function close() { var v = ov.querySelector("video"); if (v) { try { v.pause(); } catch (e) {} } ov.classList.remove("show"); setTimeout(function () { if (ov.parentNode) ov.parentNode.removeChild(ov); }, 200); }
     ov.querySelector(".lbx").onclick = function (e) { e.stopPropagation(); close(); };
     document.body.appendChild(ov);
+    // 画像は高解像度を裏で読み込み、完了したら差し替え（最初はサムネが一瞬で出る）
+    if (p.mtype !== "video" && p.full && p.thumb && p.full !== p.thumb) {
+      var hi = new Image();
+      hi.onload = function () { var im = ov.querySelector("img.lbm"); if (im) im.src = p.full; };
+      hi.src = p.full;
+    }
     requestAnimationFrame(function () { ov.classList.add("show"); });
   }
   function repAgg(list) {
@@ -788,9 +795,10 @@
       var rb0 = document.getElementById("repReload"); if (rb0) rb0.onclick = loadReport;
       return;
     }
-    // 比較期間（前日/週間/月間）を日次データから計算。daily が無い旧GASなら従来値。
-    var WIN = repMode === "day" ? 1 : (repMode === "week" ? 7 : 30);
-    var modeLbl = repMode === "day" ? "前日" : (repMode === "week" ? "週間" : "月間");
+    // 比較期間（週間/14日間/月間）を日次データから計算。daily が無い旧GASなら従来値。
+    var WIN = repMode === "week" ? 7 : (repMode === "biweek" ? 14 : 30);
+    var modeLbl = WIN === 7 ? "週間" : (WIN === 14 ? "14日間" : "月間");
+    var perWord = WIN === 7 ? "週" : (WIN + "日");   // 「前週」「前14日」などの語幹
     var cur, prev, series, days, latestDate;
     if (d.daily && d.daily.length) {
       var dly = d.daily;
@@ -830,10 +838,10 @@
     function pctOf(c, p) { return (p == null || p === 0) ? null : Math.round((c - p) / p * 1000) / 10; }
     var reachPct = pctOf(cur.reach, p_("reach"));
     var linkRate = cur.pviews ? Math.round(cur.links / cur.pviews * 1000) / 10 : null;
-    // 投稿（ストーリーズ/フィード）を選択期間に連動（前日/週間→直近7日、月間→直近30日）
+    // 投稿（ストーリーズ/フィード）を選択期間に連動（週間→直近7日／14日間→直近14日／月間→直近30日）
     var pd = d.posts;
-    var bestWin = repMode === "month" ? 30 : 7;
-    var bestLbl = repMode === "month" ? "直近30日" : "直近7日";
+    var bestWin = WIN;
+    var bestLbl = "直近" + WIN + "日";
     var pwin = computePostsWindow(pd, bestWin);
     repTopPosts = pwin.top;
     function fmtPost(p, i) {
@@ -865,11 +873,10 @@
       var rateChips = [];
       if (pwin.compRate != null) rateChips.push('<span class="rchip good">完了率 ' + pwin.compRate + '%</span>');
       if (pwin.exitRate != null) rateChips.push('<span class="rchip warn">離脱率 ' + pwin.exitRate + '%</span>');
-      if (pwin.stShareRate != null) rateChips.push('<span class="rchip">ストーリーズ シェア率 ' + pwin.stShareRate + '%</span>');
       if (pwin.saveRate != null) rateChips.push('<span class="rchip">投稿 保存率 ' + pwin.saveRate + '%</span>');
       if (pwin.shareRate != null) rateChips.push('<span class="rchip">投稿 シェア率 ' + pwin.shareRate + '%</span>');
       var rateBox = rateChips.length ? ('<div class="repsec"><h3>反応の質（' + bestLbl + '）</h3><div class="rchips">' + rateChips.join("") +
-        '</div><div class="repnote">完了率＝最後まで見られた割合の目安／離脱率＝途中で閉じられた割合。保存・シェアは拡散の起点。</div></div>') : "";
+        '</div><div class="repnote"><b>完了率</b>＝ストーリーズを離脱せず最後（次へ送り・自動送り含む）まで見られた割合の目安。<b>離脱率</b>＝途中で閉じられた割合。完了率が高く・離脱率が低いほど良い。保存率／シェア率＝投稿が保存・拡散された割合（口コミの起点）。</div></div>') : "";
       postsHtml =
         (pwin.storyN ? '<div class="repsec"><h3>ストーリーズの反応（' + bestLbl + '・1本あたり平均）</h3>' + storyKpis +
           '<div class="repnote">' + pwin.storyN + '本の平均。タップ＝次へ/前へ/外部リンク等の操作数。</div></div>' : "") +
@@ -880,7 +887,7 @@
 
     // ---- 分析・まとめ（期間ごとの実数値で具体化）----
     var good = [], warn = [], act = [];
-    var cmpWord = repMode === "day" ? "前日比" : (repMode === "week" ? "前週比" : "前30日比");
+    var cmpWord = "前" + perWord + "比";
     var viewsPct = pctOf(cur.views, p_("views"));
     var pviewsPct = pctOf(cur.pviews, p_("pviews"));
     var bestDay = "", bestDayV = -1;
@@ -915,7 +922,6 @@
     }
     // 保存率/シェア率
     if (pwin.saveRate != null && pwin.saveRate >= 1) good.push("投稿の保存率 <b>" + pwin.saveRate + "%</b>。保存される＝後で来店検討の良い兆候。");
-    if (pwin.stShareRate != null && pwin.stShareRate >= 1) good.push("ストーリーズのシェア率 <b>" + pwin.stShareRate + "%</b>。口コミ拡散の起点に。");
     if ((pwin.saveRate != null && pwin.saveRate < 0.5) && (pwin.shareRate != null && pwin.shareRate < 0.5)) act.push("<b>保存版（メニュー一覧・コース内容）</b>を増やし、保存・シェアを促す。");
     if (pwin.top && pwin.top.length) {
       var bp = pwin.top[0];
@@ -931,7 +937,7 @@
     if (!good.length) good.push(modeLbl + "のデータを蓄積中。日数が増えるほど精度が上がります。");
     if (!warn.length) warn.push(modeLbl + "では大きな課題は見当たりません。継続して様子を見ましょう。");
     function lis(a) { return a.map(function (x) { return "<li>" + x + "</li>"; }).join(""); }
-    var cmpLbl = repMode === "day" ? "前日と比較" : (repMode === "week" ? "前週と比較" : "前30日と比較");
+    var cmpLbl = "前" + perWord + "と比較";
     var period = '<div class="p">' + modeLbl + '（直近' + days + '日' + (latestDate ? '〜' + esc(latestDate) : '') + '）' +
       '<small>' + ((pNet != null || p_("reach") != null) ? cmpLbl : 'データ蓄積中（30日で比較が満額に）') + '</small></div>';
     updateRepModeBar();   // 上部固定の前日/週間/月間バーの表示を同期
