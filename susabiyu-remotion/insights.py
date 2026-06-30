@@ -19,7 +19,7 @@ POST_TAB = "インサイト投稿"    # 1投稿1行：投稿ごとの指標（�
 DAILY_HEADER = ["日付", "フォロワー数", "リーチ", "閲覧数", "プロフィール表示",
                 "リンクタップ", "エンゲージ数", "取得時刻", "raw"]
 POST_HEADER = ["取得日", "media_id", "種別", "投稿日時", "キャプション",
-               "リーチ", "閲覧/再生", "いいね", "保存", "シェア", "コメント", "返信", "raw"]
+               "リーチ", "閲覧/再生", "いいね", "保存", "シェア", "コメント", "返信", "raw", "サムネ"]
 
 
 def _token():
@@ -192,15 +192,44 @@ STORY_METRICS = ["reach", "views", "replies", "total_interactions", "navigation"
 FEED_METRICS = ["reach", "views", "likes", "saved", "shares", "comments", "total_interactions"]
 
 
+def _host_thumb(md):
+    """投稿のサムネ画像を恒久CDN(jsDelivr)へ保存してURLを返す。
+    InstagramのCDN URLは期限切れ・ストーリーズは24hで消えるため、取り込んだ時に複製する。"""
+    url = md.get("thumbnail_url") or md.get("media_url") or ""
+    if not url:
+        return ""
+    try:
+        r = req.get(url, timeout=30)
+        if r.status_code != 200 or not r.content:
+            return ""
+        os.makedirs("out", exist_ok=True)
+        path = os.path.join("out", "ptthumb.jpg")
+        with open(path, "wb") as f:
+            f.write(r.content)
+        try:
+            from PIL import Image
+            im = Image.open(path).convert("RGB")
+            w = 400
+            h = max(1, int(im.height * (w / im.width)))
+            im.resize((w, h)).save(path, "JPEG", quality=82)
+        except Exception:
+            pass
+        return poster.up(path, cdn=True) or ""
+    except Exception as e:
+        print("[THUMB] host失敗:", str(e)[:80])
+        return ""
+
+
 def _collect_posts(sh, token, uid):
     """投稿ごとの指標を POST_TAB に収集（media_idで重複更新）。
     ・ストーリーズは24hで消えるので、毎日collectを回してライブ中に拾う。
-    ・フィード/リールは累積指標なので毎回最新スナップショットで上書き。"""
+    ・フィード/リールは累積指標なので毎回最新スナップショットで上書き。
+    ・サムネは初回だけ恒久CDNへ複製（既に保存済みなら使い回す）。"""
     today = datetime.datetime.now(JST).strftime("%Y-%m-%d")
     items = []
     try:
         st = req.get(IGB + "/" + str(uid) + "/stories",
-                     params={"fields": "id,media_type,media_product_type,timestamp,permalink", "access_token": token}, timeout=30).json()
+                     params={"fields": "id,media_type,media_product_type,timestamp,permalink,media_url,thumbnail_url", "access_token": token}, timeout=30).json()
         for md in st.get("data", []):
             items.append(("story", md))
         print("[POSTS] ライブ中ストーリーズ:", len(st.get("data", [])))
@@ -208,7 +237,7 @@ def _collect_posts(sh, token, uid):
         print("[POSTS] stories取得失敗:", e)
     try:
         m = req.get(IGB + "/" + str(uid) + "/media",
-                    params={"fields": "id,media_type,media_product_type,timestamp,permalink,caption", "limit": 25, "access_token": token}, timeout=30).json()
+                    params={"fields": "id,media_type,media_product_type,timestamp,permalink,caption,media_url,thumbnail_url", "limit": 25, "access_token": token}, timeout=30).json()
         for md in m.get("data", []):
             mp = (md.get("media_product_type") or "").upper()
             items.append(("reel" if mp == "REELS" else "feed", md))
@@ -216,12 +245,15 @@ def _collect_posts(sh, token, uid):
     except Exception as e:
         print("[POSTS] media取得失敗:", e)
 
-    rows = sh.values().get(spreadsheetId=poster.SHEET_ID, range=POST_TAB + "!A:M").execute().get("values", [])
+    rows = sh.values().get(spreadsheetId=poster.SHEET_ID, range=POST_TAB + "!A:N").execute().get("values", [])
     idx = {}
+    thumbmap = {}
     for i, r in enumerate(rows):
         if i == 0 or len(r) < 2:
             continue
         idx[str(r[1])] = i + 1
+        if len(r) > 13 and str(r[13]).strip():
+            thumbmap[str(r[1])] = str(r[13]).strip()
     appends = []
     n = 0
     for kind, md in items:
@@ -229,19 +261,20 @@ def _collect_posts(sh, token, uid):
         metrics = STORY_METRICS if kind == "story" else FEED_METRICS
         ins = _post_insights(token, mid, metrics)
         cap = (md.get("caption") or "").replace("\n", " ").replace("\r", " ")[:80]
+        thumb = thumbmap.get(mid) or _host_thumb(md)   # 既に保存済みなら使い回し
         line = [today, mid, kind, md.get("timestamp", ""), cap,
                 ins.get("reach", ""), ins.get("views", ""), ins.get("likes", ""),
                 ins.get("saved", ""), ins.get("shares", ""), ins.get("comments", ""),
-                ins.get("replies", ""), json.dumps(ins, ensure_ascii=False)]
+                ins.get("replies", ""), json.dumps(ins, ensure_ascii=False), thumb]
         if mid in idx:
             i = idx[mid]
-            sh.values().update(spreadsheetId=poster.SHEET_ID, range="%s!A%d:M%d" % (POST_TAB, i, i),
+            sh.values().update(spreadsheetId=poster.SHEET_ID, range="%s!A%d:N%d" % (POST_TAB, i, i),
                                valueInputOption="RAW", body={"values": [line]}).execute()
         else:
             appends.append(line)
         n += 1
     if appends:
-        sh.values().append(spreadsheetId=poster.SHEET_ID, range=POST_TAB + "!A:M",
+        sh.values().append(spreadsheetId=poster.SHEET_ID, range=POST_TAB + "!A:N",
                            valueInputOption="RAW", insertDataOption="INSERT_ROWS", body={"values": appends}).execute()
     print("[POSTS] %d件の投稿指標を収集（新規%d / 更新%d）" % (n, len(appends), n - len(appends)))
 
