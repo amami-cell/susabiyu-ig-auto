@@ -236,6 +236,76 @@ def repair_pending(sh):
     print("[REPAIR] 完了：%d件を恒久化" % fixed)
     return fixed
 
+def revive_dead(sh):
+    """確認画面のメディアが読めない(404/壊れ)行を自動検出し、その枠を作り直して
+    永続URL(jsDelivr)で再登録する。元ファイルは消えているため写真は選び直しになる。"""
+    import requests as _rq
+    creds = "creds.json"
+    try:
+        rows = sh.values().get(spreadsheetId=SHEET_ID, range=APP_TAB + "!A:M").execute().get("values", [])
+    except Exception as e:
+        print("[REVIVE] 読み込み失敗:", e); return 0
+    if not rows or len(rows) < 2:
+        print("[REVIVE] 対象なし"); return 0
+    DONE = ("posted", "done", "canceled", "cancel", "skip", "skipped")
+    os.makedirs("out", exist_ok=True)
+    revived = 0
+    for i in range(1, len(rows)):
+        row = rows[i]
+        url = row[4] if len(row) > 4 else ""             # E列: 本体メディア
+        pattern = (row[3] if len(row) > 3 else "").strip()  # D列: パターン
+        status = (row[7] if len(row) > 7 else "").strip().lower()  # H列: 状態
+        if status in DONE:
+            continue
+        if not url.startswith("http"):
+            continue                                     # data URI = 生きている
+        alive = False
+        try:
+            rr = _rq.get(url, timeout=45, stream=True); alive = (rr.status_code == 200); rr.close()
+        except Exception:
+            alive = False
+        if alive:
+            continue
+        if pattern not in REG:
+            print("[REVIVE] %d行 未知パターン(%s) スキップ" % (i + 1, pattern)); continue
+        fetch, comp, is_video = REG[pattern]
+        print("[REVIVE] %d行 壊れ検出→再生成: %s / %s" % (i + 1, pattern, comp))
+        uri = ""; poster_uri = ""; blur = ""; picked_json = ""
+        try:
+            run('python ' + fetch + ' "' + creds + '"')
+            if is_video:
+                run("npx remotion render " + comp + " out/post.mp4 --crf 26 --timeout 120000 --concurrency 1")
+                _faststart("out/post.mp4")
+                try: poster_uri, blur = thumb_data_uri(comp, True)
+                except Exception: poster_uri, blur = "", ""
+                try: mp4u = poster.up("out/post.mp4", cdn=True)
+                except Exception: mp4u = ""
+                uri = mp4u or poster_uri
+            else:
+                uri, blur = thumb_data_uri(comp, is_video)
+            try:
+                picked_json = open(os.path.join("out", "picked.json"), encoding="utf-8").read()
+            except Exception:
+                picked_json = ""
+        except (Exception, SystemExit) as e:
+            print("[REVIVE] %d行 再生成失敗:" % (i + 1), e); continue
+        if not uri:
+            print("[REVIVE] %d行 本体URL生成不可 スキップ" % (i + 1)); continue
+        try:
+            sh.values().update(spreadsheetId=SHEET_ID, range="%s!E%d" % (APP_TAB, i + 1),
+                valueInputOption="RAW", body={"values": [[uri]]}).execute()
+            sh.values().update(spreadsheetId=SHEET_ID, range="%s!L%d:M%d" % (APP_TAB, i + 1, i + 1),
+                valueInputOption="RAW", body={"values": [[poster_uri, blur]]}).execute()
+            if picked_json:
+                sh.values().update(spreadsheetId=SHEET_ID, range="%s!J%d" % (APP_TAB, i + 1),
+                    valueInputOption="RAW", body={"values": [[picked_json]]}).execute()
+            revived += 1
+            print("[REVIVE] %d行 復活OK → %s" % (i + 1, uri[:60]))
+        except Exception as e:
+            print("[REVIVE] %d行 書き込み失敗:" % (i + 1), e)
+    print("[REVIVE] 完了：%d件を復活" % revived)
+    return revived
+
 def main():
     creds = ""
     args = [a for a in sys.argv[1:] if a.strip()]
@@ -276,7 +346,14 @@ def main():
     except Exception as e:
         print("[REPAIR] スキップ:", e)
     if repair_only:
-        print("[REPAIR] 単独実行 完了"); return
+        print("[REPAIR] 単独実行 完了"); return
+    revive_only = bool(args) and args[0].strip().lower() == "revive"
+    if revive_only:
+        try:
+            revive_dead(sh)
+        except Exception as e:
+            print("[REVIVE] スキップ:", e)
+        print("[REVIVE] 単独実行 完了"); return
     os.makedirs("out", exist_ok=True)
     existing_when = set()
     try:
