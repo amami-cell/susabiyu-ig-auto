@@ -304,6 +304,78 @@ def collect():
         print("[POSTS] 収集スキップ:", e)
 
 
+def _day_metrics(token, uid, sp, up):
+    """1日分のアカウント指標（reach, views, pviews, links, eng）を返す。"""
+    reach = _val(token, uid, "reach", {"metric_type": "total_value"}, sp, up)
+    if reach is None:
+        reach = _val(token, uid, "reach", {}, sp, up)
+    views = _val(token, uid, "views", {"metric_type": "total_value"}, sp, up)
+    if views is None:
+        views = _val(token, uid, "impressions", {}, sp, up)
+    pviews = _val(token, uid, "profile_views", {"metric_type": "total_value"}, sp, up)
+    if pviews is None:
+        pviews = _val(token, uid, "profile_views", {}, sp, up)
+    links = _val(token, uid, "profile_links_taps", {"metric_type": "total_value"}, sp, up)
+    if links is None:
+        links = _val(token, uid, "website_clicks", {"metric_type": "total_value"}, sp, up)
+    eng = _val(token, uid, "accounts_engaged", {"metric_type": "total_value"}, sp, up)
+    return reach, views, pviews, links, eng
+
+
+def backfill(n=30):
+    """直近n日分のアカウント日次指標を遡って取り込む（1日ずつAPIを叩く）。
+    ※フォロワー数の過去日は取得不可なので当日のみ。過去投稿はフィード/リールのみ遡れる
+    （ストーリーズは24hで消えるため今ライブ分だけ）。"""
+    token = _token()
+    if not token:
+        raise SystemExit("トークンなし")
+    uid, _ = _uid(token)
+    if not uid:
+        raise SystemExit("user_id取得不可")
+    sh = poster._sheets()
+    if sh is None:
+        raise SystemExit("シート接続失敗")
+    _ensure(sh, DAILY_TAB, DAILY_HEADER)
+    _ensure(sh, POST_TAB, POST_HEADER)
+    now = datetime.datetime.now(JST).strftime("%Y-%m-%d %H:%M")
+    today = datetime.datetime.now(JST).date()
+    info = req.get(IGB + "/" + str(uid), params={"fields": "followers_count", "access_token": token}, timeout=30).json()
+    cur_followers = info.get("followers_count", "")
+    rows = sh.values().get(spreadsheetId=poster.SHEET_ID, range=DAILY_TAB + "!A:A").execute().get("values", [])
+    dates = {}
+    for i, r in enumerate(rows[1:]):
+        if r:
+            dates[str(r[0])] = i + 2
+    pend = []
+    done = 0
+    for k in range(1, n + 1):
+        day = today - datetime.timedelta(days=k)
+        sp, up = _ts(day), _ts(day + datetime.timedelta(days=1))
+        reach, views, pviews, links, eng = _day_metrics(token, uid, sp, up)
+        if reach is None and views is None and pviews is None and links is None and eng is None:
+            continue
+        fol = cur_followers if k == 1 else ""
+        raw = json.dumps({"reach": reach, "views": views, "pviews": pviews, "links": links, "eng": eng}, ensure_ascii=False)
+        line = [str(day), fol, reach if reach is not None else "", views if views is not None else "",
+                pviews if pviews is not None else "", links if links is not None else "",
+                eng if eng is not None else "", now, raw]
+        if str(day) in dates:
+            sh.values().update(spreadsheetId=poster.SHEET_ID, range="%s!A%d:I%d" % (DAILY_TAB, dates[str(day)], dates[str(day)]),
+                               valueInputOption="RAW", body={"values": [line]}).execute()
+        else:
+            pend.append(line)
+        done += 1
+        print("[BACKFILL] %s reach=%s views=%s pviews=%s" % (day, reach, views, pviews))
+    if pend:
+        sh.values().append(spreadsheetId=poster.SHEET_ID, range=DAILY_TAB + "!A:I",
+                           valueInputOption="RAW", insertDataOption="INSERT_ROWS", body={"values": pend}).execute()
+    try:
+        _collect_posts(sh, token, uid)
+    except Exception as e:
+        print("[POSTS] 収集スキップ:", e)
+    print("[BACKFILL] 完了: %d日分を処理（新規%d / 更新%d）" % (done, len(pend), done - len(pend)))
+
+
 def diag():
     """確認用フィード（承認待ちタブ）の各枠で、プレビューURL/ポスター/ぼかしの状態を出す。
     画像が出ない原因（url空 / data-URI切れ等）の切り分け用。"""
@@ -420,6 +492,12 @@ def main():
         check()
     elif mode == "collect":
         collect()
+    elif mode == "backfill":
+        try:
+            days = int(parts[1]) if len(parts) > 1 and parts[1] else 30
+        except Exception:
+            days = 30
+        backfill(days)
     elif mode == "diag":
         diag()
     elif mode == "setredo":
