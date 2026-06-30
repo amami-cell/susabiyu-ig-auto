@@ -17,7 +17,13 @@ from google.oauth2.service_account import Credentials
 IGB = "https://graph.instagram.com/v23.0"
 SHEET_ID = os.environ.get("SHEET_ID", "13zKaUblOwmgZ-lgCfxylCLlW2Fqutqct5h5TvMRWv30")
 MASTER_TAB = "店舗マスター"
+INTAKE_TAB = "店舗受付"
 SHARE_EMAIL = os.environ.get("SHARE_EMAIL", "amami@8sin.co.jp")
+
+# 各店（みんな）に書き込んでもらう入力用の見出し
+INTAKE_HEADER = ["店舗名（正式）", "表示名（アプリ表示・短め）", "Instagramアカウント名（@〜）",
+                 "ロゴ画像（Driveのロゴフォルダに入れた/リンク）", "担当者・連絡先",
+                 "希望ログインコード(任意)", "希望管理者コード(任意)", "状態", "備考"]
 
 # 列（1始まり）。A..S
 HEADER = ["store_id", "店舗名", "表示名(アイコン下)", "IGユーザー名", "IGユーザーID",
@@ -177,6 +183,23 @@ def setup(target_store=None):
     print("[MASTER] setup 完了：%d店ぶんのフォルダを作成" % made)
 
 
+def intake():
+    """各店（みんな）が記入する『店舗受付』タブを用意。アプリ実装やGASは不要で、まず集める用。"""
+    cr = _creds(); sh = _sheets(cr)
+    _ensure_tab(sh, INTAKE_TAB)
+    sh.values().update(spreadsheetId=SHEET_ID, range=INTAKE_TAB + "!A1:I1",
+        valueInputOption="RAW", body={"values": [INTAKE_HEADER]}).execute()
+    rows = sh.values().get(spreadsheetId=SHEET_ID, range=INTAKE_TAB + "!A:I").execute().get("values", [])
+    if len(rows) < 2:
+        ex = ["（記入例）すさび湯 河原町三条店", "すさび湯三条", "@susabiyu_sanjyo",
+              "ロゴをDriveの『ロゴ』フォルダに入れました", "担当：山田／080-xxxx-xxxx",
+              "（空ならこちらで設定）", "（空ならこちらで設定）", "受付中",
+              "写真・音楽は各Driveフォルダに入れてください"]
+        sh.values().append(spreadsheetId=SHEET_ID, range=INTAKE_TAB + "!A:I",
+            valueInputOption="RAW", insertDataOption="INSERT_ROWS", body={"values": [ex]}).execute()
+    print("[MASTER] 『店舗受付』タブを用意しました（各店はここに記入）")
+
+
 def _tab_id(sh, title):
     meta = sh.get(spreadsheetId=SHEET_ID, fields="sheets.properties(title,sheetId)").execute()
     for s in meta.get("sheets", []):
@@ -224,5 +247,7 @@ if __name__ == "__main__":
         init(); setup(arg)
     elif mode == "columns":
         columns()
+    elif mode == "intake":
+        intake()
     else:
-        print("使い方: python store_master.py init | setup [store_id] | columns | all")
+        print("使い方: python store_master.py init | setup [store_id] | columns | intake | all")
