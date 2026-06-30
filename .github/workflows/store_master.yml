@@ -7,7 +7,7 @@ on:
         required: true
         default: "init"
         type: choice
-        options: [init, setup, columns, intake, all]
+        options: [init, setup, columns, intake, requestsheet, all]
       store_id:
         description: "setup対象のstore_id（空=Drive URL未設定の全店）"
         required: false
@@ -39,4 +39,5 @@ jobs:
           GENRE_MUSIC_UPTEMPO_ID: ${{ secrets.GENRE_MUSIC_UPTEMPO_ID }}
           GENRE_MUSIC_NORMAL_ID: ${{ secrets.GENRE_MUSIC_NORMAL_ID }}
           SHARE_EMAIL: ${{ secrets.SHARE_EMAIL }}
+          REQ_SHEET_ID: ${{ secrets.REQ_SHEET_ID }}
         run: python store_master.py "${{ github.event.inputs.mode }}" "${{ github.event.inputs.store_id }}"
