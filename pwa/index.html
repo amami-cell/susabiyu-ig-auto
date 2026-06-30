@@ -241,6 +241,8 @@
   .repkpi.tap{cursor:pointer;-webkit-tap-highlight-color:transparent;transition:box-shadow .12s,transform .08s}
   .repkpi.tap:active{transform:scale(.98)}
   .repkpi.tap.on{box-shadow:0 0 0 2px #e0a93b inset}
+  /* PDF(A4)では選択枠を細く＝太すぎる違和感を解消 */
+  .repdoc.a4 .repkpi.tap.on{box-shadow:0 0 0 1px #e0a93b inset}
   .reppost.tap{cursor:pointer}
   .reppost.tap:active{transform:scale(.99)}
   .rtwrap{position:relative;flex:0 0 auto;line-height:0}
