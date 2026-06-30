@@ -188,6 +188,25 @@ def _post_insights(token, mid, metrics):
     return out
 
 
+def _story_nav(token, mid):
+    """ストーリーズの操作内訳（次へ/戻る/離脱/自動送り）。離脱率・完了率の算出に使う。"""
+    out = {}
+    try:
+        r = req.get(IGB + "/" + str(mid) + "/insights",
+                    params={"metric": "navigation", "breakdown": "story_navigation_action_type", "access_token": token}, timeout=30).json()
+        for d in r.get("data", []):
+            tv = d.get("total_value") or {}
+            for bd in tv.get("breakdowns", []):
+                for res in bd.get("results", []):
+                    dv = res.get("dimension_values", [])
+                    key = (dv[0] if dv else "").lower()
+                    if key:
+                        out[key] = res.get("value", 0)
+    except Exception:
+        pass
+    return out
+
+
 STORY_METRICS = ["reach", "views", "replies", "total_interactions", "navigation", "profile_visits", "follows", "shares"]
 FEED_METRICS = ["reach", "views", "likes", "saved", "shares", "comments", "total_interactions"]
 
@@ -296,6 +315,13 @@ def _collect_posts(sh, token, uid):
         mid = str(md["id"])
         metrics = STORY_METRICS if kind == "story" else FEED_METRICS
         ins = _post_insights(token, mid, metrics)
+        if kind == "story":
+            nav = _story_nav(token, mid)
+            if nav:
+                ins["nav_forward"] = nav.get("tap_forward", "")
+                ins["nav_back"] = nav.get("tap_back", "")
+                ins["nav_exit"] = nav.get("tap_exit", "")
+                ins["nav_auto"] = nav.get("swipe_forward", nav.get("auto_advance", ""))
         cap = (md.get("caption") or "").replace("\n", " ").replace("\r", " ")[:80]
         if mid in mediamap and mediamap[mid][1]:        # 本体まで保存済みなら使い回し
             thumb, full, mtype = mediamap[mid]
@@ -449,6 +475,77 @@ def backfill(n=30):
     print("[BACKFILL] 完了: %d日分を処理（新規%d / 更新%d）" % (done, len(pend), done - len(pend)))
 
 
+def weekly():
+    """先週のまとめをLINE＋Push通知。毎週月曜に自動送信（cron）。"""
+    sh = poster._sheets()
+    if sh is None:
+        raise SystemExit("シート接続失敗")
+    drows = sh.values().get(spreadsheetId=poster.SHEET_ID, range=DAILY_TAB + "!A:I").execute().get("values", [])
+    rows = [r for r in drows[1:] if r and r[0]]
+    rows.sort(key=lambda r: str(r[0]))
+
+    def colsum(rng, i):
+        t = 0.0
+        for r in rng:
+            try:
+                if len(r) > i and str(r[i]).strip():
+                    t += float(r[i])
+            except Exception:
+                pass
+        return int(t)
+
+    last7, prev7 = rows[-7:], rows[-14:-7]
+    reach, reachP, views = colsum(last7, 2), colsum(prev7, 2), colsum(last7, 3)
+    pct = round((reach - reachP) / reachP * 1000) / 10 if reachP > 0 else None
+    fol = []
+    for r in rows:
+        try:
+            if len(r) > 1 and str(r[1]).strip() and float(r[1]) > 0:
+                fol.append(int(float(r[1])))
+        except Exception:
+            pass
+    folNow = fol[-1] if fol else None
+
+    prows = sh.values().get(spreadsheetId=poster.SHEET_ID, range=POST_TAB + "!A:Q").execute().get("values", [])
+    cut = (datetime.datetime.now(JST).date() - datetime.timedelta(days=7)).isoformat()
+    KIND = {"story": "ストーリーズ", "feed": "投稿", "reel": "リール"}
+    best = None
+    for r in prows[1:]:
+        if len(r) < 6 or not r[1]:
+            continue
+        d = (str(r[3]) or str(r[0]))[:10]
+        if d < cut:
+            continue
+        try:
+            rc = int(float(r[5])) if str(r[5]).strip() else 0
+        except Exception:
+            rc = 0
+        if best is None or rc > best[0]:
+            best = (rc, str(r[2]), d)
+
+    L = ["【先週のInstagramまとめ】"]
+    L.append("リーチ %d%s ／ 閲覧 %d" % (reach, ("（前週比 %+g%%）" % pct) if pct is not None else "", views))
+    if folNow is not None:
+        L.append("フォロワー 計%d" % folNow)
+    if best:
+        L.append("ベスト：%s リーチ%d（%s）" % (KIND.get(best[1], best[1]), best[0], best[2]))
+    pwa = os.environ.get("PWA_URL") or "https://amami-cell.github.io/susabiyu-media/app/"
+    L.append("詳しくはレポートで↓\n" + pwa)
+    text = "\n".join(L)
+    try:
+        poster.line_notify(text)
+        print("[WEEKLY] LINE送信OK")
+    except Exception as e:
+        print("[WEEKLY] LINE失敗:", e)
+    try:
+        import prepare
+        prepare.SHEET_ID = poster.SHEET_ID
+        prepare.send_push(sh, "先週のInstagramまとめ", L[1], pwa, "", category="weekly")
+    except Exception as e:
+        print("[WEEKLY] Push失敗:", e)
+    print("[WEEKLY] 送信内容:", text.replace("\n", " / "))
+
+
 def diag():
     """確認用フィード（承認待ちタブ）の各枠で、プレビューURL/ポスター/ぼかしの状態を出す。
     画像が出ない原因（url空 / data-URI切れ等）の切り分け用。"""
@@ -577,6 +674,8 @@ def main():
         setredo(parts[1:])
     elif mode == "heal":
         heal()
+    elif mode == "weekly":
+        weekly()
     else:
         print("usage: python insights.py [check|collect|diag|heal|'setredo|<when>...']")
 

@@ -694,10 +694,23 @@
     var inWin = all.filter(function (p) { return repDateMs(p.date) >= cutoff; });
     if (!inWin.length) inWin = all;
     var stories = inWin.filter(function (p) { return p.kind === "story"; });
+    var feeds = inWin.filter(function (p) { return p.kind !== "story"; });
     function avg(list, k) { if (!list.length) return 0; var s = 0; for (var i = 0; i < list.length; i++) s += Number(list[i][k]) || 0; return Math.round(s / list.length); }
+    function sum(list, k) { var s = 0; for (var i = 0; i < list.length; i++) s += Number(list[i][k]) || 0; return s; }
+    function rate(n, d, dp) { return d > 0 ? Math.round(n / d * (dp ? 1000 : 100)) / (dp ? 10 : 1) : null; }
     var top = inWin.slice().sort(function (a, b) { return (Number(b.reach) || 0) - (Number(a.reach) || 0); }).slice(0, 5);
-    return { top: top, storyN: stories.length, feedN: inWin.length - stories.length,
-      storyAvg: { reach: avg(stories, "reach"), views: avg(stories, "views"), navigation: avg(stories, "navigation"), replies: avg(stories, "replies") } };
+    var stReach = sum(stories, "reach"), feedReach = sum(feeds, "reach");
+    var navExit = sum(stories, "navExit");
+    var hasNav = (navExit + sum(stories, "navFwd") + sum(stories, "navBack") + sum(stories, "navAuto")) > 0;
+    return {
+      top: top, storyN: stories.length, feedN: feeds.length,
+      storyAvg: { reach: avg(stories, "reach"), views: avg(stories, "views"), navigation: avg(stories, "navigation"), replies: avg(stories, "replies") },
+      exitRate: hasNav ? rate(navExit, stReach, false) : null,                                  // 離脱率
+      compRate: hasNav ? rate(sum(stories, "navFwd") + sum(stories, "navAuto"), stReach, false) : null,  // 完了率(近似)
+      stShareRate: rate(sum(stories, "shares"), stReach, true),
+      saveRate: rate(sum(feeds, "saved"), feedReach, true),
+      shareRate: rate(sum(feeds, "shares"), feedReach, true)
+    };
   }
   // 上部固定の前日/週間/月間バーの表示・選択状態を同期
   function updateRepModeBar() {
@@ -848,9 +861,19 @@
         '<div class="repkpi"><div class="l">平均タップ</div><div class="v">' + fmtN(sa.navigation) + '</div></div>' +
         '<div class="repkpi"><div class="l">平均返信</div><div class="v">' + fmtN(sa.replies) + '</div></div>' +
         '</div>') : "";
+      // 離脱率/完了率・保存率/シェア率（データが揃った分だけ表示）
+      var rateChips = [];
+      if (pwin.compRate != null) rateChips.push('<span class="rchip good">完了率 ' + pwin.compRate + '%</span>');
+      if (pwin.exitRate != null) rateChips.push('<span class="rchip warn">離脱率 ' + pwin.exitRate + '%</span>');
+      if (pwin.stShareRate != null) rateChips.push('<span class="rchip">ストーリーズ シェア率 ' + pwin.stShareRate + '%</span>');
+      if (pwin.saveRate != null) rateChips.push('<span class="rchip">投稿 保存率 ' + pwin.saveRate + '%</span>');
+      if (pwin.shareRate != null) rateChips.push('<span class="rchip">投稿 シェア率 ' + pwin.shareRate + '%</span>');
+      var rateBox = rateChips.length ? ('<div class="repsec"><h3>反応の質（' + bestLbl + '）</h3><div class="rchips">' + rateChips.join("") +
+        '</div><div class="repnote">完了率＝最後まで見られた割合の目安／離脱率＝途中で閉じられた割合。保存・シェアは拡散の起点。</div></div>') : "";
       postsHtml =
         (pwin.storyN ? '<div class="repsec"><h3>ストーリーズの反応（' + bestLbl + '・1本あたり平均）</h3>' + storyKpis +
           '<div class="repnote">' + pwin.storyN + '本の平均。タップ＝次へ/前へ/外部リンク等の操作数。</div></div>' : "") +
+        rateBox +
         '<div class="repsec"><h3>ベスト投稿 TOP' + pwin.top.length + '（' + bestLbl + '・リーチ順）</h3><div class="repposts">' +
         pwin.top.map(fmtPost).join("") + '</div></div>';
     }
@@ -885,6 +908,15 @@
       good.push("ストーリーズ平均リーチ <b>" + fmtN(pwin.storyAvg.reach) + "</b>／タップ率 <b>" + tapRate + "%</b>（" + bestLbl + "・" + pwin.storyN + "本）。");
       if (tapRate < 30) warn.push("ストーリーズのタップ率が <b>" + tapRate + "%</b> と低め。1枚目を強い引き＋リンク明確に。");
     }
+    // 離脱率/完了率（データが揃った分だけ）
+    if (pwin.exitRate != null) {
+      if (pwin.compRate != null) good.push("ストーリーズ完了率 <b>" + pwin.compRate + "%</b>／離脱率 <b>" + pwin.exitRate + "%</b>。");
+      if (pwin.exitRate >= 40) { warn.push("離脱率が <b>" + pwin.exitRate + "%</b> と高め。冒頭2秒で内容が伝わる構成に。"); act.push("ストーリーズ1枚目を<b>結論ファースト</b>（何の告知か一目で）にして離脱を減らす。"); }
+    }
+    // 保存率/シェア率
+    if (pwin.saveRate != null && pwin.saveRate >= 1) good.push("投稿の保存率 <b>" + pwin.saveRate + "%</b>。保存される＝後で来店検討の良い兆候。");
+    if (pwin.stShareRate != null && pwin.stShareRate >= 1) good.push("ストーリーズのシェア率 <b>" + pwin.stShareRate + "%</b>。口コミ拡散の起点に。");
+    if ((pwin.saveRate != null && pwin.saveRate < 0.5) && (pwin.shareRate != null && pwin.shareRate < 0.5)) act.push("<b>保存版（メニュー一覧・コース内容）</b>を増やし、保存・シェアを促す。");
     if (pwin.top && pwin.top.length) {
       var bp = pwin.top[0];
       good.push("ベストは" + (bp.kind === "story" ? "ストーリーズ" : "投稿") + "（" + esc(String(bp.date).slice(5)) + "・リーチ <b>" + fmtN(bp.reach) + "</b>）。");
