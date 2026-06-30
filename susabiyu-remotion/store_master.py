@@ -202,6 +202,53 @@ def intake():
     print("[MASTER] 『店舗受付』タブを用意しました（各店はここに記入）")
 
 
+def requestsheet():
+    """各店に配る『記入用の独立スプレッドシート』を作成。本体（機密）とは別ファイルなので安全に共有可。
+    列は『店舗受付』と同じ＝記入後そのまま本体の受付タブへコピペできる。
+    サービスアカウントで新規作成できない環境では REQ_SHEET_ID に空シートIDを入れて再実行。"""
+    cr = _creds(); sp = _sheets(cr); drive = _drive(cr)
+    existing = os.environ.get("REQ_SHEET_ID", "").strip()
+    if existing:
+        sid = existing
+        print("[REQ] 既存の記入用シートを使用:", sid)
+    else:
+        try:
+            ss = build("sheets", "v4", credentials=cr).spreadsheets().create(
+                body={"properties": {"title": "店舗受付（記入用・各店共有用）"},
+                      "sheets": [{"properties": {"title": "受付"}}]},
+                fields="spreadsheetId").execute()
+            sid = ss["spreadsheetId"]
+            print("[REQ] 新規スプレッドシートを作成:", sid)
+        except Exception as e:
+            print("[REQ] 作成失敗（サービスアカウントの制限の可能性）:", e)
+            print("[REQ] 対処：空のスプレッドシートを手動作成→サービスアカウントに編集権限で共有→"
+                  "そのIDを REQ_SHEET_ID に入れて再実行してください。")
+            return
+    try:
+        meta = sp.get(spreadsheetId=sid, fields="sheets.properties.title").execute()
+        titles = [s["properties"]["title"] for s in meta.get("sheets", [])]
+        tab = "受付" if "受付" in titles else (titles[0] if titles else "シート1")
+    except Exception:
+        tab = "受付"
+    sp.values().update(spreadsheetId=sid, range="%s!A1:J1" % tab, valueInputOption="RAW",
+        body={"values": [INTAKE_HEADER]}).execute()
+    ex = ["（記入例）すさび湯 河原町三条店", "すさび湯三条", "三条店", "@susabiyu_sanjyo",
+          "ロゴをDriveの『ロゴ』フォルダに入れました", "担当：山田／080-xxxx-xxxx",
+          "（空ならこちらで設定）", "（空ならこちらで設定）", "受付中",
+          "写真・音楽は各Driveフォルダに入れてください"]
+    sp.values().update(spreadsheetId=sid, range="%s!A2:J2" % tab, valueInputOption="RAW",
+        body={"values": [ex]}).execute()
+    _share(drive, sid, SHARE_EMAIL)
+    try:
+        drive.permissions().create(fileId=sid, body={"type": "anyone", "role": "writer"},
+            supportsAllDrives=True).execute()
+        link_note = "リンクを知っている人は編集可（必要なら後で制限可）"
+    except Exception as e:
+        print("[REQ] リンク共有設定はスキップ:", e); link_note = "（共有はあなたのみ。配布時に共有設定してください）"
+    print("[REQ] 記入用スプレッドシート: https://docs.google.com/spreadsheets/d/%s/edit" % sid)
+    print("[REQ] 共有先:", SHARE_EMAIL, "/", link_note)
+
+
 def _tab_id(sh, title):
     meta = sh.get(spreadsheetId=SHEET_ID, fields="sheets.properties(title,sheetId)").execute()
     for s in meta.get("sheets", []):
@@ -254,5 +301,7 @@ if __name__ == "__main__":
         columns()
     elif mode == "intake":
         intake()
+    elif mode == "requestsheet":
+        requestsheet()
     else:
-        print("使い方: python store_master.py init | setup [store_id] | columns | intake | all")
+        print("使い方: python store_master.py init | setup [store_id] | columns | intake | requestsheet | all")
