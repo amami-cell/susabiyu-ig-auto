@@ -19,14 +19,14 @@ jobs:
           else
             echo "WARNING: GAS_EXEC_URL secret is empty; app will not connect until set."
           fi
-      - name: 公開フロントを難読化（コメント除去＋minify＝作り方の痕跡を残さない）
+      - name: 公開フロントを難読化（コメント除去＋本格minify＝作り方を読み取られにくく）
         run: |
           cd pwa
-          # JS: コメント全削除＋整形（compress/mangleはOFF＝挙動はそのまま・安全）
+          # JS: 変数名まで潰す本格minify。app.jsはIIFE内＝外部接点はwindowプロパティのみで安全。
           for f in app.js sw.js config.js; do
             if [ -f "$f" ]; then
-              npx -y terser "$f" --compress false --mangle false --comments false -o "$f.tmp" \
-                && mv "$f.tmp" "$f" && echo "stripped $f" \
+              npx -y terser "$f" --compress --mangle --comments false -o "$f.tmp" \
+                && mv "$f.tmp" "$f" && echo "minified $f" \
                 || echo "skip $f (terser失敗・元のまま継続)"
             fi
           done
