@@ -21,7 +21,8 @@ INTAKE_TAB = "店舗受付"
 SHARE_EMAIL = os.environ.get("SHARE_EMAIL", "amami@8sin.co.jp")
 
 # 各店（みんな）に書き込んでもらう入力用の見出し
-INTAKE_HEADER = ["店舗名（正式）", "表示名（確認画面に出る店舗名・そのままでOK）", "Instagramアカウント名（@〜）",
+INTAKE_HEADER = ["店舗名（正式）", "表示名（確認画面に出る店舗名・そのままでOK）",
+                 "アイコン短縮名（任意・長い店名のみ記入）", "Instagramアカウント名（@〜）",
                  "ロゴ画像（Driveのロゴフォルダに入れた/リンク）", "担当者・連絡先",
                  "希望ログインコード(任意)", "希望管理者コード(任意)", "状態", "備考"]
 
@@ -187,16 +188,17 @@ def intake():
     """各店（みんな）が記入する『店舗受付』タブを用意。アプリ実装やGASは不要で、まず集める用。"""
     cr = _creds(); sh = _sheets(cr)
     _ensure_tab(sh, INTAKE_TAB)
-    sh.values().update(spreadsheetId=SHEET_ID, range=INTAKE_TAB + "!A1:I1",
+    sh.values().update(spreadsheetId=SHEET_ID, range=INTAKE_TAB + "!A1:J1",
         valueInputOption="RAW", body={"values": [INTAKE_HEADER]}).execute()
-    rows = sh.values().get(spreadsheetId=SHEET_ID, range=INTAKE_TAB + "!A:I").execute().get("values", [])
-    if len(rows) < 2:
-        ex = ["（記入例）すさび湯 河原町三条店", "すさび湯三条", "@susabiyu_sanjyo",
-              "ロゴをDriveの『ロゴ』フォルダに入れました", "担当：山田／080-xxxx-xxxx",
-              "（空ならこちらで設定）", "（空ならこちらで設定）", "受付中",
-              "写真・音楽は各Driveフォルダに入れてください"]
-        sh.values().append(spreadsheetId=SHEET_ID, range=INTAKE_TAB + "!A:I",
-            valueInputOption="RAW", insertDataOption="INSERT_ROWS", body={"values": [ex]}).execute()
+    ex = ["（記入例）すさび湯 河原町三条店", "すさび湯三条", "三条店", "@susabiyu_sanjyo",
+          "ロゴをDriveの『ロゴ』フォルダに入れました", "担当：山田／080-xxxx-xxxx",
+          "（空ならこちらで設定）", "（空ならこちらで設定）", "受付中",
+          "写真・音楽は各Driveフォルダに入れてください"]
+    rows = sh.values().get(spreadsheetId=SHEET_ID, range=INTAKE_TAB + "!A:J").execute().get("values", [])
+    row2 = rows[1] if len(rows) > 1 else []
+    if not row2 or str(row2[0] if row2 else "").startswith("（記入例）"):
+        sh.values().update(spreadsheetId=SHEET_ID, range=INTAKE_TAB + "!A2:J2",
+            valueInputOption="RAW", body={"values": [ex]}).execute()
     print("[MASTER] 『店舗受付』タブを用意しました（各店はここに記入）")
 
 
@@ -233,7 +235,10 @@ def columns():
                 valueInputOption="USER_ENTERED", body={"values": [[True]]}).execute()
             print("[MASTER] すさび湯三条を『アプリ表示』ONに設定")
             break
-    print("[MASTER] 『アプリ表示』チェックボックス列(T)を用意しました")
+    # アイコン短縮名（任意・長い店名用）の列(U)。アプリのアイコン下ラベルに優先使用。
+    sh.values().update(spreadsheetId=SHEET_ID, range=MASTER_TAB + "!U1",
+        valueInputOption="RAW", body={"values": [["アイコン短縮名（任意）"]]}).execute()
+    print("[MASTER] 『アプリ表示』(T)＋『アイコン短縮名』(U)列を用意しました")
 
 
 if __name__ == "__main__":
