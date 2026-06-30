@@ -10,7 +10,7 @@ on:
   workflow_dispatch:
     inputs:
       date:
-        description: "Target date JST e.g. 2026-06-26 (empty=2 days ahead)"
+        description: "Target date JST e.g. 2026-06-26 / 'repair'=承認待ちの一時URLを恒久化のみ (empty=2 days ahead)"
         required: false
         default: ""
 jobs:

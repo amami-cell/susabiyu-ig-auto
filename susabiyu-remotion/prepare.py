@@ -1,4 +1,4 @@
-﻿# -*- coding: utf-8 -*-
+# -*- coding: utf-8 -*-
 import sys, os, re, subprocess, datetime, base64, io
 from decide_post import decide, JST, day_kind
 import poster
@@ -170,6 +170,72 @@ def send_push(sh, title, body, url, focus="", category=""):
             print("[PUSH] 送信エラー:", str(e)[:100])
     print("[PUSH] 送信 %d件 / 期限切れ %d件" % (sent, gone))
 
+# 自動削除される一時ホスト（確認画面の「消える」原因）。該当URLは恒久化対象。
+EPHEMERAL_HOSTS = ("litterbox.catbox.moe", "tmpfiles.org", "0x0.st",
+                   "catbox.moe", "files.catbox.moe")
+def _is_ephemeral(u):
+    """data URI / jsDelivr / R2 は恒久。一時ホストのhttp(s)URLだけ True。"""
+    u = (u or "").lower()
+    if not u.startswith("http"):
+        return False  # data: や空欄はセル埋め込み＝消えないので対象外
+    if "cdn.jsdelivr.net" in u or ".r2.dev" in u or "r2.cloudflarestorage.com" in u:
+        return False  # 既に恒久ホスト
+    return any(h in u for h in EPHEMERAL_HOSTS)
+
+def repair_pending(sh):
+    """承認待ちタブの一時URL(litterbox等)を、生きているうちに jsDelivr へ再ホストして恒久化。
+    既に消えたもの(404/410)は復元不能なのでスキップ。失敗してもprepareは継続（best-effort）。"""
+    import requests as _rq
+    try:
+        rows = sh.values().get(spreadsheetId=SHEET_ID, range=APP_TAB + "!A:M").execute().get("values", [])
+    except Exception as e:
+        print("[REPAIR] 読み込み失敗:", e); return 0
+    if not rows or len(rows) < 2:
+        print("[REPAIR] 対象なし"); return 0
+    DONE = ("posted", "done", "canceled", "cancel", "skip", "skipped")
+    fixed = 0
+    for i in range(1, len(rows)):              # 0行目はヘッダー
+        row = rows[i]
+        url = row[4] if len(row) > 4 else ""    # E列: 本体メディア
+        status = (row[7] if len(row) > 7 else "").strip().lower()  # H列: 状態
+        if status in DONE:
+            continue                            # 投稿済み等は確認画面に出ない
+        if not _is_ephemeral(url):
+            continue                            # 既に恒久（data URI / jsDelivr）
+        try:
+            rr = _rq.get(url, timeout=60)
+            if rr.status_code != 200 or not rr.content:
+                print("[REPAIR] %d行 既に消滅(%s) 復元不可" % (i + 1, rr.status_code)); continue
+        except Exception as e:
+            print("[REPAIR] %d行 取得失敗:" % (i + 1), e); continue
+        low = url.lower().split("?")[0]
+        ext = os.path.splitext(low)[1]
+        if ext not in (".mp4", ".mov", ".jpg", ".jpeg", ".png", ".webp"):
+            ext = ".mp4" if "video" in rr.headers.get("content-type", "") else ".jpg"
+        tmp = os.path.join("out", "repair_%d%s" % (i, ext))
+        newu = ""
+        try:
+            os.makedirs("out", exist_ok=True)
+            with open(tmp, "wb") as f:
+                f.write(rr.content)
+            newu = poster.up(tmp, cdn=True)     # 永続ホストのみ。失敗なら ""（据え置き）
+        except Exception as e:
+            print("[REPAIR] %d行 再ホスト例外:" % (i + 1), e)
+        finally:
+            try: os.remove(tmp)
+            except Exception: pass
+        if not newu:
+            print("[REPAIR] %d行 再ホスト失敗（据え置き）" % (i + 1)); continue
+        try:
+            sh.values().update(spreadsheetId=SHEET_ID, range="%s!E%d" % (APP_TAB, i + 1),
+                valueInputOption="RAW", body={"values": [[newu]]}).execute()
+            fixed += 1
+            print("[REPAIR] %d行 恒久化OK → %s" % (i + 1, newu))
+        except Exception as e:
+            print("[REPAIR] %d行 書き込み失敗:" % (i + 1), e)
+    print("[REPAIR] 完了：%d件を恒久化" % fixed)
+    return fixed
+
 def main():
     creds = ""
     args = [a for a in sys.argv[1:] if a.strip()]
@@ -202,7 +268,15 @@ def main():
     sh = poster._sheets()
     if sh is None:
         raise SystemExit("シート接続に失敗（creds.json を確認）。")
-    poster._ensure_tab(sh, APP_TAB)
+    poster._ensure_tab(sh, APP_TAB)
+    # 既存の一時URL(litterbox等)を生きているうちに恒久化（確認画面から消えない仕組み）
+    repair_only = bool(args) and args[0].strip().lower() == "repair"
+    try:
+        repair_pending(sh)
+    except Exception as e:
+        print("[REPAIR] スキップ:", e)
+    if repair_only:
+        print("[REPAIR] 単独実行 完了"); return
     os.makedirs("out", exist_ok=True)
     existing_when = set()
     try:
