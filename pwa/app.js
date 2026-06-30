@@ -74,16 +74,40 @@
   function bg(blur) {
     return blur ? 'background:#000 url(' + blur + ') center/cover no-repeat' : 'background:#000';
   }
-  window.__mediaErr = function (el) { var w = el && el.closest && el.closest(".mediaWrap"); if (w) w.classList.add("mediaerr"); };
+  // 読み込み失敗時：一時的な失敗(回線/CDN伝播遅延等)は数回まで間隔を空けてキャッシュ回避で自動再読込。
+  // それでもダメな時だけ「⟳ タップで再読み込み」を表示する。data URI等は再試行不可なので即表示。
+  window.__mediaErr = function (el) {
+    if (!el) return;
+    var cur = el.getAttribute("src") || "";
+    var fail = function () { var w = el.closest && el.closest(".mediaWrap"); if (w) w.classList.add("mediaerr"); };
+    if (!/^https?:/i.test(cur)) { fail(); return; }            // data:や空はリトライ不可
+    var orig = cur.replace(/[?&]r=\d+$/, "");                   // 直近で付けたキャッシュ回避を除去
+    var n = (parseInt(el.getAttribute("data-retry") || "0", 10)) + 1;
+    el.setAttribute("data-retry", String(n));
+    if (n <= 4) {
+      setTimeout(function () {
+        var bust = orig + (orig.indexOf("?") >= 0 ? "&" : "?") + "r=" + Date.now();
+        el.src = bust;
+        if (el.tagName === "VIDEO") { try { el.load(); } catch (e) {} }
+      }, 700 * n);                                              // 0.7s,1.4s,2.1s,2.8s と間隔を広げて再試行
+      return;
+    }
+    fail();
+  };
+  // 読み込み成功：エラー表示を消し、再試行カウンタをリセット
+  window.__mediaOk = function (el) {
+    var w = el && el.closest && el.closest(".mediaWrap"); if (w) w.classList.remove("mediaerr");
+    if (el) el.setAttribute("data-retry", "0");
+  };
   function mediaHtml(it) {
     if (isVideo(it)) {
       var p = it.poster ? ' poster="' + it.poster + '"' : '';
       return '<div class="mediaWrap"><video class="media" style="' + bg(it.blur) + '" src="' + it.url + '"' + p +
-             ' controls playsinline preload="metadata" onerror="window.__mediaErr&&window.__mediaErr(this)"></video><div class="badge">▶ タップで再生（音が出ます）</div></div>';
+             ' controls playsinline preload="metadata" onloadeddata="window.__mediaOk&&window.__mediaOk(this)" onerror="window.__mediaErr&&window.__mediaErr(this)"></video><div class="badge">▶ タップで再生（音が出ます）</div></div>';
     }
     if (it.url) {
       return '<div class="mediaWrap"><img class="media" style="' + bg(it.blur) + '" src="' + it.url +
-             '" alt="preview" decoding="async" loading="eager" fetchpriority="high" onerror="window.__mediaErr&&window.__mediaErr(this)"></div>';
+             '" alt="preview" decoding="async" loading="eager" fetchpriority="high" onload="window.__mediaOk&&window.__mediaOk(this)" onerror="window.__mediaErr&&window.__mediaErr(this)"></div>';
     }
     return '<div class="mediaWrap"><div class="media" style="height:180px"></div></div>';
   }
