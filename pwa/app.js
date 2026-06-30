@@ -743,7 +743,10 @@
       kpi("フォロワー純増", fNet, pNet, { plus: true, sub: "計 " + fmtN(cur.followersEnd) });
     var vals = (series || []).map(function (s) { return Number(s.reach) || 0; });
     var mx = Math.max.apply(null, vals.concat([1]));
-    var bars = vals.map(function (v) { return '<i style="height:' + Math.max(2, Math.round(v / mx * 100)) + '%"></i>'; }).join("");
+    var bars = series.map(function (s) {
+      var v = Number(s.reach) || 0;
+      return '<i style="height:' + Math.max(2, Math.round(v / mx * 100)) + '%" data-d="' + esc(String(s.date)) + '" data-v="' + v + '"></i>';
+    }).join("");
     var firstD = vals.length ? series[0].date.slice(5) : "", lastD = vals.length ? series[series.length - 1].date.slice(5) : "";
     function pctOf(c, p) { return (p == null || p === 0) ? null : Math.round((c - p) / p * 1000) / 10; }
     var reachPct = pctOf(cur.reach, p_("reach"));
@@ -812,7 +815,7 @@
       modebar +
       '<div class="repdoc">' + head + period + '</div>' +
       '<div class="repsec"><h3>アカウント全体</h3><div class="repkpis">' + kpis + '</div></div>' +
-      '<div class="repsec"><h3>リーチの推移（日別）</h3><div class="repbars">' + bars + '</div><div class="repax"><span>' + firstD + '</span><span>' + lastD + '</span></div></div>' +
+      '<div class="repsec"><h3>リーチの推移（日別）</h3><div class="repchart"><div class="repbars">' + bars + '</div><div class="reptip"></div></div><div class="repax"><span>' + firstD + '</span><span>' + lastD + '</span></div><div class="repnote">グラフを指でなぞると日付とリーチ数が出ます。</div></div>' +
       postsHtml +
       '<div class="repsec"><h3>分析・まとめ</h3><div class="repanal">' +
         '<div class="repcard good"><h4>強み・良かった点</h4><ul>' + lis(good) + '</ul></div>' +
@@ -829,6 +832,42 @@
         if (m && m !== repMode) { repMode = m; haptic(10); if (reportData) renderReport(reportData); }
       };
     }
+    wireChartScrub();
+  }
+  // リーチ推移グラフ：指でなぞると、その日の「日付＋リーチ数」を吹き出し表示（ドラッグでスクラブ）
+  function wireChartScrub() {
+    var chart = reportEl.querySelector(".repchart");
+    if (!chart) return;
+    var barsEl = chart.querySelector(".repbars");
+    var tip = chart.querySelector(".reptip");
+    var lastIdx = -1;
+    function showAt(clientX) {
+      var bs = barsEl.querySelectorAll("i");
+      if (!bs.length) return;
+      var rect = barsEl.getBoundingClientRect();
+      var idx = Math.floor((clientX - rect.left) / rect.width * bs.length);
+      idx = Math.max(0, Math.min(bs.length - 1, idx));
+      if (idx !== lastIdx) { haptic(6); lastIdx = idx; }   // 隣の日に移るたび軽く振動
+      for (var i = 0; i < bs.length; i++) { if (i === idx) bs[i].classList.add("hot"); else bs[i].classList.remove("hot"); }
+      var b = bs[idx], br = b.getBoundingClientRect();
+      tip.innerHTML = '<b>' + fmtN(Number(b.getAttribute("data-v"))) + '</b><span>' + esc(b.getAttribute("data-d")) + '</span>';
+      tip.style.display = "block";
+      var cx = br.left + br.width / 2 - rect.left;
+      tip.style.left = Math.max(34, Math.min(rect.width - 34, cx)) + "px";
+    }
+    function hide() {
+      tip.style.display = "none"; lastIdx = -1;
+      var hot = barsEl.querySelectorAll("i.hot");
+      for (var i = 0; i < hot.length; i++) hot[i].classList.remove("hot");
+    }
+    chart.addEventListener("touchstart", function (e) { e.stopPropagation(); e.preventDefault(); showAt(e.touches[0].clientX); }, { passive: false });
+    chart.addEventListener("touchmove", function (e) { e.stopPropagation(); e.preventDefault(); showAt(e.touches[0].clientX); }, { passive: false });
+    chart.addEventListener("touchend", hide);
+    chart.addEventListener("touchcancel", hide);
+    chart.addEventListener("mousedown", function (e) { showAt(e.clientX); });
+    chart.addEventListener("mousemove", function (e) { if (e.buttons) showAt(e.clientX); });
+    chart.addEventListener("mouseup", hide);
+    chart.addEventListener("mouseleave", hide);
   }
   function loadScriptOnce(src, cb) {
     var s = document.createElement("script"); s.src = src;
