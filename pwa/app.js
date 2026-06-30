@@ -665,6 +665,23 @@
 
   /* ---------- レポート（インサイト・全員閲覧可・操作なし） ---------- */
   var reportData = null;
+  var repMode = "month";   // 比較期間: day / week / month
+  function repAgg(list) {
+    if (!list || !list.length) return null;
+    var s = { reach: 0, views: 0, pviews: 0, links: 0, eng: 0 };
+    var fs = null, fe = null;
+    for (var i = 0; i < list.length; i++) {
+      var r = list[i];
+      s.reach += Number(r.reach) || 0; s.views += Number(r.views) || 0;
+      s.pviews += Number(r.pviews) || 0; s.links += Number(r.links) || 0; s.eng += Number(r.eng) || 0;
+      var f = Number(r.followers) || 0;       // 0/空は「未取得」とみなす（実フォロワーは0にならない）
+      if (f > 0) { if (fs === null) fs = f; fe = f; }
+    }
+    s.followersStart = fs === null ? 0 : fs;
+    s.followersEnd = fe === null ? 0 : fe;
+    s.n = list.length;
+    return s;
+  }
   function loadReport() {
     if (!reportEl) return;
     if (!reportData) reportEl.innerHTML = '<div class="rephint">レポートを読み込んでいます…</div>';
@@ -694,7 +711,22 @@
       var rb0 = document.getElementById("repReload"); if (rb0) rb0.onclick = loadReport;
       return;
     }
-    var cur = d.cur, prev = d.prev || {};
+    // 比較期間（前日/週間/月間）を日次データから計算。daily が無い旧GASなら従来値。
+    var WIN = repMode === "day" ? 1 : (repMode === "week" ? 7 : 30);
+    var modeLbl = repMode === "day" ? "前日" : (repMode === "week" ? "週間" : "月間");
+    var cur, prev, series, days, latestDate;
+    if (d.daily && d.daily.length) {
+      var dly = d.daily;
+      var curList = dly.slice(Math.max(0, dly.length - WIN));
+      var prevList = dly.slice(Math.max(0, dly.length - 2 * WIN), Math.max(0, dly.length - WIN));
+      cur = repAgg(curList) || d.cur; prev = repAgg(prevList);
+      series = curList.map(function (r) { return { date: String(r.date), reach: Number(r.reach) || 0 }; });
+      days = curList.length;
+      latestDate = curList.length ? String(curList[curList.length - 1].date) : (d.latestDate || "");
+    } else {
+      cur = d.cur; prev = d.prev || {}; series = d.series || []; days = d.days; latestDate = d.latestDate;
+    }
+    prev = prev || {};
     var fNet = cur.followersEnd - cur.followersStart;
     var pNet = (prev && prev.followersEnd != null) ? (prev.followersEnd - prev.followersStart) : null;
     function p_(k) { return (prev && prev[k] != null) ? prev[k] : null; }
@@ -709,10 +741,10 @@
     var kpis = kpi("リーチ", cur.reach, p_("reach")) + kpi("閲覧数", cur.views, p_("views")) +
       kpi("プロフィール表示", cur.pviews, p_("pviews")) +
       kpi("フォロワー純増", fNet, pNet, { plus: true, sub: "計 " + fmtN(cur.followersEnd) });
-    var vals = (d.series || []).map(function (s) { return Number(s.reach) || 0; });
+    var vals = (series || []).map(function (s) { return Number(s.reach) || 0; });
     var mx = Math.max.apply(null, vals.concat([1]));
     var bars = vals.map(function (v) { return '<i style="height:' + Math.max(2, Math.round(v / mx * 100)) + '%"></i>'; }).join("");
-    var firstD = vals.length ? d.series[0].date.slice(5) : "", lastD = vals.length ? d.series[d.series.length - 1].date.slice(5) : "";
+    var firstD = vals.length ? series[0].date.slice(5) : "", lastD = vals.length ? series[series.length - 1].date.slice(5) : "";
     function pctOf(c, p) { return (p == null || p === 0) ? null : Math.round((c - p) / p * 1000) / 10; }
     var reachPct = pctOf(cur.reach, p_("reach"));
     var linkRate = cur.pviews ? Math.round(cur.links / cur.pviews * 1000) / 10 : null;
@@ -724,10 +756,13 @@
       var sub = p.kind === "story"
         ? ("閲覧 " + fmtN(p.views) + "・タップ " + fmtN(p.navigation) + "・返信 " + fmtN(p.replies))
         : ("閲覧 " + fmtN(p.views) + "・いいね " + fmtN(p.likes) + "・保存 " + fmtN(p.saved));
-      return '<div class="reppost"><div class="rl"><span class="rb ' + esc(p.kind) + '">' + badge + '</span>' +
+      var thumb = p.thumb ? '<img class="rt" src="' + esc(p.thumb) + '" alt="" loading="lazy" crossorigin="anonymous" onerror="this.style.display=\'none\'">' : '<div class="rt none">🍶</div>';
+      return '<div class="reppost">' + thumb + '<div class="ri">' +
+        '<div class="rl"><span class="rb ' + esc(p.kind) + '">' + badge + '</span>' +
         '<span class="rd">' + esc(p.date) + '</span></div>' +
         '<div class="rc">' + cap + '</div>' +
-        '<div class="rr"><b>リーチ ' + fmtN(p.reach) + '</b><small>' + sub + '</small></div></div>';
+        '<div class="rr"><b>リーチ ' + fmtN(p.reach) + '</b><small>' + sub + '</small></div>' +
+        '</div></div>';
     }
     var postsHtml = "";
     if (pd && pd.top && pd.top.length) {
@@ -763,11 +798,18 @@
     if (!good.length) good.push("データが増えるほど、効いている施策が見えてきます。");
     if (!warn.length) warn.push("大きな課題は見当たりません。継続して様子を見ましょう。");
     function lis(a) { return a.map(function (x) { return "<li>" + x + "</li>"; }).join(""); }
-    var period = '<div class="p">直近' + d.days + '日' + (d.latestDate ? '（〜' + esc(d.latestDate) + '）' : '') +
-      '<small>' + ((pNet != null || p_("reach") != null) ? '前' + d.days + '日と比較' : 'データ蓄積中（30日で前期間比較が満額に）') + '</small></div>';
+    var cmpLbl = repMode === "day" ? "前日と比較" : (repMode === "week" ? "前週と比較" : "前30日と比較");
+    var period = '<div class="p">' + modeLbl + '（直近' + days + '日' + (latestDate ? '〜' + esc(latestDate) : '') + '）' +
+      '<small>' + ((pNet != null || p_("reach") != null) ? cmpLbl : 'データ蓄積中（30日で比較が満額に）') + '</small></div>';
+    var modebar = '<div class="repmode">' +
+      ['day:前日', 'week:週間', 'month:月間'].map(function (o) {
+        var k = o.split(":")[0];
+        return '<button class="rm' + (repMode === k ? ' on' : '') + '" data-m="' + k + '">' + o.split(":")[1] + '</button>';
+      }).join("") + '</div>';
     reportEl.innerHTML =
       '<div class="repbar"><button id="repReload">↻ 更新</button><button id="repPdf" class="pdf">📄 PDFで保存（A4）</button></div>' +
       '<div class="rephint">この画面は誰でも閲覧できます（操作はありません）。PDFはA4資料として保存できます。</div>' +
+      modebar +
       '<div class="repdoc">' + head + period + '</div>' +
       '<div class="repsec"><h3>アカウント全体</h3><div class="repkpis">' + kpis + '</div></div>' +
       '<div class="repsec"><h3>リーチの推移（日別）</h3><div class="repbars">' + bars + '</div><div class="repax"><span>' + firstD + '</span><span>' + lastD + '</span></div></div>' +
@@ -780,6 +822,13 @@
       '<div class="repfoot">データ元：Instagram Graph API（毎日自動収集）／分析は数値から自動生成</div></div>';
     var rb = document.getElementById("repReload"); if (rb) rb.onclick = loadReport;
     var pb = document.getElementById("repPdf"); if (pb) pb.onclick = downloadReportPdf;
+    var rms = reportEl.querySelectorAll(".rm");
+    for (var im = 0; im < rms.length; im++) {
+      rms[im].onclick = function () {
+        var m = this.getAttribute("data-m");
+        if (m && m !== repMode) { repMode = m; haptic(10); if (reportData) renderReport(reportData); }
+      };
+    }
   }
   function loadScriptOnce(src, cb) {
     var s = document.createElement("script"); s.src = src;
