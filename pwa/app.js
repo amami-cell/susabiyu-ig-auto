@@ -574,6 +574,9 @@
     feed.style.display = name === "feed" ? "" : "none";
     galleryEl.style.display = name === "gallery" ? "" : "none";
     if (reportEl) reportEl.style.display = name === "report" ? "" : "none";
+    var rmb = document.getElementById("repmodeBar");
+    if (rmb) rmb.style.display = name === "report" ? "" : "none";   // レポート時だけ上部固定バー表示
+    if (name === "report") updateRepModeBar();
     if (name === "gallery") { galleryLoaded = true; startGalleryPoll(); }
     else { stopGalleryPoll(); }
   }
@@ -602,6 +605,18 @@
   if (tabFeed) tabFeed.onclick = function () { selectTab(tabFeed, "feed", load); };
   if (tabGallery) tabGallery.onclick = function () { selectTab(tabGallery, "gallery", loadPatterns); };
   if (tabReport) tabReport.onclick = function () { selectTab(tabReport, "report", loadReport); };
+  // 上部固定の前日/週間/月間バー（レポート時のみ表示）
+  (function () {
+    var bar = document.getElementById("repmodeBar");
+    if (!bar) return;
+    var bs = bar.querySelectorAll(".rm");
+    for (var i = 0; i < bs.length; i++) {
+      bs[i].onclick = function () {
+        var m = this.getAttribute("data-m");
+        if (m && m !== repMode) { repMode = m; haptic(10); updateRepModeBar(); if (reportData) renderReport(reportData); }
+      };
+    }
+  })();
 
   /* ---------- 引っ張って更新（pull-to-refresh）：最上部で下スワイプ→振動→更新 ---------- */
   (function () {
@@ -666,6 +681,40 @@
   /* ---------- レポート（インサイト・全員閲覧可・操作なし） ---------- */
   var reportData = null;
   var repMode = "month";   // 比較期間: day / week / month
+  var repMetric = "reach"; // 推移グラフの指標: reach / views / pviews / followers
+  var REP_METRICS = { reach: "リーチ", views: "閲覧数", pviews: "プロフィール表示", followers: "フォロワー" };
+  var repTopPosts = [];    // ベスト投稿（拡大表示用）
+  // 上部固定の前日/週間/月間バーの表示・選択状態を同期
+  function updateRepModeBar() {
+    var bar = document.getElementById("repmodeBar");
+    if (!bar) return;
+    var bs = bar.querySelectorAll(".rm");
+    for (var i = 0; i < bs.length; i++) bs[i].classList.toggle("on", bs[i].getAttribute("data-m") === repMode);
+  }
+  // ベスト投稿の拡大表示（画像はそのまま／動画は再生）。タップで閉じる。
+  function openPostLightbox(p) {
+    if (!p) return;
+    haptic(10);
+    var ov = document.createElement("div"); ov.className = "lbov";
+    var inner;
+    if (p.mtype === "video" && p.full) {
+      inner = '<video class="lbm" src="' + esc(p.full) + '" controls autoplay playsinline webkit-playsinline loop></video>';
+    } else if (p.full || p.thumb) {
+      inner = '<img class="lbm" src="' + esc(p.full || p.thumb) + '" alt="">';
+    } else {
+      inner = '<div class="lbnone">画像を準備中です</div>';
+    }
+    var link = p.link ? '<a class="lblink" href="' + esc(p.link) + '" target="_blank" rel="noopener">Instagramで開く ↗</a>' : '';
+    var meta = '<div class="lbmeta"><b>リーチ ' + fmtN(p.reach) + '</b>　閲覧 ' + fmtN(p.views) +
+      (p.kind === "story" ? '　タップ ' + fmtN(p.navigation) + '　返信 ' + fmtN(p.replies)
+        : '　いいね ' + fmtN(p.likes) + '　保存 ' + fmtN(p.saved)) + '</div>';
+    ov.innerHTML = '<div class="lbbox" onclick="event.stopPropagation()"><button class="lbx">✕</button>' + inner + meta + link + '</div>';
+    ov.onclick = function () { close(); };
+    function close() { var v = ov.querySelector("video"); if (v) { try { v.pause(); } catch (e) {} } ov.classList.remove("show"); setTimeout(function () { if (ov.parentNode) ov.parentNode.removeChild(ov); }, 200); }
+    ov.querySelector(".lbx").onclick = function (e) { e.stopPropagation(); close(); };
+    document.body.appendChild(ov);
+    requestAnimationFrame(function () { ov.classList.add("show"); });
+  }
   function repAgg(list) {
     if (!list || !list.length) return null;
     var s = { reach: 0, views: 0, pviews: 0, links: 0, eng: 0 };
@@ -720,47 +769,52 @@
       var curList = dly.slice(Math.max(0, dly.length - WIN));
       var prevList = dly.slice(Math.max(0, dly.length - 2 * WIN), Math.max(0, dly.length - WIN));
       cur = repAgg(curList) || d.cur; prev = repAgg(prevList);
-      series = curList.map(function (r) { return { date: String(r.date), reach: Number(r.reach) || 0 }; });
+      series = curList.map(function (r) { return { date: String(r.date), val: Number(r[repMetric]) || 0 }; });
       days = curList.length;
       latestDate = curList.length ? String(curList[curList.length - 1].date) : (d.latestDate || "");
     } else {
-      cur = d.cur; prev = d.prev || {}; series = d.series || []; days = d.days; latestDate = d.latestDate;
+      cur = d.cur; prev = d.prev || {}; series = (d.series || []).map(function (s) { return { date: String(s.date), val: Number(s.reach) || 0 }; }); days = d.days; latestDate = d.latestDate;
     }
     prev = prev || {};
     var fNet = cur.followersEnd - cur.followersStart;
     var pNet = (prev && prev.followersEnd != null) ? (prev.followersEnd - prev.followersStart) : null;
     function p_(k) { return (prev && prev[k] != null) ? prev[k] : null; }
-    function kpi(label, c, p, opts) {
+    function kpi(label, c, p, metric, opts) {
       opts = opts || {};
       var vs = (opts.plus && c > 0 ? "+" : "") + fmtN(c);
       var ps = p == null ? null : ((opts.plus && p > 0 ? "+" : "") + fmtN(p));
-      return '<div class="repkpi"><div class="l">' + esc(label) + '</div><div class="v">' + vs +
+      var on = metric === repMetric ? " on" : "";
+      return '<div class="repkpi tap' + on + '" data-metric="' + metric + '"><div class="l">' + esc(label) + '</div><div class="v">' + vs +
         (opts.sub ? ' <small>' + esc(opts.sub) + '</small>' : '') + '</div>' + deltaHtml(c, p) +
         (ps != null ? '<div class="prev">前期間 ' + ps + '</div>' : '') + '</div>';
     }
-    var kpis = kpi("リーチ", cur.reach, p_("reach")) + kpi("閲覧数", cur.views, p_("views")) +
-      kpi("プロフィール表示", cur.pviews, p_("pviews")) +
-      kpi("フォロワー純増", fNet, pNet, { plus: true, sub: "計 " + fmtN(cur.followersEnd) });
-    var vals = (series || []).map(function (s) { return Number(s.reach) || 0; });
+    var kpis = kpi("リーチ", cur.reach, p_("reach"), "reach") + kpi("閲覧数", cur.views, p_("views"), "views") +
+      kpi("プロフィール表示", cur.pviews, p_("pviews"), "pviews") +
+      kpi("フォロワー純増", fNet, pNet, "followers", { plus: true, sub: "計 " + fmtN(cur.followersEnd) });
+    var vals = (series || []).map(function (s) { return Number(s.val) || 0; });
     var mx = Math.max.apply(null, vals.concat([1]));
     var bars = series.map(function (s) {
-      var v = Number(s.reach) || 0;
+      var v = Number(s.val) || 0;
       return '<i style="height:' + Math.max(2, Math.round(v / mx * 100)) + '%" data-d="' + esc(String(s.date)) + '" data-v="' + v + '"></i>';
     }).join("");
+    var trendLbl = (REP_METRICS[repMetric] || "リーチ") + "の推移（日別）";
     var firstD = vals.length ? series[0].date.slice(5) : "", lastD = vals.length ? series[series.length - 1].date.slice(5) : "";
     function pctOf(c, p) { return (p == null || p === 0) ? null : Math.round((c - p) / p * 1000) / 10; }
     var reachPct = pctOf(cur.reach, p_("reach"));
     var linkRate = cur.pviews ? Math.round(cur.links / cur.pviews * 1000) / 10 : null;
     // 投稿（ストーリーズ/フィード）セクションを組み立て
     var pd = d.posts;
-    function fmtPost(p) {
+    repTopPosts = (pd && pd.top) ? pd.top : [];
+    function fmtPost(p, i) {
       var badge = p.kind === "story" ? "ストーリーズ" : (p.kind === "reel" ? "リール" : "フィード");
       var cap = p.caption ? esc(String(p.caption).slice(0, 38)) : "（キャプションなし）";
       var sub = p.kind === "story"
         ? ("閲覧 " + fmtN(p.views) + "・タップ " + fmtN(p.navigation) + "・返信 " + fmtN(p.replies))
         : ("閲覧 " + fmtN(p.views) + "・いいね " + fmtN(p.likes) + "・保存 " + fmtN(p.saved));
-      var thumb = p.thumb ? '<img class="rt" src="' + esc(p.thumb) + '" alt="" loading="lazy" crossorigin="anonymous" onerror="this.style.display=\'none\'">' : '<div class="rt none">🍶</div>';
-      return '<div class="reppost">' + thumb + '<div class="ri">' +
+      var img = p.thumb || p.full || "";
+      var thumb = img ? '<img class="rt" src="' + esc(img) + '" alt="" loading="lazy" crossorigin="anonymous" onerror="this.style.display=\'none\'">' : '<div class="rt none">🍶</div>';
+      var play = (p.mtype === "video") ? '<span class="rtplay">▶</span>' : '';
+      return '<div class="reppost tap" data-pi="' + i + '"><div class="rtwrap">' + thumb + play + '</div><div class="ri">' +
         '<div class="rl"><span class="rb ' + esc(p.kind) + '">' + badge + '</span>' +
         '<span class="rd">' + esc(p.date) + '</span></div>' +
         '<div class="rc">' + cap + '</div>' +
@@ -804,18 +858,13 @@
     var cmpLbl = repMode === "day" ? "前日と比較" : (repMode === "week" ? "前週と比較" : "前30日と比較");
     var period = '<div class="p">' + modeLbl + '（直近' + days + '日' + (latestDate ? '〜' + esc(latestDate) : '') + '）' +
       '<small>' + ((pNet != null || p_("reach") != null) ? cmpLbl : 'データ蓄積中（30日で比較が満額に）') + '</small></div>';
-    var modebar = '<div class="repmode">' +
-      ['day:前日', 'week:週間', 'month:月間'].map(function (o) {
-        var k = o.split(":")[0];
-        return '<button class="rm' + (repMode === k ? ' on' : '') + '" data-m="' + k + '">' + o.split(":")[1] + '</button>';
-      }).join("") + '</div>';
+    updateRepModeBar();   // 上部固定の前日/週間/月間バーの表示を同期
     reportEl.innerHTML =
       '<div class="repbar"><button id="repReload">↻ 更新</button><button id="repPdf" class="pdf">📄 PDFで保存（A4）</button></div>' +
       '<div class="rephint">この画面は誰でも閲覧できます（操作はありません）。PDFはA4資料として保存できます。</div>' +
-      modebar +
       '<div class="repdoc">' + head + period + '</div>' +
       '<div class="repsec"><h3>アカウント全体</h3><div class="repkpis">' + kpis + '</div></div>' +
-      '<div class="repsec"><h3>リーチの推移（日別）</h3><div class="repchart"><div class="repbars">' + bars + '</div><div class="reptip"></div></div><div class="repax"><span>' + firstD + '</span><span>' + lastD + '</span></div><div class="repnote">グラフを指でなぞると日付とリーチ数が出ます。</div></div>' +
+      '<div class="repsec"><h3>' + esc(trendLbl) + '</h3><div class="repchart"><div class="repbars">' + bars + '</div><div class="reptip"></div></div><div class="repax"><span>' + firstD + '</span><span>' + lastD + '</span></div><div class="repnote">KPIをタップで指標を切替／グラフを指でなぞると日付と数値が出ます。</div></div>' +
       postsHtml +
       '<div class="repsec"><h3>分析・まとめ</h3><div class="repanal">' +
         '<div class="repcard good"><h4>強み・良かった点</h4><ul>' + lis(good) + '</ul></div>' +
@@ -825,11 +874,20 @@
       '<div class="repfoot">データ元：Instagram Graph API（毎日自動収集）／分析は数値から自動生成</div></div>';
     var rb = document.getElementById("repReload"); if (rb) rb.onclick = loadReport;
     var pb = document.getElementById("repPdf"); if (pb) pb.onclick = downloadReportPdf;
-    var rms = reportEl.querySelectorAll(".rm");
-    for (var im = 0; im < rms.length; im++) {
-      rms[im].onclick = function () {
-        var m = this.getAttribute("data-m");
-        if (m && m !== repMode) { repMode = m; haptic(10); if (reportData) renderReport(reportData); }
+    // KPIタップ＝推移グラフの指標を切替
+    var kps = reportEl.querySelectorAll(".repkpi.tap");
+    for (var ik = 0; ik < kps.length; ik++) {
+      kps[ik].onclick = function () {
+        var mt = this.getAttribute("data-metric");
+        if (mt && mt !== repMetric) { repMetric = mt; haptic(10); if (reportData) renderReport(reportData); }
+      };
+    }
+    // ベスト投稿タップ＝拡大表示（画像/動画）
+    var posts = reportEl.querySelectorAll(".reppost.tap");
+    for (var ip = 0; ip < posts.length; ip++) {
+      posts[ip].onclick = function () {
+        var pi = parseInt(this.getAttribute("data-pi"), 10);
+        if (!isNaN(pi) && repTopPosts[pi]) openPostLightbox(repTopPosts[pi]);
       };
     }
     wireChartScrub();

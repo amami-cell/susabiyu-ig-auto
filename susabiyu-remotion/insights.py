@@ -19,7 +19,7 @@ POST_TAB = "インサイト投稿"    # 1投稿1行：投稿ごとの指標（�
 DAILY_HEADER = ["日付", "フォロワー数", "リーチ", "閲覧数", "プロフィール表示",
                 "リンクタップ", "エンゲージ数", "取得時刻", "raw"]
 POST_HEADER = ["取得日", "media_id", "種別", "投稿日時", "キャプション",
-               "リーチ", "閲覧/再生", "いいね", "保存", "シェア", "コメント", "返信", "raw", "サムネ"]
+               "リーチ", "閲覧/再生", "いいね", "保存", "シェア", "コメント", "返信", "raw", "サムネ", "本体", "媒体種別", "リンク"]
 
 
 def _token():
@@ -192,32 +192,65 @@ STORY_METRICS = ["reach", "views", "replies", "total_interactions", "navigation"
 FEED_METRICS = ["reach", "views", "likes", "saved", "shares", "comments", "total_interactions"]
 
 
-def _host_thumb(md):
-    """投稿のサムネ画像を恒久CDN(jsDelivr)へ保存してURLを返す。
-    InstagramのCDN URLは期限切れ・ストーリーズは24hで消えるため、取り込んだ時に複製する。"""
-    url = md.get("thumbnail_url") or md.get("media_url") or ""
-    if not url:
-        return ""
+def _dl(url, path):
     try:
-        r = req.get(url, timeout=30)
+        r = req.get(url, timeout=60)
         if r.status_code != 200 or not r.content:
-            return ""
-        os.makedirs("out", exist_ok=True)
-        path = os.path.join("out", "ptthumb.jpg")
+            return False
         with open(path, "wb") as f:
             f.write(r.content)
-        try:
-            from PIL import Image
-            im = Image.open(path).convert("RGB")
-            w = 400
-            h = max(1, int(im.height * (w / im.width)))
-            im.resize((w, h)).save(path, "JPEG", quality=82)
-        except Exception:
-            pass
-        return poster.up(path, cdn=True) or ""
-    except Exception as e:
-        print("[THUMB] host失敗:", str(e)[:80])
+        return True
+    except Exception:
+        return False
+
+
+def _host_image(url, w, q):
+    """画像URLをDLし、横幅wに縮小してjsDelivrへ。URLを返す。"""
+    if not url:
         return ""
+    os.makedirs("out", exist_ok=True)
+    p = os.path.join("out", "pm.jpg")
+    if not _dl(url, p):
+        return ""
+    try:
+        from PIL import Image
+        im = Image.open(p).convert("RGB")
+        if im.width > w:
+            h = max(1, int(im.height * (w / im.width)))
+            im = im.resize((w, h))
+        im.save(p, "JPEG", quality=q)
+    except Exception:
+        pass
+    try:
+        return poster.up(p, cdn=True) or ""
+    except Exception as e:
+        print("[MEDIA] image host失敗:", str(e)[:80]); return ""
+
+
+def _host_file(url, ext):
+    """動画等をそのままDLしてjsDelivrへ。URLを返す。"""
+    if not url:
+        return ""
+    os.makedirs("out", exist_ok=True)
+    p = os.path.join("out", "pm" + ext)
+    if not _dl(url, p):
+        return ""
+    try:
+        return poster.up(p, cdn=True) or ""
+    except Exception as e:
+        print("[MEDIA] file host失敗:", str(e)[:80]); return ""
+
+
+def _host_media(md):
+    """投稿のサムネ(小)と本体(画像フル/動画mp4)を恒久CDNへ複製。
+    戻り: (thumb, full, mtype)。InstagramのURLは期限切れ・ストーリーズは24hで消えるため取り込み時に複製。"""
+    mtype = "video" if (md.get("media_type") or "").upper() == "VIDEO" else "image"
+    thumb = _host_image(md.get("thumbnail_url") or md.get("media_url") or "", 400, 80)
+    if mtype == "video":
+        full = _host_file(md.get("media_url") or "", ".mp4")
+    else:
+        full = _host_image(md.get("media_url") or md.get("thumbnail_url") or "", 1080, 86)
+    return thumb, full, mtype
 
 
 def _collect_posts(sh, token, uid):
@@ -245,15 +278,18 @@ def _collect_posts(sh, token, uid):
     except Exception as e:
         print("[POSTS] media取得失敗:", e)
 
-    rows = sh.values().get(spreadsheetId=poster.SHEET_ID, range=POST_TAB + "!A:N").execute().get("values", [])
+    rows = sh.values().get(spreadsheetId=poster.SHEET_ID, range=POST_TAB + "!A:Q").execute().get("values", [])
     idx = {}
-    thumbmap = {}
+    mediamap = {}   # mid -> (thumb, full, mtype) 既に保存済みなら使い回し
     for i, r in enumerate(rows):
         if i == 0 or len(r) < 2:
             continue
         idx[str(r[1])] = i + 1
-        if len(r) > 13 and str(r[13]).strip():
-            thumbmap[str(r[1])] = str(r[13]).strip()
+        th = str(r[13]).strip() if len(r) > 13 else ""
+        fu = str(r[14]).strip() if len(r) > 14 else ""
+        mt = str(r[15]).strip() if len(r) > 15 else ""
+        if th or fu:
+            mediamap[str(r[1])] = (th, fu, mt)
     appends = []
     n = 0
     for kind, md in items:
@@ -261,20 +297,24 @@ def _collect_posts(sh, token, uid):
         metrics = STORY_METRICS if kind == "story" else FEED_METRICS
         ins = _post_insights(token, mid, metrics)
         cap = (md.get("caption") or "").replace("\n", " ").replace("\r", " ")[:80]
-        thumb = thumbmap.get(mid) or _host_thumb(md)   # 既に保存済みなら使い回し
+        if mid in mediamap and mediamap[mid][1]:        # 本体まで保存済みなら使い回し
+            thumb, full, mtype = mediamap[mid]
+        else:
+            thumb, full, mtype = _host_media(md)
+        link = md.get("permalink", "")
         line = [today, mid, kind, md.get("timestamp", ""), cap,
                 ins.get("reach", ""), ins.get("views", ""), ins.get("likes", ""),
                 ins.get("saved", ""), ins.get("shares", ""), ins.get("comments", ""),
-                ins.get("replies", ""), json.dumps(ins, ensure_ascii=False), thumb]
+                ins.get("replies", ""), json.dumps(ins, ensure_ascii=False), thumb, full, mtype, link]
         if mid in idx:
             i = idx[mid]
-            sh.values().update(spreadsheetId=poster.SHEET_ID, range="%s!A%d:N%d" % (POST_TAB, i, i),
+            sh.values().update(spreadsheetId=poster.SHEET_ID, range="%s!A%d:Q%d" % (POST_TAB, i, i),
                                valueInputOption="RAW", body={"values": [line]}).execute()
         else:
             appends.append(line)
         n += 1
     if appends:
-        sh.values().append(spreadsheetId=poster.SHEET_ID, range=POST_TAB + "!A:N",
+        sh.values().append(spreadsheetId=poster.SHEET_ID, range=POST_TAB + "!A:Q",
                            valueInputOption="RAW", insertDataOption="INSERT_ROWS", body={"values": appends}).execute()
     print("[POSTS] %d件の投稿指標を収集（新規%d / 更新%d）" % (n, len(appends), n - len(appends)))
 
