@@ -176,8 +176,13 @@
   .repkpi .d{display:inline-block;margin-top:8px;font-size:12px;font-weight:800;padding:3px 9px;border-radius:999px}
   .repkpi .prev{font-size:11px;color:#9aa3b2;margin-top:6px}
   .up{color:#127a40;background:#e3f5ea}.down{color:#b23b3b;background:#fbe7e7}.flat{color:#6c7689;background:#eceff3}
+  .repchart{position:relative;touch-action:none}
   .repbars{display:flex;align-items:flex-end;gap:3px;height:120px;background:#f4f6f9;border-radius:12px;padding:12px 12px 8px}
-  .repbars i{flex:1;background:#33507f;border-radius:3px 3px 0 0;min-height:2px;opacity:.9}
+  .repbars i{flex:1;background:#33507f;border-radius:3px 3px 0 0;min-height:2px;opacity:.9;transition:background .08s}
+  .repbars i.hot{background:#e0a93b;opacity:1}
+  .reptip{position:absolute;top:-6px;transform:translateX(-50%);background:#1b2433;color:#fff;font-size:12px;padding:5px 11px;border-radius:9px;display:none;white-space:nowrap;pointer-events:none;z-index:6;box-shadow:0 4px 14px rgba(0,0,0,.3)}
+  .reptip b{font-size:14.5px;margin-right:7px}
+  .reptip span{opacity:.82}
   .repax{display:flex;justify-content:space-between;font-size:11px;color:#9aa3b2;margin:6px 4px 0}
   .repanal{display:flex;flex-direction:column;gap:10px}
   .repcard{background:#fff;border:1px solid #eef1f5;border-left:6px solid #ccc;border-radius:12px;padding:14px 16px}
