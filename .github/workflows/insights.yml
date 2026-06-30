@@ -9,6 +9,7 @@ on:
   schedule:
     - cron: '30 14 * * *'   # 毎日 23:30 JST に日次収集＋heal
     - cron: '15 * * * *'    # 毎時 heal（一時保存を消える前に永続へ昇格）
+    - cron: '0 0 * * 1'     # 毎週月曜 09:00 JST に先週のまとめを通知
 jobs:
   insights:
     runs-on: ubuntu-latest
@@ -39,9 +40,14 @@ jobs:
           R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
           R2_BUCKET: ${{ secrets.R2_BUCKET }}
           R2_PUBLIC_BASE: ${{ secrets.R2_PUBLIC_BASE }}
+          LINE_CHANNEL_TOKEN: ${{ secrets.LINE_CHANNEL_TOKEN }}
+          VAPID_PRIVATE_KEY: ${{ secrets.VAPID_PRIVATE_KEY }}
+          VAPID_SUBJECT: ${{ secrets.VAPID_SUBJECT }}
+          PWA_URL: ${{ secrets.PWA_URL }}
         run: |
           MODE="${{ github.event.inputs.mode }}"
           SCHED="${{ github.event.schedule }}"
           if [ -n "$MODE" ]; then python insights.py "$MODE"; fi
           if [ "$SCHED" = "30 14 * * *" ]; then python insights.py collect; fi
-          if [ -n "$SCHED" ]; then python insights.py heal; fi
+          if [ "$SCHED" = "0 0 * * 1" ]; then python insights.py weekly; fi
+          if [ -n "$SCHED" ] && [ "$SCHED" != "0 0 * * 1" ]; then python insights.py heal; fi
