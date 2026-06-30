@@ -177,6 +177,42 @@ def setup(target_store=None):
     print("[MASTER] setup 完了：%d店ぶんのフォルダを作成" % made)
 
 
+def _tab_id(sh, title):
+    meta = sh.get(spreadsheetId=SHEET_ID, fields="sheets.properties(title,sheetId)").execute()
+    for s in meta.get("sheets", []):
+        if s["properties"]["title"] == title:
+            return s["properties"]["sheetId"]
+    return None
+
+
+def columns():
+    """マスターに『アプリ表示』チェックボックス列(T)を用意。✓した店舗だけアプリに出す用。"""
+    cr = _creds(); sh = _sheets(cr)
+    _ensure_tab(sh, MASTER_TAB)
+    gid = _tab_id(sh, MASTER_TAB)
+    if gid is None:
+        print("[MASTER] タブが見つかりません"); return
+    sh.values().update(spreadsheetId=SHEET_ID, range=MASTER_TAB + "!T1",
+        valueInputOption="RAW", body={"values": [["アプリ表示"]]}).execute()
+    # T2:T1000 をチェックボックスに
+    sh.batchUpdate(spreadsheetId=SHEET_ID, body={"requests": [{
+        "setDataValidation": {
+            "range": {"sheetId": gid, "startRowIndex": 1, "endRowIndex": 1000,
+                      "startColumnIndex": 19, "endColumnIndex": 20},
+            "rule": {"condition": {"type": "BOOLEAN"}, "showCustomUi": True, "strict": True}
+        }
+    }]}).execute()
+    # すさび湯三条は稼働中なので最初からON
+    rows = _get_rows(sh)
+    for i in range(1, len(rows)):
+        if rows[i] and rows[i][0].strip() == "susabiyu_sanjyo":
+            sh.values().update(spreadsheetId=SHEET_ID, range="%s!T%d" % (MASTER_TAB, i + 1),
+                valueInputOption="USER_ENTERED", body={"values": [[True]]}).execute()
+            print("[MASTER] すさび湯三条を『アプリ表示』ONに設定")
+            break
+    print("[MASTER] 『アプリ表示』チェックボックス列(T)を用意しました")
+
+
 if __name__ == "__main__":
     mode = (sys.argv[1] if len(sys.argv) > 1 else "init").strip().lower()
     arg = sys.argv[2].strip() if len(sys.argv) > 2 else None
@@ -186,5 +222,7 @@ if __name__ == "__main__":
         setup(arg)
     elif mode == "all":
         init(); setup(arg)
+    elif mode == "columns":
+        columns()
     else:
-        print("使い方: python store_master.py init | setup [store_id] | all")
+        print("使い方: python store_master.py init | setup [store_id] | columns | all")
