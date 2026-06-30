@@ -218,13 +218,21 @@
   .reppost .rr{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}
   .reppost .rr b{font-size:15px;color:#1b2433;font-weight:800}
   .reppost .rr small{font-size:11.5px;color:#6c7689}
-  /* A4 出力モード（PDF生成時にクローンへ付与） */
+  /* A4 出力モード（PDF生成時にクローンへ付与）：1枚目にダッシュボードが収まるよう余白を圧縮 */
   .repdoc.a4{width:794px;border-radius:0}
-  .repdoc.a4 .repsec{padding:18px 26px 6px}
-  .repdoc.a4 .rephd{padding:28px 26px}
-  .repdoc.a4 .repkpis{grid-template-columns:1fr 1fr 1fr 1fr}
-  .repdoc.a4 .repkpi .v{font-size:24px}
-  .repdoc.a4 .repposts{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .repdoc.a4 .repsec{padding:11px 26px 3px}
+  .repdoc.a4 .repsec h3{margin:0 0 8px}
+  .repdoc.a4 .rephd{padding:20px 26px}
+  .repdoc.a4 .repkpis{grid-template-columns:1fr 1fr 1fr 1fr;margin-bottom:4px}
+  .repdoc.a4 .repkpi{padding:11px 13px}
+  .repdoc.a4 .repkpi .v{font-size:23px}
+  .repdoc.a4 .repbars{height:96px}
+  .repdoc.a4 .repposts{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+  .repdoc.a4 .reppost{padding:7px 10px}
+  .repdoc.a4 .reppost .rt{width:52px;height:52px}
+  .repdoc.a4 .repnote{margin:1px 2px 3px}
+  /* 分析・まとめは必ず2枚目から（ダッシュボードと分けて綺麗に1枚へ） */
+  .repdoc.a4 .repbreak{break-before:page;page-break-before:always;padding-top:22px}
   /* 上部固定の前日/週間/月間バー（ヘッダー内＝スクロールしても見える） */
   .rmbar{display:flex;gap:6px;padding:0 16px 10px;max-width:560px;margin:0 auto}
   .rmbar .rm{flex:1;border:1px solid var(--line);background:#181c23;color:var(--sub);font-size:13px;font-weight:800;padding:7px 0;border-radius:999px}

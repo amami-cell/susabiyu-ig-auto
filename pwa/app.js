@@ -948,7 +948,7 @@
       '<div class="repsec"><h3>アカウント全体</h3><div class="repkpis">' + kpis + '</div></div>' +
       '<div class="repsec"><h3>' + esc(trendLbl) + '</h3><div class="repchart"><div class="repbars">' + bars + '</div><div class="reptip"></div></div><div class="repax"><span>' + firstD + '</span><span>' + lastD + '</span></div><div class="repnote">KPIをタップで指標を切替／グラフを指でなぞると日付と数値が出ます。</div></div>' +
       postsHtml +
-      '<div class="repsec"><h3>分析・まとめ（' + esc(modeLbl) + '）</h3><div class="repanal">' +
+      '<div class="repsec repbreak"><h3>分析・まとめ（' + esc(modeLbl) + '）</h3><div class="repanal">' +
         '<div class="repcard good"><h4>強み・良かった点</h4><ul>' + lis(good) + '</ul></div>' +
         '<div class="repcard warn"><h4>反省点・課題</h4><ul>' + lis(warn) + '</ul></div>' +
         '<div class="repcard act"><h4>今後の施策</h4><ul>' + lis(act) + '</ul></div>' +
@@ -1030,7 +1030,8 @@
         image: { type: "jpeg", quality: 0.95 },
         html2canvas: { scale: 2, backgroundColor: "#ffffff", useCORS: true },
         jsPDF: { unit: "mm", format: "a4", orientation: "portrait" },
-        pagebreak: { mode: ["css", "avoid-all"] }
+        // 1枚目＝ダッシュボード、2枚目＝分析・まとめ（.repbreak で改ページ）。カード途中での分断は避ける。
+        pagebreak: { mode: ["css", "legacy"], before: ".repbreak", avoid: [".repsec", ".reppost", ".repkpi", ".repcard"] }
       }).from(clone).save().then(function () { holder.remove(); }).catch(function () { holder.remove(); toast("PDF作成に失敗"); });
     }
     if (window.html2pdf) go();
