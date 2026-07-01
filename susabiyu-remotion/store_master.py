@@ -741,6 +741,41 @@ def distmove(target=None):
     print("[MOVE] 完了：投稿希望時間を備考の隣(H)へ移動／Drive=I,J: https://docs.google.com/spreadsheets/d/%s/edit" % sid)
 
 
+def inbox():
+    """CapCut等の参考動画を受け取るDriveフォルダを作成し、あなた(SHARE_EMAIL)に編集権限で共有＋
+    リンクを知っていれば閲覧可にする。ここに動画を入れてもらい、こちらで中身を確認する用。"""
+    cr = _creds(); drive = _drive(cr)
+    fid = _mkfolder(drive, "参考テンプレ受け取り（CapCut等）")
+    _share(drive, fid, SHARE_EMAIL)   # 編集権限＝あなたはここに動画をアップロードできる
+    try:
+        drive.permissions().create(fileId=fid, body={"type": "anyone", "role": "reader"},
+            supportsAllDrives=True).execute()
+    except Exception as e:
+        print("[INBOX] リンク共有(閲覧)スキップ:", e)
+    print("[INBOX] 受け取りフォルダURL: %s" % _folder_url(fid))
+    print("[INBOX] フォルダID: %s" % fid)
+    print("[INBOX] 編集共有先: %s" % SHARE_EMAIL)
+
+
+def inboxget(target=None):
+    """受け取りフォルダ(ID or URL)の中身を一覧表示（動画ファイルの確認用）。"""
+    sid = (target or "").strip()
+    fid = _folder_id_from_url(sid) or sid
+    if not fid:
+        print("[INBOXGET] フォルダID/URLが必要です"); return
+    cr = _creds(); drive = _drive(cr)
+    try:
+        r = drive.files().list(q="'%s' in parents and trashed=false" % fid,
+            fields="files(id,name,mimeType,size)", spaces="drive",
+            supportsAllDrives=True, includeItemsFromAllDrives=True).execute()
+    except Exception as e:
+        print("[INBOXGET] 一覧取得失敗:", e); return
+    fs = r.get("files", [])
+    for f in fs:
+        print("FILE|%s|%s|%s|%s" % (f.get("id"), f.get("name"), f.get("mimeType"), f.get("size", "")))
+    print("[INBOXGET] %d 件" % len(fs))
+
+
 def _find_list_tab(sp, sid):
     """配布シートの『一覧タブ』を見出し基準で確実に特定する（sheets[0]に依存しない）。
     先頭〜12行のどこかに『店舗名』で始まるセルを持つタブ＝入力一覧。
@@ -991,6 +1026,10 @@ if __name__ == "__main__":
         distmove(arg)
     elif mode == "distfinal":
         distfinal(arg)
+    elif mode == "inbox":
+        inbox()
+    elif mode == "inboxget":
+        inboxget(arg)
     elif mode == "distdump":
         distdump(arg)
     else:
