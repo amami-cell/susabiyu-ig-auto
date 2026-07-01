@@ -298,7 +298,13 @@
   /* ---------- load / poll ---------- */
   function setLive(ok) {
     live.classList.toggle("live", ok);
-    liveTxt.textContent = ok ? "最新" : "接続中…";
+    if (ok) {
+      var d = new Date(), p = function (n) { return ("0" + n).slice(-2); };
+      // 最終確認画面が「今の最新」だと一目で分かるよう、取得時刻を表示（毎回のライブ取得で更新）
+      liveTxt.textContent = "最新 " + p(d.getHours()) + ":" + p(d.getMinutes()) + ":" + p(d.getSeconds());
+    } else {
+      liveTxt.textContent = "接続中…";
+    }
   }
   function load() {
     return jsonp({ api: "list" }).then(function (data) {
