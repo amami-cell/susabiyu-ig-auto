@@ -674,6 +674,73 @@ def disttime(target=None):
     print("[TIME] 完了：投稿希望時間(J列)追加＋三条の記入例: https://docs.google.com/spreadsheets/d/%s/edit" % sid)
 
 
+def distmove(target=None):
+    """投稿希望時間をDrive列より前(備考の隣=H)へ移動。旧J列を削除しHに新設、Drive列はI/Jへ。"""
+    import re as _re
+    sid = (target or os.environ.get("REQ_SHEET_ID", "") or "").strip()
+    m = _re.search(r"/spreadsheets/d/([a-zA-Z0-9_-]+)", sid)
+    if m:
+        sid = m.group(1)
+    if not sid:
+        print("[MOVE] シートID/URLが必要です"); return
+    cr = _creds(); sp = _sheets(cr)
+    props = sp.get(spreadsheetId=sid, fields="sheets.properties(sheetId,title)").execute()["sheets"][0]["properties"]
+    gid = props["sheetId"]; tab = props["title"]
+    rows = sp.values().get(spreadsheetId=sid, range="%s!A:K" % tab).execute().get("values", [])
+    hr = None
+    for i, r in enumerate(rows):
+        if r and str(r[0]).strip().startswith("店舗名"):
+            hr = i; break
+    if hr is None:
+        hr = 4
+    # 旧J(時間)を削除 → 備考の隣(index7=H)に新列を挿入。Drive(画像/音楽)はI/Jへ。
+    sp.batchUpdate(spreadsheetId=sid, body={"requests": [
+        {"deleteDimension": {"range": {"sheetId": gid, "dimension": "COLUMNS", "startIndex": 9, "endIndex": 10}}},
+        {"insertDimension": {"range": {"sheetId": gid, "dimension": "COLUMNS", "startIndex": 7, "endIndex": 8},
+            "inheritFromBefore": False}}]}).execute()
+    # 新H：見出し＋データ（三条は記入例）
+    sp.values().update(spreadsheetId=sid, range="%s!H%d" % (tab, hr + 1),
+        valueInputOption="RAW", body={"values": [["投稿希望時間（平日／祝日）"]]}).execute()
+    hvals = []
+    for i in range(hr + 1, len(rows)):
+        name = str(rows[i][0]).strip() if rows[i] else ""
+        if "すさび湯 河原町三条店" in name:
+            hvals.append(["平日 16:00／18:00／20:00　祝日 11:00／18:00／20:00"])
+        else:
+            hvals.append([""])
+    if hvals:
+        sp.values().update(spreadsheetId=sid, range="%s!H%d:H%d" % (tab, hr + 2, hr + 1 + len(hvals)),
+            valueInputOption="RAW", body={"values": hvals}).execute()
+    # バナー1行目の文言をI/Jに修正
+    sp.values().update(spreadsheetId=sid, range="%s!A1" % tab, valueInputOption="RAW", body={"values": [[
+        "📁 アップロードのご案内 ── 自分の店の行に入力し、Drive（I列＝画像／J列＝音楽）に素材を入れてください"]]}).execute()
+    N = max(len(rows), hr + 26)
+    reqs = [
+        {"repeatCell": {"range": {"sheetId": gid, "startRowIndex": hr, "endRowIndex": hr + 1, "startColumnIndex": 7, "endColumnIndex": 8},
+            "cell": {"userEnteredFormat": {"backgroundColor": {"red": 0.17, "green": 0.24, "blue": 0.33},
+                "horizontalAlignment": "CENTER", "verticalAlignment": "MIDDLE", "wrapStrategy": "WRAP",
+                "textFormat": {"bold": True, "foregroundColor": {"red": 1, "green": 1, "blue": 1}}}},
+            "fields": "userEnteredFormat(backgroundColor,horizontalAlignment,verticalAlignment,wrapStrategy,textFormat)"}},
+        {"updateDimensionProperties": {"range": {"sheetId": gid, "dimension": "COLUMNS", "startIndex": 7, "endIndex": 8},
+            "properties": {"pixelSize": 250}, "fields": "pixelSize"}},
+        {"repeatCell": {"range": {"sheetId": gid, "startRowIndex": hr + 1, "endRowIndex": N, "startColumnIndex": 7, "endColumnIndex": 8},
+            "cell": {"userEnteredFormat": {"wrapStrategy": "WRAP", "verticalAlignment": "MIDDLE",
+                "backgroundColor": {"red": 1, "green": 1, "blue": 1}}},
+            "fields": "userEnteredFormat(wrapStrategy,verticalAlignment,backgroundColor)"}},
+        {"updateBorders": {"range": {"sheetId": gid, "startRowIndex": hr, "endRowIndex": N, "startColumnIndex": 7, "endColumnIndex": 8},
+            "top": {"style": "SOLID", "color": {"red": 0.6, "green": 0.65, "blue": 0.72}},
+            "bottom": {"style": "SOLID", "color": {"red": 0.6, "green": 0.65, "blue": 0.72}},
+            "left": {"style": "SOLID", "color": {"red": 0.6, "green": 0.65, "blue": 0.72}},
+            "right": {"style": "SOLID", "color": {"red": 0.6, "green": 0.65, "blue": 0.72}},
+            "innerHorizontal": {"style": "SOLID", "color": {"red": 0.85, "green": 0.87, "blue": 0.9}}}},
+    ]
+    try:
+        sp.batchUpdate(spreadsheetId=sid, body={"requests": reqs}).execute()
+    except Exception as e:
+        print("[MOVE] 書式一部スキップ:", e)
+    print("[MOVE] 完了：投稿希望時間を備考の隣(H)へ移動／Drive=I,J: https://docs.google.com/spreadsheets/d/%s/edit" % sid)
+
+
 def pending():
     """承認待ちタブの各枠の状態（when/status/redo回数/pattern）を出力（redo詰まり診断用）。"""
     cr = _creds(); sh = _sheets(cr)
@@ -829,5 +896,7 @@ if __name__ == "__main__":
         distwarn(arg)
     elif mode == "disttime":
         disttime(arg)
+    elif mode == "distmove":
+        distmove(arg)
     else:
         print("使い方: python store_master.py init | setup [store_id] | columns | intake | requestsheet | roster | names | pending | saemail | distsheet | all")

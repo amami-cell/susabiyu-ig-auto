@@ -7,7 +7,7 @@ on:
         required: true
         default: "init"
         type: choice
-        options: [init, setup, columns, intake, requestsheet, roster, names, pending, saemail, distsheet, distdrive, distsub, distnote, disttop, distwarn, disttime, all]
+        options: [init, setup, columns, intake, requestsheet, roster, names, pending, saemail, distsheet, distdrive, distsub, distnote, disttop, distwarn, disttime, distmove, all]
       store_id:
         description: "setup対象のstore_id（空=Drive URL未設定の全店）"
         required: false
