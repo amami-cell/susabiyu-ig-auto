@@ -26,6 +26,10 @@ ROSTER_HEADER = ["店舗名", "表示名（私が記載）", "アイコン短縮
                  "Instagramアカウント名（@〜）", "ログインID/メール", "パスワード",
                  "担当者・連絡先", "提出状況", "備考"]
 
+# 各店に配る「記入用スプレッドシート」の見出し（店名は事前記入・各店が右を埋める）
+DIST_HEADER = ["店舗名（記入済み）", "Instagramアカウント名（@〜）", "ログインID／メール",
+               "Instagramパスワード", "担当者・お名前", "連絡先", "備考"]
+
 # 各店（みんな）に書き込んでもらう入力用の見出し
 INTAKE_HEADER = ["店舗名（正式）", "表示名（確認画面に出る店舗名・そのままでOK）",
                  "アイコン短縮名（任意・長い店名のみ記入）", "Instagramアカウント名（@〜）",
@@ -225,6 +229,43 @@ def roster():
     print("[ROSTER] 『提出チェック』タブを用意しました（A列に店名を入力／H列は自動判定・消さない）")
 
 
+def saemail():
+    """サービスアカウントのメール(client_email)を表示。配布用シートの共有先に使う。"""
+    import json as _json
+    p = "creds.json"
+    if not os.path.exists(p) and os.environ.get("GOOGLE_CREDS_B64"):
+        open(p, "wb").write(base64.b64decode(os.environ["GOOGLE_CREDS_B64"]))
+    try:
+        j = _json.load(open(p, encoding="utf-8"))
+        print("SA_EMAIL|" + str(j.get("client_email", "")))
+    except Exception as e:
+        print("[SA] 取得失敗:", e)
+
+
+def distsheet():
+    """各店配布用スプレッドシート(REQ_SHEET_ID=あなたが作りSAに共有した空シート)に、
+    提出チェックの店名を事前記入した記入表（パスワード欄あり）を流し込む。"""
+    sid = os.environ.get("REQ_SHEET_ID", "").strip()
+    if not sid:
+        print("[DIST] REQ_SHEET_ID未設定。空のスプレッドシートを作成しサービスアカウントに"
+              "編集権限で共有→そのIDを REQ_SHEET_ID に入れて再実行してください。")
+        return
+    cr = _creds(); sp = _sheets(cr)
+    rows = sp.values().get(spreadsheetId=SHEET_ID, range=ROSTER_TAB + "!A2:A").execute().get("values", [])
+    stores = [(r[0].strip() if r else "") for r in rows]
+    stores = [s for s in stores if s and not s.startswith("（記入例）")]
+    try:
+        meta = sp.get(spreadsheetId=sid, fields="sheets.properties.title").execute()
+        titles = [s["properties"]["title"] for s in meta.get("sheets", [])]
+        tab = titles[0] if titles else "シート1"
+    except Exception as e:
+        print("[DIST] 対象シートに接続できません（共有設定を確認）:", e); return
+    values = [DIST_HEADER] + [[s, "", "", "", "", "", ""] for s in stores]
+    sp.values().update(spreadsheetId=sid, range="%s!A1" % tab,
+        valueInputOption="RAW", body={"values": values}).execute()
+    print("[DIST] 配布用シートに %d 店を記入しました: https://docs.google.com/spreadsheets/d/%s/edit" % (len(stores), sid))
+
+
 def pending():
     """承認待ちタブの各枠の状態（when/status/redo回数/pattern）を出力（redo詰まり診断用）。"""
     cr = _creds(); sh = _sheets(cr)
@@ -364,5 +405,9 @@ if __name__ == "__main__":
         names()
     elif mode == "pending":
         pending()
+    elif mode == "saemail":
+        saemail()
+    elif mode == "distsheet":
+        distsheet()
     else:
-        print("使い方: python store_master.py init | setup [store_id] | columns | intake | requestsheet | roster | names | pending | all")
+        print("使い方: python store_master.py init | setup [store_id] | columns | intake | requestsheet | roster | names | pending | saemail | distsheet | all")
