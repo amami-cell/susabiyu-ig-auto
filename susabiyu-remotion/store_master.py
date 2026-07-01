@@ -741,6 +741,29 @@ def distmove(target=None):
     print("[MOVE] 完了：投稿希望時間を備考の隣(H)へ移動／Drive=I,J: https://docs.google.com/spreadsheets/d/%s/edit" % sid)
 
 
+def distdump(target=None):
+    """配布シートの上部数行を列付きで出力（レイアウト診断用）。"""
+    import re as _re
+    sid = (target or os.environ.get("REQ_SHEET_ID", "") or "").strip()
+    m = _re.search(r"/spreadsheets/d/([a-zA-Z0-9_-]+)", sid)
+    if m:
+        sid = m.group(1)
+    if not sid:
+        print("[DUMP] シートID/URLが必要です"); return
+    cr = _creds(); sp = _sheets(cr)
+    props = sp.get(spreadsheetId=sid, fields="sheets.properties(sheetId,title)").execute()["sheets"][0]["properties"]
+    tab = props["title"]
+    rows = sp.values().get(spreadsheetId=sid, range="%s!A:L" % tab).execute().get("values", [])
+    for i in range(min(8, len(rows))):
+        r = rows[i]
+        cells = []
+        for j in range(len(r)):
+            v = str(r[j]).replace("\n", " ")[:26]
+            cells.append(chr(65 + j) + "=" + v)
+        print("ROW%d| %s" % (i + 1, " ｜ ".join(cells)))
+    print("[DUMP] 完了 (行数 %d)" % len(rows))
+
+
 def pending():
     """承認待ちタブの各枠の状態（when/status/redo回数/pattern）を出力（redo詰まり診断用）。"""
     cr = _creds(); sh = _sheets(cr)
@@ -898,5 +921,7 @@ if __name__ == "__main__":
         disttime(arg)
     elif mode == "distmove":
         distmove(arg)
+    elif mode == "distdump":
+        distdump(arg)
     else:
         print("使い方: python store_master.py init | setup [store_id] | columns | intake | requestsheet | roster | names | pending | saemail | distsheet | all")
