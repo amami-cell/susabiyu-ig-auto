@@ -605,6 +605,75 @@ def distwarn(target=None):
     print("[WARN] 完了：短辺1000px以上の赤帯注意を挿入: https://docs.google.com/spreadsheets/d/%s/edit" % sid)
 
 
+def disttime(target=None):
+    """『投稿希望時間』列(J)を追加。すさび湯三条を記入例で埋め、上部バナーをJまで拡張。"""
+    import re as _re
+    sid = (target or os.environ.get("REQ_SHEET_ID", "") or "").strip()
+    m = _re.search(r"/spreadsheets/d/([a-zA-Z0-9_-]+)", sid)
+    if m:
+        sid = m.group(1)
+    if not sid:
+        print("[TIME] シートID/URLが必要です"); return
+    cr = _creds(); sp = _sheets(cr)
+    props = sp.get(spreadsheetId=sid, fields="sheets.properties(sheetId,title)").execute()["sheets"][0]["properties"]
+    gid = props["sheetId"]; tab = props["title"]
+    rows = sp.values().get(spreadsheetId=sid, range="%s!A:J" % tab).execute().get("values", [])
+    # 見出し行を検出（「店舗名」で始まる行）
+    hr = None
+    for i, r in enumerate(rows):
+        if r and str(r[0]).strip().startswith("店舗名"):
+            hr = i; break
+    if hr is None:
+        hr = 4  # disttop後の既定（5行目）
+    # J見出し＋各店の投稿希望時間（三条は記入例）
+    sp.values().update(spreadsheetId=sid, range="%s!J%d" % (tab, hr + 1),
+        valueInputOption="RAW", body={"values": [["投稿希望時間（平日／祝日）"]]}).execute()
+    jvals = []
+    for i in range(hr + 1, len(rows)):
+        name = str(rows[i][0]).strip() if rows[i] else ""
+        if "すさび湯 河原町三条店" in name:
+            jvals.append(["平日 16:00／18:00／20:00　祝日 11:00／18:00／20:00"])
+        else:
+            jvals.append([""])
+    if jvals:
+        sp.values().update(spreadsheetId=sid, range="%s!J%d:J%d" % (tab, hr + 2, hr + 1 + len(jvals)),
+            valueInputOption="RAW", body={"values": jvals}).execute()
+    N = max(len(rows), hr + 26)
+    reqs = [
+        # 上部バナー(見出しより上の行)をJまで拡張：一旦解除→A:Jで再結合
+        {"unmergeCells": {"range": {"sheetId": gid, "startRowIndex": 0, "endRowIndex": hr, "startColumnIndex": 0, "endColumnIndex": 10}}},
+    ]
+    for rr in range(0, hr):
+        reqs.append({"mergeCells": {"range": {"sheetId": gid, "startRowIndex": rr, "endRowIndex": rr + 1,
+            "startColumnIndex": 0, "endColumnIndex": 10}, "mergeType": "MERGE_ALL"}})
+    reqs += [
+        # J見出しを他の見出しと同じ濃色＋白太字
+        {"repeatCell": {"range": {"sheetId": gid, "startRowIndex": hr, "endRowIndex": hr + 1, "startColumnIndex": 9, "endColumnIndex": 10},
+            "cell": {"userEnteredFormat": {"backgroundColor": {"red": 0.17, "green": 0.24, "blue": 0.33},
+                "horizontalAlignment": "CENTER", "verticalAlignment": "MIDDLE", "wrapStrategy": "WRAP",
+                "textFormat": {"bold": True, "foregroundColor": {"red": 1, "green": 1, "blue": 1}}}},
+            "fields": "userEnteredFormat(backgroundColor,horizontalAlignment,verticalAlignment,wrapStrategy,textFormat)"}},
+        # J列 幅＋データ折返し
+        {"updateDimensionProperties": {"range": {"sheetId": gid, "dimension": "COLUMNS", "startIndex": 9, "endIndex": 10},
+            "properties": {"pixelSize": 250}, "fields": "pixelSize"}},
+        {"repeatCell": {"range": {"sheetId": gid, "startRowIndex": hr + 1, "endRowIndex": N, "startColumnIndex": 9, "endColumnIndex": 10},
+            "cell": {"userEnteredFormat": {"wrapStrategy": "WRAP", "verticalAlignment": "MIDDLE"}},
+            "fields": "userEnteredFormat(wrapStrategy,verticalAlignment)"}},
+        # J列 罫線（見出し〜データ）
+        {"updateBorders": {"range": {"sheetId": gid, "startRowIndex": hr, "endRowIndex": N, "startColumnIndex": 9, "endColumnIndex": 10},
+            "top": {"style": "SOLID", "color": {"red": 0.6, "green": 0.65, "blue": 0.72}},
+            "bottom": {"style": "SOLID", "color": {"red": 0.6, "green": 0.65, "blue": 0.72}},
+            "left": {"style": "SOLID", "color": {"red": 0.6, "green": 0.65, "blue": 0.72}},
+            "right": {"style": "SOLID", "color": {"red": 0.6, "green": 0.65, "blue": 0.72}},
+            "innerHorizontal": {"style": "SOLID", "color": {"red": 0.85, "green": 0.87, "blue": 0.9}}}},
+    ]
+    try:
+        sp.batchUpdate(spreadsheetId=sid, body={"requests": reqs}).execute()
+    except Exception as e:
+        print("[TIME] 書式一部スキップ:", e)
+    print("[TIME] 完了：投稿希望時間(J列)追加＋三条の記入例: https://docs.google.com/spreadsheets/d/%s/edit" % sid)
+
+
 def pending():
     """承認待ちタブの各枠の状態（when/status/redo回数/pattern）を出力（redo詰まり診断用）。"""
     cr = _creds(); sh = _sheets(cr)
@@ -758,5 +827,7 @@ if __name__ == "__main__":
         disttop(arg)
     elif mode == "distwarn":
         distwarn(arg)
+    elif mode == "disttime":
+        disttime(arg)
     else:
         print("使い方: python store_master.py init | setup [store_id] | columns | intake | requestsheet | roster | names | pending | saemail | distsheet | all")
