@@ -225,6 +225,21 @@ def roster():
     print("[ROSTER] 『提出チェック』タブを用意しました（A列に店名を入力／H列は自動判定・消さない）")
 
 
+def names():
+    """『提出チェック』タブA列の店名を一覧出力（配布用CSVを作るために読み取る）。"""
+    cr = _creds(); sh = _sheets(cr)
+    try:
+        rows = sh.values().get(spreadsheetId=SHEET_ID, range=ROSTER_TAB + "!A2:A").execute().get("values", [])
+    except Exception as e:
+        print("[NAMES] 読み込み失敗:", e); return
+    cnt = 0
+    for r in rows:
+        n = (r[0] if r else "").strip()
+        if n and not n.startswith("（記入例）"):
+            print("STORE|" + n); cnt += 1
+    print("[NAMES] 合計 %d 店" % cnt)
+
+
 def requestsheet():
     """各店に配る『記入用の独立スプレッドシート』を作成。本体（機密）とは別ファイルなので安全に共有可。
     列は『店舗受付』と同じ＝記入後そのまま本体の受付タブへコピペできる。
@@ -328,5 +343,7 @@ if __name__ == "__main__":
         requestsheet()
     elif mode == "roster":
         roster()
+    elif mode == "names":
+        names()
     else:
-        print("使い方: python store_master.py init | setup [store_id] | columns | intake | requestsheet | roster | all")
+        print("使い方: python store_master.py init | setup [store_id] | columns | intake | requestsheet | roster | names | all")
