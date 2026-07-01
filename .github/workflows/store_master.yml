@@ -7,30 +7,38 @@ on:
         required: true
         default: "init"
         type: choice
-        options: [init, setup, columns, intake, requestsheet, roster, names, pending, saemail, distsheet, distdrive, distsub, distnote, disttop, distwarn, disttime, distmove, distfinal, distdump, inbox, inboxget, all]
+        options: [init, setup, columns, intake, requestsheet, roster, names, pending, saemail, distsheet, distdrive, distsub, distnote, disttop, distwarn, disttime, distmove, distfinal, distdump, inbox, inboxget, frames, all]
       store_id:
-        description: "setup対象のstore_id（空=Drive URL未設定の全店）"
+        description: "setup対象のstore_id（framesは動画フォルダID/URL）"
         required: false
         default: ""
+permissions:
+  contents: write
 jobs:
   master:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 20
     defaults:
       run:
         working-directory: susabiyu-remotion
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref_name }}
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
       - name: Install Python deps
         run: pip install google-api-python-client google-auth requests
+      - name: Install ffmpeg (framesのみ)
+        if: github.event.inputs.mode == 'frames'
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg
       - name: Write creds.json
         run: echo "$GOOGLE_CREDS_B64" | base64 -d > creds.json
         env:
           GOOGLE_CREDS_B64: ${{ secrets.GOOGLE_CREDS_B64 }}
       - name: Run store_master
+        if: github.event.inputs.mode != 'frames'
         env:
           GOOGLE_CREDS_B64: ${{ secrets.GOOGLE_CREDS_B64 }}
           SHEET_ID: ${{ secrets.SHEET_ID }}
@@ -41,3 +49,19 @@ jobs:
           SHARE_EMAIL: ${{ secrets.SHARE_EMAIL }}
           REQ_SHEET_ID: ${{ secrets.REQ_SHEET_ID }}
         run: python store_master.py "${{ github.event.inputs.mode }}" "${{ github.event.inputs.store_id }}"
+      - name: Extract frames (framesのみ)
+        if: github.event.inputs.mode == 'frames'
+        env:
+          GOOGLE_CREDS_B64: ${{ secrets.GOOGLE_CREDS_B64 }}
+        run: |
+          rm -rf review_frames
+          python extract_inbox_frames.py "${{ github.event.inputs.store_id }}"
+      - name: Commit frames (framesのみ)
+        if: github.event.inputs.mode == 'frames'
+        run: |
+          rm -f creds.json
+          git config user.name "Claude"
+          git config user.email "noreply@anthropic.com"
+          git add -A review_frames
+          git commit -m "chore(review): 参考動画のフレーム抽出（再現可否判定用）" || echo "no changes"
+          git push origin HEAD:${{ github.ref_name }}
