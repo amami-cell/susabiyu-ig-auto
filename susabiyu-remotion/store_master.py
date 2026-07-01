@@ -746,12 +746,13 @@ def inbox():
     リンクを知っていれば閲覧可にする。ここに動画を入れてもらい、こちらで中身を確認する用。"""
     cr = _creds(); drive = _drive(cr)
     fid = _mkfolder(drive, "参考テンプレ受け取り（CapCut等）")
-    _share(drive, fid, SHARE_EMAIL)   # 編集権限＝あなたはここに動画をアップロードできる
-    try:
-        drive.permissions().create(fileId=fid, body={"type": "anyone", "role": "reader"},
+    owner = SHARE_EMAIL or "amami@8sin.co.jp"
+    _share(drive, fid, owner)         # あなた本人に編集権限（アップロードできる）
+    try:                              # リンクを知っていれば誰でも編集可＝ログインしていればアップロード可
+        drive.permissions().create(fileId=fid, body={"type": "anyone", "role": "writer"},
             supportsAllDrives=True).execute()
     except Exception as e:
-        print("[INBOX] リンク共有(閲覧)スキップ:", e)
+        print("[INBOX] リンク共有(編集)スキップ:", e)
     print("[INBOX] 受け取りフォルダURL: %s" % _folder_url(fid))
     print("[INBOX] フォルダID: %s" % fid)
     print("[INBOX] 編集共有先: %s" % SHARE_EMAIL)
