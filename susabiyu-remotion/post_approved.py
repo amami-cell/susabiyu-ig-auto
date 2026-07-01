@@ -7,7 +7,7 @@ JST = datetime.timezone(datetime.timedelta(hours=9))
 SHEET_ID = "13zKaUblOwmgZ-lgCfxylCLlW2Fqutqct5h5TvMRWv30"
 APP_TAB = prepare.APP_TAB  # 承認待
 DRY = os.environ.get("DRY") == "1"
-MAX_REDO = 2
+MAX_REDO = 5
 
 REG = prepare.REG
 decide = prepare.decide
@@ -174,6 +174,87 @@ def _notify_post_failure(dt, pattern, cap, err):
         print("LINE\u901a\u77e5\u5931\u6557(\u7d99\u7d9a):", e)
 
 
+def do_redo(sh, rownum, row, dt, creds):
+    """1件の作り直しを実行。上限到達なら現内容で確定(pending)。main/scan共用。"""
+    def col(n):
+        return row[n] if len(row) > n else ""
+    when_str = dt.strftime("%Y-%m-%d %H:%M")
+    pattern = col(3)
+    redo_count = get_redo_count(row)
+    if redo_count >= MAX_REDO:
+        set_status(sh, rownum, "pending")
+        line_redo_limit_notify(sh, dt, pattern, col(5))
+        print("作り直し上限(%d) -> pending: %s" % (MAX_REDO, when_str))
+        return
+    try:
+        new_pattern, uri, cap, new_picked, new_blur, new_poster = regenerate(creds, dt)
+        update_preview_row(sh, rownum, new_pattern, uri, cap, new_picked, redo_count + 1, new_poster, new_blur)
+    except BaseException as e:
+        print("[REDO] 作り直し失敗 -> pendingに戻す:", e)
+        try:
+            set_status(sh, rownum, "pending")
+        except Exception as e2:
+            print("[REDO] pending復帰も失敗:", e2)
+        try:
+            poster.line_notify("⚠️【作り直し失敗】%s の作り直しに失敗しました。元の内容のまま予定どおり自動投稿します。\n%s" % (when_str, str(e)[:200]))
+        except Exception:
+            pass
+        try:
+            token = str(col(0))
+            pwa_url = os.environ.get("PWA_URL") or "https://amami-cell.github.io/susabiyu-media/app/"
+            prepare.send_push(sh, "作り直しできませんでした",
+                              "%d/%d %02d:00 は元の内容のまま予定どおり投稿します。" % (dt.month, dt.day, dt.hour),
+                              pwa_url, token, category="redo")
+        except Exception:
+            pass
+        return
+    line_redo_notify(sh, dt, new_pattern, cap, redo_count + 1)
+    try:
+        token = str(col(0))
+        patja = prepare.PAT_JA.get(new_pattern, new_pattern)
+        pwa_url = os.environ.get("PWA_URL") or "https://amami-cell.github.io/susabiyu-media/app/"
+        prepare.send_push(sh, "作り直し完了",
+                          "%d/%d %02d:00 %s を作り直しました。ご確認ください" % (dt.month, dt.day, dt.hour, patja),
+                          pwa_url, token, category="redo")
+    except Exception as e:
+        print("[PUSH] 作り直し通知 失敗(継続):", e)
+    print("作り直し完了 -> pending (%d/%d回目, pattern=%s): %s" % (redo_count + 1, MAX_REDO, new_pattern, when_str))
+
+
+def redo_scan(creds):
+    """承認待ちの status==redo を全部拾って必ず作り直す（GAS→GitHub起動に依存しない安全網）。"""
+    sh = poster._sheets()
+    data = sh.values().get(spreadsheetId=SHEET_ID, range=APP_TAB + "!A:K").execute().get("values", [])
+    n = 0
+    for i in range(1, len(data)):
+        row = data[i]
+        if str(row[7] if len(row) > 7 else "").strip() != "redo":
+            continue
+        whens = str(row[1] if len(row) > 1 else "").strip()[:16]
+        try:
+            dt = datetime.datetime.strptime(whens, "%Y-%m-%d %H:%M").replace(tzinfo=JST)
+        except Exception:
+            print("[SCAN] 日付解釈できずスキップ:", whens); continue
+        print("[SCAN] 作り直し対象:", whens)
+        do_redo(sh, i + 1, row, dt, creds)
+        n += 1
+    print("[SCAN] redo処理 %d 件" % n)
+
+
+def redo_check():
+    """status==redo の件数を数えて GITHUB_OUTPUT に redo=N を出力（重い処理前のゲート用）。"""
+    sh = poster._sheets()
+    data = sh.values().get(spreadsheetId=SHEET_ID, range=APP_TAB + "!A:K").execute().get("values", [])
+    n = sum(1 for i in range(1, len(data)) if str(data[i][7] if len(data[i]) > 7 else "").strip() == "redo")
+    print("[CHECK] redo件数 =", n)
+    out = os.environ.get("GITHUB_OUTPUT")
+    if out:
+        try:
+            open(out, "a").write("redo=%d\n" % n)
+        except Exception as e:
+            print("[CHECK] output書込失敗:", e)
+
+
 def main():
     creds = ""
     args = [a for a in sys.argv[1:] if a.strip()]
@@ -187,6 +268,14 @@ def main():
 
     os.environ["SHEET_ID"] = SHEET_ID
     poster.SHEET_ID = SHEET_ID
+
+    # 作り直しの安全網モード（GAS→GitHub起動に依存せず、redo枠を必ず処理する）
+    if args and args[0].strip() in ("redo-scan", "redo-check"):
+        if args[0].strip() == "redo-check":
+            redo_check()
+        else:
+            redo_scan(creds)
+        return
 
     if args:
         dt = datetime.datetime.fromisoformat(" ".join(args))
