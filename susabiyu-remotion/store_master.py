@@ -569,6 +569,42 @@ def disttop(target=None):
     print("[TOP] 完了：案内を表の上へ移動＋K列撤去: https://docs.google.com/spreadsheets/d/%s/edit" % sid)
 
 
+def distwarn(target=None):
+    """表の上（見出し直上・4行目）に『画像は短辺1000px以上』の赤帯注意を入れる。冪等。"""
+    import re as _re
+    sid = (target or os.environ.get("REQ_SHEET_ID", "") or "").strip()
+    m = _re.search(r"/spreadsheets/d/([a-zA-Z0-9_-]+)", sid)
+    if m:
+        sid = m.group(1)
+    if not sid:
+        print("[WARN] シートID/URLが必要です"); return
+    cr = _creds(); sp = _sheets(cr)
+    props = sp.get(spreadsheetId=sid, fields="sheets.properties(sheetId,title)").execute()["sheets"][0]["properties"]
+    gid = props["sheetId"]; tab = props["title"]
+    warn = "⚠️ 画像は必ず【短辺1000ピクセル以上】でお願いします（小さい画像はきれいに使えません）／タテ長(9:16)推奨"
+    sp.values().update(spreadsheetId=sid, range="%s!A4" % tab, valueInputOption="RAW",
+        body={"values": [[warn]]}).execute()
+    reqs = [
+        {"mergeCells": {"range": {"sheetId": gid, "startRowIndex": 3, "endRowIndex": 4, "startColumnIndex": 0, "endColumnIndex": 9},
+            "mergeType": "MERGE_ALL"}},
+        {"repeatCell": {"range": {"sheetId": gid, "startRowIndex": 3, "endRowIndex": 4, "startColumnIndex": 0, "endColumnIndex": 9},
+            "cell": {"userEnteredFormat": {"wrapStrategy": "WRAP", "verticalAlignment": "MIDDLE", "horizontalAlignment": "CENTER",
+                "backgroundColor": {"red": 0.98, "green": 0.85, "blue": 0.85},
+                "textFormat": {"bold": True, "fontSize": 12, "foregroundColor": {"red": 0.7, "green": 0.0, "blue": 0.0}}}},
+            "fields": "userEnteredFormat(wrapStrategy,verticalAlignment,horizontalAlignment,backgroundColor,textFormat)"}},
+        {"updateBorders": {"range": {"sheetId": gid, "startRowIndex": 3, "endRowIndex": 4, "startColumnIndex": 0, "endColumnIndex": 9},
+            "top": {"style": "SOLID", "color": {"red": 0.8, "green": 0.2, "blue": 0.2}},
+            "bottom": {"style": "SOLID", "color": {"red": 0.8, "green": 0.2, "blue": 0.2}},
+            "left": {"style": "SOLID", "color": {"red": 0.8, "green": 0.2, "blue": 0.2}},
+            "right": {"style": "SOLID", "color": {"red": 0.8, "green": 0.2, "blue": 0.2}}}},
+    ]
+    try:
+        sp.batchUpdate(spreadsheetId=sid, body={"requests": reqs}).execute()
+    except Exception as e:
+        print("[WARN] 書式一部スキップ:", e)
+    print("[WARN] 完了：短辺1000px以上の赤帯注意を挿入: https://docs.google.com/spreadsheets/d/%s/edit" % sid)
+
+
 def pending():
     """承認待ちタブの各枠の状態（when/status/redo回数/pattern）を出力（redo詰まり診断用）。"""
     cr = _creds(); sh = _sheets(cr)
@@ -720,5 +756,7 @@ if __name__ == "__main__":
         distnote(arg)
     elif mode == "disttop":
         disttop(arg)
+    elif mode == "distwarn":
+        distwarn(arg)
     else:
         print("使い方: python store_master.py init | setup [store_id] | columns | intake | requestsheet | roster | names | pending | saemail | distsheet | all")
