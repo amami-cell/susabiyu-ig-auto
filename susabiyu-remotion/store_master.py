@@ -242,10 +242,14 @@ def saemail():
         print("[SA] 取得失敗:", e)
 
 
-def distsheet():
-    """各店配布用スプレッドシート(REQ_SHEET_ID=あなたが作りSAに共有した空シート)に、
-    提出チェックの店名を事前記入した記入表（パスワード欄あり）を流し込む。"""
-    sid = os.environ.get("REQ_SHEET_ID", "").strip()
+def distsheet(target=None):
+    """各店配布用スプレッドシート(あなたが作りSAに共有した空シート)に、提出チェックの
+    店名を事前記入した記入表（パスワード欄あり）を流し込む。target はシートID or URL。"""
+    import re as _re
+    sid = (target or os.environ.get("REQ_SHEET_ID", "") or "").strip()
+    m = _re.search(r"/spreadsheets/d/([a-zA-Z0-9_-]+)", sid)  # URLが来たらID抽出
+    if m:
+        sid = m.group(1)
     if not sid:
         print("[DIST] REQ_SHEET_ID未設定。空のスプレッドシートを作成しサービスアカウントに"
               "編集権限で共有→そのIDを REQ_SHEET_ID に入れて再実行してください。")
@@ -408,6 +412,6 @@ if __name__ == "__main__":
     elif mode == "saemail":
         saemail()
     elif mode == "distsheet":
-        distsheet()
+        distsheet(arg)
     else:
         print("使い方: python store_master.py init | setup [store_id] | columns | intake | requestsheet | roster | names | pending | saemail | distsheet | all")
