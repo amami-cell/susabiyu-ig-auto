@@ -455,6 +455,65 @@ def distsub(target=None):
     print("[SUB] 完了：サブフォルダ作成＋案内タブ: https://docs.google.com/spreadsheets/d/%s/edit" % sid)
 
 
+def distnote(target=None):
+    """一覧シートの右側(K列)に『フォルダの入れ方』案内を併記＋H1/I1(URL見出し)にセルメモ。"""
+    import re as _re
+    sid = (target or os.environ.get("REQ_SHEET_ID", "") or "").strip()
+    m = _re.search(r"/spreadsheets/d/([a-zA-Z0-9_-]+)", sid)
+    if m:
+        sid = m.group(1)
+    if not sid:
+        print("[NOTE] シートID/URLが必要です"); return
+    cr = _creds(); sp = _sheets(cr)
+    props = sp.get(spreadsheetId=sid, fields="sheets.properties(sheetId,title)").execute()["sheets"][0]["properties"]
+    gid = props["sheetId"]; tab = props["title"]
+    guide = [
+        ["📁 フォルダの入れ方（画像＝H列のURL／音楽＝I列のURL）"],
+        ["【画像データ用Drive】の中のフォルダ"],
+        ["　フード＝料理の写真（フードの中はメニュー別にさらに分けてもOK）"],
+        ["　ドリンク＝ドリンク・お酒の写真"],
+        ["　コース・集合写真＝コース料理／宴会／集合写真"],
+        ["　ロゴ＝お店のロゴ画像"],
+        ["　外観・内観＝お店の外観・店内の写真"],
+        ["【音楽データ用Drive】の中のフォルダ"],
+        ["　ノーマル＝落ち着いた／通常テンポのBGM"],
+        ["　アップテンポ＝明るい／テンポの速いBGM"],
+        ["※ 写真は高画質・タテ長(9:16)だときれいに使えます"],
+    ]
+    sp.values().update(spreadsheetId=sid, range="%s!K1" % tab,
+        valueInputOption="RAW", body={"values": guide}).execute()
+    n = len(guide)
+    reqs = [
+        {"updateDimensionProperties": {"range": {"sheetId": gid, "dimension": "COLUMNS", "startIndex": 10, "endIndex": 11},
+            "properties": {"pixelSize": 560}, "fields": "pixelSize"}},
+        {"repeatCell": {"range": {"sheetId": gid, "startRowIndex": 0, "endRowIndex": n, "startColumnIndex": 10, "endColumnIndex": 11},
+            "cell": {"userEnteredFormat": {"wrapStrategy": "WRAP", "verticalAlignment": "MIDDLE",
+                "backgroundColor": {"red": 1.0, "green": 0.97, "blue": 0.86}}},
+            "fields": "userEnteredFormat(wrapStrategy,verticalAlignment,backgroundColor)"}},
+        {"repeatCell": {"range": {"sheetId": gid, "startRowIndex": 0, "endRowIndex": 1, "startColumnIndex": 10, "endColumnIndex": 11},
+            "cell": {"userEnteredFormat": {"textFormat": {"bold": True, "fontSize": 12},
+                "backgroundColor": {"red": 0.99, "green": 0.9, "blue": 0.6}}},
+            "fields": "userEnteredFormat(textFormat,backgroundColor)"}},
+        {"updateBorders": {"range": {"sheetId": gid, "startRowIndex": 0, "endRowIndex": n, "startColumnIndex": 10, "endColumnIndex": 11},
+            "top": {"style": "SOLID", "color": {"red": 0.85, "green": 0.7, "blue": 0.3}},
+            "bottom": {"style": "SOLID", "color": {"red": 0.85, "green": 0.7, "blue": 0.3}},
+            "left": {"style": "SOLID", "color": {"red": 0.85, "green": 0.7, "blue": 0.3}},
+            "right": {"style": "SOLID", "color": {"red": 0.85, "green": 0.7, "blue": 0.3}},
+            "innerHorizontal": {"style": "SOLID", "color": {"red": 0.93, "green": 0.85, "blue": 0.6}}}},
+        {"updateCells": {"range": {"sheetId": gid, "startRowIndex": 0, "endRowIndex": 1, "startColumnIndex": 7, "endColumnIndex": 8},
+            "rows": [{"values": [{"note": "中のフォルダ：フード／ドリンク／コース・集合写真／ロゴ／外観・内観。フードはメニュー別にさらに分けてもOK。"}]}],
+            "fields": "note"}},
+        {"updateCells": {"range": {"sheetId": gid, "startRowIndex": 0, "endRowIndex": 1, "startColumnIndex": 8, "endColumnIndex": 9},
+            "rows": [{"values": [{"note": "中のフォルダ：ノーマル／アップテンポ。"}]}],
+            "fields": "note"}},
+    ]
+    try:
+        sp.batchUpdate(spreadsheetId=sid, body={"requests": reqs}).execute()
+    except Exception as e:
+        print("[NOTE] 書式一部スキップ:", e)
+    print("[NOTE] 完了：一覧シート右(K列)に案内併記＋URL見出しにメモ: https://docs.google.com/spreadsheets/d/%s/edit" % sid)
+
+
 def pending():
     """承認待ちタブの各枠の状態（when/status/redo回数/pattern）を出力（redo詰まり診断用）。"""
     cr = _creds(); sh = _sheets(cr)
@@ -602,5 +661,7 @@ if __name__ == "__main__":
         distdrive(arg)
     elif mode == "distsub":
         distsub(arg)
+    elif mode == "distnote":
+        distnote(arg)
     else:
         print("使い方: python store_master.py init | setup [store_id] | columns | intake | requestsheet | roster | names | pending | saemail | distsheet | all")
