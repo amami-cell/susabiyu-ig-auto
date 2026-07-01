@@ -270,6 +270,94 @@ def distsheet(target=None):
     print("[DIST] 配布用シートに %d 店を記入しました: https://docs.google.com/spreadsheets/d/%s/edit" % (len(stores), sid))
 
 
+def _share_anyone(drive, fid):
+    try:
+        drive.permissions().create(fileId=fid, body={"type": "anyone", "role": "writer"},
+            supportsAllDrives=True).execute()
+    except Exception as e:
+        print("[DIST] リンク共有設定スキップ:", e)
+
+
+def distdrive(target=None):
+    """配布用シートを見やすく整形（交互色＋枠＋ヘッダー固定）＋各店の画像/音楽フォルダを作成し
+    H/I列にURLを貼付＋すさび湯三条を記入例として全項目埋める。target はシートID or URL。"""
+    import re as _re
+    sid = (target or os.environ.get("REQ_SHEET_ID", "") or "").strip()
+    m = _re.search(r"/spreadsheets/d/([a-zA-Z0-9_-]+)", sid)
+    if m:
+        sid = m.group(1)
+    if not sid:
+        print("[DIST] シートID/URLが必要です"); return
+    cr = _creds(); sp = _sheets(cr); drive = _drive(cr)
+    props = sp.get(spreadsheetId=sid, fields="sheets.properties(sheetId,title)").execute()["sheets"][0]["properties"]
+    gid = props["sheetId"]; tab = props["title"]
+    rows = sp.values().get(spreadsheetId=sid, range="%s!A:I" % tab).execute().get("values", [])
+    # 親フォルダ（全店の素材をまとめる）
+    parent = _mkfolder(drive, "すさび湯グループ 投稿素材（画像・音楽）")
+    _share_anyone(drive, parent); _share(drive, parent, SHARE_EMAIL)
+    # H/I 見出し
+    sp.values().update(spreadsheetId=sid, range="%s!H1:I1" % tab, valueInputOption="RAW",
+        body={"values": [["画像データ用Drive（URL）", "音楽データ用Drive（URL）"]]}).execute()
+    # 各店の画像/音楽フォルダ作成→URL（親配下＝親の共有を継承）
+    hi = []
+    for i in range(1, len(rows)):
+        name = (rows[i][0].strip() if rows[i] else "")
+        if not name:
+            hi.append(["", ""]); continue
+        img = _mkfolder(drive, name + " 画像", parent)
+        mus = _mkfolder(drive, name + " 音楽", parent)
+        hi.append([_folder_url(img), _folder_url(mus)])
+        print("[DIST] %s の画像/音楽フォルダ作成" % name)
+    if hi:
+        sp.values().update(spreadsheetId=sid, range="%s!H2:I%d" % (tab, 1 + len(hi)),
+            valueInputOption="RAW", body={"values": hi}).execute()
+    # すさび湯三条を記入例として全項目埋める（B〜G）
+    ex_row = 2
+    for i in range(1, len(rows)):
+        if rows[i] and "すさび湯 河原町三条店" in str(rows[i][0]):
+            ex_row = i + 1; break
+    ex = ["@susabiyu_sanjyo", "susabiyu_sanjyo（メールでも可）", "（ここに実際のパスワードを記入）",
+          "本部・天海", "amami@8sin.co.jp", "【記入例】この行のように各項目を記入してください"]
+    sp.values().update(spreadsheetId=sid, range="%s!B%d:G%d" % (tab, ex_row, ex_row),
+        valueInputOption="RAW", body={"values": [ex]}).execute()
+    # 書式：ヘッダー固定＋濃色ヘッダー＋罫線＋列幅（冪等）
+    N = max(len(rows), 26)
+    fmt = [
+        {"updateSheetProperties": {"properties": {"sheetId": gid, "gridProperties": {"frozenRowCount": 1}},
+            "fields": "gridProperties.frozenRowCount"}},
+        {"repeatCell": {"range": {"sheetId": gid, "startRowIndex": 0, "endRowIndex": 1, "startColumnIndex": 0, "endColumnIndex": 9},
+            "cell": {"userEnteredFormat": {"backgroundColor": {"red": 0.17, "green": 0.24, "blue": 0.33},
+                "horizontalAlignment": "CENTER", "verticalAlignment": "MIDDLE", "wrapStrategy": "WRAP",
+                "textFormat": {"bold": True, "foregroundColor": {"red": 1, "green": 1, "blue": 1}}}},
+            "fields": "userEnteredFormat(backgroundColor,horizontalAlignment,verticalAlignment,wrapStrategy,textFormat)"}},
+        {"updateBorders": {"range": {"sheetId": gid, "startRowIndex": 0, "endRowIndex": N, "startColumnIndex": 0, "endColumnIndex": 9},
+            "top": {"style": "SOLID", "color": {"red": 0.6, "green": 0.65, "blue": 0.72}},
+            "bottom": {"style": "SOLID", "color": {"red": 0.6, "green": 0.65, "blue": 0.72}},
+            "left": {"style": "SOLID", "color": {"red": 0.6, "green": 0.65, "blue": 0.72}},
+            "right": {"style": "SOLID", "color": {"red": 0.6, "green": 0.65, "blue": 0.72}},
+            "innerHorizontal": {"style": "SOLID", "color": {"red": 0.82, "green": 0.85, "blue": 0.89}},
+            "innerVertical": {"style": "SOLID", "color": {"red": 0.82, "green": 0.85, "blue": 0.89}}}},
+    ]
+    widths = [("A", 200), ("B", 200), ("C", 210), ("D", 210), ("E", 150), ("F", 190), ("G", 240), ("H", 260), ("I", 260)]
+    for idx, (col, w) in enumerate(widths):
+        fmt.append({"updateDimensionProperties": {"range": {"sheetId": gid, "dimension": "COLUMNS",
+            "startIndex": idx, "endIndex": idx + 1}, "properties": {"pixelSize": w}, "fields": "pixelSize"}})
+    try:
+        sp.batchUpdate(spreadsheetId=sid, body={"requests": fmt}).execute()
+    except Exception as e:
+        print("[DIST] 書式(基本)一部スキップ:", e)
+    # 交互色バンディング（既にあると失敗するので単独try）
+    try:
+        sp.batchUpdate(spreadsheetId=sid, body={"requests": [
+            {"addBanding": {"bandedRange": {"range": {"sheetId": gid, "startRowIndex": 1, "endRowIndex": N,
+                "startColumnIndex": 0, "endColumnIndex": 9},
+                "rowProperties": {"firstBandColor": {"red": 1, "green": 1, "blue": 1},
+                    "secondBandColor": {"red": 0.94, "green": 0.96, "blue": 0.98}}}}}]}).execute()
+    except Exception as e:
+        print("[DIST] 交互色は既に設定済みかスキップ:", e)
+    print("[DIST] 完了：画像/音楽フォルダ作成＋整形＋記入例入力: https://docs.google.com/spreadsheets/d/%s/edit" % sid)
+
+
 def pending():
     """承認待ちタブの各枠の状態（when/status/redo回数/pattern）を出力（redo詰まり診断用）。"""
     cr = _creds(); sh = _sheets(cr)
@@ -413,5 +501,7 @@ if __name__ == "__main__":
         saemail()
     elif mode == "distsheet":
         distsheet(arg)
+    elif mode == "distdrive":
+        distdrive(arg)
     else:
         print("使い方: python store_master.py init | setup [store_id] | columns | intake | requestsheet | roster | names | pending | saemail | distsheet | all")
