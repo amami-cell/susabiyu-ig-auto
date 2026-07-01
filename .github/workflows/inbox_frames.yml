@@ -1,0 +1,46 @@
+name: susabiyu-inbox-frames
+on:
+  workflow_dispatch:
+    inputs:
+      folder:
+        description: "参考動画フォルダのID or URL"
+        required: true
+        default: "12l0GSDYqSHNrRrn_7x2PB-3kBT5yiYqD"
+permissions:
+  contents: write
+jobs:
+  frames:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: susabiyu-remotion
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: claude/epic-maxwell-mj7dkg
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install deps
+        run: |
+          pip install google-api-python-client google-auth
+          sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg
+      - name: Write creds.json
+        run: echo "$GOOGLE_CREDS_B64" | base64 -d > creds.json
+        env:
+          GOOGLE_CREDS_B64: ${{ secrets.GOOGLE_CREDS_B64 }}
+      - name: Extract frames
+        env:
+          GOOGLE_CREDS_B64: ${{ secrets.GOOGLE_CREDS_B64 }}
+        run: |
+          rm -rf review_frames
+          python extract_inbox_frames.py "${{ github.event.inputs.folder }}"
+      - name: Commit frames
+        run: |
+          rm -f creds.json
+          git config user.name "Claude"
+          git config user.email "noreply@anthropic.com"
+          git add -A review_frames
+          git commit -m "chore(review): 参考動画のフレーム抽出（再現可否判定用）" || echo "no changes"
+          git push origin HEAD:claude/epic-maxwell-mj7dkg
