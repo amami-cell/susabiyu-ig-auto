@@ -758,6 +758,31 @@ def inbox():
     print("[INBOX] 編集共有先: %s" % SHARE_EMAIL)
 
 
+def outbox():
+    """あなた専用の非公開プレビュー用Driveフォルダを作成（あなたのメールだけに共有＝リンク公開なし）。
+    さらにサービスアカウントが動画をここへ入れられるか（ストレージ制限）を実地テストする。"""
+    cr = _creds(); drive = _drive(cr)
+    fid = _mkfolder(drive, "🎬 専用プレビュー（動画確認・非公開）")
+    owner = SHARE_EMAIL or "amami@8sin.co.jp"
+    _share(drive, fid, owner)         # あなただけに共有（anyoneリンクは付けない＝完全非公開）
+    print("[OUTBOX] 専用フォルダURL: %s" % _folder_url(fid))
+    print("[OUTBOX] フォルダID: %s" % fid)
+    print("[OUTBOX] 共有先(あなたのみ): %s" % owner)
+    # アップロード可否テスト（SAのMy Driveストレージ制限に当たるか）
+    try:
+        from googleapiclient.http import MediaInMemoryUpload
+        media = MediaInMemoryUpload(b"upload test", mimetype="text/plain")
+        f = drive.files().create(body={"name": "_uploadtest.txt", "parents": [fid]},
+            media_body=media, fields="id", supportsAllDrives=True).execute()
+        print("[OUTBOX] アップロードテスト: 成功 ✅（自動で動画を入れられます） id=%s" % f["id"])
+        try:
+            drive.files().delete(fileId=f["id"], supportsAllDrives=True).execute()
+        except Exception:
+            pass
+    except Exception as e:
+        print("[OUTBOX] アップロードテスト: 失敗 ❌（SA制限）: %s" % e)
+
+
 def inboxget(target=None):
     """受け取りフォルダ(ID or URL)の中身を一覧表示（動画ファイルの確認用）。"""
     sid = (target or "").strip()
@@ -1029,6 +1054,8 @@ if __name__ == "__main__":
         distfinal(arg)
     elif mode == "inbox":
         inbox()
+    elif mode == "outbox":
+        outbox()
     elif mode == "inboxget":
         inboxget(arg)
     elif mode == "distdump":
