@@ -514,6 +514,61 @@ def distnote(target=None):
     print("[NOTE] 完了：一覧シート右(K列)に案内併記＋URL見出しにメモ: https://docs.google.com/spreadsheets/d/%s/edit" % sid)
 
 
+def disttop(target=None):
+    """右のK列案内を撤去し、表の上（先頭）に案内バナーを差し込む。その下から表（見出し＋各店行）。"""
+    import re as _re
+    sid = (target or os.environ.get("REQ_SHEET_ID", "") or "").strip()
+    m = _re.search(r"/spreadsheets/d/([a-zA-Z0-9_-]+)", sid)
+    if m:
+        sid = m.group(1)
+    if not sid:
+        print("[TOP] シートID/URLが必要です"); return
+    cr = _creds(); sp = _sheets(cr)
+    props = sp.get(spreadsheetId=sid, fields="sheets.properties(sheetId,title)").execute()["sheets"][0]["properties"]
+    gid = props["sheetId"]; tab = props["title"]
+    # 先頭に4行挿入（案内3行＋空1行）→ 見出し/データはその下へ
+    sp.batchUpdate(spreadsheetId=sid, body={"requests": [
+        {"insertDimension": {"range": {"sheetId": gid, "dimension": "ROWS", "startIndex": 0, "endIndex": 4},
+            "inheritFromBefore": False}}]}).execute()
+    guide = [
+        ["📁 アップロードのご案内 ── 自分の店の行に入力し、Drive（H列＝画像／I列＝音楽）に素材を入れてください"],
+        ["【画像】フード＝料理写真（フードの中はメニュー別にさらに分けてもOK）／ドリンク＝ドリンク・お酒／コース・集合写真＝コース料理・宴会・集合／ロゴ＝店ロゴ／外観・内観＝外観・店内"],
+        ["【音楽】ノーマル＝落ち着いた・通常テンポのBGM／アップテンポ＝明るい・速いテンポのBGM　※写真は高画質・タテ長(9:16)推奨"],
+    ]
+    sp.values().update(spreadsheetId=sid, range="%s!A1" % tab, valueInputOption="RAW", body={"values": guide}).execute()
+    # 右のK列案内を消す（値）
+    sp.values().clear(spreadsheetId=sid, range="%s!K1:K200" % tab, body={}).execute()
+    B = {"style": "SOLID", "color": {"red": 0.85, "green": 0.7, "blue": 0.3}}
+    NB = {"style": "NONE"}
+    reqs = [
+        {"mergeCells": {"range": {"sheetId": gid, "startRowIndex": 0, "endRowIndex": 1, "startColumnIndex": 0, "endColumnIndex": 9}, "mergeType": "MERGE_ALL"}},
+        {"mergeCells": {"range": {"sheetId": gid, "startRowIndex": 1, "endRowIndex": 2, "startColumnIndex": 0, "endColumnIndex": 9}, "mergeType": "MERGE_ALL"}},
+        {"mergeCells": {"range": {"sheetId": gid, "startRowIndex": 2, "endRowIndex": 3, "startColumnIndex": 0, "endColumnIndex": 9}, "mergeType": "MERGE_ALL"}},
+        {"repeatCell": {"range": {"sheetId": gid, "startRowIndex": 0, "endRowIndex": 3, "startColumnIndex": 0, "endColumnIndex": 9},
+            "cell": {"userEnteredFormat": {"wrapStrategy": "WRAP", "verticalAlignment": "MIDDLE",
+                "backgroundColor": {"red": 1.0, "green": 0.97, "blue": 0.86}, "textFormat": {"fontSize": 11}}},
+            "fields": "userEnteredFormat(wrapStrategy,verticalAlignment,backgroundColor,textFormat)"}},
+        {"repeatCell": {"range": {"sheetId": gid, "startRowIndex": 0, "endRowIndex": 1, "startColumnIndex": 0, "endColumnIndex": 9},
+            "cell": {"userEnteredFormat": {"backgroundColor": {"red": 0.99, "green": 0.9, "blue": 0.6}, "textFormat": {"bold": True, "fontSize": 13}}},
+            "fields": "userEnteredFormat(backgroundColor,textFormat)"}},
+        {"updateBorders": {"range": {"sheetId": gid, "startRowIndex": 0, "endRowIndex": 3, "startColumnIndex": 0, "endColumnIndex": 9},
+            "top": B, "bottom": B, "left": B, "right": B, "innerHorizontal": B}},
+        {"updateDimensionProperties": {"range": {"sheetId": gid, "dimension": "COLUMNS", "startIndex": 10, "endIndex": 11},
+            "properties": {"pixelSize": 100}, "fields": "pixelSize"}},
+        {"repeatCell": {"range": {"sheetId": gid, "startRowIndex": 0, "endRowIndex": 200, "startColumnIndex": 10, "endColumnIndex": 11},
+            "cell": {"userEnteredFormat": {}}, "fields": "userEnteredFormat"}},
+        {"updateBorders": {"range": {"sheetId": gid, "startRowIndex": 0, "endRowIndex": 200, "startColumnIndex": 10, "endColumnIndex": 11},
+            "top": NB, "bottom": NB, "left": NB, "right": NB, "innerHorizontal": NB, "innerVertical": NB}},
+        {"updateSheetProperties": {"properties": {"sheetId": gid, "gridProperties": {"frozenRowCount": 5}},
+            "fields": "gridProperties.frozenRowCount"}},
+    ]
+    try:
+        sp.batchUpdate(spreadsheetId=sid, body={"requests": reqs}).execute()
+    except Exception as e:
+        print("[TOP] 書式一部スキップ:", e)
+    print("[TOP] 完了：案内を表の上へ移動＋K列撤去: https://docs.google.com/spreadsheets/d/%s/edit" % sid)
+
+
 def pending():
     """承認待ちタブの各枠の状態（when/status/redo回数/pattern）を出力（redo詰まり診断用）。"""
     cr = _creds(); sh = _sheets(cr)
@@ -663,5 +718,7 @@ if __name__ == "__main__":
         distsub(arg)
     elif mode == "distnote":
         distnote(arg)
+    elif mode == "disttop":
+        disttop(arg)
     else:
         print("使い方: python store_master.py init | setup [store_id] | columns | intake | requestsheet | roster | names | pending | saemail | distsheet | all")
