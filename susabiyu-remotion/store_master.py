@@ -225,6 +225,23 @@ def roster():
     print("[ROSTER] 『提出チェック』タブを用意しました（A列に店名を入力／H列は自動判定・消さない）")
 
 
+def pending():
+    """承認待ちタブの各枠の状態（when/status/redo回数/pattern）を出力（redo詰まり診断用）。"""
+    cr = _creds(); sh = _sheets(cr)
+    try:
+        rows = sh.values().get(spreadsheetId=SHEET_ID, range="承認待ち!A:K").execute().get("values", [])
+    except Exception as e:
+        print("[PEND] 読込失敗:", e); return
+    for i in range(1, len(rows)):
+        r = rows[i]
+        g = lambda n: (r[n] if len(r) > n else "")
+        when = str(g(1)).strip()
+        if not when:
+            continue
+        print("PEND|when=%s|status=%s|redo=%s|pattern=%s|token=%s" % (when, g(7), g(10), g(3), g(0)))
+    print("[PEND] 完了")
+
+
 def names():
     """『提出チェック』タブA列の店名を一覧出力（配布用CSVを作るために読み取る）。"""
     cr = _creds(); sh = _sheets(cr)
@@ -345,5 +362,7 @@ if __name__ == "__main__":
         roster()
     elif mode == "names":
         names()
+    elif mode == "pending":
+        pending()
     else:
-        print("使い方: python store_master.py init | setup [store_id] | columns | intake | requestsheet | roster | names | all")
+        print("使い方: python store_master.py init | setup [store_id] | columns | intake | requestsheet | roster | names | pending | all")
