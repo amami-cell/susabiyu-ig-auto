@@ -741,6 +741,73 @@ def distmove(target=None):
     print("[MOVE] 完了：投稿希望時間を備考の隣(H)へ移動／Drive=I,J: https://docs.google.com/spreadsheets/d/%s/edit" % sid)
 
 
+def _find_list_tab(sp, sid):
+    """配布シートの『一覧タブ』を見出し基準で確実に特定する（sheets[0]に依存しない）。
+    先頭〜12行のどこかに『店舗名』で始まるセルを持つタブ＝入力一覧。
+    戻り値: (gid, title, header_row_index, header_list) / 見つからなければ (None,...)。"""
+    meta = sp.get(spreadsheetId=sid, fields="sheets.properties(sheetId,title,index)").execute()
+    for s in meta.get("sheets", []):
+        p = s["properties"]; title = p["title"]
+        rows = sp.values().get(spreadsheetId=sid, range="'%s'!A1:L12" % title).execute().get("values", [])
+        for i, r in enumerate(rows):
+            if r and str(r[0]).strip().startswith("店舗名"):
+                return p["sheetId"], title, i, r
+    return None, None, None, None
+
+
+def distfinal(target=None):
+    """配布シートの最終仕上げ（安全・冪等）。一覧タブを見出し『店舗名』で特定し、
+      ① 投稿希望時間(見出しに『投稿希望』を含む列)の三条の記入例が空なら補完
+      ② 一覧タブを先頭(index0)へ＝開いてすぐ入力欄が見える
+    既存のDrive URL・各店データには一切触れない。"""
+    import re as _re
+    sid = (target or os.environ.get("REQ_SHEET_ID", "") or "").strip()
+    m = _re.search(r"/spreadsheets/d/([a-zA-Z0-9_-]+)", sid)
+    if m:
+        sid = m.group(1)
+    if not sid:
+        print("[FINAL] シートID/URLが必要です"); return
+    cr = _creds(); sp = _sheets(cr)
+    gid, tab, hr, header = _find_list_tab(sp, sid)
+    if gid is None:
+        print("[FINAL] 一覧タブ（『店舗名』見出し）が見つかりません"); return
+
+    def col_of(key):
+        for j, c in enumerate(header):
+            if key in str(c):
+                return j
+        return None
+    c_time = col_of("投稿希望")
+    c_img = col_of("画像データ")
+    c_mus = col_of("音楽データ")
+    rows = sp.values().get(spreadsheetId=sid, range="'%s'!A:L" % tab).execute().get("values", [])
+    # ① 三条の投稿希望時間を記入例で補完（空のときだけ）
+    if c_time is not None:
+        for i in range(hr + 1, len(rows)):
+            r = rows[i]
+            name = str(r[0]).strip() if r else ""
+            if "すさび湯 河原町三条店" in name:
+                cur = r[c_time] if len(r) > c_time else ""
+                if not str(cur).strip():
+                    col = chr(65 + c_time)
+                    sp.values().update(spreadsheetId=sid, range="'%s'!%s%d" % (tab, col, i + 1),
+                        valueInputOption="RAW",
+                        body={"values": [["平日 16:00／18:00／20:00　祝日 11:00／18:00／20:00"]]}).execute()
+                    print("[FINAL] 三条の投稿希望時間を記入例で補完(%s%d)" % (col, i + 1))
+                break
+    # ② 一覧タブを先頭へ
+    try:
+        sp.batchUpdate(spreadsheetId=sid, body={"requests": [
+            {"updateSheetProperties": {"properties": {"sheetId": gid, "index": 0}, "fields": "index"}}]}).execute()
+        print("[FINAL] 一覧タブ『%s』を先頭に移動" % tab)
+    except Exception as e:
+        print("[FINAL] タブ並べ替えスキップ:", e)
+    tl = (lambda n: chr(65 + n) if isinstance(n, int) else "-")
+    print("[FINAL] 完了：一覧=%s ／ 時間列=%s 画像列=%s 音楽列=%s : "
+          "https://docs.google.com/spreadsheets/d/%s/edit"
+          % (tab, tl(c_time), tl(c_img), tl(c_mus), sid))
+
+
 def distdump(target=None):
     """配布シートの上部数行を列付きで出力（レイアウト診断用）。"""
     import re as _re
@@ -922,6 +989,8 @@ if __name__ == "__main__":
         disttime(arg)
     elif mode == "distmove":
         distmove(arg)
+    elif mode == "distfinal":
+        distfinal(arg)
     elif mode == "distdump":
         distdump(arg)
     else:
