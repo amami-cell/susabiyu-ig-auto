@@ -358,6 +358,103 @@ def distdrive(target=None):
     print("[DIST] 完了：画像/音楽フォルダ作成＋整形＋記入例入力: https://docs.google.com/spreadsheets/d/%s/edit" % sid)
 
 
+def _folder_id_from_url(u):
+    import re as _re
+    m = _re.search(r"/folders/([a-zA-Z0-9_-]+)", u or "")
+    return m.group(1) if m else ""
+
+
+def _child_folder(drive, parent_id, name):
+    q = ("'%s' in parents and name = '%s' and mimeType = 'application/vnd.google-apps.folder' "
+         "and trashed = false") % (parent_id, name.replace("'", "\\'"))
+    try:
+        r = drive.files().list(q=q, fields="files(id,name)", spaces="drive",
+            supportsAllDrives=True, includeItemsFromAllDrives=True).execute()
+        fs = r.get("files", [])
+        return fs[0]["id"] if fs else None
+    except Exception:
+        return None
+
+
+def _ensure_sub(drive, parent_id, name):
+    ex = _child_folder(drive, parent_id, name)
+    return ex if ex else _mkfolder(drive, name, parent_id)
+
+
+def distsub(target=None):
+    """既存の画像/音楽フォルダ(H/I列URL)の中にサブフォルダを作成し、アップロード案内タブを追加。
+    画像: フード/ドリンク/コース・集合写真/ロゴ/外観・内観、音楽: ノーマル/アップテンポ。冪等。"""
+    import re as _re
+    sid = (target or os.environ.get("REQ_SHEET_ID", "") or "").strip()
+    m = _re.search(r"/spreadsheets/d/([a-zA-Z0-9_-]+)", sid)
+    if m:
+        sid = m.group(1)
+    if not sid:
+        print("[SUB] シートID/URLが必要です"); return
+    cr = _creds(); sp = _sheets(cr); drive = _drive(cr)
+    props = sp.get(spreadsheetId=sid, fields="sheets.properties(sheetId,title)").execute()["sheets"][0]["properties"]
+    tab = props["title"]
+    rows = sp.values().get(spreadsheetId=sid, range="%s!A:I" % tab).execute().get("values", [])
+    IMG_SUB = ["フード", "ドリンク", "コース・集合写真", "ロゴ", "外観・内観"]
+    MUS_SUB = ["ノーマル", "アップテンポ"]
+    for i in range(1, len(rows)):
+        row = rows[i]
+        name = (row[0].strip() if row else "")
+        if not name:
+            continue
+        iid = _folder_id_from_url(row[7] if len(row) > 7 else "")
+        mid = _folder_id_from_url(row[8] if len(row) > 8 else "")
+        if iid:
+            for s in IMG_SUB:
+                _ensure_sub(drive, iid, s)
+        if mid:
+            for s in MUS_SUB:
+                _ensure_sub(drive, mid, s)
+        print("[SUB] %s サブフォルダ整備" % name)
+    # 案内タブ
+    guide_title = "アップロード案内"
+    meta = sp.get(spreadsheetId=sid, fields="sheets.properties(sheetId,title)").execute()
+    titles = [s["properties"]["title"] for s in meta.get("sheets", [])]
+    if guide_title not in titles:
+        sp.batchUpdate(spreadsheetId=sid, body={"requests": [
+            {"addSheet": {"properties": {"title": guide_title}}}]}).execute()
+    lines = [
+        ["■ 素材アップロードのご案内"],
+        [""],
+        ["各店の「画像データ用Drive」「音楽データ用Drive」（一覧シートのH・I列のURL）を開き、下記のフォルダに入れてください。"],
+        ["フォルダはこちらで用意しています。"],
+        [""],
+        ["【画像データ用Drive】"],
+        ["・フード … 料理の写真（必要ならフードの中をメニュー別にさらにフォルダ分けしてもOK）"],
+        ["・ドリンク … ドリンク・お酒の写真"],
+        ["・コース・集合写真 … コース料理／宴会／集合写真"],
+        ["・ロゴ … お店のロゴ画像"],
+        ["・外観・内観 … お店の外観・店内の写真"],
+        [""],
+        ["【音楽データ用Drive】"],
+        ["・ノーマル … 落ち着いた／通常テンポのBGM"],
+        ["・アップテンポ … 明るい／テンポの速いBGM"],
+        [""],
+        ["※ 写真はできるだけ高画質・タテ長(9:16)だときれいに使えます。"],
+        ["※ 各フォルダのURLは一覧シートのH列（画像）・I列（音楽）にあります。"],
+    ]
+    sp.values().update(spreadsheetId=sid, range="%s!A1" % guide_title,
+        valueInputOption="RAW", body={"values": lines}).execute()
+    try:
+        gg = [s["properties"]["sheetId"] for s in
+              sp.get(spreadsheetId=sid, fields="sheets.properties(sheetId,title)").execute()["sheets"]
+              if s["properties"]["title"] == guide_title][0]
+        sp.batchUpdate(spreadsheetId=sid, body={"requests": [
+            {"updateDimensionProperties": {"range": {"sheetId": gg, "dimension": "COLUMNS", "startIndex": 0, "endIndex": 1},
+                "properties": {"pixelSize": 760}, "fields": "pixelSize"}},
+            {"repeatCell": {"range": {"sheetId": gg, "startRowIndex": 0, "endRowIndex": 1, "startColumnIndex": 0, "endColumnIndex": 1},
+                "cell": {"userEnteredFormat": {"textFormat": {"bold": True, "fontSize": 13}}},
+                "fields": "userEnteredFormat.textFormat"}}]}).execute()
+    except Exception as e:
+        print("[SUB] 案内タブ書式スキップ:", e)
+    print("[SUB] 完了：サブフォルダ作成＋案内タブ: https://docs.google.com/spreadsheets/d/%s/edit" % sid)
+
+
 def pending():
     """承認待ちタブの各枠の状態（when/status/redo回数/pattern）を出力（redo詰まり診断用）。"""
     cr = _creds(); sh = _sheets(cr)
@@ -503,5 +600,7 @@ if __name__ == "__main__":
         distsheet(arg)
     elif mode == "distdrive":
         distdrive(arg)
+    elif mode == "distsub":
+        distsub(arg)
     else:
         print("使い方: python store_master.py init | setup [store_id] | columns | intake | requestsheet | roster | names | pending | saemail | distsheet | all")
