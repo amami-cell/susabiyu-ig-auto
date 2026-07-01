@@ -751,17 +751,18 @@ def distdump(target=None):
     if not sid:
         print("[DUMP] シートID/URLが必要です"); return
     cr = _creds(); sp = _sheets(cr)
-    props = sp.get(spreadsheetId=sid, fields="sheets.properties(sheetId,title)").execute()["sheets"][0]["properties"]
-    tab = props["title"]
-    rows = sp.values().get(spreadsheetId=sid, range="%s!A:L" % tab).execute().get("values", [])
-    for i in range(min(8, len(rows))):
-        r = rows[i]
-        cells = []
-        for j in range(len(r)):
-            v = str(r[j]).replace("\n", " ")[:26]
-            cells.append(chr(65 + j) + "=" + v)
-        print("ROW%d| %s" % (i + 1, " ｜ ".join(cells)))
-    print("[DUMP] 完了 (行数 %d)" % len(rows))
+    meta = sp.get(spreadsheetId=sid, fields="sheets.properties(sheetId,title,index)").execute()
+    for s in meta.get("sheets", []):
+        p = s["properties"]
+        title = p["title"]
+        print("=== TAB[%d] '%s' (id=%s) ===" % (p.get("index", -1), title, p.get("sheetId")))
+        rows = sp.values().get(spreadsheetId=sid, range="'%s'!A:L" % title).execute().get("values", [])
+        for i in range(min(7, len(rows))):
+            r = rows[i]
+            cells = [chr(65 + j) + "=" + str(r[j]).replace("\n", " ")[:22] for j in range(len(r))]
+            print("  R%d| %s" % (i + 1, " ｜ ".join(cells)))
+        print("  (行数 %d)" % len(rows))
+    print("[DUMP] 完了")
 
 
 def pending():
