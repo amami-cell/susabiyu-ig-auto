@@ -58,7 +58,10 @@ def main():
         except Exception:
             print("[PVD] 応答が読めません: %s" % r.text[:200]); continue
         if j.get("ok"):
-            print("[PVD] 納品OK ✅ %s (%.1fMB) → 天見プレビュー" % (j.get("name"), size_mb)); ok += 1
+            print("[PVD] 納品OK ✅ %s (%.1fMB)" % (j.get("name"), size_mb))
+            print("[PVD] 実行アカウント: %s ／ 保存先: %s (%s)" % (
+                j.get("email", "?"), j.get("folderName", "?"), j.get("folder", "?")))
+            ok += 1
         else:
             print("[PVD] NG ❌ %s : %s" % (f, j.get("error")))
     print("[PVD] 完了: %d/%d 本" % (ok, len(pairs)))
