@@ -791,6 +791,38 @@ def sddrives(target=None):
         print("[SD] アップロードテスト: 失敗 ❌ : %s" % e)
 
 
+def uptest(target=None):
+    """指定フォルダ(ID/URL)の素性を調べ、実際にロボットが書き込めるかテストする。
+    driveId が付いていれば共有ドライブ内＝書き込み可のはず。"""
+    fid = _folder_id_from_url(target or "") or (target or "").strip()
+    if not fid:
+        print("[UPTEST] フォルダID/URLが必要です"); return
+    cr = _creds(); drive = _drive(cr)
+    try:
+        meta = drive.files().get(fileId=fid, fields="id,name,mimeType,driveId,owners(emailAddress)",
+            supportsAllDrives=True).execute()
+        print("[UPTEST] 対象: name=%s / mimeType=%s / driveId=%s" % (
+            meta.get("name"), meta.get("mimeType"), meta.get("driveId")))
+        if meta.get("driveId"):
+            print("[UPTEST] → 共有ドライブ内のフォルダです（書き込める見込み）")
+        else:
+            print("[UPTEST] → 通常のマイドライブのフォルダです（ロボットは容量制限で入れられない見込み）")
+    except Exception as e:
+        print("[UPTEST] フォルダ情報取得に失敗（共有されていない可能性）:", e); return
+    try:
+        from googleapiclient.http import MediaInMemoryUpload
+        media = MediaInMemoryUpload(b"upload test", mimetype="text/plain")
+        f = drive.files().create(body={"name": "_uploadtest.txt", "parents": [fid]},
+            media_body=media, fields="id", supportsAllDrives=True).execute()
+        print("[UPTEST] アップロード: 成功 ✅（ここに自動で動画を入れられます） id=%s" % f["id"])
+        try:
+            drive.files().delete(fileId=f["id"], supportsAllDrives=True).execute()
+        except Exception:
+            pass
+    except Exception as e:
+        print("[UPTEST] アップロード: 失敗 ❌ : %s" % e)
+
+
 def outbox():
     """あなた専用の非公開プレビュー用Driveフォルダを作成（あなたのメールだけに共有＝リンク公開なし）。
     さらにサービスアカウントが動画をここへ入れられるか（ストレージ制限）を実地テストする。"""
@@ -1091,6 +1123,8 @@ if __name__ == "__main__":
         outbox()
     elif mode == "sddrives":
         sddrives(arg)
+    elif mode == "uptest":
+        uptest(arg)
     elif mode == "inboxget":
         inboxget(arg)
     elif mode == "distdump":
