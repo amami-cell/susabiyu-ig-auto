@@ -7,7 +7,7 @@ on:
         required: true
         default: "init"
         type: choice
-        options: [init, setup, columns, intake, requestsheet, roster, names, pending, saemail, distsheet, distdrive, distsub, distnote, disttop, distwarn, disttime, distmove, distfinal, distdump, inbox, inboxget, outbox, sddrives, uptest, frames, preview, capsamples, all]
+        options: [init, setup, columns, intake, requestsheet, roster, names, pending, saemail, distsheet, distdrive, distsub, distnote, disttop, distwarn, disttime, distmove, distfinal, distdump, inbox, inboxget, outbox, sddrives, uptest, frames, preview, capsamples, ffcsample, all]
       store_id:
         description: "setup対象のstore_id（framesは動画フォルダID/URL）"
         required: false
@@ -30,19 +30,22 @@ jobs:
           python-version: '3.12'
       - name: Install Python deps
         run: pip install google-api-python-client google-auth requests
-      - name: Install ffmpeg (frames/preview/capsamplesのみ)
-        if: github.event.inputs.mode == 'frames' || github.event.inputs.mode == 'preview' || github.event.inputs.mode == 'capsamples'
+      - name: Install ffmpeg (frames/preview/capsamples/ffcsampleのみ)
+        if: github.event.inputs.mode == 'frames' || github.event.inputs.mode == 'preview' || github.event.inputs.mode == 'capsamples' || github.event.inputs.mode == 'ffcsample'
         run: sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg
-      - name: Setup Node (capsamplesのみ)
-        if: github.event.inputs.mode == 'capsamples'
+      - name: Install 日本語フォント (ffcsampleのみ)
+        if: github.event.inputs.mode == 'ffcsample'
+        run: sudo apt-get install -y -qq fonts-noto-cjk
+      - name: Setup Node (capsamples/ffcsampleのみ)
+        if: github.event.inputs.mode == 'capsamples' || github.event.inputs.mode == 'ffcsample'
         uses: actions/setup-node@v4
         with:
           node-version: '20'
       - name: npm ci (capsamplesのみ)
         if: github.event.inputs.mode == 'capsamples'
         run: npm ci
-      - name: Install Pillow (capsamplesのみ・写真取得用)
-        if: github.event.inputs.mode == 'capsamples'
+      - name: Install Pillow (capsamples/ffcsampleのみ・写真取得用)
+        if: github.event.inputs.mode == 'capsamples' || github.event.inputs.mode == 'ffcsample'
         run: pip install Pillow
       - name: Install boto3 (previewのみ)
         if: github.event.inputs.mode == 'preview'
@@ -104,8 +107,24 @@ jobs:
             out/cap4.mp4 "④FOODpromotion_グリッド風" \
             out/cap5.mp4 "⑤REC_録画画面風" \
             out/cap6.mp4 "⑥FOODStory_シネマ風"
+      - name: FFCreator試作1本を生成→専用棚へ (ffcsampleのみ)
+        if: github.event.inputs.mode == 'ffcsample'
+        env:
+          GOOGLE_CREDS_B64: ${{ secrets.GOOGLE_CREDS_B64 }}
+          SHEET_ID: ${{ secrets.SHEET_ID }}
+          GENRE_FOOD_ID: ${{ secrets.GENRE_FOOD_ID }}
+          GENRE_SAKE_ID: ${{ secrets.GENRE_SAKE_ID }}
+          GENRE_INTERIOR_ID: ${{ secrets.GENRE_INTERIOR_ID }}
+          GENRE_EVENT_ID: ${{ secrets.GENRE_EVENT_ID }}
+          GENRE_MUSIC_UPTEMPO_ID: ${{ secrets.GENRE_MUSIC_UPTEMPO_ID }}
+          GENRE_MUSIC_NORMAL_ID: ${{ secrets.GENRE_MUSIC_NORMAL_ID }}
+        run: |
+          python fetch_tempo.py creds.json
+          npm i --no-save ffcreatorlite
+          node ffc_sample.js
+          python preview_drive.py out/ffc.mp4 "⑦FFCreator試作_既製エフェクト型"
       - name: Run store_master
-        if: github.event.inputs.mode != 'frames' && github.event.inputs.mode != 'preview' && github.event.inputs.mode != 'capsamples'
+        if: github.event.inputs.mode != 'frames' && github.event.inputs.mode != 'preview' && github.event.inputs.mode != 'capsamples' && github.event.inputs.mode != 'ffcsample'
         env:
           GOOGLE_CREDS_B64: ${{ secrets.GOOGLE_CREDS_B64 }}
           SHEET_ID: ${{ secrets.SHEET_ID }}
