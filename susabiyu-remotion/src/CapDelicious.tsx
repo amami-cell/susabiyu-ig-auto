@@ -3,6 +3,7 @@
 import { AbsoluteFill, Img, Audio, Sequence, staticFile, useCurrentFrame, interpolate, Easing } from "remotion";
 import { loadFont } from "@remotion/google-fonts/PlayfairDisplay";
 import { pick, capUptempo } from "./capData";
+import { Cine, punch, Flash } from "./cine";
 
 const { fontFamily: serif } = loadFont();
 const INTRO = 55;
@@ -21,7 +22,7 @@ const Title: React.FC<{ big?: boolean }> = ({ big }) => {
   return (
     <div style={{ textAlign: "center" }}>
       <div style={{ width: 3, height: 70 * barS, background: "#fff", margin: "0 auto 18px" }} />
-      <div style={{ color: "#fff", fontFamily: serif, fontStyle: "italic", fontWeight: 800, fontSize: big ? 96 : 72, letterSpacing: 2 }}>
+      <div style={{ color: "#fff", fontFamily: serif, fontStyle: "italic", fontWeight: 800, fontSize: big ? 96 : 72, letterSpacing: 2, textShadow: "0 2px 6px rgba(0,0,0,0.9), 0 12px 44px rgba(0,0,0,0.6)" }}>
         {text.slice(0, shown)}
         <span style={{ opacity: subO, fontWeight: 400 }}> ‖ </span>
         <span style={{ opacity: subO }}>food</span>
@@ -37,13 +38,14 @@ const Slide: React.FC<{ src: string; full: boolean }> = ({ src, full }) => {
   // 入り: 右から流れ込む残像（強い横ブラー→止まる）
   const inX = interpolate(f, [0, SMEAR], [420, 0], { extrapolateRight: "clamp", easing: Easing.out(Easing.cubic) });
   const inBlur = interpolate(f, [0, SMEAR], [26, 0], { extrapolateRight: "clamp" });
-  const zoom = interpolate(f, [0, PER], [1.0, 1.05]);
+  const zoom = interpolate(f, [0, PER], [1.0, 1.05]) * punch(f, 0.05);
+  const skew = interpolate(f, [0, SMEAR], [-9, 0], { extrapolateRight: "clamp" });
   const img = (
     <Img src={staticFile(src)} style={{ width: "100%", height: "100%", objectFit: "cover", transform: "scale(" + zoom + ")" }} />
   );
   return (
     <AbsoluteFill style={{ backgroundColor: "#000" }}>
-      <AbsoluteFill style={{ transform: "translateX(" + inX + "px)", filter: "blur(" + inBlur + "px)" }}>
+      <AbsoluteFill style={{ transform: "translateX(" + inX + "px) skewX(" + skew + "deg)", filter: "blur(" + inBlur + "px)" }}>
         {full ? (
           <AbsoluteFill>{img}</AbsoluteFill>
         ) : (
@@ -53,9 +55,10 @@ const Slide: React.FC<{ src: string; full: boolean }> = ({ src, full }) => {
         )}
       </AbsoluteFill>
       {full && <AbsoluteFill style={{ background: "linear-gradient(180deg, rgba(0,0,0,0.55) 0%, rgba(0,0,0,0) 30%, rgba(0,0,0,0) 70%, rgba(0,0,0,0.55) 100%)" }} />}
-      <div style={{ position: "absolute", top: 130, width: "100%", textAlign: "center", color: "#fff", fontFamily: serif, fontStyle: "italic", fontWeight: 800, fontSize: 58 }}>
+      <div style={{ position: "absolute", top: 130, width: "100%", textAlign: "center", color: "#fff", fontFamily: serif, fontStyle: "italic", fontWeight: 800, fontSize: 58, textShadow: "0 2px 6px rgba(0,0,0,0.9), 0 10px 36px rgba(0,0,0,0.6)" }}>
         Delicious <span style={{ fontWeight: 400 }}>‖</span> food
       </div>
+      <Flash local={f} peak={0.2} />
     </AbsoluteFill>
   );
 };
@@ -73,7 +76,7 @@ export const CapDelicious: React.FC<{ storeName?: string; handle?: string }> = (
       </Sequence>
       {PHOTOS.map((p, i) => (
         <Sequence key={i} from={INTRO + i * PER} durationInFrames={PER}>
-          <Slide src={p.src} full={i % 2 === 0} />
+          <Cine dark><Slide src={p.src} full={i % 2 === 0} /></Cine>
         </Sequence>
       ))}
       <Sequence from={INTRO + PHOTOS.length * PER} durationInFrames={OUTRO}>

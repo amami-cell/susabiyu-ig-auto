@@ -3,6 +3,7 @@
 import { AbsoluteFill, Img, Audio, Sequence, staticFile, useCurrentFrame, useVideoConfig, interpolate, Easing } from "remotion";
 import { loadFont as loadMono } from "@remotion/google-fonts/ShareTechMono";
 import { pick, rnd, capUptempo } from "./capData";
+import { Cine } from "./cine";
 
 const { fontFamily: mono } = loadMono();
 const PER = 28;
@@ -17,13 +18,15 @@ const Hud: React.FC = () => {
   const { fps } = useVideoConfig();
   const blink = Math.floor(f / 15) % 2 === 0;
   const sec = Math.floor(f / fps);
-  const tc = "00:00:" + String(sec).padStart(2, "0");
+  const tc = "00:" + String(sec).padStart(2, "0") + ":" + String(f % fps).padStart(2, "0");
   const corner = (r: object) => (
     <div style={{ position: "absolute", width: 90, height: 90, ...r }} />
   );
   const bs = "6px solid rgba(255,255,255,0.9)";
   return (
     <AbsoluteFill style={{ pointerEvents: "none" }}>
+      {/* 走査線（ビデオ感） */}
+      <AbsoluteFill style={{ background: "repeating-linear-gradient(180deg, rgba(255,255,255,0.028) 0 2px, rgba(0,0,0,0.028) 2px 4px)" }} />
       {/* 四隅ブラケット */}
       {corner({ top: 60, left: 46, borderTop: bs, borderLeft: bs })}
       {corner({ top: 60, right: 46, borderTop: bs, borderRight: bs })}
@@ -88,6 +91,7 @@ export const CapRec: React.FC<{ storeName?: string; handle?: string }> = ({ hand
   return (
     <AbsoluteFill style={{ backgroundColor: "#000", opacity: endO }}>
       <Audio src={staticFile(capUptempo)} volume={(v) => interpolate(v, [0, 12, CAP5_DUR - 20, CAP5_DUR], [0, 0.85, 0.85, 0], { extrapolateLeft: "clamp", extrapolateRight: "clamp" })} />
+      <Cine grade="contrast(1.08) saturate(1.22) brightness(1.02)">
       <AbsoluteFill style={{ transform: "translate(" + shX + "px," + shY + "px) scale(1.03)" }}>
         {PHOTOS.map((p, i) => (
           <Sequence key={i} from={i * PER} durationInFrames={PER}>
@@ -100,6 +104,7 @@ export const CapRec: React.FC<{ storeName?: string; handle?: string }> = ({ hand
           </AbsoluteFill>
         </Sequence>
       </AbsoluteFill>
+      </Cine>
       <Hud />
       <div style={{ position: "absolute", bottom: 152, width: "100%", textAlign: "center", color: "rgba(255,255,255,0.8)", fontFamily: mono, fontSize: 30, letterSpacing: 4, textShadow: "0 2px 10px rgba(0,0,0,0.8)" }}>{handle}</div>
     </AbsoluteFill>

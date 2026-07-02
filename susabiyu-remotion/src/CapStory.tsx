@@ -4,6 +4,7 @@ import { AbsoluteFill, Img, Audio, Sequence, staticFile, useCurrentFrame, interp
 import { loadFont as loadSans } from "@remotion/google-fonts/Montserrat";
 import { loadFont as loadScript } from "@remotion/google-fonts/DancingScript";
 import { pick, capNormal } from "./capData";
+import { Cine, punch } from "./cine";
 
 const { fontFamily: sans } = loadSans();
 const { fontFamily: script } = loadScript();
@@ -36,7 +37,7 @@ const Intro: React.FC = () => {
       {/* タイトル：FOOD 1字ずつ＋Story 筆記体（重なり） */}
       <AbsoluteFill style={{ justifyContent: "center", alignItems: "center" }}>
         <div style={{ position: "relative", textAlign: "center" }}>
-          <div style={{ color: "#fff", fontFamily: sans, fontWeight: 800, fontSize: 150, letterSpacing: 18, textShadow: "0 8px 50px rgba(0,0,0,0.95)" }}>{"FOOD".slice(0, shown)}</div>
+          <div style={{ color: "#fff", fontFamily: sans, fontWeight: 800, fontSize: 150, letterSpacing: interpolate(f, [8, 40], [34, 18], { extrapolateLeft: "clamp", extrapolateRight: "clamp" }), textShadow: "0 2px 8px rgba(0,0,0,0.95), 0 14px 60px rgba(0,0,0,0.8)" }}>{"FOOD".slice(0, shown)}</div>
           <div style={{ position: "absolute", left: 0, right: 0, bottom: -46, color: "#fff", fontFamily: script, fontSize: 96, opacity: scriptO, textShadow: "0 4px 30px rgba(0,0,0,0.9)" }}>Story</div>
         </div>
       </AbsoluteFill>
@@ -47,7 +48,7 @@ const Intro: React.FC = () => {
 const Still: React.FC<{ src: string; caption: string }> = ({ src, caption }) => {
   const f = useCurrentFrame();
   const o = interpolate(f, [0, 10, PER - 8, PER], [0, 1, 1, 0], { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
-  const z = interpolate(f, [0, PER], [1.0, 1.09]);
+  const z = interpolate(f, [0, PER], [1.0, 1.09]) * punch(f, 0.04);
   return (
     <AbsoluteFill style={{ backgroundColor: "#0a0a0c", opacity: o }}>
       <Img src={staticFile(src)} style={{ width: "100%", height: "100%", objectFit: "cover", transform: "scale(" + z + ")", filter: "brightness(0.9) contrast(1.06)" }} />
@@ -75,7 +76,7 @@ const QuadSplit: React.FC = () => {
     <AbsoluteFill style={{ backgroundColor: "#0a0a0c", opacity: o }}>
       <AbsoluteFill>{grid(true)}</AbsoluteFill>
       <AbsoluteFill style={{ clipPath: "polygon(0% 0%, " + (p + 18) + "% 0%, " + (p - 18) + "% 100%, 0% 100%)" }}>{grid(false)}</AbsoluteFill>
-      <div style={{ position: "absolute", top: 0, bottom: 0, left: p + "%", width: 4, background: "rgba(255,255,255,0.85)", transform: "skewX(-10deg)" }} />
+      <div style={{ position: "absolute", top: 0, bottom: 0, left: p + "%", width: 4, background: "rgba(255,255,255,0.9)", boxShadow: "0 0 26px rgba(255,255,255,0.8)", transform: "skewX(-10deg)" }} />
     </AbsoluteFill>
   );
 };
@@ -92,11 +93,11 @@ export const CapStory: React.FC<{ storeName?: string; handle?: string }> = ({ ha
       </Sequence>
       {STILLS.map((p, i) => (
         <Sequence key={i} from={INTRO + i * PER} durationInFrames={PER}>
-          <Still src={p.src} caption={p.caption} />
+          <Cine dark><Still src={p.src} caption={p.caption} /></Cine>
         </Sequence>
       ))}
       <Sequence from={INTRO + STILLS.length * PER} durationInFrames={SPLIT}>
-        <QuadSplit />
+        <Cine dark><QuadSplit /></Cine>
       </Sequence>
       <Sequence from={outStart} durationInFrames={OUTRO}>
         <AbsoluteFill style={{ justifyContent: "center", alignItems: "center", opacity: outO }}>
