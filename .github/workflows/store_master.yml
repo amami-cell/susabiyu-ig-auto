@@ -51,15 +51,21 @@ jobs:
         run: echo "$GOOGLE_CREDS_B64" | base64 -d > creds.json
         env:
           GOOGLE_CREDS_B64: ${{ secrets.GOOGLE_CREDS_B64 }}
-      - name: Preview delivery (previewのみ・テスト動画→専用棚へ)
+      - name: Preview delivery (previewのみ・テスト動画→専用棚へ／store_id=sweep:接頭辞 で掃除)
         if: github.event.inputs.mode == 'preview'
         env:
+          STORE_ARG: ${{ github.event.inputs.store_id }}
           R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
           R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
           R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
           R2_BUCKET: ${{ secrets.R2_BUCKET }}
           R2_PUBLIC_BASE: ${{ secrets.R2_PUBLIC_BASE }}
         run: |
+          case "${{ github.event.inputs.store_id }}" in
+            sweep:*)
+              python preview_drive.py --sweep "${STORE_ARG#sweep:}"
+              exit 0 ;;
+          esac
           ffmpeg -y -f lavfi -i "smptebars=size=1080x1920:rate=30:duration=4" \
             -f lavfi -i "sine=frequency=440:duration=4" \
             -vf "drawtext=text='PREVIEW TEST':fontsize=90:fontcolor=white:x=(w-tw)/2:y=(h-th)/2:box=1:boxcolor=black@0.6:boxborderw=30" \

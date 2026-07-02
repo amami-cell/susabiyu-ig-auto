@@ -25,11 +25,34 @@ def _cfg():
     sys.exit(1)
 
 
+def sweep(url, token, prefixes):
+    """名前が prefix で始まるファイルをゴミ箱へ（古いバージョンの一括掃除）。"""
+    total = 0
+    for pre in prefixes:
+        pre = pre.strip()
+        if not pre:
+            continue
+        try:
+            r = req.post(url, json={"token": token, "sweep": pre}, timeout=120)
+            j = r.json()
+        except Exception as e:
+            print("[PVD] 掃除失敗(%s): %s" % (pre, e)); continue
+        if j.get("ok"):
+            print("[PVD] 掃除OK 🧹 「%s〜」を %d 本ゴミ箱へ" % (pre, j.get("swept", 0)))
+            total += int(j.get("swept", 0))
+        else:
+            print("[PVD] 掃除NG(%s): %s" % (pre, j.get("error")))
+    print("[PVD] 掃除合計 %d 本" % total)
+
+
 def main():
     url, token = _cfg()
     args = sys.argv[1:]
     if not args:
         print("[PVD] ファイルを指定してください"); sys.exit(1)
+    if args[0] == "--sweep":
+        sweep(url, token, (args[1] if len(args) > 1 else "").split(","))
+        return
     pairs = []
     it = iter(args)
     for f in it:
