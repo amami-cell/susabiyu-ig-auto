@@ -11,6 +11,12 @@ import { OsusumeStory, OSUSUME_DUR } from "./OsusumeStory";
 import { GridZoom, GRIDZOOM_DUR } from "./GridZoom";
 import { NorenStory, NOREN_DUR } from "./NorenStory";
 import { SeasonStory, SEASON_DUR } from "./SeasonStory";
+import { CapDelicious, CAP1_DUR } from "./CapDelicious";
+import { CapOpen, CAP2_DUR } from "./CapOpen";
+import { CapMenu, CAP3_DUR } from "./CapMenu";
+import { CapPromo, CAP4_DUR } from "./CapPromo";
+import { CapRec, CAP5_DUR } from "./CapRec";
+import { CapStory, CAP6_DUR } from "./CapStory";
 import { photos } from "./photoData";
 import { tempoPhotos } from "./tempoData";
 import { typoPhotos } from "./typoData";
@@ -51,6 +57,12 @@ export const RemotionRoot: React.FC = () => {
       <Composition id="GridZoom" component={GridZoom} fps={FPS} width={1080} height={1920} durationInFrames={GRIDZOOM_DUR} defaultProps={{ storeName: STORE, handle: "@susabiyu_sanjyo" }} />
       <Composition id="NorenStory" component={NorenStory} fps={FPS} width={1080} height={1920} durationInFrames={NOREN_DUR} defaultProps={{ storeName: STORE, handle: "@susabiyu_sanjyo" }} />
       <Composition id="SeasonStory" component={SeasonStory} fps={FPS} width={1080} height={1920} durationInFrames={SEASON_DUR} defaultProps={{ storeName: STORE, handle: "@susabiyu_sanjyo" }} />
+      <Composition id="CapDelicious" component={CapDelicious} fps={FPS} width={1080} height={1920} durationInFrames={CAP1_DUR} defaultProps={{ storeName: STORE, handle: "@susabiyu_sanjyo" }} />
+      <Composition id="CapOpen" component={CapOpen} fps={FPS} width={1080} height={1920} durationInFrames={CAP2_DUR} defaultProps={{ storeName: STORE, handle: "@susabiyu_sanjyo" }} />
+      <Composition id="CapMenu" component={CapMenu} fps={FPS} width={1080} height={1920} durationInFrames={CAP3_DUR} defaultProps={{ storeName: STORE, handle: "@susabiyu_sanjyo" }} />
+      <Composition id="CapPromo" component={CapPromo} fps={FPS} width={1080} height={1920} durationInFrames={CAP4_DUR} defaultProps={{ storeName: STORE, handle: "@susabiyu_sanjyo" }} />
+      <Composition id="CapRec" component={CapRec} fps={FPS} width={1080} height={1920} durationInFrames={CAP5_DUR} defaultProps={{ storeName: STORE, handle: "@susabiyu_sanjyo" }} />
+      <Composition id="CapStory" component={CapStory} fps={FPS} width={1080} height={1920} durationInFrames={CAP6_DUR} defaultProps={{ storeName: STORE, handle: "@susabiyu_sanjyo" }} />
     </>
   );
 };

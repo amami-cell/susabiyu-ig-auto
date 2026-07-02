@@ -7,7 +7,7 @@ on:
         required: true
         default: "init"
         type: choice
-        options: [init, setup, columns, intake, requestsheet, roster, names, pending, saemail, distsheet, distdrive, distsub, distnote, disttop, distwarn, disttime, distmove, distfinal, distdump, inbox, inboxget, outbox, sddrives, uptest, frames, preview, all]
+        options: [init, setup, columns, intake, requestsheet, roster, names, pending, saemail, distsheet, distdrive, distsub, distnote, disttop, distwarn, disttime, distmove, distfinal, distdump, inbox, inboxget, outbox, sddrives, uptest, frames, preview, capsamples, all]
       store_id:
         description: "setup対象のstore_id（framesは動画フォルダID/URL）"
         required: false
@@ -17,7 +17,7 @@ permissions:
 jobs:
   master:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 60
     defaults:
       run:
         working-directory: susabiyu-remotion
@@ -30,9 +30,20 @@ jobs:
           python-version: '3.12'
       - name: Install Python deps
         run: pip install google-api-python-client google-auth requests
-      - name: Install ffmpeg (frames/previewのみ)
-        if: github.event.inputs.mode == 'frames' || github.event.inputs.mode == 'preview'
+      - name: Install ffmpeg (frames/preview/capsamplesのみ)
+        if: github.event.inputs.mode == 'frames' || github.event.inputs.mode == 'preview' || github.event.inputs.mode == 'capsamples'
         run: sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg
+      - name: Setup Node (capsamplesのみ)
+        if: github.event.inputs.mode == 'capsamples'
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: npm ci (capsamplesのみ)
+        if: github.event.inputs.mode == 'capsamples'
+        run: npm ci
+      - name: Install Pillow (capsamplesのみ・写真取得用)
+        if: github.event.inputs.mode == 'capsamples'
+        run: pip install Pillow
       - name: Install boto3 (previewのみ)
         if: github.event.inputs.mode == 'preview'
         run: pip install boto3
@@ -58,8 +69,37 @@ jobs:
           else
             python preview_up.py _pvtest.mp4 "テスト動画（専用棚の動作確認）"
           fi
+      - name: CapCut風サンプル6本を生成→専用棚へ (capsamplesのみ)
+        if: github.event.inputs.mode == 'capsamples'
+        env:
+          GOOGLE_CREDS_B64: ${{ secrets.GOOGLE_CREDS_B64 }}
+          SHEET_ID: ${{ secrets.SHEET_ID }}
+          GENRE_FOOD_ID: ${{ secrets.GENRE_FOOD_ID }}
+          GENRE_SAKE_ID: ${{ secrets.GENRE_SAKE_ID }}
+          GENRE_INTERIOR_ID: ${{ secrets.GENRE_INTERIOR_ID }}
+          GENRE_EVENT_ID: ${{ secrets.GENRE_EVENT_ID }}
+          GENRE_MUSIC_UPTEMPO_ID: ${{ secrets.GENRE_MUSIC_UPTEMPO_ID }}
+          GENRE_MUSIC_NORMAL_ID: ${{ secrets.GENRE_MUSIC_NORMAL_ID }}
+        run: |
+          python fetch_drive_photos.py creds.json
+          python fetch_tempo.py creds.json
+          python fetch_typo.py creds.json
+          mkdir -p out
+          npx remotion render CapDelicious out/cap1.mp4 --crf 18 --timeout 120000 --concurrency 1
+          npx remotion render CapOpen      out/cap2.mp4 --crf 18 --timeout 120000 --concurrency 1
+          npx remotion render CapMenu      out/cap3.mp4 --crf 18 --timeout 120000 --concurrency 1
+          npx remotion render CapPromo     out/cap4.mp4 --crf 18 --timeout 120000 --concurrency 1
+          npx remotion render CapRec       out/cap5.mp4 --crf 18 --timeout 120000 --concurrency 1
+          npx remotion render CapStory     out/cap6.mp4 --crf 18 --timeout 120000 --concurrency 1
+          python preview_drive.py \
+            out/cap1.mp4 "①Delicious_food風" \
+            out/cap2.mp4 "②WeAreOPEN_営業案内風" \
+            out/cap3.mp4 "③FOODmenu_メニュー選択風" \
+            out/cap4.mp4 "④FOODpromotion_グリッド風" \
+            out/cap5.mp4 "⑤REC_録画画面風" \
+            out/cap6.mp4 "⑥FOODStory_シネマ風"
       - name: Run store_master
-        if: github.event.inputs.mode != 'frames' && github.event.inputs.mode != 'preview'
+        if: github.event.inputs.mode != 'frames' && github.event.inputs.mode != 'preview' && github.event.inputs.mode != 'capsamples'
         env:
           GOOGLE_CREDS_B64: ${{ secrets.GOOGLE_CREDS_B64 }}
           SHEET_ID: ${{ secrets.SHEET_ID }}
