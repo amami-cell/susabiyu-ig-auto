@@ -1087,6 +1087,82 @@
     if (name) { document.title = name; }
   })();
 
+  /* ---------- 専用プレビュー（完全な隠し機能）----------
+     入口: 店名を3秒以内に7回タップ → コード入力。
+     コードは端末にも公開コードにも埋め込まない。入力文字のSHA-256を計算し、
+     その値の場所(pv-<hash>/)にだけ一覧が存在する＝コードを知らない人は場所すら算出不能。 */
+  var PVB = String(CFG.MEDIA_BASE || "").replace(/\/+$/, "");
+  function pvEsc(s) {
+    return String(s == null ? "" : s).replace(/[&<>"']/g, function (c) {
+      return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c];
+    });
+  }
+  function pvHash(code) {
+    return crypto.subtle.digest("SHA-256", new TextEncoder().encode(code)).then(function (h) {
+      var a = new Uint8Array(h), s = "";
+      for (var i = 0; i < a.length; i++) s += ("0" + a[i].toString(16)).slice(-2);
+      return s;
+    });
+  }
+  function pvFetch(code) {
+    return pvHash(code).then(function (h) {
+      return new Promise(function (resolve, reject) {
+        if (!PVB || PVB.indexOf("PASTE_") === 0) { reject(new Error("nobase")); return; }
+        var s = document.createElement("script");
+        var to = setTimeout(function () { cleanup(); reject(new Error("timeout")); }, 12000);
+        function cleanup() { clearTimeout(to); try { delete window.__pvCb; } catch (e) {} if (s.parentNode) s.parentNode.removeChild(s); }
+        window.__pvCb = function (data) { cleanup(); resolve(data); };
+        s.src = PVB + "/pv-" + h + "/index.js?ts=" + Date.now();
+        s.onerror = function () { cleanup(); reject(new Error("notfound")); };
+        document.head.appendChild(s);
+      });
+    });
+  }
+  var pvEl = null;
+  function pvShow(data) {
+    if (pvEl && pvEl.parentNode) pvEl.parentNode.removeChild(pvEl);
+    pvEl = document.createElement("div");
+    pvEl.style.cssText = "position:fixed;inset:0;z-index:99999;background:#0b0f14;color:#fff;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:14px 12px 44px";
+    var vids = (data && data.v) || [];
+    var html = '<div style="display:flex;align-items:center;justify-content:space-between;margin:0 0 12px">' +
+      '<div style="font-weight:700;font-size:16px">🎬 専用プレビュー <span style="opacity:.55;font-size:12px">' + vids.length + '本</span></div>' +
+      '<button id="pvClose" style="background:#26313d;color:#fff;border:0;border-radius:8px;padding:8px 14px;font-size:14px">閉じる</button></div>';
+    if (!vids.length) html += '<div style="opacity:.7;padding:36px 0;text-align:center">まだ動画がありません</div>';
+    vids.forEach(function (v) {
+      html += '<div style="margin:0 0 20px">' +
+        '<div style="font-size:13px;margin:0 0 6px"><b>' + pvEsc(v.t) + '</b> <span style="opacity:.5">' + pvEsc(v.d) + '</span></div>' +
+        '<video controls playsinline preload="metadata" style="width:100%;max-width:420px;border-radius:12px;background:#000;display:block" src="' + pvEsc(v.u) + '"></video></div>';
+    });
+    pvEl.innerHTML = html;
+    document.body.appendChild(pvEl);
+    var c = pvEl.querySelector("#pvClose");
+    if (c) c.onclick = function () { if (pvEl && pvEl.parentNode) pvEl.parentNode.removeChild(pvEl); pvEl = null; };
+  }
+  function pvAsk() {
+    var k = window.prompt("コードを入力", "");
+    if (k == null) return;
+    k = String(k).trim(); if (!k) return;
+    pvFetch(k).then(function (data) {
+      try { localStorage.setItem("sb_pv", k); } catch (e) {}
+      pvShow(data);
+    }).catch(function () { toast("コードが違います"); });
+  }
+  (function pvEntry() {
+    var el = document.getElementById("storeName");
+    if (!el || !window.crypto || !crypto.subtle) return;
+    var n = 0, t0 = 0;
+    el.addEventListener("click", function () {
+      var now = Date.now();
+      if (now - t0 > 3000) n = 0;
+      t0 = now; n++;
+      if (n < 7) return;
+      n = 0;
+      var saved = "";
+      try { saved = localStorage.getItem("sb_pv") || ""; } catch (e) {}
+      if (saved) { pvFetch(saved).then(pvShow).catch(pvAsk); } else { pvAsk(); }
+    });
+  })();
+
   /* ---------- アイコンのバッジをクリア（開いた＝未読を見た） ---------- */
   function clearBadge() {
     try { if (navigator.clearAppBadge) navigator.clearAppBadge(); } catch (e) {}

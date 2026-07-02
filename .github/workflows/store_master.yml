@@ -7,7 +7,7 @@ on:
         required: true
         default: "init"
         type: choice
-        options: [init, setup, columns, intake, requestsheet, roster, names, pending, saemail, distsheet, distdrive, distsub, distnote, disttop, distwarn, disttime, distmove, distfinal, distdump, inbox, inboxget, outbox, sddrives, uptest, frames, all]
+        options: [init, setup, columns, intake, requestsheet, roster, names, pending, saemail, distsheet, distdrive, distsub, distnote, disttop, distwarn, disttime, distmove, distfinal, distdump, inbox, inboxget, outbox, sddrives, uptest, frames, preview, all]
       store_id:
         description: "setup対象のstore_id（framesは動画フォルダID/URL）"
         required: false
@@ -30,15 +30,32 @@ jobs:
           python-version: '3.12'
       - name: Install Python deps
         run: pip install google-api-python-client google-auth requests
-      - name: Install ffmpeg (framesのみ)
-        if: github.event.inputs.mode == 'frames'
+      - name: Install ffmpeg (frames/previewのみ)
+        if: github.event.inputs.mode == 'frames' || github.event.inputs.mode == 'preview'
         run: sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg
+      - name: Install boto3 (previewのみ)
+        if: github.event.inputs.mode == 'preview'
+        run: pip install boto3
       - name: Write creds.json
         run: echo "$GOOGLE_CREDS_B64" | base64 -d > creds.json
         env:
           GOOGLE_CREDS_B64: ${{ secrets.GOOGLE_CREDS_B64 }}
+      - name: Preview delivery (previewのみ・テスト動画→専用棚へ)
+        if: github.event.inputs.mode == 'preview'
+        env:
+          R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          R2_BUCKET: ${{ secrets.R2_BUCKET }}
+          R2_PUBLIC_BASE: ${{ secrets.R2_PUBLIC_BASE }}
+        run: |
+          ffmpeg -y -f lavfi -i "smptebars=size=1080x1920:rate=30:duration=4" \
+            -f lavfi -i "sine=frequency=440:duration=4" \
+            -vf "drawtext=text='PREVIEW TEST':fontsize=90:fontcolor=white:x=(w-tw)/2:y=(h-th)/2:box=1:boxcolor=black@0.6:boxborderw=30" \
+            -c:v libx264 -pix_fmt yuv420p -c:a aac -shortest _pvtest.mp4
+          python preview_up.py _pvtest.mp4 "テスト動画（専用棚の動作確認）"
       - name: Run store_master
-        if: github.event.inputs.mode != 'frames'
+        if: github.event.inputs.mode != 'frames' && github.event.inputs.mode != 'preview'
         env:
           GOOGLE_CREDS_B64: ${{ secrets.GOOGLE_CREDS_B64 }}
           SHEET_ID: ${{ secrets.SHEET_ID }}
