@@ -758,6 +758,39 @@ def inbox():
     print("[INBOX] 編集共有先: %s" % SHARE_EMAIL)
 
 
+def sddrives(target=None):
+    """ロボット(SA)がメンバーの共有ドライブを一覧＋『プレビュー』を含む共有ドライブへ
+    実際に小ファイルをアップロードして書き込み可否を確認する（共有ドライブなら成功する）。"""
+    cr = _creds(); drive = _drive(cr)
+    r = drive.drives().list(fields="drives(id,name)", pageSize=100).execute()
+    ds = r.get("drives", [])
+    print("[SD] 共有ドライブ %d 件（ロボットがメンバーのもの）" % len(ds))
+    for d in ds:
+        print("SD|%s|%s" % (d["id"], d["name"]))
+    if not ds:
+        print("[SD] 見つかりません（共有ドライブにロボットが追加されていない可能性）"); return
+    pick = None
+    want = (target or "プレビュー")
+    for d in ds:
+        if want in d["name"]:
+            pick = d; break
+    if not pick:
+        pick = ds[0]
+    did = pick["id"]
+    try:
+        from googleapiclient.http import MediaInMemoryUpload
+        media = MediaInMemoryUpload(b"upload test", mimetype="text/plain")
+        f = drive.files().create(body={"name": "_uploadtest.txt", "parents": [did]},
+            media_body=media, fields="id", supportsAllDrives=True).execute()
+        print("[SD] アップロードテスト: 成功 ✅ 共有ドライブ『%s』(id=%s) file=%s" % (pick["name"], did, f["id"]))
+        try:
+            drive.files().delete(fileId=f["id"], supportsAllDrives=True).execute()
+        except Exception:
+            pass
+    except Exception as e:
+        print("[SD] アップロードテスト: 失敗 ❌ : %s" % e)
+
+
 def outbox():
     """あなた専用の非公開プレビュー用Driveフォルダを作成（あなたのメールだけに共有＝リンク公開なし）。
     さらにサービスアカウントが動画をここへ入れられるか（ストレージ制限）を実地テストする。"""
@@ -1056,6 +1089,8 @@ if __name__ == "__main__":
         inbox()
     elif mode == "outbox":
         outbox()
+    elif mode == "sddrives":
+        sddrives(arg)
     elif mode == "inboxget":
         inboxget(arg)
     elif mode == "distdump":
