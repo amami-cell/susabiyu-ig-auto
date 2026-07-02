@@ -52,7 +52,7 @@ const creator = new FFCreator({
 
 const music = loadMusic();
 if (music) {
-  try { creator.addAudio({ path: path.join(__dirname, music), volume: 0.8, fadeIn: 1, fadeOut: 2 }); }
+  try { creator.addAudio(path.join(__dirname, music)); }  // Lite版は文字列パスのみ
   catch (e) { console.log("[FFC] BGMスキップ:", e.message); }
 }
 
