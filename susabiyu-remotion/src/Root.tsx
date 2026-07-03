@@ -17,6 +17,11 @@ import { CapMenu, CAP3_DUR } from "./CapMenu";
 import { CapPromo, CAP4_DUR } from "./CapPromo";
 import { CapRec, CAP5_DUR } from "./CapRec";
 import { CapStory, CAP6_DUR } from "./CapStory";
+import { TaishuFuda, TFUDA_DUR } from "./TaishuFuda";
+import { TaishuKakegoe, TKOE_DUR } from "./TaishuKakegoe";
+import { TaishuNigi, TNIGI_DUR } from "./TaishuNigi";
+import { TaishuKaiten, TKAI_DUR } from "./TaishuKaiten";
+import { TaishuOshi, TOSHI_DUR } from "./TaishuOshi";
 import { photos } from "./photoData";
 import { tempoPhotos } from "./tempoData";
 import { typoPhotos } from "./typoData";
@@ -63,6 +68,11 @@ export const RemotionRoot: React.FC = () => {
       <Composition id="CapPromo" component={CapPromo} fps={FPS} width={1080} height={1920} durationInFrames={CAP4_DUR} defaultProps={{ storeName: STORE, handle: "@susabiyu_sanjyo" }} />
       <Composition id="CapRec" component={CapRec} fps={FPS} width={1080} height={1920} durationInFrames={CAP5_DUR} defaultProps={{ storeName: STORE, handle: "@susabiyu_sanjyo" }} />
       <Composition id="CapStory" component={CapStory} fps={FPS} width={1080} height={1920} durationInFrames={CAP6_DUR} defaultProps={{ storeName: STORE, handle: "@susabiyu_sanjyo" }} />
+      <Composition id="TaishuFuda" component={TaishuFuda} fps={FPS} width={1080} height={1920} durationInFrames={TFUDA_DUR} defaultProps={{ storeName: STORE, handle: "@susabiyu_sanjyo" }} />
+      <Composition id="TaishuKakegoe" component={TaishuKakegoe} fps={FPS} width={1080} height={1920} durationInFrames={TKOE_DUR} defaultProps={{ storeName: "すさび湯三条", handle: "@susabiyu_sanjyo" }} />
+      <Composition id="TaishuNigi" component={TaishuNigi} fps={FPS} width={1080} height={1920} durationInFrames={TNIGI_DUR} defaultProps={{ storeName: "すさび湯三条", handle: "@susabiyu_sanjyo" }} />
+      <Composition id="TaishuKaiten" component={TaishuKaiten} fps={FPS} width={1080} height={1920} durationInFrames={TKAI_DUR} defaultProps={{ storeName: STORE, handle: "@susabiyu_sanjyo" }} />
+      <Composition id="TaishuOshi" component={TaishuOshi} fps={FPS} width={1080} height={1920} durationInFrames={TOSHI_DUR} defaultProps={{ storeName: STORE, handle: "@susabiyu_sanjyo" }} />
     </>
   );
 };
