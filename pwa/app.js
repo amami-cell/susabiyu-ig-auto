@@ -26,6 +26,11 @@
 
   /* ---------- 烏丸店ページ（仮・PASSを知る人だけ） ---------- */
   var KAR_HASH = "92925488b28ab12584ac8fcaa8a27a0f497b2c62940c8f4fbc8ef19ebc87c43e";
+  // 烏丸（鮨処）行きのテンプレID。ラベルに頼らずIDで確実に振り分ける。
+  var KAR_KEYS = { sushi: 1, tempo: 1, typo: 1, photo: 1, oshina: 1, oshinatate: 1, kaiten: 1, osusume: 1, gridzoom: 1, noren: 1, season: 1 };
+  function isKarPat(it) {
+    return KAR_KEYS[String((it && it.pattern) || "")] === 1 || String((it && it.label) || "").indexOf("【鮨処】") === 0;
+  }
   var KAR = false;
   try { KAR = localStorage.getItem("sb_store") === "karasuma"; } catch (e) {}
   function karCheck(code, prevKey) {
@@ -591,8 +596,8 @@
       galleryEl.appendChild(e); applyAdminClass(); return;
     }
     // 店舗ページで振り分け：烏丸=【鮨処】のみ／三条=それ以外のみ
-    var normal = items.filter(function (it) { return String(it.label || "").indexOf("【鮨処】") !== 0; });
-    var stored = items.filter(function (it) { return String(it.label || "").indexOf("【鮨処】") === 0; });
+    var normal = items.filter(function (it) { return !isKarPat(it); });
+    var stored = items.filter(isKarPat);
     if (KAR) {
       hint.innerHTML = "🍣 <b>鮨処すさび湯 四条烏丸</b>（準備中）の見本置き場です。このページは入口PASSを知る人だけが開けます。<br>Instagram連携はアカウント情報が揃ってから。<b>採用ボタンはまだ使いません</b>。 <button class='alink' id='karBack'>三条ページへ戻る</button>";
       stored.forEach(function (it) { galleryEl.appendChild(galleryCard(it)); });
