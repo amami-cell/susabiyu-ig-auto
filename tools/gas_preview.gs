@@ -1,6 +1,6 @@
-/* 専用プレビュー受け取りGAS v3
- * v3: ①〜⑥の同じ番号の旧バージョンを自動でゴミ箱へ（常に最新だけ残る）＋
- *     sweep命令（指定の文字で始まる古いファイルの一括掃除）を追加。
+/* 専用プレビュー受け取りGAS v4
+ * v4: サブフォルダ保管（arch=【鮨処】等へ移動）＋サブフォルダ指定納品(sub)を追加。
+ *     v3の機能（同番号の旧版自動入れ替え・sweep一括掃除）も含む。
  *
  * 更新の仕方: コードを全部置き換えて保存 → デプロイ → デプロイを管理 →
  *   （鉛筆マーク）→ バージョン「新バージョン」→ デプロイ（URLは変わりません）
@@ -17,6 +17,11 @@ function _folder() {
   var f = DriveApp.createFolder("天見プレビュー（自動）");
   try { f.addEditor(SHARE_TO); } catch (e) {}
   return f;
+}
+
+function _sub(fo, name) {  // 棚の中のサブフォルダ（無ければ作成）
+  var it = fo.getFoldersByName(name);
+  return it.hasNext() ? it.next() : fo.createFolder(name);
 }
 
 function doPost(e) {
@@ -36,27 +41,40 @@ function doPost(e) {
       }
       return _out({ ok: 1, swept: n });
     }
+    // 保管: 名前が b.match で始まるファイルをサブフォルダ b.arch へ移動
+    if (b.arch) {
+      var dst = _sub(fo, String(b.arch));
+      var c = 0, it3 = fo.getFiles();
+      while (it3.hasNext()) {
+        var f2 = it3.next();
+        if (!b.match || String(f2.getName()).indexOf(String(b.match)) === 0) {
+          f2.moveTo(dst); c++;
+        }
+      }
+      return _out({ ok: 1, moved: c, folder: dst.getUrl(), folderName: dst.getName() });
+    }
     var name = String(b.name || "video.mp4").replace(/[\\\/:*?"<>|]/g, "_");
-    // 同じ番号（①〜⑩）の旧バージョンを自動でゴミ箱へ＝作り直しても増えない
+    var target = b.sub ? _sub(fo, String(b.sub)) : fo;
+    // 同じ番号（①〜⑩）の旧バージョンを自動でゴミ箱へ＝作り直しても増えない（保存先フォルダ内のみ）
     var m = name.match(/[①②③④⑤⑥⑦⑧⑨⑩]/);
     if (m) {
-      var it2 = fo.getFiles();
+      var it2 = target.getFiles();
       while (it2.hasNext()) {
         var f1 = it2.next();
         if (f1.getName().indexOf(m[0]) >= 0) f1.setTrashed(true);
       }
     }
     var blob = Utilities.newBlob(Utilities.base64Decode(b.b64), b.mime || "video/mp4", name);
-    var f = fo.createFile(blob);
+    var f = target.createFile(blob);
     return _out({ ok: 1, id: f.getId(), name: f.getName(), size: f.getSize(),
-                  email: me, folder: fo.getUrl(), folderName: fo.getName() });
+                  email: me, folder: target.getUrl(), folderName: target.getName() });
   } catch (err) {
     return _out({ error: String(err) });
   }
 }
 
 function doGet(e) {
-  return _out({ ok: 1, service: "pv3" });
+  return _out({ ok: 1, service: "pv4" });
 }
 
 function _out(o) {

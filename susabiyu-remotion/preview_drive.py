@@ -53,6 +53,19 @@ def main():
     if args[0] == "--sweep":
         sweep(url, token, (args[1] if len(args) > 1 else "").split(","))
         return
+    if args[0] == "--archive":
+        # --archive <フォルダ名> <接頭辞>  … 接頭辞で始まるファイルをサブフォルダへ移動
+        arch = args[1] if len(args) > 1 else ""
+        match = args[2] if len(args) > 2 else ""
+        if not arch:
+            print("[PVD] フォルダ名が必要です"); sys.exit(1)
+        r = req.post(url, json={"token": token, "arch": arch, "match": match}, timeout=120)
+        j = r.json()
+        if j.get("ok"):
+            print("[PVD] 保管OK 📦 %d 本を「%s」へ移動 (%s)" % (j.get("moved", 0), j.get("folderName"), j.get("folder")))
+        else:
+            print("[PVD] 保管NG: %s" % j.get("error")); sys.exit(1)
+        return
     pairs = []
     it = iter(args)
     for f in it:

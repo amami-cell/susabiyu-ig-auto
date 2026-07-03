@@ -68,6 +68,11 @@ jobs:
             sweep:*)
               python preview_drive.py --sweep "${STORE_ARG#sweep:}"
               exit 0 ;;
+            arch:*)
+              # arch:フォルダ名:接頭辞
+              REST="${STORE_ARG#arch:}"
+              python preview_drive.py --archive "${REST%%:*}" "${REST#*:}"
+              exit 0 ;;
           esac
           ffmpeg -y -f lavfi -i "smptebars=size=1080x1920:rate=30:duration=4" \
             -f lavfi -i "sine=frequency=440:duration=4" \
