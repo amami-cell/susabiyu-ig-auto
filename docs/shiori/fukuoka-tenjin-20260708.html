@@ -18,7 +18,7 @@
   .page {
     width: 210mm;
     min-height: 297mm;
-    padding: 14mm 16mm;
+    padding: 12mm 16mm 20mm;
     page-break-after: always;
     position: relative;
     background: #ffffff;
@@ -30,23 +30,23 @@
     background: linear-gradient(135deg, #0f4c81 0%, #1b6ca8 60%, #2e8bc0 100%);
     border-radius: 6mm;
     color: #fff;
-    padding: 12mm 12mm 10mm;
-    margin-bottom: 8mm;
+    padding: 9mm 12mm 8mm;
+    margin-bottom: 6mm;
   }
   .cover-band .kicker {
-    font-size: 10.5pt;
+    font-size: 10pt;
     letter-spacing: 0.35em;
     opacity: 0.85;
-    margin-bottom: 4mm;
+    margin-bottom: 3mm;
   }
   .cover-band h1 {
-    font-size: 27pt;
+    font-size: 25pt;
     font-weight: bold;
     letter-spacing: 0.06em;
     line-height: 1.3;
   }
   .cover-band .dates {
-    margin-top: 5mm;
+    margin-top: 4mm;
     display: flex;
     gap: 4mm;
   }
@@ -54,22 +54,22 @@
     background: rgba(255,255,255,0.16);
     border: 0.4mm solid rgba(255,255,255,0.5);
     border-radius: 999px;
-    padding: 1.6mm 5mm;
-    font-size: 11pt;
+    padding: 1.4mm 5mm;
+    font-size: 10.5pt;
     letter-spacing: 0.05em;
   }
 
   /* ===== セクション見出し ===== */
-  .section { margin-bottom: 7mm; }
+  .section { margin-bottom: 6mm; }
   .section h2 {
     display: flex;
     align-items: center;
     gap: 3mm;
-    font-size: 13pt;
+    font-size: 12.5pt;
     color: #0f4c81;
     border-bottom: 0.7mm solid #0f4c81;
-    padding-bottom: 1.6mm;
-    margin-bottom: 3.5mm;
+    padding-bottom: 1.4mm;
+    margin-bottom: 3.2mm;
     letter-spacing: 0.08em;
   }
   .section h2 .num {
@@ -81,36 +81,47 @@
     letter-spacing: 0;
   }
 
-  /* ===== 目的（差し込み枠） ===== */
-  .placeholder {
-    border: 0.5mm dashed #b0b8c4;
-    background: #f4f7fb;
-    border-radius: 3mm;
-    padding: 6mm;
-    color: #6b7480;
+  /* ===== 目的カード ===== */
+  .purpose-lead {
     font-size: 10.5pt;
-    line-height: 1.9;
+    line-height: 1.8;
+    margin-bottom: 3mm;
   }
-  .placeholder strong { color: #0f4c81; }
-
-  /* ===== 基本情報テーブル ===== */
-  table.info {
-    width: 100%;
-    border-collapse: collapse;
-    font-size: 10.5pt;
+  .purpose-cards {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 3.5mm;
   }
-  table.info th, table.info td {
-    border: 0.3mm solid #cfd6de;
-    padding: 2.6mm 3.5mm;
-    text-align: left;
-    line-height: 1.6;
+  .p-card {
+    border: 0.4mm solid #cfd6de;
+    border-top: 1.2mm solid #0f4c81;
+    border-radius: 2.5mm;
+    padding: 3.5mm 4mm;
+    background: #fbfcfe;
   }
-  table.info th {
-    background: #eaf1f8;
-    color: #0f4c81;
-    width: 34mm;
+  .p-card.day2 { border-top-color: #c96a2b; }
+  .p-card .tag {
+    display: inline-block;
+    font-size: 8.5pt;
     font-weight: bold;
-    white-space: nowrap;
+    color: #0f4c81;
+    background: #eaf1f8;
+    border-radius: 1.5mm;
+    padding: 0.8mm 2.4mm;
+    margin-bottom: 2mm;
+    letter-spacing: 0.05em;
+  }
+  .p-card.day2 .tag { color: #c96a2b; background: #faf0e6; }
+  .p-card .p-title {
+    font-size: 11pt;
+    font-weight: bold;
+    line-height: 1.5;
+    margin-bottom: 1.4mm;
+  }
+  .p-card .p-desc {
+    font-size: 9pt;
+    color: #5a636e;
+    line-height: 1.65;
   }
 
   /* ===== タイムライン ===== */
@@ -119,62 +130,106 @@
     background: #0f4c81;
     color: #fff;
     border-radius: 2mm;
-    padding: 1.4mm 4mm;
-    font-size: 11.5pt;
+    padding: 1.3mm 4mm;
+    font-size: 11pt;
     font-weight: bold;
     letter-spacing: 0.08em;
-    margin-bottom: 3mm;
+    margin-bottom: 2.6mm;
   }
   .day-label.day2 { background: #c96a2b; }
   table.timeline {
     width: 100%;
     border-collapse: collapse;
-    font-size: 10.5pt;
-    margin-bottom: 6mm;
+    font-size: 10pt;
+    margin-bottom: 5mm;
   }
   table.timeline th {
     background: #eaf1f8;
     color: #0f4c81;
     border: 0.3mm solid #cfd6de;
-    padding: 2.2mm 3mm;
-    font-size: 10pt;
+    padding: 2mm 3mm;
+    font-size: 9.5pt;
     letter-spacing: 0.05em;
   }
+  table.timeline.day2 th { background: #faf0e6; color: #c96a2b; }
   table.timeline td {
     border: 0.3mm solid #cfd6de;
-    padding: 2.6mm 3mm;
+    padding: 2.4mm 3mm;
     line-height: 1.6;
     vertical-align: top;
   }
   table.timeline td.time {
-    width: 24mm;
+    width: 30mm;
     text-align: center;
     font-weight: bold;
     color: #0f4c81;
     white-space: nowrap;
   }
-  table.timeline tr.day2 td.time { color: #c96a2b; }
-  table.timeline td.place { width: 46mm; }
-  .empty-row td { height: 9mm; color: #b7bec7; }
+  table.timeline.day2 td.time { color: #c96a2b; }
+  table.timeline td.place { width: 52mm; }
+  table.timeline .highlight td { background: #f4f9f4; }
+
+  /* ===== 情報テーブル ===== */
+  table.info {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 10pt;
+  }
+  table.info th, table.info td {
+    border: 0.3mm solid #cfd6de;
+    padding: 2.4mm 3.5mm;
+    text-align: left;
+    line-height: 1.6;
+  }
+  table.info th {
+    background: #eaf1f8;
+    color: #0f4c81;
+    width: 36mm;
+    font-weight: bold;
+    white-space: nowrap;
+  }
+
+  /* ===== 注意・備考 ===== */
+  .notice-list { list-style: none; }
+  .notice-list li {
+    position: relative;
+    padding: 1.4mm 0 1.4mm 7mm;
+    font-size: 10pt;
+    line-height: 1.7;
+    border-bottom: 0.25mm dotted #cfd6de;
+  }
+  .notice-list li::before {
+    content: "";
+    position: absolute;
+    left: 1mm;
+    top: 3.4mm;
+    width: 2.6mm;
+    height: 2.6mm;
+    background: #0f4c81;
+    border-radius: 50%;
+  }
+  .notice-list li.warn::before { background: #c96a2b; }
+  .notice-list li strong { color: #0f4c81; }
+  .notice-list li.warn strong { color: #c96a2b; }
 
   /* ===== 持ち物チェック ===== */
   .check-grid {
     display: grid;
     grid-template-columns: 1fr 1fr;
-    gap: 2mm 8mm;
-    font-size: 10.5pt;
+    gap: 1.6mm 8mm;
+    font-size: 10pt;
   }
   .check-grid .item {
     display: flex;
     align-items: center;
     gap: 2.5mm;
-    padding: 1.2mm 0;
+    padding: 1.1mm 0;
     border-bottom: 0.25mm dotted #cfd6de;
     line-height: 1.6;
   }
   .check-grid .box {
-    width: 4mm;
-    height: 4mm;
+    width: 3.8mm;
+    height: 3.8mm;
     border: 0.4mm solid #0f4c81;
     border-radius: 0.8mm;
     flex: 0 0 auto;
@@ -183,7 +238,7 @@
   /* ===== メモ ===== */
   .memo-lines .line {
     border-bottom: 0.3mm solid #cfd6de;
-    height: 9mm;
+    height: 8.5mm;
   }
 
   /* ===== フッター ===== */
@@ -202,7 +257,7 @@
   .note {
     font-size: 9pt;
     color: #8a929c;
-    margin-top: 2mm;
+    margin-top: 1.6mm;
     line-height: 1.7;
   }
 </style>
@@ -222,56 +277,97 @@
 
   <div class="section">
     <h2><span class="num">01</span>視察の目的</h2>
-    <div class="placeholder">
-      <strong>※ここに視察の目的を記載します。</strong><br>
-      目的の内容をお送りいただき次第、要約してこの欄に反映します。<br>
-      （例：出店候補エリアの調査／競合店舗の視察／取引先との打ち合わせ　など）
+    <p class="purpose-lead">福岡天神店の開店準備のため、以下の3件に対応する1泊2日の出張です。</p>
+    <div class="purpose-cards">
+      <div class="p-card">
+        <span class="tag">7/8（水）13:00〜16:00</span>
+        <div class="p-title">入店説明会に出席</div>
+        <div class="p-desc">天神ビジネスセンターⅡの入店説明会。会場はキャナルシティ博多B1F。持ち物は筆記用具。</div>
+      </div>
+      <div class="p-card">
+        <span class="tag">7/8（水）17:00〜</span>
+        <div class="p-title">店舗引き渡し立ち合い</div>
+        <div class="p-desc">入店説明会の終了後、大石様と店舗の引き渡しに立ち合い。</div>
+      </div>
+      <div class="p-card day2">
+        <span class="tag">7/9（木）11:00〜15:00頃</span>
+        <div class="p-title">USEN機器設置立会い</div>
+        <div class="p-desc">設置場所の確認から作業・操作説明まで立会い。作業中は中抜け可。</div>
+      </div>
     </div>
+    <div class="note">※予定していたビールサーバー設置は、駐車場が確保できないため今回は見送り（7/24以降の博多乗り込み時に調整中）。</div>
   </div>
 
   <div class="section">
-    <h2><span class="num">02</span>基本情報</h2>
-    <table class="info">
+    <h2><span class="num">02</span>行程表</h2>
+
+    <div class="day-label">DAY 1｜7月8日（水）</div>
+    <table class="timeline">
       <tr>
-        <th>日程</th>
-        <td>2026年7月8日（水）〜 7月9日（木）　1泊2日</td>
+        <th style="width:30mm">時間</th>
+        <th style="width:52mm">場所</th>
+        <th>内容</th>
       </tr>
       <tr>
-        <th>目的地</th>
-        <td>福岡市中央区 天神エリア（拠点：博多）</td>
+        <td class="time">12:55まで</td>
+        <td class="place">キャナルシティ博多 B1F<br>リファレンス貸会議室CA2</td>
+        <td>会場到着（開始5分前を目安に）</td>
+      </tr>
+      <tr class="highlight">
+        <td class="time">13:00〜16:00</td>
+        <td class="place">同上</td>
+        <td><strong>入店説明会（天神ビジネスセンターⅡ）</strong><br>持ち物：筆記用具</td>
       </tr>
       <tr>
-        <th>宿泊先</th>
-        <td>　</td>
+        <td class="time">16:00〜</td>
+        <td class="place">―</td>
+        <td>説明会終了後、店舗へ移動</td>
+      </tr>
+      <tr class="highlight">
+        <td class="time">17:00〜</td>
+        <td class="place">福岡天神店</td>
+        <td><strong>引き渡し立ち合い</strong>（大石様と）</td>
       </tr>
       <tr>
-        <th>交通</th>
-        <td>博多駅 ⇔ 天神駅：地下鉄空港線で約5分（190円）<br>福岡空港 ⇔ 博多駅：地下鉄空港線で約5分</td>
-      </tr>
-      <tr>
-        <th>緊急連絡先</th>
-        <td>　</td>
+        <td class="time">立ち合い後</td>
+        <td class="place">ホテル グランドルチェ博多<br>（中央区西中洲）</td>
+        <td>チェックイン（15:00から可）・宿泊</td>
       </tr>
     </table>
-  </div>
 
-  <div class="section">
-    <h2><span class="num">03</span>持ち物チェックリスト</h2>
-    <div class="check-grid">
-      <div class="item"><span class="box"></span>スマートフォン・充電器</div>
-      <div class="item"><span class="box"></span>モバイルバッテリー</div>
-      <div class="item"><span class="box"></span>財布（現金・クレジットカード）</div>
-      <div class="item"><span class="box"></span>交通系ICカード</div>
-      <div class="item"><span class="box"></span>名刺</div>
-      <div class="item"><span class="box"></span>筆記用具・メモ帳</div>
-      <div class="item"><span class="box"></span>ノートPC・タブレット</div>
-      <div class="item"><span class="box"></span>カメラ（視察記録用）</div>
-      <div class="item"><span class="box"></span>着替え・洗面用具</div>
-      <div class="item"><span class="box"></span>折りたたみ傘（梅雨時期のため）</div>
-      <div class="item"><span class="box"></span>健康保険証</div>
-      <div class="item"><span class="box"></span>常備薬</div>
-    </div>
-    <div class="note">※7月上旬の福岡は梅雨明け前後で蒸し暑くなります。雨具と暑さ対策をおすすめします。</div>
+    <div class="day-label day2">DAY 2｜7月9日（木）</div>
+    <table class="timeline day2">
+      <tr>
+        <th style="width:30mm">時間</th>
+        <th style="width:52mm">場所</th>
+        <th>内容</th>
+      </tr>
+      <tr>
+        <td class="time">午前</td>
+        <td class="place">ホテル グランドルチェ博多</td>
+        <td>チェックアウト</td>
+      </tr>
+      <tr class="highlight">
+        <td class="time">11:00頃</td>
+        <td class="place">福岡天神店 店舗前</td>
+        <td><strong>集合・USEN設置場所の確認</strong></td>
+      </tr>
+      <tr>
+        <td class="time">11:30頃</td>
+        <td class="place">福岡天神店</td>
+        <td>USEN設置作業開始（作業中は中抜け可）</td>
+      </tr>
+      <tr>
+        <td class="time">14:00頃</td>
+        <td class="place">福岡天神店</td>
+        <td>操作説明</td>
+      </tr>
+      <tr>
+        <td class="time">15:00頃</td>
+        <td class="place">―</td>
+        <td>終了予定</td>
+      </tr>
+    </table>
   </div>
 
   <div class="footer">
@@ -283,47 +379,94 @@
 <!-- ===================== 2ページ目 ===================== -->
 <div class="page">
   <div class="section">
-    <h2><span class="num">04</span>行程表</h2>
-
-    <div class="day-label">DAY 1｜7月8日（水）</div>
-    <table class="timeline">
+    <h2><span class="num">03</span>宿泊情報</h2>
+    <table class="info">
       <tr>
-        <th style="width:24mm">時間</th>
-        <th style="width:46mm">場所</th>
-        <th>内容</th>
+        <th>ホテル名</th>
+        <td><strong>ホテル グランドルチェ博多</strong></td>
       </tr>
-      <tr class="empty-row"><td class="time">　</td><td class="place">　</td><td>　</td></tr>
-      <tr class="empty-row"><td class="time">　</td><td class="place">　</td><td>　</td></tr>
-      <tr class="empty-row"><td class="time">　</td><td class="place">　</td><td>　</td></tr>
-      <tr class="empty-row"><td class="time">　</td><td class="place">　</td><td>　</td></tr>
-      <tr class="empty-row"><td class="time">　</td><td class="place">　</td><td>　</td></tr>
-      <tr class="empty-row"><td class="time">　</td><td class="place">　</td><td>　</td></tr>
-    </table>
-
-    <div class="day-label day2">DAY 2｜7月9日（木）</div>
-    <table class="timeline">
       <tr>
-        <th style="width:24mm">時間</th>
-        <th style="width:46mm">場所</th>
-        <th>内容</th>
+        <th>住所</th>
+        <td>〒810-0002 福岡県福岡市中央区西中洲12-18</td>
       </tr>
-      <tr class="empty-row day2"><td class="time">　</td><td class="place">　</td><td>　</td></tr>
-      <tr class="empty-row day2"><td class="time">　</td><td class="place">　</td><td>　</td></tr>
-      <tr class="empty-row day2"><td class="time">　</td><td class="place">　</td><td>　</td></tr>
-      <tr class="empty-row day2"><td class="time">　</td><td class="place">　</td><td>　</td></tr>
-      <tr class="empty-row day2"><td class="time">　</td><td class="place">　</td><td>　</td></tr>
-      <tr class="empty-row day2"><td class="time">　</td><td class="place">　</td><td>　</td></tr>
+      <tr>
+        <th>電話番号</th>
+        <td>092-406-1331</td>
+      </tr>
+      <tr>
+        <th>チェックイン</th>
+        <td>2026年7月8日（水）15:00〜</td>
+      </tr>
+      <tr>
+        <th>チェックアウト</th>
+        <td>2026年7月9日（木）</td>
+      </tr>
+      <tr>
+        <th>予約受付番号</th>
+        <td>RYa0mzbm7g_1〜3</td>
+      </tr>
+      <tr>
+        <th>部屋数</th>
+        <td>3部屋（1部屋あたり大人1名）</td>
+      </tr>
+      <tr>
+        <th>料金</th>
+        <td>9,800円 × 3部屋 ＝ <strong>29,400円</strong>（消費税込）</td>
+      </tr>
+      <tr>
+        <th>精算方法</th>
+        <td><strong>一括精算</strong>（現地フロントでのお支払いはありません）</td>
+      </tr>
     </table>
-    <div class="note">※行程の詳細が決まり次第、時間・場所・内容を反映します。</div>
   </div>
 
   <div class="section">
-    <h2><span class="num">05</span>メモ</h2>
+    <h2><span class="num">04</span>連絡先</h2>
+    <table class="info">
+      <tr>
+        <th>入店説明会<br>（欠席・変更連絡）</th>
+        <td>担当：政住様<br>電話：090-9485-8776<br>メール：s.masazumi@fj-eworks.co.jp</td>
+      </tr>
+      <tr>
+        <th>宿泊ホテル</th>
+        <td>ホテル グランドルチェ博多：092-406-1331</td>
+      </tr>
+    </table>
+  </div>
+
+  <div class="section">
+    <h2><span class="num">05</span>備考・留意事項</h2>
+    <ul class="notice-list">
+      <li><strong>入店説明会</strong>は開始5分前を目安に会場へ。欠席・日程変更の際は政住様まで連絡。</li>
+      <li><strong>USEN設置作業中</strong>（11:30頃〜14:00頃）は中抜け可。</li>
+      <li class="warn"><strong>ビールサーバー設置は今回見送り。</strong>駐車場が確保できないため、7/24以降の博多乗り込み時に調整中。</li>
+      <li>ホテルは一括精算のため、現地フロントでの支払いは不要。</li>
+      <li>博多駅 ⇔ 天神駅は地下鉄空港線で約5分。キャナルシティ博多は博多駅から徒歩約10分。</li>
+    </ul>
+  </div>
+
+  <div class="section">
+    <h2><span class="num">06</span>持ち物チェックリスト</h2>
+    <div class="check-grid">
+      <div class="item"><span class="box"></span>筆記用具（入店説明会で必要）</div>
+      <div class="item"><span class="box"></span>名刺</div>
+      <div class="item"><span class="box"></span>スマートフォン・充電器</div>
+      <div class="item"><span class="box"></span>モバイルバッテリー</div>
+      <div class="item"><span class="box"></span>財布（現金・クレジットカード）</div>
+      <div class="item"><span class="box"></span>交通系ICカード</div>
+      <div class="item"><span class="box"></span>ノートPC・タブレット</div>
+      <div class="item"><span class="box"></span>カメラ（店舗記録用）</div>
+      <div class="item"><span class="box"></span>着替え・洗面用具</div>
+      <div class="item"><span class="box"></span>折りたたみ傘（梅雨時期のため）</div>
+      <div class="item"><span class="box"></span>健康保険証</div>
+      <div class="item"><span class="box"></span>常備薬</div>
+    </div>
+    <div class="note">※7月上旬の福岡は梅雨明け前後で蒸し暑くなります。雨具と暑さ対策をおすすめします。</div>
+  </div>
+
+  <div class="section">
+    <h2><span class="num">07</span>メモ</h2>
     <div class="memo-lines">
-      <div class="line"></div>
-      <div class="line"></div>
-      <div class="line"></div>
-      <div class="line"></div>
       <div class="line"></div>
       <div class="line"></div>
       <div class="line"></div>
