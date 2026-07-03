@@ -17,8 +17,9 @@
   }
   .page {
     width: 210mm;
-    min-height: 297mm;
-    padding: 12mm 16mm 20mm;
+    height: 296mm;
+    overflow: hidden;
+    padding: 10mm 14mm 16mm;
     page-break-after: always;
     position: relative;
     background: #ffffff;
@@ -28,100 +29,100 @@
   /* ===== 表紙ヘッダー ===== */
   .cover-band {
     background: linear-gradient(135deg, #0f4c81 0%, #1b6ca8 60%, #2e8bc0 100%);
-    border-radius: 6mm;
+    border-radius: 4mm;
     color: #fff;
-    padding: 9mm 12mm 8mm;
-    margin-bottom: 6mm;
+    padding: 6.5mm 10mm 6mm;
+    margin-bottom: 5mm;
   }
   .cover-band .kicker {
-    font-size: 10pt;
-    letter-spacing: 0.35em;
+    font-size: 8.5pt;
+    letter-spacing: 0.3em;
     opacity: 0.85;
-    margin-bottom: 3mm;
+    margin-bottom: 2mm;
   }
   .cover-band h1 {
-    font-size: 25pt;
+    font-size: 21pt;
     font-weight: bold;
-    letter-spacing: 0.06em;
-    line-height: 1.3;
+    letter-spacing: 0.05em;
+    line-height: 1.25;
   }
   .cover-band .dates {
-    margin-top: 4mm;
+    margin-top: 3mm;
     display: flex;
-    gap: 4mm;
+    gap: 3.5mm;
   }
   .cover-band .date-chip {
     background: rgba(255,255,255,0.16);
-    border: 0.4mm solid rgba(255,255,255,0.5);
+    border: 0.35mm solid rgba(255,255,255,0.5);
     border-radius: 999px;
-    padding: 1.4mm 5mm;
-    font-size: 10.5pt;
-    letter-spacing: 0.05em;
+    padding: 1mm 4.5mm;
+    font-size: 9.5pt;
+    letter-spacing: 0.04em;
   }
 
   /* ===== セクション見出し ===== */
-  .section { margin-bottom: 6mm; }
+  .section { margin-bottom: 4.5mm; }
   .section h2 {
     display: flex;
     align-items: center;
-    gap: 3mm;
-    font-size: 12.5pt;
+    gap: 2.5mm;
+    font-size: 11pt;
     color: #0f4c81;
-    border-bottom: 0.7mm solid #0f4c81;
-    padding-bottom: 1.4mm;
-    margin-bottom: 3.2mm;
+    border-bottom: 0.6mm solid #0f4c81;
+    padding-bottom: 1.1mm;
+    margin-bottom: 2.4mm;
     letter-spacing: 0.08em;
   }
   .section h2 .num {
     background: #0f4c81;
     color: #fff;
-    border-radius: 2mm;
-    font-size: 10pt;
-    padding: 1mm 2.6mm;
+    border-radius: 1.6mm;
+    font-size: 8.5pt;
+    padding: 0.8mm 2.2mm;
     letter-spacing: 0;
   }
 
   /* ===== 目的カード ===== */
   .purpose-lead {
-    font-size: 10.5pt;
-    line-height: 1.8;
-    margin-bottom: 3mm;
+    font-size: 9pt;
+    line-height: 1.7;
+    margin-bottom: 2.2mm;
   }
   .purpose-cards {
     display: grid;
     grid-template-columns: 1fr 1fr 1fr;
-    gap: 3.5mm;
+    gap: 2.8mm;
   }
   .p-card {
-    border: 0.4mm solid #cfd6de;
-    border-top: 1.2mm solid #0f4c81;
-    border-radius: 2.5mm;
-    padding: 3.5mm 4mm;
+    border: 0.35mm solid #cfd6de;
+    border-top: 1mm solid #0f4c81;
+    border-radius: 2mm;
+    padding: 2.6mm 3mm;
     background: #fbfcfe;
   }
   .p-card.day2 { border-top-color: #c96a2b; }
   .p-card .tag {
     display: inline-block;
-    font-size: 8.5pt;
+    font-size: 7.5pt;
     font-weight: bold;
     color: #0f4c81;
     background: #eaf1f8;
-    border-radius: 1.5mm;
-    padding: 0.8mm 2.4mm;
-    margin-bottom: 2mm;
-    letter-spacing: 0.05em;
+    border-radius: 1.2mm;
+    padding: 0.6mm 2mm;
+    margin-bottom: 1.4mm;
+    letter-spacing: 0.04em;
   }
   .p-card.day2 .tag { color: #c96a2b; background: #faf0e6; }
   .p-card .p-title {
-    font-size: 11pt;
+    font-size: 9.5pt;
     font-weight: bold;
-    line-height: 1.5;
-    margin-bottom: 1.4mm;
+    line-height: 1.4;
+    margin-bottom: 1mm;
   }
   .p-card .p-desc {
-    font-size: 9pt;
+    font-size: 8pt;
     color: #5a636e;
-    line-height: 1.65;
+    line-height: 1.55;
   }
 
   /* ===== タイムライン ===== */
@@ -129,62 +130,62 @@
     display: inline-block;
     background: #0f4c81;
     color: #fff;
-    border-radius: 2mm;
-    padding: 1.3mm 4mm;
-    font-size: 11pt;
+    border-radius: 1.6mm;
+    padding: 1mm 3.5mm;
+    font-size: 9.5pt;
     font-weight: bold;
-    letter-spacing: 0.08em;
-    margin-bottom: 2.6mm;
+    letter-spacing: 0.07em;
+    margin-bottom: 1.8mm;
   }
   .day-label.day2 { background: #c96a2b; }
   table.timeline {
     width: 100%;
     border-collapse: collapse;
-    font-size: 10pt;
-    margin-bottom: 5mm;
+    font-size: 8.5pt;
+    margin-bottom: 3.5mm;
   }
   table.timeline th {
     background: #eaf1f8;
     color: #0f4c81;
-    border: 0.3mm solid #cfd6de;
-    padding: 2mm 3mm;
-    font-size: 9.5pt;
+    border: 0.25mm solid #cfd6de;
+    padding: 1.3mm 2.5mm;
+    font-size: 8pt;
     letter-spacing: 0.05em;
   }
   table.timeline.day2 th { background: #faf0e6; color: #c96a2b; }
   table.timeline td {
-    border: 0.3mm solid #cfd6de;
-    padding: 2.4mm 3mm;
-    line-height: 1.6;
+    border: 0.25mm solid #cfd6de;
+    padding: 1.6mm 2.5mm;
+    line-height: 1.5;
     vertical-align: top;
   }
   table.timeline td.time {
-    width: 30mm;
+    width: 26mm;
     text-align: center;
     font-weight: bold;
     color: #0f4c81;
     white-space: nowrap;
   }
   table.timeline.day2 td.time { color: #c96a2b; }
-  table.timeline td.place { width: 52mm; }
+  table.timeline td.place { width: 48mm; }
   table.timeline .highlight td { background: #f4f9f4; }
 
   /* ===== 情報テーブル ===== */
   table.info {
     width: 100%;
     border-collapse: collapse;
-    font-size: 10pt;
+    font-size: 8.5pt;
   }
   table.info th, table.info td {
-    border: 0.3mm solid #cfd6de;
-    padding: 2.4mm 3.5mm;
+    border: 0.25mm solid #cfd6de;
+    padding: 1.6mm 3mm;
     text-align: left;
-    line-height: 1.6;
+    line-height: 1.5;
   }
   table.info th {
     background: #eaf1f8;
     color: #0f4c81;
-    width: 36mm;
+    width: 32mm;
     font-weight: bold;
     white-space: nowrap;
   }
@@ -193,18 +194,18 @@
   .notice-list { list-style: none; }
   .notice-list li {
     position: relative;
-    padding: 1.4mm 0 1.4mm 7mm;
-    font-size: 10pt;
-    line-height: 1.7;
-    border-bottom: 0.25mm dotted #cfd6de;
+    padding: 1mm 0 1mm 6mm;
+    font-size: 8.5pt;
+    line-height: 1.6;
+    border-bottom: 0.2mm dotted #cfd6de;
   }
   .notice-list li::before {
     content: "";
     position: absolute;
     left: 1mm;
-    top: 3.4mm;
-    width: 2.6mm;
-    height: 2.6mm;
+    top: 2.6mm;
+    width: 2.2mm;
+    height: 2.2mm;
     background: #0f4c81;
     border-radius: 50%;
   }
@@ -216,49 +217,49 @@
   .check-grid {
     display: grid;
     grid-template-columns: 1fr 1fr;
-    gap: 1.6mm 8mm;
-    font-size: 10pt;
+    gap: 1mm 7mm;
+    font-size: 8.5pt;
   }
   .check-grid .item {
     display: flex;
     align-items: center;
-    gap: 2.5mm;
-    padding: 1.1mm 0;
-    border-bottom: 0.25mm dotted #cfd6de;
-    line-height: 1.6;
+    gap: 2mm;
+    padding: 0.8mm 0;
+    border-bottom: 0.2mm dotted #cfd6de;
+    line-height: 1.5;
   }
   .check-grid .box {
-    width: 3.8mm;
-    height: 3.8mm;
-    border: 0.4mm solid #0f4c81;
-    border-radius: 0.8mm;
+    width: 3.2mm;
+    height: 3.2mm;
+    border: 0.35mm solid #0f4c81;
+    border-radius: 0.7mm;
     flex: 0 0 auto;
   }
 
   /* ===== メモ ===== */
   .memo-lines .line {
-    border-bottom: 0.3mm solid #cfd6de;
-    height: 8.5mm;
+    border-bottom: 0.25mm solid #cfd6de;
+    height: 7.5mm;
   }
 
   /* ===== フッター ===== */
   .footer {
     position: absolute;
-    bottom: 8mm;
-    left: 16mm;
-    right: 16mm;
+    bottom: 6mm;
+    left: 14mm;
+    right: 14mm;
     display: flex;
     justify-content: space-between;
-    font-size: 8.5pt;
+    font-size: 7.5pt;
     color: #9aa3ad;
     letter-spacing: 0.08em;
   }
 
   .note {
-    font-size: 9pt;
+    font-size: 7.5pt;
     color: #8a929c;
-    margin-top: 1.6mm;
-    line-height: 1.7;
+    margin-top: 1.2mm;
+    line-height: 1.6;
   }
 </style>
 </head>
@@ -304,8 +305,8 @@
     <div class="day-label">DAY 1｜7月8日（水）</div>
     <table class="timeline">
       <tr>
-        <th style="width:30mm">時間</th>
-        <th style="width:52mm">場所</th>
+        <th style="width:26mm">時間</th>
+        <th style="width:48mm">場所</th>
         <th>内容</th>
       </tr>
       <tr>
@@ -316,7 +317,7 @@
       <tr class="highlight">
         <td class="time">13:00〜16:00</td>
         <td class="place">同上</td>
-        <td><strong>入店説明会（天神ビジネスセンターⅡ）</strong><br>持ち物：筆記用具</td>
+        <td><strong>入店説明会（天神ビジネスセンターⅡ）</strong>　持ち物：筆記用具</td>
       </tr>
       <tr>
         <td class="time">16:00〜</td>
@@ -330,7 +331,7 @@
       </tr>
       <tr>
         <td class="time">立ち合い後</td>
-        <td class="place">ホテル グランドルチェ博多<br>（中央区西中洲）</td>
+        <td class="place">ホテル グランドルチェ博多（中央区西中洲）</td>
         <td>チェックイン（15:00から可）・宿泊</td>
       </tr>
     </table>
@@ -338,8 +339,8 @@
     <div class="day-label day2">DAY 2｜7月9日（木）</div>
     <table class="timeline day2">
       <tr>
-        <th style="width:30mm">時間</th>
-        <th style="width:52mm">場所</th>
+        <th style="width:26mm">時間</th>
+        <th style="width:48mm">場所</th>
         <th>内容</th>
       </tr>
       <tr>
@@ -383,39 +384,19 @@
     <table class="info">
       <tr>
         <th>ホテル名</th>
-        <td><strong>ホテル グランドルチェ博多</strong></td>
+        <td><strong>ホテル グランドルチェ博多</strong>　〒810-0002 福岡県福岡市中央区西中洲12-18　TEL：092-406-1331</td>
       </tr>
       <tr>
-        <th>住所</th>
-        <td>〒810-0002 福岡県福岡市中央区西中洲12-18</td>
-      </tr>
-      <tr>
-        <th>電話番号</th>
-        <td>092-406-1331</td>
-      </tr>
-      <tr>
-        <th>チェックイン</th>
-        <td>2026年7月8日（水）15:00〜</td>
-      </tr>
-      <tr>
-        <th>チェックアウト</th>
-        <td>2026年7月9日（木）</td>
+        <th>チェックイン／アウト</th>
+        <td>IN：2026年7月8日（水）15:00〜　／　OUT：2026年7月9日（木）</td>
       </tr>
       <tr>
         <th>予約受付番号</th>
-        <td>RYa0mzbm7g_1〜3</td>
+        <td>RYa0mzbm7g_1〜3（3部屋・1部屋あたり大人1名）</td>
       </tr>
       <tr>
-        <th>部屋数</th>
-        <td>3部屋（1部屋あたり大人1名）</td>
-      </tr>
-      <tr>
-        <th>料金</th>
-        <td>9,800円 × 3部屋 ＝ <strong>29,400円</strong>（消費税込）</td>
-      </tr>
-      <tr>
-        <th>精算方法</th>
-        <td><strong>一括精算</strong>（現地フロントでのお支払いはありません）</td>
+        <th>料金・精算</th>
+        <td>9,800円 × 3部屋 ＝ <strong>29,400円</strong>（消費税込）／<strong>一括精算</strong>（現地フロントでのお支払いはありません）</td>
       </tr>
     </table>
   </div>
@@ -425,7 +406,7 @@
     <table class="info">
       <tr>
         <th>入店説明会<br>（欠席・変更連絡）</th>
-        <td>担当：政住様<br>電話：090-9485-8776<br>メール：s.masazumi@fj-eworks.co.jp</td>
+        <td>担当：政住様　電話：090-9485-8776　メール：s.masazumi@fj-eworks.co.jp</td>
       </tr>
       <tr>
         <th>宿泊ホテル</th>
@@ -467,6 +448,7 @@
   <div class="section">
     <h2><span class="num">07</span>メモ</h2>
     <div class="memo-lines">
+      <div class="line"></div>
       <div class="line"></div>
       <div class="line"></div>
       <div class="line"></div>
