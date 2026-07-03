@@ -741,6 +741,29 @@ def distmove(target=None):
     print("[MOVE] 完了：投稿希望時間を備考の隣(H)へ移動／Drive=I,J: https://docs.google.com/spreadsheets/d/%s/edit" % sid)
 
 
+def sushifolder():
+    """見本（パターンタブ）のラベル先頭に【鮨処】を付けて保管区分にする。
+    行も動画も消さない。採用(enabled)は触らない＝新テンプレ採用まで投稿は従来どおり。"""
+    cr = _creds(); sh = _sheets(cr)
+    try:
+        rows = sh.values().get(spreadsheetId=SHEET_ID, range="パターン!A:G").execute().get("values", [])
+    except Exception as e:
+        print("[鮨処] パターンタブ読込失敗:", e); return
+    n = 0
+    for i in range(1, len(rows)):
+        r = rows[i]
+        if not r or not str(r[0]).strip():
+            continue
+        label = str(r[1]).strip() if len(r) > 1 else str(r[0]).strip()
+        if label.startswith("【鮨処】"):
+            continue
+        sh.values().update(spreadsheetId=SHEET_ID, range="パターン!B%d" % (i + 1),
+            valueInputOption="RAW", body={"values": [["【鮨処】" + label]]}).execute()
+        n += 1
+        print("[鮨処] 保管: %s → 【鮨処】%s" % (str(r[0]).strip(), label))
+    print("[鮨処] 完了: %d 件を保管区分にしました（見本ギャラリーの【鮨処】フォルダに表示）" % n)
+
+
 def inbox():
     """CapCut等の参考動画を受け取るDriveフォルダを作成し、あなた(SHARE_EMAIL)に編集権限で共有＋
     リンクを知っていれば閲覧可にする。ここに動画を入れてもらい、こちらで中身を確認する用。"""
@@ -1117,6 +1140,8 @@ if __name__ == "__main__":
         distmove(arg)
     elif mode == "distfinal":
         distfinal(arg)
+    elif mode == "sushifolder":
+        sushifolder()
     elif mode == "inbox":
         inbox()
     elif mode == "outbox":

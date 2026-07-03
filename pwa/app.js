@@ -574,7 +574,17 @@
       e.innerHTML = "見本がまだありません。<br>サンプル生成（samples）を実行すると、ここに各パターンの動画が並びます。";
       galleryEl.appendChild(e); applyAdminClass(); return;
     }
-    items.forEach(function (it) { galleryEl.appendChild(galleryCard(it)); });
+    // 【鮨処】保管分は下の“フォルダ”区分にまとめる（消さずに保管・他店舗で使用予定）
+    var normal = items.filter(function (it) { return String(it.label || "").indexOf("【鮨処】") !== 0; });
+    var stored = items.filter(function (it) { return String(it.label || "").indexOf("【鮨処】") === 0; });
+    normal.forEach(function (it) { galleryEl.appendChild(galleryCard(it)); });
+    if (stored.length) {
+      var fh = document.createElement("div"); fh.className = "ghint";
+      fh.style.marginTop = "18px";
+      fh.innerHTML = "📁 <b>【鮨処】保管フォルダ</b>（" + stored.length + "本・別店舗で使用予定の見本置き場）";
+      galleryEl.appendChild(fh);
+      stored.forEach(function (it) { galleryEl.appendChild(galleryCard(it)); });
+    }
     applyAdminClass();
   }
   function loadPatterns() {
