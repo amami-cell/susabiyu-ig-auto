@@ -741,6 +741,21 @@ def distmove(target=None):
     print("[MOVE] 完了：投稿希望時間を備考の隣(H)へ移動／Drive=I,J: https://docs.google.com/spreadsheets/d/%s/edit" % sid)
 
 
+def patdump():
+    """パターンタブの key/label/url を出力（烏丸仮ページに焼き込むため）。posterは巨大なので省く。"""
+    import json as _j
+    cr = _creds(); sh = _sheets(cr)
+    rows = sh.values().get(spreadsheetId=SHEET_ID, range="パターン!A:G").execute().get("values", [])
+    for i in range(1, len(rows)):
+        r = rows[i]
+        if not r or not str(r[0]).strip():
+            continue
+        print("PAT|" + _j.dumps({"k": str(r[0]), "l": str(r[1]) if len(r) > 1 else "",
+                                 "u": str(r[2]) if len(r) > 2 else "",
+                                 "e": str(r[5]) if len(r) > 5 else ""}, ensure_ascii=False))
+    print("[PATDUMP] 完了")
+
+
 def sushifolder():
     """見本（パターンタブ）のラベル先頭に【鮨処】を付けて保管区分にする。
     行も動画も消さない。採用(enabled)は触らない＝新テンプレ採用まで投稿は従来どおり。"""
@@ -1140,6 +1155,8 @@ if __name__ == "__main__":
         distmove(arg)
     elif mode == "distfinal":
         distfinal(arg)
+    elif mode == "patdump":
+        patdump()
     elif mode == "sushifolder":
         sushifolder()
     elif mode == "inbox":
