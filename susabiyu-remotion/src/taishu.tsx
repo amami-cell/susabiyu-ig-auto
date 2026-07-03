@@ -3,6 +3,7 @@
 import React from "react";
 import { AbsoluteFill, useCurrentFrame, interpolate, Easing } from "remotion";
 import { tempoPhotos, tempoMusic } from "./tempoData";
+import { rnd } from "./capData";
 
 export const AKA = "#d7263d";      // 大衆の赤
 export const AKA_DARK = "#a31226";
@@ -77,3 +78,84 @@ export const NorenBg: React.FC = () => (
     <AbsoluteFill style={{ background: "radial-gradient(ellipse at 50% 30%, rgba(255,255,255,0.10) 0%, rgba(0,0,0,0.25) 100%)" }} />
   </AbsoluteFill>
 );
+
+
+// ── 各テンプレ専用の世界観背景（1パターン化を防ぐため全部違う） ──
+
+// チラシ用：黄×赤の放射バースト（ゆっくり回転）
+export const SunburstBg: React.FC<{ speed?: number }> = ({ speed = 0.12 }) => {
+  const f = useCurrentFrame();
+  return (
+    <AbsoluteFill style={{ background: KIIRO, overflow: "hidden" }}>
+      <div style={{ position: "absolute", left: -960, top: -540, width: 3000, height: 3000,
+        background: "repeating-conic-gradient(" + AKA + " 0deg 12deg, " + KIIRO + " 12deg 24deg)",
+        borderRadius: "50%", transform: "rotate(" + f * speed + "deg)", opacity: 0.92 }} />
+      <AbsoluteFill style={{ background: "radial-gradient(circle at 50% 46%, rgba(255,246,210,0.92) 0%, rgba(255,246,210,0) 48%)" }} />
+    </AbsoluteFill>
+  );
+};
+
+// 手書き用：クラフト紙
+export const KraftBg: React.FC = () => (
+  <AbsoluteFill style={{ background: "linear-gradient(160deg,#cda36c 0%,#bb8e57 55%,#a97e49 100%)" }}>
+    <AbsoluteFill style={{ background: "radial-gradient(ellipse at 50% 40%, rgba(255,255,255,0.15) 0%, rgba(60,40,20,0.25) 100%)" }} />
+  </AbsoluteFill>
+);
+
+// ネオン用：夜の闇＋ボケ光
+export const NightBg: React.FC = () => {
+  const f = useCurrentFrame();
+  const dots = [];
+  for (let i = 0; i < 14; i++) {
+    const x = rnd(i * 13.3) * 1080, y = rnd(i * 7.7 + 3) * 1600;
+    const r = 50 + rnd(i * 3.1) * 100;
+    const drift = Math.sin(f * 0.02 + i) * 22;
+    const col = i % 3 === 0 ? "255,80,130" : i % 3 === 1 ? "255,190,60" : "70,200,255";
+    dots.push(<div key={i} style={{ position: "absolute", left: x, top: y + drift, width: r, height: r, borderRadius: "50%",
+      background: "rgba(" + col + ",0.45)", filter: "blur(" + r / 3 + "px)" }} />);
+  }
+  return <AbsoluteFill style={{ background: "linear-gradient(180deg,#0d0a14 0%,#170f20 100%)" }}>{dots}</AbsoluteFill>;
+};
+
+// 黒板用：緑黒板＋木枠
+export const BlackboardBg: React.FC = () => (
+  <AbsoluteFill style={{ background: "linear-gradient(180deg,#7a4e2b,#5d3920)", padding: 34 }}>
+    <div style={{ width: "100%", height: "100%", borderRadius: 12,
+      background: "radial-gradient(ellipse at 50% 38%, #37564b 0%, #274138 70%, #1f342d 100%)",
+      boxShadow: "inset 0 0 70px rgba(0,0,0,0.55)" }} />
+  </AbsoluteFill>
+);
+
+// 店内用：ぶら下がる赤提灯（ゆらゆら）
+export const Lanterns: React.FC = () => {
+  const f = useCurrentFrame();
+  const xs = [120, 400, 680, 940];
+  const moji = ["酒", "寿", "司", "肴"];
+  return (
+    <AbsoluteFill style={{ pointerEvents: "none" }}>
+      {xs.map((x, i) => {
+        const sway = Math.sin(f * 0.05 + i * 1.6) * 5;
+        return (
+          <div key={i} style={{ position: "absolute", left: x, top: -6, transform: "rotate(" + sway + "deg)", transformOrigin: "top center" }}>
+            <div style={{ width: 4, height: 62, background: "#3a2a18", margin: "0 auto" }} />
+            <div style={{ width: 112, height: 152, borderRadius: 54, border: "3px solid #7a1020",
+              background: "radial-gradient(circle at 50% 42%, #ff7161 0%, " + AKA + " 62%, " + AKA_DARK + " 100%)",
+              boxShadow: "0 0 46px rgba(255,90,60,0.55)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+              <span style={{ writingMode: "vertical-rl", color: "#ffe9d0", fontSize: 34, fontWeight: 700 } as React.CSSProperties}>{moji[i]}</span>
+            </div>
+          </div>
+        );
+      })}
+    </AbsoluteFill>
+  );
+};
+
+// ネオン発光文字のスタイル
+export function neon(color: string): React.CSSProperties {
+  return { color: "#fff", textShadow: "0 0 6px #fff, 0 0 14px " + color + ", 0 0 34px " + color + ", 0 0 80px " + color };
+}
+
+// マーカーで引いた蛍光ハイライト
+export function marker(color = "rgba(255,220,60,0.75)"): React.CSSProperties {
+  return { background: "linear-gradient(transparent 58%, " + color + " 58%, " + color + " 92%, transparent 92%)" };
+}
