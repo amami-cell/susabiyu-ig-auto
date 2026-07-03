@@ -5,7 +5,7 @@ import { AbsoluteFill, Img, Audio, Sequence, staticFile, useCurrentFrame, interp
 import { loadFont as loadChalk } from "@remotion/google-fonts/Yomogi";
 import { loadFont as loadFude } from "@remotion/google-fonts/YujiSyuku";
 import { Cine, Flash } from "./cine";
-import { AKA, BlackboardBg, tpick, taishuMusic } from "./taishu";
+import { AKA, BlackboardBg, Tex, Spot, tpick, taishuMusic } from "./taishu";
 
 const { fontFamily: chalk } = loadChalk();
 const { fontFamily: fude } = loadFude();
@@ -16,6 +16,30 @@ const OUTRO = 46;
 export const TOSHI_DUR = INTRO + PHOTOS.length * PER + OUTRO;
 const STAMP_AT = 14;   // 各皿でハンコが押されるフレーム
 const CHALK = "#f2efe4";
+const CHALK_Y = "#ffe9a3";   // 黄チョーク（差し色）
+
+// 黒板の背景セット：チョークの粉・こすれ跡・飾り枠・電球の灯り
+const BoardBg: React.FC = () => (
+  <AbsoluteFill>
+    <BlackboardBg />
+    {/* 消し跡のこすれ（うっすら白いムラ） */}
+    <div style={{ position: "absolute", left: 120, top: 420, width: 560, height: 260, background: "rgba(240,238,225,0.05)", filter: "blur(40px)", transform: "rotate(-8deg)" }} />
+    <div style={{ position: "absolute", left: 420, top: 1300, width: 520, height: 300, background: "rgba(240,238,225,0.06)", filter: "blur(48px)", transform: "rotate(5deg)" }} />
+    <Tex opacity={0.14} blend="overlay" />
+    <Spot x="50%" y="-6%" color="255,214,150" opacity={0.2} />
+    {/* チョークの飾り二重枠＋四隅の飾り */}
+    <svg width="1080" height="1920" viewBox="0 0 1080 1920" style={{ position: "absolute", pointerEvents: "none" }}>
+      <rect x="76" y="96" width="928" height="1728" rx="14" fill="none" stroke={CHALK} strokeWidth="4.5" opacity="0.75" />
+      <rect x="96" y="116" width="888" height="1688" rx="10" fill="none" stroke={CHALK} strokeWidth="2" opacity="0.45" strokeDasharray="14 10" />
+      {[[100, 120, 1], [980, 120, -1], [100, 1800, 1], [980, 1800, -1]].map(([cx, cy, d], i) => (
+        <g key={i} opacity="0.8">
+          <path d={"M " + (cx - 26 * d) + " " + cy + " q " + 26 * d + " 0 " + 26 * d + " " + (cy < 900 ? 26 : -26)} fill="none" stroke={CHALK_Y} strokeWidth="4" strokeLinecap="round" />
+          <circle cx={cx} cy={cy} r="5" fill={CHALK_Y} />
+        </g>
+      ))}
+    </svg>
+  </AbsoluteFill>
+);
 
 // チョークの落書き：ぐるっと波線の下線（描かれていくアニメ）
 const Squiggle: React.FC<{ x: number; y: number; w: number; local: number }> = ({ x, y, w, local }) => {
@@ -59,7 +83,7 @@ const Dish: React.FC<{ src: string; caption: string; i: number }> = ({ src, capt
   const kick = st >= 0 && st < 6 ? Math.sin(st * 2.2) * (6 - st) : 0;
   return (
     <AbsoluteFill>
-      <BlackboardBg />
+      <BoardBg />
       <AbsoluteFill style={{ justifyContent: "center", alignItems: "center", opacity: o, transform: "translateY(" + inY + "px) rotate(" + kick * 0.4 + "deg)" }}>
         <div style={{ position: "relative", width: 800, transform: "rotate(" + deg + "deg)" }}>
           {/* 黒板に貼った写真（白フチ＋画鋲がわりのチョーク留め） */}
@@ -99,7 +123,7 @@ export const TaishuOshi: React.FC<{ storeName?: string; handle?: string }> = ({ 
       <Cine grade="contrast(1.06) saturate(1.12) brightness(1.02)">
         <Sequence durationInFrames={INTRO}>
           <AbsoluteFill>
-            <BlackboardBg />
+            <BoardBg />
             <AbsoluteFill style={{ justifyContent: "center", alignItems: "center", opacity: iO }}>
               <div style={{ transform: "scale(" + iS + ") rotate(-2deg)", textAlign: "center" }}>
                 <div style={{ color: CHALK, fontFamily: chalk, fontSize: 108, lineHeight: 1.35 }}>本日の<br />黒板メニュー</div>
@@ -115,7 +139,7 @@ export const TaishuOshi: React.FC<{ storeName?: string; handle?: string }> = ({ 
         ))}
         <Sequence from={outStart} durationInFrames={OUTRO}>
           <AbsoluteFill>
-            <BlackboardBg />
+            <BoardBg />
             <AbsoluteFill style={{ justifyContent: "center", alignItems: "center", opacity: oO }}>
               <div style={{ transform: "scale(" + oS + ") rotate(-2deg)", textAlign: "center" }}>
                 <div style={{ color: CHALK, fontFamily: chalk, fontSize: 96, lineHeight: 1.4 }}>ぜんぶ<br />食べてって！</div>

@@ -82,18 +82,45 @@ export const NorenBg: React.FC = () => (
 
 // ── 各テンプレ専用の世界観背景（1パターン化を防ぐため全部違う） ──
 
-// チラシ用：黄×赤の放射バースト（ゆっくり回転）
-export const SunburstBg: React.FC<{ speed?: number }> = ({ speed = 0.12 }) => {
+// チラシ用：放射バースト（ゆっくり回転）。色は差し替え可（レトロ配色にも使う）
+export const SunburstBg: React.FC<{ speed?: number; c1?: string; c2?: string }> = ({ speed = 0.12, c1 = AKA, c2 = KIIRO }) => {
   const f = useCurrentFrame();
   return (
-    <AbsoluteFill style={{ background: KIIRO, overflow: "hidden" }}>
+    <AbsoluteFill style={{ background: c2, overflow: "hidden" }}>
       <div style={{ position: "absolute", left: -960, top: -540, width: 3000, height: 3000,
-        background: "repeating-conic-gradient(" + AKA + " 0deg 12deg, " + KIIRO + " 12deg 24deg)",
+        background: "repeating-conic-gradient(" + c1 + " 0deg 12deg, " + c2 + " 12deg 24deg)",
         borderRadius: "50%", transform: "rotate(" + f * speed + "deg)", opacity: 0.92 }} />
       <AbsoluteFill style={{ background: "radial-gradient(circle at 50% 46%, rgba(255,246,210,0.92) 0%, rgba(255,246,210,0) 48%)" }} />
     </AbsoluteFill>
   );
 };
+
+// ── 質感レイヤー（ベタ塗りのチープ見え防止。④提灯と同じ土俵に乗せる）──
+const TEX_URI =
+  "data:image/svg+xml;utf8," +
+  encodeURIComponent(
+    '<svg xmlns="http://www.w3.org/2000/svg" width="300" height="300">' +
+    '<filter id="p"><feTurbulence type="fractalNoise" baseFrequency="0.72" numOctaves="3"/></filter>' +
+    '<rect width="300" height="300" filter="url(#p)" opacity="0.7"/></svg>'
+  );
+
+// 紙・黒板・布のざらつき
+export const Tex: React.FC<{ opacity?: number; blend?: "overlay" | "multiply" | "soft-light" }> = ({ opacity = 0.1, blend = "overlay" }) => (
+  <AbsoluteFill style={{ pointerEvents: "none", opacity, mixBlendMode: blend,
+    backgroundImage: "url(\"" + TEX_URI + "\")", backgroundRepeat: "repeat" }} />
+);
+
+// レトロ印刷の網点（昭和ポスターの刷り感）
+export const Halftone: React.FC<{ opacity?: number; color?: string }> = ({ opacity = 0.1, color = "rgba(90,30,10,0.8)" }) => (
+  <AbsoluteFill style={{ pointerEvents: "none", opacity,
+    backgroundImage: "radial-gradient(" + color + " 1.4px, transparent 1.4px)", backgroundSize: "13px 13px" }} />
+);
+
+// 上からの温かい灯り（電球色スポット）
+export const Spot: React.FC<{ x?: string; y?: string; color?: string; opacity?: number }> = ({ x = "50%", y = "0%", color = "255,190,110", opacity = 0.22 }) => (
+  <AbsoluteFill style={{ pointerEvents: "none",
+    background: "radial-gradient(ellipse at " + x + " " + y + ", rgba(" + color + "," + opacity + ") 0%, rgba(0,0,0,0) 55%)" }} />
+);
 
 // 手書き用：クラフト紙
 export const KraftBg: React.FC = () => (
@@ -102,19 +129,25 @@ export const KraftBg: React.FC = () => (
   </AbsoluteFill>
 );
 
-// ネオン用：夜の闇＋ボケ光
+// ネオン用：夜の闇＋ボケ光＋街灯りの照り返し
 export const NightBg: React.FC = () => {
   const f = useCurrentFrame();
   const dots = [];
-  for (let i = 0; i < 14; i++) {
-    const x = rnd(i * 13.3) * 1080, y = rnd(i * 7.7 + 3) * 1600;
-    const r = 50 + rnd(i * 3.1) * 100;
+  for (let i = 0; i < 20; i++) {
+    const x = rnd(i * 13.3) * 1080, y = rnd(i * 7.7 + 3) * 1700;
+    const r = 40 + rnd(i * 3.1) * 110;
     const drift = Math.sin(f * 0.02 + i) * 22;
     const col = i % 3 === 0 ? "255,80,130" : i % 3 === 1 ? "255,190,60" : "70,200,255";
     dots.push(<div key={i} style={{ position: "absolute", left: x, top: y + drift, width: r, height: r, borderRadius: "50%",
-      background: "rgba(" + col + ",0.45)", filter: "blur(" + r / 3 + "px)" }} />);
+      background: "rgba(" + col + ",0.4)", filter: "blur(" + r / 3 + "px)" }} />);
   }
-  return <AbsoluteFill style={{ background: "linear-gradient(180deg,#0d0a14 0%,#170f20 100%)" }}>{dots}</AbsoluteFill>;
+  return (
+    <AbsoluteFill style={{ background: "linear-gradient(180deg,#0d0a14 0%,#170f20 100%)" }}>
+      {dots}
+      {/* 下端に街灯りの照り返し */}
+      <AbsoluteFill style={{ background: "radial-gradient(ellipse at 50% 104%, rgba(255,120,50,0.16) 0%, rgba(0,0,0,0) 45%)" }} />
+    </AbsoluteFill>
+  );
 };
 
 // 黒板用：緑黒板＋木枠
