@@ -20,8 +20,24 @@
     // この要求を投げた後に、別の要求でキーが入力済みなら聞かない（＝1回で済む）
     if (genAtSend !== undefined && genAtSend !== keyGen) return KEY;
     var k = window.prompt(msg || "確認コードを入力してください", "");
-    if (k != null) { KEY = k.trim(); localStorage.setItem("sb_key", KEY); keyGen++; }
+    if (k != null) { var prevK = KEY; KEY = k.trim(); localStorage.setItem("sb_key", KEY); keyGen++; karCheck(KEY, prevK); }
     return KEY;
+  }
+
+  /* ---------- 烏丸店ページ（仮・PASSを知る人だけ） ---------- */
+  var KAR_HASH = "92925488b28ab12584ac8fcaa8a27a0f497b2c62940c8f4fbc8ef19ebc87c43e";
+  var KAR = false;
+  try { KAR = localStorage.getItem("sb_store") === "karasuma"; } catch (e) {}
+  function karCheck(code, prevKey) {
+    if (!code || !window.crypto || !crypto.subtle) return;
+    pvHash(code).then(function (h) {
+      if (h !== KAR_HASH) return;
+      try {
+        if (prevKey) localStorage.setItem("sb_key", prevKey); else localStorage.removeItem("sb_key");
+        localStorage.setItem("sb_store", "karasuma");
+      } catch (e) {}
+      location.reload();
+    });
   }
 
   var feed = document.getElementById("feed");
@@ -524,7 +540,7 @@
     }).catch(function () { toast("通信エラー。元に戻します"); delete pendingPat[key]; paintToggle(card, !on); });
   }
   function applyAdminClass() {
-    if (galleryEl) galleryEl.classList.toggle("admin", !!ADMIN);
+    if (galleryEl) galleryEl.classList.toggle("admin", !!ADMIN && !KAR);
     refreshAdminBar();
   }
   function refreshAdminBar() {
@@ -574,16 +590,21 @@
       e.innerHTML = "見本がまだありません。<br>サンプル生成（samples）を実行すると、ここに各パターンの動画が並びます。";
       galleryEl.appendChild(e); applyAdminClass(); return;
     }
-    // 【鮨処】保管分は下の“フォルダ”区分にまとめる（消さずに保管・他店舗で使用予定）
+    // 店舗ページで振り分け：烏丸=【鮨処】のみ／三条=それ以外のみ
     var normal = items.filter(function (it) { return String(it.label || "").indexOf("【鮨処】") !== 0; });
     var stored = items.filter(function (it) { return String(it.label || "").indexOf("【鮨処】") === 0; });
-    normal.forEach(function (it) { galleryEl.appendChild(galleryCard(it)); });
-    if (stored.length) {
-      var fh = document.createElement("div"); fh.className = "ghint";
-      fh.style.marginTop = "18px";
-      fh.innerHTML = "📁 <b>【鮨処】保管フォルダ</b>（" + stored.length + "本・別店舗で使用予定の見本置き場）";
-      galleryEl.appendChild(fh);
+    if (KAR) {
+      hint.innerHTML = "🍣 <b>鮨処すさび湯 四条烏丸</b>（準備中）の見本置き場です。このページは入口PASSを知る人だけが開けます。<br>Instagram連携はアカウント情報が揃ってから。<b>採用ボタンはまだ使いません</b>。 <button class='alink' id='karBack'>三条ページへ戻る</button>";
       stored.forEach(function (it) { galleryEl.appendChild(galleryCard(it)); });
+      if (!stored.length) {
+        var ke = document.createElement("div"); ke.className = "empty";
+        ke.innerHTML = "保管中の見本はまだありません。";
+        galleryEl.appendChild(ke);
+      }
+      var kb = hint.querySelector("#karBack");
+      if (kb) kb.onclick = function () { try { localStorage.removeItem("sb_store"); } catch (e) {} location.reload(); };
+    } else {
+      normal.forEach(function (it) { galleryEl.appendChild(galleryCard(it)); });
     }
     applyAdminClass();
   }
@@ -1171,6 +1192,17 @@
       try { saved = localStorage.getItem("sb_pv") || ""; } catch (e) {}
       if (saved) { pvFetch(saved).then(pvShow).catch(pvAsk); } else { pvAsk(); }
     });
+  })();
+
+  /* ---------- 烏丸ページの画面切替 ---------- */
+  (function karInit() {
+    if (!KAR) return;
+    var el = document.getElementById("storeName");
+    if (el) el.textContent = "鮨処すさび湯 四条烏丸";
+    document.title = "鮨処すさび湯 四条烏丸";
+    if (tabFeed) tabFeed.style.display = "none";
+    if (tabReport) tabReport.style.display = "none";
+    setTimeout(function () { if (tabGallery) tabGallery.click(); }, 80);
   })();
 
   /* ---------- アイコンのバッジをクリア（開いた＝未読を見た） ---------- */
