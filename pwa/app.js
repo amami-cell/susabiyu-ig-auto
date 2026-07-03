@@ -1199,6 +1199,14 @@
     });
   })();
 
+  /* ---------- 左上ロゴ→烏丸ページへ（烏丸側は入場コードで保護） ---------- */
+  (function logoLink() {
+    var lg = document.querySelector(".logo");
+    if (!lg) return;
+    lg.style.cursor = "pointer";
+    lg.addEventListener("click", function () { location.href = "./karasuma.html"; });
+  })();
+
   /* ---------- 烏丸ページの画面切替 ---------- */
   (function karInit() {
     if (!KAR) return;
