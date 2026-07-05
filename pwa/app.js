@@ -625,6 +625,7 @@
     GFILTER = v;
     try { localStorage.setItem("sb_gfilter", v); } catch (e) {}
     applyGalleryFilter();
+    updateNp();   // 再生中の動画が隠れたらミニバーを出す
   }
   function buildFilterBar(items) {
     var fb = document.createElement("div");
@@ -765,12 +766,56 @@
   // 見本の動画を再生し始めたら自動更新ごと停止（通信もDOM操作も走らせない）。
   // 止めたり見終わったら再開する。
   if (galleryEl) {
-    galleryEl.addEventListener("play", function () { stopGalleryPoll(); }, true);
+    galleryEl.addEventListener("play", function (ev) {
+      stopGalleryPoll();
+      if (ev.target && ev.target.tagName === "VIDEO") npVid = ev.target;
+      updateNp();
+    }, true);
     var resumePoll = function () {
       if (currentTab === "gallery" && !document.hidden && !galleryPlaying()) startGalleryPoll();
+      updateNp();
     };
     galleryEl.addEventListener("pause", resumePoll, true);
     galleryEl.addEventListener("ended", resumePoll, true);
+  }
+
+  /* ---------- 再生中ミニバー ----------
+     動画を再生したまま「画像」表示や別タブへ移ると、動画は隠れても音は流れ続ける。
+     その時だけ画面下に「〜を再生中」のバーを出す（戻るボタン＋停止ボタン付き）。 */
+  var npBar = null, npVid = null;
+  function npLabel(v) {
+    var c = v && v.closest && v.closest(".card");
+    var p = c && c.querySelector(".pat");
+    return (p && p.textContent) || "見本動画";
+  }
+  function ensureNpBar() {
+    if (npBar) return npBar;
+    npBar = document.createElement("div");
+    npBar.className = "npbar";
+    npBar.style.display = "none";
+    npBar.innerHTML = '<span class="npdot"></span><span class="nptxt"></span><button class="npgo">見る</button><button class="npstop">停止</button>';
+    npBar.querySelector(".npstop").onclick = function () {
+      if (npVid) { try { npVid.pause(); } catch (e) {} }
+      updateNp();
+    };
+    npBar.querySelector(".npgo").onclick = function () {
+      if (!npVid) return;
+      if (currentTab !== "gallery") switchTo("gallery");
+      if (GFILTER !== "vid") setGalleryFilter("vid");
+      var c = npVid.closest && npVid.closest(".card");
+      if (c) c.scrollIntoView({ behavior: "auto", block: "center" });
+      updateNp();
+    };
+    document.body.appendChild(npBar);
+    return npBar;
+  }
+  function updateNp() {
+    // 「再生中」かつ「画面上で隠れている」時だけ表示（offsetParent=nullは非表示中の印）
+    var show = npVid && !npVid.paused && !npVid.ended && npVid.offsetParent === null;
+    if (!show) { if (npBar) npBar.style.display = "none"; return; }
+    ensureNpBar();
+    npBar.querySelector(".nptxt").textContent = npLabel(npVid) + " を再生中";
+    npBar.style.display = "flex";
   }
   var currentTab = "feed";
   function loaderFor(name) { return name === "gallery" ? loadPatterns : (name === "report" ? loadReport : load); }
@@ -785,8 +830,9 @@
     var rmb = document.getElementById("repmodeBar");
     if (rmb) rmb.style.display = name === "report" ? "" : "none";   // レポート時だけ上部固定バー表示
     if (name === "report") updateRepModeBar();
-    if (name === "gallery") { galleryLoaded = true; startGalleryPoll(); }
+    if (name === "gallery") { galleryLoaded = true; if (!galleryPlaying()) startGalleryPoll(); }
     else { stopGalleryPoll(); }
+    updateNp();   // 再生中の動画が隠れたらミニバーを出す
   }
   // そのタブに表示内容がもうあるか（＝切替時に再読込しなくてよいか）
   function tabHasContent(name) {
