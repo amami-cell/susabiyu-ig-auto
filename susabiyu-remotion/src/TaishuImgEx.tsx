@@ -83,17 +83,18 @@ export const TaishuImgG: React.FC<{ handle?: string }> = ({ handle = "@susabiyu_
       </div>
       {/* 見出し（太ゴシック・赤×白フチでドン） */}
       <div style={{ position: "absolute", top: 262, left: 0, right: 0, textAlign: "center", padding: "0 34px" }}>
-        <span style={{ color: AKAI, fontFamily: goshi, fontWeight: 800, fontSize: oneLineFont(photoStoryCaption, 990, 88, 2, 44),
-          whiteSpace: "nowrap", ...fuchi("#ffffff", 8) }}>{photoStoryCaption}</span>
+        <span style={{ color: AKAI, fontFamily: goshi, fontWeight: 800, fontSize: 84,
+          whiteSpace: "nowrap", ...fuchi("#ffffff", 8) }}>本日も元気に営業中。</span>
       </div>
       {/* 写真：大きく全体表示 */}
       <div style={{ position: "absolute", top: 420, left: 0, right: 0, bottom: 200, display: "flex", justifyContent: "center", alignItems: "center" }}>
         <Img src={staticFile(photoStoryPhoto)} style={{ maxWidth: 1010, maxHeight: 1180, width: "auto", height: "auto",
           filter: "saturate(1.15) contrast(1.05) drop-shadow(0 24px 40px rgba(60,30,0,0.35))" }} />
       </div>
-      {/* 下：決めの一言 */}
-      <div style={{ position: "absolute", bottom: 168, left: 0, right: 0, textAlign: "center" }}>
-        <span style={{ color: KURO, fontFamily: goshi, fontWeight: 800, fontSize: 44, letterSpacing: 2, ...fuchi("#ffffff", 6) }}>本日も元気に営業中。</span>
+      {/* 下：営業時間 */}
+      <div style={{ position: "absolute", bottom: 172, left: 0, right: 0, textAlign: "center", lineHeight: 1.55 }}>
+        <div style={{ color: KURO, fontFamily: goshi, fontWeight: 800, fontSize: 40, letterSpacing: 2, ...fuchi("#ffffff", 6) }}>平日　　16:00〜23:00</div>
+        <div style={{ color: KURO, fontFamily: goshi, fontWeight: 800, fontSize: 40, letterSpacing: 2, ...fuchi("#ffffff", 6) }}>土日祝　11:00〜23:00</div>
       </div>
       {/* 右側：縦書きの黄マーカー文字 */}
       <div style={{ position: "absolute", right: 66, top: 640 }}>
