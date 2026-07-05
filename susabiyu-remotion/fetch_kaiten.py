@@ -4,7 +4,7 @@ FOOD_FOLDER = "14oKNgdXee2NrI7Dkmbrlbid4f0_VZ5Cv"
 N_PHOTOS = 8
 MIN_SIDE = 800
 OUT_DIR = os.path.join("public", "kaiten")
-UPTEMPO_DIR = os.path.join("public", "music", "uptempo")
+NORMAL_DIR = os.path.join("public", "music", "normal")
 
 try:
     from google.oauth2 import service_account
@@ -130,12 +130,12 @@ for idx, f in enumerate(picked):
     print("PHOTO %d:" % idx, f["name"], "(短辺", short_side(f), "px)")
 
 music = "bgm.mp3"
-sync_music_from_drive(os.environ.get("GENRE_MUSIC_UPTEMPO_ID"), UPTEMPO_DIR)
-if os.path.isdir(UPTEMPO_DIR):
-    tracks = [p for p in os.listdir(UPTEMPO_DIR)
+sync_music_from_drive(os.environ.get("GENRE_MUSIC_NORMAL_ID"), NORMAL_DIR)
+if os.path.isdir(NORMAL_DIR):
+    tracks = [p for p in os.listdir(NORMAL_DIR)
               if p.lower().endswith((".mp3", ".m4a", ".wav"))]
     if tracks:
-        music = "music/uptempo/" + random.choice(tracks)
+        music = "music/normal/" + random.choice(tracks)
 print("MUSIC:", music)
 
 def esc(s):
