@@ -57,6 +57,19 @@
   .seg .seg-off.sel{background:#c0473a;border-color:#c0473a;color:#fff;box-shadow:0 4px 14px rgba(192,71,58,.35)}
   .ghintline{text-align:center;color:var(--sub);font-size:12px;margin-top:8px}
   .gnote{text-align:center;color:var(--sub);font-size:12px;margin-top:10px}
+  /* 見本の「動画／画像」切替（画面下に固定・スクロールしても消えない） */
+  .gfilter{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(env(safe-area-inset-bottom) + 18px);
+    z-index:40;display:flex;gap:4px;background:rgba(15,17,21,.94);backdrop-filter:saturate(180%) blur(12px);
+    border:1px solid var(--line);border-radius:999px;padding:5px;box-shadow:0 10px 30px rgba(0,0,0,.55)}
+  .gfilter button{border:none;background:transparent;color:var(--sub);font-size:14px;font-weight:800;
+    padding:11px 24px;border-radius:999px;transition:.12s;white-space:nowrap}
+  .gfilter button.sel{background:#10301f;color:var(--accent)}
+  .gfilter button:active{transform:scale(.95)}
+  /* 切替に応じてカードを出し分け（.cv=動画 .ci=画像 .cu=生成中は両方に表示） */
+  #gallery.fvid .card.ci{display:none}
+  #gallery.fimg .card.cv{display:none}
+  /* 固定ボタンにカードが隠れないよう下に余白 */
+  #gallery{padding-bottom:110px !important}
   /* 採用ボタン/注意書きの出し分けはクラス切替だけ（再描画なし＝カクつかない） */
   #gallery:not(.admin) .card .seg,
   #gallery:not(.admin) .card .ghintline{display:none}

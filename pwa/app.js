@@ -502,7 +502,8 @@
 
   function galleryCard(it) {
     var card = document.createElement("div");
-    card.className = "card";
+    // cv=動画 / ci=画像 / cu=生成中（どちらの表示にも出す）
+    card.className = "card " + (!it.url ? "cu" : (isVideo(it) ? "cv" : "ci"));
     card.setAttribute("data-pattern", it.pattern);
     var on = String(it.enabled) !== "0" && String(it.enabled).toLowerCase() !== "false";
     var p = it.poster ? ' poster="' + esc(it.poster) + '"' : "";
@@ -576,6 +577,34 @@
     }).catch(function () { toast("通信エラー"); });
   }
   function lockAdmin() { ADMIN = ""; localStorage.removeItem("sb_admin"); applyAdminClass(); }
+  // 「動画／画像」切替（固定ボタン）。選択は端末に記憶する
+  var GFILTER = localStorage.getItem("sb_gfilter") || "vid";
+  function applyGalleryFilter() {
+    if (!galleryEl) return;
+    galleryEl.classList.toggle("fvid", GFILTER === "vid");
+    galleryEl.classList.toggle("fimg", GFILTER === "img");
+    var fb = document.getElementById("gFilter");
+    if (fb) {
+      var bv = fb.querySelector(".fv"), bi = fb.querySelector(".fi");
+      if (bv) bv.classList.toggle("sel", GFILTER === "vid");
+      if (bi) bi.classList.toggle("sel", GFILTER === "img");
+    }
+  }
+  function setGalleryFilter(v) {
+    GFILTER = v;
+    try { localStorage.setItem("sb_gfilter", v); } catch (e) {}
+    applyGalleryFilter();
+  }
+  function buildFilterBar(items) {
+    var nv = 0, ni = 0;
+    items.forEach(function (it) { if (!it.url || isVideo(it)) nv++; if (!it.url || !isVideo(it)) ni++; });
+    var fb = document.createElement("div");
+    fb.className = "gfilter"; fb.id = "gFilter";
+    fb.innerHTML = '<button class="fv">🎬 動画 ' + nv + '</button><button class="fi">🖼 画像 ' + ni + '</button>';
+    fb.querySelector(".fv").onclick = function () { setGalleryFilter("vid"); };
+    fb.querySelector(".fi").onclick = function () { setGalleryFilter("img"); };
+    return fb;
+  }
   var lastGallerySig = "";
   function patternsCacheGet() { try { return JSON.parse(localStorage.getItem("sb_patterns") || "null"); } catch (e) { return null; } }
   function patternsCacheSet(items) { try { localStorage.setItem("sb_patterns", JSON.stringify(items)); } catch (e) {} }
@@ -590,7 +619,7 @@
     });
     // 内容が前回と同じなら作り直さない（動画の再読込＝カクつきを防ぐ）
     var sig = JSON.stringify(items.map(function (it) { return [it.pattern, it.url, it.enabled, it.label, it.poster ? 1 : 0]; }));
-    if (sig === lastGallerySig && hasCards()) { applyAdminClass(); return; }
+    if (sig === lastGallerySig && hasCards()) { applyAdminClass(); applyGalleryFilter(); return; }
     lastGallerySig = sig;
     galleryEl.innerHTML = "";
     var hint = document.createElement("div"); hint.className = "ghint";
@@ -607,6 +636,7 @@
     var stored = items.filter(isKarPat);
     if (KAR) {
       hint.innerHTML = "🍣 <b>鮨処すさび湯 四条烏丸</b>（準備中）の見本置き場です。このページは入口PASSを知る人だけが開けます。<br>Instagram連携はアカウント情報が揃ってから。<b>採用ボタンはまだ使いません</b>。 <button class='alink' id='karBack'>三条ページへ戻る</button>";
+      if (stored.length) galleryEl.appendChild(buildFilterBar(stored));
       stored.forEach(function (it) { galleryEl.appendChild(galleryCard(it)); });
       if (!stored.length) {
         var ke = document.createElement("div"); ke.className = "empty";
@@ -616,9 +646,11 @@
       var kb = hint.querySelector("#karBack");
       if (kb) kb.onclick = function () { try { localStorage.removeItem("sb_store"); } catch (e) {} location.reload(); };
     } else {
+      if (normal.length) galleryEl.appendChild(buildFilterBar(normal));
       normal.forEach(function (it) { galleryEl.appendChild(galleryCard(it)); });
     }
     applyAdminClass();
+    applyGalleryFilter();
   }
   function loadPatterns() {
     var cached = patternsCacheGet();
