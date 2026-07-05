@@ -120,6 +120,21 @@
     var w = el && el.closest && el.closest(".mediaWrap"); if (w) w.classList.remove("mediaerr");
     if (el) el.setAttribute("data-retry", "0");
   };
+  // 読み込みが「途中で静かに止まった」画像の監視（エラーも完了も来ないまま
+  // ボカシ表示で固まるのを防ぐ）。15秒たっても完了しない画像は自動で読み直す。
+  setInterval(function () {
+    var imgs = document.querySelectorAll("img.media");
+    for (var i = 0; i < imgs.length; i++) {
+      var el = imgs[i];
+      if (el.complete && el.naturalWidth > 0) { el._t0 = 0; continue; }   // 正常に完了
+      if (!el.getAttribute("src")) continue;                              // 未読み込み（遅延中）
+      if (!el._t0) { el._t0 = Date.now(); continue; }
+      if (Date.now() - el._t0 > 15000) {
+        el._t0 = Date.now();
+        if (window.__mediaErr) window.__mediaErr(el);   // キャッシュ回避付きで再読込（最大4回）
+      }
+    }
+  }, 5000);
   function mediaHtml(it) {
     if (isVideo(it)) {
       var p = it.poster ? ' poster="' + it.poster + '"' : '';
@@ -194,6 +209,22 @@
       }, 5 * 60 * 1000);
     }
   }
+  // パターン名の日本語表（サーバー側が英字キーのまま返した時の保険）
+  var PATJA = {
+    taishufuda: "大衆・値札チラシ", taishukaiten: "大衆・回転レーン", taishuoshi: "大衆・イチオシ",
+    taishuodo: "大衆・王道", taishuzen: "大衆・全画面", taishushinbun: "大衆・見出し新聞",
+    taishugrid: "大衆・グリッドズーム", taishutanzaku: "大衆・壁の短冊", taishunoren: "大衆・暖簾くぐり",
+    taishutempo: "大衆・賑やかテンポ", taishushun: "大衆・季節の旬", taishuhito: "大衆・本日の一皿",
+    taishuoshina: "大衆・お品書き", sanjokaiten: "回転レーン(烏丸ベース)",
+    taishugaku: "大衆・額装（画像）", taishucap: "大衆・写真一言（画像）",
+    taishuimga: "画像案A・提灯(寿司酒場)", taishuimga2: "画像案A2・提灯(大衆酒場)",
+    taishuimgb: "画像案B・チラシ", taishuimgd: "画像案D・紺のれん",
+    taishuimge: "画像案E・黄ポップ", taishuimgf: "画像案F・白抜き文字"
+  };
+  function patJa(it) {
+    if (it.patternJa && it.patternJa !== it.pattern) return it.patternJa;
+    return PATJA[it.pattern] || it.patternJa || it.pattern || "";
+  }
   function buildCard(it) {
     var card = document.createElement("div");
     card.className = "card";
@@ -202,7 +233,7 @@
     var rem = remainText(it);
     card.innerHTML =
       '<div class="head"><span class="time">' + esc(it.when) + '</span>' +
-      '<span class="pat">' + esc(it.patternJa || it.pattern || "") + '</span>' +
+      '<span class="pat">' + esc(patJa(it)) + '</span>' +
       (rem ? '<span class="remain">' + rem + '</span>' : '') + '</div>' +
       mediaHtml(it) +
       '<div class="cap">' + esc(it.caption || "（動画）") + '</div>' +
