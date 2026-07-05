@@ -188,6 +188,7 @@ ts = (
     'export const photoStoryHasLogo = %s;\n'
     'export const photoStoryMusic = "%s";\n'
     'export const photoStoryUptempo = "%s";\n'
-) % (ph, "true" if has_logo else "false", _m, _um)
+    'export const photoStoryGenre: string = "%s";\n'
+) % (ph, "true" if has_logo else "false", _m, _um, pick.get("genre") or "food")
 open(os.path.join("src", "photoStoryData.ts"), "w", encoding="utf-8").write(ts)
 print("src/photoStoryData.ts 書き出し完了。 logo:", has_logo)

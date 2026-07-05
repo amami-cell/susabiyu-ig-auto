@@ -3,20 +3,23 @@
 import { AbsoluteFill, Img, Audio, staticFile, useCurrentFrame, useVideoConfig, interpolate } from "remotion";
 import { loadFont } from "@remotion/google-fonts/YujiSyuku";
 import { loadFont as loadGoshi } from "@remotion/google-fonts/RocknRollOne";
-import { photoStoryPhoto, photoStoryCaption, photoStoryHasLogo, photoStoryUptempo } from "./photoStoryData";
+import { photoStoryPhoto, photoStoryCaption, photoStoryHasLogo, photoStoryUptempo, photoStoryGenre } from "./photoStoryData";
 import { oneLineFont } from "./fit";
 import { AKA, AKA_DARK, KIIRO, KURO, SHIRO, Lanterns, fuchi } from "./taishu";
 
 const { fontFamily: fude } = loadFont();
 const { fontFamily: goshi } = loadGoshi();
 const TAG = ["名物", "一番人気", "店主おすすめ", "イチオシ！", "本日のオススメ", "今日も旨い"];
+// 店内・外観・ドリンク写真に「一番人気」等は不自然なので、写真の種類で札を出し分ける
+const ATMO_TAG = ["営業中", "今夜もにぎやか", "本日も元気", "お待ちしてます"];
 
 export const TaishuZen: React.FC<{ handle?: string }> = ({ handle = "@susabiyu_sanjyo" }) => {
   const frame = useCurrentFrame();
   const { durationInFrames } = useVideoConfig();
   const bgScale = interpolate(frame, [0, 150], [1.15, 1.22], { extrapolateRight: "clamp" });
   const src = staticFile(photoStoryPhoto);
-  const tag = TAG[photoStoryCaption.length % TAG.length];
+  const pool = photoStoryGenre === "atmo" ? ATMO_TAG : TAG;
+  const tag = pool[photoStoryCaption.length % pool.length];
   // 黄札はハンコみたいにドン、朱帯は下からスッ
   const tagS = interpolate(frame, [8, 14], [2.4, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
   const tagO = interpolate(frame, [8, 12], [0, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
