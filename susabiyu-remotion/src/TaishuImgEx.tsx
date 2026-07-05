@@ -79,12 +79,10 @@ export const TaishuImgG: React.FC<{ handle?: string }> = ({ handle = "@susabiyu_
       <div style={{ position: "absolute", left: 0, right: 0, top: -960, height: 1920, opacity: 0.5 }}>
         <Shuchusen color="rgba(60,40,20,0.5)" opacity={0.8} />
       </div>
-      {/* 右上：屋号ラベル */}
-      <div style={{ position: "absolute", top: 96, right: 64, textAlign: "center" }}>
-        <div style={{ background: KURO, color: "#fff", fontFamily: goshi, fontSize: 26, letterSpacing: 6, padding: "6px 18px" }}>大衆酒場</div>
-        <div style={{ background: KIIRO, border: "3px solid " + KURO, padding: "8px 18px" }}>
-          <span style={{ color: KURO, fontFamily: goshi, fontWeight: 800, fontSize: 40, letterSpacing: 2 }}>すさび湯三条</span>
-        </div>
+      {/* 右上：店舗ロゴ（大きめ） */}
+      <div style={{ position: "absolute", top: 76, right: 56 }}>
+        <Img src={staticFile("storelogo_white.png")} style={{ width: 420, height: "auto", maxHeight: 190, objectFit: "contain",
+          filter: "drop-shadow(0 5px 16px rgba(60,30,0,0.7))" }} />
       </div>
       {/* 見出し（太ゴシック・赤×白フチでドン） */}
       <div style={{ position: "absolute", top: 262, left: 0, right: 0, textAlign: "center", padding: "0 34px" }}>
