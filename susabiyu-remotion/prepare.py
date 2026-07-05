@@ -436,7 +436,7 @@ def main():
         if not first_token: first_token = token
         when = dt.strftime("%Y-%m-%d %H:%M")
         kindstr = "still"
-        sh.values().append(spreadsheetId=SHEET_ID, range=APP_TAB + "!A:M",
+        sh.values().append(spreadsheetId=SHEET_ID, range=APP_TAB + "!A1",
             valueInputOption="RAW", insertDataOption="INSERT_ROWS",
             body={"values": [[token, when, dec["slot"], pattern, uri, cap, kindstr, "pending", "", picked_json, "", poster_uri, blur]]}).execute()
         print("[承認待ち] 登録:", token, pattern, "| サムネ", len(uri), "文字 | blur", len(blur), "|", cap)

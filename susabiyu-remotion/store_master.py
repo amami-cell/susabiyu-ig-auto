@@ -1131,6 +1131,38 @@ def pendingdump():
         print("行%d(%d列) %s" % (i + 1, len(r), " | ".join(cells) if cells else "(全セル空)"))
 
 
+def pendingfix():
+    """M列以降にズレて書き込まれた承認待ち行をA列基準に修復し、
+    同じ投稿時刻の重複は最後の1件だけ残して並べ直す。"""
+    cr = _creds()
+    sh = _sheets(cr)
+    rows = sh.values().get(spreadsheetId=SHEET_ID, range="承認待ち!A:Y").execute().get("values", [])
+    if len(rows) < 2:
+        print("対象なし")
+        return
+    items = []
+    for r in rows[1:]:
+        if len(r) > 0 and str(r[0]).strip():
+            item = (r + [""] * 13)[:13]
+        elif len(r) > 12 and str(r[12]).strip():
+            item = (r[12:] + [""] * 13)[:13]
+        else:
+            continue
+        items.append(item)
+    # 同じ「日時」は最後の1件を採用
+    by_when = {}
+    for it in items:
+        by_when[str(it[1]).strip()] = it
+    fixed = sorted(by_when.values(), key=lambda x: str(x[1]))
+    sh.values().clear(spreadsheetId=SHEET_ID, range="承認待ち!A2:Z").execute()
+    if fixed:
+        sh.values().update(spreadsheetId=SHEET_ID, range="承認待ち!A2",
+            valueInputOption="RAW", body={"values": fixed}).execute()
+    print("修復完了: 元%d件 → 重複整理後%d件" % (len(items), len(fixed)))
+    for it in fixed:
+        print("  ", it[0], "|", it[1], "|", it[3], "|", it[7])
+
+
 def sheetrevs():
     """スプレッドシートの直近リビジョン一覧（いつ・誰が編集したか）を出力。"""
     cr = _creds()
@@ -1317,6 +1349,8 @@ if __name__ == "__main__":
         pendingdump()
     elif mode == "sheetrevs":
         sheetrevs()
+    elif mode == "pendingfix":
+        pendingfix()
     elif mode == "patdump":
         patdump()
     elif mode == "sushifolder":
