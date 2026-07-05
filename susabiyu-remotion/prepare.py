@@ -32,7 +32,7 @@ REG = {
   "taishutempo":  ("fetch_tempo.py","TaishuTempo",True),
   "taishushun":   ("fetch_typo.py","TaishuShun",True),
   "taishuhito":   ("fetch_typo.py","TaishuHitosara",True),
-  "taishuoshina": ("fetch_typo.py","TaishuOshina",True),
+  "taishuoshina": ("fetch_oshina.py","TaishuOshina",True),
   "taishugaku":   ("fetch_simple.py","TaishuGaku",False),
   "taishucap":    ("fetch_photostory.py","TaishuCapNoren",False),
   "taishuimga":   ("fetch_photostory.py","TaishuImgA",False),
