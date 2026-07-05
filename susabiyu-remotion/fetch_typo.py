@@ -156,5 +156,14 @@ for it in items:
 lines.append("];")
 lines.append('export const typoHeadline = "%s";' % esc(headline))
 lines.append('export const typoMusic = "%s";' % esc(music))
+_up = music
+_updir = os.path.join("public", "music", "uptempo")
+sync_music_from_drive(os.environ.get("GENRE_MUSIC_UPTEMPO_ID"), _updir)
+if os.path.isdir(_updir):
+    _tr = [t for t in os.listdir(_updir) if t.lower().endswith((".mp3", ".m4a", ".wav"))]
+    if _tr:
+        _up = "music/uptempo/" + random.choice(_tr)
+_up = os.environ.get("FIXED_MUSIC") or _up
+lines.append('export const typoUptempo = "%s";' % esc(_up))
 open(os.path.join("src", "typoData.ts"), "w", encoding="utf-8").write("\n".join(lines) + "\n")
 print("src/typoData.ts 書き出し完了。", len(items), "枚 / music:", music)

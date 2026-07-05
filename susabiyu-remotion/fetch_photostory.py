@@ -172,11 +172,22 @@ has_logo = os.path.exists(os.path.join("public", "logo.png"))
 
 ph = phrase.replace("\\", "\\\\").replace('"', '\\"')
 _m = music.replace("\\", "\\\\").replace('"', '\\"')
+_up = music
+_updir = os.path.join("public", "music", "uptempo")
+sync_music_from_drive(os.environ.get("GENRE_MUSIC_UPTEMPO_ID"), _updir)
+if os.path.isdir(_updir):
+    _tr = [t for t in os.listdir(_updir) if t.lower().endswith((".mp3", ".m4a", ".wav"))]
+    if _tr:
+        import random as _rd
+        _up = "music/uptempo/" + _rd.choice(_tr)
+_up = os.environ.get("FIXED_MUSIC") or _up
+_um = _up.replace("\\", "\\\\").replace('"', '\\"')
 ts = (
     'export const photoStoryPhoto = "photostory.jpg";\n'
     'export const photoStoryCaption = "%s";\n'
     'export const photoStoryHasLogo = %s;\n'
     'export const photoStoryMusic = "%s";\n'
-) % (ph, "true" if has_logo else "false", _m)
+    'export const photoStoryUptempo = "%s";\n'
+) % (ph, "true" if has_logo else "false", _m, _um)
 open(os.path.join("src", "photoStoryData.ts"), "w", encoding="utf-8").write(ts)
 print("src/photoStoryData.ts 書き出し完了。 logo:", has_logo)

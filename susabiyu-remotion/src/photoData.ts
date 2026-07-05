@@ -7,3 +7,4 @@ export const photos: { src: string; caption: string }[] = [
 ];
 export const hasLogo: boolean = true;
 export const sushiMusic = "bgm.mp3";
+export const sushiUptempo = "bgm.mp3";

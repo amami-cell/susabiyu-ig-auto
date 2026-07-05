@@ -1114,6 +1114,21 @@ def columns():
     print("[MASTER] 『アプリ表示』(T)＋『アイコン短縮名』(U)列を用意しました")
 
 
+def musicdirs():
+    """各店舗の音楽フォルダURLをログ用に出力（IDマスキング回避のため1文字ずつ~区切り）。"""
+    cr = _creds()
+    sh = _sheets(cr)
+    rows = _get_rows(sh)
+    for r in rows[1:]:
+        name = r[1] if len(r) > 1 else ""
+        up = r[14] if len(r) > 14 else ""
+        no = r[15] if len(r) > 15 else ""
+        if not name:
+            continue
+        print("MUSIC|" + name + "|uptempo|" + "~".join(up))
+        print("MUSIC|" + name + "|normal|" + "~".join(no))
+
+
 if __name__ == "__main__":
     mode = (sys.argv[1] if len(sys.argv) > 1 else "init").strip().lower()
     arg = sys.argv[2].strip() if len(sys.argv) > 2 else None
@@ -1155,6 +1170,8 @@ if __name__ == "__main__":
         distmove(arg)
     elif mode == "distfinal":
         distfinal(arg)
+    elif mode == "musicdirs":
+        musicdirs()
     elif mode == "patdump":
         patdump()
     elif mode == "sushifolder":
