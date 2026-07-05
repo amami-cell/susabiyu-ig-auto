@@ -5,7 +5,7 @@ import poster
 
 SHEET_ID = "13zKaUblOwmgZ-lgCfxylCLlW2Fqutqct5h5TvMRWv30"
 APP_TAB = "承認待ち"
-PAT_JA = {"sushi":"王道","tempo":"賑やか","typo":"雑誌風","photo":"全画面","simple":"額装","caption":"写真キャプション", "oshina":"お品書き","oshinatate":"お品書き(縦書き)","kaiten":"回転レーン","osusume":"店主おすすめ","gridzoom":"グリッド→ズーム","noren":"暖簾くぐり","season":"季節の旬","taishufuda":"大衆・値札チラシ","taishukaiten":"大衆・回転レーン","taishuoshi":"大衆・イチオシ","taishuodo":"大衆・王道","taishuzen":"大衆・全画面","taishushinbun":"大衆・見出し新聞","taishugrid":"大衆・グリッドズーム","taishutanzaku":"大衆・壁の短冊","taishunoren":"大衆・暖簾くぐり"}
+PAT_JA = {"sushi":"王道","tempo":"賑やか","typo":"雑誌風","photo":"全画面","simple":"額装","caption":"写真キャプション", "oshina":"お品書き","oshinatate":"お品書き(縦書き)","kaiten":"回転レーン","osusume":"店主おすすめ","gridzoom":"グリッド→ズーム","noren":"暖簾くぐり","season":"季節の旬","taishufuda":"大衆・値札チラシ","taishukaiten":"大衆・回転レーン","taishuoshi":"大衆・イチオシ","taishuodo":"大衆・王道","taishuzen":"大衆・全画面","taishushinbun":"大衆・見出し新聞","taishugrid":"大衆・グリッドズーム","taishutanzaku":"大衆・壁の短冊","taishunoren":"大衆・暖簾くぐり","taishugaku":"大衆・額装（画像）","taishucap":"大衆・写真一言（画像）"}
 REG = {
   "sushi":   ("fetch_drive_photos.py","SushiStory",True),
   "tempo":   ("fetch_tempo.py","TempoStory",True),
@@ -29,6 +29,8 @@ REG = {
   "taishugrid":   ("fetch_tempo.py","TaishuGrid",True),
   "taishutanzaku":("fetch_typo.py","TaishuTanzaku",True),
   "taishunoren":  ("fetch_typo.py","TaishuAkanoren",True),
+  "taishugaku":   ("fetch_simple.py","TaishuGaku",False),
+  "taishucap":    ("fetch_photostory.py","TaishuZen",False),
 }
 CAP_VAR = {
   "photo":("photoStoryData.ts","photoStoryCaption"),

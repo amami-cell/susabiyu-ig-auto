@@ -91,8 +91,6 @@ def main():
     os.makedirs("out", exist_ok=True)
     made = 0
     for key, (fetch, comp, is_video) in REG.items():
-        if not is_video:
-            continue
         if only and key not in only:
             continue
         print("=== 見本生成:", key, "(", comp, ") ===")
@@ -101,11 +99,17 @@ def main():
             os.environ.pop(k, None)
         try:
             prepare.run('python ' + fetch + ' "creds.json"')
-            prepare.run("npx remotion render " + comp + " out/post.mp4 --crf 18 --timeout 120000 --concurrency 1")
-            prepare._faststart("out/post.mp4")
+            if is_video:
+                prepare.run("npx remotion render " + comp + " out/post.mp4 --crf 18 --timeout 120000 --concurrency 1")
+                prepare._faststart("out/post.mp4")
+                out_file = "out/post.mp4"
+            else:
+                # 画像パターン：代表フレームを静止画で書き出す
+                prepare.run("npx remotion still " + comp + " out/still.jpg --frame 45 --timeout 120000")
+                out_file = "out/still.jpg"
             poster_uri, blur = prepare.thumb_data_uri(comp, True)
             try:
-                url = poster.up("out/post.mp4", cdn=True)
+                url = poster.up(out_file, cdn=True)
             except Exception:
                 url = ""
             url = url or poster_uri

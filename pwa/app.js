@@ -506,10 +506,17 @@
     card.setAttribute("data-pattern", it.pattern);
     var on = String(it.enabled) !== "0" && String(it.enabled).toLowerCase() !== "false";
     var p = it.poster ? ' poster="' + esc(it.poster) + '"' : "";
-    var media = it.url
-      ? '<div class="mediaWrap"><video class="media" style="' + bg(it.blur) + '" src="' + esc(it.url) + '"' + p +
-        ' controls playsinline preload="metadata" onerror="window.__mediaErr&&window.__mediaErr(this)"></video><div class="badge">▶ タップで再生（音が出ます）</div></div>'
-      : '<div class="mediaWrap"><div class="media" style="height:180px;display:flex;align-items:center;justify-content:center;color:#9aa3b2">見本を生成中…</div></div>';
+    var media;
+    if (!it.url) {
+      media = '<div class="mediaWrap"><div class="media" style="height:180px;display:flex;align-items:center;justify-content:center;color:#9aa3b2">見本を生成中…</div></div>';
+    } else if (isVideo(it)) {
+      media = '<div class="mediaWrap"><video class="media" style="' + bg(it.blur) + '" src="' + esc(it.url) + '"' + p +
+        ' controls playsinline preload="metadata" onerror="window.__mediaErr&&window.__mediaErr(this)"></video><div class="badge">▶ タップで再生（音が出ます）</div></div>';
+    } else {
+      // 画像パターン（額装・写真一言など）は静止画をそのまま表示
+      media = '<div class="mediaWrap"><img class="media" style="' + bg(it.blur) + '" src="' + esc(it.url) +
+        '" alt="preview" decoding="async" loading="lazy" onerror="window.__mediaErr&&window.__mediaErr(this)"><div class="badge">画像投稿</div></div>';
+    }
     // 採用ボタンと注意書きは両方DOMに入れ、表示は #gallery.admin クラスでCSS切替（再描画なし＝カクつかない）
     card.innerHTML =
       '<div class="head"><span class="pat">' + esc(it.label || it.pattern) + '</span>' +
