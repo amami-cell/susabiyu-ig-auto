@@ -30,7 +30,7 @@ import { TaishuTanzaku, TTAN_DUR } from "./TaishuTanzaku";
 import { TaishuAkanoren, TANOREN_DUR } from "./TaishuAkanoren";
 import { TaishuGaku } from "./TaishuGaku";
 import { TaishuCapNoren } from "./TaishuNorenImg";
-import { TaishuImgE, TaishuImgF, TaishuImgG } from "./TaishuImgEx";
+import { TaishuImgE, TaishuImgG } from "./TaishuImgEx";
 import { photos } from "./photoData";
 import { tempoPhotos } from "./tempoData";
 import { typoPhotos } from "./typoData";
@@ -91,7 +91,6 @@ export const RemotionRoot: React.FC = () => {
       <Composition id="TaishuGaku" component={TaishuGaku} fps={FPS} width={1080} height={1920} durationInFrames={150} defaultProps={{ storeName: "すさび湯三条", handle: "@susabiyu_sanjyo" }} />
       <Composition id="TaishuCapNoren" component={TaishuCapNoren} fps={FPS} width={1080} height={1920} durationInFrames={150} defaultProps={{ handle: "@susabiyu_sanjyo" }} />
       <Composition id="TaishuImgE" component={TaishuImgE} fps={FPS} width={1080} height={1920} durationInFrames={150} defaultProps={{ handle: "@susabiyu_sanjyo" }} />
-      <Composition id="TaishuImgF" component={TaishuImgF} fps={FPS} width={1080} height={1920} durationInFrames={150} defaultProps={{ handle: "@susabiyu_sanjyo" }} />
       <Composition id="TaishuImgG" component={TaishuImgG} fps={FPS} width={1080} height={1920} durationInFrames={150} defaultProps={{ handle: "@susabiyu_sanjyo" }} />
     </>
   );

@@ -150,6 +150,7 @@ ts = (
     'export const simpleW = %d;\n'
     'export const simpleH = %d;\n'
     'export const simpleBg: string = "%s";\n'
-) % (ph, "true" if has_logo else "false", pw, pph, _bg)
+    'export const simpleSeed = %d;\n'
+) % (ph, "true" if has_logo else "false", pw, pph, _bg, random.randint(0, 9999))
 open(os.path.join("src", "simpleData.ts"), "w", encoding="utf-8").write(ts)
 print("src/simpleData.ts 書き出し完了。 logo:", has_logo)

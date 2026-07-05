@@ -192,3 +192,17 @@ export function neon(color: string): React.CSSProperties {
 export function marker(color = "rgba(255,220,60,0.75)"): React.CSSProperties {
   return { background: "linear-gradient(transparent 58%, " + color + " 58%, " + color + " 92%, transparent 92%)" };
 }
+
+// 黄札の言葉選び：生成ごとの乱数(seed)で選び、キャプションと同じ言葉の札は避ける。
+// （「一番人気、今日もあります！」の写真に「一番人気」の札が付く重複を防ぐ）
+const FUDA_FOOD = ["名物", "一番人気", "店主おすすめ", "イチオシ！", "本日のオススメ", "今日も旨い"];
+const FUDA_ATMO = ["営業中", "今夜もにぎやか", "本日も元気", "お待ちしてます"];
+export function pickFuda(genre: string, seed: number, caption: string): string {
+  const pool = genre === "atmo" ? FUDA_ATMO : FUDA_FOOD;
+  const start = Math.abs(seed) % pool.length;
+  for (let k = 0; k < pool.length; k++) {
+    const t = pool[(start + k) % pool.length];
+    if (!caption.includes(t.replace("！", ""))) return t;
+  }
+  return pool[start];
+}

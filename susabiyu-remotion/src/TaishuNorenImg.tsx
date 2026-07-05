@@ -4,17 +4,15 @@
 import { AbsoluteFill, Img, staticFile } from "remotion";
 import { loadFont as loadFude } from "@remotion/google-fonts/YujiSyuku";
 import { loadFont as loadGoshi } from "@remotion/google-fonts/RocknRollOne";
-import { photoStoryPhoto, photoStoryCaption, photoStoryGenre, photoStoryBg } from "./photoStoryData";
+import { photoStoryPhoto, photoStoryCaption, photoStoryGenre, photoStoryBg, photoStorySeed } from "./photoStoryData";
 import { oneLineFont } from "./fit";
-import { AKA, AKA_DARK, KIIRO, KURO, fuchi } from "./taishu";
+import { AKA, AKA_DARK, KIIRO, KURO, fuchi, pickFuda } from "./taishu";
 
 const { fontFamily: fude } = loadFude();
 const { fontFamily: goshi } = loadGoshi();
 const NAVY = "#1c3454";
 const NAVY2 = "#142842";
 const KINARI = "#f2e8d0";
-export const FOOD_TAG = ["名物", "一番人気", "店主おすすめ", "イチオシ！", "本日のオススメ", "今日も旨い"];
-export const ATMO_TAG = ["営業中", "今夜もにぎやか", "本日も元気", "お待ちしてます"];
 
 // のれん画像レイアウト（額装・写真一言の共通土台）
 export const NorenImgBase: React.FC<{
@@ -84,7 +82,6 @@ export const NorenImgBase: React.FC<{
 
 // 写真一言（画像）＝ランダム写真＋整合キャプション
 export const TaishuCapNoren: React.FC<{ handle?: string }> = ({ handle = "@susabiyu_sanjyo" }) => {
-  const pool = photoStoryGenre === "atmo" ? ATMO_TAG : FOOD_TAG;
-  const tag = pool[photoStoryCaption.length % pool.length];
+  const tag = pickFuda(photoStoryGenre, photoStorySeed, photoStoryCaption);
   return <NorenImgBase photoSrc={photoStoryPhoto} bgSrc={photoStoryBg} tag={tag} caption={photoStoryCaption} handle={handle} />;
 };

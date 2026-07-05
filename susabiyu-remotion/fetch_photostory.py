@@ -209,6 +209,7 @@ ts = (
     'export const photoStoryUptempo = "%s";\n'
     'export const photoStoryGenre: string = "%s";\n'
     'export const photoStoryBg: string = "%s";\n'
-) % (ph, "true" if has_logo else "false", _m, _um, pick.get("genre") or "food", _bg)
+    'export const photoStorySeed = %d;\n'
+) % (ph, "true" if has_logo else "false", _m, _um, pick.get("genre") or "food", _bg, random.randint(0, 9999))
 open(os.path.join("src", "photoStoryData.ts"), "w", encoding="utf-8").write(ts)
 print("src/photoStoryData.ts 書き出し完了。 logo:", has_logo)
