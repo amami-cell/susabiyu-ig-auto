@@ -1,4 +1,4 @@
-name: susabiyu-samples
+﻿name: susabiyu-samples
 on:
   workflow_dispatch:
     inputs:
@@ -33,6 +33,7 @@ jobs:
           GOOGLE_CREDS_B64: ${{ secrets.GOOGLE_CREDS_B64 }}
       - name: Render pattern samples
         env:
+          USAGE_SKIP: "1"
           GOOGLE_CREDS_B64: ${{ secrets.GOOGLE_CREDS_B64 }}
           IG_ACCESS_TOKEN: ${{ secrets.IG_ACCESS_TOKEN }}
           SHEET_ID: ${{ secrets.SHEET_ID }}

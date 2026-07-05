@@ -111,15 +111,23 @@ def _video_for_day(d):
 
 
 def plan_day(d, open_hour):
-    """その日の3枠を割り当て。動画は4種を均等に回す。静止画は日付シードでランダム。最低1回は動画。"""
+    """その日の3枠を割り当て。動画は採用種を均等に回す。
+    静止画は日付シードでシャッフルし、同じ日に同じテンプレが重複しないよう
+    先頭から順に使う（採用が1種しかない時だけ重複を許容）。"""
     slots = [open_hour, 18, 20]
     rng = random.Random(d.strftime("%Y%m%d"))
     video_slot = rng.choice(slots)
     vpat = _video_for_day(d)
-    stills = _enabled_stills() or list(CORE_STILL)
+    pool = list(_enabled_stills() or CORE_STILL)
+    rng.shuffle(pool)
     plan = {}
+    k = 0
     for s in slots:
-        plan[s] = vpat if s == video_slot else rng.choice(stills)
+        if s == video_slot:
+            plan[s] = vpat
+        else:
+            plan[s] = pool[k % len(pool)]
+            k += 1
     return slots, plan
 
 def decide(dt):
