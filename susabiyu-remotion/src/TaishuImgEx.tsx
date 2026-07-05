@@ -47,12 +47,13 @@ export const TaishuImgE: React.FC<{ handle?: string }> = ({ handle = "@susabiyu_
         <span style={{ color: MIDORI, fontFamily: fude, fontSize: 104, letterSpacing: 4, ...fuchi("#ffffff", 8) }}>{pickTag()}</span>
       </div>
       <div style={{ position: "absolute", top: 232, left: 120, right: 120, borderTop: "7px dotted " + MIDORI, opacity: 0.75 }} />
-      {/* 営業時間（点線の下・1行で） */}
-      <div style={{ position: "absolute", top: 258, left: 0, right: 0, textAlign: "center" }}>
-        <span style={{ color: MIDORI, fontFamily: goshi, fontWeight: 800, fontSize: 34, letterSpacing: 1 }}>平日 16:00〜23:00　／　土日祝 11:00〜23:00</span>
+      {/* 営業時間（点線の下・2行・大きめ） */}
+      <div style={{ position: "absolute", top: 252, left: 0, right: 0, textAlign: "center", lineHeight: 1.5 }}>
+        <div style={{ color: MIDORI, fontFamily: goshi, fontWeight: 800, fontSize: 46, letterSpacing: 2 }}>平日　　16:00〜23:00</div>
+        <div style={{ color: MIDORI, fontFamily: goshi, fontWeight: 800, fontSize: 46, letterSpacing: 2 }}>土日祝　11:00〜23:00</div>
       </div>
       {/* 写真：丸角カード・大きく（全体表示） */}
-      <div style={{ position: "absolute", top: 330, left: 0, right: 0, bottom: 235, display: "flex", justifyContent: "center", alignItems: "center" }}>
+      <div style={{ position: "absolute", top: 412, left: 0, right: 0, bottom: 235, display: "flex", justifyContent: "center", alignItems: "center" }}>
         <div style={{ background: "#fff", padding: 10, borderRadius: 26, boxShadow: "0 20px 50px rgba(90,70,10,0.35)", lineHeight: 0 }}>
           <Img src={staticFile(photoStoryPhoto)} style={{ display: "block", maxWidth: 1030, maxHeight: 1320, width: "auto", height: "auto",
             borderRadius: 20, filter: "saturate(1.12) contrast(1.04)" }} />
@@ -97,8 +98,8 @@ export const TaishuImgG: React.FC<{ handle?: string }> = ({ handle = "@susabiyu_
       </div>
       {/* 下：営業時間 */}
       <div style={{ position: "absolute", bottom: 172, left: 0, right: 0, textAlign: "center", lineHeight: 1.55 }}>
-        <div style={{ color: KURO, fontFamily: goshi, fontWeight: 800, fontSize: 40, letterSpacing: 2, ...fuchi("#ffffff", 6) }}>平日　　16:00〜23:00</div>
-        <div style={{ color: KURO, fontFamily: goshi, fontWeight: 800, fontSize: 40, letterSpacing: 2, ...fuchi("#ffffff", 6) }}>土日祝　11:00〜23:00</div>
+        <div style={{ color: KURO, fontFamily: goshi, fontWeight: 800, fontSize: 46, letterSpacing: 2, ...fuchi("#ffffff", 6) }}>平日　　16:00〜23:00</div>
+        <div style={{ color: KURO, fontFamily: goshi, fontWeight: 800, fontSize: 46, letterSpacing: 2, ...fuchi("#ffffff", 6) }}>土日祝　11:00〜23:00</div>
       </div>
       {/* 右側：縦書きの黄マーカー文字 */}
       <div style={{ position: "absolute", right: 66, top: 640 }}>
