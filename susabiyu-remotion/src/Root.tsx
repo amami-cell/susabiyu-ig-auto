@@ -22,6 +22,8 @@ import { TaishuKakegoe, TKOE_DUR } from "./TaishuKakegoe";
 import { TaishuNigi, TNIGI_DUR } from "./TaishuNigi";
 import { TaishuKaiten, TKAI_DUR } from "./TaishuKaiten";
 import { TaishuOshi, TOSHI_DUR } from "./TaishuOshi";
+import { TaishuOdo } from "./TaishuOdo";
+import { TaishuZen } from "./TaishuZen";
 import { photos } from "./photoData";
 import { tempoPhotos } from "./tempoData";
 import { typoPhotos } from "./typoData";
@@ -73,6 +75,8 @@ export const RemotionRoot: React.FC = () => {
       <Composition id="TaishuNigi" component={TaishuNigi} fps={FPS} width={1080} height={1920} durationInFrames={TNIGI_DUR} defaultProps={{ storeName: "すさび湯三条", handle: "@susabiyu_sanjyo" }} />
       <Composition id="TaishuKaiten" component={TaishuKaiten} fps={FPS} width={1080} height={1920} durationInFrames={TKAI_DUR} defaultProps={{ storeName: STORE, handle: "@susabiyu_sanjyo" }} />
       <Composition id="TaishuOshi" component={TaishuOshi} fps={FPS} width={1080} height={1920} durationInFrames={TOSHI_DUR} defaultProps={{ storeName: STORE, handle: "@susabiyu_sanjyo" }} />
+      <Composition id="TaishuOdo" component={TaishuOdo} fps={FPS} width={1080} height={1920} durationInFrames={dur} defaultProps={{ storeName: STORE, handle: "@susabiyu_sanjyo" }} />
+      <Composition id="TaishuZen" component={TaishuZen} fps={FPS} width={1080} height={1920} durationInFrames={150} defaultProps={{ handle: "@susabiyu_sanjyo" }} />
     </>
   );
 };
