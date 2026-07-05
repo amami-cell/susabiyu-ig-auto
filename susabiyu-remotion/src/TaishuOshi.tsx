@@ -142,7 +142,7 @@ export const TaishuOshi: React.FC<{ storeName?: string; handle?: string }> = ({ 
             <BoardBg />
             <AbsoluteFill style={{ justifyContent: "center", alignItems: "center", opacity: oO }}>
               <div style={{ transform: "scale(" + oS + ") rotate(-2deg)", textAlign: "center" }}>
-                <div style={{ color: CHALK, fontFamily: chalk, fontSize: 88, lineHeight: 1.4 }}>ご来店<br />お待ちしています</div>
+                <div style={{ color: CHALK, fontFamily: chalk, fontSize: 88, lineHeight: 1.4 }}>お腹すかせて<br />来てください！</div>
                 <div style={{ color: "#cfe3d6", fontFamily: chalk, fontSize: 40, marginTop: 26 }}>{handle}</div>
               </div>
             </AbsoluteFill>
