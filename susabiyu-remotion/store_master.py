@@ -1129,6 +1129,48 @@ def musicdirs():
         print("MUSIC|" + name + "|normal|" + "~".join(no))
 
 
+def musicrestore():
+    """ゴミ箱に入った音楽ファイルを探して復元を試みる（音楽ノーマル/アップテンポ両対象）。"""
+    cr = _creds()
+    dr = _drive(cr)
+    targets = [os.environ.get("GENRE_MUSIC_NORMAL_ID") or "", os.environ.get("GENRE_MUSIC_UPTEMPO_ID") or ""]
+    try:
+        res = dr.files().list(q="trashed = true",
+            fields="files(id,name,mimeType,parents,trashedTime,owners(emailAddress))",
+            pageSize=200, supportsAllDrives=True, includeItemsFromAllDrives=True).execute()
+    except Exception as e:
+        print("[RESTORE] ゴミ箱一覧の取得に失敗:", e)
+        return
+    files = res.get("files", [])
+    print("[RESTORE] ゴミ箱に見えるファイル:", len(files))
+    hit = 0
+    for f in files:
+        is_audio = (f.get("mimeType") or "").startswith("audio/") or (f.get("name") or "").lower().endswith((".mp3", ".m4a", ".wav"))
+        in_target = any(t and t in (f.get("parents") or []) for t in targets)
+        if not (is_audio or in_target):
+            continue
+        hit += 1
+        own = ",".join(o.get("emailAddress", "?") for o in f.get("owners", []))
+        try:
+            dr.files().update(fileId=f["id"], body={"trashed": False}, supportsAllDrives=True).execute()
+            print("RESTORED|" + f.get("name", "?") + "|owner:" + own)
+        except Exception as e:
+            print("FAIL|" + f.get("name", "?") + "|owner:" + own + "|" + str(e)[:120])
+    if hit == 0:
+        print("[RESTORE] 対象の音楽ファイルはSAのゴミ箱視界にありません（所有者本人のゴミ箱からの復元が必要）")
+    # 復元後のフォルダ内容を確認
+    for label, t in (("normal", targets[0]), ("uptempo", targets[1])):
+        if not t:
+            continue
+        try:
+            r2 = dr.files().list(q="'" + t + "' in parents and trashed = false",
+                fields="files(name)", pageSize=100).execute()
+            names = [x.get("name") for x in r2.get("files", [])]
+            print("[FOLDER " + label + "] " + str(len(names)) + "件: " + ", ".join(names[:20]))
+        except Exception as e:
+            print("[FOLDER " + label + "] 取得失敗:", e)
+
+
 if __name__ == "__main__":
     mode = (sys.argv[1] if len(sys.argv) > 1 else "init").strip().lower()
     arg = sys.argv[2].strip() if len(sys.argv) > 2 else None
@@ -1170,6 +1212,8 @@ if __name__ == "__main__":
         distmove(arg)
     elif mode == "distfinal":
         distfinal(arg)
+    elif mode == "musicrestore":
+        musicrestore()
     elif mode == "musicdirs":
         musicdirs()
     elif mode == "patdump":

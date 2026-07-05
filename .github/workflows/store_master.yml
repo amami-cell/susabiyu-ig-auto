@@ -7,7 +7,7 @@ on:
         required: true
         default: "init"
         type: choice
-        options: [init, setup, columns, intake, requestsheet, roster, names, pending, saemail, distsheet, distdrive, distsub, distnote, disttop, distwarn, disttime, distmove, distfinal, distdump, inbox, inboxget, outbox, sddrives, uptest, frames, preview, capsamples, ffcsample, sushifolder, patdump, musicdirs, all]
+        options: [init, setup, columns, intake, requestsheet, roster, names, pending, saemail, distsheet, distdrive, distsub, distnote, disttop, distwarn, disttime, distmove, distfinal, distdump, inbox, inboxget, outbox, sddrives, uptest, frames, preview, capsamples, ffcsample, sushifolder, patdump, musicdirs, musicrestore, all]
       store_id:
         description: "setup対象のstore_id（framesは動画フォルダID/URL）"
         required: false
