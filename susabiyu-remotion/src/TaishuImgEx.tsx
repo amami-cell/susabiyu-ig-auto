@@ -46,13 +46,13 @@ export const TaishuImgE: React.FC<{ handle?: string }> = ({ handle = "@susabiyu_
       <div style={{ position: "absolute", top: 92, left: 0, right: 0, textAlign: "center" }}>
         <span style={{ color: MIDORI, fontFamily: fude, fontSize: 104, letterSpacing: 4, ...fuchi("#ffffff", 8) }}>{pickTag()}</span>
       </div>
-      <div style={{ position: "absolute", top: 232, left: 120, right: 120, borderTop: "7px dotted " + MIDORI, opacity: 0.75 }} />
+      <div style={{ position: "absolute", top: 232, left: 120, right: 120, height: 8, background: MIDORI, borderRadius: 4, opacity: 0.85 }} />
       {/* 営業時間（上下を点線で区切る） */}
       <div style={{ position: "absolute", top: 258, left: 0, right: 0, textAlign: "center", lineHeight: 1.5 }}>
         <div style={{ color: MIDORI, fontFamily: goshi, fontWeight: 800, fontSize: 46, letterSpacing: 2 }}>平日　　16:00〜23:00</div>
         <div style={{ color: MIDORI, fontFamily: goshi, fontWeight: 800, fontSize: 46, letterSpacing: 2 }}>土日祝　11:00〜23:00</div>
       </div>
-      <div style={{ position: "absolute", top: 420, left: 120, right: 120, borderTop: "7px dotted " + MIDORI, opacity: 0.75 }} />
+      <div style={{ position: "absolute", top: 420, left: 120, right: 120, height: 8, background: MIDORI, borderRadius: 4, opacity: 0.85 }} />
       {/* 写真：丸角カード・大きく（全体表示） */}
       <div style={{ position: "absolute", top: 448, left: 0, right: 0, bottom: 235, display: "flex", justifyContent: "center", alignItems: "center" }}>
         <div style={{ background: "#fff", padding: 10, borderRadius: 26, boxShadow: "0 20px 50px rgba(90,70,10,0.35)", lineHeight: 0 }}>
