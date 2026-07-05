@@ -15,18 +15,27 @@ except ImportError:
 
 WD = ["月", "火", "水", "木", "金", "土", "日"]
 
-# 基本: 動画4 / 静止画2。新パターンは「見本で採用」されたら動画ローテに加わる。
-CORE_VIDEO = ["sushi", "tempo", "typo", "photo"]   # 既定で投稿に使う基本4種
-NEW_VIDEO = ["oshina", "oshinatate", "kaiten", "osusume", "gridzoom", "noren", "season"]  # 見本採用で追加
+# 三条＝大衆酒場トーンのパターンで投稿する。
+# 「見本」タブで採用になっているものだけがローテに入る（動画も画像も）。
+# シートに繋がらない時の安全側フォールバックは CORE_VIDEO / CORE_STILL。
+CORE_VIDEO = ["taishuodo", "taishutempo", "taishuzen", "taishuoshina"]
+NEW_VIDEO = ["taishufuda", "taishukaiten", "taishuoshi", "taishushinbun", "taishugrid",
+             "taishutanzaku", "taishunoren", "taishushun", "taishuhito", "sanjokaiten"]
 VIDEO = CORE_VIDEO + NEW_VIDEO
-STILL = ["simple", "caption"]
+CORE_STILL = ["taishucap"]   # 公式のれんデザイン
+NEW_STILL = ["taishugaku", "taishuimga", "taishuimga2", "taishuimgb",
+             "taishuimgd", "taishuimge", "taishuimgf"]
+STILL = CORE_STILL + NEW_STILL
 ALL = VIDEO + STILL
 LABEL = {
-    "sushi": "動王道", "tempo": "動賑やか", "typo": "動雑誌",
-    "photo": "動全画", "simple": "静額装", "caption": "静写真",
-    "oshina": "動品書", "oshinatate": "動品縦",
-    "kaiten": "動回転", "osusume": "動限定", "gridzoom": "動格子",
-    "noren": "動暖簾", "season": "動旬",
+    "taishuodo": "動王道", "taishutempo": "動賑や", "taishuzen": "動全画",
+    "taishuoshina": "動品書", "taishufuda": "動値札", "taishukaiten": "動回転",
+    "taishuoshi": "動黒板", "taishushinbun": "動新聞", "taishugrid": "動格子",
+    "taishutanzaku": "動短冊", "taishunoren": "動暖簾", "taishushun": "動旬",
+    "taishuhito": "動一皿", "sanjokaiten": "動回烏",
+    "taishucap": "静のれん", "taishugaku": "静額装",
+    "taishuimga": "静提灯", "taishuimga2": "静提灯2", "taishuimgb": "静チラシ",
+    "taishuimgd": "静紺のれ", "taishuimge": "静黄ポ", "taishuimgf": "静白抜",
 }
 
 def day_kind(d):
@@ -37,14 +46,15 @@ def day_kind(d):
     return False, "平日"
 
 _ENABLED_CACHE = None
-def _enabled_videos():
-    """ギャラリーで「採用」になっている動画パターンだけを返す。
+def _enabled_patterns():
+    """ギャラリーで「採用」になっている(動画リスト, 画像リスト)を返す。
     スプレッドの「パターン」タブ(A=pattern, F=enabled)を読む。
-    シート未接続や全無効など取得できないときは安全側で全動画パターンを使う。"""
+    シート未接続や全無効など取得できないときは安全側でCOREのみを使う。"""
     global _ENABLED_CACHE
     if _ENABLED_CACHE is not None:
         return _ENABLED_CACHE
-    vids = list(CORE_VIDEO)  # シート不可時の安全側＝基本4種のみ（新型は採用されるまで投稿しない）
+    vids = list(CORE_VIDEO)   # シート不可時の安全側（新型は採用されるまで投稿しない）
+    stills = list(CORE_STILL)
     try:
         import poster
         sh = poster._sheets()
@@ -58,16 +68,25 @@ def _enabled_videos():
                     continue
                 key = str(r[0]).strip()
                 val = (str(r[5]).strip().lower() if len(r) > 5 and str(r[5]).strip() != "" else "1")
-                if key in VIDEO and val not in off:
+                if val not in off:
                     en.append(key)
-            keep = [k for k in VIDEO if k in en]  # VIDEOの並び順を保つ＝決定的
-            if keep:
-                vids = keep
-            print("[ENABLED] 採用動画パターン:", vids)
+            keep_v = [k for k in VIDEO if k in en]   # 並び順を保つ＝決定的
+            keep_s = [k for k in STILL if k in en]
+            if keep_v:
+                vids = keep_v
+            if keep_s:
+                stills = keep_s
+            print("[ENABLED] 採用動画:", vids, "/ 採用画像:", stills)
     except Exception as e:
-        print("[ENABLED] パターン取得失敗（全動画パターン使用）:", e)
-    _ENABLED_CACHE = vids
-    return vids
+        print("[ENABLED] パターン取得失敗（COREのみ使用）:", e)
+    _ENABLED_CACHE = (vids, stills)
+    return _ENABLED_CACHE
+
+def _enabled_videos():
+    return _enabled_patterns()[0]
+
+def _enabled_stills():
+    return _enabled_patterns()[1]
 
 
 def _video_for_day(d):
@@ -97,9 +116,10 @@ def plan_day(d, open_hour):
     rng = random.Random(d.strftime("%Y%m%d"))
     video_slot = rng.choice(slots)
     vpat = _video_for_day(d)
+    stills = _enabled_stills() or list(CORE_STILL)
     plan = {}
     for s in slots:
-        plan[s] = vpat if s == video_slot else rng.choice(STILL)
+        plan[s] = vpat if s == video_slot else rng.choice(stills)
     return slots, plan
 
 def decide(dt):

@@ -1114,6 +1114,17 @@ def columns():
     print("[MASTER] 『アプリ表示』(T)＋『アイコン短縮名』(U)列を用意しました")
 
 
+def clearpending():
+    """承認待ちタブの行を全消去（ヘッダーは残す）。本番切替時に旧デザインの
+    予約投稿を一掃してから prepare で作り直すためのモード。"""
+    cr = _creds()
+    sh = _sheets(cr)
+    rows = sh.values().get(spreadsheetId=SHEET_ID, range="承認待ち!A:A").execute().get("values", [])
+    n = max(0, len(rows) - 1)
+    sh.values().clear(spreadsheetId=SHEET_ID, range="承認待ち!A2:Z").execute()
+    print("承認待ちを%d行削除しました（ヘッダーは維持）。" % n)
+
+
 def musicdirs():
     """各店舗の音楽フォルダURLをログ用に出力（IDマスキング回避のため1文字ずつ~区切り）。"""
     cr = _creds()
@@ -1267,6 +1278,8 @@ if __name__ == "__main__":
         musicrestore()
     elif mode == "musicdirs":
         musicdirs()
+    elif mode == "clearpending":
+        clearpending()
     elif mode == "patdump":
         patdump()
     elif mode == "sushifolder":

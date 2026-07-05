@@ -43,11 +43,22 @@ REG = {
   "taishuimgf":   ("fetch_photostory.py","TaishuImgF",False),
   "taishuimge":   ("fetch_photostory.py","TaishuImgE",False),
 }
-CAP_VAR = {
-  "photo":("photoStoryData.ts","photoStoryCaption"),
-  "caption":("photoStoryData.ts","photoStoryCaption"),
-  "simple":("simpleData.ts","simplePhrase"),
-  "typo":("typoData.ts","typoHeadline"),
+CAP_VAR = {
+  "taishuzen":("photoStoryData.ts","photoStoryCaption"),
+  "taishucap":("photoStoryData.ts","photoStoryCaption"),
+  "taishuimga":("photoStoryData.ts","photoStoryCaption"),
+  "taishuimga2":("photoStoryData.ts","photoStoryCaption"),
+  "taishuimgb":("photoStoryData.ts","photoStoryCaption"),
+  "taishuimgd":("photoStoryData.ts","photoStoryCaption"),
+  "taishuimge":("photoStoryData.ts","photoStoryCaption"),
+  "taishuimgf":("photoStoryData.ts","photoStoryCaption"),
+  "taishugaku":("simpleData.ts","simplePhrase"),
+  "taishushinbun":("typoData.ts","typoHeadline"),
+  "taishutanzaku":("typoData.ts","typoHeadline"),
+  "taishunoren":("typoData.ts","typoHeadline"),
+  "taishushun":("typoData.ts","typoHeadline"),
+  "taishuhito":("typoData.ts","typoHeadline"),
+  "taishuoshina":("typoData.ts","typoHeadline"),
 }
 
 def run(cmd):
