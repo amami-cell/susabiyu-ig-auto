@@ -1,6 +1,7 @@
 ﻿import os, io, glob, json, sys, random
 
 FOOD_FOLDER = "14oKNgdXee2NrI7Dkmbrlbid4f0_VZ5Cv"
+INTERIOR_FOLDER = os.environ.get("GENRE_INTERIOR_ID") or "17h9qNWIEisEaEqNUuH-6XA39eVxgfHQW"
 OUT = os.path.join("public", "simple.jpg")
 MIN_SIDE = 1000
 
@@ -123,12 +124,32 @@ print("DIM:", pw, "x", pph)
 has_logo = os.path.exists(os.path.join("public", "logo.png"))
 
 ph = phrase.replace("\\", "\\\\").replace('"', '\\"')
+# 大衆画像デザイン用の固定背景（店内写真フォルダの1枚目＝毎回同じ）
+_bg = ""
+try:
+    _q = "'%s' in parents and trashed=false and mimeType contains 'image/'" % INTERIOR_FOLDER
+    _fs = drive.files().list(q=_q, fields="files(id,name)", pageSize=100).execute().get("files", [])
+    _fs.sort(key=lambda f: f.get("name", ""))
+    if _fs:
+        _req = drive.files().get_media(fileId=_fs[0]["id"])
+        _buf = io.FileIO(os.path.join("public", "taishu_bg.jpg"), "wb")
+        _dl = MediaIoBaseDownload(_buf, _req)
+        _dn = False
+        while not _dn:
+            _, _dn = _dl.next_chunk()
+        _buf.close()
+        _bg = "taishu_bg.jpg"
+        print("[BG] taishu_bg.jpg <-", _fs[0].get("name"))
+except Exception as _e:
+    print("[BG] skip:", _e)
+
 ts = (
     'export const simplePhoto = "simple.jpg";\n'
     'export const simplePhrase = "%s";\n'
     'export const simpleHasLogo = %s;\n'
     'export const simpleW = %d;\n'
     'export const simpleH = %d;\n'
-) % (ph, "true" if has_logo else "false", pw, pph)
+    'export const simpleBg: string = "%s";\n'
+) % (ph, "true" if has_logo else "false", pw, pph, _bg)
 open(os.path.join("src", "simpleData.ts"), "w", encoding="utf-8").write(ts)
 print("src/simpleData.ts 書き出し完了。 logo:", has_logo)

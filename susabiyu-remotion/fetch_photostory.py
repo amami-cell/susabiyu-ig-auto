@@ -182,6 +182,25 @@ if os.path.isdir(_updir):
         _up = "music/uptempo/" + _rd.choice(_tr)
 _up = os.environ.get("FIXED_MUSIC") or _up
 _um = _up.replace("\\", "\\\\").replace('"', '\\"')
+# 大衆画像デザイン用の固定背景（店内写真フォルダの1枚目＝毎回同じ）
+_bg = ""
+try:
+    _q = "'%s' in parents and trashed=false and mimeType contains 'image/'" % INTERIOR_FOLDER
+    _fs = drive.files().list(q=_q, fields="files(id,name)", pageSize=100).execute().get("files", [])
+    _fs.sort(key=lambda f: f.get("name", ""))
+    if _fs:
+        _req = drive.files().get_media(fileId=_fs[0]["id"])
+        _buf = io.FileIO(os.path.join("public", "taishu_bg.jpg"), "wb")
+        _dl = MediaIoBaseDownload(_buf, _req)
+        _dn = False
+        while not _dn:
+            _, _dn = _dl.next_chunk()
+        _buf.close()
+        _bg = "taishu_bg.jpg"
+        print("[BG] taishu_bg.jpg <-", _fs[0].get("name"))
+except Exception as _e:
+    print("[BG] skip:", _e)
+
 ts = (
     'export const photoStoryPhoto = "photostory.jpg";\n'
     'export const photoStoryCaption = "%s";\n'
@@ -189,6 +208,7 @@ ts = (
     'export const photoStoryMusic = "%s";\n'
     'export const photoStoryUptempo = "%s";\n'
     'export const photoStoryGenre: string = "%s";\n'
-) % (ph, "true" if has_logo else "false", _m, _um, pick.get("genre") or "food")
+    'export const photoStoryBg: string = "%s";\n'
+) % (ph, "true" if has_logo else "false", _m, _um, pick.get("genre") or "food", _bg)
 open(os.path.join("src", "photoStoryData.ts"), "w", encoding="utf-8").write(ts)
 print("src/photoStoryData.ts 書き出し完了。 logo:", has_logo)
