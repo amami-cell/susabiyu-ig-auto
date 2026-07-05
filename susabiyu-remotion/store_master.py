@@ -1131,6 +1131,22 @@ def pendingdump():
         print("行%d | %s | %s | %s | %s | url%d文字" % (i + 1, tok, when, pat, st, len(url)))
 
 
+def sheetrevs():
+    """スプレッドシートの直近リビジョン一覧（いつ・誰が編集したか）を出力。"""
+    cr = _creds()
+    dr = _drive(cr)
+    try:
+        res = dr.revisions().list(fileId=SHEET_ID, pageSize=1000,
+            fields="revisions(id,modifiedTime,lastModifyingUser(displayName,emailAddress))").execute()
+        revs = res.get("revisions", [])
+        print("リビジョン数:", len(revs))
+        for r in revs[-25:]:
+            u = r.get("lastModifyingUser") or {}
+            print(r.get("modifiedTime"), "|", u.get("displayName", "?"), "|", u.get("emailAddress", "?"))
+    except Exception as e:
+        print("[REVS] 取得失敗:", e)
+
+
 def clearpending():
     """承認待ちタブの行を全消去（ヘッダーは残す）。本番切替時に旧デザインの
     予約投稿を一掃してから prepare で作り直すためのモード。"""
@@ -1299,6 +1315,8 @@ if __name__ == "__main__":
         clearpending()
     elif mode == "pendingdump":
         pendingdump()
+    elif mode == "sheetrevs":
+        sheetrevs()
     elif mode == "patdump":
         patdump()
     elif mode == "sushifolder":
