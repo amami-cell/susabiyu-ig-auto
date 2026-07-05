@@ -66,7 +66,7 @@ export const TaishuImgA: React.FC<{ handle?: string }> = ({ handle = "@susabiyu_
 
 // ── 案B: レトロ印刷チラシ（値札チラシの世界・明るい紙面） ──
 export const TaishuImgB: React.FC<{ handle?: string }> = ({ handle = "@susabiyu_sanjyo" }) => {
-  const SHU = "#c73a28", SHU_DARK = "#96261a", KAMI = "#f0dcae", KIN = "#e8b64c";
+  const SHU = "#c73a28", SHU_DARK = "#96261a", KAMI = "#f0dcae";
   return (
     <AbsoluteFill style={{ backgroundColor: KAMI }}>
       <SunburstBg speed={0} c1={SHU} c2={KAMI} />
