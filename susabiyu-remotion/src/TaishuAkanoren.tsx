@@ -4,7 +4,7 @@
 import { AbsoluteFill, Img, Audio, staticFile, useCurrentFrame, interpolate, Easing } from "remotion";
 import { loadFont as loadFude } from "@remotion/google-fonts/YujiSyuku";
 import { loadFont as loadGoshi } from "@remotion/google-fonts/RocknRollOne";
-import { typoPhotos, typoUptempo } from "./typoData";
+import { typoPhotos, typoMusic } from "./typoData";
 import { oneLineFont } from "./fit";
 import { AKA, AKA_DARK, KIIRO, KURO, SHIRO, fuchi } from "./taishu";
 
@@ -29,7 +29,7 @@ export const TaishuAkanoren: React.FC<{ storeName?: string; handle?: string }> =
   const panels = [0, 1, 2];
   return (
     <AbsoluteFill style={{ backgroundColor: "#1a0c06" }}>
-      <Audio src={staticFile(typoUptempo)} volume={(ff) => interpolate(ff, [0, 14, DUR - 20, DUR], [0, 0.85, 0.85, 0], clamp)} />
+      <Audio src={staticFile(typoMusic)} volume={(ff) => interpolate(ff, [0, 14, DUR - 20, DUR], [0, 0.85, 0.85, 0], clamp)} />
       {/* 奥の料理（明るめ・鮮やかめ＝元気な店の中） */}
       <AbsoluteFill style={{ backgroundColor: "#1a0c06" }}>
         <Img src={staticFile(hero.src)} style={{ width: "100%", height: "100%", objectFit: "cover", filter: "blur(30px) brightness(0.8) saturate(1.4)", transform: "scale(" + bgScale + ")" }} />

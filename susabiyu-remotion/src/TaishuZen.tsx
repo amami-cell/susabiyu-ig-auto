@@ -3,7 +3,7 @@
 import { AbsoluteFill, Img, Audio, staticFile, useCurrentFrame, useVideoConfig, interpolate } from "remotion";
 import { loadFont } from "@remotion/google-fonts/YujiSyuku";
 import { loadFont as loadGoshi } from "@remotion/google-fonts/RocknRollOne";
-import { photoStoryPhoto, photoStoryCaption, photoStoryHasLogo, photoStoryUptempo, photoStoryGenre } from "./photoStoryData";
+import { photoStoryPhoto, photoStoryCaption, photoStoryHasLogo, photoStoryMusic, photoStoryGenre } from "./photoStoryData";
 import { oneLineFont } from "./fit";
 import { AKA, AKA_DARK, KIIRO, KURO, SHIRO, Lanterns, fuchi } from "./taishu";
 
@@ -28,7 +28,7 @@ export const TaishuZen: React.FC<{ handle?: string }> = ({ handle = "@susabiyu_s
   return (
     <AbsoluteFill style={{ backgroundColor: "#2a120a" }}>
       <Audio
-        src={staticFile(photoStoryUptempo)}
+        src={staticFile(photoStoryMusic)}
         volume={(f) =>
           interpolate(f, [0, 20, durationInFrames - 30, durationInFrames], [0, 0.5, 0.5, 0], {
             extrapolateLeft: "clamp",

@@ -14,7 +14,7 @@ import {
 } from "remotion";
 import { loadFont } from "@remotion/google-fonts/YujiSyuku";
 import { loadFont as loadGoshi } from "@remotion/google-fonts/RocknRollOne";
-import { photos, hasLogo, sushiUptempo } from "./photoData";
+import { photos, hasLogo, sushiMusic } from "./photoData";
 import { oneLineFont } from "./fit";
 import { AKA, AKA_DARK, KIIRO, KURO, SHIRO, Lanterns, fuchi } from "./taishu";
 import { punch, Flash } from "./cine";
@@ -238,7 +238,7 @@ export const TaishuOdo: React.FC<{ storeName?: string; handle?: string }> = ({
   return (
     <AbsoluteFill style={{ backgroundColor: BG }}>
       <Audio
-        src={staticFile(sushiUptempo)}
+        src={staticFile(sushiMusic)}
         volume={(f) =>
           interpolate(f, [0, 28, durationInFrames - 45, durationInFrames], [0, 0.5, 0.5, 0], {
             extrapolateLeft: "clamp",
