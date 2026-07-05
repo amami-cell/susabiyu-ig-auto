@@ -1118,17 +1118,17 @@ def pendingdump():
     """承認待ちタブの全行を診断用に出力（token/時刻/パターン/状態/URL長）。"""
     cr = _creds()
     sh = _sheets(cr)
-    rows = sh.values().get(spreadsheetId=SHEET_ID, range="承認待ち!A:M").execute().get("values", [])
+    rows = sh.values().get(spreadsheetId=SHEET_ID, range="承認待ち!A:Z").execute().get("values", [])
     print("総行数(ヘッダー込み):", len(rows))
     for i, r in enumerate(rows):
         if i == 0:
             continue
-        tok = r[0] if len(r) > 0 else ""
-        when = r[1] if len(r) > 1 else ""
-        pat = r[3] if len(r) > 3 else ""
-        url = r[4] if len(r) > 4 else ""
-        st = r[7] if len(r) > 7 else ""
-        print("行%d | %s | %s | %s | %s | url%d文字" % (i + 1, tok, when, pat, st, len(url)))
+        cells = []
+        for j, v in enumerate(r):
+            s = str(v)
+            if s:
+                cells.append("%s=%s" % (chr(65 + j), s[:60].replace("\n", " ")))
+        print("行%d(%d列) %s" % (i + 1, len(r), " | ".join(cells) if cells else "(全セル空)"))
 
 
 def sheetrevs():
