@@ -445,6 +445,10 @@ def main():
     if not made:
         print("対象日 %s は全枠が既に登録済み。新規登録もLINE通知もせずスキップしました。" % target)
         return
+    if os.environ.get("QUIET_NOTIFY") == "1":
+        print("[QUIET] 通知(LINE/Push)はスキップしました。")
+        print("完了: %s ぶん %d枠を承認待ちに登録しました。" % (target, len(made)))
+        return
     appurl = poster._cell(sh, "Config!B14")
     lines = ["【%d/%d(%s) 投稿の事前確認】" % (target.month, target.day, kind)]
     for hour, patja, cap in made:

@@ -13,6 +13,10 @@ on:
         description: "Target date JST e.g. 2026-06-26 / 'repair'=承認待ちの一時URLを恒久化のみ (empty=2 days ahead)"
         required: false
         default: ""
+      quiet:
+        description: "1=LINE/Push通知を送らない（夜間作業用）"
+        required: false
+        default: "0"
 jobs:
   prepare:
     runs-on: ubuntu-latest
@@ -60,4 +64,5 @@ jobs:
           VAPID_PRIVATE_KEY: ${{ secrets.VAPID_PRIVATE_KEY }}
           VAPID_SUBJECT: ${{ secrets.VAPID_SUBJECT }}
           PWA_URL: ${{ secrets.PWA_URL }}
+          QUIET_NOTIFY: ${{ github.event.inputs.quiet }}
         run: python prepare.py creds.json "${{ github.event.inputs.date }}"
