@@ -20,8 +20,29 @@
     // この要求を投げた後に、別の要求でキーが入力済みなら聞かない（＝1回で済む）
     if (genAtSend !== undefined && genAtSend !== keyGen) return KEY;
     var k = window.prompt(msg || "確認コードを入力してください", "");
-    if (k != null) { KEY = k.trim(); localStorage.setItem("sb_key", KEY); keyGen++; }
+    if (k != null) { var prevK = KEY; KEY = k.trim(); localStorage.setItem("sb_key", KEY); keyGen++; karCheck(KEY, prevK); }
     return KEY;
+  }
+
+  /* ---------- 烏丸店ページ（仮・PASSを知る人だけ） ---------- */
+  var KAR_HASH = "92925488b28ab12584ac8fcaa8a27a0f497b2c62940c8f4fbc8ef19ebc87c43e";
+  // 烏丸（鮨処）行きのテンプレID。ラベルに頼らずIDで確実に振り分ける。
+  var KAR_KEYS = { sushi: 1, tempo: 1, typo: 1, photo: 1, oshina: 1, oshinatate: 1, kaiten: 1, osusume: 1, gridzoom: 1, noren: 1, season: 1 };
+  function isKarPat(it) {
+    return KAR_KEYS[String((it && it.pattern) || "")] === 1 || String((it && it.label) || "").indexOf("【鮨処】") === 0;
+  }
+  var KAR = false;
+  try { KAR = localStorage.getItem("sb_store") === "karasuma"; } catch (e) {}
+  function karCheck(code, prevKey) {
+    if (!code || !window.crypto || !crypto.subtle) return;
+    pvHash(code).then(function (h) {
+      if (h !== KAR_HASH) return;
+      try {
+        if (prevKey) localStorage.setItem("sb_key", prevKey); else localStorage.removeItem("sb_key");
+        localStorage.setItem("sb_store", "karasuma");
+      } catch (e) {}
+      location.reload();
+    });
   }
 
   var feed = document.getElementById("feed");
@@ -479,16 +500,43 @@
   var pendingPat = {};  // pattern -> 望む状態 "1"/"0"（楽観。サーバ反映までポーリングで戻さない）
   function normOn(v) { return (String(v) !== "0" && String(v).toLowerCase() !== "false") ? "1" : "0"; }
 
+  // 画面外の動画は読み込みを解放し、近づいたら読み込む。
+  // iPhoneは同時に扱える動画数に上限があり、全部にsrcを付けると一部が再生不能になるため。
+  var vidObs = window.IntersectionObserver ? new IntersectionObserver(function (ens) {
+    for (var i = 0; i < ens.length; i++) {
+      var v = ens[i].target;
+      if (ens[i].isIntersecting) {
+        if (!v.getAttribute("src") && v.getAttribute("data-vsrc")) {
+          v.setAttribute("src", v.getAttribute("data-vsrc"));
+          try { v.load(); } catch (e) {}
+        }
+      } else if (v.getAttribute("src") && v.paused) {
+        v.removeAttribute("src");
+        try { v.load(); } catch (e) {}   // デコーダを解放（posterは残るので見た目は変わらない）
+      }
+    }
+  }, { rootMargin: "180% 0px 180% 0px" }) : null;
+
   function galleryCard(it) {
     var card = document.createElement("div");
-    card.className = "card";
+    // cv=動画 / ci=画像 / cu=生成中（どちらの表示にも出す）
+    card.className = "card " + (!it.url ? "cu" : (isVideo(it) ? "cv" : "ci"));
     card.setAttribute("data-pattern", it.pattern);
+    card.setAttribute("data-csig", cardSig(it));   // 差分更新用：内容が変わった時だけ差し替える
     var on = String(it.enabled) !== "0" && String(it.enabled).toLowerCase() !== "false";
     var p = it.poster ? ' poster="' + esc(it.poster) + '"' : "";
-    var media = it.url
-      ? '<div class="mediaWrap"><video class="media" style="' + bg(it.blur) + '" src="' + esc(it.url) + '"' + p +
-        ' controls playsinline preload="metadata" onerror="window.__mediaErr&&window.__mediaErr(this)"></video><div class="badge">▶ タップで再生（音が出ます）</div></div>'
-      : '<div class="mediaWrap"><div class="media" style="height:180px;display:flex;align-items:center;justify-content:center;color:#9aa3b2">見本を生成中…</div></div>';
+    var media;
+    if (!it.url) {
+      media = '<div class="mediaWrap"><div class="media" style="height:180px;display:flex;align-items:center;justify-content:center;color:#9aa3b2">見本を生成中…</div></div>';
+    } else if (isVideo(it)) {
+      var srcAttr = vidObs ? ' data-vsrc="' + esc(it.url) + '"' : ' src="' + esc(it.url) + '"';
+      media = '<div class="mediaWrap"><video class="media" style="' + bg(it.blur) + '"' + srcAttr + p +
+        ' controls playsinline preload="metadata" onerror="window.__mediaErr&&window.__mediaErr(this)"></video><div class="badge">▶ タップで再生（音が出ます）</div></div>';
+    } else {
+      // 画像パターン（額装・写真一言など）は静止画をそのまま表示
+      media = '<div class="mediaWrap"><img class="media" style="' + bg(it.blur) + '" src="' + esc(it.url) +
+        '" alt="preview" decoding="async" loading="lazy" onerror="window.__mediaErr&&window.__mediaErr(this)"><div class="badge">画像投稿</div></div>';
+    }
     // 採用ボタンと注意書きは両方DOMに入れ、表示は #gallery.admin クラスでCSS切替（再描画なし＝カクつかない）
     card.innerHTML =
       '<div class="head"><span class="pat">' + esc(it.label || it.pattern) + '</span>' +
@@ -501,6 +549,8 @@
     sOn.onclick = function () { if (card.dataset.on !== "1") setPattern(card, it.pattern, true); };
     sOff.onclick = function () { if (card.dataset.on !== "0") setPattern(card, it.pattern, false); };
     paintToggle(card, on);  // 初期状態を反映
+    var vv = card.querySelector("video");
+    if (vv && vidObs) vidObs.observe(vv);   // 画面に近づいた時だけ読み込む
     return card;
   }
   // 2択スイッチ：選んでいる方を色付き＋「✓」で明示。両方いつでも押せる
@@ -524,7 +574,7 @@
     }).catch(function () { toast("通信エラー。元に戻します"); delete pendingPat[key]; paintToggle(card, !on); });
   }
   function applyAdminClass() {
-    if (galleryEl) galleryEl.classList.toggle("admin", !!ADMIN);
+    if (galleryEl) galleryEl.classList.toggle("admin", !!ADMIN && !KAR);
     refreshAdminBar();
   }
   function refreshAdminBar() {
@@ -547,12 +597,81 @@
       else { toast("管理者コードが違います"); }
     }).catch(function () { toast("通信エラー"); });
   }
-  function lockAdmin() { ADMIN = ""; localStorage.removeItem("sb_admin"); applyAdminClass(); }
+  function lockAdmin() {
+    // 採用ボタン群が消えて全カードの高さが縮む＝スクロール位置が飛ぶので、位置を保って戻す
+    var d = document.documentElement;
+    var sy = window.pageYOffset || d.scrollTop || 0;
+    ADMIN = ""; localStorage.removeItem("sb_admin"); applyAdminClass();
+    if (sy > 0) window.scrollTo(0, sy);
+  }
+  // 「動画／画像」切替（固定ボタン）。選択は端末に記憶する
+  var GFILTER = localStorage.getItem("sb_gfilter") || "vid";
+  function applyGalleryFilter() {
+    if (!galleryEl) return;
+    galleryEl.classList.toggle("fvid", GFILTER === "vid");
+    galleryEl.classList.toggle("fimg", GFILTER === "img");
+    var fb = document.getElementById("gFilter");
+    if (fb) {
+      // ヘッダー（固定バー）のすぐ下に貼り付ける
+      var tb = document.querySelector(".topbar");
+      if (tb) fb.style.top = (tb.offsetHeight + 8) + "px";
+      var bv = fb.querySelector(".fv"), bi = fb.querySelector(".fi");
+      if (bv) bv.classList.toggle("sel", GFILTER === "vid");
+      if (bi) bi.classList.toggle("sel", GFILTER === "img");
+    }
+  }
+  window.addEventListener("resize", applyGalleryFilter);
+  function setGalleryFilter(v) {
+    GFILTER = v;
+    try { localStorage.setItem("sb_gfilter", v); } catch (e) {}
+    applyGalleryFilter();
+    updateNp();   // 再生中の動画が隠れたらミニバーを出す
+  }
+  function buildFilterBar(items) {
+    var fb = document.createElement("div");
+    fb.className = "gfilter"; fb.id = "gFilter";
+    fb.innerHTML = '<button class="fv"></button><button class="fi"></button>';
+    fb.querySelector(".fv").onclick = function () { setGalleryFilter("vid"); };
+    fb.querySelector(".fi").onclick = function () { setGalleryFilter("img"); };
+    updateFilterCounts(items, fb);
+    return fb;
+  }
+  function updateFilterCounts(items, fb) {
+    fb = fb || document.getElementById("gFilter"); if (!fb) return;
+    var nv = 0, ni = 0;
+    items.forEach(function (it) { if (!it.url || isVideo(it)) nv++; if (!it.url || !isVideo(it)) ni++; });
+    var bv = fb.querySelector(".fv"), bi = fb.querySelector(".fi");
+    if (bv) bv.textContent = "🎬 動画 " + nv;
+    if (bi) bi.textContent = "🖼 画像 " + ni;
+  }
+  // カード1枚ぶんの内容署名（enabledは含めない＝採用切替では作り直さずその場で塗り替える）
+  function cardSig(it) {
+    return JSON.stringify([it.pattern, it.url || "", it.label || "", it.poster || "", it.blur || ""]);
+  }
   var lastGallerySig = "";
   function patternsCacheGet() { try { return JSON.parse(localStorage.getItem("sb_patterns") || "null"); } catch (e) { return null; } }
   function patternsCacheSet(items) { try { localStorage.setItem("sb_patterns", JSON.stringify(items)); } catch (e) {} }
   function hasCards() { return !!galleryEl.querySelector(".card"); }
+  // 描画でスクロール位置が動いたら元に戻す（「採用する」押下後の自動更新などで先頭に戻さない）
   function renderGallery(items) {
+    var d = document.documentElement;
+    var sy = window.pageYOffset || d.scrollTop || 0;
+    renderGalleryCore(items);
+    var ny = window.pageYOffset || d.scrollTop || 0;
+    if (ny !== sy && sy > 0) window.scrollTo(0, sy);
+  }
+  // 見本の動画がいま再生中か（再生中は画面に一切触らない）
+  function galleryPlaying() {
+    if (!galleryEl) return false;
+    var vs = galleryEl.getElementsByTagName("video");
+    for (var i = 0; i < vs.length; i++) { if (!vs[i].paused && !vs[i].ended) return true; }
+    return false;
+  }
+  function renderGalleryCore(items) {
+    // 再生中は何もしない（触ると再生が止まるため。止まった後の更新で追いつく）
+    if (hasCards() && galleryPlaying()) return;
+    // 一時的にサーバが空を返しても、表示済みの一覧は消さない
+    if (!items.length && hasCards()) return;
     // 自分が今押した採用/無し（楽観）はサーバ反映までキープ。追いついたら解除。
     items = items.map(function (it) {
       var want = pendingPat[it.pattern];
@@ -560,10 +679,45 @@
       if (normOn(it.enabled) === want) { delete pendingPat[it.pattern]; return it; }
       var c = {}; for (var k in it) c[k] = it[k]; c.enabled = want; return c;
     });
-    // 内容が前回と同じなら作り直さない（動画の再読込＝カクつきを防ぐ）
+    // 内容が前回と同じなら何もしない（動画の再読込＝カクつきを防ぐ）
     var sig = JSON.stringify(items.map(function (it) { return [it.pattern, it.url, it.enabled, it.label, it.poster ? 1 : 0]; }));
-    if (sig === lastGallerySig && hasCards()) { applyAdminClass(); return; }
+    if (sig === lastGallerySig && hasCards()) { applyAdminClass(); applyGalleryFilter(); return; }
     lastGallerySig = sig;
+    // 店舗ページで振り分け：烏丸=【鮨処】のみ／三条=それ以外のみ
+    var normal = items.filter(function (it) { return !isKarPat(it); });
+    var stored = items.filter(isKarPat);
+    var list = KAR ? stored : normal;
+
+    // ── 差分更新：既にカードが並んでいるなら丸ごと作り直さない ──
+    // （全消し→再構築するとスクロール位置が先頭に戻ってしまうため、
+    //   変わったカードだけ差し替え、増減や並び替えも最小限の移動で反映する）
+    var fbar = document.getElementById("gFilter");
+    if (hasCards() && fbar && list.length) {
+      updateFilterCounts(list);
+      var have = {};
+      var cur = galleryEl.querySelectorAll(".card");
+      for (var ci = 0; ci < cur.length; ci++) have[cur[ci].getAttribute("data-pattern")] = cur[ci];
+      var prev = fbar;
+      list.forEach(function (it) {
+        var card = have[it.pattern];
+        if (card && card.getAttribute("data-csig") !== cardSig(it)) {
+          var nc = galleryCard(it); card.parentNode.replaceChild(nc, card); card = nc;
+        } else if (card) {
+          paintToggle(card, normOn(it.enabled) === "1");   // 採用/無しだけその場で塗り替え
+        } else {
+          card = galleryCard(it);
+        }
+        if (card.previousElementSibling !== prev) galleryEl.insertBefore(card, prev.nextSibling);
+        delete have[it.pattern];
+        prev = card;
+      });
+      for (var k in have) { if (have[k].parentNode) have[k].parentNode.removeChild(have[k]); }
+      applyAdminClass();
+      applyGalleryFilter();
+      return;
+    }
+
+    // ── 初回（またはカードが無い/空になった）は丸ごと構築 ──
     galleryEl.innerHTML = "";
     var hint = document.createElement("div"); hint.className = "ghint";
     hint.innerHTML = "各動画パターンの見本です。<b style='color:#7fd1a0'>採用する</b>を選ぶと、その型だけが日々の投稿ローテーションに使われます。<br>（店舗ごとの好みに合わせて選べます）";
@@ -574,8 +728,23 @@
       e.innerHTML = "見本がまだありません。<br>サンプル生成（samples）を実行すると、ここに各パターンの動画が並びます。";
       galleryEl.appendChild(e); applyAdminClass(); return;
     }
-    items.forEach(function (it) { galleryEl.appendChild(galleryCard(it)); });
+    if (KAR) {
+      hint.innerHTML = "🍣 <b>鮨処すさび湯 四条烏丸</b>（準備中）の見本置き場です。このページは入口PASSを知る人だけが開けます。<br>Instagram連携はアカウント情報が揃ってから。<b>採用ボタンはまだ使いません</b>。 <button class='alink' id='karBack'>三条ページへ戻る</button>";
+      if (stored.length) galleryEl.appendChild(buildFilterBar(stored));
+      stored.forEach(function (it) { galleryEl.appendChild(galleryCard(it)); });
+      if (!stored.length) {
+        var ke = document.createElement("div"); ke.className = "empty";
+        ke.innerHTML = "保管中の見本はまだありません。";
+        galleryEl.appendChild(ke);
+      }
+      var kb = hint.querySelector("#karBack");
+      if (kb) kb.onclick = function () { try { localStorage.removeItem("sb_store"); } catch (e) {} location.reload(); };
+    } else {
+      if (normal.length) galleryEl.appendChild(buildFilterBar(normal));
+      normal.forEach(function (it) { galleryEl.appendChild(galleryCard(it)); });
+    }
     applyAdminClass();
+    applyGalleryFilter();
   }
   function loadPatterns() {
     var cached = patternsCacheGet();
@@ -594,6 +763,60 @@
   var tabReport = document.getElementById("tabReport");
   function startGalleryPoll() { stopGalleryPoll(); galleryTimer = setInterval(loadPatterns, 5000); }
   function stopGalleryPoll() { if (galleryTimer) { clearInterval(galleryTimer); galleryTimer = null; } }
+  // 見本の動画を再生し始めたら自動更新ごと停止（通信もDOM操作も走らせない）。
+  // 止めたり見終わったら再開する。
+  if (galleryEl) {
+    galleryEl.addEventListener("play", function (ev) {
+      stopGalleryPoll();
+      if (ev.target && ev.target.tagName === "VIDEO") npVid = ev.target;
+      updateNp();
+    }, true);
+    var resumePoll = function () {
+      if (currentTab === "gallery" && !document.hidden && !galleryPlaying()) startGalleryPoll();
+      updateNp();
+    };
+    galleryEl.addEventListener("pause", resumePoll, true);
+    galleryEl.addEventListener("ended", resumePoll, true);
+  }
+
+  /* ---------- 再生中ミニバー ----------
+     動画を再生したまま「画像」表示や別タブへ移ると、動画は隠れても音は流れ続ける。
+     その時だけ画面下に「〜を再生中」のバーを出す（戻るボタン＋停止ボタン付き）。 */
+  var npBar = null, npVid = null;
+  function npLabel(v) {
+    var c = v && v.closest && v.closest(".card");
+    var p = c && c.querySelector(".pat");
+    return (p && p.textContent) || "見本動画";
+  }
+  function ensureNpBar() {
+    if (npBar) return npBar;
+    npBar = document.createElement("div");
+    npBar.className = "npbar";
+    npBar.style.display = "none";
+    npBar.innerHTML = '<span class="npdot"></span><span class="nptxt"></span><button class="npgo">見る</button><button class="npstop">停止</button>';
+    npBar.querySelector(".npstop").onclick = function () {
+      if (npVid) { try { npVid.pause(); } catch (e) {} }
+      updateNp();
+    };
+    npBar.querySelector(".npgo").onclick = function () {
+      if (!npVid) return;
+      if (currentTab !== "gallery") switchTo("gallery");
+      if (GFILTER !== "vid") setGalleryFilter("vid");
+      var c = npVid.closest && npVid.closest(".card");
+      if (c) c.scrollIntoView({ behavior: "auto", block: "center" });
+      updateNp();
+    };
+    document.body.appendChild(npBar);
+    return npBar;
+  }
+  function updateNp() {
+    // 「再生中」かつ「画面上で隠れている」時だけ表示（offsetParent=nullは非表示中の印）
+    var show = npVid && !npVid.paused && !npVid.ended && npVid.offsetParent === null;
+    if (!show) { if (npBar) npBar.style.display = "none"; return; }
+    ensureNpBar();
+    npBar.querySelector(".nptxt").textContent = npLabel(npVid) + " を再生中";
+    npBar.style.display = "flex";
+  }
   var currentTab = "feed";
   function loaderFor(name) { return name === "gallery" ? loadPatterns : (name === "report" ? loadReport : load); }
   function switchTo(name) {
@@ -607,8 +830,9 @@
     var rmb = document.getElementById("repmodeBar");
     if (rmb) rmb.style.display = name === "report" ? "" : "none";   // レポート時だけ上部固定バー表示
     if (name === "report") updateRepModeBar();
-    if (name === "gallery") { galleryLoaded = true; startGalleryPoll(); }
+    if (name === "gallery") { galleryLoaded = true; if (!galleryPlaying()) startGalleryPoll(); }
     else { stopGalleryPoll(); }
+    updateNp();   // 再生中の動画が隠れたらミニバーを出す
   }
   // そのタブに表示内容がもうあるか（＝切替時に再読込しなくてよいか）
   function tabHasContent(name) {
@@ -1085,6 +1309,101 @@
     var name = (CFG.STORE_NAME || "").trim();
     if (el && name) { el.textContent = name; }
     if (name) { document.title = name; }
+  })();
+
+  /* ---------- 専用プレビュー（完全な隠し機能）----------
+     入口: 店名を3秒以内に7回タップ → コード入力。
+     コードは端末にも公開コードにも埋め込まない。入力文字のSHA-256を計算し、
+     その値の場所(pv-<hash>/)にだけ一覧が存在する＝コードを知らない人は場所すら算出不能。 */
+  var PVB = String(CFG.MEDIA_BASE || "").replace(/\/+$/, "");
+  function pvEsc(s) {
+    return String(s == null ? "" : s).replace(/[&<>"']/g, function (c) {
+      return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c];
+    });
+  }
+  function pvHash(code) {
+    return crypto.subtle.digest("SHA-256", new TextEncoder().encode(code)).then(function (h) {
+      var a = new Uint8Array(h), s = "";
+      for (var i = 0; i < a.length; i++) s += ("0" + a[i].toString(16)).slice(-2);
+      return s;
+    });
+  }
+  function pvFetch(code) {
+    return pvHash(code).then(function (h) {
+      return new Promise(function (resolve, reject) {
+        if (!PVB || PVB.indexOf("PASTE_") === 0) { reject(new Error("nobase")); return; }
+        var s = document.createElement("script");
+        var to = setTimeout(function () { cleanup(); reject(new Error("timeout")); }, 12000);
+        function cleanup() { clearTimeout(to); try { delete window.__pvCb; } catch (e) {} if (s.parentNode) s.parentNode.removeChild(s); }
+        window.__pvCb = function (data) { cleanup(); resolve(data); };
+        s.src = PVB + "/pv-" + h + "/index.js?ts=" + Date.now();
+        s.onerror = function () { cleanup(); reject(new Error("notfound")); };
+        document.head.appendChild(s);
+      });
+    });
+  }
+  var pvEl = null;
+  function pvShow(data) {
+    if (pvEl && pvEl.parentNode) pvEl.parentNode.removeChild(pvEl);
+    pvEl = document.createElement("div");
+    pvEl.style.cssText = "position:fixed;inset:0;z-index:99999;background:#0b0f14;color:#fff;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:14px 12px 44px";
+    var vids = (data && data.v) || [];
+    var html = '<div style="display:flex;align-items:center;justify-content:space-between;margin:0 0 12px">' +
+      '<div style="font-weight:700;font-size:16px">🎬 専用プレビュー <span style="opacity:.55;font-size:12px">' + vids.length + '本</span></div>' +
+      '<button id="pvClose" style="background:#26313d;color:#fff;border:0;border-radius:8px;padding:8px 14px;font-size:14px">閉じる</button></div>';
+    if (!vids.length) html += '<div style="opacity:.7;padding:36px 0;text-align:center">まだ動画がありません</div>';
+    vids.forEach(function (v) {
+      html += '<div style="margin:0 0 20px">' +
+        '<div style="font-size:13px;margin:0 0 6px"><b>' + pvEsc(v.t) + '</b> <span style="opacity:.5">' + pvEsc(v.d) + '</span></div>' +
+        '<video controls playsinline preload="metadata" style="width:100%;max-width:420px;border-radius:12px;background:#000;display:block" src="' + pvEsc(v.u) + '"></video></div>';
+    });
+    pvEl.innerHTML = html;
+    document.body.appendChild(pvEl);
+    var c = pvEl.querySelector("#pvClose");
+    if (c) c.onclick = function () { if (pvEl && pvEl.parentNode) pvEl.parentNode.removeChild(pvEl); pvEl = null; };
+  }
+  function pvAsk() {
+    var k = window.prompt("コードを入力", "");
+    if (k == null) return;
+    k = String(k).trim(); if (!k) return;
+    pvFetch(k).then(function (data) {
+      try { localStorage.setItem("sb_pv", k); } catch (e) {}
+      pvShow(data);
+    }).catch(function () { toast("コードが違います"); });
+  }
+  (function pvEntry() {
+    var el = document.getElementById("storeName");
+    if (!el || !window.crypto || !crypto.subtle) return;
+    var n = 0, t0 = 0;
+    el.addEventListener("click", function () {
+      var now = Date.now();
+      if (now - t0 > 3000) n = 0;
+      t0 = now; n++;
+      if (n < 7) return;
+      n = 0;
+      var saved = "";
+      try { saved = localStorage.getItem("sb_pv") || ""; } catch (e) {}
+      if (saved) { pvFetch(saved).then(pvShow).catch(pvAsk); } else { pvAsk(); }
+    });
+  })();
+
+  /* ---------- 左上ロゴ→烏丸ページへ（烏丸側は入場コードで保護） ---------- */
+  (function logoLink() {
+    var lg = document.querySelector(".logo");
+    if (!lg) return;
+    lg.style.cursor = "pointer";
+    lg.addEventListener("click", function () { location.href = "./karasuma.html"; });
+  })();
+
+  /* ---------- 烏丸ページの画面切替 ---------- */
+  (function karInit() {
+    if (!KAR) return;
+    var el = document.getElementById("storeName");
+    if (el) el.textContent = "鮨処すさび湯 四条烏丸";
+    document.title = "鮨処すさび湯 四条烏丸";
+    if (tabFeed) tabFeed.style.display = "none";
+    if (tabReport) tabReport.style.display = "none";
+    setTimeout(function () { if (tabGallery) tabGallery.click(); }, 80);
   })();
 
   /* ---------- アイコンのバッジをクリア（開いた＝未読を見た） ---------- */

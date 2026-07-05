@@ -741,6 +741,237 @@ def distmove(target=None):
     print("[MOVE] 完了：投稿希望時間を備考の隣(H)へ移動／Drive=I,J: https://docs.google.com/spreadsheets/d/%s/edit" % sid)
 
 
+def patdump():
+    """パターンタブの key/label/url を出力（烏丸仮ページに焼き込むため）。posterは巨大なので省く。"""
+    import json as _j
+    cr = _creds(); sh = _sheets(cr)
+    rows = sh.values().get(spreadsheetId=SHEET_ID, range="パターン!A:G").execute().get("values", [])
+    for i in range(1, len(rows)):
+        r = rows[i]
+        if not r or not str(r[0]).strip():
+            continue
+        print("PAT|" + _j.dumps({"k": str(r[0]), "l": str(r[1]) if len(r) > 1 else "",
+                                 "u": str(r[2]) if len(r) > 2 else "",
+                                 "e": str(r[5]) if len(r) > 5 else ""}, ensure_ascii=False))
+    print("[PATDUMP] 完了")
+
+
+def sushifolder():
+    """見本（パターンタブ）のラベル先頭に【鮨処】を付けて保管区分にする。
+    行も動画も消さない。採用(enabled)は触らない＝新テンプレ採用まで投稿は従来どおり。"""
+    cr = _creds(); sh = _sheets(cr)
+    try:
+        rows = sh.values().get(spreadsheetId=SHEET_ID, range="パターン!A:G").execute().get("values", [])
+    except Exception as e:
+        print("[鮨処] パターンタブ読込失敗:", e); return
+    n = 0
+    for i in range(1, len(rows)):
+        r = rows[i]
+        if not r or not str(r[0]).strip():
+            continue
+        label = str(r[1]).strip() if len(r) > 1 else str(r[0]).strip()
+        if label.startswith("【鮨処】"):
+            continue
+        sh.values().update(spreadsheetId=SHEET_ID, range="パターン!B%d" % (i + 1),
+            valueInputOption="RAW", body={"values": [["【鮨処】" + label]]}).execute()
+        n += 1
+        print("[鮨処] 保管: %s → 【鮨処】%s" % (str(r[0]).strip(), label))
+    print("[鮨処] 完了: %d 件を保管区分にしました（見本ギャラリーの【鮨処】フォルダに表示）" % n)
+
+
+def inbox():
+    """CapCut等の参考動画を受け取るDriveフォルダを作成し、あなた(SHARE_EMAIL)に編集権限で共有＋
+    リンクを知っていれば閲覧可にする。ここに動画を入れてもらい、こちらで中身を確認する用。"""
+    cr = _creds(); drive = _drive(cr)
+    fid = _mkfolder(drive, "参考テンプレ受け取り（CapCut等）")
+    owner = SHARE_EMAIL or "amami@8sin.co.jp"
+    _share(drive, fid, owner)         # あなた本人に編集権限（アップロードできる）
+    try:                              # リンクを知っていれば誰でも編集可＝ログインしていればアップロード可
+        drive.permissions().create(fileId=fid, body={"type": "anyone", "role": "writer"},
+            supportsAllDrives=True).execute()
+    except Exception as e:
+        print("[INBOX] リンク共有(編集)スキップ:", e)
+    print("[INBOX] 受け取りフォルダURL: %s" % _folder_url(fid))
+    print("[INBOX] フォルダID: %s" % fid)
+    print("[INBOX] 編集共有先: %s" % SHARE_EMAIL)
+
+
+def sddrives(target=None):
+    """ロボット(SA)がメンバーの共有ドライブを一覧＋『プレビュー』を含む共有ドライブへ
+    実際に小ファイルをアップロードして書き込み可否を確認する（共有ドライブなら成功する）。"""
+    cr = _creds(); drive = _drive(cr)
+    r = drive.drives().list(fields="drives(id,name)", pageSize=100).execute()
+    ds = r.get("drives", [])
+    print("[SD] 共有ドライブ %d 件（ロボットがメンバーのもの）" % len(ds))
+    for d in ds:
+        print("SD|%s|%s" % (d["id"], d["name"]))
+    if not ds:
+        print("[SD] 見つかりません（共有ドライブにロボットが追加されていない可能性）"); return
+    pick = None
+    want = (target or "プレビュー")
+    for d in ds:
+        if want in d["name"]:
+            pick = d; break
+    if not pick:
+        pick = ds[0]
+    did = pick["id"]
+    try:
+        from googleapiclient.http import MediaInMemoryUpload
+        media = MediaInMemoryUpload(b"upload test", mimetype="text/plain")
+        f = drive.files().create(body={"name": "_uploadtest.txt", "parents": [did]},
+            media_body=media, fields="id", supportsAllDrives=True).execute()
+        print("[SD] アップロードテスト: 成功 ✅ 共有ドライブ『%s』(id=%s) file=%s" % (pick["name"], did, f["id"]))
+        try:
+            drive.files().delete(fileId=f["id"], supportsAllDrives=True).execute()
+        except Exception:
+            pass
+    except Exception as e:
+        print("[SD] アップロードテスト: 失敗 ❌ : %s" % e)
+
+
+def uptest(target=None):
+    """指定フォルダ(ID/URL)の素性を調べ、実際にロボットが書き込めるかテストする。
+    driveId が付いていれば共有ドライブ内＝書き込み可のはず。"""
+    fid = _folder_id_from_url(target or "") or (target or "").strip()
+    if not fid:
+        print("[UPTEST] フォルダID/URLが必要です"); return
+    cr = _creds(); drive = _drive(cr)
+    try:
+        meta = drive.files().get(fileId=fid, fields="id,name,mimeType,driveId,owners(emailAddress)",
+            supportsAllDrives=True).execute()
+        print("[UPTEST] 対象: name=%s / mimeType=%s / driveId=%s" % (
+            meta.get("name"), meta.get("mimeType"), meta.get("driveId")))
+        if meta.get("driveId"):
+            print("[UPTEST] → 共有ドライブ内のフォルダです（書き込める見込み）")
+        else:
+            print("[UPTEST] → 通常のマイドライブのフォルダです（ロボットは容量制限で入れられない見込み）")
+    except Exception as e:
+        print("[UPTEST] フォルダ情報取得に失敗（共有されていない可能性）:", e); return
+    try:
+        from googleapiclient.http import MediaInMemoryUpload
+        media = MediaInMemoryUpload(b"upload test", mimetype="text/plain")
+        f = drive.files().create(body={"name": "_uploadtest.txt", "parents": [fid]},
+            media_body=media, fields="id", supportsAllDrives=True).execute()
+        print("[UPTEST] アップロード: 成功 ✅（ここに自動で動画を入れられます） id=%s" % f["id"])
+        try:
+            drive.files().delete(fileId=f["id"], supportsAllDrives=True).execute()
+        except Exception:
+            pass
+    except Exception as e:
+        print("[UPTEST] アップロード: 失敗 ❌ : %s" % e)
+
+
+def outbox():
+    """あなた専用の非公開プレビュー用Driveフォルダを作成（あなたのメールだけに共有＝リンク公開なし）。
+    さらにサービスアカウントが動画をここへ入れられるか（ストレージ制限）を実地テストする。"""
+    cr = _creds(); drive = _drive(cr)
+    fid = _mkfolder(drive, "🎬 専用プレビュー（動画確認・非公開）")
+    owner = SHARE_EMAIL or "amami@8sin.co.jp"
+    _share(drive, fid, owner)         # あなただけに共有（anyoneリンクは付けない＝完全非公開）
+    print("[OUTBOX] 専用フォルダURL: %s" % _folder_url(fid))
+    print("[OUTBOX] フォルダID: %s" % fid)
+    print("[OUTBOX] 共有先(あなたのみ): %s" % owner)
+    # アップロード可否テスト（SAのMy Driveストレージ制限に当たるか）
+    try:
+        from googleapiclient.http import MediaInMemoryUpload
+        media = MediaInMemoryUpload(b"upload test", mimetype="text/plain")
+        f = drive.files().create(body={"name": "_uploadtest.txt", "parents": [fid]},
+            media_body=media, fields="id", supportsAllDrives=True).execute()
+        print("[OUTBOX] アップロードテスト: 成功 ✅（自動で動画を入れられます） id=%s" % f["id"])
+        try:
+            drive.files().delete(fileId=f["id"], supportsAllDrives=True).execute()
+        except Exception:
+            pass
+    except Exception as e:
+        print("[OUTBOX] アップロードテスト: 失敗 ❌（SA制限）: %s" % e)
+
+
+def inboxget(target=None):
+    """受け取りフォルダ(ID or URL)の中身を一覧表示（動画ファイルの確認用）。"""
+    sid = (target or "").strip()
+    fid = _folder_id_from_url(sid) or sid
+    if not fid:
+        print("[INBOXGET] フォルダID/URLが必要です"); return
+    cr = _creds(); drive = _drive(cr)
+    try:
+        r = drive.files().list(q="'%s' in parents and trashed=false" % fid,
+            fields="files(id,name,mimeType,size)", spaces="drive",
+            supportsAllDrives=True, includeItemsFromAllDrives=True).execute()
+    except Exception as e:
+        print("[INBOXGET] 一覧取得失敗:", e); return
+    fs = r.get("files", [])
+    for f in fs:
+        print("FILE|%s|%s|%s|%s" % (f.get("id"), f.get("name"), f.get("mimeType"), f.get("size", "")))
+    print("[INBOXGET] %d 件" % len(fs))
+
+
+def _find_list_tab(sp, sid):
+    """配布シートの『一覧タブ』を見出し基準で確実に特定する（sheets[0]に依存しない）。
+    先頭〜12行のどこかに『店舗名』で始まるセルを持つタブ＝入力一覧。
+    戻り値: (gid, title, header_row_index, header_list) / 見つからなければ (None,...)。"""
+    meta = sp.get(spreadsheetId=sid, fields="sheets.properties(sheetId,title,index)").execute()
+    for s in meta.get("sheets", []):
+        p = s["properties"]; title = p["title"]
+        rows = sp.values().get(spreadsheetId=sid, range="'%s'!A1:L12" % title).execute().get("values", [])
+        for i, r in enumerate(rows):
+            if r and str(r[0]).strip().startswith("店舗名"):
+                return p["sheetId"], title, i, r
+    return None, None, None, None
+
+
+def distfinal(target=None):
+    """配布シートの最終仕上げ（安全・冪等）。一覧タブを見出し『店舗名』で特定し、
+      ① 投稿希望時間(見出しに『投稿希望』を含む列)の三条の記入例が空なら補完
+      ② 一覧タブを先頭(index0)へ＝開いてすぐ入力欄が見える
+    既存のDrive URL・各店データには一切触れない。"""
+    import re as _re
+    sid = (target or os.environ.get("REQ_SHEET_ID", "") or "").strip()
+    m = _re.search(r"/spreadsheets/d/([a-zA-Z0-9_-]+)", sid)
+    if m:
+        sid = m.group(1)
+    if not sid:
+        print("[FINAL] シートID/URLが必要です"); return
+    cr = _creds(); sp = _sheets(cr)
+    gid, tab, hr, header = _find_list_tab(sp, sid)
+    if gid is None:
+        print("[FINAL] 一覧タブ（『店舗名』見出し）が見つかりません"); return
+
+    def col_of(key):
+        for j, c in enumerate(header):
+            if key in str(c):
+                return j
+        return None
+    c_time = col_of("投稿希望")
+    c_img = col_of("画像データ")
+    c_mus = col_of("音楽データ")
+    rows = sp.values().get(spreadsheetId=sid, range="'%s'!A:L" % tab).execute().get("values", [])
+    # ① 三条の投稿希望時間を記入例で補完（空のときだけ）
+    if c_time is not None:
+        for i in range(hr + 1, len(rows)):
+            r = rows[i]
+            name = str(r[0]).strip() if r else ""
+            if "すさび湯 河原町三条店" in name:
+                cur = r[c_time] if len(r) > c_time else ""
+                if not str(cur).strip():
+                    col = chr(65 + c_time)
+                    sp.values().update(spreadsheetId=sid, range="'%s'!%s%d" % (tab, col, i + 1),
+                        valueInputOption="RAW",
+                        body={"values": [["平日 16:00／18:00／20:00　祝日 11:00／18:00／20:00"]]}).execute()
+                    print("[FINAL] 三条の投稿希望時間を記入例で補完(%s%d)" % (col, i + 1))
+                break
+    # ② 一覧タブを先頭へ
+    try:
+        sp.batchUpdate(spreadsheetId=sid, body={"requests": [
+            {"updateSheetProperties": {"properties": {"sheetId": gid, "index": 0}, "fields": "index"}}]}).execute()
+        print("[FINAL] 一覧タブ『%s』を先頭に移動" % tab)
+    except Exception as e:
+        print("[FINAL] タブ並べ替えスキップ:", e)
+    tl = (lambda n: chr(65 + n) if isinstance(n, int) else "-")
+    print("[FINAL] 完了：一覧=%s ／ 時間列=%s 画像列=%s 音楽列=%s : "
+          "https://docs.google.com/spreadsheets/d/%s/edit"
+          % (tab, tl(c_time), tl(c_img), tl(c_mus), sid))
+
+
 def distdump(target=None):
     """配布シートの上部数行を列付きで出力（レイアウト診断用）。"""
     import re as _re
@@ -751,17 +982,18 @@ def distdump(target=None):
     if not sid:
         print("[DUMP] シートID/URLが必要です"); return
     cr = _creds(); sp = _sheets(cr)
-    props = sp.get(spreadsheetId=sid, fields="sheets.properties(sheetId,title)").execute()["sheets"][0]["properties"]
-    tab = props["title"]
-    rows = sp.values().get(spreadsheetId=sid, range="%s!A:L" % tab).execute().get("values", [])
-    for i in range(min(8, len(rows))):
-        r = rows[i]
-        cells = []
-        for j in range(len(r)):
-            v = str(r[j]).replace("\n", " ")[:26]
-            cells.append(chr(65 + j) + "=" + v)
-        print("ROW%d| %s" % (i + 1, " ｜ ".join(cells)))
-    print("[DUMP] 完了 (行数 %d)" % len(rows))
+    meta = sp.get(spreadsheetId=sid, fields="sheets.properties(sheetId,title,index)").execute()
+    for s in meta.get("sheets", []):
+        p = s["properties"]
+        title = p["title"]
+        print("=== TAB[%d] '%s' (id=%s) ===" % (p.get("index", -1), title, p.get("sheetId")))
+        rows = sp.values().get(spreadsheetId=sid, range="'%s'!A:L" % title).execute().get("values", [])
+        for i in range(min(7, len(rows))):
+            r = rows[i]
+            cells = [chr(65 + j) + "=" + str(r[j]).replace("\n", " ")[:22] for j in range(len(r))]
+            print("  R%d| %s" % (i + 1, " ｜ ".join(cells)))
+        print("  (行数 %d)" % len(rows))
+    print("[DUMP] 完了")
 
 
 def pending():
@@ -882,6 +1114,123 @@ def columns():
     print("[MASTER] 『アプリ表示』(T)＋『アイコン短縮名』(U)列を用意しました")
 
 
+def clearpending():
+    """承認待ちタブの行を全消去（ヘッダーは残す）。本番切替時に旧デザインの
+    予約投稿を一掃してから prepare で作り直すためのモード。"""
+    cr = _creds()
+    sh = _sheets(cr)
+    rows = sh.values().get(spreadsheetId=SHEET_ID, range="承認待ち!A:A").execute().get("values", [])
+    n = max(0, len(rows) - 1)
+    sh.values().clear(spreadsheetId=SHEET_ID, range="承認待ち!A2:Z").execute()
+    print("承認待ちを%d行削除しました（ヘッダーは維持）。" % n)
+
+
+def musicdirs():
+    """各店舗の音楽フォルダURLをログ用に出力（IDマスキング回避のため1文字ずつ~区切り）。"""
+    cr = _creds()
+    sh = _sheets(cr)
+    rows = _get_rows(sh)
+    for r in rows[1:]:
+        name = r[1] if len(r) > 1 else ""
+        up = r[14] if len(r) > 14 else ""
+        no = r[15] if len(r) > 15 else ""
+        if not name:
+            continue
+        print("MUSIC|" + name + "|uptempo|" + "~".join(up))
+        print("MUSIC|" + name + "|normal|" + "~".join(no))
+
+
+def musicrestore():
+    """ゴミ箱に入った音楽ファイルを探して復元を試みる（音楽ノーマル/アップテンポ両対象）。"""
+    cr = _creds()
+    dr = _drive(cr)
+    targets = [os.environ.get("GENRE_MUSIC_NORMAL_ID") or "", os.environ.get("GENRE_MUSIC_UPTEMPO_ID") or ""]
+    try:
+        res = dr.files().list(q="trashed = true",
+            fields="files(id,name,mimeType,parents,trashedTime,owners(emailAddress))",
+            pageSize=200, supportsAllDrives=True, includeItemsFromAllDrives=True).execute()
+    except Exception as e:
+        print("[RESTORE] ゴミ箱一覧の取得に失敗:", e)
+        return
+    files = res.get("files", [])
+    print("[RESTORE] ゴミ箱に見えるファイル:", len(files))
+    hit = 0
+    for f in files:
+        is_audio = (f.get("mimeType") or "").startswith("audio/") or (f.get("name") or "").lower().endswith((".mp3", ".m4a", ".wav"))
+        in_target = any(t and t in (f.get("parents") or []) for t in targets)
+        if not (is_audio or in_target):
+            continue
+        hit += 1
+        own = ",".join(o.get("emailAddress", "?") for o in f.get("owners", []))
+        try:
+            dr.files().update(fileId=f["id"], body={"trashed": False}, supportsAllDrives=True).execute()
+            print("RESTORED|" + f.get("name", "?") + "|owner:" + own)
+        except Exception as e:
+            print("FAIL|" + f.get("name", "?") + "|owner:" + own + "|" + str(e)[:120])
+    if hit == 0:
+        print("[RESTORE] 対象の音楽ファイルはSAのゴミ箱視界にありません（所有者本人のゴミ箱からの復元が必要）")
+    # 復元後のフォルダ内容を確認
+    for label, t in (("normal", targets[0]), ("uptempo", targets[1])):
+        if not t:
+            continue
+        try:
+            r2 = dr.files().list(q="'" + t + "' in parents and trashed = false",
+                fields="files(name)", pageSize=100).execute()
+            names = [x.get("name") for x in r2.get("files", [])]
+            print("[FOLDER " + label + "] " + str(len(names)) + "件: " + ", ".join(names[:20]))
+        except Exception as e:
+            print("[FOLDER " + label + "] 取得失敗:", e)
+
+
+def musiccheck(arg):
+    """引数のフォルダURL/ID（カンマ区切り）の正体を調べる。名前・親・中身・
+    システムが読むフォルダ(env)と同一かを表示。IDそのものは出力しない。"""
+    import re as _re
+    cr = _creds()
+    dr = _drive(cr)
+    env = {"uptempo": os.environ.get("GENRE_MUSIC_UPTEMPO_ID") or "",
+           "normal": os.environ.get("GENRE_MUSIC_NORMAL_ID") or ""}
+    def meta(fid):
+        try:
+            return dr.files().get(fileId=fid, fields="id,name,parents,owners(emailAddress),trashed",
+                                  supportsAllDrives=True).execute()
+        except Exception as e:
+            return {"error": str(e)[:100]}
+    for label, fid in env.items():
+        if not fid:
+            continue
+        m = meta(fid)
+        pn = ""
+        if m.get("parents"):
+            pm = meta(m["parents"][0])
+            pn = pm.get("name", "?")
+        print("ENV|" + label + "|name:" + m.get("name", "?") + "|parent:" + pn)
+    for tok in (arg or "").split(","):
+        tok = tok.strip()
+        if not tok:
+            continue
+        mm = _re.search(r"[-\w]{20,}", tok)
+        fid = mm.group(0) if mm else tok
+        m = meta(fid)
+        if "error" in m:
+            print("CHK|" + tok[-8:] + "|エラー:" + m["error"])
+            continue
+        same = [k for k, v in env.items() if v == fid]
+        pn = ""
+        if m.get("parents"):
+            pm = meta(m["parents"][0])
+            pn = pm.get("name", "?")
+        own = ",".join(o.get("emailAddress", "?") for o in m.get("owners", []))
+        try:
+            r2 = dr.files().list(q="'" + fid + "' in parents and trashed = false",
+                fields="files(name)", pageSize=100).execute()
+            names = [x.get("name") for x in r2.get("files", [])]
+        except Exception as e:
+            names = ["(一覧失敗:" + str(e)[:60] + ")"]
+        print("CHK|…" + fid[-6:] + "|name:" + m.get("name", "?") + "|parent:" + pn + "|owner:" + own +
+              "|env一致:" + (same[0] if same else "なし") + "|中身" + str(len(names)) + "件:" + ", ".join(names[:25]))
+
+
 if __name__ == "__main__":
     mode = (sys.argv[1] if len(sys.argv) > 1 else "init").strip().lower()
     arg = sys.argv[2].strip() if len(sys.argv) > 2 else None
@@ -921,6 +1270,30 @@ if __name__ == "__main__":
         disttime(arg)
     elif mode == "distmove":
         distmove(arg)
+    elif mode == "distfinal":
+        distfinal(arg)
+    elif mode == "musiccheck":
+        musiccheck(arg)
+    elif mode == "musicrestore":
+        musicrestore()
+    elif mode == "musicdirs":
+        musicdirs()
+    elif mode == "clearpending":
+        clearpending()
+    elif mode == "patdump":
+        patdump()
+    elif mode == "sushifolder":
+        sushifolder()
+    elif mode == "inbox":
+        inbox()
+    elif mode == "outbox":
+        outbox()
+    elif mode == "sddrives":
+        sddrives(arg)
+    elif mode == "uptest":
+        uptest(arg)
+    elif mode == "inboxget":
+        inboxget(arg)
     elif mode == "distdump":
         distdump(arg)
     else:

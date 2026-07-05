@@ -5,7 +5,7 @@ import poster
 
 SHEET_ID = "13zKaUblOwmgZ-lgCfxylCLlW2Fqutqct5h5TvMRWv30"
 APP_TAB = "承認待ち"
-PAT_JA = {"sushi":"王道","tempo":"賑やか","typo":"雑誌風","photo":"全画面","simple":"額装","caption":"写真キャプション", "oshina":"お品書き","oshinatate":"お品書き(縦書き)","kaiten":"回転レーン","osusume":"店主おすすめ","gridzoom":"グリッド→ズーム","noren":"暖簾くぐり","season":"季節の旬"}
+PAT_JA = {"sushi":"王道","tempo":"賑やか","typo":"雑誌風","photo":"全画面","simple":"額装","caption":"写真キャプション", "oshina":"お品書き","oshinatate":"お品書き(縦書き)","kaiten":"回転レーン","osusume":"店主おすすめ","gridzoom":"グリッド→ズーム","noren":"暖簾くぐり","season":"季節の旬","taishufuda":"大衆・値札チラシ","taishukaiten":"大衆・回転レーン","sanjokaiten":"回転レーン(烏丸ベース)","taishuoshi":"大衆・イチオシ","taishuodo":"大衆・王道","taishuzen":"大衆・全画面","taishushinbun":"大衆・見出し新聞","taishugrid":"大衆・グリッドズーム","taishutanzaku":"大衆・壁の短冊","taishunoren":"大衆・暖簾くぐり","taishutempo":"大衆・賑やかテンポ","taishushun":"大衆・季節の旬","taishuhito":"大衆・本日の一皿","taishuoshina":"大衆・お品書き","taishugaku":"大衆・額装（画像）","taishucap":"大衆・写真一言（画像）","taishuimga":"画像案A・提灯(寿司酒場)","taishuimga2":"画像案A2・提灯(大衆酒場)","taishuimgb":"画像案B・チラシ","taishuimgd":"画像案D・紺のれん","taishuimgf":"画像案F・白抜き文字","taishuimge":"画像案E・黄ポップ"}
 REG = {
   "sushi":   ("fetch_drive_photos.py","SushiStory",True),
   "tempo":   ("fetch_tempo.py","TempoStory",True),
@@ -20,12 +20,45 @@ REG = {
   "gridzoom": ("fetch_tempo.py","GridZoom",True),
   "noren":   ("fetch_typo.py","NorenStory",True),
   "season":  ("fetch_typo.py","SeasonStory",True),
+  "taishufuda":   ("fetch_tempo.py","TaishuFuda",True),
+  "taishukaiten": ("fetch_tempo.py","TaishuKaiten",True),
+  "sanjokaiten":  ("fetch_kaiten.py","KaitenStory",True),
+  "taishuoshi":   ("fetch_tempo.py","TaishuOshi",True),
+  "taishuodo":    ("fetch_drive_photos.py","TaishuOdo",True),
+  "taishuzen":    ("fetch_photostory.py","TaishuZen",True),
+  "taishushinbun":("fetch_typo.py","TaishuShinbun",True),
+  "taishugrid":   ("fetch_tempo.py","TaishuGrid",True),
+  "taishutanzaku":("fetch_typo.py","TaishuTanzaku",True),
+  "taishunoren":  ("fetch_typo.py","TaishuAkanoren",True),
+  "taishutempo":  ("fetch_tempo.py","TaishuTempo",True),
+  "taishushun":   ("fetch_typo.py","TaishuShun",True),
+  "taishuhito":   ("fetch_typo.py","TaishuHitosara",True),
+  "taishuoshina": ("fetch_oshina.py","TaishuOshina",True),
+  "taishugaku":   ("fetch_simple.py","TaishuGaku",False),
+  "taishucap":    ("fetch_photostory.py","TaishuCapNoren",False),
+  "taishuimga":   ("fetch_photostory.py","TaishuImgA",False),
+  "taishuimga2":  ("fetch_photostory.py","TaishuImgA2",False),
+  "taishuimgb":   ("fetch_photostory.py","TaishuImgB",False),
+  "taishuimgd":   ("fetch_photostory.py","TaishuImgD",False),
+  "taishuimgf":   ("fetch_photostory.py","TaishuImgF",False),
+  "taishuimge":   ("fetch_photostory.py","TaishuImgE",False),
 }
-CAP_VAR = {
-  "photo":("photoStoryData.ts","photoStoryCaption"),
-  "caption":("photoStoryData.ts","photoStoryCaption"),
-  "simple":("simpleData.ts","simplePhrase"),
-  "typo":("typoData.ts","typoHeadline"),
+CAP_VAR = {
+  "taishuzen":("photoStoryData.ts","photoStoryCaption"),
+  "taishucap":("photoStoryData.ts","photoStoryCaption"),
+  "taishuimga":("photoStoryData.ts","photoStoryCaption"),
+  "taishuimga2":("photoStoryData.ts","photoStoryCaption"),
+  "taishuimgb":("photoStoryData.ts","photoStoryCaption"),
+  "taishuimgd":("photoStoryData.ts","photoStoryCaption"),
+  "taishuimge":("photoStoryData.ts","photoStoryCaption"),
+  "taishuimgf":("photoStoryData.ts","photoStoryCaption"),
+  "taishugaku":("simpleData.ts","simplePhrase"),
+  "taishushinbun":("typoData.ts","typoHeadline"),
+  "taishutanzaku":("typoData.ts","typoHeadline"),
+  "taishunoren":("typoData.ts","typoHeadline"),
+  "taishushun":("typoData.ts","typoHeadline"),
+  "taishuhito":("typoData.ts","typoHeadline"),
+  "taishuoshina":("typoData.ts","typoHeadline"),
 }
 
 def run(cmd):

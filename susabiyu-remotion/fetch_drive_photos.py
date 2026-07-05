@@ -228,6 +228,16 @@ lines.append("];")
 lines.append("export const hasLogo: boolean = %s;" % ("true" if has_logo else "false"))
 _m = music.replace("\\", "\\\\").replace('"', '\\"')
 lines.append('export const sushiMusic = "%s";' % _m)
+_up = music
+_updir = os.path.join("public", "music", "uptempo")
+sync_music_from_drive(os.environ.get("GENRE_MUSIC_UPTEMPO_ID"), _updir)
+if os.path.isdir(_updir):
+    _tr = [t for t in os.listdir(_updir) if t.lower().endswith((".mp3", ".m4a", ".wav"))]
+    if _tr:
+        import random as _rd
+        _up = "music/uptempo/" + _rd.choice(_tr)
+_up = os.environ.get("FIXED_MUSIC") or _up
+lines.append('export const sushiUptempo = "%s";' % _up.replace("\\", "\\\\").replace('"', '\\"'))
 open(os.path.join("src", "photoData.ts"), "w", encoding="utf-8").write("\n".join(lines) + "\n")
 
 print("完了:", len(entries), "枚（カテゴリ分散・短辺%dpx以上）。 logo: %s" % (MIN_SIDE, has_logo))

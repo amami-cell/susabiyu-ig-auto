@@ -11,6 +11,31 @@ import { OsusumeStory, OSUSUME_DUR } from "./OsusumeStory";
 import { GridZoom, GRIDZOOM_DUR } from "./GridZoom";
 import { NorenStory, NOREN_DUR } from "./NorenStory";
 import { SeasonStory, SEASON_DUR } from "./SeasonStory";
+import { CapDelicious, CAP1_DUR } from "./CapDelicious";
+import { CapOpen, CAP2_DUR } from "./CapOpen";
+import { CapMenu, CAP3_DUR } from "./CapMenu";
+import { CapPromo, CAP4_DUR } from "./CapPromo";
+import { CapRec, CAP5_DUR } from "./CapRec";
+import { CapStory, CAP6_DUR } from "./CapStory";
+import { TaishuFuda, TFUDA_DUR } from "./TaishuFuda";
+import { TaishuKakegoe, TKOE_DUR } from "./TaishuKakegoe";
+import { TaishuNigi, TNIGI_DUR } from "./TaishuNigi";
+import { TaishuKaiten, TKAI_DUR } from "./TaishuKaiten";
+import { TaishuOshi, TOSHI_DUR } from "./TaishuOshi";
+import { TaishuOdo } from "./TaishuOdo";
+import { TaishuZen } from "./TaishuZen";
+import { TaishuShinbun, TSHIN_DUR } from "./TaishuShinbun";
+import { TaishuGrid, TGRID_DUR } from "./TaishuGrid";
+import { TaishuTanzaku, TTAN_DUR } from "./TaishuTanzaku";
+import { TaishuAkanoren, TANOREN_DUR } from "./TaishuAkanoren";
+import { TaishuTempo, TTEMPO_DUR } from "./TaishuTempo";
+import { TaishuShun, TSHUN_DUR } from "./TaishuShun";
+import { TaishuHitosara, THITO_DUR } from "./TaishuHitosara";
+import { TaishuOshina, TOSHINA_DUR } from "./TaishuOshina";
+import { TaishuGaku } from "./TaishuGaku";
+import { TaishuCapNoren } from "./TaishuNorenImg";
+import { TaishuImgE } from "./TaishuImgEx";
+import { TaishuImgA, TaishuImgA2, TaishuImgB, TaishuImgD, TaishuImgF } from "./TaishuImgAn";
 import { photos } from "./photoData";
 import { tempoPhotos } from "./tempoData";
 import { typoPhotos } from "./typoData";
@@ -51,6 +76,35 @@ export const RemotionRoot: React.FC = () => {
       <Composition id="GridZoom" component={GridZoom} fps={FPS} width={1080} height={1920} durationInFrames={GRIDZOOM_DUR} defaultProps={{ storeName: STORE, handle: "@susabiyu_sanjyo" }} />
       <Composition id="NorenStory" component={NorenStory} fps={FPS} width={1080} height={1920} durationInFrames={NOREN_DUR} defaultProps={{ storeName: STORE, handle: "@susabiyu_sanjyo" }} />
       <Composition id="SeasonStory" component={SeasonStory} fps={FPS} width={1080} height={1920} durationInFrames={SEASON_DUR} defaultProps={{ storeName: STORE, handle: "@susabiyu_sanjyo" }} />
+      <Composition id="CapDelicious" component={CapDelicious} fps={FPS} width={1080} height={1920} durationInFrames={CAP1_DUR} defaultProps={{ storeName: STORE, handle: "@susabiyu_sanjyo" }} />
+      <Composition id="CapOpen" component={CapOpen} fps={FPS} width={1080} height={1920} durationInFrames={CAP2_DUR} defaultProps={{ storeName: STORE, handle: "@susabiyu_sanjyo" }} />
+      <Composition id="CapMenu" component={CapMenu} fps={FPS} width={1080} height={1920} durationInFrames={CAP3_DUR} defaultProps={{ storeName: STORE, handle: "@susabiyu_sanjyo" }} />
+      <Composition id="CapPromo" component={CapPromo} fps={FPS} width={1080} height={1920} durationInFrames={CAP4_DUR} defaultProps={{ storeName: STORE, handle: "@susabiyu_sanjyo" }} />
+      <Composition id="CapRec" component={CapRec} fps={FPS} width={1080} height={1920} durationInFrames={CAP5_DUR} defaultProps={{ storeName: STORE, handle: "@susabiyu_sanjyo" }} />
+      <Composition id="CapStory" component={CapStory} fps={FPS} width={1080} height={1920} durationInFrames={CAP6_DUR} defaultProps={{ storeName: STORE, handle: "@susabiyu_sanjyo" }} />
+      <Composition id="TaishuFuda" component={TaishuFuda} fps={FPS} width={1080} height={1920} durationInFrames={TFUDA_DUR} defaultProps={{ storeName: STORE, handle: "@susabiyu_sanjyo" }} />
+      <Composition id="TaishuKakegoe" component={TaishuKakegoe} fps={FPS} width={1080} height={1920} durationInFrames={TKOE_DUR} defaultProps={{ storeName: "すさび湯三条", handle: "@susabiyu_sanjyo" }} />
+      <Composition id="TaishuNigi" component={TaishuNigi} fps={FPS} width={1080} height={1920} durationInFrames={TNIGI_DUR} defaultProps={{ storeName: "すさび湯三条", handle: "@susabiyu_sanjyo" }} />
+      <Composition id="TaishuKaiten" component={TaishuKaiten} fps={FPS} width={1080} height={1920} durationInFrames={TKAI_DUR} defaultProps={{ storeName: STORE, handle: "@susabiyu_sanjyo" }} />
+      <Composition id="TaishuOshi" component={TaishuOshi} fps={FPS} width={1080} height={1920} durationInFrames={TOSHI_DUR} defaultProps={{ storeName: STORE, handle: "@susabiyu_sanjyo" }} />
+      <Composition id="TaishuOdo" component={TaishuOdo} fps={FPS} width={1080} height={1920} durationInFrames={dur} defaultProps={{ storeName: STORE, handle: "@susabiyu_sanjyo" }} />
+      <Composition id="TaishuZen" component={TaishuZen} fps={FPS} width={1080} height={1920} durationInFrames={150} defaultProps={{ handle: "@susabiyu_sanjyo" }} />
+      <Composition id="TaishuShinbun" component={TaishuShinbun} fps={FPS} width={1080} height={1920} durationInFrames={TSHIN_DUR} defaultProps={{ storeName: "すさび湯三条", handle: "@susabiyu_sanjyo" }} />
+      <Composition id="TaishuGrid" component={TaishuGrid} fps={FPS} width={1080} height={1920} durationInFrames={TGRID_DUR} defaultProps={{ storeName: "すさび湯三条", handle: "@susabiyu_sanjyo" }} />
+      <Composition id="TaishuTanzaku" component={TaishuTanzaku} fps={FPS} width={1080} height={1920} durationInFrames={TTAN_DUR} defaultProps={{ storeName: "すさび湯三条", handle: "@susabiyu_sanjyo" }} />
+      <Composition id="TaishuAkanoren" component={TaishuAkanoren} fps={FPS} width={1080} height={1920} durationInFrames={TANOREN_DUR} defaultProps={{ storeName: "すさび湯三条", handle: "@susabiyu_sanjyo" }} />
+      <Composition id="TaishuTempo" component={TaishuTempo} fps={FPS} width={1080} height={1920} durationInFrames={TTEMPO_DUR} defaultProps={{ storeName: "すさび湯三条", handle: "@susabiyu_sanjyo" }} />
+      <Composition id="TaishuShun" component={TaishuShun} fps={FPS} width={1080} height={1920} durationInFrames={TSHUN_DUR} defaultProps={{ storeName: "すさび湯三条", handle: "@susabiyu_sanjyo" }} />
+      <Composition id="TaishuHitosara" component={TaishuHitosara} fps={FPS} width={1080} height={1920} durationInFrames={THITO_DUR} defaultProps={{ storeName: "すさび湯三条", handle: "@susabiyu_sanjyo" }} />
+      <Composition id="TaishuOshina" component={TaishuOshina} fps={FPS} width={1080} height={1920} durationInFrames={TOSHINA_DUR} defaultProps={{ storeName: "すさび湯三条", handle: "@susabiyu_sanjyo" }} />
+      <Composition id="TaishuGaku" component={TaishuGaku} fps={FPS} width={1080} height={1920} durationInFrames={150} defaultProps={{ storeName: "すさび湯三条", handle: "@susabiyu_sanjyo" }} />
+      <Composition id="TaishuCapNoren" component={TaishuCapNoren} fps={FPS} width={1080} height={1920} durationInFrames={150} defaultProps={{ handle: "@susabiyu_sanjyo" }} />
+      <Composition id="TaishuImgA" component={TaishuImgA} fps={FPS} width={1080} height={1920} durationInFrames={150} defaultProps={{ handle: "@susabiyu_sanjyo" }} />
+      <Composition id="TaishuImgA2" component={TaishuImgA2} fps={FPS} width={1080} height={1920} durationInFrames={150} defaultProps={{ handle: "@susabiyu_sanjyo" }} />
+      <Composition id="TaishuImgB" component={TaishuImgB} fps={FPS} width={1080} height={1920} durationInFrames={150} defaultProps={{ handle: "@susabiyu_sanjyo" }} />
+      <Composition id="TaishuImgD" component={TaishuImgD} fps={FPS} width={1080} height={1920} durationInFrames={150} defaultProps={{ handle: "@susabiyu_sanjyo" }} />
+      <Composition id="TaishuImgF" component={TaishuImgF} fps={FPS} width={1080} height={1920} durationInFrames={150} defaultProps={{ handle: "@susabiyu_sanjyo" }} />
+      <Composition id="TaishuImgE" component={TaishuImgE} fps={FPS} width={1080} height={1920} durationInFrames={150} defaultProps={{ handle: "@susabiyu_sanjyo" }} />
     </>
   );
 };

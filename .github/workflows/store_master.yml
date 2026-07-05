@@ -7,30 +7,129 @@ on:
         required: true
         default: "init"
         type: choice
-        options: [init, setup, columns, intake, requestsheet, roster, names, pending, saemail, distsheet, distdrive, distsub, distnote, disttop, distwarn, disttime, distmove, distdump, all]
+        options: [init, setup, columns, intake, requestsheet, roster, names, pending, saemail, distsheet, distdrive, distsub, distnote, disttop, distwarn, disttime, distmove, distfinal, distdump, inbox, inboxget, outbox, sddrives, uptest, frames, preview, capsamples, ffcsample, sushifolder, patdump, musicdirs, musicrestore, musiccheck, clearpending, all]
       store_id:
-        description: "setup対象のstore_id（空=Drive URL未設定の全店）"
+        description: "setup対象のstore_id（framesは動画フォルダID/URL）"
         required: false
         default: ""
+permissions:
+  contents: write
 jobs:
   master:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 60
     defaults:
       run:
         working-directory: susabiyu-remotion
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref_name }}
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
       - name: Install Python deps
         run: pip install google-api-python-client google-auth requests
+      - name: Install ffmpeg (frames/preview/capsamples/ffcsampleのみ)
+        if: github.event.inputs.mode == 'frames' || github.event.inputs.mode == 'preview' || github.event.inputs.mode == 'capsamples' || github.event.inputs.mode == 'ffcsample'
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg
+      - name: Install 日本語フォント (ffcsampleのみ)
+        if: github.event.inputs.mode == 'ffcsample'
+        run: sudo apt-get install -y -qq fonts-noto-cjk
+      - name: Setup Node (capsamples/ffcsampleのみ)
+        if: github.event.inputs.mode == 'capsamples' || github.event.inputs.mode == 'ffcsample'
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: npm ci (capsamplesのみ)
+        if: github.event.inputs.mode == 'capsamples'
+        run: npm ci
+      - name: Install Pillow (capsamples/ffcsampleのみ・写真取得用)
+        if: github.event.inputs.mode == 'capsamples' || github.event.inputs.mode == 'ffcsample'
+        run: pip install Pillow
+      - name: Install boto3 (previewのみ)
+        if: github.event.inputs.mode == 'preview'
+        run: pip install boto3
       - name: Write creds.json
         run: echo "$GOOGLE_CREDS_B64" | base64 -d > creds.json
         env:
           GOOGLE_CREDS_B64: ${{ secrets.GOOGLE_CREDS_B64 }}
+      - name: Preview delivery (previewのみ・テスト動画→専用棚へ／store_id=sweep:接頭辞 で掃除)
+        if: github.event.inputs.mode == 'preview'
+        env:
+          STORE_ARG: ${{ github.event.inputs.store_id }}
+          R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          R2_BUCKET: ${{ secrets.R2_BUCKET }}
+          R2_PUBLIC_BASE: ${{ secrets.R2_PUBLIC_BASE }}
+        run: |
+          case "${{ github.event.inputs.store_id }}" in
+            sweep:*)
+              python preview_drive.py --sweep "${STORE_ARG#sweep:}"
+              exit 0 ;;
+            arch:*)
+              # arch:フォルダ名:接頭辞
+              REST="${STORE_ARG#arch:}"
+              python preview_drive.py --archive "${REST%%:*}" "${REST#*:}"
+              exit 0 ;;
+          esac
+          ffmpeg -y -f lavfi -i "smptebars=size=1080x1920:rate=30:duration=4" \
+            -f lavfi -i "sine=frequency=440:duration=4" \
+            -vf "drawtext=text='PREVIEW TEST':fontsize=90:fontcolor=white:x=(w-tw)/2:y=(h-th)/2:box=1:boxcolor=black@0.6:boxborderw=30" \
+            -c:v libx264 -pix_fmt yuv420p -c:a aac -shortest _pvtest.mp4
+          if [ -f preview_gas.txt ]; then
+            python preview_drive.py _pvtest.mp4 "テスト動画_専用棚の動作確認"
+          else
+            python preview_up.py _pvtest.mp4 "テスト動画（専用棚の動作確認）"
+          fi
+      - name: CapCut風サンプル6本を生成→専用棚へ (capsamplesのみ)
+        if: github.event.inputs.mode == 'capsamples'
+        env:
+          GOOGLE_CREDS_B64: ${{ secrets.GOOGLE_CREDS_B64 }}
+          SHEET_ID: ${{ secrets.SHEET_ID }}
+          GENRE_FOOD_ID: ${{ secrets.GENRE_FOOD_ID }}
+          GENRE_SAKE_ID: ${{ secrets.GENRE_SAKE_ID }}
+          GENRE_INTERIOR_ID: ${{ secrets.GENRE_INTERIOR_ID }}
+          GENRE_EVENT_ID: ${{ secrets.GENRE_EVENT_ID }}
+          GENRE_MUSIC_UPTEMPO_ID: ${{ secrets.GENRE_MUSIC_UPTEMPO_ID }}
+          GENRE_MUSIC_NORMAL_ID: ${{ secrets.GENRE_MUSIC_NORMAL_ID }}
+        run: |
+          python fetch_drive_photos.py creds.json
+          python fetch_tempo.py creds.json
+          python fetch_typo.py creds.json
+          mkdir -p out
+          npx remotion render CapDelicious out/cap1.mp4 --crf 18 --timeout 120000 --concurrency 1
+          npx remotion render CapOpen      out/cap2.mp4 --crf 18 --timeout 120000 --concurrency 1
+          npx remotion render CapMenu      out/cap3.mp4 --crf 18 --timeout 120000 --concurrency 1
+          npx remotion render CapPromo     out/cap4.mp4 --crf 18 --timeout 120000 --concurrency 1
+          npx remotion render CapRec       out/cap5.mp4 --crf 18 --timeout 120000 --concurrency 1
+          npx remotion render CapStory     out/cap6.mp4 --crf 18 --timeout 120000 --concurrency 1
+          python preview_drive.py \
+            out/cap1.mp4 "①Delicious_food風" \
+            out/cap2.mp4 "②WeAreOPEN_営業案内風" \
+            out/cap3.mp4 "③FOODmenu_メニュー選択風" \
+            out/cap4.mp4 "④FOODpromotion_グリッド風" \
+            out/cap5.mp4 "⑤REC_録画画面風" \
+            out/cap6.mp4 "⑥FOODStory_シネマ風"
+      - name: FFCreator試作1本を生成→専用棚へ (ffcsampleのみ)
+        if: github.event.inputs.mode == 'ffcsample'
+        env:
+          GOOGLE_CREDS_B64: ${{ secrets.GOOGLE_CREDS_B64 }}
+          SHEET_ID: ${{ secrets.SHEET_ID }}
+          GENRE_FOOD_ID: ${{ secrets.GENRE_FOOD_ID }}
+          GENRE_SAKE_ID: ${{ secrets.GENRE_SAKE_ID }}
+          GENRE_INTERIOR_ID: ${{ secrets.GENRE_INTERIOR_ID }}
+          GENRE_EVENT_ID: ${{ secrets.GENRE_EVENT_ID }}
+          GENRE_MUSIC_UPTEMPO_ID: ${{ secrets.GENRE_MUSIC_UPTEMPO_ID }}
+          GENRE_MUSIC_NORMAL_ID: ${{ secrets.GENRE_MUSIC_NORMAL_ID }}
+        run: |
+          python fetch_tempo.py creds.json
+          npm i --no-save ffcreatorlite
+          node ffc_sample.js
+          python preview_drive.py out/ffc.mp4 "⑦FFCreator試作_既製エフェクト型"
       - name: Run store_master
+        if: github.event.inputs.mode != 'frames' && github.event.inputs.mode != 'preview' && github.event.inputs.mode != 'capsamples' && github.event.inputs.mode != 'ffcsample'
         env:
           GOOGLE_CREDS_B64: ${{ secrets.GOOGLE_CREDS_B64 }}
           SHEET_ID: ${{ secrets.SHEET_ID }}
@@ -41,3 +140,19 @@ jobs:
           SHARE_EMAIL: ${{ secrets.SHARE_EMAIL }}
           REQ_SHEET_ID: ${{ secrets.REQ_SHEET_ID }}
         run: python store_master.py "${{ github.event.inputs.mode }}" "${{ github.event.inputs.store_id }}"
+      - name: Extract frames (framesのみ)
+        if: github.event.inputs.mode == 'frames'
+        env:
+          GOOGLE_CREDS_B64: ${{ secrets.GOOGLE_CREDS_B64 }}
+        run: |
+          rm -rf review_frames
+          python extract_inbox_frames.py "${{ github.event.inputs.store_id }}"
+      - name: Commit frames (framesのみ)
+        if: github.event.inputs.mode == 'frames'
+        run: |
+          rm -f creds.json
+          git config user.name "Claude"
+          git config user.email "noreply@anthropic.com"
+          git add -A review_frames
+          git commit -m "chore(review): 参考動画のフレーム抽出（再現可否判定用）" || echo "no changes"
+          git push origin HEAD:${{ github.ref_name }}
