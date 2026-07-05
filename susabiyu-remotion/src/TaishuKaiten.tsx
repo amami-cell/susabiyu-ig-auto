@@ -33,15 +33,18 @@ const NorenPanel: React.FC<{ left: number; width: number; x: number; rot: number
 // オープニング：紺のれん（白ロゴ入り）が左右にふわっと開いて入店
 const NorenGate: React.FC = () => {
   const f = useCurrentFrame();
-  if (f >= INTRO + 4) return null;
-  const part = interpolate(f, [26, INTRO - 4], [0, 1], { ...clamp, easing: Easing.in(Easing.cubic) });
-  const logoO = interpolate(f, [0, 8, 22, 32], [0, 1, 1, 0], clamp);
+  if (f >= INTRO + 6) return null;
+  // ゆっくり動き出して、ゆっくり止まる（急停止のカクつきを出さない）。
+  // 中央寄りの1枚(±1)でも画面から完全に出きる距離まで動かす。
+  const part = interpolate(f, [22, INTRO + 2], [0, 1], { ...clamp, easing: Easing.inOut(Easing.cubic) });
+  const gateO = interpolate(f, [INTRO - 4, INTRO + 4], [1, 0], clamp);   // 念のため最後はふわっと消す
+  const logoO = interpolate(f, [0, 8, 20, 30], [0, 1, 1, 0], clamp);
   const logoS = interpolate(f, [0, 14], [1.18, 1], { ...clamp, easing: Easing.out(Easing.cubic) });
   const dirs = [-2, -1, 1, 2];   // 4枚が中央から左右へ開く
   return (
-    <AbsoluteFill>
+    <AbsoluteFill style={{ opacity: gateO }}>
       {dirs.map((d, i) => (
-        <NorenPanel key={i} left={i * 270} width={272} x={part * d * 420} rot={part * d * 3} />
+        <NorenPanel key={i} left={i * 270} width={272} x={part * d * 640} rot={part * d * 2.5} />
       ))}
       <div style={{ position: "absolute", top: "34%", left: 0, width: "100%", textAlign: "center",
         opacity: logoO, transform: "scale(" + logoS + ")" }}>
@@ -138,13 +141,14 @@ export const TaishuKaiten: React.FC<{ storeName?: string; handle?: string }> = (
   // タイトルはのれんが開いた直後に登場
   const tS = interpolate(f, [INTRO - 6, INTRO + 4], [1.8, 1], { ...clamp, easing: Easing.out(Easing.cubic) });
   const tO = interpolate(f, [INTRO - 6, INTRO - 2], [0, 1], clamp);
-  // レーン本編はクローズの手前でフェードアウト
+  // レーン本編はクローズの手前でフェードアウト。のれんが開く間は奥からわずかに寄る
   const mainO = interpolate(f, [OUT_START - 10, OUT_START + 2], [1, 0], clamp);
+  const mainS = interpolate(f, [22, INTRO + 8], [1.05, 1], { ...clamp, easing: Easing.out(Easing.cubic) });
   return (
     <AbsoluteFill style={{ backgroundColor: "#faf6ec" }}>
       <Audio src={staticFile(taishuMusic)} volume={(v) => interpolate(v, [0, 12, TKAI_DUR - 20, TKAI_DUR], [0, 0.9, 0.9, 0], clamp)} />
       <Cine grade="contrast(1.04) saturate(1.12) brightness(1.02)">
-        <AbsoluteFill style={{ opacity: mainO }}>
+        <AbsoluteFill style={{ opacity: mainO, transform: "scale(" + mainS + ")" }}>
           {/* 背景＝明るい生成り。上からほんのり陽の光 */}
           <AbsoluteFill style={{ background: "linear-gradient(180deg,#fdfbf4 0%,#f6f0e1 45%,#efe6d2 100%)" }} />
           <AbsoluteFill style={{ background: "radial-gradient(ellipse at 50% -4%, rgba(255,220,160,0.35) 0%, rgba(0,0,0,0) 40%)" }} />
