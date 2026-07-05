@@ -9,10 +9,10 @@ import { AKA, BlackboardBg, Tex, Spot, tpick, taishuMusic } from "./taishu";
 
 const { fontFamily: chalk } = loadChalk();
 const { fontFamily: fude } = loadFude();
-const INTRO = 42;
+const INTRO = 48;
 const PER = 38;
 const PHOTOS = tpick(5);
-const OUTRO = 46;
+const OUTRO = 56;
 export const TOSHI_DUR = INTRO + PHOTOS.length * PER + OUTRO;
 const STAMP_AT = 14;   // 各皿でハンコが押されるフレーム
 const CHALK = "#f2efe4";
@@ -110,26 +110,35 @@ const Dish: React.FC<{ src: string; caption: string; i: number }> = ({ src, capt
   );
 };
 
-export const TaishuOshi: React.FC<{ storeName?: string; handle?: string }> = ({ handle = "@susabiyu_sanjyo" }) => {
+export const TaishuOshi: React.FC<{ storeName?: string; handle?: string }> = ({ storeName = "すさび湯三条", handle = "@susabiyu_sanjyo" }) => {
   const f = useCurrentFrame();
   const iO = interpolate(f, [3, 7, INTRO - 5, INTRO], [0, 1, 1, 0], { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
-  const iS = interpolate(f, [3, 11], [1.6, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp", easing: Easing.out(Easing.cubic) });
+  const iY = interpolate(f, [3, 14], [26, 0], { extrapolateLeft: "clamp", extrapolateRight: "clamp", easing: Easing.out(Easing.cubic) });
+  const iBandS = interpolate(f, [16, 22], [2.0, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
+  const iBandO = f >= 16 ? 1 : 0;
   const outStart = INTRO + PHOTOS.length * PER;
   const oO = interpolate(f, [outStart, outStart + 6, TOSHI_DUR - 8, TOSHI_DUR], [0, 1, 1, 0], { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
-  const oS = interpolate(f, [outStart + 2, outStart + 10], [1.6, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp", easing: Easing.out(Easing.cubic) });
+  const oY = interpolate(f, [outStart + 2, outStart + 12], [22, 0], { extrapolateLeft: "clamp", extrapolateRight: "clamp", easing: Easing.out(Easing.cubic) });
   return (
     <AbsoluteFill style={{ backgroundColor: "#274138" }}>
       <Audio src={staticFile(taishuMusic)} volume={(v) => interpolate(v, [0, 12, TOSHI_DUR - 18, TOSHI_DUR], [0, 0.9, 0.9, 0], { extrapolateLeft: "clamp", extrapolateRight: "clamp" })} />
       <Cine grade="contrast(1.06) saturate(1.12) brightness(1.02)">
+        {/* オープニング：王道と同じ構成（ロゴ→屋号→地名の朱帯）を黒板の上で */}
         <Sequence durationInFrames={INTRO}>
           <AbsoluteFill>
             <BoardBg />
             <AbsoluteFill style={{ justifyContent: "center", alignItems: "center", opacity: iO }}>
-              <div style={{ transform: "scale(" + iS + ") rotate(-2deg)", textAlign: "center" }}>
-                <div style={{ color: CHALK, fontFamily: chalk, fontSize: 108, lineHeight: 1.35 }}>本日の<br />黒板メニュー</div>
+              <div style={{ transform: "translateY(" + iY + "px) rotate(-2deg)", display: "flex", flexDirection: "column", alignItems: "center", gap: 30 }}>
+                <Img src={staticFile("storelogo_white.png")} style={{ width: 520, height: "auto", objectFit: "contain",
+                  filter: "drop-shadow(0 8px 22px rgba(0,0,0,0.55))" }} />
+                <div style={{ color: CHALK, fontFamily: chalk, fontSize: 64, letterSpacing: 4 }}>本日の黒板メニュー</div>
+                <div style={{ background: AKA, border: "4px solid " + CHALK, borderRadius: 8, padding: "10px 34px",
+                  transform: "rotate(-1.5deg) scale(" + iBandS + ")", opacity: iBandO, boxShadow: "0 8px 24px rgba(0,0,0,0.5)" }}>
+                  <span style={{ color: CHALK, fontFamily: fude, fontSize: 40, letterSpacing: 2 }}>京都・河原町三条</span>
+                </div>
               </div>
             </AbsoluteFill>
-            <Squiggle x={200} y={1200} w={680} local={f - 10} />
+            <Squiggle x={200} y={1560} w={680} local={f - 12} />
           </AbsoluteFill>
         </Sequence>
         {PHOTOS.map((p, i) => (
@@ -137,16 +146,20 @@ export const TaishuOshi: React.FC<{ storeName?: string; handle?: string }> = ({ 
             <Dish src={p.src} caption={p.caption} i={i} />
           </Sequence>
         ))}
+        {/* クローズ：王道と同じ構成（ロゴ→大きな一言→屋号→ハンドル）を黒板の上で */}
         <Sequence from={outStart} durationInFrames={OUTRO}>
           <AbsoluteFill>
             <BoardBg />
             <AbsoluteFill style={{ justifyContent: "center", alignItems: "center", opacity: oO }}>
-              <div style={{ transform: "scale(" + oS + ") rotate(-2deg)", textAlign: "center" }}>
-                <div style={{ color: CHALK, fontFamily: chalk, fontSize: 88, lineHeight: 1.4 }}>お腹すかせて<br />来てください！</div>
-                <div style={{ color: "#cfe3d6", fontFamily: chalk, fontSize: 40, marginTop: 26 }}>{handle}</div>
+              <div style={{ transform: "translateY(" + oY + "px) rotate(-2deg)", display: "flex", flexDirection: "column", alignItems: "center", gap: 26 }}>
+                <Img src={staticFile("storelogo_white.png")} style={{ width: 440, height: "auto", objectFit: "contain",
+                  filter: "drop-shadow(0 8px 22px rgba(0,0,0,0.55))" }} />
+                <div style={{ color: CHALK_Y, fontFamily: chalk, fontSize: 84, lineHeight: 1.4, textAlign: "center" }}>今日もにぎやかに<br />営業中</div>
+                <div style={{ color: CHALK, fontFamily: chalk, fontSize: 46, letterSpacing: 2 }}>{storeName}</div>
+                <div style={{ color: "#cfe3d6", fontFamily: chalk, fontSize: 36 }}>{handle}</div>
               </div>
             </AbsoluteFill>
-            <Squiggle x={240} y={1310} w={600} local={f - outStart - 8} />
+            <Squiggle x={240} y={1620} w={600} local={f - outStart - 10} />
           </AbsoluteFill>
         </Sequence>
       </Cine>

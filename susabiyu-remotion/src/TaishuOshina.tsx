@@ -38,12 +38,12 @@ const TitleBar: React.FC = () => {
   const sealS = interpolate(f, [18, 23], [2.4, 1], { ...clamp, easing: Easing.in(Easing.cubic) });
   const sealO = f >= 18 ? 1 : 0;
   return (
-    <div style={{ position: "absolute", top: 110, left: 0, width: "100%", textAlign: "center", opacity: o }}>
-      <span style={{ color: SUMI, fontFamily: fude, fontSize: 68, letterSpacing: 10 }}>本日のおしながき</span>
-      <div style={{ position: "absolute", top: -14, right: 110, transform: "rotate(9deg) scale(" + sealS + ")", opacity: sealO }}>
-        <div style={{ width: 96, height: 96, borderRadius: "50%", border: "6px solid " + AKA, background: "rgba(250,242,226,0.9)",
+    <div style={{ position: "absolute", top: 100, left: 0, width: "100%", textAlign: "center", opacity: o }}>
+      <span style={{ color: SUMI, fontFamily: fude, fontSize: 84, letterSpacing: 8 }}>本日のおしながき</span>
+      <div style={{ position: "absolute", top: -16, right: 80, transform: "rotate(9deg) scale(" + sealS + ")", opacity: sealO }}>
+        <div style={{ width: 112, height: 112, borderRadius: "50%", border: "7px solid " + AKA, background: "rgba(250,242,226,0.9)",
           display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 8px 20px rgba(90,35,5,0.35)" }}>
-          <span style={{ color: AKA, fontFamily: fude, fontSize: 52 }}>旨</span>
+          <span style={{ color: AKA, fontFamily: fude, fontSize: 60 }}>旨</span>
         </div>
       </div>
     </div>
@@ -64,23 +64,23 @@ const Reveal: React.FC<{ src: string; name: string; idx: number }> = ({ src, nam
   const phO = interpolate(t, [26, 44], [0, 1], clamp);
   const phS = interpolate(t, [26, 48], [1.35, 1], { ...clamp, easing: Easing.out(Easing.cubic) });
   const disp = kanjiNum(name);
-  const fs = oneLineFont(disp, 860, 82, 4, 44);
+  const fs = oneLineFont(disp, 900, 104, 4, 54);
   return (
     <AbsoluteFill style={{ opacity: all }}>
       {/* 何品目か（黄札） */}
-      <div style={{ position: "absolute", top: 280, left: 0, width: "100%", textAlign: "center", opacity: tagO }}>
-        <span style={{ display: "inline-block", background: KIIRO, border: "5px solid " + KURO, borderRadius: 10, padding: "8px 28px",
-          color: AKA_DARK, fontFamily: goshi, fontWeight: 800, fontSize: 36, transform: "rotate(-2deg) scale(" + tagS + ")",
+      <div style={{ position: "absolute", top: 268, left: 0, width: "100%", textAlign: "center", opacity: tagO }}>
+        <span style={{ display: "inline-block", background: KIIRO, border: "5px solid " + KURO, borderRadius: 10, padding: "10px 34px",
+          color: AKA_DARK, fontFamily: goshi, fontWeight: 800, fontSize: 46, transform: "rotate(-2deg) scale(" + tagS + ")",
           boxShadow: "5px 7px 0 rgba(0,0,0,0.25)" }}>{KAN[idx] || (idx + 1)}品目</span>
       </div>
       {/* 品名（筆文字・先） */}
-      <div style={{ position: "absolute", top: 390, left: 0, width: "100%", textAlign: "center", opacity: nameO, transform: "translateY(" + nameY + "px)" }}>
+      <div style={{ position: "absolute", top: 392, left: 0, width: "100%", textAlign: "center", opacity: nameO, transform: "translateY(" + nameY + "px)" }}>
         <span style={{ color: SUMI, fontFamily: fude, fontSize: fs, letterSpacing: 4, whiteSpace: "nowrap" }}>{disp}</span>
       </div>
       {/* 写真（後・白フチで傾けて） */}
-      <div style={{ position: "absolute", top: 570, left: "50%", width: 640, height: 640, marginLeft: -320, opacity: phO,
+      <div style={{ position: "absolute", top: 566, left: "50%", width: 780, height: 780, marginLeft: -390, opacity: phO,
         transform: "scale(" + phS + ") rotate(" + (idx % 2 === 0 ? -2 : 2) + "deg)" }}>
-        <Img src={staticFile(src)} style={{ width: "100%", height: "100%", objectFit: "cover", border: "10px solid #fdf6e6",
+        <Img src={staticFile(src)} style={{ width: "100%", height: "100%", objectFit: "cover", border: "12px solid #fdf6e6",
           borderRadius: 6, boxShadow: "0 22px 50px rgba(90,35,5,0.4)" }} />
       </div>
     </AbsoluteFill>
@@ -92,7 +92,7 @@ const FinalBoard: React.FC<{ storeName: string; handle: string }> = ({ storeName
   const f = useCurrentFrame();
   const t = f - FINALE_START;
   if (t < 0) return null;
-  const top = 340, bottom = 1560;
+  const top = 290, bottom = 1660;
   const rh = (bottom - top) / Math.max(N, 1);
   const footO = interpolate(t, [N * 9 + 16, N * 9 + 34], [0, 1], clamp);
   return (
@@ -102,17 +102,17 @@ const FinalBoard: React.FC<{ storeName: string; handle: string }> = ({ storeName
         const ro = interpolate(t, [a, a + 14], [0, 1], clamp);
         const rx = interpolate(t, [a, a + 16], [40, 0], { ...clamp, easing: Easing.out(Easing.cubic) });
         const cy = top + i * rh + rh / 2;
-        const ph = Math.min(196, rh - 36);
+        const ph = Math.min(240, rh - 28);
         const nm = kanjiNum(p.caption);
-        const fs = oneLineFont(nm, 450, 48, 2, 28);
+        const fs = oneLineFont(nm, 560, 64, 2, 36);
         return (
-          <div key={i} style={{ position: "absolute", top: cy - rh / 2, left: 110, right: 110, height: rh, display: "flex", alignItems: "center", opacity: ro, transform: "translateX(" + rx + "px)" }}>
-            <span style={{ display: "inline-block", background: KIIRO, border: "4px solid " + KURO, borderRadius: 8, width: 60, height: 60,
-              lineHeight: "52px", textAlign: "center", color: AKA_DARK, fontFamily: goshi, fontWeight: 800, fontSize: 34, flex: "0 0 auto" }}>{KAN[i] || (i + 1)}</span>
-            <div style={{ width: ph, height: ph, marginLeft: 16, flex: "0 0 auto" }}>
-              <Img src={staticFile(p.src)} style={{ width: "100%", height: "100%", objectFit: "cover", border: "5px solid #fdf6e6", borderRadius: 4, boxShadow: "0 10px 24px rgba(90,35,5,0.3)" }} />
+          <div key={i} style={{ position: "absolute", top: cy - rh / 2, left: 88, right: 88, height: rh, display: "flex", alignItems: "center", opacity: ro, transform: "translateX(" + rx + "px)" }}>
+            <span style={{ display: "inline-block", background: KIIRO, border: "5px solid " + KURO, borderRadius: 10, width: 78, height: 78,
+              lineHeight: "68px", textAlign: "center", color: AKA_DARK, fontFamily: goshi, fontWeight: 800, fontSize: 44, flex: "0 0 auto" }}>{KAN[i] || (i + 1)}</span>
+            <div style={{ width: ph, height: ph, marginLeft: 20, flex: "0 0 auto" }}>
+              <Img src={staticFile(p.src)} style={{ width: "100%", height: "100%", objectFit: "cover", border: "6px solid #fdf6e6", borderRadius: 4, boxShadow: "0 10px 24px rgba(90,35,5,0.3)" }} />
             </div>
-            <div style={{ flex: 1, marginLeft: 26, display: "flex", alignItems: "center" }}>
+            <div style={{ flex: 1, marginLeft: 28, display: "flex", alignItems: "center" }}>
               <span style={{ color: SUMI, fontFamily: fude, fontSize: fs, letterSpacing: 2, whiteSpace: "nowrap" }}>{nm}</span>
               <div style={{ flex: 1, borderBottom: "3px dotted rgba(51,35,26,0.4)", margin: "0 0 8px 16px" }} />
             </div>
@@ -120,9 +120,9 @@ const FinalBoard: React.FC<{ storeName: string; handle: string }> = ({ storeName
         );
       })}
       {/* 屋号 */}
-      <div style={{ position: "absolute", bottom: 105, left: 0, width: "100%", textAlign: "center", opacity: footO }}>
-        <div style={{ color: SUMI, fontFamily: fude, fontSize: 40, letterSpacing: 4, marginBottom: 8 }}>{storeName}</div>
-        <div style={{ color: "#7a6248", fontFamily: goshi, fontWeight: 800, fontSize: 26, letterSpacing: 1 }}>京都・河原町三条　{handle}</div>
+      <div style={{ position: "absolute", bottom: 84, left: 0, width: "100%", textAlign: "center", opacity: footO }}>
+        <div style={{ color: SUMI, fontFamily: fude, fontSize: 52, letterSpacing: 4, marginBottom: 10 }}>{storeName}</div>
+        <div style={{ color: "#7a6248", fontFamily: goshi, fontWeight: 800, fontSize: 34, letterSpacing: 1 }}>京都・河原町三条　{handle}</div>
       </div>
     </AbsoluteFill>
   );

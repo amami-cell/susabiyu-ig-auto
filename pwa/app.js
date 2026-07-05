@@ -500,6 +500,23 @@
   var pendingPat = {};  // pattern -> 望む状態 "1"/"0"（楽観。サーバ反映までポーリングで戻さない）
   function normOn(v) { return (String(v) !== "0" && String(v).toLowerCase() !== "false") ? "1" : "0"; }
 
+  // 画面外の動画は読み込みを解放し、近づいたら読み込む。
+  // iPhoneは同時に扱える動画数に上限があり、全部にsrcを付けると一部が再生不能になるため。
+  var vidObs = window.IntersectionObserver ? new IntersectionObserver(function (ens) {
+    for (var i = 0; i < ens.length; i++) {
+      var v = ens[i].target;
+      if (ens[i].isIntersecting) {
+        if (!v.getAttribute("src") && v.getAttribute("data-vsrc")) {
+          v.setAttribute("src", v.getAttribute("data-vsrc"));
+          try { v.load(); } catch (e) {}
+        }
+      } else if (v.getAttribute("src") && v.paused) {
+        v.removeAttribute("src");
+        try { v.load(); } catch (e) {}   // デコーダを解放（posterは残るので見た目は変わらない）
+      }
+    }
+  }, { rootMargin: "180% 0px 180% 0px" }) : null;
+
   function galleryCard(it) {
     var card = document.createElement("div");
     // cv=動画 / ci=画像 / cu=生成中（どちらの表示にも出す）
@@ -512,7 +529,8 @@
     if (!it.url) {
       media = '<div class="mediaWrap"><div class="media" style="height:180px;display:flex;align-items:center;justify-content:center;color:#9aa3b2">見本を生成中…</div></div>';
     } else if (isVideo(it)) {
-      media = '<div class="mediaWrap"><video class="media" style="' + bg(it.blur) + '" src="' + esc(it.url) + '"' + p +
+      var srcAttr = vidObs ? ' data-vsrc="' + esc(it.url) + '"' : ' src="' + esc(it.url) + '"';
+      media = '<div class="mediaWrap"><video class="media" style="' + bg(it.blur) + '"' + srcAttr + p +
         ' controls playsinline preload="metadata" onerror="window.__mediaErr&&window.__mediaErr(this)"></video><div class="badge">▶ タップで再生（音が出ます）</div></div>';
     } else {
       // 画像パターン（額装・写真一言など）は静止画をそのまま表示
@@ -531,6 +549,8 @@
     sOn.onclick = function () { if (card.dataset.on !== "1") setPattern(card, it.pattern, true); };
     sOff.onclick = function () { if (card.dataset.on !== "0") setPattern(card, it.pattern, false); };
     paintToggle(card, on);  // 初期状態を反映
+    var vv = card.querySelector("video");
+    if (vv && vidObs) vidObs.observe(vv);   // 画面に近づいた時だけ読み込む
     return card;
   }
   // 2択スイッチ：選んでいる方を色付き＋「✓」で明示。両方いつでも押せる
