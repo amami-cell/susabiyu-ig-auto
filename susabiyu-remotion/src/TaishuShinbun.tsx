@@ -120,7 +120,7 @@ const Outro: React.FC<{ handle: string; storeName: string }> = ({ handle, storeN
         <div style={{ transform: "scale(" + s + ")", textAlign: "center" }}>
           <div style={{ color: INK, fontFamily: goshi, fontWeight: 800, fontSize: 86, lineHeight: 1.4 }}>本日も<br />元気に営業中</div>
           <div style={{ margin: "36px 0 0", opacity: fo }}>
-            <KakuHanko text="来てや" size={44} />
+            <KakuHanko text="ご来店お待ちしています" size={38} />
           </div>
           <div style={{ color: INK, fontFamily: goshi, fontSize: 32, marginTop: 40, opacity: fo }}>{storeName}　{handle}</div>
         </div>
