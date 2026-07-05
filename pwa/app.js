@@ -505,6 +505,7 @@
     // cv=動画 / ci=画像 / cu=生成中（どちらの表示にも出す）
     card.className = "card " + (!it.url ? "cu" : (isVideo(it) ? "cv" : "ci"));
     card.setAttribute("data-pattern", it.pattern);
+    card.setAttribute("data-csig", cardSig(it));   // 差分更新用：内容が変わった時だけ差し替える
     var on = String(it.enabled) !== "0" && String(it.enabled).toLowerCase() !== "false";
     var p = it.poster ? ' poster="' + esc(it.poster) + '"' : "";
     var media;
@@ -600,14 +601,25 @@
     applyGalleryFilter();
   }
   function buildFilterBar(items) {
-    var nv = 0, ni = 0;
-    items.forEach(function (it) { if (!it.url || isVideo(it)) nv++; if (!it.url || !isVideo(it)) ni++; });
     var fb = document.createElement("div");
     fb.className = "gfilter"; fb.id = "gFilter";
-    fb.innerHTML = '<button class="fv">🎬 動画 ' + nv + '</button><button class="fi">🖼 画像 ' + ni + '</button>';
+    fb.innerHTML = '<button class="fv"></button><button class="fi"></button>';
     fb.querySelector(".fv").onclick = function () { setGalleryFilter("vid"); };
     fb.querySelector(".fi").onclick = function () { setGalleryFilter("img"); };
+    updateFilterCounts(items, fb);
     return fb;
+  }
+  function updateFilterCounts(items, fb) {
+    fb = fb || document.getElementById("gFilter"); if (!fb) return;
+    var nv = 0, ni = 0;
+    items.forEach(function (it) { if (!it.url || isVideo(it)) nv++; if (!it.url || !isVideo(it)) ni++; });
+    var bv = fb.querySelector(".fv"), bi = fb.querySelector(".fi");
+    if (bv) bv.textContent = "🎬 動画 " + nv;
+    if (bi) bi.textContent = "🖼 画像 " + ni;
+  }
+  // カード1枚ぶんの内容署名（enabledは含めない＝採用切替では作り直さずその場で塗り替える）
+  function cardSig(it) {
+    return JSON.stringify([it.pattern, it.url || "", it.label || "", it.poster || "", it.blur || ""]);
   }
   var lastGallerySig = "";
   function patternsCacheGet() { try { return JSON.parse(localStorage.getItem("sb_patterns") || "null"); } catch (e) { return null; } }
@@ -621,10 +633,45 @@
       if (normOn(it.enabled) === want) { delete pendingPat[it.pattern]; return it; }
       var c = {}; for (var k in it) c[k] = it[k]; c.enabled = want; return c;
     });
-    // 内容が前回と同じなら作り直さない（動画の再読込＝カクつきを防ぐ）
+    // 内容が前回と同じなら何もしない（動画の再読込＝カクつきを防ぐ）
     var sig = JSON.stringify(items.map(function (it) { return [it.pattern, it.url, it.enabled, it.label, it.poster ? 1 : 0]; }));
     if (sig === lastGallerySig && hasCards()) { applyAdminClass(); applyGalleryFilter(); return; }
     lastGallerySig = sig;
+    // 店舗ページで振り分け：烏丸=【鮨処】のみ／三条=それ以外のみ
+    var normal = items.filter(function (it) { return !isKarPat(it); });
+    var stored = items.filter(isKarPat);
+    var list = KAR ? stored : normal;
+
+    // ── 差分更新：既にカードが並んでいるなら丸ごと作り直さない ──
+    // （全消し→再構築するとスクロール位置が先頭に戻ってしまうため、
+    //   変わったカードだけ差し替え、増減や並び替えも最小限の移動で反映する）
+    var fbar = document.getElementById("gFilter");
+    if (hasCards() && fbar && list.length) {
+      updateFilterCounts(list);
+      var have = {};
+      var cur = galleryEl.querySelectorAll(".card");
+      for (var ci = 0; ci < cur.length; ci++) have[cur[ci].getAttribute("data-pattern")] = cur[ci];
+      var prev = fbar;
+      list.forEach(function (it) {
+        var card = have[it.pattern];
+        if (card && card.getAttribute("data-csig") !== cardSig(it)) {
+          var nc = galleryCard(it); card.parentNode.replaceChild(nc, card); card = nc;
+        } else if (card) {
+          paintToggle(card, normOn(it.enabled) === "1");   // 採用/無しだけその場で塗り替え
+        } else {
+          card = galleryCard(it);
+        }
+        if (card.previousElementSibling !== prev) galleryEl.insertBefore(card, prev.nextSibling);
+        delete have[it.pattern];
+        prev = card;
+      });
+      for (var k in have) { if (have[k].parentNode) have[k].parentNode.removeChild(have[k]); }
+      applyAdminClass();
+      applyGalleryFilter();
+      return;
+    }
+
+    // ── 初回（またはカードが無い/空になった）は丸ごと構築 ──
     galleryEl.innerHTML = "";
     var hint = document.createElement("div"); hint.className = "ghint";
     hint.innerHTML = "各動画パターンの見本です。<b style='color:#7fd1a0'>採用する</b>を選ぶと、その型だけが日々の投稿ローテーションに使われます。<br>（店舗ごとの好みに合わせて選べます）";
@@ -635,9 +682,6 @@
       e.innerHTML = "見本がまだありません。<br>サンプル生成（samples）を実行すると、ここに各パターンの動画が並びます。";
       galleryEl.appendChild(e); applyAdminClass(); return;
     }
-    // 店舗ページで振り分け：烏丸=【鮨処】のみ／三条=それ以外のみ
-    var normal = items.filter(function (it) { return !isKarPat(it); });
-    var stored = items.filter(isKarPat);
     if (KAR) {
       hint.innerHTML = "🍣 <b>鮨処すさび湯 四条烏丸</b>（準備中）の見本置き場です。このページは入口PASSを知る人だけが開けます。<br>Instagram連携はアカウント情報が揃ってから。<b>採用ボタンはまだ使いません</b>。 <button class='alink' id='karBack'>三条ページへ戻る</button>";
       if (stored.length) galleryEl.appendChild(buildFilterBar(stored));
