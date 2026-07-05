@@ -1,14 +1,14 @@
-// 大衆・全画面：烏丸で保管する「全画面」(PhotoStory)の構成そのままに、
-// 色味を大衆酒場（提灯色）へ。品名は朱の帯に載せ、掛け声タグを添える。
+// 大衆・全画面：「全画面」(PhotoStory)の1枚見せ構成はそのまま、表現を大衆酒場に。
+// 静かな白文字キャプション → 提灯＋黄札＋朱帯の白フチ太文字。写真は明るく元気に。
 import { AbsoluteFill, Img, Audio, staticFile, useCurrentFrame, useVideoConfig, interpolate } from "remotion";
 import { loadFont } from "@remotion/google-fonts/YujiSyuku";
 import { loadFont as loadGoshi } from "@remotion/google-fonts/RocknRollOne";
 import { photoStoryPhoto, photoStoryCaption, photoStoryHasLogo, photoStoryMusic } from "./photoStoryData";
 import { oneLineFont } from "./fit";
+import { AKA, AKA_DARK, KIIRO, KURO, SHIRO, Lanterns, fuchi } from "./taishu";
 
-const { fontFamily: brush } = loadFont();
+const { fontFamily: fude } = loadFont();
 const { fontFamily: goshi } = loadGoshi();
-const AKA = "#d7263d";
 const TAG = ["名物", "一番人気", "店主おすすめ", "イチオシ！", "本日のオススメ", "今日も旨い"];
 
 export const TaishuZen: React.FC<{ handle?: string }> = ({ handle = "@susabiyu_sanjyo" }) => {
@@ -17,9 +17,13 @@ export const TaishuZen: React.FC<{ handle?: string }> = ({ handle = "@susabiyu_s
   const bgScale = interpolate(frame, [0, 150], [1.15, 1.22], { extrapolateRight: "clamp" });
   const src = staticFile(photoStoryPhoto);
   const tag = TAG[photoStoryCaption.length % TAG.length];
-  const tagOp = interpolate(frame, [10, 18], [0, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
+  // 黄札はハンコみたいにドン、朱帯は下からスッ
+  const tagS = interpolate(frame, [8, 14], [2.4, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
+  const tagO = interpolate(frame, [8, 12], [0, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
+  const capY = interpolate(frame, [12, 22], [40, 0], { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
+  const capO = interpolate(frame, [12, 20], [0, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
   return (
-    <AbsoluteFill style={{ backgroundColor: "#120804" }}>
+    <AbsoluteFill style={{ backgroundColor: "#2a120a" }}>
       <Audio
         src={staticFile(photoStoryMusic)}
         volume={(f) =>
@@ -32,58 +36,54 @@ export const TaishuZen: React.FC<{ handle?: string }> = ({ handle = "@susabiyu_s
       <AbsoluteFill>
         <Img
           src={src}
-          style={{ width: "100%", height: "100%", objectFit: "cover", filter: "blur(45px) brightness(0.55) saturate(1.45)", transform: "scale(" + bgScale + ")" }}
+          style={{ width: "100%", height: "100%", objectFit: "cover", filter: "blur(45px) brightness(0.6) saturate(1.5)", transform: "scale(" + bgScale + ")" }}
         />
+        <AbsoluteFill style={{ background: "rgba(163,18,38,0.25)" }} />
       </AbsoluteFill>
       <AbsoluteFill style={{ justifyContent: "center", alignItems: "center" }}>
-        <Img src={src} style={{ width: "100%", height: "100%", objectFit: "contain", filter: "saturate(1.12) contrast(1.04)" }} />
+        <Img src={src} style={{ width: "100%", height: "100%", objectFit: "contain", filter: "saturate(1.15) contrast(1.05) brightness(1.02)" }} />
       </AbsoluteFill>
-      {/* 黒のグラデ → 赤茶の暖色グラデ＋提灯の灯り */}
+      {/* 上下は暖色の暗がり、上から提灯の灯り */}
       <AbsoluteFill
         style={{
           background:
-            "linear-gradient(180deg, rgba(24,10,4,0.5) 0%, rgba(0,0,0,0) 22%, rgba(0,0,0,0) 55%, rgba(24,10,4,0.92) 100%)",
+            "linear-gradient(180deg, rgba(42,18,10,0.62) 0%, rgba(0,0,0,0) 24%, rgba(0,0,0,0) 55%, rgba(42,18,10,0.9) 100%)",
         }}
       />
-      <AbsoluteFill style={{ pointerEvents: "none", background: "radial-gradient(ellipse at 50% -6%, rgba(255,150,60,0.2) 0%, rgba(0,0,0,0) 48%)" }} />
-      <AbsoluteFill style={{ pointerEvents: "none", background: "radial-gradient(ellipse at 88% 106%, rgba(215,38,61,0.18) 0%, rgba(0,0,0,0) 42%)" }} />
+      <AbsoluteFill style={{ pointerEvents: "none", background: "radial-gradient(ellipse at 50% -6%, rgba(255,150,60,0.28) 0%, rgba(0,0,0,0) 50%)" }} />
+      <Lanterns />
       {photoStoryHasLogo ? (
         <Img
           src={staticFile("logo.png")}
-          style={{ position: "absolute", top: 70, right: 60, height: 120, width: "auto", objectFit: "contain", opacity: 0.85 }}
+          style={{ position: "absolute", top: 240, right: 60, height: 110, width: "auto", objectFit: "contain", opacity: 0.9 }}
         />
       ) : null}
-      {/* 掛け声タグ＋朱帯の品名 */}
-      <div style={{ position: "absolute", bottom: 225, width: "100%", textAlign: "center", padding: "0 70px" }}>
-        <div style={{ marginBottom: 18, opacity: tagOp }}>
-          <span style={{ display: "inline-block", background: AKA, borderRadius: 8, padding: "8px 26px", transform: "rotate(-1.5deg)",
-            boxShadow: "0 6px 20px rgba(0,0,0,0.5)", color: "#fff3e2", fontFamily: goshi, fontWeight: 800, fontSize: 34, letterSpacing: 2 }}>{tag}</span>
-        </div>
-        <div
-          style={{
-            color: "#fff",
-            fontFamily: brush,
-            fontSize: oneLineFont(photoStoryCaption, 940, 66, 6, 30),
-            letterSpacing: 5,
-            whiteSpace: "nowrap",
-            lineHeight: 1.25,
-            textShadow: "0 0 28px rgba(255,140,60,0.4), 0 2px 24px rgba(0,0,0,0.95)",
-          }}
-        >
-          {photoStoryCaption}
+      {/* 黄札の掛け声（傾けてドン） */}
+      <div style={{ position: "absolute", left: 56, bottom: 430, transform: "rotate(-8deg) scale(" + tagS + ")", opacity: tagO,
+        background: KIIRO, border: "5px solid " + KURO, borderRadius: 10, padding: "10px 26px",
+        boxShadow: "5px 7px 0 rgba(0,0,0,0.35)" }}>
+        <span style={{ color: AKA_DARK, fontFamily: goshi, fontWeight: 800, fontSize: 42, whiteSpace: "nowrap" }}>{tag}</span>
+      </div>
+      {/* 品名は朱帯にドンと大きく */}
+      <div style={{ position: "absolute", left: 0, right: 0, bottom: 250, textAlign: "center", opacity: capO, transform: "translateY(" + capY + "px)" }}>
+        <div style={{ display: "inline-block", background: AKA, border: "5px solid " + SHIRO, borderRadius: 8,
+          padding: "18px 48px", transform: "rotate(-1.5deg)", boxShadow: "0 12px 34px rgba(0,0,0,0.5)" }}>
+          <span style={{ color: SHIRO, fontFamily: fude, fontSize: oneLineFont(photoStoryCaption, 860, 64, 2, 30), letterSpacing: 2, whiteSpace: "nowrap" }}>
+            {photoStoryCaption}
+          </span>
         </div>
       </div>
       <div
         style={{
           position: "absolute",
-          bottom: 150,
+          bottom: 155,
           width: "100%",
           textAlign: "center",
-          color: "rgba(255,232,200,0.9)",
+          color: SHIRO,
           fontFamily: goshi,
           fontSize: 28,
-          letterSpacing: 3,
-          textShadow: "0 2px 12px rgba(0,0,0,0.9)",
+          letterSpacing: 2,
+          ...fuchi(KURO, 4),
         }}
       >
         {handle}

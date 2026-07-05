@@ -1,6 +1,6 @@
-// 大衆・王道：烏丸で保管する「王道」(SushiStory)の構成・テンポそのままに、
-// 色味を大衆酒場（提灯色＝暗め×暖色の灯り×朱）へ振ったバージョン。
-// 金×墨の上品トーン → 朱×提灯オレンジ。品名には掛け声タグを添える。
+// 大衆・王道：「王道」(SushiStory)の流れ（イントロ→1枚ずつ→アウトロ）と
+// テンポはそのままに、表現を大衆酒場に。額装×余白×細文字の上品な見せ方をやめ、
+// 提灯・朱帯・黄札・白フチ太文字・傾きで「賑やかな店」の見せ方にする。
 import {
   AbsoluteFill,
   Audio,
@@ -16,25 +16,24 @@ import { loadFont } from "@remotion/google-fonts/YujiSyuku";
 import { loadFont as loadGoshi } from "@remotion/google-fonts/RocknRollOne";
 import { photos, hasLogo, sushiMusic } from "./photoData";
 import { oneLineFont } from "./fit";
+import { AKA, AKA_DARK, KIIRO, KURO, SHIRO, Lanterns, fuchi } from "./taishu";
+import { punch, Flash } from "./cine";
 
-const { fontFamily: brush } = loadFont();
+const { fontFamily: fude } = loadFont();
 const { fontFamily: goshi } = loadGoshi();
 
-const BG = "#1a0c06";              // 暖かい闇（元:#140b07 の墨色より赤茶寄り）
-const AKA = "#d7263d";             // 朱
-const HONO = "#ffcf87";            // 提灯の灯り色（元:GOLD #d4a574 の代わり）
+const BG = "#2a120a";              // 提灯に照らされた店の壁色
 const INTRO = 42;
 const OUTRO = 42;
 const SLIDE = 86;
 const FADE = 16;
-const MARGIN = 96;
 const TAG = ["名物", "一番人気", "店主おすすめ", "イチオシ！", "本日のオススメ", "今日も旨い"];
 
-// 提灯の灯りが差す暖色レイヤー（全場面共通の「色味」の要）
+// 店の空気（暖色の灯り＋赤の照り返し）
 const Akari: React.FC = () => (
   <AbsoluteFill style={{ pointerEvents: "none" }}>
-    <AbsoluteFill style={{ background: "radial-gradient(ellipse at 50% -6%, rgba(255,150,60,0.22) 0%, rgba(0,0,0,0) 50%)" }} />
-    <AbsoluteFill style={{ background: "radial-gradient(ellipse at 12% 108%, rgba(215,38,61,0.16) 0%, rgba(0,0,0,0) 45%)" }} />
+    <AbsoluteFill style={{ background: "radial-gradient(ellipse at 50% -6%, rgba(255,150,60,0.30) 0%, rgba(0,0,0,0) 52%)" }} />
+    <AbsoluteFill style={{ background: "radial-gradient(ellipse at 12% 108%, rgba(215,38,61,0.20) 0%, rgba(0,0,0,0) 45%)" }} />
   </AbsoluteFill>
 );
 
@@ -59,22 +58,23 @@ const Intro: React.FC<{ storeName: string }> = ({ storeName }) => {
       style={{ backgroundColor: BG, justifyContent: "center", alignItems: "center", opacity: op }}
     >
       <Akari />
+      <Lanterns />
       <div
         style={{
-          transform: `translateY(${interpolate(s, [0, 1], [22, 0])}px)`,
+          transform: `translateY(${interpolate(s, [0, 1], [22, 0])}px) rotate(-2deg)`,
           display: "flex",
           flexDirection: "column",
           alignItems: "center",
           gap: 26,
         }}
       >
-        <Logo size={170} />
-        <div style={{ color: HONO, fontFamily: brush, fontSize: 56, letterSpacing: 8, textShadow: "0 0 30px rgba(255,150,60,0.45), 0 2px 14px rgba(0,0,0,0.7)" }}>
+        <Logo size={150} />
+        <div style={{ color: SHIRO, fontFamily: fude, fontSize: 92, letterSpacing: 2, ...fuchi(KURO, 6) }}>
           {storeName}
         </div>
-        <div style={{ width: 110, height: 3, background: `linear-gradient(90deg, transparent, ${AKA}, transparent)` }} />
-        <div style={{ color: "rgba(255,226,190,0.85)", fontFamily: brush, fontSize: 26, letterSpacing: 6 }}>
-          京都・河原町三条
+        <div style={{ background: AKA, border: "4px solid " + SHIRO, borderRadius: 8, padding: "10px 34px",
+          transform: "rotate(-1.5deg)", boxShadow: "0 8px 24px rgba(0,0,0,0.5)" }}>
+          <span style={{ color: SHIRO, fontFamily: goshi, fontWeight: 800, fontSize: 40, letterSpacing: 2 }}>京都・河原町三条</span>
         </div>
       </div>
     </AbsoluteFill>
@@ -83,16 +83,17 @@ const Intro: React.FC<{ storeName: string }> = ({ storeName }) => {
 
 const Slide: React.FC<{ src: string; caption: string; i: number }> = ({ src, caption, i }) => {
   const frame = useCurrentFrame();
+  const deg = i % 2 === 0 ? -2.5 : 2.5;
   const op = interpolate(frame, [0, FADE, SLIDE - FADE, SLIDE], [0, 1, 1, 0], {
     extrapolateLeft: "clamp",
     extrapolateRight: "clamp",
   });
   const scale = interpolate(frame, [0, SLIDE], [1.06, 1.16], { extrapolateRight: "clamp" });
-  const capOp = interpolate(frame, [FADE, FADE + 14], [0, 1], {
-    extrapolateLeft: "clamp",
-    extrapolateRight: "clamp",
-  });
-  const capY = interpolate(frame, [FADE, FADE + 14], [16, 0], {
+  const z = punch(frame, 0.05, 8);
+  // 黄札：ハンコみたいにドン
+  const tagS = interpolate(frame, [FADE, FADE + 6], [2.2, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
+  const tagO = interpolate(frame, [FADE, FADE + 4], [0, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
+  const capOp = interpolate(frame, [FADE, FADE + 12], [0, 1], {
     extrapolateLeft: "clamp",
     extrapolateRight: "clamp",
   });
@@ -105,100 +106,70 @@ const Slide: React.FC<{ src: string; caption: string; i: number }> = ({ src, cap
             width: "100%",
             height: "100%",
             objectFit: "cover",
-            filter: "blur(34px) brightness(0.42) saturate(1.4)",
+            filter: "blur(34px) brightness(0.55) saturate(1.5)",
             transform: `scale(${1.25 * scale})`,
           }}
         />
+        <AbsoluteFill style={{ background: "rgba(163,18,38,0.28)" }} />
       </AbsoluteFill>
-      {/* 墨のグラデ → 赤茶の暖色グラデに */}
       <AbsoluteFill
         style={{
           background:
-            "linear-gradient(180deg, rgba(26,12,6,0.55) 0%, rgba(26,12,6,0.10) 24%, rgba(26,12,6,0.10) 55%, rgba(26,12,6,0.94) 100%)",
+            "linear-gradient(180deg, rgba(42,18,10,0.6) 0%, rgba(42,18,10,0.08) 24%, rgba(42,18,10,0.08) 55%, rgba(42,18,10,0.9) 100%)",
         }}
       />
       <Akari />
+      <Lanterns />
       <AbsoluteFill style={{ justifyContent: "center", alignItems: "center" }}>
-        <div
-          style={{
-            borderRadius: 12,
-            overflow: "hidden",
-            border: "3px solid rgba(215,38,61,0.75)",
-            boxShadow: "0 0 40px rgba(255,120,50,0.18), 0 24px 70px rgba(0,0,0,0.6)",
-            lineHeight: 0,
-          }}
-        >
-          <Img
-            src={src}
+        <div style={{ position: "relative", transform: `rotate(${deg}deg) scale(${z})` }}>
+          <div
             style={{
-              display: "block",
-              maxWidth: 1080 - MARGIN * 2,
-              maxHeight: 1040,
-              width: "auto",
-              height: "auto",
-              filter: "saturate(1.12) contrast(1.04)",
+              overflow: "hidden",
+              border: "8px solid #f2e3c2",
+              borderRadius: 6,
+              boxShadow: "0 26px 70px rgba(0,0,0,0.6)",
+              lineHeight: 0,
             }}
-          />
+          >
+            <Img
+              src={src}
+              style={{
+                display: "block",
+                maxWidth: 1080 - 150,
+                maxHeight: 980,
+                width: "auto",
+                height: "auto",
+                filter: "saturate(1.15) contrast(1.05) brightness(1.02)",
+              }}
+            />
+          </div>
+          {/* 黄札の掛け声（傾けてドン） */}
+          <div style={{ position: "absolute", top: -40, left: -34, transform: `rotate(-8deg) scale(${tagS})`, opacity: tagO,
+            background: KIIRO, border: "5px solid " + KURO, borderRadius: 10, padding: "10px 24px",
+            boxShadow: "5px 7px 0 rgba(0,0,0,0.35)" }}>
+            <span style={{ color: AKA_DARK, fontFamily: goshi, fontWeight: 800, fontSize: 40, whiteSpace: "nowrap" }}>{TAG[i % TAG.length]}</span>
+          </div>
         </div>
       </AbsoluteFill>
+      {/* 品名は朱帯にドンと大きく */}
       {caption ? (
-        <div
-          style={{
-            position: "absolute",
-            bottom: 285,
-            width: "100%",
-            display: "flex",
-            flexDirection: "column",
-            alignItems: "center",
-            gap: 16,
-            opacity: capOp,
-            transform: `translateY(${capY}px)`,
-          }}
-        >
-          {/* 掛け声タグ（朱の座布団） */}
-          <div style={{ background: AKA, borderRadius: 8, padding: "8px 26px", transform: "rotate(-1.5deg)",
-            boxShadow: "0 6px 20px rgba(0,0,0,0.5)" }}>
-            <span style={{ color: "#fff3e2", fontFamily: goshi, fontWeight: 800, fontSize: 34, letterSpacing: 2 }}>{TAG[i % TAG.length]}</span>
-          </div>
-          <div style={{ color: "#fff", fontFamily: brush, fontSize: oneLineFont(caption, 980, 66, 6, 30), letterSpacing: 5, whiteSpace: "nowrap", textShadow: "0 0 26px rgba(255,140,60,0.4), 0 2px 22px rgba(0,0,0,0.9)" }}>
-            {caption}
+        <div style={{ position: "absolute", left: 0, right: 0, bottom: 265, textAlign: "center", opacity: capOp }}>
+          <div style={{ display: "inline-block", background: AKA, border: "5px solid " + SHIRO, borderRadius: 8,
+            padding: "16px 46px", transform: "rotate(-1.5deg)", boxShadow: "0 12px 34px rgba(0,0,0,0.5)" }}>
+            <span style={{ color: SHIRO, fontFamily: fude, fontSize: oneLineFont(caption, 880, 62, 2, 30), letterSpacing: 2, whiteSpace: "nowrap" }}>
+              {caption}
+            </span>
           </div>
         </div>
       ) : null}
+      <Flash local={frame} peak={0.2} />
     </AbsoluteFill>
-  );
-};
-
-const BrandTop: React.FC<{ storeName: string; total: number }> = ({ storeName, total }) => {
-  const frame = useCurrentFrame();
-  const op = interpolate(frame, [0, 16, total - 14, total], [0, 1, 1, 0], {
-    extrapolateLeft: "clamp",
-    extrapolateRight: "clamp",
-  });
-  return (
-    <div
-      style={{
-        position: "absolute",
-        top: 250,
-        width: "100%",
-        display: "flex",
-        flexDirection: "column",
-        alignItems: "center",
-        gap: 10,
-        opacity: op,
-      }}
-    >
-      <Logo size={64} opacity={0.95} />
-      <div style={{ color: HONO, fontFamily: brush, fontSize: 32, letterSpacing: 7, textShadow: "0 0 20px rgba(255,150,60,0.4), 0 2px 12px rgba(0,0,0,0.85)" }}>
-        {storeName}
-      </div>
-    </div>
   );
 };
 
 const BrandBottom: React.FC<{ handle: string; total: number }> = ({ handle, total }) => {
   const frame = useCurrentFrame();
-  const op = interpolate(frame, [0, 16, total - 14, total], [0, 0.85, 0.85, 0], {
+  const op = interpolate(frame, [0, 16, total - 14, total], [0, 0.95, 0.95, 0], {
     extrapolateLeft: "clamp",
     extrapolateRight: "clamp",
   });
@@ -206,15 +177,15 @@ const BrandBottom: React.FC<{ handle: string; total: number }> = ({ handle, tota
     <div
       style={{
         position: "absolute",
-        bottom: 175,
+        bottom: 170,
         width: "100%",
         textAlign: "center",
         opacity: op,
-        color: "rgba(255,232,200,0.9)",
+        color: SHIRO,
         fontFamily: goshi,
-        fontSize: 26,
-        letterSpacing: 3,
-        textShadow: "0 2px 12px rgba(0,0,0,0.9)",
+        fontSize: 28,
+        letterSpacing: 2,
+        ...fuchi(KURO, 4),
       }}
     >
       {handle}
@@ -230,22 +201,22 @@ const Outro: React.FC<{ storeName: string; handle: string }> = ({ storeName, han
   return (
     <AbsoluteFill style={{ backgroundColor: BG, justifyContent: "center", alignItems: "center", opacity: op }}>
       <Akari />
+      <Lanterns />
       <div
         style={{
-          transform: `translateY(${interpolate(s, [0, 1], [18, 0])}px)`,
+          transform: `translateY(${interpolate(s, [0, 1], [18, 0])}px) rotate(-2deg)`,
           display: "flex",
           flexDirection: "column",
           alignItems: "center",
-          gap: 22,
+          gap: 24,
         }}
       >
-        <Logo size={150} />
-        <div style={{ color: HONO, fontFamily: brush, fontSize: 52, letterSpacing: 8, textShadow: "0 0 30px rgba(255,150,60,0.45)" }}>{storeName}</div>
-        <div style={{ width: 100, height: 3, background: `linear-gradient(90deg, transparent, ${AKA}, transparent)` }} />
-        <div style={{ color: "rgba(255,240,220,0.95)", fontFamily: goshi, fontSize: 30, letterSpacing: 3 }}>{handle}</div>
-        <div style={{ color: "rgba(255,226,190,0.8)", fontFamily: brush, fontSize: 28, letterSpacing: 4, marginTop: 6 }}>
-          今日もにぎやかに営業中！
+        <Logo size={130} />
+        <div style={{ color: KIIRO, fontFamily: fude, fontSize: 88, letterSpacing: 2, lineHeight: 1.3, textAlign: "center", ...fuchi(KURO, 6) }}>
+          今日もにぎやかに<br />営業中
         </div>
+        <div style={{ color: SHIRO, fontFamily: fude, fontSize: 46, letterSpacing: 2, ...fuchi(KURO, 5) }}>{storeName}</div>
+        <div style={{ color: SHIRO, fontFamily: goshi, fontSize: 30, letterSpacing: 2, ...fuchi(KURO, 4) }}>{handle}</div>
       </div>
     </AbsoluteFill>
   );
@@ -286,9 +257,6 @@ export const TaishuOdo: React.FC<{ storeName?: string; handle?: string }> = ({
           </Sequence>
         ))}
 
-        <Sequence from={slidesStart} durationInFrames={slidesTotal}>
-          <BrandTop storeName={storeName} total={slidesTotal} />
-        </Sequence>
         <Sequence from={slidesStart} durationInFrames={slidesTotal}>
           <BrandBottom handle={handle} total={slidesTotal} />
         </Sequence>
