@@ -32,8 +32,8 @@ const Shashin: React.FC<{ frame?: string; deg?: number; maxH?: number }> = ({ fr
   </div>
 );
 
-// ── 案A: 提灯（全画面動画デザインの静止画） ──
-export const TaishuImgA: React.FC<{ handle?: string }> = ({ handle = "@susabiyu_sanjyo" }) => {
+// ── 案A: 提灯（全画面動画デザインの静止画）。提灯は大きめ・1個1文字の筆文字 ──
+const ImgABase: React.FC<{ handle: string; moji: string[] }> = ({ handle, moji }) => {
   const src = staticFile(photoStoryPhoto);
   return (
     <AbsoluteFill style={{ backgroundColor: "#2a120a" }}>
@@ -43,7 +43,7 @@ export const TaishuImgA: React.FC<{ handle?: string }> = ({ handle = "@susabiyu_
       </AbsoluteFill>
       <AbsoluteFill style={{ background: "linear-gradient(180deg, rgba(42,18,10,0.62) 0%, rgba(0,0,0,0) 24%, rgba(0,0,0,0) 55%, rgba(42,18,10,0.9) 100%)" }} />
       <AbsoluteFill style={{ pointerEvents: "none", background: "radial-gradient(ellipse at 50% -6%, rgba(255,150,60,0.28) 0%, rgba(0,0,0,0) 50%)" }} />
-      <Lanterns />
+      <Lanterns moji={moji} scale={1.3} />
       {photoStoryHasLogo ? (
         <Img src={staticFile("logo.png")} style={{ position: "absolute", top: 240, right: 60, height: 110, width: "auto", objectFit: "contain", opacity: 0.9 }} />
       ) : null}
@@ -63,6 +63,12 @@ export const TaishuImgA: React.FC<{ handle?: string }> = ({ handle = "@susabiyu_
     </AbsoluteFill>
   );
 };
+export const TaishuImgA: React.FC<{ handle?: string }> = ({ handle = "@susabiyu_sanjyo" }) => (
+  <ImgABase handle={handle} moji={["寿", "司", "酒", "場"]} />
+);
+export const TaishuImgA2: React.FC<{ handle?: string }> = ({ handle = "@susabiyu_sanjyo" }) => (
+  <ImgABase handle={handle} moji={["大", "衆", "酒", "場"]} />
+);
 
 // ── 案B: レトロ印刷チラシ（値札チラシの世界・明るい紙面） ──
 export const TaishuImgB: React.FC<{ handle?: string }> = ({ handle = "@susabiyu_sanjyo" }) => {

@@ -3,7 +3,10 @@
 import React from "react";
 import { AbsoluteFill, useCurrentFrame, interpolate, Easing } from "remotion";
 import { tempoPhotos, tempoMusic } from "./tempoData";
+import { loadFont as loadFudeT } from "@remotion/google-fonts/YujiSyuku";
 import { rnd } from "./capData";
+
+const { fontFamily: fudeT } = loadFudeT();
 
 export const AKA = "#d7263d";      // 大衆の赤
 export const AKA_DARK = "#a31226";
@@ -159,22 +162,22 @@ export const BlackboardBg: React.FC = () => (
   </AbsoluteFill>
 );
 
-// 店内用：ぶら下がる赤提灯（ゆらゆら）
-export const Lanterns: React.FC = () => {
+// 店内用：ぶら下がる赤提灯（ゆらゆら）。文字・大きさは差し替え可（筆フォント）。
+export const Lanterns: React.FC<{ moji?: string[]; scale?: number }> = ({ moji = ["酒", "寿", "司", "肴"], scale = 1 }) => {
   const f = useCurrentFrame();
   const xs = [120, 400, 680, 940];
-  const moji = ["酒", "寿", "司", "肴"];
+  const w = 112 * scale, h = 152 * scale;
   return (
     <AbsoluteFill style={{ pointerEvents: "none" }}>
       {xs.map((x, i) => {
         const sway = Math.sin(f * 0.05 + i * 1.6) * 5;
         return (
-          <div key={i} style={{ position: "absolute", left: x, top: -6, transform: "rotate(" + sway + "deg)", transformOrigin: "top center" }}>
-            <div style={{ width: 4, height: 62, background: "#3a2a18", margin: "0 auto" }} />
-            <div style={{ width: 112, height: 152, borderRadius: 54, border: "3px solid #7a1020",
+          <div key={i} style={{ position: "absolute", left: x - (w - 112) / 2, top: -6, transform: "rotate(" + sway + "deg)", transformOrigin: "top center" }}>
+            <div style={{ width: 4, height: 62 * scale, background: "#3a2a18", margin: "0 auto" }} />
+            <div style={{ width: w, height: h, borderRadius: 54 * scale, border: "3px solid #7a1020",
               background: "radial-gradient(circle at 50% 42%, #ff7161 0%, " + AKA + " 62%, " + AKA_DARK + " 100%)",
               boxShadow: "0 0 46px rgba(255,90,60,0.55)", display: "flex", alignItems: "center", justifyContent: "center" }}>
-              <span style={{ writingMode: "vertical-rl", color: "#ffe9d0", fontSize: 34, fontWeight: 700 } as React.CSSProperties}>{moji[i]}</span>
+              <span style={{ writingMode: "vertical-rl", color: "#ffe9d0", fontSize: 40 * scale, fontFamily: fudeT } as React.CSSProperties}>{moji[i % moji.length]}</span>
             </div>
           </div>
         );
