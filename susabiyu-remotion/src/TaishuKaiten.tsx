@@ -8,17 +8,20 @@ import { Lanterns, tpick, taishuMusic } from "./taishu";
 
 const { fontFamily: mincho } = loadMincho();
 export const TKAI_DUR = 250;
-const PHOTOS = tpick(6);
+const ALL = tpick(6);
+// 上下のレーンで別の商品が流れるように半分ずつに分ける
+const TOP_PHOTOS = ALL.filter((_, i) => i % 2 === 0);
+const BOT_PHOTOS = ALL.filter((_, i) => i % 2 === 1);
 const CARD_W = 560;                     // 皿1枚の幅（間隔）
 const SPEED = 7;                        // px/フレーム
 
 // 1レーンぶん：皿が右→左へ流れ続ける（巡回）。品名は縦書きの木札。
-const Lane: React.FC<{ y: number; offset: number; size: number }> = ({ y, offset, size }) => {
+const Lane: React.FC<{ photos: typeof ALL; y: number; offset: number; size: number }> = ({ photos, y, offset, size }) => {
   const f = useCurrentFrame();
-  const total = PHOTOS.length * CARD_W;
+  const total = photos.length * CARD_W;
   return (
     <div style={{ position: "absolute", top: y, left: 0, width: 1080, height: size + 40 }}>
-      {PHOTOS.map((p, i) => {
+      {photos.map((p, i) => {
         const x0 = ((i * CARD_W - f * SPEED - offset) % total + total) % total;
         const left = x0 - CARD_W;   // -CARD_W〜total-CARD_W を巡回＝右から入って左へ抜ける
         return (
@@ -67,8 +70,8 @@ export const TaishuKaiten: React.FC<{ storeName?: string; handle?: string }> = (
             textShadow: "0 0 26px rgba(255,140,60,0.6), 0 6px 20px rgba(0,0,0,0.8)" }}>本日も大賑わい</span>
         </div>
         {/* 2レーン：上下で位相をずらす */}
-        <Lane y={620} offset={0} size={400} />
-        <Lane y={1270} offset={280} size={400} />
+        <Lane photos={TOP_PHOTOS} y={620} offset={0} size={400} />
+        <Lane photos={BOT_PHOTOS} y={1270} offset={280} size={400} />
         <div style={{ position: "absolute", bottom: 46, width: "100%", textAlign: "center" }}>
           <span style={{ color: "#e9dcc3", fontFamily: mincho, fontSize: 34, letterSpacing: 4, textShadow: "0 4px 14px rgba(0,0,0,0.8)" }}>{handle}</span>
         </div>

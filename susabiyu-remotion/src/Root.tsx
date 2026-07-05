@@ -28,6 +28,10 @@ import { TaishuShinbun, TSHIN_DUR } from "./TaishuShinbun";
 import { TaishuGrid, TGRID_DUR } from "./TaishuGrid";
 import { TaishuTanzaku, TTAN_DUR } from "./TaishuTanzaku";
 import { TaishuAkanoren, TANOREN_DUR } from "./TaishuAkanoren";
+import { TaishuTempo, TTEMPO_DUR } from "./TaishuTempo";
+import { TaishuShun, TSHUN_DUR } from "./TaishuShun";
+import { TaishuHitosara, THITO_DUR } from "./TaishuHitosara";
+import { TaishuOshina, TOSHINA_DUR } from "./TaishuOshina";
 import { TaishuGaku } from "./TaishuGaku";
 import { TaishuCapNoren } from "./TaishuNorenImg";
 import { TaishuImgE } from "./TaishuImgEx";
@@ -89,6 +93,10 @@ export const RemotionRoot: React.FC = () => {
       <Composition id="TaishuGrid" component={TaishuGrid} fps={FPS} width={1080} height={1920} durationInFrames={TGRID_DUR} defaultProps={{ storeName: "すさび湯三条", handle: "@susabiyu_sanjyo" }} />
       <Composition id="TaishuTanzaku" component={TaishuTanzaku} fps={FPS} width={1080} height={1920} durationInFrames={TTAN_DUR} defaultProps={{ storeName: "すさび湯三条", handle: "@susabiyu_sanjyo" }} />
       <Composition id="TaishuAkanoren" component={TaishuAkanoren} fps={FPS} width={1080} height={1920} durationInFrames={TANOREN_DUR} defaultProps={{ storeName: "すさび湯三条", handle: "@susabiyu_sanjyo" }} />
+      <Composition id="TaishuTempo" component={TaishuTempo} fps={FPS} width={1080} height={1920} durationInFrames={TTEMPO_DUR} defaultProps={{ storeName: "すさび湯三条", handle: "@susabiyu_sanjyo" }} />
+      <Composition id="TaishuShun" component={TaishuShun} fps={FPS} width={1080} height={1920} durationInFrames={TSHUN_DUR} defaultProps={{ storeName: "すさび湯三条", handle: "@susabiyu_sanjyo" }} />
+      <Composition id="TaishuHitosara" component={TaishuHitosara} fps={FPS} width={1080} height={1920} durationInFrames={THITO_DUR} defaultProps={{ storeName: "すさび湯三条", handle: "@susabiyu_sanjyo" }} />
+      <Composition id="TaishuOshina" component={TaishuOshina} fps={FPS} width={1080} height={1920} durationInFrames={TOSHINA_DUR} defaultProps={{ storeName: "すさび湯三条", handle: "@susabiyu_sanjyo" }} />
       <Composition id="TaishuGaku" component={TaishuGaku} fps={FPS} width={1080} height={1920} durationInFrames={150} defaultProps={{ storeName: "すさび湯三条", handle: "@susabiyu_sanjyo" }} />
       <Composition id="TaishuCapNoren" component={TaishuCapNoren} fps={FPS} width={1080} height={1920} durationInFrames={150} defaultProps={{ handle: "@susabiyu_sanjyo" }} />
       <Composition id="TaishuImgA" component={TaishuImgA} fps={FPS} width={1080} height={1920} durationInFrames={150} defaultProps={{ handle: "@susabiyu_sanjyo" }} />
