@@ -639,7 +639,18 @@
     var ny = window.pageYOffset || d.scrollTop || 0;
     if (ny !== sy && sy > 0) window.scrollTo(0, sy);
   }
+  // 見本の動画がいま再生中か（再生中は画面に一切触らない）
+  function galleryPlaying() {
+    if (!galleryEl) return false;
+    var vs = galleryEl.getElementsByTagName("video");
+    for (var i = 0; i < vs.length; i++) { if (!vs[i].paused && !vs[i].ended) return true; }
+    return false;
+  }
   function renderGalleryCore(items) {
+    // 再生中は何もしない（触ると再生が止まるため。止まった後の更新で追いつく）
+    if (hasCards() && galleryPlaying()) return;
+    // 一時的にサーバが空を返しても、表示済みの一覧は消さない
+    if (!items.length && hasCards()) return;
     // 自分が今押した採用/無し（楽観）はサーバ反映までキープ。追いついたら解除。
     items = items.map(function (it) {
       var want = pendingPat[it.pattern];
@@ -731,6 +742,16 @@
   var tabReport = document.getElementById("tabReport");
   function startGalleryPoll() { stopGalleryPoll(); galleryTimer = setInterval(loadPatterns, 5000); }
   function stopGalleryPoll() { if (galleryTimer) { clearInterval(galleryTimer); galleryTimer = null; } }
+  // 見本の動画を再生し始めたら自動更新ごと停止（通信もDOM操作も走らせない）。
+  // 止めたり見終わったら再開する。
+  if (galleryEl) {
+    galleryEl.addEventListener("play", function () { stopGalleryPoll(); }, true);
+    var resumePoll = function () {
+      if (currentTab === "gallery" && !document.hidden && !galleryPlaying()) startGalleryPoll();
+    };
+    galleryEl.addEventListener("pause", resumePoll, true);
+    galleryEl.addEventListener("ended", resumePoll, true);
+  }
   var currentTab = "feed";
   function loaderFor(name) { return name === "gallery" ? loadPatterns : (name === "report" ? loadReport : load); }
   function switchTo(name) {
