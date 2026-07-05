@@ -37,7 +37,7 @@ export const TaishuImgE: React.FC<{ handle?: string }> = ({ handle = "@susabiyu_
   const MIDORI = "#1f4038";
   return (
     <AbsoluteFill style={{ backgroundColor: "#f5c936" }}>
-      <div style={{ position: "absolute", left: 0, right: 0, bottom: 0, height: 360, background: "#f4ecd7" }} />
+      <div style={{ position: "absolute", left: 0, right: 0, bottom: 0, height: 320, background: "#f4ecd7" }} />
       <Uzumaki x={-110} y={-90} size={430} color={MIDORI} />
       <Uzumaki x={790} y={-40} size={360} color={MIDORI} />
       <Uzumaki x={-80} y={1590} size={320} color={MIDORI} opacity={0.35} />
@@ -46,19 +46,19 @@ export const TaishuImgE: React.FC<{ handle?: string }> = ({ handle = "@susabiyu_
       <div style={{ position: "absolute", top: 92, left: 0, right: 0, textAlign: "center" }}>
         <span style={{ color: MIDORI, fontFamily: fude, fontSize: 104, letterSpacing: 4, ...fuchi("#ffffff", 8) }}>{pickTag()}</span>
       </div>
-      <div style={{ position: "absolute", top: 246, left: 150, right: 150, borderTop: "7px dotted " + MIDORI, opacity: 0.75 }} />
+      <div style={{ position: "absolute", top: 232, left: 120, right: 120, borderTop: "7px dotted " + MIDORI, opacity: 0.75 }} />
       {/* 写真：丸角カード・大きく（全体表示） */}
-      <div style={{ position: "absolute", top: 290, left: 0, right: 0, bottom: 330, display: "flex", justifyContent: "center", alignItems: "center" }}>
-        <div style={{ background: "#fff", padding: 14, borderRadius: 30, boxShadow: "0 20px 50px rgba(90,70,10,0.35)", lineHeight: 0 }}>
-          <Img src={staticFile(photoStoryPhoto)} style={{ display: "block", maxWidth: 980, maxHeight: 1220, width: "auto", height: "auto",
+      <div style={{ position: "absolute", top: 262, left: 0, right: 0, bottom: 290, display: "flex", justifyContent: "center", alignItems: "center" }}>
+        <div style={{ background: "#fff", padding: 10, borderRadius: 26, boxShadow: "0 20px 50px rgba(90,70,10,0.35)", lineHeight: 0 }}>
+          <Img src={staticFile(photoStoryPhoto)} style={{ display: "block", maxWidth: 1030, maxHeight: 1320, width: "auto", height: "auto",
             borderRadius: 20, filter: "saturate(1.12) contrast(1.04)" }} />
         </div>
       </div>
       {/* キャプション（太ゴシック） */}
-      <div style={{ position: "absolute", bottom: 200, left: 0, right: 0, textAlign: "center", padding: "0 40px" }}>
+      <div style={{ position: "absolute", bottom: 186, left: 0, right: 0, textAlign: "center", padding: "0 36px" }}>
         <span style={{ color: MIDORI, fontFamily: goshi, fontWeight: 800, fontSize: oneLineFont(photoStoryCaption, 960, 54, 2, 28), whiteSpace: "nowrap" }}>{photoStoryCaption}</span>
       </div>
-      <div style={{ position: "absolute", bottom: 112, left: 0, right: 0, textAlign: "center" }}>
+      <div style={{ position: "absolute", bottom: 100, left: 0, right: 0, textAlign: "center" }}>
         <span style={{ color: MIDORI, fontFamily: goshi, fontWeight: 800, fontSize: 30 }}>大衆酒場 すさび湯三条　{handle}</span>
       </div>
     </AbsoluteFill>
@@ -81,10 +81,10 @@ export const TaishuImgG: React.FC<{ handle?: string }> = ({ handle = "@susabiyu_
           <span style={{ color: KURO, fontFamily: goshi, fontWeight: 800, fontSize: 40, letterSpacing: 2 }}>すさび湯三条</span>
         </div>
       </div>
-      {/* 見出し（筆文字・赤×白フチでドン） */}
+      {/* 見出し（太ゴシック・赤×白フチでドン） */}
       <div style={{ position: "absolute", top: 262, left: 0, right: 0, textAlign: "center", padding: "0 34px" }}>
-        <span style={{ color: AKAI, fontFamily: fude, fontSize: oneLineFont(photoStoryCaption, 990, 96, 2, 46),
-          whiteSpace: "nowrap", ...fuchi("#ffffff", 9) }}>{photoStoryCaption}</span>
+        <span style={{ color: AKAI, fontFamily: goshi, fontWeight: 800, fontSize: oneLineFont(photoStoryCaption, 990, 88, 2, 44),
+          whiteSpace: "nowrap", ...fuchi("#ffffff", 8) }}>{photoStoryCaption}</span>
       </div>
       {/* 写真：大きく全体表示 */}
       <div style={{ position: "absolute", top: 420, left: 0, right: 0, bottom: 200, display: "flex", justifyContent: "center", alignItems: "center" }}>

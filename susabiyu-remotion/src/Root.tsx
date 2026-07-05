@@ -31,6 +31,7 @@ import { TaishuAkanoren, TANOREN_DUR } from "./TaishuAkanoren";
 import { TaishuGaku } from "./TaishuGaku";
 import { TaishuCapNoren } from "./TaishuNorenImg";
 import { TaishuImgE, TaishuImgG } from "./TaishuImgEx";
+import { TaishuImgA, TaishuImgB, TaishuImgD, TaishuImgF } from "./TaishuImgAn";
 import { photos } from "./photoData";
 import { tempoPhotos } from "./tempoData";
 import { typoPhotos } from "./typoData";
@@ -90,6 +91,10 @@ export const RemotionRoot: React.FC = () => {
       <Composition id="TaishuAkanoren" component={TaishuAkanoren} fps={FPS} width={1080} height={1920} durationInFrames={TANOREN_DUR} defaultProps={{ storeName: "すさび湯三条", handle: "@susabiyu_sanjyo" }} />
       <Composition id="TaishuGaku" component={TaishuGaku} fps={FPS} width={1080} height={1920} durationInFrames={150} defaultProps={{ storeName: "すさび湯三条", handle: "@susabiyu_sanjyo" }} />
       <Composition id="TaishuCapNoren" component={TaishuCapNoren} fps={FPS} width={1080} height={1920} durationInFrames={150} defaultProps={{ handle: "@susabiyu_sanjyo" }} />
+      <Composition id="TaishuImgA" component={TaishuImgA} fps={FPS} width={1080} height={1920} durationInFrames={150} defaultProps={{ handle: "@susabiyu_sanjyo" }} />
+      <Composition id="TaishuImgB" component={TaishuImgB} fps={FPS} width={1080} height={1920} durationInFrames={150} defaultProps={{ handle: "@susabiyu_sanjyo" }} />
+      <Composition id="TaishuImgD" component={TaishuImgD} fps={FPS} width={1080} height={1920} durationInFrames={150} defaultProps={{ handle: "@susabiyu_sanjyo" }} />
+      <Composition id="TaishuImgF" component={TaishuImgF} fps={FPS} width={1080} height={1920} durationInFrames={150} defaultProps={{ handle: "@susabiyu_sanjyo" }} />
       <Composition id="TaishuImgE" component={TaishuImgE} fps={FPS} width={1080} height={1920} durationInFrames={150} defaultProps={{ handle: "@susabiyu_sanjyo" }} />
       <Composition id="TaishuImgG" component={TaishuImgG} fps={FPS} width={1080} height={1920} durationInFrames={150} defaultProps={{ handle: "@susabiyu_sanjyo" }} />
     </>
