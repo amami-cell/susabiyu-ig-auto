@@ -30,7 +30,7 @@ REG = {
   "taishutanzaku":("fetch_typo.py","TaishuTanzaku",True),
   "taishunoren":  ("fetch_typo.py","TaishuAkanoren",True),
   "taishugaku":   ("fetch_simple.py","TaishuGaku",False),
-  "taishucap":    ("fetch_photostory.py","TaishuCapImg",False),
+  "taishucap":    ("fetch_photostory.py","TaishuZen",False),
 }
 CAP_VAR = {
   "photo":("photoStoryData.ts","photoStoryCaption"),

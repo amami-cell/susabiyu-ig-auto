@@ -29,7 +29,6 @@ import { TaishuGrid, TGRID_DUR } from "./TaishuGrid";
 import { TaishuTanzaku, TTAN_DUR } from "./TaishuTanzaku";
 import { TaishuAkanoren, TANOREN_DUR } from "./TaishuAkanoren";
 import { TaishuGaku } from "./TaishuGaku";
-import { TaishuCapImg } from "./TaishuCapImg";
 import { photos } from "./photoData";
 import { tempoPhotos } from "./tempoData";
 import { typoPhotos } from "./typoData";
@@ -88,7 +87,6 @@ export const RemotionRoot: React.FC = () => {
       <Composition id="TaishuTanzaku" component={TaishuTanzaku} fps={FPS} width={1080} height={1920} durationInFrames={TTAN_DUR} defaultProps={{ storeName: "すさび湯三条", handle: "@susabiyu_sanjyo" }} />
       <Composition id="TaishuAkanoren" component={TaishuAkanoren} fps={FPS} width={1080} height={1920} durationInFrames={TANOREN_DUR} defaultProps={{ storeName: "すさび湯三条", handle: "@susabiyu_sanjyo" }} />
       <Composition id="TaishuGaku" component={TaishuGaku} fps={FPS} width={1080} height={1920} durationInFrames={150} defaultProps={{ storeName: "すさび湯三条", handle: "@susabiyu_sanjyo" }} />
-      <Composition id="TaishuCapImg" component={TaishuCapImg} fps={FPS} width={1080} height={1920} durationInFrames={150} defaultProps={{ handle: "@susabiyu_sanjyo" }} />
     </>
   );
 };
