@@ -9,7 +9,7 @@ import { oneLineFont } from "./fit";
 const { fontFamily: brush } = loadFont();
 const { fontFamily: goshi } = loadGoshi();
 const AKA = "#d7263d";
-const TAG = ["名物！", "一番人気", "アツアツ！", "自慢の一品", "これ頼んで！", "今日も旨い"];
+const TAG = ["名物", "一番人気", "店主おすすめ", "イチオシ！", "本日のオススメ", "今日も旨い"];
 
 export const TaishuZen: React.FC<{ handle?: string }> = ({ handle = "@susabiyu_sanjyo" }) => {
   const frame = useCurrentFrame();

@@ -28,7 +28,7 @@ const OUTRO = 42;
 const SLIDE = 86;
 const FADE = 16;
 const MARGIN = 96;
-const TAG = ["名物！", "一番人気", "アツアツ！", "自慢の一品", "これ頼んで！", "今日も旨い"];
+const TAG = ["名物", "一番人気", "店主おすすめ", "イチオシ！", "本日のオススメ", "今日も旨い"];
 
 // 提灯の灯りが差す暖色レイヤー（全場面共通の「色味」の要）
 const Akari: React.FC = () => (
