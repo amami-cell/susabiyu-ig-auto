@@ -107,10 +107,11 @@ export const TaishuImgD: React.FC<{ handle?: string }> = ({ handle = "@susabiyu_
     <AbsoluteFill style={{ backgroundColor: NAVY2 }}>
       <AbsoluteFill style={{ background: "repeating-linear-gradient(90deg, " + NAVY + " 0 214px, " + NAVY2 + " 214px 220px)" }} />
       <AbsoluteFill style={{ background: "radial-gradient(ellipse at 50% 30%, rgba(255,255,255,0.07) 0%, rgba(0,0,0,0.35) 100%)" }} />
-      {photoStoryHasLogo ? (
-        <Img src={staticFile("logo.png")} style={{ position: "absolute", top: 100, right: 64, height: 110, width: "auto", objectFit: "contain", opacity: 0.92 }} />
-      ) : null}
-      <div style={{ position: "absolute", top: 140, left: 76, transform: "rotate(-6deg)" }}><Fuda text={pickTag()} /></div>
+      {/* 上部中央に白抜きロゴ（のれんの染め抜き風） */}
+      <div style={{ position: "absolute", top: 120, left: 0, right: 0, textAlign: "center" }}>
+        <Img src={staticFile("storelogo_white.png")} style={{ width: 640, height: "auto", objectFit: "contain",
+          filter: "drop-shadow(0 6px 22px rgba(0,0,0,0.55))" }} />
+      </div>
       <AbsoluteFill style={{ justifyContent: "center", alignItems: "center" }}>
         <Shashin frame={KINARI} deg={-1.5} />
       </AbsoluteFill>
