@@ -47,8 +47,12 @@ export const TaishuImgE: React.FC<{ handle?: string }> = ({ handle = "@susabiyu_
         <span style={{ color: MIDORI, fontFamily: fude, fontSize: 104, letterSpacing: 4, ...fuchi("#ffffff", 8) }}>{pickTag()}</span>
       </div>
       <div style={{ position: "absolute", top: 232, left: 120, right: 120, borderTop: "7px dotted " + MIDORI, opacity: 0.75 }} />
+      {/* 営業時間（点線の下・1行で） */}
+      <div style={{ position: "absolute", top: 258, left: 0, right: 0, textAlign: "center" }}>
+        <span style={{ color: MIDORI, fontFamily: goshi, fontWeight: 800, fontSize: 34, letterSpacing: 1 }}>平日 16:00〜23:00　／　土日祝 11:00〜23:00</span>
+      </div>
       {/* 写真：丸角カード・大きく（全体表示） */}
-      <div style={{ position: "absolute", top: 262, left: 0, right: 0, bottom: 235, display: "flex", justifyContent: "center", alignItems: "center" }}>
+      <div style={{ position: "absolute", top: 330, left: 0, right: 0, bottom: 235, display: "flex", justifyContent: "center", alignItems: "center" }}>
         <div style={{ background: "#fff", padding: 10, borderRadius: 26, boxShadow: "0 20px 50px rgba(90,70,10,0.35)", lineHeight: 0 }}>
           <Img src={staticFile(photoStoryPhoto)} style={{ display: "block", maxWidth: 1030, maxHeight: 1320, width: "auto", height: "auto",
             borderRadius: 20, filter: "saturate(1.12) contrast(1.04)" }} />
