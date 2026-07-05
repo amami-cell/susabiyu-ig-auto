@@ -73,18 +73,15 @@ export const TaishuImgB: React.FC<{ handle?: string }> = ({ handle = "@susabiyu_
       <Halftone opacity={0.16} color="rgba(120,45,15,0.7)" />
       <Tex opacity={0.16} blend="multiply" />
       <AbsoluteFill style={{ background: "radial-gradient(ellipse at 50% 46%, rgba(0,0,0,0) 55%, rgba(90,35,10,0.28) 100%)" }} />
-      <div style={{ position: "absolute", top: 128, left: 0, right: 0, textAlign: "center" }}>
-        <div style={{ display: "inline-block", background: "linear-gradient(180deg," + SHU + "," + SHU_DARK + ")",
-          border: "3px solid " + KIN, borderRadius: 10, padding: "12px 44px", transform: "rotate(-1deg)",
-          boxShadow: "0 4px 0 " + SHU_DARK + ", 0 12px 30px rgba(70,25,5,0.4)" }}>
-          <span style={{ color: "#fff7e6", fontFamily: pop, fontSize: 44, letterSpacing: 2, whiteSpace: "nowrap" }}>{pickTag()}</span>
-        </div>
+      {/* 上部中央にロゴ、その下に大きく「営業中」 */}
+      <div style={{ position: "absolute", top: 88, left: 0, right: 0, textAlign: "center" }}>
+        <Img src={staticFile("storelogo_white.png")} style={{ width: 560, height: "auto", maxHeight: 210, objectFit: "contain",
+          filter: "drop-shadow(0 5px 16px rgba(90,35,5,0.65))" }} />
       </div>
-      {/* リボンの下に大きく「営業中」 */}
-      <div style={{ position: "absolute", top: 246, left: 0, right: 0, textAlign: "center", transform: "rotate(-1deg)" }}>
+      <div style={{ position: "absolute", top: 306, left: 0, right: 0, textAlign: "center", transform: "rotate(-1deg)" }}>
         <span style={{ color: SHU_DARK, fontFamily: pop, fontSize: 150, letterSpacing: 10, ...fuchi("#fff7e6", 9) }}>営業中</span>
       </div>
-      <div style={{ position: "absolute", top: 470, left: 0, right: 0, bottom: 350, display: "flex", justifyContent: "center", alignItems: "center" }}>
+      <div style={{ position: "absolute", top: 530, left: 0, right: 0, bottom: 350, display: "flex", justifyContent: "center", alignItems: "center" }}>
         <div style={{ position: "relative" }}>
           <Shashin frame="#fdf6e6" maxH={860} />
           {photoStoryHasLogo ? (
