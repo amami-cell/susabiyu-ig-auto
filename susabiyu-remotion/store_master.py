@@ -1171,6 +1171,55 @@ def musicrestore():
             print("[FOLDER " + label + "] 取得失敗:", e)
 
 
+def musiccheck(arg):
+    """引数のフォルダURL/ID（カンマ区切り）の正体を調べる。名前・親・中身・
+    システムが読むフォルダ(env)と同一かを表示。IDそのものは出力しない。"""
+    import re as _re
+    cr = _creds()
+    dr = _drive(cr)
+    env = {"uptempo": os.environ.get("GENRE_MUSIC_UPTEMPO_ID") or "",
+           "normal": os.environ.get("GENRE_MUSIC_NORMAL_ID") or ""}
+    def meta(fid):
+        try:
+            return dr.files().get(fileId=fid, fields="id,name,parents,owners(emailAddress),trashed",
+                                  supportsAllDrives=True).execute()
+        except Exception as e:
+            return {"error": str(e)[:100]}
+    for label, fid in env.items():
+        if not fid:
+            continue
+        m = meta(fid)
+        pn = ""
+        if m.get("parents"):
+            pm = meta(m["parents"][0])
+            pn = pm.get("name", "?")
+        print("ENV|" + label + "|name:" + m.get("name", "?") + "|parent:" + pn)
+    for tok in (arg or "").split(","):
+        tok = tok.strip()
+        if not tok:
+            continue
+        mm = _re.search(r"[-\w]{20,}", tok)
+        fid = mm.group(0) if mm else tok
+        m = meta(fid)
+        if "error" in m:
+            print("CHK|" + tok[-8:] + "|エラー:" + m["error"])
+            continue
+        same = [k for k, v in env.items() if v == fid]
+        pn = ""
+        if m.get("parents"):
+            pm = meta(m["parents"][0])
+            pn = pm.get("name", "?")
+        own = ",".join(o.get("emailAddress", "?") for o in m.get("owners", []))
+        try:
+            r2 = dr.files().list(q="'" + fid + "' in parents and trashed = false",
+                fields="files(name)", pageSize=100).execute()
+            names = [x.get("name") for x in r2.get("files", [])]
+        except Exception as e:
+            names = ["(一覧失敗:" + str(e)[:60] + ")"]
+        print("CHK|…" + fid[-6:] + "|name:" + m.get("name", "?") + "|parent:" + pn + "|owner:" + own +
+              "|env一致:" + (same[0] if same else "なし") + "|中身" + str(len(names)) + "件:" + ", ".join(names[:25]))
+
+
 if __name__ == "__main__":
     mode = (sys.argv[1] if len(sys.argv) > 1 else "init").strip().lower()
     arg = sys.argv[2].strip() if len(sys.argv) > 2 else None
@@ -1212,6 +1261,8 @@ if __name__ == "__main__":
         distmove(arg)
     elif mode == "distfinal":
         distfinal(arg)
+    elif mode == "musiccheck":
+        musiccheck(arg)
     elif mode == "musicrestore":
         musicrestore()
     elif mode == "musicdirs":
