@@ -5,7 +5,7 @@ import poster
 
 SHEET_ID = "13zKaUblOwmgZ-lgCfxylCLlW2Fqutqct5h5TvMRWv30"
 APP_TAB = "承認待ち"
-PAT_JA = {"sushi":"王道","tempo":"賑やか","typo":"雑誌風","photo":"全画面","simple":"額装","caption":"写真キャプション", "oshina":"お品書き","oshinatate":"お品書き(縦書き)","kaiten":"回転レーン","osusume":"店主おすすめ","gridzoom":"グリッド→ズーム","noren":"暖簾くぐり","season":"季節の旬","taishufuda":"大衆・値札チラシ","taishukaiten":"大衆・回転レーン","taishuoshi":"大衆・イチオシ","taishuodo":"大衆・王道","taishuzen":"大衆・全画面","taishushinbun":"大衆・見出し新聞","taishugrid":"大衆・グリッドズーム","taishutanzaku":"大衆・壁の短冊","taishunoren":"大衆・暖簾くぐり","taishutempo":"大衆・賑やかテンポ","taishushun":"大衆・季節の旬","taishuhito":"大衆・本日の一皿","taishuoshina":"大衆・お品書き","taishugaku":"大衆・額装（画像）","taishucap":"大衆・写真一言（画像）","taishuimga":"画像案A・提灯(寿司酒場)","taishuimga2":"画像案A2・提灯(大衆酒場)","taishuimgb":"画像案B・チラシ","taishuimgd":"画像案D・紺のれん","taishuimgf":"画像案F・白抜き文字","taishuimge":"画像案E・黄ポップ"}
+PAT_JA = {"sushi":"王道","tempo":"賑やか","typo":"雑誌風","photo":"全画面","simple":"額装","caption":"写真キャプション", "oshina":"お品書き","oshinatate":"お品書き(縦書き)","kaiten":"回転レーン","osusume":"店主おすすめ","gridzoom":"グリッド→ズーム","noren":"暖簾くぐり","season":"季節の旬","taishufuda":"大衆・値札チラシ","taishukaiten":"大衆・回転レーン","taishuoshi":"大衆・イチオシ","taishuodo":"大衆・王道","taishuzen":"大衆・全画面","taishushinbun":"大衆・見出し新聞","taishugrid":"大衆・グリッドズーム","taishutanzaku":"大衆・壁の短冊","taishunoren":"大衆・暖簾くぐり","taishutempo":"大衆・賑やかテンポ","taishushun":"大衆・季節の旬","taishuhito":"大衆・本日の一皿","taishuoshina":"大衆・お品書き","taishugaku":"大衆・額装（画像）","taishucap":"大衆・写真一言（画像）","taishuimga":"画像案A・提灯(寿司酒場)","taishuimga2":"画像案A2・提灯(大衆酒場)","taishuimgb":"画像案B・チラシ","taishuimgd":"画像案D・紺のれん","taishuimgf":"画像案F・白抜き文字","taishuimge":"画像案E・黄ポップ","taishubeat":"大衆・音ハメ"}
 REG = {
   "sushi":   ("fetch_drive_photos.py","SushiStory",True),
   "tempo":   ("fetch_tempo.py","TempoStory",True),
@@ -33,6 +33,7 @@ REG = {
   "taishushun":   ("fetch_typo.py","TaishuShun",True),
   "taishuhito":   ("fetch_typo.py","TaishuHitosara",True),
   "taishuoshina": ("fetch_typo.py","TaishuOshina",True),
+  "taishubeat":   ("fetch_beat.py","TaishuBeat",True),
   "taishugaku":   ("fetch_simple.py","TaishuGaku",False),
   "taishucap":    ("fetch_photostory.py","TaishuCapNoren",False),
   "taishuimga":   ("fetch_photostory.py","TaishuImgA",False),
