@@ -1131,6 +1131,21 @@ def pendingdump():
         print("行%d(%d列) %s" % (i + 1, len(r), " | ".join(cells) if cells else "(全セル空)"))
 
 
+def usagedump():
+    """使用写真タブの直近30行（写真の使い回し防止の記録簿）を出力。"""
+    cr = _creds()
+    sh = _sheets(cr)
+    rows = sh.values().get(spreadsheetId=SHEET_ID, range="使用写真!A:H").execute().get("values", [])
+    print("総行数:", len(rows))
+    for i, r in enumerate(rows[-30:]):
+        cells = []
+        for j, v in enumerate(r):
+            s = str(v)
+            if s:
+                cells.append("%s=%s" % (chr(65 + j), s[:40]))
+        print(" ", " | ".join(cells) if cells else "(空)")
+
+
 def pendingfix():
     """M列以降にズレて書き込まれた承認待ち行をA列基準に修復し、
     同じ投稿時刻の重複は最後の1件だけ残して並べ直す。"""
@@ -1351,6 +1366,8 @@ if __name__ == "__main__":
         sheetrevs()
     elif mode == "pendingfix":
         pendingfix()
+    elif mode == "usagedump":
+        usagedump()
     elif mode == "patdump":
         patdump()
     elif mode == "sushifolder":
