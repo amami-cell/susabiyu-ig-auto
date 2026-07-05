@@ -585,11 +585,15 @@
     galleryEl.classList.toggle("fimg", GFILTER === "img");
     var fb = document.getElementById("gFilter");
     if (fb) {
+      // ヘッダー（固定バー）のすぐ下に貼り付ける
+      var tb = document.querySelector(".topbar");
+      if (tb) fb.style.top = (tb.offsetHeight + 8) + "px";
       var bv = fb.querySelector(".fv"), bi = fb.querySelector(".fi");
       if (bv) bv.classList.toggle("sel", GFILTER === "vid");
       if (bi) bi.classList.toggle("sel", GFILTER === "img");
     }
   }
+  window.addEventListener("resize", applyGalleryFilter);
   function setGalleryFilter(v) {
     GFILTER = v;
     try { localStorage.setItem("sb_gfilter", v); } catch (e) {}
