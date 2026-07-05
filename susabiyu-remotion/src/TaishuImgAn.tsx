@@ -145,8 +145,9 @@ export const TaishuImgF: React.FC<{ handle?: string }> = ({ handle = "@susabiyu_
         <Img src={staticFile(photoStoryPhoto)} style={{ maxWidth: "100%", maxHeight: 1250, width: "auto", height: "auto", filter: "saturate(1.1) contrast(1.03)" }} />
       </AbsoluteFill>
       <div style={{ position: "absolute", top: 90, left: 64, right: 64, bottom: 90, border: "3px solid rgba(255,255,255,0.9)" }} />
-      <div style={{ position: "absolute", top: 200, left: 0, right: 0, textAlign: "center", transform: "rotate(-4deg)" }}>
-        <span style={{ color: "#fff", fontFamily: pop, fontSize: 108, letterSpacing: 2, textShadow: "0 6px 26px rgba(60,30,0,0.45)" }}>{pickTag()}</span>
+      <div style={{ position: "absolute", top: 150, left: 0, right: 0, textAlign: "center" }}>
+        <Img src={staticFile("storelogo_white.png")} style={{ width: 640, height: "auto", objectFit: "contain",
+          filter: "drop-shadow(0 6px 22px rgba(60,30,0,0.55))" }} />
       </div>
       <div style={{ position: "absolute", bottom: 300, left: 0, right: 0, textAlign: "center", transform: "rotate(-3deg)", padding: "0 40px" }}>
         <span style={{ color: "#fff", fontFamily: pop, fontSize: oneLineFont(photoStoryCaption, 920, 64, 2, 30), whiteSpace: "nowrap",

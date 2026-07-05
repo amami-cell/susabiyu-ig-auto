@@ -37,7 +37,7 @@ export const TaishuImgE: React.FC<{ handle?: string }> = ({ handle = "@susabiyu_
   const MIDORI = "#1f4038";
   return (
     <AbsoluteFill style={{ backgroundColor: "#f5c936" }}>
-      <div style={{ position: "absolute", left: 0, right: 0, bottom: 0, height: 320, background: "#f4ecd7" }} />
+      <div style={{ position: "absolute", left: 0, right: 0, bottom: 0, height: 250, background: "#f4ecd7" }} />
       <Uzumaki x={-110} y={-90} size={430} color={MIDORI} />
       <Uzumaki x={790} y={-40} size={360} color={MIDORI} />
       <Uzumaki x={-80} y={1590} size={320} color={MIDORI} opacity={0.35} />
@@ -48,17 +48,17 @@ export const TaishuImgE: React.FC<{ handle?: string }> = ({ handle = "@susabiyu_
       </div>
       <div style={{ position: "absolute", top: 232, left: 120, right: 120, borderTop: "7px dotted " + MIDORI, opacity: 0.75 }} />
       {/* 写真：丸角カード・大きく（全体表示） */}
-      <div style={{ position: "absolute", top: 262, left: 0, right: 0, bottom: 290, display: "flex", justifyContent: "center", alignItems: "center" }}>
+      <div style={{ position: "absolute", top: 262, left: 0, right: 0, bottom: 235, display: "flex", justifyContent: "center", alignItems: "center" }}>
         <div style={{ background: "#fff", padding: 10, borderRadius: 26, boxShadow: "0 20px 50px rgba(90,70,10,0.35)", lineHeight: 0 }}>
           <Img src={staticFile(photoStoryPhoto)} style={{ display: "block", maxWidth: 1030, maxHeight: 1320, width: "auto", height: "auto",
             borderRadius: 20, filter: "saturate(1.12) contrast(1.04)" }} />
         </div>
       </div>
       {/* キャプション（太ゴシック） */}
-      <div style={{ position: "absolute", bottom: 186, left: 0, right: 0, textAlign: "center", padding: "0 36px" }}>
+      <div style={{ position: "absolute", bottom: 138, left: 0, right: 0, textAlign: "center", padding: "0 36px" }}>
         <span style={{ color: MIDORI, fontFamily: goshi, fontWeight: 800, fontSize: oneLineFont(photoStoryCaption, 960, 54, 2, 28), whiteSpace: "nowrap" }}>{photoStoryCaption}</span>
       </div>
-      <div style={{ position: "absolute", bottom: 100, left: 0, right: 0, textAlign: "center" }}>
+      <div style={{ position: "absolute", bottom: 62, left: 0, right: 0, textAlign: "center" }}>
         <span style={{ color: MIDORI, fontFamily: goshi, fontWeight: 800, fontSize: 30 }}>大衆酒場 すさび湯三条　{handle}</span>
       </div>
     </AbsoluteFill>
@@ -90,6 +90,10 @@ export const TaishuImgG: React.FC<{ handle?: string }> = ({ handle = "@susabiyu_
       <div style={{ position: "absolute", top: 420, left: 0, right: 0, bottom: 200, display: "flex", justifyContent: "center", alignItems: "center" }}>
         <Img src={staticFile(photoStoryPhoto)} style={{ maxWidth: 1010, maxHeight: 1180, width: "auto", height: "auto",
           filter: "saturate(1.15) contrast(1.05) drop-shadow(0 24px 40px rgba(60,30,0,0.35))" }} />
+      </div>
+      {/* 下：決めの一言 */}
+      <div style={{ position: "absolute", bottom: 168, left: 0, right: 0, textAlign: "center" }}>
+        <span style={{ color: KURO, fontFamily: goshi, fontWeight: 800, fontSize: 44, letterSpacing: 2, ...fuchi("#ffffff", 6) }}>本日も元気に営業中。</span>
       </div>
       {/* 右側：縦書きの黄マーカー文字 */}
       <div style={{ position: "absolute", right: 66, top: 640 }}>
