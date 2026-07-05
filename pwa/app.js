@@ -577,7 +577,13 @@
       else { toast("管理者コードが違います"); }
     }).catch(function () { toast("通信エラー"); });
   }
-  function lockAdmin() { ADMIN = ""; localStorage.removeItem("sb_admin"); applyAdminClass(); }
+  function lockAdmin() {
+    // 採用ボタン群が消えて全カードの高さが縮む＝スクロール位置が飛ぶので、位置を保って戻す
+    var d = document.documentElement;
+    var sy = window.pageYOffset || d.scrollTop || 0;
+    ADMIN = ""; localStorage.removeItem("sb_admin"); applyAdminClass();
+    if (sy > 0) window.scrollTo(0, sy);
+  }
   // 「動画／画像」切替（固定ボタン）。選択は端末に記憶する
   var GFILTER = localStorage.getItem("sb_gfilter") || "vid";
   function applyGalleryFilter() {
@@ -625,7 +631,15 @@
   function patternsCacheGet() { try { return JSON.parse(localStorage.getItem("sb_patterns") || "null"); } catch (e) { return null; } }
   function patternsCacheSet(items) { try { localStorage.setItem("sb_patterns", JSON.stringify(items)); } catch (e) {} }
   function hasCards() { return !!galleryEl.querySelector(".card"); }
+  // 描画でスクロール位置が動いたら元に戻す（「採用する」押下後の自動更新などで先頭に戻さない）
   function renderGallery(items) {
+    var d = document.documentElement;
+    var sy = window.pageYOffset || d.scrollTop || 0;
+    renderGalleryCore(items);
+    var ny = window.pageYOffset || d.scrollTop || 0;
+    if (ny !== sy && sy > 0) window.scrollTo(0, sy);
+  }
+  function renderGalleryCore(items) {
     // 自分が今押した採用/無し（楽観）はサーバ反映までキープ。追いついたら解除。
     items = items.map(function (it) {
       var want = pendingPat[it.pattern];
