@@ -45,7 +45,8 @@ const ImgABase: React.FC<{ handle: string; moji: string[] }> = ({ handle, moji }
       <AbsoluteFill style={{ pointerEvents: "none", background: "radial-gradient(ellipse at 50% -6%, rgba(255,150,60,0.28) 0%, rgba(0,0,0,0) 50%)" }} />
       <Lanterns moji={moji} scale={1.3} />
       {photoStoryHasLogo ? (
-        <Img src={staticFile("logo.png")} style={{ position: "absolute", top: 240, right: 60, height: 110, width: "auto", objectFit: "contain", opacity: 0.9 }} />
+        <Img src={staticFile("logo.png")} style={{ position: "absolute", top: 290, right: 48, height: 160, width: "auto", objectFit: "contain", opacity: 0.95,
+          filter: "drop-shadow(0 6px 16px rgba(0,0,0,0.55))" }} />
       ) : null}
       <AbsoluteFill style={{ justifyContent: "center", alignItems: "center" }}>
         <div style={{ position: "relative" }}>
