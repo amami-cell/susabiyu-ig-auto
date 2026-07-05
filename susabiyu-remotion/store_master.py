@@ -1114,6 +1114,23 @@ def columns():
     print("[MASTER] 『アプリ表示』(T)＋『アイコン短縮名』(U)列を用意しました")
 
 
+def pendingdump():
+    """承認待ちタブの全行を診断用に出力（token/時刻/パターン/状態/URL長）。"""
+    cr = _creds()
+    sh = _sheets(cr)
+    rows = sh.values().get(spreadsheetId=SHEET_ID, range="承認待ち!A:M").execute().get("values", [])
+    print("総行数(ヘッダー込み):", len(rows))
+    for i, r in enumerate(rows):
+        if i == 0:
+            continue
+        tok = r[0] if len(r) > 0 else ""
+        when = r[1] if len(r) > 1 else ""
+        pat = r[3] if len(r) > 3 else ""
+        url = r[4] if len(r) > 4 else ""
+        st = r[7] if len(r) > 7 else ""
+        print("行%d | %s | %s | %s | %s | url%d文字" % (i + 1, tok, when, pat, st, len(url)))
+
+
 def clearpending():
     """承認待ちタブの行を全消去（ヘッダーは残す）。本番切替時に旧デザインの
     予約投稿を一掃してから prepare で作り直すためのモード。"""
@@ -1280,6 +1297,8 @@ if __name__ == "__main__":
         musicdirs()
     elif mode == "clearpending":
         clearpending()
+    elif mode == "pendingdump":
+        pendingdump()
     elif mode == "patdump":
         patdump()
     elif mode == "sushifolder":
