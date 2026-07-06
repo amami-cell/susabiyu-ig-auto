@@ -783,7 +783,20 @@ def inbox():
     """CapCut等の参考動画を受け取るDriveフォルダを作成し、あなた(SHARE_EMAIL)に編集権限で共有＋
     リンクを知っていれば閲覧可にする。ここに動画を入れてもらい、こちらで中身を確認する用。"""
     cr = _creds(); drive = _drive(cr)
-    fid = _mkfolder(drive, "参考テンプレ受け取り（CapCut等）")
+    name = "参考テンプレ受け取り（CapCut等）"
+    fid = None
+    try:  # 既に作ってあれば同じフォルダを使い回す（毎回新規に作らない）
+        r = drive.files().list(
+            q="name='%s' and mimeType='application/vnd.google-apps.folder' and trashed=false" % name,
+            fields="files(id)", supportsAllDrives=True, includeItemsFromAllDrives=True).execute()
+        fs = r.get("files", [])
+        if fs:
+            fid = fs[0]["id"]
+            print("[INBOX] 既存フォルダを使用")
+    except Exception as e:
+        print("[INBOX] 既存検索スキップ:", e)
+    if not fid:
+        fid = _mkfolder(drive, name)
     owner = SHARE_EMAIL or "amami@8sin.co.jp"
     _share(drive, fid, owner)         # あなた本人に編集権限（アップロードできる）
     try:                              # リンクを知っていれば誰でも編集可＝ログインしていればアップロード可
