@@ -11,6 +11,7 @@
   button{touch-action:manipulation;font-family:inherit}
   html,body{background:var(--bg);color:var(--fg);font-family:-apple-system,BlinkMacSystemFont,"Hiragino Sans","Noto Sans JP",sans-serif;
     min-height:100%;overscroll-behavior-y:none}
+  body{-webkit-user-select:none;user-select:none}
   .top{position:sticky;top:0;z-index:10;background:rgba(15,17,21,.88);backdrop-filter:saturate(180%) blur(12px);
     border-bottom:1px solid var(--line);display:flex;align-items:center;gap:10px;
     padding:calc(env(safe-area-inset-top) + 14px) 18px 12px}
@@ -39,7 +40,7 @@
   .tile .ic{position:relative;width:74px;height:74px;border-radius:20px;overflow:hidden;background:var(--card);
     border:1px solid var(--line);box-shadow:0 6px 16px rgba(0,0,0,.35);
     display:flex;align-items:center;justify-content:center}
-  .tile .ic img{width:100%;height:100%;object-fit:cover;display:block}
+  .tile .ic img{width:100%;height:100%;object-fit:cover;display:block;pointer-events:none}
   .tile .ic .init{font-size:34px;font-weight:800;color:#e9dcc3;font-family:"Hiragino Mincho ProN",serif}
   .tile .nm{font-size:11px;font-weight:700;color:var(--fg);max-width:100px;text-align:center;
     white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -47,13 +48,51 @@
     white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .tile .prep{position:absolute;top:-5px;right:2px;background:#3a2f14;color:#ffd23f;border:1px solid #5c4a1c;
     font-size:9px;font-weight:800;padding:2px 7px;border-radius:999px}
-  .tile:active .ic{transform:scale(.94)}
+  body:not(.editing) .tile:active .ic{transform:scale(.94)}
+
+  /* フォルダアイコン（中のミニアイコン9個まで） */
+  .tile .ic.fold{background:#1d2330;padding:0}
+  .fgrid{display:grid;grid-template-columns:repeat(3,1fr);grid-template-rows:repeat(3,1fr);
+    gap:3px;padding:8px;width:100%;height:100%}
+  .fgrid .m{border-radius:5px;overflow:hidden;background:var(--card);display:flex;align-items:center;
+    justify-content:center;font-size:10px;font-weight:800;color:#e9dcc3}
+  .fgrid .m img{width:100%;height:100%;object-fit:cover;pointer-events:none}
+
   /* 編集モード：ゆらゆら＋−バッジ */
+  body.editing .tile{touch-action:none}
   body.editing .tile .ic{animation:wig 0.35s ease-in-out infinite alternate}
   @keyframes wig{from{transform:rotate(-1.6deg)}to{transform:rotate(1.6deg)}}
   .tile .minus{display:none;position:absolute;top:-7px;left:6px;width:24px;height:24px;border-radius:50%;
-    background:#c0473a;color:#fff;border:2px solid var(--bg);font-size:16px;font-weight:800;line-height:20px;z-index:2}
+    background:#c0473a;color:#fff;border:2px solid var(--bg);font-size:16px;font-weight:800;line-height:20px;z-index:2;
+    text-align:center}
   body.editing .tile .minus{display:block}
+
+  /* ドラッグ中 */
+  .tile.ghost{opacity:.3}
+  .drag-clone{position:fixed;z-index:99;pointer-events:none;margin:0;
+    transform:scale(1.12);opacity:.95;filter:drop-shadow(0 10px 24px rgba(0,0,0,.6))}
+  .drag-clone .ic{animation:none !important}
+  .tile.fover .ic{box-shadow:0 0 0 3px var(--accent), 0 6px 16px rgba(0,0,0,.35);transform:scale(1.1);animation:none}
+
+  /* フォルダを開いた画面 */
+  .fov{position:fixed;inset:0;background:rgba(10,12,16,.72);backdrop-filter:blur(14px);z-index:40;
+    display:none;flex-direction:column;align-items:center;justify-content:center;padding:20px}
+  .fov.show{display:flex}
+  .ftitle{background:none;border:none;border-bottom:1px dashed #3a4150;color:var(--fg);
+    font-size:19px;font-weight:800;text-align:center;max-width:70vw;padding:6px 10px;margin-bottom:6px;outline:none}
+  .ftitle:focus{border-bottom-color:var(--accent)}
+  .fedit{color:var(--sub);font-size:10px;margin-bottom:10px}
+  .fpanel{background:#161b24;border:1px solid var(--line);border-radius:24px;width:min(92vw,400px);
+    padding:10px 0 4px;box-shadow:0 20px 60px rgba(0,0,0,.5)}
+  .fpages{display:flex;overflow-x:auto;scroll-snap-type:x mandatory;-webkit-overflow-scrolling:touch;scrollbar-width:none}
+  .fpages::-webkit-scrollbar{display:none}
+  .fpage{flex:0 0 100%;scroll-snap-align:start;padding:14px 12px;
+    display:grid;grid-template-columns:repeat(3,1fr);grid-auto-rows:118px;gap:12px 8px;align-content:start;min-height:250px}
+  .fdots{display:flex;justify-content:center;gap:6px;padding:4px 0 10px}
+  .fdots i{width:6px;height:6px;border-radius:50%;background:#39404d}
+  .fdots i.on{background:var(--accent)}
+  .fclose{margin-top:14px;color:var(--sub);font-size:12px;background:none;border:1px solid var(--line);
+    border-radius:999px;padding:8px 22px}
 
   /* 表示/非表示の設定モーダル */
   .ov{position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:50;display:none;align-items:flex-end}
@@ -74,6 +113,11 @@
   .sheet .save{margin-top:16px;width:100%;background:#1f9d55;color:#fff;border:none;border-radius:12px;
     padding:14px 0;font-size:15px;font-weight:800}
   .foot{color:#5b6472;font-size:10px;text-align:center;padding:10px 0 calc(env(safe-area-inset-bottom) + 16px)}
+  #toast{position:fixed;left:50%;bottom:calc(env(safe-area-inset-bottom) + 30px);transform:translateX(-50%);
+    background:#232a36;color:var(--fg);border:1px solid var(--line);border-radius:999px;
+    font-size:13px;font-weight:700;padding:10px 20px;z-index:60;opacity:0;transition:opacity .25s;pointer-events:none;
+    white-space:nowrap}
+  #toast.show{opacity:1}
 </style>
 </head>
 <body>
@@ -82,15 +126,27 @@
   <button class="done" id="doneBtn">完了</button>
   <button class="gear" id="gearBtn">⚙︎ 店舗の表示</button>
 </header>
-<div class="hint">アイコンをタップで各店舗の確認画面へ。<b>長押し</b>で並びの編集（−で非表示）ができます。</div>
+<div class="hint">アイコンをタップで各店舗の確認画面へ。<b>長押し</b>で編集（ドラッグで並べ替え・重ねるとフォルダ・−で非表示）。<br>並びやフォルダ分けは<b>この端末だけ</b>の設定です（他の人には影響しません）。</div>
 <div class="pages" id="pages"></div>
 <div class="dots" id="dots"></div>
 <div class="foot">すさび湯グループ 投稿管理</div>
+<div id="toast"></div>
+
+<!-- フォルダを開いた画面 -->
+<div class="fov" id="fov">
+  <input class="ftitle" id="ftitle" maxlength="20" placeholder="フォルダ名">
+  <div class="fedit">標題はタップで編集できます</div>
+  <div class="fpanel" id="fpanel">
+    <div class="fpages" id="fpages"></div>
+    <div class="fdots" id="fdots"></div>
+  </div>
+  <button class="fclose" id="fclose">閉じる</button>
+</div>
 
 <div class="ov" id="ov">
   <div class="sheet">
     <h2>表示する店舗</h2>
-    <div class="note">チェックした店舗だけがホームに並びます。担当していない店舗は外してOK（あとからここで戻せます）。</div>
+    <div class="note">チェックした店舗だけがホームに並びます。担当していない店舗は外してOK（あとからここで戻せます）。<br>この設定もこの端末だけに保存されます。</div>
     <div id="rows"></div>
     <button class="save" id="saveBtn">保存する</button>
   </div>
@@ -100,41 +156,101 @@
 <script>
 (function () {
   var STORES = window.SUSABIYU_STORES || [];
-  var PER_PAGE = 12;   // 3列×4行
+  var BYID = {}; STORES.forEach(function (s) { BYID[s.id] = s; });
+  var PER_PAGE = 12;  // ホーム 3列×4行
+  var F_PER = 9;      // フォルダ内 3列×3行（超えたら横スライド）
+  var LKEY = "sb_home_layout2";
   var pagesEl = document.getElementById("pages");
   var dotsEl = document.getElementById("dots");
   var editing = false;
+  var openFid = null; // 開いているフォルダid
 
-  function hiddenIds() {
-    try { return JSON.parse(localStorage.getItem("sb_home_hidden") || "[]"); } catch (e) { return []; }
+  /* ---------- 並び・フォルダの保存（この端末だけ） ---------- */
+  function loadLayout() {
+    try {
+      var l = JSON.parse(localStorage.getItem(LKEY));
+      if (l && l.items) return l;
+    } catch (e) {}
+    var hid = [];
+    try { hid = JSON.parse(localStorage.getItem("sb_home_hidden") || "[]"); } catch (e) {}
+    return { items: STORES.map(function (s) { return { t: "s", id: s.id }; }), hidden: hid, fseq: 1 };
   }
-  function setHidden(ids) {
-    try { localStorage.setItem("sb_home_hidden", JSON.stringify(ids)); } catch (e) {}
+  var layout = loadLayout();
+  function syncLayout() {
+    var seen = {};
+    layout.items = layout.items.filter(function (it) {
+      if (it.t === "s") {
+        if (!BYID[it.id] || seen[it.id]) return false;
+        seen[it.id] = 1; return true;
+      }
+      it.ids = (it.ids || []).filter(function (id) {
+        if (!BYID[id] || seen[id]) return false;
+        seen[id] = 1; return true;
+      });
+      return it.ids.length > 0;
+    });
+    STORES.forEach(function (s) { if (!seen[s.id]) layout.items.push({ t: "s", id: s.id }); });
   }
+  syncLayout();
+  function save() { try { localStorage.setItem(LKEY, JSON.stringify(layout)); } catch (e) {} }
+  function isHidden(id) { return layout.hidden.indexOf(id) >= 0; }
+  function findFolder(fid) {
+    for (var i = 0; i < layout.items.length; i++)
+      if (layout.items[i].t === "f" && layout.items[i].fid === fid) return layout.items[i];
+    return null;
+  }
+
+  /* ---------- 描画 ---------- */
   function iconHtml(s, cls) {
     if (s.icon) return '<img src="' + s.icon + '" alt="">';
     return '<span class="' + (cls || "init") + '">' + (s.initial || s.name.charAt(0)) + '</span>';
   }
-
+  function storeTile(s) {
+    var t = document.createElement("button");
+    t.className = "tile";
+    t.setAttribute("data-kind", "s");
+    t.setAttribute("data-id", s.id);
+    t.innerHTML =
+      '<span class="minus">−</span>' +
+      '<span class="ic">' + iconHtml(s) + (s.live ? "" : '<span class="prep">準備中</span>') + '</span>' +
+      '<span class="nm">' + s.name + '</span>' +
+      '<span class="sb">' + (s.short || "") + '</span>';
+    return t;
+  }
+  function folderTile(f) {
+    var vis = f.ids.filter(function (id) { return !isHidden(id); });
+    var minis = vis.slice(0, 9).map(function (id) {
+      var s = BYID[id];
+      return '<span class="m">' + (s.icon ? '<img src="' + s.icon + '" alt="">' : (s.initial || s.name.charAt(0))) + '</span>';
+    }).join("");
+    var t = document.createElement("button");
+    t.className = "tile";
+    t.setAttribute("data-kind", "f");
+    t.setAttribute("data-fid", f.fid);
+    t.innerHTML =
+      '<span class="minus">−</span>' +
+      '<span class="ic fold"><span class="fgrid">' + minis + '</span></span>' +
+      '<span class="nm">' + (f.name || "フォルダ") + '</span>' +
+      '<span class="sb">' + vis.length + '店舗</span>';
+    return t;
+  }
+  function visibleEntries() {
+    return layout.items.filter(function (it) {
+      if (it.t === "s") return !isHidden(it.id);
+      return it.ids.some(function (id) { return !isHidden(id); });
+    });
+  }
   function render() {
-    var hid = hiddenIds();
-    var vis = STORES.filter(function (s) { return hid.indexOf(s.id) < 0; });
+    var vis = visibleEntries();
     pagesEl.innerHTML = "";
     dotsEl.innerHTML = "";
     var pageCount = Math.max(1, Math.ceil(vis.length / PER_PAGE));
     for (var p = 0; p < pageCount; p++) {
       var pg = document.createElement("div");
       pg.className = "page";
-      vis.slice(p * PER_PAGE, (p + 1) * PER_PAGE).forEach(function (s) {
-        var t = document.createElement("button");
-        t.className = "tile";
-        t.setAttribute("data-id", s.id);
-        t.innerHTML =
-          '<span class="minus">−</span>' +
-          '<span class="ic">' + iconHtml(s) + (s.live ? "" : '<span class="prep">準備中</span>') + '</span>' +
-          '<span class="nm">' + s.name + '</span>' +
-          '<span class="sb">' + s.short + '</span>';
-        wireTile(t, s);
+      vis.slice(p * PER_PAGE, (p + 1) * PER_PAGE).forEach(function (it) {
+        var t = it.t === "s" ? storeTile(BYID[it.id]) : folderTile(it);
+        wireTile(t, "home");
         pg.appendChild(t);
       });
       pagesEl.appendChild(pg);
@@ -142,10 +258,9 @@
       if (p === 0) d.className = "on";
       dotsEl.appendChild(d);
     }
-    if (pageCount <= 1) dotsEl.style.display = "none"; else dotsEl.style.display = "flex";
+    dotsEl.style.display = pageCount <= 1 ? "none" : "flex";
+    if (openFid) renderFolder();
   }
-
-  // ページ位置に応じてドットを更新
   pagesEl.addEventListener("scroll", function () {
     var idx = Math.round(pagesEl.scrollLeft / pagesEl.clientWidth);
     var ds = dotsEl.children;
@@ -156,51 +271,348 @@
     editing = on;
     document.body.classList.toggle("editing", on);
   }
+  var toastEl = document.getElementById("toast"), toastT = null;
+  function toast(msg) {
+    toastEl.textContent = msg;
+    toastEl.classList.add("show");
+    clearTimeout(toastT);
+    toastT = setTimeout(function () { toastEl.classList.remove("show"); }, 2200);
+  }
+  document.getElementById("doneBtn").onclick = function () { setEditing(false); };
 
-  function wireTile(t, s) {
-    var timer = null, moved = false;
-    t.addEventListener("touchstart", function () {
-      moved = false;
+  /* ---------- フォルダを開く ---------- */
+  var fov = document.getElementById("fov");
+  var fpagesEl = document.getElementById("fpages");
+  var fdotsEl = document.getElementById("fdots");
+  var ftitleEl = document.getElementById("ftitle");
+  function renderFolder() {
+    var f = findFolder(openFid);
+    if (!f) { closeFolder(); return; }
+    ftitleEl.value = f.name || "";
+    var vis = f.ids.filter(function (id) { return !isHidden(id); });
+    fpagesEl.innerHTML = "";
+    fdotsEl.innerHTML = "";
+    var pageCount = Math.max(1, Math.ceil(vis.length / F_PER));
+    for (var p = 0; p < pageCount; p++) {
+      var pg = document.createElement("div");
+      pg.className = "fpage";
+      vis.slice(p * F_PER, (p + 1) * F_PER).forEach(function (id) {
+        var t = storeTile(BYID[id]);
+        wireTile(t, "folder");
+        pg.appendChild(t);
+      });
+      fpagesEl.appendChild(pg);
+      var d = document.createElement("i");
+      if (p === 0) d.className = "on";
+      fdotsEl.appendChild(d);
+    }
+    fdotsEl.style.display = pageCount <= 1 ? "none" : "flex";
+  }
+  fpagesEl.addEventListener("scroll", function () {
+    var idx = Math.round(fpagesEl.scrollLeft / fpagesEl.clientWidth);
+    var ds = fdotsEl.children;
+    for (var i = 0; i < ds.length; i++) ds[i].className = i === idx ? "on" : "";
+  }, { passive: true });
+  function openFolder(fid, focusTitle) {
+    openFid = fid;
+    renderFolder();
+    fov.classList.add("show");
+    if (focusTitle) setTimeout(function () { ftitleEl.focus(); ftitleEl.select(); }, 60);
+  }
+  function closeFolder() {
+    openFid = null;
+    fov.classList.remove("show");
+  }
+  document.getElementById("fclose").onclick = closeFolder;
+  fov.addEventListener("click", function (e) { if (e.target === fov) closeFolder(); });
+  ftitleEl.addEventListener("input", function () {
+    var f = findFolder(openFid);
+    if (f) { f.name = ftitleEl.value.trim(); save(); }
+  });
+  ftitleEl.addEventListener("blur", function () {
+    render(); // ホーム側のフォルダ名表示を更新
+  });
+  ftitleEl.addEventListener("keydown", function (e) { if (e.key === "Enter") ftitleEl.blur(); });
+
+  /* ---------- ドラッグ（並べ替え／重ねてフォルダ） ---------- */
+  var drag = null; // {el, ctx, moved, clone, w, h, fover, hoverT, hoverZ, pendT, flipSince}
+  function startDrag(el, ctx, x, y) {
+    drag = { el: el, ctx: ctx, moved: false, clone: null, sx: x, sy: y,
+             fover: null, hoverT: null, hoverZ: "", pendT: null, flipDir: 0, flipSince: 0 };
+  }
+  function beginClone(x, y) {
+    var r = drag.el.getBoundingClientRect();
+    var c = drag.el.cloneNode(true);
+    c.className = "tile drag-clone";
+    c.style.width = r.width + "px";
+    c.style.left = (x - r.width / 2) + "px";
+    c.style.top = (y - r.height / 2) + "px";
+    document.body.appendChild(c);
+    drag.clone = c;
+    drag.w = r.width; drag.h = r.height;
+    drag.el.classList.add("ghost");
+    drag.moved = true;
+  }
+  function clearFover() {
+    if (drag && drag.fover) { drag.fover.classList.remove("fover"); drag.fover = null; }
+  }
+  function clearHover() {
+    if (!drag) return;
+    if (drag.pendT) { clearTimeout(drag.pendT); drag.pendT = null; }
+    drag.hoverT = null; drag.hoverZ = "";
+    clearFover();
+  }
+  function moveDrag(x, y) {
+    if (!drag) return;
+    if (!drag.moved) {
+      if (Math.abs(x - drag.sx) + Math.abs(y - drag.sy) < 9) return;
+      beginClone(x, y);
+    }
+    drag.clone.style.left = (x - drag.w / 2) + "px";
+    drag.clone.style.top = (y - drag.h / 2) + "px";
+
+    // ホームでは画面端で自動ページ送り
+    if (drag.ctx === "home") {
+      var W = window.innerWidth, now = Date.now();
+      var dir = x < 42 ? -1 : (x > W - 42 ? 1 : 0);
+      if (dir !== drag.flipDir) { drag.flipDir = dir; drag.flipSince = now; }
+      else if (dir && now - drag.flipSince > 450) {
+        pagesEl.scrollBy({ left: dir * pagesEl.clientWidth, behavior: "smooth" });
+        drag.flipSince = now + 400;
+      }
+    }
+
+    var target = hitTile(x, y);
+    if (!target) { clearHover(); return; }
+
+    // 中央に重ねて待つ → フォルダ化の合図（ホームのみ・店舗タイルをドラッグ中のみ）
+    var canFold = drag.ctx === "home" && drag.el.getAttribute("data-kind") === "s";
+    var r = target.getBoundingClientRect();
+    var cx = r.left + r.width / 2, cy = r.top + r.height / 2;
+    var central = canFold && Math.abs(x - cx) < r.width * 0.32 && Math.abs(y - cy) < r.height * 0.32;
+    var zone = central ? "c" : (x < cx ? "l" : "r");
+    if (target === drag.hoverT && zone === drag.hoverZ) return; // 同じ場所で待機中（タイマー進行中）
+    // ホバー状態が変わった：前の予約を消して新しく予約（iPhoneと同じく「少し待ってから」動く）
+    if (drag.pendT) { clearTimeout(drag.pendT); drag.pendT = null; }
+    if (drag.fover && drag.fover !== target) clearFover();
+    drag.hoverT = target; drag.hoverZ = zone;
+    var d = drag;
+    if (zone === "c") {
+      d.pendT = setTimeout(function () {
+        if (drag !== d || d.hoverT !== target) return;
+        d.fover = target;
+        target.classList.add("fover"); // フォルダ化の合図（この状態で離すと重なる）
+      }, 380);
+    } else {
+      clearFover();
+      d.pendT = setTimeout(function () {
+        if (drag !== d || d.hoverT !== target || !target.parentNode) return;
+        if (zone === "l") target.parentNode.insertBefore(d.el, target);
+        else target.parentNode.insertBefore(d.el, target.nextSibling);
+      }, 150);
+    }
+  }
+  function hitTile(x, y) {
+    if (drag.clone) drag.clone.style.display = "none";
+    var el = document.elementFromPoint(x, y);
+    if (drag.clone) drag.clone.style.display = "";
+    if (!el) return null;
+    var t = el.closest ? el.closest(".tile") : null;
+    if (!t || t === drag.el || t.classList.contains("drag-clone")) return null;
+    // 同じ文脈のタイルだけ
+    var inFolder = !!t.closest("#fpanel");
+    if ((drag.ctx === "folder") !== inFolder) return null;
+    return t;
+  }
+  function itemIndexOf(kind, key) {
+    for (var i = 0; i < layout.items.length; i++) {
+      var it = layout.items[i];
+      if (kind === "s" && it.t === "s" && it.id === key) return i;
+      if (kind === "f" && it.t === "f" && it.fid === key) return i;
+    }
+    return -1;
+  }
+  function endDrag(x, y) {
+    if (!drag) return;
+    var d = drag; drag = null;
+    if (d.pendT) clearTimeout(d.pendT);
+    if (d.clone) d.clone.remove();
+    d.el.classList.remove("ghost");
+    if (!d.moved) { clearTargetHighlights(); return; }
+
+    var dragId = d.el.getAttribute("data-id");
+
+    // 1) フォルダ化／フォルダへ追加（合図＝相手がハイライトされた状態で離した）
+    if (d.fover && d.ctx === "home" && dragId) {
+      var tgt = d.fover; clearHl(tgt);
+      var srcIdx = itemIndexOf("s", dragId);
+      if (srcIdx >= 0) {
+        var srcItem = layout.items[srcIdx];
+        if (tgt.getAttribute("data-kind") === "f") {
+          var f = findFolder(tgt.getAttribute("data-fid"));
+          if (f) {
+            layout.items.splice(srcIdx, 1);
+            f.ids.push(dragId);
+            save(); render();
+            return;
+          }
+        } else {
+          var tgtId = tgt.getAttribute("data-id");
+          var tgtIdx = itemIndexOf("s", tgtId);
+          if (tgtIdx >= 0 && tgtId !== dragId) {
+            var nf = { t: "f", fid: "f" + (layout.fseq++), name: "フォルダ", ids: [tgtId, dragId] };
+            layout.items.splice(tgtIdx, 1, nf);
+            var si = itemIndexOf("s", dragId);
+            if (si >= 0) layout.items.splice(si, 1);
+            save(); render();
+            openFolder(nf.fid, true); // iPhoneと同じく開いて名前をすぐ編集できる
+            return;
+          }
+        }
+      }
+    }
+    clearTargetHighlights();
+
+    // 2) フォルダ内から外へドラッグ → フォルダから出す
+    if (d.ctx === "folder" && dragId) {
+      var panel = document.getElementById("fpanel").getBoundingClientRect();
+      var outside = x < panel.left || x > panel.right || y < panel.top || y > panel.bottom;
+      var f2 = findFolder(openFid);
+      if (outside && f2) {
+        var k = f2.ids.indexOf(dragId);
+        if (k >= 0) {
+          f2.ids.splice(k, 1);
+          var fi = itemIndexOf("f", openFid);
+          var item = { t: "s", id: dragId };
+          if (f2.ids.length === 0) {
+            layout.items.splice(fi, 1, item); // 空になったらフォルダ解消
+            closeFolder();
+          } else {
+            layout.items.splice(fi + 1, 0, item);
+          }
+          save(); render();
+          return;
+        }
+      }
+      // フォルダ内の並べ替え：DOM順を読み取る
+      if (f2) {
+        var order = [];
+        fpagesEl.querySelectorAll(".tile[data-id]").forEach(function (t) { order.push(t.getAttribute("data-id")); });
+        f2.ids.forEach(function (id) { if (order.indexOf(id) < 0) order.push(id); }); // 非表示分を末尾へ
+        f2.ids = order;
+        save(); render();
+      }
+      return;
+    }
+
+    // 3) ホームの並べ替え：DOM順を読み取って保存
+    var newItems = [];
+    pagesEl.querySelectorAll(".tile").forEach(function (t) {
+      var idx = t.getAttribute("data-kind") === "f"
+        ? itemIndexOf("f", t.getAttribute("data-fid"))
+        : itemIndexOf("s", t.getAttribute("data-id"));
+      if (idx >= 0) newItems.push(layout.items[idx]);
+    });
+    layout.items.forEach(function (it) { if (newItems.indexOf(it) < 0) newItems.push(it); }); // 非表示分
+    layout.items = newItems;
+    save(); render();
+  }
+  function clearHl(t) { t.classList.remove("fover"); }
+  function clearTargetHighlights() {
+    document.querySelectorAll(".tile.fover").forEach(clearHl);
+  }
+
+  /* ---------- タイルへの操作の配線 ---------- */
+  function wireTile(t, ctx) {
+    var timer = null, sx = 0, sy = 0, longp = false;
+
+    t.addEventListener("touchstart", function (e) {
+      var tp = e.touches[0];
+      sx = tp.clientX; sy = tp.clientY; longp = false;
+      if (editing) { startDrag(t, ctx, sx, sy); return; }
       timer = setTimeout(function () {
+        longp = true;
         setEditing(true);
-        if (navigator.vibrate) { try { navigator.vibrate(15); } catch (e) {} }
+        if (navigator.vibrate) { try { navigator.vibrate(15); } catch (e2) {} }
+        startDrag(t, ctx, sx, sy); // 長押しからそのままドラッグできる
       }, 550);
     }, { passive: true });
-    t.addEventListener("touchmove", function () { moved = true; clearTimeout(timer); }, { passive: true });
-    t.addEventListener("touchend", function () { clearTimeout(timer); }, { passive: true });
-    // PC検証用: 右クリックでも編集モード
+    t.addEventListener("touchmove", function (e) {
+      var tp = e.touches[0];
+      if (drag && drag.el === t) { e.preventDefault(); moveDrag(tp.clientX, tp.clientY); return; }
+      if (Math.abs(tp.clientX - sx) + Math.abs(tp.clientY - sy) > 10) clearTimeout(timer);
+    }, { passive: false });
+    t.addEventListener("touchend", function (e) {
+      clearTimeout(timer);
+      if (drag && drag.el === t) {
+        var moved = drag.moved;
+        var tp = e.changedTouches[0];
+        endDrag(tp.clientX, tp.clientY);
+        if (moved || longp) { e.preventDefault(); }
+      }
+    }, { passive: false });
+    t.addEventListener("touchcancel", function () {
+      clearTimeout(timer);
+      if (drag && drag.el === t) endDrag(-9999, -9999);
+    }, { passive: true });
+
+    // PC検証用：右クリックで編集モード、マウスドラッグ対応
     t.addEventListener("contextmenu", function (e) { e.preventDefault(); setEditing(true); });
+    t.addEventListener("mousedown", function (e) {
+      if (!editing || e.button !== 0) return;
+      startDrag(t, ctx, e.clientX, e.clientY);
+      var mm = function (ev) { moveDrag(ev.clientX, ev.clientY); };
+      var mu = function (ev) {
+        document.removeEventListener("mousemove", mm);
+        document.removeEventListener("mouseup", mu);
+        if (drag && drag.el === t) endDrag(ev.clientX, ev.clientY);
+      };
+      document.addEventListener("mousemove", mm);
+      document.addEventListener("mouseup", mu);
+    });
+
     t.addEventListener("click", function (e) {
       if (editing) {
-        // 編集中: −で非表示。それ以外のタップは何もしない
         if (e.target.classList.contains("minus")) {
-          var hid = hiddenIds();
-          if (hid.indexOf(s.id) < 0) hid.push(s.id);
-          setHidden(hid);
-          render();
+          var kind = t.getAttribute("data-kind");
+          if (kind === "f") {
+            // フォルダの−＝フォルダ解除（中の店はホームに戻る）
+            var fid = t.getAttribute("data-fid");
+            var f = findFolder(fid);
+            var fi = itemIndexOf("f", fid);
+            if (f && fi >= 0) {
+              var back = f.ids.map(function (id) { return { t: "s", id: id }; });
+              Array.prototype.splice.apply(layout.items, [fi, 1].concat(back));
+              save(); render();
+            }
+          } else {
+            var id = t.getAttribute("data-id");
+            if (!isHidden(id)) layout.hidden.push(id);
+            save(); render();
+          }
         }
         return;
       }
-      if (moved) return;
+      if (t.getAttribute("data-kind") === "f") { openFolder(t.getAttribute("data-fid")); return; }
+      var s = BYID[t.getAttribute("data-id")];
+      if (!s) return;
+      if (!s.url) { toast("「" + s.name + "」は準備中です"); return; }
       location.href = s.url;
     });
   }
 
-  document.getElementById("doneBtn").onclick = function () { setEditing(false); };
-
-  // 表示/非表示の設定シート
+  /* ---------- 表示/非表示の設定シート ---------- */
   var ov = document.getElementById("ov");
   var rowsEl = document.getElementById("rows");
   document.getElementById("gearBtn").onclick = function () {
-    var hid = hiddenIds();
     rowsEl.innerHTML = "";
     STORES.forEach(function (s) {
       var r = document.createElement("label");
       r.className = "row";
       r.innerHTML =
         '<span class="mini">' + iconHtml(s, "") + '</span>' +
-        '<span class="t"><b>' + s.name + '</b><small>' + s.short + (s.live ? "" : "・準備中") + '</small></span>' +
-        '<input type="checkbox" data-id="' + s.id + '"' + (hid.indexOf(s.id) < 0 ? " checked" : "") + '>';
+        '<span class="t"><b>' + s.name + '</b><small>' + (s.short || "") + (s.live ? "" : "・準備中") + '</small></span>' +
+        '<input type="checkbox" data-id="' + s.id + '"' + (isHidden(s.id) ? "" : " checked") + '>';
       rowsEl.appendChild(r);
     });
     ov.classList.add("show");
@@ -212,7 +624,8 @@
     for (var i = 0; i < cbs.length; i++) {
       if (!cbs[i].checked) hid.push(cbs[i].getAttribute("data-id"));
     }
-    setHidden(hid);
+    layout.hidden = hid;
+    save();
     ov.classList.remove("show");
     setEditing(false);
     render();
