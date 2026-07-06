@@ -445,12 +445,14 @@
     }
   });
 
-  /* ---------- ドラッグ（並べ替え／重ねてフォルダ） ---------- */
-  var drag = null; // {el, ctx, moved, clone, w, h, fover, hoverT, hoverZ, pendT, flipSince}
+  /* ---------- ドラッグ（並べ替え／重ねてフォルダ）----------
+     iPhoneのなめらかさの完コピ：CSSアニメではなく毎フレームのバネ(スプリング)物理で
+     各アイコンを動かす。途中で行き先が変わっても勢いを保ったまま滑らかに向き直る。 */
+  var drag = null;
   function startDrag(el, ctx, x, y) {
     drag = { el: el, touchEl: el, ctx: ctx, moved: false, clone: null, sx: x, sy: y,
              fover: null, hoverT: null, hoverZ: "", pendT: null, flipDir: 0, flipSince: 0,
-             outT: null, lastX: x, lastY: y };
+             outT: null, lastX: x, lastY: y, sp: null };
   }
   function beginClone(x, y) {
     if (!editing) setEditing(true);
@@ -480,7 +482,129 @@
       c.style.top = (drag.cy - drag.h / 2) + "px";
       drag.raf = requestAnimationFrame(follow);
     })();
+    initSprings(drag);
   }
+
+  /* ---- バネ物理エンジン ---- */
+  function initSprings(d) {
+    var root = d.ctx === "folder" ? fpagesEl : pagesEl;
+    var tiles = Array.prototype.slice.call(root.querySelectorAll(".tile"));
+    var ghostIdx = tiles.indexOf(d.el);
+    if (ghostIdx < 0) return;
+    var st = tiles.map(function () { return { px: 0, py: 0, vx: 0, vy: 0 }; });
+    d.sp = { root: root, tiles: tiles, st: st, ghostIdx: ghostIdx, k: ghostIdx, raf: 0, last: 0 };
+    springLoop(d);
+  }
+  // 各タイルの「本来のマス目位置」（今の見た目位置からバネのずれを引いたもの）
+  function springBases(sp) {
+    var bases = [];
+    for (var i = 0; i < sp.tiles.length; i++) {
+      var r = sp.tiles[i].getBoundingClientRect();
+      bases.push({ x: r.left - sp.st[i].px, y: r.top - sp.st[i].py, w: r.width, h: r.height });
+    }
+    return bases;
+  }
+  // 挿入位置kのとき、各タイルが向かうべき目標オフセット
+  function springTargets(sp) {
+    var bases = springBases(sp);
+    var others = [];
+    for (var i = 0; i < sp.tiles.length; i++) if (i !== sp.ghostIdx) others.push(i);
+    var tg = new Array(sp.tiles.length);
+    var oi = 0;
+    for (var s = 0; s < bases.length; s++) {
+      if (s === sp.k) continue; // ghostのマス
+      var idx = others[oi++];
+      tg[idx] = { x: bases[s].x - bases[idx].x, y: bases[s].y - bases[idx].y };
+    }
+    return tg;
+  }
+  // 挿入位置kのとき、マスsに見えているタイル（フォルダ化の相手判定用）
+  function slotOccupant(sp, s) {
+    if (s === sp.k) return null;
+    var oi = 0;
+    for (var i = 0; i < sp.tiles.length; i++) {
+      if (i === sp.ghostIdx) continue;
+      var slot = oi < sp.k ? oi : oi + 1;
+      if (slot === s) return sp.tiles[i];
+      oi++;
+    }
+    return null;
+  }
+  function springLoop(d) {
+    var sp = d.sp;
+    var K = 140, C = 21.5; // バネの硬さと減衰（iOSのぬるっと感）
+    function frame(now) {
+      if (!drag || drag.sp !== sp) return;
+      var dt = sp.last ? Math.min(0.032, (now - sp.last) / 1000) : 0.016;
+      sp.last = now;
+      var tg = springTargets(sp);
+      for (var i = 0; i < sp.tiles.length; i++) {
+        if (i === sp.ghostIdx) continue;
+        var st = sp.st[i], g = tg[i];
+        if (!g) continue;
+        st.vx += (K * (g.x - st.px) - C * st.vx) * dt;
+        st.vy += (K * (g.y - st.py) - C * st.vy) * dt;
+        st.px += st.vx * dt;
+        st.py += st.vy * dt;
+        if (Math.abs(st.px) < 0.15 && Math.abs(st.py) < 0.15 &&
+            Math.abs(g.x) < 0.15 && Math.abs(g.y) < 0.15 &&
+            Math.abs(st.vx) < 2 && Math.abs(st.vy) < 2) {
+          st.px = 0; st.py = 0; st.vx = 0; st.vy = 0;
+          if (sp.tiles[i].style.transform) sp.tiles[i].style.transform = "";
+        } else {
+          sp.tiles[i].style.transform = "translate(" + st.px + "px," + st.py + "px)";
+        }
+      }
+      sp.raf = requestAnimationFrame(frame);
+    }
+    sp.raf = requestAnimationFrame(frame);
+  }
+  function killSprings(d) {
+    if (!d.sp) return;
+    cancelAnimationFrame(d.sp.raf);
+    d.sp = null;
+  }
+  // 離した位置の並びをDOMに反映（見た目の位置からズレた分は短いアニメで馴染ませる）
+  function commitSpringOrder(d) {
+    var sp = d.sp;
+    if (!sp) return;
+    cancelAnimationFrame(sp.raf);
+    var others = [];
+    for (var i = 0; i < sp.tiles.length; i++) if (i !== sp.ghostIdx) others.push(sp.tiles[i]);
+    var vis = sp.tiles.map(function (t) { return t.getBoundingClientRect(); });
+    if (others.length) {
+      if (sp.k < others.length) others[sp.k].parentNode.insertBefore(d.el, others[sp.k]);
+      else others[others.length - 1].parentNode.appendChild(d.el);
+    }
+    var movers = [];
+    for (var j = 0; j < sp.tiles.length; j++) {
+      var t = sp.tiles[j];
+      t.style.transition = "none";
+      t.style.transform = "";
+      if (t === d.el) continue;
+      var nr = t.getBoundingClientRect();
+      var dx = vis[j].left - nr.left, dy = vis[j].top - nr.top;
+      if (Math.abs(dx) < 0.5 && Math.abs(dy) < 0.5) continue;
+      t.style.transform = "translate(" + dx + "px," + dy + "px)";
+      movers.push(t);
+    }
+    if (movers.length) {
+      void sp.root.offsetWidth;
+      requestAnimationFrame(function () {
+        requestAnimationFrame(function () {
+          movers.forEach(function (t) {
+            t.style.transition = "transform .35s cubic-bezier(.22,.61,.21,1)";
+            t.style.transform = "";
+          });
+          setTimeout(function () {
+            movers.forEach(function (t) { t.style.transition = ""; });
+          }, 400);
+        });
+      });
+    }
+    d.sp = null;
+  }
+
   function clearFover() {
     if (drag && drag.fover) { drag.fover.classList.remove("fover"); drag.fover = null; }
   }
@@ -489,6 +613,23 @@
     if (drag.pendT) { clearTimeout(drag.pendT); drag.pendT = null; }
     drag.hoverT = null; drag.hoverZ = "";
     clearFover();
+  }
+  // 指の位置に一番近いマス（同じ行を最優先）
+  function slotIndexAt(sp, x, y) {
+    var bases = springBases(sp);
+    var best = -1, bestD = 1e9, bb = null;
+    for (var i = 0; i < bases.length; i++) {
+      var b = bases[i];
+      if (!b.w) continue;
+      if (b.x + b.w < -20 || b.x > window.innerWidth + 20) continue; // 別ページは対象外
+      var cx = b.x + b.w / 2, cy = b.y + b.h / 2;
+      var dx = Math.abs(x - cx), dy = Math.abs(y - cy);
+      if (dy > 58 || dx > 115) continue;
+      var dd = dx + dy * 2.2;
+      if (dd < bestD) { bestD = dd; best = i; bb = b; }
+    }
+    if (best < 0) return null;
+    return { i: best, b: bb, cx: bb.x + bb.w / 2, cy: bb.y + bb.h / 2 };
   }
   function moveDrag(x, y) {
     if (!drag) return;
@@ -532,38 +673,40 @@
       }
     }
 
-    var hit = findTarget(x, y);
+    if (!drag.sp) return;
+    var hit = slotIndexAt(drag.sp, x, y);
     if (!hit) { clearHover(); return; }
-    var target = hit.t;
 
-    // 中央に重ねて待つ → フォルダ化の合図（ホームのみ・店舗タイルをドラッグ中のみ）
+    // マス中央に重ねて待つ → そこに見えているアイコンとフォルダ化（ホームのみ）
     var canFold = drag.ctx === "home" && drag.el.getAttribute("data-kind") === "s";
-    var central = canFold && Math.abs(x - hit.cx) < hit.r.width * 0.32 && Math.abs(y - hit.cy) < hit.r.height * 0.32;
-    var zone = central ? "c" : (x < hit.cx ? "l" : "r");
-    // 境目のチラつき防止：同じ相手で中央±8px以内なら前のゾーンを維持
-    if (!central && target === drag.hoverT && drag.hoverZ && drag.hoverZ !== "c" &&
-        Math.abs(x - hit.cx) < 8) {
-      zone = drag.hoverZ;
+    var central = canFold && Math.abs(x - hit.cx) < hit.b.w * 0.3 && Math.abs(y - hit.cy) < hit.b.h * 0.3;
+    if (central) {
+      var occ = slotOccupant(drag.sp, hit.i);
+      if (occ) {
+        if (drag.hoverT === occ && drag.hoverZ === "c") return;
+        if (drag.pendT) { clearTimeout(drag.pendT); drag.pendT = null; }
+        if (drag.fover && drag.fover !== occ) clearFover();
+        drag.hoverT = occ; drag.hoverZ = "c";
+        var d3 = drag;
+        d3.pendT = setTimeout(function () {
+          if (drag !== d3 || d3.hoverT !== occ) return;
+          d3.fover = occ;
+          occ.classList.add("fover"); // フォルダ化の合図（この状態で離すと重なる）
+        }, 380);
+        return;
+      }
     }
-    if (target === drag.hoverT && zone === drag.hoverZ) return; // 同じ場所で待機中（タイマー進行中）
-    // ホバー状態が変わった：前の予約を消して新しく予約（iPhoneと同じく「少し待ってから」動く）
+    // 差し込み：このマスへ（少し待ってからバネの目標を切り替え＝ぬるっと場所が空く）
+    var key = "k" + hit.i;
+    if (drag.hoverZ === key) return;
     if (drag.pendT) { clearTimeout(drag.pendT); drag.pendT = null; }
-    if (drag.fover && drag.fover !== target) clearFover();
-    drag.hoverT = target; drag.hoverZ = zone;
-    var d = drag;
-    if (zone === "c") {
-      d.pendT = setTimeout(function () {
-        if (drag !== d || d.hoverT !== target) return;
-        d.fover = target;
-        target.classList.add("fover"); // フォルダ化の合図（この状態で離すと重なる）
-      }, 380);
-    } else {
-      clearFover();
-      d.pendT = setTimeout(function () {
-        if (drag !== d || d.hoverT !== target || !target.parentNode) return;
-        slideInsert(d, target, zone);
-      }, 120);
-    }
+    clearFover();
+    drag.hoverT = null; drag.hoverZ = key;
+    var d4 = drag;
+    d4.pendT = setTimeout(function () {
+      if (drag !== d4 || d4.hoverZ !== key || !d4.sp) return;
+      d4.sp.k = hit.i;
+    }, 120);
   }
   // フォルダの中から外へ：フォルダを閉じてホーム上のドラッグに切り替える
   function extractToHome() {
@@ -573,6 +716,7 @@
     if (!f) return;
     var k = f.ids.indexOf(id);
     if (k < 0) return;
+    killSprings(d);
     f.ids.splice(k, 1);
     var fi = itemIndexOf("f", openFid);
     layout.items.splice(fi < 0 ? layout.items.length : fi + 1, 0, { t: "s", id: id });
@@ -586,60 +730,7 @@
     d.hoverT = null; d.hoverZ = "";
     if (d.outT) { clearTimeout(d.outT); d.outT = null; }
     clearFover();
-  }
-  // 差し込み先のアイコンを探す：まず「同じ行」を優先し、その中で左右の近さで選ぶ
-  // （行の境目で上下の別の行が選ばれて、違う所にスペースが空くのを防ぐ）
-  function findTarget(x, y) {
-    var root = drag.ctx === "folder" ? fpagesEl : pagesEl;
-    var tiles = root.querySelectorAll(".tile");
-    var best = null, bestD = 1e9;
-    for (var i = 0; i < tiles.length; i++) {
-      var t = tiles[i];
-      if (t === drag.el) continue;
-      if (getComputedStyle(t).transform !== "none") continue; // 滑っている最中は判定しない（変な場所に反応する原因）
-      var r = t.getBoundingClientRect();
-      if (!r.width) continue;
-      if (r.right < -20 || r.left > window.innerWidth + 20) continue; // 別ページは対象外
-      var cx = r.left + r.width / 2, cy = r.top + r.height / 2;
-      var dx = Math.abs(x - cx), dy = Math.abs(y - cy);
-      if (dy > 58 || dx > 115) continue; // 同じ行（±58px＝行の半分以内）だけを候補に
-      var dd = dx + dy * 2.2; // 縦のずれを重くみる＝同じ行のアイコンが必ず勝つ
-      if (dd < bestD) { bestD = dd; best = { t: t, r: r, cx: cx, cy: cy }; }
-    }
-    return best;
-  }
-  // 差し込み：まわりのアイコンがぬるっと場所を空ける（iPhoneと同じ動き）
-  function slideInsert(d, target, zone) {
-    var root = d.ctx === "folder" ? fpagesEl : pagesEl;
-    var tiles = root.querySelectorAll(".tile");
-    var before = [];
-    for (var i = 0; i < tiles.length; i++) before.push([tiles[i], tiles[i].getBoundingClientRect()]);
-    if (zone === "l") target.parentNode.insertBefore(d.el, target);
-    else target.parentNode.insertBefore(d.el, target.nextSibling);
-    var movers = [];
-    before.forEach(function (p) {
-      var t = p[0], f = p[1];
-      if (t === d.el) return;
-      var l = t.getBoundingClientRect();
-      var dx = f.left - l.left, dy = f.top - l.top;
-      if (!dx && !dy) return;
-      t.style.transition = "none";
-      t.style.transform = "translate(" + dx + "px," + dy + "px)";
-      movers.push(t);
-    });
-    if (!movers.length) return;
-    void root.offsetWidth; // 開始位置を確定させてからアニメ開始（これが無いと時々カクッと飛ぶ）
-    requestAnimationFrame(function () {
-      requestAnimationFrame(function () {
-        movers.forEach(function (t) {
-          t.style.transition = "transform .85s cubic-bezier(.16,.66,.15,1)";
-          t.style.transform = "";
-        });
-        setTimeout(function () {
-          movers.forEach(function (t) { t.style.transition = ""; });
-        }, 940);
-      });
-    });
+    initSprings(d);
   }
   function itemIndexOf(kind, key) {
     for (var i = 0; i < layout.items.length; i++) {
@@ -698,6 +789,7 @@
         if (tgt.getAttribute("data-kind") === "f") {
           var f = findFolder(tgt.getAttribute("data-fid"));
           if (f) {
+            killSprings(d);
             layout.items.splice(srcIdx, 1);
             f.ids.push(dragId);
             absorb(tgt, function () { save(); render(); });
@@ -707,6 +799,7 @@
           var tgtId = tgt.getAttribute("data-id");
           var tgtIdx = itemIndexOf("s", tgtId);
           if (tgtIdx >= 0 && tgtId !== dragId) {
+            killSprings(d);
             var nf = { t: "f", fid: "f" + (layout.fseq++), name: "フォルダ", ids: [tgtId, dragId] };
             layout.items.splice(tgtIdx, 1, nf);
             var si = itemIndexOf("s", dragId);
@@ -727,6 +820,7 @@
       if (outside && f2) {
         var k = f2.ids.indexOf(dragId);
         if (k >= 0) {
+          killSprings(d);
           f2.ids.splice(k, 1);
           var fi = itemIndexOf("f", openFid);
           layout.items.splice(fi + 1, 0, { t: "s", id: dragId });
@@ -744,8 +838,9 @@
           return;
         }
       }
-      // フォルダ内の並べ替え：DOM順を読み取る
+      // フォルダ内の並べ替え：離した位置の並びをDOMに反映してから保存
       if (f2) {
+        commitSpringOrder(d);
         settle(function () {
           var order = [];
           fpagesEl.querySelectorAll(".tile[data-id]").forEach(function (t) { order.push(t.getAttribute("data-id")); });
@@ -757,7 +852,8 @@
       return;
     }
 
-    // 3) ホームの並べ替え：DOM順を読み取って保存
+    // 3) ホームの並べ替え：離した位置の並びをDOMに反映してから保存
+    commitSpringOrder(d);
     settle(function () {
       var newItems = [];
       pagesEl.querySelectorAll(".tile").forEach(function (t) {
