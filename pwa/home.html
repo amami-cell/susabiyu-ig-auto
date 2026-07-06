@@ -73,7 +73,7 @@
   body.editing .tile .minus{display:block}
 
   /* ドラッグ中 */
-  .tile.ghost{opacity:.3}
+  .tile.ghost{opacity:0}
   .drag-clone{position:fixed;z-index:99;pointer-events:none;margin:0;
     opacity:.95;filter:drop-shadow(0 10px 24px rgba(0,0,0,.6))}
   .drag-clone .ic{animation:none !important}
@@ -530,6 +530,11 @@
     var canFold = drag.ctx === "home" && drag.el.getAttribute("data-kind") === "s";
     var central = canFold && Math.abs(x - hit.cx) < hit.r.width * 0.32 && Math.abs(y - hit.cy) < hit.r.height * 0.32;
     var zone = central ? "c" : (x < hit.cx ? "l" : "r");
+    // 境目のチラつき防止：同じ相手で中央±8px以内なら前のゾーンを維持
+    if (!central && target === drag.hoverT && drag.hoverZ && drag.hoverZ !== "c" &&
+        Math.abs(x - hit.cx) < 8) {
+      zone = drag.hoverZ;
+    }
     if (target === drag.hoverT && zone === drag.hoverZ) return; // 同じ場所で待機中（タイマー進行中）
     // ホバー状態が変わった：前の予約を消して新しく予約（iPhoneと同じく「少し待ってから」動く）
     if (drag.pendT) { clearTimeout(drag.pendT); drag.pendT = null; }
@@ -608,9 +613,9 @@
       t.style.transition = "none";
       t.style.transform = "translate(" + dx + "px," + dy + "px)";
       requestAnimationFrame(function () {
-        t.style.transition = "transform .38s cubic-bezier(.25,.7,.3,1)";
+        t.style.transition = "transform .34s cubic-bezier(.3,1.12,.35,1)";
         t.style.transform = "";
-        setTimeout(function () { t.style.transition = ""; }, 440);
+        setTimeout(function () { t.style.transition = ""; }, 400);
       });
     });
   }
