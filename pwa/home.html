@@ -595,12 +595,13 @@
     for (var i = 0; i < tiles.length; i++) {
       var t = tiles[i];
       if (t === drag.el) continue;
+      if (getComputedStyle(t).transform !== "none") continue; // 滑っている最中は判定しない（変な場所に反応する原因）
       var r = t.getBoundingClientRect();
       if (!r.width) continue;
       if (r.right < -20 || r.left > window.innerWidth + 20) continue; // 別ページは対象外
       var cx = r.left + r.width / 2, cy = r.top + r.height / 2;
       var dx = Math.abs(x - cx), dy = Math.abs(y - cy);
-      if (dy > 75 || dx > 115) continue; // 同じ行（±75px）かつ隣接の範囲だけを候補に
+      if (dy > 58 || dx > 115) continue; // 同じ行（±58px＝行の半分以内）だけを候補に
       var dd = dx + dy * 2.2; // 縦のずれを重くみる＝同じ行のアイコンが必ず勝つ
       if (dd < bestD) { bestD = dd; best = { t: t, r: r, cx: cx, cy: cy }; }
     }
@@ -623,9 +624,9 @@
       t.style.transition = "none";
       t.style.transform = "translate(" + dx + "px," + dy + "px)";
       requestAnimationFrame(function () {
-        t.style.transition = "transform .7s cubic-bezier(.16,.66,.15,1)";
+        t.style.transition = "transform .85s cubic-bezier(.16,.66,.15,1)";
         t.style.transform = "";
-        setTimeout(function () { t.style.transition = ""; }, 780);
+        setTimeout(function () { t.style.transition = ""; }, 940);
       });
     });
   }
