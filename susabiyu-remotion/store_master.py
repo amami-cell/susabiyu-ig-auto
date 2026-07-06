@@ -1028,6 +1028,25 @@ def names():
     print("[NAMES] 合計 %d 店" % cnt)
 
 
+def storesdump():
+    """『提出チェック』タブA〜C列（店舗名/表示名/アイコン短縮名）を一覧出力。
+    アプリの店舗アイコンホーム(stores.js)へ流し込むための読み取り専用ダンプ。"""
+    cr = _creds(); sh = _sheets(cr)
+    try:
+        rows = sh.values().get(spreadsheetId=SHEET_ID, range=ROSTER_TAB + "!A2:C").execute().get("values", [])
+    except Exception as e:
+        print("[STORES] 読み込み失敗:", e); return
+    cnt = 0
+    for r in rows:
+        g = lambda n: (r[n] if len(r) > n else "").strip()
+        name = g(0)
+        if not name or name.startswith("（記入例）"):
+            continue
+        print("STORE|%s|%s|%s" % (name, g(1), g(2)))
+        cnt += 1
+    print("[STORES] 合計 %d 店" % cnt)
+
+
 def requestsheet():
     """各店に配る『記入用の独立スプレッドシート』を作成。本体（機密）とは別ファイルなので安全に共有可。
     列は『店舗受付』と同じ＝記入後そのまま本体の受付タブへコピペできる。
@@ -1330,6 +1349,8 @@ if __name__ == "__main__":
         roster()
     elif mode == "names":
         names()
+    elif mode == "storesdump":
+        storesdump()
     elif mode == "pending":
         pending()
     elif mode == "saemail":
