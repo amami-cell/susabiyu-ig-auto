@@ -467,8 +467,18 @@
     requestAnimationFrame(function () { c.style.transform = "scale(1.15)"; }); // フッと持ち上がる
     drag.clone = c;
     drag.w = w; drag.h = h;
+    drag.cx = x; drag.cy = y; drag.tx = x; drag.ty = y;
     drag.el.classList.add("ghost");
     drag.moved = true;
+    // 指にワンテンポ遅れて滑らかについてくる（毎フレーム目標へ35%ずつ寄る）
+    (function follow() {
+      if (!drag || drag.clone !== c) return;
+      drag.cx += (drag.tx - drag.cx) * 0.35;
+      drag.cy += (drag.ty - drag.cy) * 0.35;
+      c.style.left = (drag.cx - drag.w / 2) + "px";
+      c.style.top = (drag.cy - drag.h / 2) + "px";
+      drag.raf = requestAnimationFrame(follow);
+    })();
   }
   function clearFover() {
     if (drag && drag.fover) { drag.fover.classList.remove("fover"); drag.fover = null; }
@@ -485,8 +495,7 @@
       if (Math.abs(x - drag.sx) + Math.abs(y - drag.sy) < 9) return;
       beginClone(x, y);
     }
-    drag.clone.style.left = (x - drag.w / 2) + "px";
-    drag.clone.style.top = (y - drag.h / 2) + "px";
+    drag.tx = x; drag.ty = y; // 追従ループが滑らかに追いかける
 
     // フォルダの外に出たら：少し待ってフォルダが閉じ、そのままホームでドラッグ継続（iPhoneと同じ）
     if (drag.ctx === "folder") {
@@ -613,9 +622,9 @@
       t.style.transition = "none";
       t.style.transform = "translate(" + dx + "px," + dy + "px)";
       requestAnimationFrame(function () {
-        t.style.transition = "transform .55s cubic-bezier(.22,.61,.21,1)";
+        t.style.transition = "transform .7s cubic-bezier(.16,.66,.15,1)";
         t.style.transform = "";
-        setTimeout(function () { t.style.transition = ""; }, 620);
+        setTimeout(function () { t.style.transition = ""; }, 780);
       });
     });
   }
@@ -632,6 +641,7 @@
     var d = drag; drag = null;
     if (d.pendT) clearTimeout(d.pendT);
     if (d.outT) clearTimeout(d.outT);
+    if (d.raf) cancelAnimationFrame(d.raf);
     if (d.moved) swallowClick = true; // ドラッグ直後に飛ぶクリックで誤動作しない
     fpanelEl.style.opacity = "";
     if (!d.moved) {
