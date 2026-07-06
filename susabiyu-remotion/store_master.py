@@ -1062,13 +1062,38 @@ def storesdump():
     try:
         mrows = sh.values().get(spreadsheetId=SHEET_ID, range=MASTER_TAB + "!A:U").execute().get("values", [])
     except Exception as e:
-        print("[STORES] マスター読込失敗:", e); return
+        print("[STORES] マスター読込失敗:", e); mrows = []
     for i in range(1, len(mrows)):
         r = mrows[i]
         g = lambda n: (r[n] if len(r) > n else "").strip()
         if not g(0):
             continue
         print("MASTER|%s|%s|%s|%s" % (g(0), g(1), g(2), g(20)))
+    # 店舗受付タブ（表示名/アイコン短縮名の記入欄がある）
+    try:
+        irows = sh.values().get(spreadsheetId=SHEET_ID, range=INTAKE_TAB + "!A:C").execute().get("values", [])
+        for i in range(1, len(irows)):
+            r = irows[i]
+            g = lambda n: (r[n] if len(r) > n else "").strip()
+            if g(0):
+                print("INTAKE|%s|%s|%s" % (g(0), g(1), g(2)))
+    except Exception as e:
+        print("[STORES] 受付タブ読込スキップ:", e)
+    # 配布用の記入シート（REQ_SHEET_ID）側の全タブもA:Cを出力
+    rid = os.environ.get("REQ_SHEET_ID", "").strip()
+    if rid:
+        try:
+            meta = sh.get(spreadsheetId=rid, fields="sheets.properties.title").execute()
+            for t in [x["properties"]["title"] for x in meta.get("sheets", [])]:
+                rows2 = sh.values().get(spreadsheetId=rid, range="'%s'!A:D" % t).execute().get("values", [])
+                for i, r in enumerate(rows2):
+                    g = lambda n: (r[n] if len(r) > n else "").strip()
+                    if g(0) or g(1) or g(2) or g(3):
+                        print("REQ|%s|%d|%s|%s|%s|%s" % (t, i + 1, g(0), g(1), g(2), g(3)))
+        except Exception as e:
+            print("[STORES] 記入用シート読込スキップ:", e)
+    else:
+        print("[STORES] REQ_SHEET_ID未設定")
 
 
 def requestsheet():

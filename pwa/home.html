@@ -586,7 +586,8 @@
     if (d.outT) { clearTimeout(d.outT); d.outT = null; }
     clearFover();
   }
-  // 最寄りのアイコンを幾何計算で探す（アイコンの間のすき間に落としてもOK）
+  // 差し込み先のアイコンを探す：まず「同じ行」を優先し、その中で左右の近さで選ぶ
+  // （行の境目で上下の別の行が選ばれて、違う所にスペースが空くのを防ぐ）
   function findTarget(x, y) {
     var root = drag.ctx === "folder" ? fpagesEl : pagesEl;
     var tiles = root.querySelectorAll(".tile");
@@ -598,11 +599,11 @@
       if (!r.width) continue;
       if (r.right < -20 || r.left > window.innerWidth + 20) continue; // 別ページは対象外
       var cx = r.left + r.width / 2, cy = r.top + r.height / 2;
-      var dd = Math.abs(x - cx) + Math.abs(y - cy);
+      var dx = Math.abs(x - cx), dy = Math.abs(y - cy);
+      if (dy > 75 || dx > 115) continue; // 同じ行（±75px）かつ隣接の範囲だけを候補に
+      var dd = dx + dy * 2.2; // 縦のずれを重くみる＝同じ行のアイコンが必ず勝つ
       if (dd < bestD) { bestD = dd; best = { t: t, r: r, cx: cx, cy: cy }; }
     }
-    // アイコン約1個分より遠い場所は対象外
-    if (!best || bestD > 150) return null;
     return best;
   }
   // 差し込み：まわりのアイコンがスッと場所を空ける（iPhoneと同じ動き）
