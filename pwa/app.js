@@ -1313,33 +1313,38 @@
       // 1ページ=1123px(A4@96dpi)から上下マージン6mmを引いた約1078pxが使える高さ。
       // ①圧縮CSS(a4tight) → ②ベスト投稿を後ろから減らす → ③箇条書きを間引く の順で詰める。
       (function fitA4() {
-        var PAGE = 1078;
+        var P1 = 1040, P2 = 1050;   // 1ページに使える高さ(約1078px)から安全マージンを引いた値
         var br = clone.querySelector(".repbreak");
         if (!br) return;
+        // 1ページ目: 圧縮①→圧縮②→ベスト投稿を後ろから削る(最少2件)
         var steps = 0;
-        while (br.offsetTop > PAGE && steps < 12) {
-          if (steps === 0) {
-            clone.classList.add("a4tight");
-          } else {
+        while (br.offsetTop > P1 && steps < 14) {
+          if (steps === 0) clone.classList.add("a4tight");
+          else if (steps === 1) clone.classList.add("a4tight2");
+          else {
             var ps = clone.querySelectorAll(".reppost");
             if (ps.length > 2) ps[ps.length - 1].parentNode.removeChild(ps[ps.length - 1]);
             else break;
           }
           steps++;
         }
+        // 2ページ目: 圧縮①→圧縮②→一番長いカードの箇条書きを後ろから間引く(最少2行)
         var guard = 0;
-        while ((clone.scrollHeight - br.offsetTop) > PAGE && guard < 12) {
-          clone.classList.add("a4tight");
-          var longest = null, max = 0;
-          var cards = clone.querySelectorAll(".repcard");
-          for (var ci = 0; ci < cards.length; ci++) {
-            var n = cards[ci].querySelectorAll("li").length;
-            if (n > max) { max = n; longest = cards[ci]; }
+        while ((clone.scrollHeight - br.offsetTop) > P2 && guard < 14) {
+          if (guard === 0) clone.classList.add("a4tight");
+          else if (guard === 1) clone.classList.add("a4tight2");
+          else {
+            var longest = null, max = 0;
+            var cards = clone.querySelectorAll(".repcard");
+            for (var ci = 0; ci < cards.length; ci++) {
+              var n = cards[ci].querySelectorAll("li").length;
+              if (n > max) { max = n; longest = cards[ci]; }
+            }
+            if (longest && max > 2) {
+              var ls = longest.querySelectorAll("li");
+              ls[ls.length - 1].parentNode.removeChild(ls[ls.length - 1]);
+            } else break;
           }
-          if (longest && max > 3) {
-            var ls = longest.querySelectorAll("li");
-            ls[ls.length - 1].parentNode.removeChild(ls[ls.length - 1]);
-          } else break;
           guard++;
         }
       })();
