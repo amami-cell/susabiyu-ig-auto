@@ -1396,8 +1396,8 @@
         // 上下のみ6mm。左右の余白は .repdoc.a4 のセクションpaddingで内側に確保している。
         margin: [6, 0, 6, 0],
         filename: "susabiyu_insight_" + ((reportData && reportData.latestDate) || "report") + ".pdf",
-        image: { type: "jpeg", quality: 0.85 },
-        html2canvas: { scale: 1.5, backgroundColor: "#ffffff", useCORS: true, width: 794, windowWidth: 794, x: 0, scrollX: 0 },
+        image: { type: "jpeg", quality: 0.95 },
+        html2canvas: { scale: 2, backgroundColor: "#ffffff", useCORS: true, width: 794, windowWidth: 794, x: 0, scrollX: 0 },
         jsPDF: { unit: "mm", format: "a4", orientation: "portrait" },
         // 1枚目＝ダッシュボード、2枚目＝分析・まとめ（.repbreak で改ページ）。カード途中での分断は避ける。
         pagebreak: { mode: ["css", "legacy"], before: ".repbreak", avoid: [".repsec", ".reppost", ".repkpi", ".repcard"] }
