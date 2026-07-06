@@ -38,7 +38,13 @@
     background:none;border:none;color:var(--fg)}
   .tile .ic{position:relative;width:74px;height:74px;border-radius:20px;overflow:hidden;background:var(--card);
     border:none;box-shadow:0 12px 24px rgba(0,0,0,.45), 0 3px 7px rgba(0,0,0,.35);
-    display:flex;align-items:center;justify-content:center}
+    display:flex;align-items:center;justify-content:center;
+    transition:transform .22s ease, box-shadow .22s ease, filter .22s ease}
+  /* 押している間：少し沈んで暗くなる（押してる感） */
+  .tile.pressing .ic{transform:scale(.88);filter:brightness(.8)}
+  /* 長押し発動：フワッと持ち上がる */
+  .tile.lifted .ic{transform:scale(1.16);box-shadow:0 20px 36px rgba(0,0,0,.55), 0 5px 12px rgba(0,0,0,.4);
+    animation:none !important}
   .tile .ic img{width:100%;height:100%;object-fit:contain;padding:5px;display:block;pointer-events:none}
   .tile .ic .init{font-size:34px;font-weight:800;color:#e9dcc3;font-family:"Hiragino Mincho ProN",serif}
   .tile .nm{font-size:11px;font-weight:700;color:#fff;text-shadow:0 1px 3px rgba(0,0,0,.45);max-width:100px;text-align:center;
@@ -71,7 +77,8 @@
   .drag-clone{position:fixed;z-index:99;pointer-events:none;margin:0;
     opacity:.95;filter:drop-shadow(0 10px 24px rgba(0,0,0,.6))}
   .drag-clone .ic{animation:none !important}
-  .tile.fover .ic{box-shadow:0 0 0 5px rgba(255,255,255,.65), 0 12px 24px rgba(0,0,0,.45);transform:scale(1.12);animation:none}
+  .tile.fover .ic{box-shadow:0 0 0 4px rgba(255,255,255,.9), 0 0 26px rgba(255,255,255,.55), 0 12px 24px rgba(0,0,0,.45);
+    transform:scale(1.24);animation:none !important}
 
   /* フォルダを開いた画面 */
   .fov{position:fixed;inset:0;background:rgba(90,93,99,.55);backdrop-filter:blur(16px);z-index:40;
@@ -447,18 +454,19 @@
   }
   function beginClone(x, y) {
     if (!editing) setEditing(true);
-    var r = drag.el.getBoundingClientRect();
+    drag.el.classList.remove("lifted", "pressing");
+    var w = drag.el.offsetWidth, h = drag.el.offsetHeight;
     var c = drag.el.cloneNode(true);
     c.className = "tile drag-clone";
-    c.style.width = r.width + "px";
-    c.style.left = (x - r.width / 2) + "px";
-    c.style.top = (y - r.height / 2) + "px";
+    c.style.width = w + "px";
+    c.style.left = (x - w / 2) + "px";
+    c.style.top = (y - h / 2) + "px";
     c.style.transition = "transform .15s ease";
     c.style.transform = "scale(1)";
     document.body.appendChild(c);
     requestAnimationFrame(function () { c.style.transform = "scale(1.15)"; }); // フッと持ち上がる
     drag.clone = c;
-    drag.w = r.width; drag.h = r.height;
+    drag.w = w; drag.h = h;
     drag.el.classList.add("ghost");
     drag.moved = true;
   }
@@ -539,7 +547,7 @@
       d.pendT = setTimeout(function () {
         if (drag !== d || d.hoverT !== target || !target.parentNode) return;
         slideInsert(d, target, zone);
-      }, 150);
+      }, 260);
     }
   }
   // フォルダの中から外へ：フォルダを閉じてホーム上のドラッグに切り替える
@@ -600,9 +608,9 @@
       t.style.transition = "none";
       t.style.transform = "translate(" + dx + "px," + dy + "px)";
       requestAnimationFrame(function () {
-        t.style.transition = "transform .26s ease";
+        t.style.transition = "transform .38s cubic-bezier(.25,.7,.3,1)";
         t.style.transform = "";
-        setTimeout(function () { t.style.transition = ""; }, 320);
+        setTimeout(function () { t.style.transition = ""; }, 440);
       });
     });
   }
@@ -623,7 +631,7 @@
     fpanelEl.style.opacity = "";
     if (!d.moved) {
       if (d.clone) d.clone.remove();
-      d.el.classList.remove("ghost");
+      d.el.classList.remove("ghost", "lifted", "pressing");
       clearTargetHighlights();
       return;
     }
@@ -750,10 +758,17 @@
     t.addEventListener("touchstart", function (e) {
       var tp = e.touches[0];
       sx = tp.clientX; sy = tp.clientY; longp = false;
-      if (editing) { startDrag(t, ctx, sx, sy); return; }
+      if (editing) {
+        t.classList.add("lifted"); // 掴んだ感
+        startDrag(t, ctx, sx, sy);
+        return;
+      }
+      t.classList.add("pressing"); // 押してる感（少し沈む）
       timer = setTimeout(function () {
         longp = true;
         if (navigator.vibrate) { try { navigator.vibrate(15); } catch (e2) {} }
+        t.classList.remove("pressing");
+        t.classList.add("lifted"); // フワッと持ち上がる
         setEditing(true);
         startDrag(t, ctx, sx, sy); // 長押しからそのままドラッグできる
       }, 550);
@@ -761,10 +776,14 @@
     t.addEventListener("touchmove", function (e) {
       var tp = e.touches[0];
       if (drag && drag.touchEl === t) { e.preventDefault(); moveDrag(tp.clientX, tp.clientY); return; }
-      if (Math.abs(tp.clientX - sx) + Math.abs(tp.clientY - sy) > 10) clearTimeout(timer);
+      if (Math.abs(tp.clientX - sx) + Math.abs(tp.clientY - sy) > 10) {
+        clearTimeout(timer);
+        t.classList.remove("pressing");
+      }
     }, { passive: false });
     t.addEventListener("touchend", function (e) {
       clearTimeout(timer);
+      t.classList.remove("pressing", "lifted");
       if (drag && drag.touchEl === t) {
         var moved = drag.moved;
         var tp = e.changedTouches[0];
@@ -774,6 +793,7 @@
     }, { passive: false });
     t.addEventListener("touchcancel", function () {
       clearTimeout(timer);
+      t.classList.remove("pressing", "lifted");
       if (drag && drag.touchEl === t) endDrag(-9999, -9999);
     }, { passive: true });
 
