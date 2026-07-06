@@ -464,6 +464,7 @@
     c.style.transition = "transform .15s ease";
     c.style.transform = "scale(1)";
     document.body.appendChild(c);
+    void c.offsetWidth; // 開始状態を確定
     requestAnimationFrame(function () { c.style.transform = "scale(1.15)"; }); // フッと持ち上がる
     drag.clone = c;
     drag.w = w; drag.h = h;
@@ -607,7 +608,7 @@
     }
     return best;
   }
-  // 差し込み：まわりのアイコンがスッと場所を空ける（iPhoneと同じ動き）
+  // 差し込み：まわりのアイコンがぬるっと場所を空ける（iPhoneと同じ動き）
   function slideInsert(d, target, zone) {
     var root = d.ctx === "folder" ? fpagesEl : pagesEl;
     var tiles = root.querySelectorAll(".tile");
@@ -615,6 +616,7 @@
     for (var i = 0; i < tiles.length; i++) before.push([tiles[i], tiles[i].getBoundingClientRect()]);
     if (zone === "l") target.parentNode.insertBefore(d.el, target);
     else target.parentNode.insertBefore(d.el, target.nextSibling);
+    var movers = [];
     before.forEach(function (p) {
       var t = p[0], f = p[1];
       if (t === d.el) return;
@@ -623,10 +625,19 @@
       if (!dx && !dy) return;
       t.style.transition = "none";
       t.style.transform = "translate(" + dx + "px," + dy + "px)";
+      movers.push(t);
+    });
+    if (!movers.length) return;
+    void root.offsetWidth; // 開始位置を確定させてからアニメ開始（これが無いと時々カクッと飛ぶ）
+    requestAnimationFrame(function () {
       requestAnimationFrame(function () {
-        t.style.transition = "transform .85s cubic-bezier(.16,.66,.15,1)";
-        t.style.transform = "";
-        setTimeout(function () { t.style.transition = ""; }, 940);
+        movers.forEach(function (t) {
+          t.style.transition = "transform .85s cubic-bezier(.16,.66,.15,1)";
+          t.style.transform = "";
+        });
+        setTimeout(function () {
+          movers.forEach(function (t) { t.style.transition = ""; });
+        }, 940);
       });
     });
   }
