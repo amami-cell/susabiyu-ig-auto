@@ -683,10 +683,7 @@
             layout.items.splice(tgtIdx, 1, nf);
             var si = itemIndexOf("s", dragId);
             if (si >= 0) layout.items.splice(si, 1);
-            absorb(tgt, function () {
-              save(); render();
-              openFolder(nf.fid, true); // iPhoneと同じく開いて名前をすぐ編集できる
-            });
+            absorb(tgt, function () { save(); render(); }); // フォルダは開かない（名前はタップで開いて編集）
             return;
           }
         }
