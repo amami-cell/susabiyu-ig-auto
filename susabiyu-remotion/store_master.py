@@ -1045,6 +1045,17 @@ def storesdump():
         print("STORE|%s|%s|%s" % (name, g(1), g(2)))
         cnt += 1
     print("[STORES] 合計 %d 店" % cnt)
+    # 店舗マスター側の表示名(C)・アイコン短縮名(U)も確認用に出力
+    try:
+        mrows = sh.values().get(spreadsheetId=SHEET_ID, range=MASTER_TAB + "!A:U").execute().get("values", [])
+    except Exception as e:
+        print("[STORES] マスター読込失敗:", e); return
+    for i in range(1, len(mrows)):
+        r = mrows[i]
+        g = lambda n: (r[n] if len(r) > n else "").strip()
+        if not g(0):
+            continue
+        print("MASTER|%s|%s|%s|%s" % (g(0), g(1), g(2), g(20)))
 
 
 def requestsheet():
