@@ -239,7 +239,17 @@
       return it.ids.length > 0;
     });
     STORES.forEach(function (s) { if (!seen[s.id]) layout.items.push({ t: "s", id: s.id }); });
+    (layout.hidden || []).forEach(pullFromFolders); // 非表示の店はフォルダに残さない
     normalize();
+  }
+  // フォルダから取り出してフォルダの隣に置く（非表示の店の整理用）
+  function pullFromFolders(id) {
+    for (var i = 0; i < layout.items.length; i++) {
+      var it = layout.items[i];
+      if (it.t !== "f") continue;
+      var k = it.ids.indexOf(id);
+      if (k >= 0) { it.ids.splice(k, 1); layout.items.splice(i + 1, 0, { t: "s", id: id }); return; }
+    }
   }
   // 中身が1店舗だけのフォルダは自動で解消して普通のアイコンに戻す（iPhoneと同じ）
   function normalize() {
@@ -250,8 +260,9 @@
       else if (it.ids.length === 0) layout.items.splice(i, 1);
     }
   }
-  syncLayout();
   function save() { normalize(); try { localStorage.setItem(LKEY, JSON.stringify(layout)); } catch (e) {} }
+  syncLayout();
+  save(); // 起動時の整理（1店舗フォルダ解消など）も保存しておく
   function isHidden(id) { return layout.hidden.indexOf(id) >= 0; }
   function findFolder(fid) {
     for (var i = 0; i < layout.items.length; i++)
@@ -643,7 +654,10 @@
           } else {
             var id = t.getAttribute("data-id");
             if (!isHidden(id)) layout.hidden.push(id);
-            save(); render();
+            pullFromFolders(id); // フォルダ内なら外に出して、残り1店舗なら自動解消
+            save();
+            if (openFid && !findFolder(openFid)) closeFolder();
+            render();
           }
         }
         return;
@@ -680,6 +694,7 @@
       if (!cbs[i].checked) hid.push(cbs[i].getAttribute("data-id"));
     }
     layout.hidden = hid;
+    hid.forEach(pullFromFolders);
     save();
     ov.classList.remove("show");
     setEditing(false);
