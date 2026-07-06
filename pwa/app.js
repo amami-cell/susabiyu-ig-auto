@@ -138,12 +138,14 @@
   function mediaHtml(it) {
     if (isVideo(it)) {
       var p = it.poster ? ' poster="' + it.poster + '"' : '';
+      // ポスターがあれば動画本体は再生ボタンを押すまで読み込まない（省通信＝体感速度UP）
+      var pre = it.poster ? "none" : "metadata";
       return '<div class="mediaWrap"><video class="media" style="' + bg(it.blur) + '" src="' + it.url + '"' + p +
-             ' controls playsinline preload="metadata" onloadeddata="window.__mediaOk&&window.__mediaOk(this)" onerror="window.__mediaErr&&window.__mediaErr(this)"></video><div class="badge">▶ タップで再生（音が出ます）</div></div>';
+             ' controls playsinline preload="' + pre + '" onloadeddata="window.__mediaOk&&window.__mediaOk(this)" onerror="window.__mediaErr&&window.__mediaErr(this)"></video><div class="badge">▶ タップで再生（音が出ます）</div></div>';
     }
     if (it.url) {
       return '<div class="mediaWrap"><img class="media" style="' + bg(it.blur) + '" src="' + it.url +
-             '" alt="preview" decoding="async" loading="eager" fetchpriority="high" onload="window.__mediaOk&&window.__mediaOk(this)" onerror="window.__mediaErr&&window.__mediaErr(this)"></div>';
+             '" alt="preview" decoding="async" loading="lazy" onload="window.__mediaOk&&window.__mediaOk(this)" onerror="window.__mediaErr&&window.__mediaErr(this)"></div>';
     }
     return '<div class="mediaWrap"><div class="media" style="height:180px"></div></div>';
   }
@@ -561,8 +563,9 @@
       media = '<div class="mediaWrap"><div class="media" style="height:180px;display:flex;align-items:center;justify-content:center;color:#9aa3b2">見本を生成中…</div></div>';
     } else if (isVideo(it)) {
       var srcAttr = vidObs ? ' data-vsrc="' + esc(it.url) + '"' : ' src="' + esc(it.url) + '"';
+      var vpre = it.poster ? "none" : "metadata";   // ポスターがあれば再生まで本体を読まない
       media = '<div class="mediaWrap"><video class="media" style="' + bg(it.blur) + '"' + srcAttr + p +
-        ' controls playsinline preload="metadata" onerror="window.__mediaErr&&window.__mediaErr(this)"></video><div class="badge">▶ タップで再生（音が出ます）</div></div>';
+        ' controls playsinline preload="' + vpre + '" onerror="window.__mediaErr&&window.__mediaErr(this)"></video><div class="badge">▶ タップで再生（音が出ます）</div></div>';
     } else {
       // 画像パターン（額装・写真一言など）は静止画をそのまま表示
       media = '<div class="mediaWrap"><img class="media" style="' + bg(it.blur) + '" src="' + esc(it.url) +
@@ -860,7 +863,7 @@
     if (reportEl) reportEl.style.display = name === "report" ? "" : "none";
     var rmb = document.getElementById("repmodeBar");
     if (rmb) rmb.style.display = name === "report" ? "" : "none";   // レポート時だけ上部固定バー表示
-    if (name === "report") updateRepModeBar();
+    if (name === "report") { updateRepModeBar(); preloadPdfLib(); }
     if (name === "gallery") { galleryLoaded = true; if (!galleryPlaying()) startGalleryPoll(); }
     else { stopGalleryPoll(); }
     updateNp();   // 再生中の動画が隠れたらミニバーを出す
@@ -1294,17 +1297,37 @@
     chart.addEventListener("mouseup", hide);
     chart.addEventListener("mouseleave", hide);
   }
-  function loadScriptOnce(src, cb) {
+  function loadScriptOnce(src, cb, onerr) {
     var s = document.createElement("script"); s.src = src;
-    s.onload = cb; s.onerror = function () { toast("PDFライブラリの読込に失敗"); };
+    s.onload = cb; s.onerror = onerr || function () { toast("PDFライブラリの読込に失敗"); };
     document.head.appendChild(s);
+  }
+  var PDF_LIB = "https://cdn.jsdelivr.net/npm/html2pdf.js@0.10.3/dist/html2pdf.bundle.min.js";
+  // レポートを開いた時点でPDFライブラリを裏で先読み（ボタンを押した時に待たせない）
+  function preloadPdfLib() {
+    if (window.html2pdf || window.__pdfPre) return;
+    window.__pdfPre = 1;
+    loadScriptOnce(PDF_LIB, function () {}, function () { window.__pdfPre = 0; });  // 失敗時は次回再試行
   }
   function downloadReportPdf() {
     var src = reportEl.querySelector(".repdoc");
     if (!src) { toast("レポートがありません"); return; }
+    var btn = document.getElementById("repPdf");
+    if (btn && btn.disabled) return;   // 二度押し防止
+    if (btn) btn.disabled = true;
+    haptic(12);
+    toastBusy("PDFを準備中…");   // 押した瞬間に反応を出す
+    var done = false;
+    function finish(msg) { done = true; if (btn) btn.disabled = false; if (msg) toast(msg); }
+    // 15秒たってもライブラリが来なければ諦めて明確に伝える
+    var watchdog = setTimeout(function () {
+      if (!done && !window.html2pdf) { window.__pdfPre = 0; finish("PDF部品を読み込めませんでした。電波の良い場所でもう一度お試しください"); }
+    }, 15000);
     function go() {
-      if (!window.html2pdf) { toast("PDF生成に失敗"); return; }
-      toast("PDFを作成中…");
+      if (done) return;
+      clearTimeout(watchdog);
+      if (!window.html2pdf) { finish("PDF生成に失敗"); return; }
+      toastBusy("PDFを作成中…（数秒かかります）");
       var holder = document.createElement("div");
       holder.style.cssText = "position:fixed;left:-99999px;top:0;width:794px;background:#fff";
       var clone = src.cloneNode(true); clone.classList.add("a4");
@@ -1358,10 +1381,11 @@
         jsPDF: { unit: "mm", format: "a4", orientation: "portrait" },
         // 1枚目＝ダッシュボード、2枚目＝分析・まとめ（.repbreak で改ページ）。カード途中での分断は避ける。
         pagebreak: { mode: ["css", "legacy"], before: ".repbreak", avoid: [".repsec", ".reppost", ".repkpi", ".repcard"] }
-      }).from(clone).save().then(function () { holder.remove(); }).catch(function () { holder.remove(); toast("PDF作成に失敗"); });
+      }).from(clone).save().then(function () { holder.remove(); finish("✓ PDFを保存しました（2ページ）"); })
+        .catch(function () { holder.remove(); finish("PDF作成に失敗しました。もう一度お試しください"); });
     }
-    if (window.html2pdf) go();
-    else loadScriptOnce("https://cdn.jsdelivr.net/npm/html2pdf.js@0.10.3/dist/html2pdf.bundle.min.js", go);
+    if (window.html2pdf) { setTimeout(go, 60); }   // 先に「作成中…」を描画してから重い処理へ
+    else loadScriptOnce(PDF_LIB, go, function () { finish("PDF部品の読込に失敗。通信環境をご確認ください"); });
   }
   // 画像/動画が読み込めなかった枠をタップ → その場で再取得
   if (feed) feed.addEventListener("click", function (e) {
