@@ -21,12 +21,6 @@
   body.editing .top .done{display:inline-block}
   .top .gear{border:1px solid rgba(255,255,255,.25);background:rgba(255,255,255,.16);color:#fff;
     font-size:15px;padding:7px 12px;border-radius:999px}
-  .hint{color:#f0f1f4;font-size:12px;margin:12px auto 2px;max-width:330px;padding:0 16px;
-    text-shadow:0 1px 2px rgba(0,0,0,.25)}
-  .hint .hl{display:flex;align-items:center;gap:8px;margin:5px 0;line-height:1.5}
-  .hint .op{flex:0 0 auto;min-width:58px;text-align:center;font-weight:800;font-size:11px;
-    background:rgba(255,255,255,.18);border-radius:999px;padding:3px 8px}
-  .hint .hnote{color:#e3e5e9;font-size:11px;text-align:center;margin-top:9px;line-height:1.7}
 
   /* 横スクロールのページ（携帯ホーム風・スナップ） */
   .pages{display:flex;overflow-x:auto;scroll-snap-type:x mandatory;-webkit-overflow-scrolling:touch;
@@ -153,14 +147,6 @@
   <button class="done" id="doneBtn">完了</button>
   <button class="gear" id="gearBtn">⚙︎ 店舗の表示</button>
 </header>
-<div class="hint">
-  <div class="hl"><span class="op">タップ</span>各店舗の画面をひらく</div>
-  <div class="hl"><span class="op">長押し</span>編集モード（アイコンがゆらゆら）</div>
-  <div class="hl"><span class="op">ドラッグ</span>並べ替え・アイコンの間に差し込み</div>
-  <div class="hl"><span class="op">重ねる</span>フォルダにまとめる</div>
-  <div class="hl"><span class="op">−</span>非表示（⚙︎「店舗の表示」で戻せます）</div>
-  <div class="hnote">並びやフォルダ分けは<b>この端末だけ</b>の設定です。<br>他の人のアプリには影響しません。</div>
-</div>
 <div class="pages" id="pages"></div>
 <div class="dots" id="dots"></div>
 <div class="foot">すさび湯グループ 投稿管理</div>
