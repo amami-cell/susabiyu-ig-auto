@@ -207,7 +207,7 @@
 (function () {
   var STORES = window.SUSABIYU_STORES || [];
   var BYID = {}; STORES.forEach(function (s) { BYID[s.id] = s; });
-  var PER_PAGE = 12;  // ホーム 3列×4行
+  var PER_PAGE = 15;  // ホーム 3列×5行（説明文を消して1段増やした）
   var F_PER = 9;      // フォルダ内 3列×3行（超えたら横スライド）
   var LKEY = "sb_home_layout2";
   var pagesEl = document.getElementById("pages");
