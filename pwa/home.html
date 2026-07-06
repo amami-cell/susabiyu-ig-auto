@@ -96,19 +96,6 @@
   .fclose{margin-top:14px;color:#fff;font-size:12px;background:rgba(255,255,255,.16);border:1px solid rgba(255,255,255,.3);
     border-radius:999px;padding:8px 22px}
 
-  /* 長押しメニュー（iOSのコンテキストメニュー風） */
-  .cmenu{position:fixed;z-index:80;min-width:210px;background:rgba(246,247,249,.96);backdrop-filter:blur(20px);
-    border-radius:14px;box-shadow:0 14px 44px rgba(0,0,0,.4);overflow:hidden;color:#111;
-    animation:cpop .14s ease}
-  @keyframes cpop{from{transform:scale(.9);opacity:0}to{transform:scale(1);opacity:1}}
-  .cmenu button{display:flex;align-items:center;justify-content:space-between;gap:14px;width:100%;
-    background:none;border:none;font-size:15px;padding:12px 16px;color:#111;text-align:left;
-    border-top:1px solid rgba(0,0,0,.08)}
-  .cmenu button:first-child{border-top:none}
-  .cmenu button:active{background:rgba(0,0,0,.06)}
-  .cmenu button.red{color:#d0342c}
-  .cmenu .mi{font-size:15px;opacity:.75}
-
   /* 表示/非表示の設定モーダル */
   .ov{position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:50;display:none;align-items:flex-end}
   .ov.show{display:flex}
@@ -441,60 +428,11 @@
   });
   ftitleEl.addEventListener("keydown", function (e) { if (e.key === "Enter") ftitleEl.blur(); });
 
-  /* ---------- 長押しメニュー（iOSと同じ：押し続けて動かせばそのままドラッグ） ---------- */
-  var menuEl = null;
-  function hideMenu() { if (menuEl) { menuEl.remove(); menuEl = null; } }
-  function showMenu(t, ctx) {
-    hideMenu();
-    var kind = t.getAttribute("data-kind");
-    var items = [];
-    if (kind === "f") {
-      var fid = t.getAttribute("data-fid");
-      items = [
-        ["ひらく", "📂", function () { openFolder(fid); }],
-        ["ホーム画面を編集", "🌀", function () { setEditing(true); }],
-        ["フォルダを解除", "✂️", function () { dissolveFolder(fid); }, "red"]
-      ];
-    } else {
-      var id = t.getAttribute("data-id");
-      var st = BYID[id];
-      items = [
-        ["ひらく", "↗️", function () {
-          if (!st.url) { toast("「" + st.name + "」は準備中です"); return; }
-          location.href = st.url;
-        }],
-        ["ホーム画面を編集", "🌀", function () { setEditing(true); }],
-        ["非表示にする", "➖", function () { hideStore(id); }, "red"]
-      ];
-    }
-    var m = document.createElement("div");
-    m.className = "cmenu";
-    items.forEach(function (it) {
-      var btn = document.createElement("button");
-      if (it[3]) btn.className = it[3];
-      btn.innerHTML = "<span>" + it[0] + "</span><span class=\"mi\">" + it[1] + "</span>";
-      btn.addEventListener("click", function (e) {
-        e.stopPropagation();
-        hideMenu();
-        it[2]();
-      });
-      m.appendChild(btn);
-    });
-    document.body.appendChild(m);
-    var r = t.getBoundingClientRect();
-    var mw = m.offsetWidth, mh = m.offsetHeight;
-    var left = Math.min(Math.max(10, r.left), window.innerWidth - mw - 10);
-    var top = (r.bottom + 8 + mh < window.innerHeight) ? r.bottom + 8 : Math.max(10, r.top - mh - 8);
-    m.style.left = left + "px";
-    m.style.top = top + "px";
-    menuEl = m;
-  }
-  // 空白タップ：メニューを閉じる／編集モードを解除（iPhoneの壁紙タップと同じ）
+  // 空白タップ：編集モードを解除（iPhoneの壁紙タップと同じ）
   var swallowClick = false; // ドラッグを離した直後の1クリックは無視
   document.addEventListener("click", function (e) {
     if (swallowClick) { swallowClick = false; return; }
-    if (menuEl && !e.target.closest(".cmenu")) hideMenu();
-    if (editing && !e.target.closest(".tile") && !e.target.closest(".cmenu") &&
+    if (editing && !e.target.closest(".tile") &&
         !e.target.closest(".top") && !e.target.closest("#fov") && !e.target.closest(".ov")) {
       setEditing(false);
     }
@@ -508,7 +446,6 @@
              outT: null, lastX: x, lastY: y };
   }
   function beginClone(x, y) {
-    hideMenu();
     if (!editing) setEditing(true);
     var r = drag.el.getBoundingClientRect();
     var c = drag.el.cloneNode(true);
@@ -817,8 +754,8 @@
       timer = setTimeout(function () {
         longp = true;
         if (navigator.vibrate) { try { navigator.vibrate(15); } catch (e2) {} }
-        showMenu(t, ctx);          // iOSと同じ：長押しでメニュー
-        startDrag(t, ctx, sx, sy); // そのまま動かせばドラッグ（メニューは消える）
+        setEditing(true);
+        startDrag(t, ctx, sx, sy); // 長押しからそのままドラッグできる
       }, 550);
     }, { passive: true });
     t.addEventListener("touchmove", function (e) {
@@ -832,7 +769,7 @@
         var moved = drag.moved;
         var tp = e.changedTouches[0];
         endDrag(tp.clientX, tp.clientY);
-        if (moved || longp) { e.preventDefault(); } // 長押しで離した時はメニューを開いたまま
+        if (moved || longp) { e.preventDefault(); }
       }
     }, { passive: false });
     t.addEventListener("touchcancel", function () {
@@ -840,8 +777,8 @@
       if (drag && drag.touchEl === t) endDrag(-9999, -9999);
     }, { passive: true });
 
-    // PC検証用：右クリックで長押しメニュー、マウスドラッグ対応
-    t.addEventListener("contextmenu", function (e) { e.preventDefault(); showMenu(t, ctx); });
+    // PC検証用：右クリックで編集モード、マウスドラッグ対応
+    t.addEventListener("contextmenu", function (e) { e.preventDefault(); setEditing(true); });
     t.addEventListener("mousedown", function (e) {
       if (!editing || e.button !== 0) return;
       startDrag(t, ctx, e.clientX, e.clientY);
@@ -856,15 +793,16 @@
     });
 
     t.addEventListener("click", function (e) {
-      if (menuEl) { hideMenu(); return; }
       if (editing) {
         if (e.target.classList.contains("minus")) {
           if (t.getAttribute("data-kind") === "f") dissolveFolder(t.getAttribute("data-fid"));
           else hideStore(t.getAttribute("data-id"));
           return;
         }
+        // マス目内の余白（アイコンや名前以外）をタップ → 空白扱いで編集モード解除
+        if (e.target === t) { setEditing(false); return; }
         // 編集中でもフォルダは開ける（iPhoneと同じ・中もゆらゆらのまま）
-        if (t.getAttribute("data-kind") === "f") openFolder(t.getAttribute("data-fid"));
+        if (t.getAttribute("data-kind") === "f" && e.target.closest(".ic")) openFolder(t.getAttribute("data-fid"));
         return;
       }
       if (t.getAttribute("data-kind") === "f") { openFolder(t.getAttribute("data-fid")); return; }
