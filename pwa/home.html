@@ -40,7 +40,7 @@
   .tile .ic{position:relative;width:74px;height:74px;border-radius:20px;overflow:hidden;background:var(--card);
     border:1px solid var(--line);box-shadow:0 6px 16px rgba(0,0,0,.35);
     display:flex;align-items:center;justify-content:center}
-  .tile .ic img{width:100%;height:100%;object-fit:cover;display:block;pointer-events:none}
+  .tile .ic img{width:100%;height:100%;object-fit:contain;padding:9px;display:block;pointer-events:none}
   .tile .ic .init{font-size:34px;font-weight:800;color:#e9dcc3;font-family:"Hiragino Mincho ProN",serif}
   .tile .nm{font-size:11px;font-weight:700;color:var(--fg);max-width:100px;text-align:center;
     white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -56,7 +56,7 @@
     gap:3px;padding:8px;width:100%;height:100%}
   .fgrid .m{border-radius:5px;overflow:hidden;background:var(--card);display:flex;align-items:center;
     justify-content:center;font-size:10px;font-weight:800;color:#e9dcc3}
-  .fgrid .m img{width:100%;height:100%;object-fit:cover;pointer-events:none}
+  .fgrid .m img{width:100%;height:100%;object-fit:contain;padding:2px;pointer-events:none}
 
   /* 編集モード：ゆらゆら＋−バッジ */
   body.editing .tile{touch-action:none}
@@ -104,7 +104,7 @@
   .row{display:flex;align-items:center;gap:12px;padding:11px 4px;border-bottom:1px solid var(--line)}
   .row .mini{width:40px;height:40px;border-radius:12px;overflow:hidden;background:var(--card);border:1px solid var(--line);
     display:flex;align-items:center;justify-content:center;flex:0 0 auto}
-  .row .mini img{width:100%;height:100%;object-fit:cover}
+  .row .mini img{width:100%;height:100%;object-fit:contain;padding:4px}
   .row .mini span{font-size:18px;font-weight:800;color:#e9dcc3}
   .row .t{flex:1;min-width:0}
   .row .t b{font-size:13px;display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
