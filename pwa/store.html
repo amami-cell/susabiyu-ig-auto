@@ -73,9 +73,10 @@
   var s = (window.SUSABIYU_STORES || []).filter(function (x) { return x.id === id; })[0];
   if (!s) { location.replace("./home.html"); return; }
 
-  document.title = s.name;
-  document.getElementById("hname").textContent = s.name;
-  document.getElementById("hname2").textContent = s.name + (s.short ? "（" + s.short + "）" : "");
+  var full = s.full || s.name;
+  document.title = full;
+  document.getElementById("hname").textContent = full;
+  document.getElementById("hname2").textContent = full;
   var ic = document.getElementById("hic");
   ic.innerHTML = s.icon ? '<img src="' + s.icon + '" alt="">' : '<span>' + (s.initial || s.name.charAt(0)) + '</span>';
   if (!s.live) document.getElementById("hprep").style.display = "inline-block";

@@ -856,7 +856,7 @@
       r.className = "row";
       r.innerHTML =
         '<span class="mini">' + iconHtml(s, "") + '</span>' +
-        '<span class="t"><b>' + s.name + '</b><small>' + (s.short || "") + (s.live ? "" : "・準備中") + '</small></span>' +
+        '<span class="t"><b>' + (s.full || s.name) + '</b><small>' + s.name + (s.live ? "" : "・準備中") + '</small></span>' +
         '<input type="checkbox" data-id="' + s.id + '"' + (isHidden(s.id) ? "" : " checked") + '>';
       rowsEl.appendChild(r);
     });
