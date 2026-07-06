@@ -96,6 +96,19 @@
   .fclose{margin-top:14px;color:#fff;font-size:12px;background:rgba(255,255,255,.16);border:1px solid rgba(255,255,255,.3);
     border-radius:999px;padding:8px 22px}
 
+  /* 長押しメニュー（iOSのコンテキストメニュー風） */
+  .cmenu{position:fixed;z-index:80;min-width:210px;background:rgba(246,247,249,.96);backdrop-filter:blur(20px);
+    border-radius:14px;box-shadow:0 14px 44px rgba(0,0,0,.4);overflow:hidden;color:#111;
+    animation:cpop .14s ease}
+  @keyframes cpop{from{transform:scale(.9);opacity:0}to{transform:scale(1);opacity:1}}
+  .cmenu button{display:flex;align-items:center;justify-content:space-between;gap:14px;width:100%;
+    background:none;border:none;font-size:15px;padding:12px 16px;color:#111;text-align:left;
+    border-top:1px solid rgba(0,0,0,.08)}
+  .cmenu button:first-child{border-top:none}
+  .cmenu button:active{background:rgba(0,0,0,.06)}
+  .cmenu button.red{color:#d0342c}
+  .cmenu .mi{font-size:15px;opacity:.75}
+
   /* 表示/非表示の設定モーダル */
   .ov{position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:50;display:none;align-items:flex-end}
   .ov.show{display:flex}
@@ -270,6 +283,22 @@
       if (layout.items[i].t === "f" && layout.items[i].fid === fid) return layout.items[i];
     return null;
   }
+  function hideStore(id) {
+    if (!isHidden(id)) layout.hidden.push(id);
+    pullFromFolders(id); // フォルダ内なら外に出して、残り1店舗なら自動解消
+    save();
+    if (openFid && !findFolder(openFid)) closeFolder();
+    render();
+  }
+  function dissolveFolder(fid) {
+    var f = findFolder(fid);
+    var fi = itemIndexOf("f", fid);
+    if (f && fi >= 0) {
+      var back = f.ids.map(function (id) { return { t: "s", id: id }; });
+      Array.prototype.splice.apply(layout.items, [fi, 1].concat(back));
+      save(); render();
+    }
+  }
 
   /* ---------- 描画 ---------- */
   function iconHtml(s, cls) {
@@ -412,13 +441,75 @@
   });
   ftitleEl.addEventListener("keydown", function (e) { if (e.key === "Enter") ftitleEl.blur(); });
 
+  /* ---------- 長押しメニュー（iOSと同じ：押し続けて動かせばそのままドラッグ） ---------- */
+  var menuEl = null;
+  function hideMenu() { if (menuEl) { menuEl.remove(); menuEl = null; } }
+  function showMenu(t, ctx) {
+    hideMenu();
+    var kind = t.getAttribute("data-kind");
+    var items = [];
+    if (kind === "f") {
+      var fid = t.getAttribute("data-fid");
+      items = [
+        ["ひらく", "📂", function () { openFolder(fid); }],
+        ["ホーム画面を編集", "🌀", function () { setEditing(true); }],
+        ["フォルダを解除", "✂️", function () { dissolveFolder(fid); }, "red"]
+      ];
+    } else {
+      var id = t.getAttribute("data-id");
+      var st = BYID[id];
+      items = [
+        ["ひらく", "↗️", function () {
+          if (!st.url) { toast("「" + st.name + "」は準備中です"); return; }
+          location.href = st.url;
+        }],
+        ["ホーム画面を編集", "🌀", function () { setEditing(true); }],
+        ["非表示にする", "➖", function () { hideStore(id); }, "red"]
+      ];
+    }
+    var m = document.createElement("div");
+    m.className = "cmenu";
+    items.forEach(function (it) {
+      var btn = document.createElement("button");
+      if (it[3]) btn.className = it[3];
+      btn.innerHTML = "<span>" + it[0] + "</span><span class=\"mi\">" + it[1] + "</span>";
+      btn.addEventListener("click", function (e) {
+        e.stopPropagation();
+        hideMenu();
+        it[2]();
+      });
+      m.appendChild(btn);
+    });
+    document.body.appendChild(m);
+    var r = t.getBoundingClientRect();
+    var mw = m.offsetWidth, mh = m.offsetHeight;
+    var left = Math.min(Math.max(10, r.left), window.innerWidth - mw - 10);
+    var top = (r.bottom + 8 + mh < window.innerHeight) ? r.bottom + 8 : Math.max(10, r.top - mh - 8);
+    m.style.left = left + "px";
+    m.style.top = top + "px";
+    menuEl = m;
+  }
+  // 空白タップ：メニューを閉じる／編集モードを解除（iPhoneの壁紙タップと同じ）
+  var swallowClick = false; // ドラッグを離した直後の1クリックは無視
+  document.addEventListener("click", function (e) {
+    if (swallowClick) { swallowClick = false; return; }
+    if (menuEl && !e.target.closest(".cmenu")) hideMenu();
+    if (editing && !e.target.closest(".tile") && !e.target.closest(".cmenu") &&
+        !e.target.closest(".top") && !e.target.closest("#fov") && !e.target.closest(".ov")) {
+      setEditing(false);
+    }
+  });
+
   /* ---------- ドラッグ（並べ替え／重ねてフォルダ） ---------- */
   var drag = null; // {el, ctx, moved, clone, w, h, fover, hoverT, hoverZ, pendT, flipSince}
   function startDrag(el, ctx, x, y) {
-    drag = { el: el, ctx: ctx, moved: false, clone: null, sx: x, sy: y,
-             fover: null, hoverT: null, hoverZ: "", pendT: null, flipDir: 0, flipSince: 0 };
+    drag = { el: el, touchEl: el, ctx: ctx, moved: false, clone: null, sx: x, sy: y,
+             fover: null, hoverT: null, hoverZ: "", pendT: null, flipDir: 0, flipSince: 0,
+             outT: null, lastX: x, lastY: y };
   }
   function beginClone(x, y) {
+    hideMenu();
+    if (!editing) setEditing(true);
     var r = drag.el.getBoundingClientRect();
     var c = drag.el.cloneNode(true);
     c.className = "tile drag-clone";
@@ -452,11 +543,27 @@
     drag.clone.style.left = (x - drag.w / 2) + "px";
     drag.clone.style.top = (y - drag.h / 2) + "px";
 
-    // フォルダの外に出ている間はパネルを薄く＝「離すと取り出し」の合図
+    // フォルダの外に出たら：少し待ってフォルダが閉じ、そのままホームでドラッグ継続（iPhoneと同じ）
     if (drag.ctx === "folder") {
       var pr = fpanelEl.getBoundingClientRect();
       var out = x < pr.left || x > pr.right || y < pr.top || y > pr.bottom;
       fpanelEl.style.opacity = out ? ".5" : "";
+      drag.lastX = x; drag.lastY = y;
+      if (out) {
+        if (!drag.outT) {
+          var d2 = drag;
+          d2.outT = setTimeout(function () {
+            if (drag !== d2 || d2.ctx !== "folder") return;
+            d2.outT = null;
+            var p2 = fpanelEl.getBoundingClientRect();
+            if (d2.lastX < p2.left || d2.lastX > p2.right || d2.lastY < p2.top || d2.lastY > p2.bottom) {
+              extractToHome();
+            }
+          }, 310);
+        }
+      } else if (drag.outT) {
+        clearTimeout(drag.outT); drag.outT = null;
+      }
     }
 
     // ホームでは画面端で自動ページ送り
@@ -497,6 +604,28 @@
         slideInsert(d, target, zone);
       }, 150);
     }
+  }
+  // フォルダの中から外へ：フォルダを閉じてホーム上のドラッグに切り替える
+  function extractToHome() {
+    var d = drag;
+    var id = d.el.getAttribute("data-id");
+    var f = findFolder(openFid);
+    if (!f) return;
+    var k = f.ids.indexOf(id);
+    if (k < 0) return;
+    f.ids.splice(k, 1);
+    var fi = itemIndexOf("f", openFid);
+    layout.items.splice(fi < 0 ? layout.items.length : fi + 1, 0, { t: "s", id: id });
+    save(); // 残り1店舗ならフォルダ自動解消
+    closeFolder();
+    fpanelEl.style.opacity = "";
+    render();
+    var nt = pagesEl.querySelector('.tile[data-id="' + id + '"]');
+    if (nt) { d.el = nt; nt.classList.add("ghost"); }
+    d.ctx = "home";
+    d.hoverT = null; d.hoverZ = "";
+    if (d.outT) { clearTimeout(d.outT); d.outT = null; }
+    clearFover();
   }
   // 最寄りのアイコンを幾何計算で探す（アイコンの間のすき間に落としてもOK）
   function findTarget(x, y) {
@@ -552,6 +681,8 @@
     if (!drag) return;
     var d = drag; drag = null;
     if (d.pendT) clearTimeout(d.pendT);
+    if (d.outT) clearTimeout(d.outT);
+    if (d.moved) swallowClick = true; // ドラッグ直後に飛ぶクリックで誤動作しない
     fpanelEl.style.opacity = "";
     if (!d.moved) {
       if (d.clone) d.clone.remove();
@@ -685,32 +816,32 @@
       if (editing) { startDrag(t, ctx, sx, sy); return; }
       timer = setTimeout(function () {
         longp = true;
-        setEditing(true);
         if (navigator.vibrate) { try { navigator.vibrate(15); } catch (e2) {} }
-        startDrag(t, ctx, sx, sy); // 長押しからそのままドラッグできる
+        showMenu(t, ctx);          // iOSと同じ：長押しでメニュー
+        startDrag(t, ctx, sx, sy); // そのまま動かせばドラッグ（メニューは消える）
       }, 550);
     }, { passive: true });
     t.addEventListener("touchmove", function (e) {
       var tp = e.touches[0];
-      if (drag && drag.el === t) { e.preventDefault(); moveDrag(tp.clientX, tp.clientY); return; }
+      if (drag && drag.touchEl === t) { e.preventDefault(); moveDrag(tp.clientX, tp.clientY); return; }
       if (Math.abs(tp.clientX - sx) + Math.abs(tp.clientY - sy) > 10) clearTimeout(timer);
     }, { passive: false });
     t.addEventListener("touchend", function (e) {
       clearTimeout(timer);
-      if (drag && drag.el === t) {
+      if (drag && drag.touchEl === t) {
         var moved = drag.moved;
         var tp = e.changedTouches[0];
         endDrag(tp.clientX, tp.clientY);
-        if (moved || longp) { e.preventDefault(); }
+        if (moved || longp) { e.preventDefault(); } // 長押しで離した時はメニューを開いたまま
       }
     }, { passive: false });
     t.addEventListener("touchcancel", function () {
       clearTimeout(timer);
-      if (drag && drag.el === t) endDrag(-9999, -9999);
+      if (drag && drag.touchEl === t) endDrag(-9999, -9999);
     }, { passive: true });
 
-    // PC検証用：右クリックで編集モード、マウスドラッグ対応
-    t.addEventListener("contextmenu", function (e) { e.preventDefault(); setEditing(true); });
+    // PC検証用：右クリックで長押しメニュー、マウスドラッグ対応
+    t.addEventListener("contextmenu", function (e) { e.preventDefault(); showMenu(t, ctx); });
     t.addEventListener("mousedown", function (e) {
       if (!editing || e.button !== 0) return;
       startDrag(t, ctx, e.clientX, e.clientY);
@@ -718,35 +849,22 @@
       var mu = function (ev) {
         document.removeEventListener("mousemove", mm);
         document.removeEventListener("mouseup", mu);
-        if (drag && drag.el === t) endDrag(ev.clientX, ev.clientY);
+        if (drag && drag.touchEl === t) endDrag(ev.clientX, ev.clientY);
       };
       document.addEventListener("mousemove", mm);
       document.addEventListener("mouseup", mu);
     });
 
     t.addEventListener("click", function (e) {
+      if (menuEl) { hideMenu(); return; }
       if (editing) {
         if (e.target.classList.contains("minus")) {
-          var kind = t.getAttribute("data-kind");
-          if (kind === "f") {
-            // フォルダの−＝フォルダ解除（中の店はホームに戻る）
-            var fid = t.getAttribute("data-fid");
-            var f = findFolder(fid);
-            var fi = itemIndexOf("f", fid);
-            if (f && fi >= 0) {
-              var back = f.ids.map(function (id) { return { t: "s", id: id }; });
-              Array.prototype.splice.apply(layout.items, [fi, 1].concat(back));
-              save(); render();
-            }
-          } else {
-            var id = t.getAttribute("data-id");
-            if (!isHidden(id)) layout.hidden.push(id);
-            pullFromFolders(id); // フォルダ内なら外に出して、残り1店舗なら自動解消
-            save();
-            if (openFid && !findFolder(openFid)) closeFolder();
-            render();
-          }
+          if (t.getAttribute("data-kind") === "f") dissolveFolder(t.getAttribute("data-fid"));
+          else hideStore(t.getAttribute("data-id"));
+          return;
         }
+        // 編集中でもフォルダは開ける（iPhoneと同じ・中もゆらゆらのまま）
+        if (t.getAttribute("data-kind") === "f") openFolder(t.getAttribute("data-fid"));
         return;
       }
       if (t.getAttribute("data-kind") === "f") { openFolder(t.getAttribute("data-fid")); return; }
