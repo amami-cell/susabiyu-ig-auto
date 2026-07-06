@@ -120,18 +120,37 @@
     var w = el && el.closest && el.closest(".mediaWrap"); if (w) w.classList.remove("mediaerr");
     if (el) el.setAttribute("data-retry", "0");
   };
-  // 読み込みが「途中で静かに止まった」画像の監視（エラーも完了も来ないまま
-  // ボカシ表示で固まるのを防ぐ）。15秒たっても完了しない画像は自動で読み直す。
+  // 読み込みが「途中で静かに止まった」画像の監視と自動復旧。
+  // ・画面に見えている画像だけを対象にする（画面外で読み込み待ちの遅延画像を
+  //   「止まった」と誤検知しないため）
+  // ・15秒たっても完了しない画像はキャッシュ回避付きで読み直し（最大4回）
+  // ・リトライを使い切った後も、見えている間は30秒ごとに自動で再挑戦（タップ不要）
   setInterval(function () {
     var imgs = document.querySelectorAll("img.media");
+    var now = Date.now();
     for (var i = 0; i < imgs.length; i++) {
       var el = imgs[i];
       if (el.complete && el.naturalWidth > 0) { el._t0 = 0; continue; }   // 正常に完了
-      if (!el.getAttribute("src")) continue;                              // 未読み込み（遅延中）
-      if (!el._t0) { el._t0 = Date.now(); continue; }
-      if (Date.now() - el._t0 > 15000) {
-        el._t0 = Date.now();
-        if (window.__mediaErr) window.__mediaErr(el);   // キャッシュ回避付きで再読込（最大4回）
+      if (!el.getAttribute("src")) continue;                              // 未読み込み
+      // 非表示（フィルタで隠れている等）や画面から遠い画像は対象外
+      var rct = el.getBoundingClientRect();
+      var vis = el.offsetParent !== null && rct.bottom > -600 && rct.top < window.innerHeight + 600;
+      if (!vis) { el._t0 = 0; continue; }
+      var wrap = el.closest && el.closest(".mediaWrap");
+      var failed = wrap && wrap.classList.contains("mediaerr");
+      if (failed) {
+        // リトライ切れ後も、見えている間は30秒ごとに静かに再挑戦
+        if (!el._again || now > el._again) {
+          el._again = now + 30000;
+          el.setAttribute("data-retry", "0");
+          if (window.__mediaErr) window.__mediaErr(el);
+        }
+        continue;
+      }
+      if (!el._t0) { el._t0 = now; continue; }
+      if (now - el._t0 > 15000) {
+        el._t0 = now;
+        if (window.__mediaErr) window.__mediaErr(el);
       }
     }
   }, 5000);
@@ -1230,8 +1249,8 @@
       '<small>' + ((pNet != null || p_("reach") != null) ? cmpLbl : 'データ蓄積中（30日で比較が満額に）') + '</small></div>';
     updateRepModeBar();   // 上部固定の前日/週間/月間バーの表示を同期
     reportEl.innerHTML =
-      '<div class="repbar"><button id="repReload">↻ 更新</button><button id="repPdf" class="pdf">📄 PDFで保存（A4）</button></div>' +
-      '<div class="rephint">この画面は誰でも閲覧できます（操作はありません）。PDFはA4資料として保存できます。</div>' +
+      '<div class="repbar"><button id="repReload">↻ 更新</button><button id="repPdf" class="pdf">📄 PDF出力（A4）</button></div>' +
+      '<div class="rephint">この画面は誰でも閲覧できます（操作はありません）。PDF出力（A4・2ページ）ができます。</div>' +
       '<div class="repdoc">' + head + period + '</div>' +
       '<div class="repsec"><h3>アカウント全体</h3><div class="repkpis">' + kpis + '</div></div>' +
       '<div class="repsec"><h3>' + esc(trendLbl) + '</h3><div class="repchart"><div class="repbars">' + bars + '</div><div class="reptip"></div></div><div class="repax"><span>' + firstD + '</span><span>' + lastD + '</span></div><div class="repnote">KPIをタップで指標を切替／グラフを指でなぞると日付と数値が出ます。</div></div>' +
@@ -1316,7 +1335,7 @@
     if (btn && btn.disabled) return;   // 二度押し防止
     if (btn) btn.disabled = true;
     haptic(12);
-    toastBusy("PDFを準備中…");   // 押した瞬間に反応を出す
+    toastBusy("PDF出力を準備中…");   // 押した瞬間に反応を出す
     var done = false;
     function finish(msg) { done = true; if (btn) btn.disabled = false; if (msg) toast(msg); }
     // 15秒たってもライブラリが来なければ諦めて明確に伝える
@@ -1327,7 +1346,7 @@
       if (done) return;
       clearTimeout(watchdog);
       if (!window.html2pdf) { finish("PDF生成に失敗"); return; }
-      toastBusy("PDFを作成中…（数秒かかります）");
+      toastBusy("PDFを出力中…（数秒かかります）");
       var holder = document.createElement("div");
       holder.style.cssText = "position:fixed;left:-99999px;top:0;width:794px;background:#fff";
       var clone = src.cloneNode(true); clone.classList.add("a4");
@@ -1381,7 +1400,7 @@
         jsPDF: { unit: "mm", format: "a4", orientation: "portrait" },
         // 1枚目＝ダッシュボード、2枚目＝分析・まとめ（.repbreak で改ページ）。カード途中での分断は避ける。
         pagebreak: { mode: ["css", "legacy"], before: ".repbreak", avoid: [".repsec", ".reppost", ".repkpi", ".repcard"] }
-      }).from(clone).save().then(function () { holder.remove(); finish("✓ PDFを保存しました（2ページ）"); })
+      }).from(clone).save().then(function () { holder.remove(); finish("✓ PDF出力が完了しました（2ページ）"); })
         .catch(function () { holder.remove(); finish("PDF作成に失敗しました。もう一度お試しください"); });
     }
     if (window.html2pdf) { setTimeout(go, 60); }   // 先に「作成中…」を描画してから重い処理へ
