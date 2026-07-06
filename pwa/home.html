@@ -239,9 +239,19 @@
       return it.ids.length > 0;
     });
     STORES.forEach(function (s) { if (!seen[s.id]) layout.items.push({ t: "s", id: s.id }); });
+    normalize();
+  }
+  // 中身が1店舗だけのフォルダは自動で解消して普通のアイコンに戻す（iPhoneと同じ）
+  function normalize() {
+    for (var i = layout.items.length - 1; i >= 0; i--) {
+      var it = layout.items[i];
+      if (it.t !== "f") continue;
+      if (it.ids.length === 1) layout.items.splice(i, 1, { t: "s", id: it.ids[0] });
+      else if (it.ids.length === 0) layout.items.splice(i, 1);
+    }
   }
   syncLayout();
-  function save() { try { localStorage.setItem(LKEY, JSON.stringify(layout)); } catch (e) {} }
+  function save() { normalize(); try { localStorage.setItem(LKEY, JSON.stringify(layout)); } catch (e) {} }
   function isHidden(id) { return layout.hidden.indexOf(id) >= 0; }
   function findFolder(fid) {
     for (var i = 0; i < layout.items.length; i++)
@@ -532,14 +542,10 @@
         if (k >= 0) {
           f2.ids.splice(k, 1);
           var fi = itemIndexOf("f", openFid);
-          var item = { t: "s", id: dragId };
-          if (f2.ids.length === 0) {
-            layout.items.splice(fi, 1, item); // 空になったらフォルダ解消
-            closeFolder();
-          } else {
-            layout.items.splice(fi + 1, 0, item);
-          }
-          save(); render();
+          layout.items.splice(fi + 1, 0, { t: "s", id: dragId });
+          save(); // 残り1店舗ならここでフォルダが自動解消される
+          if (!findFolder(openFid)) closeFolder();
+          render();
           return;
         }
       }
