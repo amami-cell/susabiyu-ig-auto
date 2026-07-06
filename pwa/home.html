@@ -4,24 +4,24 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
 <title>すさび湯 店舗ホーム</title>
-<meta name="theme-color" content="#0f1115">
+<meta name="theme-color" content="#83868c">
 <style>
-  :root{--bg:#0f1115;--card:#181c23;--line:#262b35;--fg:#e8ecf2;--sub:#9aa3b2;--accent:#7fd1a0}
+  :root{--bg:#83868c;--card:#171c26;--line:#262b35;--fg:#ffffff;--sub:#e6e8ec;--accent:#7fd1a0}
   *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
   button{touch-action:manipulation;font-family:inherit}
   html,body{background:var(--bg);color:var(--fg);font-family:-apple-system,BlinkMacSystemFont,"Hiragino Sans","Noto Sans JP",sans-serif;
     min-height:100%;overscroll-behavior-y:none}
   body{-webkit-user-select:none;user-select:none}
-  .top{position:sticky;top:0;z-index:10;background:rgba(15,17,21,.88);backdrop-filter:saturate(180%) blur(12px);
-    border-bottom:1px solid var(--line);display:flex;align-items:center;gap:10px;
+  .top{position:sticky;top:0;z-index:10;background:rgba(112,115,121,.85);backdrop-filter:saturate(180%) blur(12px);
+    border-bottom:1px solid rgba(255,255,255,.14);display:flex;align-items:center;gap:10px;
     padding:calc(env(safe-area-inset-top) + 14px) 18px 12px}
   .top h1{font-size:16px;font-weight:800;letter-spacing:.5px;flex:1}
   .top .done{display:none;border:1px solid #1f4d33;background:#10301f;color:var(--accent);
     font-size:13px;font-weight:800;padding:7px 16px;border-radius:999px}
   body.editing .top .done{display:inline-block}
-  .top .gear{border:1px solid var(--line);background:var(--card);color:var(--sub);
+  .top .gear{border:1px solid rgba(255,255,255,.25);background:rgba(255,255,255,.16);color:#fff;
     font-size:15px;padding:7px 12px;border-radius:999px}
-  .hint{color:var(--sub);font-size:12px;text-align:center;margin:14px 16px 2px;line-height:1.7}
+  .hint{color:#f0f1f4;font-size:12px;text-align:center;margin:14px 16px 2px;line-height:1.7;text-shadow:0 1px 2px rgba(0,0,0,.25)}
 
   /* 横スクロールのページ（携帯ホーム風・スナップ） */
   .pages{display:flex;overflow-x:auto;scroll-snap-type:x mandatory;-webkit-overflow-scrolling:touch;
@@ -31,27 +31,27 @@
     display:grid;grid-template-columns:repeat(3,1fr);grid-auto-rows:118px;gap:14px 10px;align-content:start;
     min-height:300px}
   .dots{display:flex;justify-content:center;gap:6px;margin:2px 0 10px}
-  .dots i{width:6px;height:6px;border-radius:50%;background:#39404d}
-  .dots i.on{background:var(--accent)}
+  .dots i{width:6px;height:6px;border-radius:50%;background:rgba(255,255,255,.4)}
+  .dots i.on{background:#fff}
 
   /* 店舗アイコン */
   .tile{position:relative;display:flex;flex-direction:column;align-items:center;gap:7px;
     background:none;border:none;color:var(--fg)}
   .tile .ic{position:relative;width:74px;height:74px;border-radius:20px;overflow:hidden;background:var(--card);
-    border:1px solid var(--line);box-shadow:0 6px 16px rgba(0,0,0,.35);
+    border:none;box-shadow:0 12px 24px rgba(0,0,0,.45), 0 3px 7px rgba(0,0,0,.35);
     display:flex;align-items:center;justify-content:center}
   .tile .ic img{width:100%;height:100%;object-fit:contain;padding:5px;display:block;pointer-events:none}
   .tile .ic .init{font-size:34px;font-weight:800;color:#e9dcc3;font-family:"Hiragino Mincho ProN",serif}
-  .tile .nm{font-size:11px;font-weight:700;color:var(--fg);max-width:100px;text-align:center;
+  .tile .nm{font-size:11px;font-weight:700;color:#fff;text-shadow:0 1px 3px rgba(0,0,0,.45);max-width:100px;text-align:center;
     white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-  .tile .sb{font-size:10px;color:var(--sub);margin-top:-4px;max-width:100px;text-align:center;
+  .tile .sb{font-size:10px;color:#eef0f3;text-shadow:0 1px 2px rgba(0,0,0,.4);margin-top:-4px;max-width:100px;text-align:center;
     white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .tile .prep{position:absolute;top:-5px;right:2px;background:#3a2f14;color:#ffd23f;border:1px solid #5c4a1c;
     font-size:9px;font-weight:800;padding:2px 7px;border-radius:999px}
   body:not(.editing) .tile:active .ic{transform:scale(.94)}
 
   /* フォルダアイコン（中のミニアイコン9個まで） */
-  .tile .ic.fold{background:#1d2330;padding:0}
+  .tile .ic.fold{background:rgba(255,255,255,.32);backdrop-filter:blur(6px);padding:0}
   .fgrid{display:grid;grid-template-columns:repeat(3,1fr);grid-template-rows:repeat(3,1fr);
     gap:3px;padding:8px;width:100%;height:100%}
   .fgrid .m{border-radius:5px;overflow:hidden;background:var(--card);display:flex;align-items:center;
@@ -63,7 +63,7 @@
   body.editing .tile .ic{animation:wig 0.35s ease-in-out infinite alternate}
   @keyframes wig{from{transform:rotate(-1.6deg)}to{transform:rotate(1.6deg)}}
   .tile .minus{display:none;position:absolute;top:-7px;left:6px;width:24px;height:24px;border-radius:50%;
-    background:#c0473a;color:#fff;border:2px solid var(--bg);font-size:16px;font-weight:800;line-height:20px;z-index:2;
+    background:#c0473a;color:#fff;border:2px solid #fff;font-size:16px;font-weight:800;line-height:20px;z-index:2;
     text-align:center}
   body.editing .tile .minus{display:block}
 
@@ -75,23 +75,23 @@
   .tile.fover .ic{box-shadow:0 0 0 3px var(--accent), 0 6px 16px rgba(0,0,0,.35);transform:scale(1.1);animation:none}
 
   /* フォルダを開いた画面 */
-  .fov{position:fixed;inset:0;background:rgba(10,12,16,.72);backdrop-filter:blur(14px);z-index:40;
+  .fov{position:fixed;inset:0;background:rgba(90,93,99,.55);backdrop-filter:blur(16px);z-index:40;
     display:none;flex-direction:column;align-items:center;justify-content:center;padding:20px}
   .fov.show{display:flex}
-  .ftitle{background:none;border:none;border-bottom:1px dashed #3a4150;color:var(--fg);
+  .ftitle{background:none;border:none;border-bottom:1px dashed rgba(255,255,255,.45);color:#fff;
     font-size:19px;font-weight:800;text-align:center;max-width:70vw;padding:6px 10px;margin-bottom:6px;outline:none}
   .ftitle:focus{border-bottom-color:var(--accent)}
-  .fedit{color:var(--sub);font-size:10px;margin-bottom:10px}
-  .fpanel{background:#161b24;border:1px solid var(--line);border-radius:24px;width:min(92vw,400px);
-    padding:10px 0 4px;box-shadow:0 20px 60px rgba(0,0,0,.5)}
+  .fedit{color:#f0f1f4;font-size:10px;margin-bottom:10px;text-shadow:0 1px 2px rgba(0,0,0,.3)}
+  .fpanel{background:rgba(255,255,255,.26);backdrop-filter:blur(10px);border:none;border-radius:24px;width:min(92vw,400px);
+    padding:10px 0 4px;box-shadow:0 20px 60px rgba(0,0,0,.35)}
   .fpages{display:flex;overflow-x:auto;scroll-snap-type:x mandatory;-webkit-overflow-scrolling:touch;scrollbar-width:none}
   .fpages::-webkit-scrollbar{display:none}
   .fpage{flex:0 0 100%;scroll-snap-align:start;padding:14px 12px;
     display:grid;grid-template-columns:repeat(3,1fr);grid-auto-rows:118px;gap:12px 8px;align-content:start;min-height:250px}
   .fdots{display:flex;justify-content:center;gap:6px;padding:4px 0 10px}
-  .fdots i{width:6px;height:6px;border-radius:50%;background:#39404d}
-  .fdots i.on{background:var(--accent)}
-  .fclose{margin-top:14px;color:var(--sub);font-size:12px;background:none;border:1px solid var(--line);
+  .fdots i{width:6px;height:6px;border-radius:50%;background:rgba(255,255,255,.4)}
+  .fdots i.on{background:#fff}
+  .fclose{margin-top:14px;color:#fff;font-size:12px;background:rgba(255,255,255,.16);border:1px solid rgba(255,255,255,.3);
     border-radius:999px;padding:8px 22px}
 
   /* 表示/非表示の設定モーダル */
@@ -99,36 +99,36 @@
   .ov.show{display:flex}
   .sheet{background:#141821;border-radius:18px 18px 0 0;width:100%;max-height:76vh;overflow-y:auto;
     padding:18px 18px calc(env(safe-area-inset-bottom) + 22px)}
-  .sheet h2{font-size:15px;margin-bottom:4px}
-  .sheet .note{color:var(--sub);font-size:12px;margin-bottom:12px;line-height:1.6}
+  .sheet h2{font-size:15px;margin-bottom:4px;color:#e8ecf2}
+  .sheet .note{color:#9aa3b2;font-size:12px;margin-bottom:12px;line-height:1.6}
   .row{display:flex;align-items:center;gap:12px;padding:11px 4px;border-bottom:1px solid var(--line)}
   .row .mini{width:40px;height:40px;border-radius:12px;overflow:hidden;background:var(--card);border:1px solid var(--line);
     display:flex;align-items:center;justify-content:center;flex:0 0 auto}
   .row .mini img{width:100%;height:100%;object-fit:contain;padding:4px}
   .row .mini span{font-size:18px;font-weight:800;color:#e9dcc3}
   .row .t{flex:1;min-width:0}
-  .row .t b{font-size:13px;display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-  .row .t small{font-size:11px;color:var(--sub)}
+  .row .t b{font-size:13px;color:#e8ecf2;display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .row .t small{font-size:11px;color:#9aa3b2}
   .row input{width:20px;height:20px;accent-color:#1f9d55}
   .sheet .save{margin-top:16px;width:100%;background:#1f9d55;color:#fff;border:none;border-radius:12px;
     padding:14px 0;font-size:15px;font-weight:800}
-  .foot{color:#5b6472;font-size:10px;text-align:center;padding:10px 0 calc(env(safe-area-inset-bottom) + 16px)}
+  .foot{color:rgba(255,255,255,.55);font-size:10px;text-align:center;padding:10px 0 calc(env(safe-area-inset-bottom) + 16px)}
   #toast{position:fixed;left:50%;bottom:calc(env(safe-area-inset-bottom) + 30px);transform:translateX(-50%);
-    background:#232a36;color:var(--fg);border:1px solid var(--line);border-radius:999px;
+    background:#232a36;color:#fff;border:1px solid var(--line);border-radius:999px;
     font-size:13px;font-weight:700;padding:10px 20px;z-index:60;opacity:0;transition:opacity .25s;pointer-events:none;
     white-space:nowrap}
   #toast.show{opacity:1}
   /* 入場コード（関係者専用ゲート） */
-  .gate{position:fixed;inset:0;background:var(--bg);display:flex;flex-direction:column;justify-content:center;
+  .gate{position:fixed;inset:0;background:#0f1115;display:flex;flex-direction:column;justify-content:center;
     align-items:center;gap:18px;padding:30px;z-index:100}
   .gate h1{font-size:20px;letter-spacing:2px}
-  .gate p{color:var(--sub);font-size:13px;text-align:center;line-height:1.7}
+  .gate p{color:#9aa3b2;font-size:13px;text-align:center;line-height:1.7}
   .gate input{width:min(320px,80vw);padding:14px 16px;font-size:20px;text-align:center;letter-spacing:6px;
     border-radius:12px;border:1px solid #2a3542;background:#141b23;color:#fff;outline:none}
   .gate button{width:min(320px,80vw);padding:14px;font-size:16px;font-weight:700;border:0;border-radius:12px;
     background:#c8a24a;color:#1a1206}
   .gate .err{color:#ff8080;font-size:13px;min-height:18px}
-  .gate a{color:var(--sub);font-size:13px;text-decoration:none}
+  .gate a{color:#9aa3b2;font-size:13px;text-decoration:none}
 </style>
 </head>
 <body>

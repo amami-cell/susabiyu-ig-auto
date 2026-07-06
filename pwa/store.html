@@ -5,35 +5,36 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex,nofollow">
 <title>店舗ページ</title>
-<meta name="theme-color" content="#0f1115">
+<meta name="theme-color" content="#83868c">
 <style>
-  :root{--bg:#0f1115;--card:#181c23;--line:#262b35;--fg:#e8ecf2;--sub:#9aa3b2;--accent:#7fd1a0}
+  :root{--bg:#83868c;--card:#171c26;--line:#262b35;--fg:#ffffff;--sub:#eef0f3;--accent:#7fd1a0}
   *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
   button{touch-action:manipulation;font-family:inherit}
   html,body{background:var(--bg);color:var(--fg);font-family:-apple-system,BlinkMacSystemFont,"Hiragino Sans","Noto Sans JP",sans-serif;min-height:100%}
-  .top{position:sticky;top:0;z-index:10;background:rgba(15,17,21,.88);backdrop-filter:saturate(180%) blur(12px);
-    border-bottom:1px solid var(--line);display:flex;align-items:center;gap:10px;
+  .top{position:sticky;top:0;z-index:10;background:rgba(112,115,121,.85);backdrop-filter:saturate(180%) blur(12px);
+    border-bottom:1px solid rgba(255,255,255,.14);display:flex;align-items:center;gap:10px;
     padding:calc(env(safe-area-inset-top) + 14px) 18px 12px}
-  .top a{color:var(--sub);font-size:13px;text-decoration:none;flex:0 0 auto}
+  .top a{color:#fff;font-size:13px;text-decoration:none;flex:0 0 auto;text-shadow:0 1px 2px rgba(0,0,0,.3)}
   .top h1{font-size:15px;font-weight:800;letter-spacing:.5px;flex:1;text-align:center;
     white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .top .sp{width:52px}
   .hero{display:flex;flex-direction:column;align-items:center;gap:10px;padding:34px 20px 8px}
   .hero .ic{width:92px;height:92px;border-radius:24px;overflow:hidden;background:var(--card);
-    border:1px solid var(--line);box-shadow:0 8px 22px rgba(0,0,0,.4);
+    border:none;box-shadow:0 14px 28px rgba(0,0,0,.45), 0 3px 8px rgba(0,0,0,.35);
     display:flex;align-items:center;justify-content:center}
   .hero .ic img{width:100%;height:100%;object-fit:contain;padding:12px}
   .hero .ic span{font-size:44px;font-weight:800;color:#e9dcc3;font-family:"Hiragino Mincho ProN",serif}
-  .hero h2{font-size:17px;font-weight:800;text-align:center}
+  .hero h2{font-size:17px;font-weight:800;text-align:center;text-shadow:0 1px 3px rgba(0,0,0,.4)}
   .hero .prep{background:#3a2f14;color:#ffd23f;border:1px solid #5c4a1c;font-size:11px;font-weight:800;
     padding:3px 12px;border-radius:999px}
   .menu{display:flex;flex-direction:column;gap:12px;padding:26px 22px;max-width:420px;margin:0 auto}
-  .menu button{display:flex;align-items:center;gap:14px;background:var(--card);border:1px solid var(--line);
-    border-radius:16px;color:var(--fg);padding:18px 18px;font-size:15px;font-weight:800;text-align:left}
+  .menu button{display:flex;align-items:center;gap:14px;background:var(--card);border:none;
+    border-radius:16px;color:#fff;padding:18px 18px;font-size:15px;font-weight:800;text-align:left;
+    box-shadow:0 10px 22px rgba(0,0,0,.35), 0 2px 6px rgba(0,0,0,.3)}
   .menu button:active{transform:scale(.98)}
   .menu button .em{font-size:22px}
-  .menu button small{display:block;color:var(--sub);font-size:11px;font-weight:400;margin-top:3px}
-  .foot{color:#5b6472;font-size:10px;text-align:center;padding:26px 0 calc(env(safe-area-inset-bottom) + 16px)}
+  .menu button small{display:block;color:#aeb6c2;font-size:11px;font-weight:400;margin-top:3px}
+  .foot{color:rgba(255,255,255,.55);font-size:10px;text-align:center;padding:26px 0 calc(env(safe-area-inset-bottom) + 16px)}
   #toast{position:fixed;left:50%;bottom:calc(env(safe-area-inset-bottom) + 30px);transform:translateX(-50%);
     background:#232a36;color:var(--fg);border:1px solid var(--line);border-radius:999px;
     font-size:13px;font-weight:700;padding:10px 20px;z-index:60;opacity:0;transition:opacity .25s;pointer-events:none;
