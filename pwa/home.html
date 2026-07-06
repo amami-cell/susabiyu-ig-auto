@@ -75,20 +75,23 @@
   /* ドラッグ中 */
   .tile.ghost{opacity:.3}
   .drag-clone{position:fixed;z-index:99;pointer-events:none;margin:0;
-    transform:scale(1.12);opacity:.95;filter:drop-shadow(0 10px 24px rgba(0,0,0,.6))}
+    opacity:.95;filter:drop-shadow(0 10px 24px rgba(0,0,0,.6))}
   .drag-clone .ic{animation:none !important}
-  .tile.fover .ic{box-shadow:0 0 0 3px var(--accent), 0 6px 16px rgba(0,0,0,.35);transform:scale(1.1);animation:none}
+  .tile.fover .ic{box-shadow:0 0 0 5px rgba(255,255,255,.65), 0 12px 24px rgba(0,0,0,.45);transform:scale(1.12);animation:none}
 
   /* フォルダを開いた画面 */
   .fov{position:fixed;inset:0;background:rgba(90,93,99,.55);backdrop-filter:blur(16px);z-index:40;
     display:none;flex-direction:column;align-items:center;justify-content:center;padding:20px}
   .fov.show{display:flex}
-  .ftitle{background:none;border:none;border-bottom:1px dashed rgba(255,255,255,.45);color:#fff;
-    font-size:19px;font-weight:800;text-align:center;max-width:70vw;padding:6px 10px;margin-bottom:6px;outline:none}
-  .ftitle:focus{border-bottom-color:var(--accent)}
+  .ftwrap{display:flex;align-items:center;gap:4px;background:rgba(255,255,255,.24);border-radius:999px;
+    padding:4px 8px 4px 16px;margin-bottom:6px;max-width:84vw}
+  .ftitle{background:none;border:none;color:#fff;font-size:19px;font-weight:800;text-align:center;
+    min-width:0;width:9em;max-width:58vw;padding:4px 2px;outline:none}
+  .ftclear{flex:0 0 auto;width:24px;height:24px;border-radius:50%;border:none;background:rgba(0,0,0,.3);
+    color:#fff;font-size:12px;line-height:1}
   .fedit{color:#f0f1f4;font-size:10px;margin-bottom:10px;text-shadow:0 1px 2px rgba(0,0,0,.3)}
   .fpanel{background:rgba(255,255,255,.26);backdrop-filter:blur(10px);border:none;border-radius:24px;width:min(92vw,400px);
-    padding:10px 0 4px;box-shadow:0 20px 60px rgba(0,0,0,.35)}
+    padding:10px 0 4px;box-shadow:0 20px 60px rgba(0,0,0,.35);transition:opacity .15s}
   .fpages{display:flex;overflow-x:auto;scroll-snap-type:x mandatory;-webkit-overflow-scrolling:touch;scrollbar-width:none}
   .fpages::-webkit-scrollbar{display:none}
   .fpage{flex:0 0 100%;scroll-snap-align:start;padding:14px 12px;
@@ -165,7 +168,7 @@
 
 <!-- フォルダを開いた画面 -->
 <div class="fov" id="fov">
-  <input class="ftitle" id="ftitle" maxlength="20" placeholder="フォルダ名">
+  <div class="ftwrap"><input class="ftitle" id="ftitle" maxlength="20" placeholder="フォルダ名"><button class="ftclear" id="ftclear">✕</button></div>
   <div class="fedit">標題はタップで編集できます</div>
   <div class="fpanel" id="fpanel">
     <div class="fpages" id="fpages"></div>
@@ -364,9 +367,16 @@
 
   /* ---------- フォルダを開く ---------- */
   var fov = document.getElementById("fov");
+  var fpanelEl = document.getElementById("fpanel");
   var fpagesEl = document.getElementById("fpages");
   var fdotsEl = document.getElementById("fdots");
   var ftitleEl = document.getElementById("ftitle");
+  document.getElementById("ftclear").onclick = function () {
+    ftitleEl.value = "";
+    var f = findFolder(openFid);
+    if (f) { f.name = ""; save(); }
+    ftitleEl.focus();
+  };
   function renderFolder() {
     var f = findFolder(openFid);
     if (!f) { closeFolder(); return; }
@@ -429,7 +439,10 @@
     c.style.width = r.width + "px";
     c.style.left = (x - r.width / 2) + "px";
     c.style.top = (y - r.height / 2) + "px";
+    c.style.transition = "transform .15s ease";
+    c.style.transform = "scale(1)";
     document.body.appendChild(c);
+    requestAnimationFrame(function () { c.style.transform = "scale(1.15)"; }); // フッと持ち上がる
     drag.clone = c;
     drag.w = r.width; drag.h = r.height;
     drag.el.classList.add("ghost");
@@ -452,6 +465,13 @@
     }
     drag.clone.style.left = (x - drag.w / 2) + "px";
     drag.clone.style.top = (y - drag.h / 2) + "px";
+
+    // フォルダの外に出ている間はパネルを薄く＝「離すと取り出し」の合図
+    if (drag.ctx === "folder") {
+      var pr = fpanelEl.getBoundingClientRect();
+      var out = x < pr.left || x > pr.right || y < pr.top || y > pr.bottom;
+      fpanelEl.style.opacity = out ? ".5" : "";
+    }
 
     // ホームでは画面端で自動ページ送り
     if (drag.ctx === "home") {
@@ -546,24 +566,51 @@
     if (!drag) return;
     var d = drag; drag = null;
     if (d.pendT) clearTimeout(d.pendT);
-    if (d.clone) d.clone.remove();
-    d.el.classList.remove("ghost");
-    if (!d.moved) { clearTargetHighlights(); return; }
+    fpanelEl.style.opacity = "";
+    if (!d.moved) {
+      if (d.clone) d.clone.remove();
+      d.el.classList.remove("ghost");
+      clearTargetHighlights();
+      return;
+    }
 
     var dragId = d.el.getAttribute("data-id");
+
+    // 離した時：元タイルの場所へスッと収まってから確定（iPhoneの置く動き）
+    function settle(commit) {
+      if (!d.clone) { d.el.classList.remove("ghost"); commit(); return; }
+      var r = d.el.getBoundingClientRect();
+      var c = d.clone;
+      c.style.transition = "left .18s ease, top .18s ease, transform .18s ease";
+      c.style.left = r.left + "px";
+      c.style.top = r.top + "px";
+      c.style.transform = "scale(1)";
+      setTimeout(function () { c.remove(); d.el.classList.remove("ghost"); commit(); }, 190);
+    }
+    // フォルダへ吸い込まれる動き
+    function absorb(target, commit) {
+      if (!d.clone) { d.el.classList.remove("ghost"); commit(); return; }
+      var r = target.getBoundingClientRect();
+      var c = d.clone;
+      c.style.transition = "left .2s ease, top .2s ease, transform .2s ease, opacity .2s ease";
+      c.style.left = (r.left + r.width / 2 - d.w / 2) + "px";
+      c.style.top = (r.top + r.height / 2 - d.h / 2) + "px";
+      c.style.transform = "scale(.3)";
+      c.style.opacity = "0";
+      setTimeout(function () { c.remove(); d.el.classList.remove("ghost"); commit(); }, 200);
+    }
 
     // 1) フォルダ化／フォルダへ追加（合図＝相手がハイライトされた状態で離した）
     if (d.fover && d.ctx === "home" && dragId) {
       var tgt = d.fover; clearHl(tgt);
       var srcIdx = itemIndexOf("s", dragId);
       if (srcIdx >= 0) {
-        var srcItem = layout.items[srcIdx];
         if (tgt.getAttribute("data-kind") === "f") {
           var f = findFolder(tgt.getAttribute("data-fid"));
           if (f) {
             layout.items.splice(srcIdx, 1);
             f.ids.push(dragId);
-            save(); render();
+            absorb(tgt, function () { save(); render(); });
             return;
           }
         } else {
@@ -574,8 +621,10 @@
             layout.items.splice(tgtIdx, 1, nf);
             var si = itemIndexOf("s", dragId);
             if (si >= 0) layout.items.splice(si, 1);
-            save(); render();
-            openFolder(nf.fid, true); // iPhoneと同じく開いて名前をすぐ編集できる
+            absorb(tgt, function () {
+              save(); render();
+              openFolder(nf.fid, true); // iPhoneと同じく開いて名前をすぐ編集できる
+            });
             return;
           }
         }
@@ -585,7 +634,7 @@
 
     // 2) フォルダ内から外へドラッグ → フォルダから出す
     if (d.ctx === "folder" && dragId) {
-      var panel = document.getElementById("fpanel").getBoundingClientRect();
+      var panel = fpanelEl.getBoundingClientRect();
       var outside = x < panel.left || x > panel.right || y < panel.top || y > panel.bottom;
       var f2 = findFolder(openFid);
       if (outside && f2) {
@@ -594,6 +643,14 @@
           f2.ids.splice(k, 1);
           var fi = itemIndexOf("f", openFid);
           layout.items.splice(fi + 1, 0, { t: "s", id: dragId });
+          if (d.clone) {
+            var c2 = d.clone;
+            c2.style.transition = "transform .18s ease, opacity .18s ease";
+            c2.style.transform = "scale(.85)";
+            c2.style.opacity = "0";
+            setTimeout(function () { c2.remove(); }, 180);
+          }
+          d.el.classList.remove("ghost");
           save(); // 残り1店舗ならここでフォルダが自動解消される
           if (!findFolder(openFid)) closeFolder();
           render();
@@ -602,26 +659,30 @@
       }
       // フォルダ内の並べ替え：DOM順を読み取る
       if (f2) {
-        var order = [];
-        fpagesEl.querySelectorAll(".tile[data-id]").forEach(function (t) { order.push(t.getAttribute("data-id")); });
-        f2.ids.forEach(function (id) { if (order.indexOf(id) < 0) order.push(id); }); // 非表示分を末尾へ
-        f2.ids = order;
-        save(); render();
+        settle(function () {
+          var order = [];
+          fpagesEl.querySelectorAll(".tile[data-id]").forEach(function (t) { order.push(t.getAttribute("data-id")); });
+          f2.ids.forEach(function (id) { if (order.indexOf(id) < 0) order.push(id); }); // 非表示分を末尾へ
+          f2.ids = order;
+          save(); render();
+        });
       }
       return;
     }
 
     // 3) ホームの並べ替え：DOM順を読み取って保存
-    var newItems = [];
-    pagesEl.querySelectorAll(".tile").forEach(function (t) {
-      var idx = t.getAttribute("data-kind") === "f"
-        ? itemIndexOf("f", t.getAttribute("data-fid"))
-        : itemIndexOf("s", t.getAttribute("data-id"));
-      if (idx >= 0) newItems.push(layout.items[idx]);
+    settle(function () {
+      var newItems = [];
+      pagesEl.querySelectorAll(".tile").forEach(function (t) {
+        var idx = t.getAttribute("data-kind") === "f"
+          ? itemIndexOf("f", t.getAttribute("data-fid"))
+          : itemIndexOf("s", t.getAttribute("data-id"));
+        if (idx >= 0) newItems.push(layout.items[idx]);
+      });
+      layout.items.forEach(function (it) { if (newItems.indexOf(it) < 0) newItems.push(it); }); // 非表示分
+      layout.items = newItems;
+      save(); render();
     });
-    layout.items.forEach(function (it) { if (newItems.indexOf(it) < 0) newItems.push(it); }); // 非表示分
-    layout.items = newItems;
-    save(); render();
   }
   function clearHl(t) { t.classList.remove("fover"); }
   function clearTargetHighlights() {
