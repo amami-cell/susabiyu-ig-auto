@@ -67,13 +67,23 @@ def main():
         print("[FRAMES] (%d) 長さ %.1f秒" % (idx, dur))
         if dur <= 0:
             dur = 10.0
-        for j, fr in enumerate(FRACS, 1):
-            t = max(0.1, dur * fr)
-            out = os.path.join(OUT_DIR, "v%d_%02d.jpg" % (idx, j))
-            subprocess.run(["ffmpeg", "-y", "-ss", "%.2f" % t, "-i", tmp,
-                            "-frames:v", "1", "-vf", "scale=%d:-1" % WIDTH,
-                            "-q:v", "4", out],
+        if len(vids) <= 2:
+            # 動画が少ない時は高密度で抜く（操作の細かい動き・アニメを見るため）
+            fps = min(4.0, 150.0 / dur)
+            subprocess.run(["ffmpeg", "-y", "-i", tmp,
+                            "-vf", "fps=%.3f,scale=%d:-1" % (fps, WIDTH),
+                            "-q:v", "4",
+                            os.path.join(OUT_DIR, "v%d_%%03d.jpg" % idx)],
                            capture_output=True)
+            print("[FRAMES] (%d) 高密度抽出 %.2f fps" % (idx, fps))
+        else:
+            for j, fr in enumerate(FRACS, 1):
+                t = max(0.1, dur * fr)
+                out = os.path.join(OUT_DIR, "v%d_%02d.jpg" % (idx, j))
+                subprocess.run(["ffmpeg", "-y", "-ss", "%.2f" % t, "-i", tmp,
+                                "-frames:v", "1", "-vf", "scale=%d:-1" % WIDTH,
+                                "-q:v", "4", out],
+                               capture_output=True)
         # インデックス（どのファイルがv1..かの対応）を残す
         with open(os.path.join(OUT_DIR, "index.txt"), "a", encoding="utf-8") as w:
             w.write("v%d = %s (%.1fs)\n" % (idx, name, dur))
