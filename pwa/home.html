@@ -613,9 +613,9 @@
       t.style.transition = "none";
       t.style.transform = "translate(" + dx + "px," + dy + "px)";
       requestAnimationFrame(function () {
-        t.style.transition = "transform .34s cubic-bezier(.3,1.12,.35,1)";
+        t.style.transition = "transform .55s cubic-bezier(.22,.61,.21,1)";
         t.style.transform = "";
-        setTimeout(function () { t.style.transition = ""; }, 400);
+        setTimeout(function () { t.style.transition = ""; }, 620);
       });
     });
   }
@@ -648,23 +648,23 @@
       if (!d.clone) { d.el.classList.remove("ghost"); commit(); return; }
       var r = d.el.getBoundingClientRect();
       var c = d.clone;
-      c.style.transition = "left .18s ease, top .18s ease, transform .18s ease";
+      c.style.transition = "left .28s cubic-bezier(.22,.61,.21,1), top .28s cubic-bezier(.22,.61,.21,1), transform .28s ease";
       c.style.left = r.left + "px";
       c.style.top = r.top + "px";
       c.style.transform = "scale(1)";
-      setTimeout(function () { c.remove(); d.el.classList.remove("ghost"); commit(); }, 190);
+      setTimeout(function () { c.remove(); d.el.classList.remove("ghost"); commit(); }, 300);
     }
     // フォルダへ吸い込まれる動き
     function absorb(target, commit) {
       if (!d.clone) { d.el.classList.remove("ghost"); commit(); return; }
       var r = target.getBoundingClientRect();
       var c = d.clone;
-      c.style.transition = "left .2s ease, top .2s ease, transform .2s ease, opacity .2s ease";
+      c.style.transition = "left .3s ease, top .3s ease, transform .3s ease, opacity .3s ease";
       c.style.left = (r.left + r.width / 2 - d.w / 2) + "px";
       c.style.top = (r.top + r.height / 2 - d.h / 2) + "px";
       c.style.transform = "scale(.3)";
       c.style.opacity = "0";
-      setTimeout(function () { c.remove(); d.el.classList.remove("ghost"); commit(); }, 200);
+      setTimeout(function () { c.remove(); d.el.classList.remove("ghost"); commit(); }, 310);
     }
 
     // 1) フォルダ化／フォルダへ追加（合図＝相手がハイライトされた状態で離した）
