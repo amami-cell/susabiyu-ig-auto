@@ -118,9 +118,28 @@
     font-size:13px;font-weight:700;padding:10px 20px;z-index:60;opacity:0;transition:opacity .25s;pointer-events:none;
     white-space:nowrap}
   #toast.show{opacity:1}
+  /* 入場コード（関係者専用ゲート） */
+  .gate{position:fixed;inset:0;background:var(--bg);display:flex;flex-direction:column;justify-content:center;
+    align-items:center;gap:18px;padding:30px;z-index:100}
+  .gate h1{font-size:20px;letter-spacing:2px}
+  .gate p{color:var(--sub);font-size:13px;text-align:center;line-height:1.7}
+  .gate input{width:min(320px,80vw);padding:14px 16px;font-size:20px;text-align:center;letter-spacing:6px;
+    border-radius:12px;border:1px solid #2a3542;background:#141b23;color:#fff;outline:none}
+  .gate button{width:min(320px,80vw);padding:14px;font-size:16px;font-weight:700;border:0;border-radius:12px;
+    background:#c8a24a;color:#1a1206}
+  .gate .err{color:#ff8080;font-size:13px;min-height:18px}
+  .gate a{color:var(--sub);font-size:13px;text-decoration:none}
 </style>
 </head>
 <body>
+<div class="gate" id="gate">
+  <h1>🏮 すさび湯 店舗ホーム</h1>
+  <p>このページは関係者専用です。<br>入場コードを入力してください。</p>
+  <input id="gpass" type="password" inputmode="numeric" autocomplete="off" placeholder="●●●●●●">
+  <button id="ggo">入る</button>
+  <div class="err" id="gerr"></div>
+  <a href="./">← 三条アプリへ戻る</a>
+</div>
 <header class="top">
   <h1>すさび湯 店舗ホーム</h1>
   <button class="done" id="doneBtn">完了</button>
@@ -154,6 +173,36 @@
 
 <script src="stores.js"></script>
 <script>
+/* 入場ゲート（烏丸ページと同じコード・一度入れた端末はそのまま） */
+(function () {
+  var HASH = "92925488b28ab12584ac8fcaa8a27a0f497b2c62940c8f4fbc8ef19ebc87c43e";
+  var gate = document.getElementById("gate");
+  function sha256(str) {
+    return crypto.subtle.digest("SHA-256", new TextEncoder().encode(str)).then(function (h) {
+      var a = new Uint8Array(h), s = "";
+      for (var i = 0; i < a.length; i++) s += ("0" + a[i].toString(16)).slice(-2);
+      return s;
+    });
+  }
+  function tryPass() {
+    var v = (document.getElementById("gpass").value || "").trim();
+    if (!v) return;
+    sha256(v).then(function (h) {
+      if (h === HASH) {
+        try { localStorage.setItem("kar_ok", "1"); } catch (e) {}
+        gate.style.display = "none";
+      } else {
+        document.getElementById("gerr").textContent = "コードが違います";
+        document.getElementById("gpass").value = "";
+      }
+    });
+  }
+  document.getElementById("ggo").onclick = tryPass;
+  document.getElementById("gpass").addEventListener("keydown", function (e) { if (e.key === "Enter") tryPass(); });
+  var ok = false;
+  try { ok = localStorage.getItem("kar_ok") === "1"; } catch (e) {}
+  if (ok) gate.style.display = "none";
+})();
 (function () {
   var STORES = window.SUSABIYU_STORES || [];
   var BYID = {}; STORES.forEach(function (s) { BYID[s.id] = s; });

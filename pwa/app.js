@@ -1501,12 +1501,12 @@
     });
   })();
 
-  /* ---------- 左上ロゴ→烏丸ページへ（烏丸側は入場コードで保護） ---------- */
+  /* ---------- 左上ロゴ→店舗ホームへ（入場コードで保護・関係者のみ） ---------- */
   (function logoLink() {
     var lg = document.querySelector(".logo");
     if (!lg) return;
     lg.style.cursor = "pointer";
-    lg.addEventListener("click", function () { location.href = "./karasuma.html"; });
+    lg.addEventListener("click", function () { location.href = "./home.html"; });
   })();
 
   /* ---------- 烏丸ページの画面切替 ---------- */
