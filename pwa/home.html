@@ -21,7 +21,12 @@
   body.editing .top .done{display:inline-block}
   .top .gear{border:1px solid rgba(255,255,255,.25);background:rgba(255,255,255,.16);color:#fff;
     font-size:15px;padding:7px 12px;border-radius:999px}
-  .hint{color:#f0f1f4;font-size:12px;text-align:center;margin:14px 16px 2px;line-height:1.7;text-shadow:0 1px 2px rgba(0,0,0,.25)}
+  .hint{color:#f0f1f4;font-size:12px;margin:12px auto 2px;max-width:330px;padding:0 16px;
+    text-shadow:0 1px 2px rgba(0,0,0,.25)}
+  .hint .hl{display:flex;align-items:center;gap:8px;margin:5px 0;line-height:1.5}
+  .hint .op{flex:0 0 auto;min-width:58px;text-align:center;font-weight:800;font-size:11px;
+    background:rgba(255,255,255,.18);border-radius:999px;padding:3px 8px}
+  .hint .hnote{color:#e3e5e9;font-size:11px;text-align:center;margin-top:9px;line-height:1.7}
 
   /* 横スクロールのページ（携帯ホーム風・スナップ） */
   .pages{display:flex;overflow-x:auto;scroll-snap-type:x mandatory;-webkit-overflow-scrolling:touch;
@@ -145,7 +150,14 @@
   <button class="done" id="doneBtn">完了</button>
   <button class="gear" id="gearBtn">⚙︎ 店舗の表示</button>
 </header>
-<div class="hint">アイコンをタップで各店舗の確認画面へ。<b>長押し</b>で編集（ドラッグで並べ替え・重ねるとフォルダ・−で非表示）。<br>並びやフォルダ分けは<b>この端末だけ</b>の設定です（他の人には影響しません）。</div>
+<div class="hint">
+  <div class="hl"><span class="op">タップ</span>各店舗の画面をひらく</div>
+  <div class="hl"><span class="op">長押し</span>編集モード（アイコンがゆらゆら）</div>
+  <div class="hl"><span class="op">ドラッグ</span>並べ替え・アイコンの間に差し込み</div>
+  <div class="hl"><span class="op">重ねる</span>フォルダにまとめる</div>
+  <div class="hl"><span class="op">−</span>非表示（⚙︎「店舗の表示」で戻せます）</div>
+  <div class="hnote">並びやフォルダ分けは<b>この端末だけ</b>の設定です。<br>他の人のアプリには影響しません。</div>
+</div>
 <div class="pages" id="pages"></div>
 <div class="dots" id="dots"></div>
 <div class="foot">すさび湯グループ 投稿管理</div>
@@ -452,15 +464,14 @@
       }
     }
 
-    var target = hitTile(x, y);
-    if (!target) { clearHover(); return; }
+    var hit = findTarget(x, y);
+    if (!hit) { clearHover(); return; }
+    var target = hit.t;
 
     // 中央に重ねて待つ → フォルダ化の合図（ホームのみ・店舗タイルをドラッグ中のみ）
     var canFold = drag.ctx === "home" && drag.el.getAttribute("data-kind") === "s";
-    var r = target.getBoundingClientRect();
-    var cx = r.left + r.width / 2, cy = r.top + r.height / 2;
-    var central = canFold && Math.abs(x - cx) < r.width * 0.32 && Math.abs(y - cy) < r.height * 0.32;
-    var zone = central ? "c" : (x < cx ? "l" : "r");
+    var central = canFold && Math.abs(x - hit.cx) < hit.r.width * 0.32 && Math.abs(y - hit.cy) < hit.r.height * 0.32;
+    var zone = central ? "c" : (x < hit.cx ? "l" : "r");
     if (target === drag.hoverT && zone === drag.hoverZ) return; // 同じ場所で待機中（タイマー進行中）
     // ホバー状態が変わった：前の予約を消して新しく予約（iPhoneと同じく「少し待ってから」動く）
     if (drag.pendT) { clearTimeout(drag.pendT); drag.pendT = null; }
@@ -477,22 +488,51 @@
       clearFover();
       d.pendT = setTimeout(function () {
         if (drag !== d || d.hoverT !== target || !target.parentNode) return;
-        if (zone === "l") target.parentNode.insertBefore(d.el, target);
-        else target.parentNode.insertBefore(d.el, target.nextSibling);
+        slideInsert(d, target, zone);
       }, 150);
     }
   }
-  function hitTile(x, y) {
-    if (drag.clone) drag.clone.style.display = "none";
-    var el = document.elementFromPoint(x, y);
-    if (drag.clone) drag.clone.style.display = "";
-    if (!el) return null;
-    var t = el.closest ? el.closest(".tile") : null;
-    if (!t || t === drag.el || t.classList.contains("drag-clone")) return null;
-    // 同じ文脈のタイルだけ
-    var inFolder = !!t.closest("#fpanel");
-    if ((drag.ctx === "folder") !== inFolder) return null;
-    return t;
+  // 最寄りのアイコンを幾何計算で探す（アイコンの間のすき間に落としてもOK）
+  function findTarget(x, y) {
+    var root = drag.ctx === "folder" ? fpagesEl : pagesEl;
+    var tiles = root.querySelectorAll(".tile");
+    var best = null, bestD = 1e9;
+    for (var i = 0; i < tiles.length; i++) {
+      var t = tiles[i];
+      if (t === drag.el) continue;
+      var r = t.getBoundingClientRect();
+      if (!r.width) continue;
+      if (r.right < -20 || r.left > window.innerWidth + 20) continue; // 別ページは対象外
+      var cx = r.left + r.width / 2, cy = r.top + r.height / 2;
+      var dd = Math.abs(x - cx) + Math.abs(y - cy);
+      if (dd < bestD) { bestD = dd; best = { t: t, r: r, cx: cx, cy: cy }; }
+    }
+    // アイコン約1個分より遠い場所は対象外
+    if (!best || bestD > 150) return null;
+    return best;
+  }
+  // 差し込み：まわりのアイコンがスッと場所を空ける（iPhoneと同じ動き）
+  function slideInsert(d, target, zone) {
+    var root = d.ctx === "folder" ? fpagesEl : pagesEl;
+    var tiles = root.querySelectorAll(".tile");
+    var before = [];
+    for (var i = 0; i < tiles.length; i++) before.push([tiles[i], tiles[i].getBoundingClientRect()]);
+    if (zone === "l") target.parentNode.insertBefore(d.el, target);
+    else target.parentNode.insertBefore(d.el, target.nextSibling);
+    before.forEach(function (p) {
+      var t = p[0], f = p[1];
+      if (t === d.el) return;
+      var l = t.getBoundingClientRect();
+      var dx = f.left - l.left, dy = f.top - l.top;
+      if (!dx && !dy) return;
+      t.style.transition = "none";
+      t.style.transform = "translate(" + dx + "px," + dy + "px)";
+      requestAnimationFrame(function () {
+        t.style.transition = "transform .26s ease";
+        t.style.transform = "";
+        setTimeout(function () { t.style.transition = ""; }, 320);
+      });
+    });
   }
   function itemIndexOf(kind, key) {
     for (var i = 0; i < layout.items.length; i++) {
