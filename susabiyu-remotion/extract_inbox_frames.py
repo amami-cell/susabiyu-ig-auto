@@ -40,16 +40,24 @@ def _duration(path):
 
 
 def main():
-    fid = _folder_id(sys.argv[1] if len(sys.argv) > 1 else "")
+    arg = sys.argv[1] if len(sys.argv) > 1 else ""
+    latest_only = arg.endswith("|latest")
+    if latest_only:
+        arg = arg[:-len("|latest")]
+    fid = _folder_id(arg)
     if not fid:
         print("[FRAMES] フォルダID/URLが必要です"); return
     cr = _creds()
     drive = build("drive", "v3", credentials=cr)
     os.makedirs(OUT_DIR, exist_ok=True)
     r = drive.files().list(q="'%s' in parents and trashed=false" % fid,
-        fields="files(id,name,mimeType,size)", spaces="drive",
+        fields="files(id,name,mimeType,size,createdTime)", spaces="drive",
         supportsAllDrives=True, includeItemsFromAllDrives=True).execute()
     vids = [f for f in r.get("files", []) if str(f.get("mimeType", "")).startswith("video/")]
+    if latest_only and vids:
+        # 一番新しくアップされた1本だけ（同名の重複は除く）→ 高密度抽出になる
+        vids.sort(key=lambda f: f.get("createdTime", ""), reverse=True)
+        vids = vids[:1]
     vids.sort(key=lambda f: f.get("name", ""))
     print("[FRAMES] 動画 %d 本" % len(vids))
     for idx, f in enumerate(vids, 1):
