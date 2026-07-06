@@ -91,6 +91,17 @@ for f in list_children(FOOD_FOLDER):
         if imgs:
             cats[f["name"]] = imgs
 
+
+def _is_drink_cat(name):
+    n = str(name or "").lower()
+    for k in ("ドリンク", "飲み物", "飲物", "サワー", "ハイボール", "ビール", "ワイン",
+              "日本酒", "焼酎", "カクテル", "梅酒", "ソフトドリンク", "drink", "beer", "sour"):
+        if k.lower() in n:
+            return True
+    return False
+
+cats = {k: v for k, v in cats.items() if not _is_drink_cat(k)}
+
 if not cats:
     print("NG: 寿司系フォルダの画像が見つかりません。")
     raise SystemExit

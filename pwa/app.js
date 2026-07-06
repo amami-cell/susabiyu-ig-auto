@@ -1309,6 +1309,40 @@
       holder.style.cssText = "position:fixed;left:-99999px;top:0;width:794px;background:#fff";
       var clone = src.cloneNode(true); clone.classList.add("a4");
       holder.appendChild(clone); document.body.appendChild(holder);
+      // ── A4 2ページに収まるよう自動調整 ──
+      // 1ページ=1123px(A4@96dpi)から上下マージン6mmを引いた約1078pxが使える高さ。
+      // ①圧縮CSS(a4tight) → ②ベスト投稿を後ろから減らす → ③箇条書きを間引く の順で詰める。
+      (function fitA4() {
+        var PAGE = 1078;
+        var br = clone.querySelector(".repbreak");
+        if (!br) return;
+        var steps = 0;
+        while (br.offsetTop > PAGE && steps < 12) {
+          if (steps === 0) {
+            clone.classList.add("a4tight");
+          } else {
+            var ps = clone.querySelectorAll(".reppost");
+            if (ps.length > 2) ps[ps.length - 1].parentNode.removeChild(ps[ps.length - 1]);
+            else break;
+          }
+          steps++;
+        }
+        var guard = 0;
+        while ((clone.scrollHeight - br.offsetTop) > PAGE && guard < 12) {
+          clone.classList.add("a4tight");
+          var longest = null, max = 0;
+          var cards = clone.querySelectorAll(".repcard");
+          for (var ci = 0; ci < cards.length; ci++) {
+            var n = cards[ci].querySelectorAll("li").length;
+            if (n > max) { max = n; longest = cards[ci]; }
+          }
+          if (longest && max > 3) {
+            var ls = longest.querySelectorAll("li");
+            ls[ls.length - 1].parentNode.removeChild(ls[ls.length - 1]);
+          } else break;
+          guard++;
+        }
+      })();
       window.html2pdf().set({
         // 左右マージンは0（幅794px=A4 210mmぴったり）。これで右端がページ外に切れない。
         // 上下のみ6mm。左右の余白は .repdoc.a4 のセクションpaddingで内側に確保している。

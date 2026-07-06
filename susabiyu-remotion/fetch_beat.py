@@ -107,7 +107,7 @@ def _gather_drinks(root):
 
 drinks = _gather_drinks(SAKE_FOLDER)
 random.shuffle(drinks)
-drink_cap = max(1, N_PHOTOS // 4)
+drink_cap = 1  # ドリンクは1枚まで
 n_drink = min(drink_cap, len(drinks))
 
 import usage

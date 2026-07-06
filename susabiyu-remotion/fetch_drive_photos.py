@@ -1,4 +1,4 @@
-﻿import os, io, glob, json, sys, random
+import os, io, glob, json, sys, random
 from collections import defaultdict
 
 FOOD_FOLDER = "14oKNgdXee2NrI7Dkmbrlbid4f0_VZ5Cv"
@@ -147,13 +147,23 @@ for im in allimg:
     by_cat[im["cat"]].append(im)
 for c in by_cat:
     by_cat[c].sort(key=lambda x: x.get("createdTime", ""), reverse=True)
+
+def _is_drink_cat(name):
+    n = str(name or "").lower()
+    for k in ("ドリンク", "飲み物", "飲物", "サワー", "ハイボール", "ビール", "ワイン",
+              "日本酒", "焼酎", "カクテル", "梅酒", "ソフトドリンク", "drink", "beer", "sour"):
+        if k.lower() in n:
+            return True
+    return False
+
+by_cat = {k: v for k, v in by_cat.items() if not _is_drink_cat(k)}
 cats = sorted(by_cat.keys(), key=lambda c: by_cat[c][0].get("createdTime", ""), reverse=True)
 
 # ドリンク（少数派）を収集して末尾に少数だけ足す
 drinks = [f for f in gather(SAKE_FOLDER) if short_side(f) >= MIN_SIDE]
 import random as _rnd
 _rnd.shuffle(drinks)
-drink_cap = max(1, N // 4)               # 全体の約1/4まで＝少数派
+drink_cap = 1                            # ドリンクは1枚まで
 n_drink = min(drink_cap, len(drinks))
 food_target = max(1, N - n_drink)        # ドリンクの枠を空けて料理を主役に
 

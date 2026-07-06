@@ -1,4 +1,4 @@
-﻿import os, io, glob, json, sys, random
+import os, io, glob, json, sys, random
 
 FOOD_FOLDER = "14oKNgdXee2NrI7Dkmbrlbid4f0_VZ5Cv"
 N_PHOTOS = 4
@@ -89,6 +89,17 @@ for f in list_children(FOOD_FOLDER):
                 if g["mimeType"].startswith("image/") and short_side(g) >= MIN_SIDE]
         if imgs:
             cats[f["name"]] = imgs
+
+
+def _is_drink_cat(name):
+    n = str(name or "").lower()
+    for k in ("ドリンク", "飲み物", "飲物", "サワー", "ハイボール", "ビール", "ワイン",
+              "日本酒", "焼酎", "カクテル", "梅酒", "ソフトドリンク", "drink", "beer", "sour"):
+        if k.lower() in n:
+            return True
+    return False
+
+cats = {k: v for k, v in cats.items() if not _is_drink_cat(k)}
 
 if not cats:
     print("NG: 条件を満たす画像が見つかりません。")

@@ -1,4 +1,4 @@
-﻿import os, io, glob, json, sys, random
+import os, io, glob, json, sys, random
 
 FOOD_FOLDER = "14oKNgdXee2NrI7Dkmbrlbid4f0_VZ5Cv"
 # 複数枚動画には「ドリンク」を少数派で混ぜる（全体枚数より比率少なめ）。
@@ -92,6 +92,17 @@ for f in list_children(FOOD_FOLDER):
         if imgs:
             cats[f["name"]] = imgs
 
+
+def _is_drink_cat(name):
+    n = str(name or "").lower()
+    for k in ("ドリンク", "飲み物", "飲物", "サワー", "ハイボール", "ビール", "ワイン",
+              "日本酒", "焼酎", "カクテル", "梅酒", "ソフトドリンク", "drink", "beer", "sour"):
+        if k.lower() in n:
+            return True
+    return False
+
+cats = {k: v for k, v in cats.items() if not _is_drink_cat(k)}
+
 if not cats:
     print("NG: 条件を満たす画像が見つかりません。")
     raise SystemExit
@@ -109,7 +120,7 @@ def _gather_drinks(root):
 
 drinks = _gather_drinks(SAKE_FOLDER)
 random.shuffle(drinks)
-drink_cap = max(1, N_PHOTOS // 4)          # 全体の約1/4までを上限＝少数派
+drink_cap = 1                              # ドリンクは1枚まで
 n_drink = min(drink_cap, len(drinks))
 
 import usage
