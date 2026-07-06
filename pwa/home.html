@@ -356,6 +356,7 @@
     if (openFid) renderFolder();
   }
   pagesEl.addEventListener("scroll", function () {
+    if (drag && drag.sp) drag.sp.dirty = true; // ドラッグ中のページ送り→マス目を測り直す
     var idx = Math.round(pagesEl.scrollLeft / pagesEl.clientWidth);
     var ds = dotsEl.children;
     for (var i = 0; i < ds.length; i++) ds[i].className = i === idx ? "on" : "";
@@ -364,6 +365,22 @@
   function setEditing(on) {
     editing = on;
     document.body.classList.toggle("editing", on);
+  }
+  // 長押し発動の「コッ」というポップ音（iPhoneの本体振動はブラウザでは出せないため音で代用）
+  var actx = null;
+  function popSound() {
+    try {
+      actx = actx || new (window.AudioContext || window.webkitAudioContext)();
+      if (actx.state === "suspended") actx.resume();
+      var o = actx.createOscillator(), g = actx.createGain();
+      o.type = "sine";
+      o.frequency.setValueAtTime(900, actx.currentTime);
+      o.frequency.exponentialRampToValueAtTime(430, actx.currentTime + 0.06);
+      g.gain.setValueAtTime(0.15, actx.currentTime);
+      g.gain.exponentialRampToValueAtTime(0.001, actx.currentTime + 0.09);
+      o.connect(g); g.connect(actx.destination);
+      o.start(); o.stop(actx.currentTime + 0.1);
+    } catch (e) {}
   }
   var toastEl = document.getElementById("toast"), toastT = null;
   function toast(msg) {
@@ -410,6 +427,7 @@
     fdotsEl.style.display = pageCount <= 1 ? "none" : "flex";
   }
   fpagesEl.addEventListener("scroll", function () {
+    if (drag && drag.sp) drag.sp.dirty = true;
     var idx = Math.round(fpagesEl.scrollLeft / fpagesEl.clientWidth);
     var ds = fdotsEl.children;
     for (var i = 0; i < ds.length; i++) ds[i].className = i === idx ? "on" : "";
@@ -492,17 +510,25 @@
     var ghostIdx = tiles.indexOf(d.el);
     if (ghostIdx < 0) return;
     var st = tiles.map(function () { return { px: 0, py: 0, vx: 0, vy: 0 }; });
-    d.sp = { root: root, tiles: tiles, st: st, ghostIdx: ghostIdx, k: ghostIdx, raf: 0, last: 0 };
+    var bases = tiles.map(function (t) {
+      var r = t.getBoundingClientRect();
+      return { x: r.left, y: r.top, w: r.width, h: r.height };
+    });
+    d.sp = { root: root, tiles: tiles, st: st, bases: bases, dirty: false,
+             ghostIdx: ghostIdx, k: ghostIdx, raf: 0, last: 0 };
     springLoop(d);
   }
-  // 各タイルの「本来のマス目位置」（今の見た目位置からバネのずれを引いたもの）
+  // 各タイルの「本来のマス目位置」。ドラッグ中は動かないので基本キャッシュを使い回し、
+  // ページ送り等でスクロールした時だけ測り直す（毎フレーム測るとカクつく）
   function springBases(sp) {
-    var bases = [];
-    for (var i = 0; i < sp.tiles.length; i++) {
-      var r = sp.tiles[i].getBoundingClientRect();
-      bases.push({ x: r.left - sp.st[i].px, y: r.top - sp.st[i].py, w: r.width, h: r.height });
+    if (sp.dirty) {
+      for (var i = 0; i < sp.tiles.length; i++) {
+        var r = sp.tiles[i].getBoundingClientRect();
+        sp.bases[i] = { x: r.left - sp.st[i].px, y: r.top - sp.st[i].py, w: r.width, h: r.height };
+      }
+      sp.dirty = false;
     }
-    return bases;
+    return sp.bases;
   }
   // 挿入位置kのとき、各タイルが向かうべき目標オフセット
   function springTargets(sp) {
@@ -888,6 +914,7 @@
       timer = setTimeout(function () {
         longp = true;
         if (navigator.vibrate) { try { navigator.vibrate(15); } catch (e2) {} }
+        popSound(); // iOSの長押し音
         t.classList.remove("pressing");
         t.classList.add("lifted"); // フワッと持ち上がる
         setEditing(true);
