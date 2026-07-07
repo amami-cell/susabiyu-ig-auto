@@ -1066,7 +1066,7 @@ def drivefind(query=None):
     try:
         while True:
             res = drive.files().list(q=q,
-                fields="nextPageToken, files(id,name,mimeType,parents)",
+                fields="nextPageToken, files(id,name,mimeType,parents,imageMediaMetadata(width,height),videoMediaMetadata(width,height))",
                 pageSize=100, pageToken=page,
                 supportsAllDrives=True, includeItemsFromAllDrives=True).execute()
             out += res.get("files", [])
@@ -1078,7 +1078,9 @@ def drivefind(query=None):
     print("[FIND] キーワード「%s」で %d 件" % (kw, len(out)))
     for f in out:
         par = (f.get("parents") or [""])[0]
-        print("HIT|%s|%s|%s|%s" % (f.get("name"), folder_name(par), f.get("mimeType"), f.get("id")))
+        m = f.get("imageMediaMetadata") or f.get("videoMediaMetadata") or {}
+        dim = "%sx%s" % (m.get("width", "?"), m.get("height", "?"))
+        print("HIT|%s|%s|%s|%s|%s" % (f.get("name"), folder_name(par), f.get("mimeType"), dim, f.get("id")))
     print("[FIND] 完了")
 
 
