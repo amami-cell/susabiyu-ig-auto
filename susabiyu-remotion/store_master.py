@@ -1041,6 +1041,47 @@ def names():
     print("[NAMES] 合計 %d 店" % cnt)
 
 
+def drivefind(query=None):
+    """サービスアカウントがアクセスできるDrive全体を、ファイル名にキーワードを含む
+    画像/動画で検索して一覧表示（親フォルダ名も出す）。arg省略時は「170」で検索。
+    Driveに『170円均一ドリンク』等の画像があるか探す用。"""
+    kw = (query or "170").strip()
+    cr = _creds(); drive = _drive(cr)
+    # 親フォルダ名を引くためのキャッシュ
+    fname = {}
+    def folder_name(fid):
+        if not fid:
+            return ""
+        if fid in fname:
+            return fname[fid]
+        try:
+            m = drive.files().get(fileId=fid, fields="name", supportsAllDrives=True).execute()
+            fname[fid] = m.get("name", "")
+        except Exception:
+            fname[fid] = ""
+        return fname[fid]
+    q = "name contains '%s' and trashed=false and (mimeType contains 'image/' or mimeType contains 'video/')" % kw.replace("'", "")
+    out = []
+    page = None
+    try:
+        while True:
+            res = drive.files().list(q=q,
+                fields="nextPageToken, files(id,name,mimeType,parents)",
+                pageSize=100, pageToken=page,
+                supportsAllDrives=True, includeItemsFromAllDrives=True).execute()
+            out += res.get("files", [])
+            page = res.get("nextPageToken")
+            if not page:
+                break
+    except Exception as e:
+        print("[FIND] 検索失敗:", e); return
+    print("[FIND] キーワード「%s」で %d 件" % (kw, len(out)))
+    for f in out:
+        par = (f.get("parents") or [""])[0]
+        print("HIT|%s|%s|%s|%s" % (f.get("name"), folder_name(par), f.get("mimeType"), f.get("id")))
+    print("[FIND] 完了")
+
+
 def storesdump():
     """『提出チェック』タブA〜C列（店舗名/表示名/アイコン短縮名）を一覧出力。
     アプリの店舗アイコンホーム(stores.js)へ流し込むための読み取り専用ダンプ。"""
@@ -1454,5 +1495,7 @@ if __name__ == "__main__":
         inboxget(arg)
     elif mode == "distdump":
         distdump(arg)
+    elif mode == "drivefind":
+        drivefind(arg)
     else:
         print("使い方: python store_master.py init | setup [store_id] | columns | intake | requestsheet | roster | names | pending | saemail | distsheet | all")
