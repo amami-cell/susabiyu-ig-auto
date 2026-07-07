@@ -48,9 +48,11 @@
   .tile .ic img{width:100%;height:100%;object-fit:contain;padding:5px;display:block;pointer-events:none}
   .tile .ic .init{font-size:34px;font-weight:800;color:#e9dcc3;font-family:"Hiragino Mincho ProN",serif}
   .tile .nm{font-size:13.5px;font-weight:700;color:#fff;text-shadow:0 1px 3px rgba(0,0,0,.45);max-width:112px;text-align:center;
-    white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:1.18}
+  .tile .nm br{content:""}
   .tile .sb{font-size:11px;color:#eef0f3;text-shadow:0 1px 2px rgba(0,0,0,.4);margin-top:-4px;max-width:100px;text-align:center;
     white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .tile .sb:empty{display:none}
   .tile .prep{position:absolute;top:-5px;right:2px;background:#3a2f14;color:#ffd23f;border:1px solid #5c4a1c;
     font-size:9px;font-weight:800;padding:2px 7px;border-radius:999px}
   body:not(.editing) .tile:active .ic{transform:scale(.94)}
@@ -295,6 +297,13 @@
   }
 
   /* ---------- 描画 ---------- */
+  function esc(v) {
+    return String(v).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  }
+  // 名前に「/」が入っていたらその位置で改行（2行表示）
+  function nameHtml(v) {
+    return esc(v).split("/").map(function (p) { return p.trim(); }).join("<br>");
+  }
   function iconHtml(s, cls) {
     if (s.icon) return '<img src="' + s.icon + '" alt="">';
     return '<span class="' + (cls || "init") + '">' + (s.initial || s.name.charAt(0)) + '</span>';
@@ -307,8 +316,8 @@
     t.innerHTML =
       '<span class="minus">−</span>' +
       '<span class="ic">' + iconHtml(s) + (s.live ? "" : '<span class="prep">準備中</span>') + '</span>' +
-      '<span class="nm">' + s.name + '</span>' +
-      '<span class="sb">' + (s.short || "") + '</span>';
+      '<span class="nm">' + nameHtml(s.name) + '</span>' +
+      '<span class="sb">' + esc(s.short || "") + '</span>';
     return t;
   }
   function folderTile(f) {
@@ -324,7 +333,7 @@
     t.innerHTML =
       '<span class="minus">−</span>' +
       '<span class="ic fold"><span class="fgrid">' + minis + '</span></span>' +
-      '<span class="nm">' + (f.name || "フォルダ") + '</span>' +
+      '<span class="nm">' + nameHtml(f.name || "フォルダ") + '</span>' +
       '<span class="sb">' + vis.length + '店舗</span>';
     return t;
   }
@@ -1006,7 +1015,7 @@
       r.className = "row";
       r.innerHTML =
         '<span class="mini">' + iconHtml(s, "") + '</span>' +
-        '<span class="t"><b>' + (s.full || s.name) + '</b><small>' + s.name + (s.live ? "" : "・準備中") + '</small></span>' +
+        '<span class="t"><b>' + esc(s.full || s.name) + '</b><small>' + esc(String(s.name).replace(/\//g, " ")) + (s.live ? "" : "・準備中") + '</small></span>' +
         '<input type="checkbox" data-id="' + s.id + '"' + (isHidden(s.id) ? "" : " checked") + '>';
       rowsEl.appendChild(r);
     });
