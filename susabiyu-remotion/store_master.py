@@ -1,0 +1,1501 @@
+# -*- coding: utf-8 -*-
+"""多店舗展開：店舗マスター（既存スプレッドシートのタブ）を管理する。
+
+使い方（GitHub Actions で実行）:
+  python store_master.py init            … 「店舗マスター」タブ＋見出しを用意し、すさび湯三条を初期登録（吸い上げ）
+  python store_master.py setup [store_id] … Drive URL が空の行に、店ごとのフォルダ一式を自動作成して URL を書き戻し＆共有
+                                            store_id 省略時は URL 未設定の全行が対象
+
+秘密情報の扱い: Instagram アクセストークンはマスターに載せず GitHub Secrets で管理する。
+"""
+import os, sys, base64, datetime
+import requests as req
+
+from googleapiclient.discovery import build
+from google.oauth2.service_account import Credentials
+
+IGB = "https://graph.instagram.com/v23.0"
+SHEET_ID = os.environ.get("SHEET_ID", "13zKaUblOwmgZ-lgCfxylCLlW2Fqutqct5h5TvMRWv30")
+MASTER_TAB = "店舗マスター"
+INTAKE_TAB = "店舗受付"
+ROSTER_TAB = "提出チェック"
+SHARE_EMAIL = os.environ.get("SHARE_EMAIL", "amami@8sin.co.jp")
+
+# 提出チェック（私が店名を入れる→未提出が一目で分かる）。あなた専用・各店には共有しない。
+ROSTER_HEADER = ["店舗名", "表示名（私が記載）", "アイコン短縮名（私が記載）",
+                 "Instagramアカウント名（@〜）", "ログインID/メール", "パスワード",
+                 "担当者・連絡先", "提出状況", "備考"]
+
+# 各店に配る「記入用スプレッドシート」の見出し（店名は事前記入・各店が右を埋める）
+DIST_HEADER = ["店舗名（記入済み）", "Instagramアカウント名（@〜）", "ログインID／メール",
+               "Instagramパスワード", "担当者・お名前", "連絡先", "備考"]
+
+# 各店（みんな）に書き込んでもらう入力用の見出し
+INTAKE_HEADER = ["店舗名（正式）", "表示名（確認画面に出る店舗名・そのままでOK）",
+                 "アイコン短縮名（任意・長い店名のみ記入）", "Instagramアカウント名（@〜）",
+                 "ロゴ画像（Driveのロゴフォルダに入れた/リンク）", "担当者・連絡先",
+                 "希望ログインコード(任意)", "希望管理者コード(任意)", "状態", "備考"]
+
+# 列（1始まり）。A..S
+HEADER = ["store_id", "店舗名", "表示名（確認画面の見出し）", "IGユーザー名", "IGユーザーID",
+          "データシートID", "確認アプリURL(GAS)", "ログインコード", "管理者コード",
+          "DriveルートURL", "食事URL", "ドリンクURL", "外観内観URL", "コースURL",
+          "音楽アップテンポURL", "音楽ノーマルURL", "ロゴURL", "状態", "備考"]
+# 新店で自動作成するサブフォルダ（表示名 → 書き戻す列index 0始まりでJ=9..Q=16）
+SUBFOLDERS = ["食事", "ドリンク", "外観・内観", "コース", "音楽(アップテンポ)", "音楽(ノーマル)", "ロゴ"]
+
+
+def _creds():
+    path = "creds.json"
+    if not os.path.exists(path) and os.environ.get("GOOGLE_CREDS_B64"):
+        open(path, "wb").write(base64.b64decode(os.environ["GOOGLE_CREDS_B64"]))
+    return Credentials.from_service_account_file(
+        path, scopes=["https://www.googleapis.com/auth/spreadsheets",
+                      "https://www.googleapis.com/auth/drive"])
+
+
+def _sheets(cr):
+    return build("sheets", "v4", credentials=cr).spreadsheets()
+
+
+def _drive(cr):
+    return build("drive", "v3", credentials=cr)
+
+
+def _ensure_tab(sh, title):
+    meta = sh.get(spreadsheetId=SHEET_ID, fields="sheets.properties.title").execute()
+    titles = [s["properties"]["title"] for s in meta.get("sheets", [])]
+    if title not in titles:
+        sh.batchUpdate(spreadsheetId=SHEET_ID,
+            body={"requests": [{"addSheet": {"properties": {"title": title}}}]}).execute()
+        print("[MASTER] %s タブを作成" % title)
+
+
+def _get_rows(sh):
+    return sh.values().get(spreadsheetId=SHEET_ID, range=MASTER_TAB + "!A:S").execute().get("values", [])
+
+
+def _folder_url(fid):
+    return "https://drive.google.com/drive/folders/" + fid if fid else ""
+
+
+def _drive_config():
+    """drive_config.txt を KEY=VALUE で読む（すさび湯三条の初期吸い上げ用）。"""
+    cfg = {}
+    for p in ("drive_config.txt", "../drive_config.txt"):
+        if os.path.exists(p):
+            for line in open(p, encoding="utf-8"):
+                line = line.strip()
+                if line and not line.startswith("#") and "=" in line:
+                    k, v = line.split("=", 1)
+                    cfg[k.strip()] = v.strip()
+            break
+    return cfg
+
+
+def _ig_user_id():
+    tok = os.environ.get("IG_ACCESS_TOKEN", "")
+    if not tok:
+        return ""
+    try:
+        r = req.get(IGB + "/me", params={"fields": "user_id,username", "access_token": tok}, timeout=30).json()
+        return str(r.get("user_id") or r.get("id") or "")
+    except Exception as e:
+        print("[MASTER] IGユーザーID取得失敗:", e); return ""
+
+
+def init():
+    cr = _creds(); sh = _sheets(cr)
+    _ensure_tab(sh, MASTER_TAB)
+    rows = _get_rows(sh)
+    # 見出し
+    if not rows or [c.strip() for c in (rows[0] if rows else [])][:3] != HEADER[:3]:
+        sh.values().update(spreadsheetId=SHEET_ID, range=MASTER_TAB + "!A1:S1",
+            valueInputOption="RAW", body={"values": [HEADER]}).execute()
+        print("[MASTER] 見出しを設定")
+        rows = _get_rows(sh)
+    # 既に susabiyu_sanjyo があればスキップ
+    have = set(r[0].strip() for r in rows[1:] if r)
+    if "susabiyu_sanjyo" in have:
+        print("[MASTER] すさび湯三条は登録済み。初期登録はスキップ"); return
+    cfg = _drive_config()
+    g = lambda k, d="": os.environ.get(k) or cfg.get(k) or d
+    row = [
+        "susabiyu_sanjyo",
+        "すさび湯 河原町三条店",
+        "すさび湯三条",
+        "@susabiyu_sanjyo",
+        _ig_user_id(),
+        g("SHEET_ID", SHEET_ID),
+        os.environ.get("GAS_EXEC_URL", ""),
+        "8888",
+        "88888",
+        _folder_url(g("ROOT_FOLDER_ID")),
+        _folder_url(g("GENRE_FOOD_ID")),
+        _folder_url(g("GENRE_SAKE_ID")),
+        _folder_url(g("GENRE_INTERIOR_ID")),
+        _folder_url(g("GENRE_EVENT_ID")),
+        _folder_url(g("GENRE_MUSIC_UPTEMPO_ID")),
+        _folder_url(g("GENRE_MUSIC_NORMAL_ID")),
+        _folder_url(g("LOGO_FOLDER_ID", "1wAXPa6v3F-YC7dj6-j243xEkxra8RKOf")),
+        "有効",
+        "既存店（初期データ・自動吸い上げ）",
+    ]
+    sh.values().append(spreadsheetId=SHEET_ID, range=MASTER_TAB + "!A:S",
+        valueInputOption="RAW", insertDataOption="INSERT_ROWS", body={"values": [row]}).execute()
+    print("[MASTER] すさび湯三条を初期登録しました")
+
+
+def _mkfolder(drive, name, parent=None):
+    meta = {"name": name, "mimeType": "application/vnd.google-apps.folder"}
+    if parent:
+        meta["parents"] = [parent]
+    return drive.files().create(body=meta, fields="id", supportsAllDrives=True).execute()["id"]
+
+
+def _share(drive, file_id, email):
+    if not email:
+        return
+    try:
+        drive.permissions().create(fileId=file_id, sendNotificationEmail=False,
+            body={"type": "user", "role": "writer", "emailAddress": email},
+            supportsAllDrives=True).execute()
+    except Exception as e:
+        print("[MASTER] 共有失敗(%s):" % email, e)
+
+
+def setup(target_store=None):
+    cr = _creds(); sh = _sheets(cr); drive = _drive(cr)
+    rows = _get_rows(sh)
+    if not rows or len(rows) < 2:
+        print("[MASTER] 行がありません。先に init を実行してください"); return
+    made = 0
+    for i in range(1, len(rows)):
+        row = rows[i] + [""] * (len(HEADER) - len(rows[i]))  # 右側を空で埋める
+        sid = row[0].strip()
+        sname = row[1].strip() or sid
+        root_url = row[9].strip()                              # J列
+        if not sid:
+            continue
+        if target_store and sid != target_store:
+            continue
+        if root_url:
+            continue                                           # 既にDrive設定済み
+        print("[MASTER] %s のDriveフォルダを作成中…" % sid)
+        root = _mkfolder(drive, "%s 投稿素材" % sname)
+        subs = [_mkfolder(drive, label, root) for label in SUBFOLDERS]
+        _share(drive, root, SHARE_EMAIL)                       # ルート共有→配下も継承
+        # J..Q（root, 食事, ドリンク, 外観内観, コース, 音楽アップ, 音楽ノーマル, ロゴ）
+        urls = [_folder_url(root)] + [_folder_url(s) for s in subs]
+        sh.values().update(spreadsheetId=SHEET_ID, range="%s!J%d:Q%d" % (MASTER_TAB, i + 1, i + 1),
+            valueInputOption="RAW", body={"values": [urls]}).execute()
+        made += 1
+        print("[MASTER] %s 作成完了 → %s（%sに共有）" % (sid, _folder_url(root), SHARE_EMAIL))
+    print("[MASTER] setup 完了：%d店ぶんのフォルダを作成" % made)
+
+
+def intake():
+    """各店（みんな）が記入する『店舗受付』タブを用意。アプリ実装やGASは不要で、まず集める用。"""
+    cr = _creds(); sh = _sheets(cr)
+    _ensure_tab(sh, INTAKE_TAB)
+    sh.values().update(spreadsheetId=SHEET_ID, range=INTAKE_TAB + "!A1:J1",
+        valueInputOption="RAW", body={"values": [INTAKE_HEADER]}).execute()
+    ex = ["（記入例）すさび湯 河原町三条店", "すさび湯三条", "三条店", "@susabiyu_sanjyo",
+          "ロゴをDriveの『ロゴ』フォルダに入れました", "担当：山田／080-xxxx-xxxx",
+          "（空ならこちらで設定）", "（空ならこちらで設定）", "受付中",
+          "写真・音楽は各Driveフォルダに入れてください"]
+    rows = sh.values().get(spreadsheetId=SHEET_ID, range=INTAKE_TAB + "!A:J").execute().get("values", [])
+    row2 = rows[1] if len(rows) > 1 else []
+    if not row2 or str(row2[0] if row2 else "").startswith("（記入例）"):
+        sh.values().update(spreadsheetId=SHEET_ID, range=INTAKE_TAB + "!A2:J2",
+            valueInputOption="RAW", body={"values": [ex]}).execute()
+    print("[MASTER] 『店舗受付』タブを用意しました（各店はここに記入）")
+
+
+def roster():
+    """『提出チェック』タブを用意。A列に店名を入れると、@名＋パスワードが揃った店は
+    自動で『✅提出済み』、未記入は『⬜未提出』と表示（誰が未提出か一目で分かる）。
+    ※あなた専用の管理タブ。各店には共有しない（パスワードを含むため）。"""
+    cr = _creds(); sh = _sheets(cr)
+    _ensure_tab(sh, ROSTER_TAB)
+    sh.values().update(spreadsheetId=SHEET_ID, range=ROSTER_TAB + "!A1:I1",
+        valueInputOption="RAW", body={"values": [ROSTER_HEADER]}).execute()
+    # H列＝提出状況を自動判定（ARRAYFORMULA）。A列(店名)がある行だけ判定。
+    formula = ('=ARRAYFORMULA(IF(A2:A="","",'
+               'IF((D2:D<>"")*(F2:F<>""),"✅提出済み",'
+               'IF((D2:D<>"")+(F2:F<>""),"△一部","⬜未提出"))))')
+    sh.values().update(spreadsheetId=SHEET_ID, range=ROSTER_TAB + "!H2",
+        valueInputOption="USER_ENTERED", body={"values": [[formula]]}).execute()
+    print("[ROSTER] 『提出チェック』タブを用意しました（A列に店名を入力／H列は自動判定・消さない）")
+
+
+def saemail():
+    """サービスアカウントのメール(client_email)を表示。配布用シートの共有先に使う。"""
+    import json as _json
+    p = "creds.json"
+    if not os.path.exists(p) and os.environ.get("GOOGLE_CREDS_B64"):
+        open(p, "wb").write(base64.b64decode(os.environ["GOOGLE_CREDS_B64"]))
+    try:
+        j = _json.load(open(p, encoding="utf-8"))
+        print("SA_EMAIL|" + str(j.get("client_email", "")))
+    except Exception as e:
+        print("[SA] 取得失敗:", e)
+
+
+def distsheet(target=None):
+    """各店配布用スプレッドシート(あなたが作りSAに共有した空シート)に、提出チェックの
+    店名を事前記入した記入表（パスワード欄あり）を流し込む。target はシートID or URL。"""
+    import re as _re
+    sid = (target or os.environ.get("REQ_SHEET_ID", "") or "").strip()
+    m = _re.search(r"/spreadsheets/d/([a-zA-Z0-9_-]+)", sid)  # URLが来たらID抽出
+    if m:
+        sid = m.group(1)
+    if not sid:
+        print("[DIST] REQ_SHEET_ID未設定。空のスプレッドシートを作成しサービスアカウントに"
+              "編集権限で共有→そのIDを REQ_SHEET_ID に入れて再実行してください。")
+        return
+    cr = _creds(); sp = _sheets(cr)
+    rows = sp.values().get(spreadsheetId=SHEET_ID, range=ROSTER_TAB + "!A2:A").execute().get("values", [])
+    stores = [(r[0].strip() if r else "") for r in rows]
+    stores = [s for s in stores if s and not s.startswith("（記入例）")]
+    try:
+        meta = sp.get(spreadsheetId=sid, fields="sheets.properties.title").execute()
+        titles = [s["properties"]["title"] for s in meta.get("sheets", [])]
+        tab = titles[0] if titles else "シート1"
+    except Exception as e:
+        print("[DIST] 対象シートに接続できません（共有設定を確認）:", e); return
+    values = [DIST_HEADER] + [[s, "", "", "", "", "", ""] for s in stores]
+    sp.values().update(spreadsheetId=sid, range="%s!A1" % tab,
+        valueInputOption="RAW", body={"values": values}).execute()
+    print("[DIST] 配布用シートに %d 店を記入しました: https://docs.google.com/spreadsheets/d/%s/edit" % (len(stores), sid))
+
+
+def _share_anyone(drive, fid):
+    try:
+        drive.permissions().create(fileId=fid, body={"type": "anyone", "role": "writer"},
+            supportsAllDrives=True).execute()
+    except Exception as e:
+        print("[DIST] リンク共有設定スキップ:", e)
+
+
+def distdrive(target=None):
+    """配布用シートを見やすく整形（交互色＋枠＋ヘッダー固定）＋各店の画像/音楽フォルダを作成し
+    H/I列にURLを貼付＋すさび湯三条を記入例として全項目埋める。target はシートID or URL。"""
+    import re as _re
+    sid = (target or os.environ.get("REQ_SHEET_ID", "") or "").strip()
+    m = _re.search(r"/spreadsheets/d/([a-zA-Z0-9_-]+)", sid)
+    if m:
+        sid = m.group(1)
+    if not sid:
+        print("[DIST] シートID/URLが必要です"); return
+    cr = _creds(); sp = _sheets(cr); drive = _drive(cr)
+    props = sp.get(spreadsheetId=sid, fields="sheets.properties(sheetId,title)").execute()["sheets"][0]["properties"]
+    gid = props["sheetId"]; tab = props["title"]
+    rows = sp.values().get(spreadsheetId=sid, range="%s!A:I" % tab).execute().get("values", [])
+    # 親フォルダ（全店の素材をまとめる）
+    parent = _mkfolder(drive, "すさび湯グループ 投稿素材（画像・音楽）")
+    _share_anyone(drive, parent); _share(drive, parent, SHARE_EMAIL)
+    # H/I 見出し
+    sp.values().update(spreadsheetId=sid, range="%s!H1:I1" % tab, valueInputOption="RAW",
+        body={"values": [["画像データ用Drive（URL）", "音楽データ用Drive（URL）"]]}).execute()
+    # 各店の画像/音楽フォルダ作成→URL（親配下＝親の共有を継承）
+    hi = []
+    for i in range(1, len(rows)):
+        name = (rows[i][0].strip() if rows[i] else "")
+        if not name:
+            hi.append(["", ""]); continue
+        img = _mkfolder(drive, name + " 画像", parent)
+        mus = _mkfolder(drive, name + " 音楽", parent)
+        hi.append([_folder_url(img), _folder_url(mus)])
+        print("[DIST] %s の画像/音楽フォルダ作成" % name)
+    if hi:
+        sp.values().update(spreadsheetId=sid, range="%s!H2:I%d" % (tab, 1 + len(hi)),
+            valueInputOption="RAW", body={"values": hi}).execute()
+    # すさび湯三条を記入例として全項目埋める（B〜G）
+    ex_row = 2
+    for i in range(1, len(rows)):
+        if rows[i] and "すさび湯 河原町三条店" in str(rows[i][0]):
+            ex_row = i + 1; break
+    ex = ["@susabiyu_sanjyo", "susabiyu_sanjyo（メールでも可）", "（ここに実際のパスワードを記入）",
+          "本部・天海", "amami@8sin.co.jp", "【記入例】この行のように各項目を記入してください"]
+    sp.values().update(spreadsheetId=sid, range="%s!B%d:G%d" % (tab, ex_row, ex_row),
+        valueInputOption="RAW", body={"values": [ex]}).execute()
+    # 書式：ヘッダー固定＋濃色ヘッダー＋罫線＋列幅（冪等）
+    N = max(len(rows), 26)
+    fmt = [
+        {"updateSheetProperties": {"properties": {"sheetId": gid, "gridProperties": {"frozenRowCount": 1}},
+            "fields": "gridProperties.frozenRowCount"}},
+        {"repeatCell": {"range": {"sheetId": gid, "startRowIndex": 0, "endRowIndex": 1, "startColumnIndex": 0, "endColumnIndex": 9},
+            "cell": {"userEnteredFormat": {"backgroundColor": {"red": 0.17, "green": 0.24, "blue": 0.33},
+                "horizontalAlignment": "CENTER", "verticalAlignment": "MIDDLE", "wrapStrategy": "WRAP",
+                "textFormat": {"bold": True, "foregroundColor": {"red": 1, "green": 1, "blue": 1}}}},
+            "fields": "userEnteredFormat(backgroundColor,horizontalAlignment,verticalAlignment,wrapStrategy,textFormat)"}},
+        {"updateBorders": {"range": {"sheetId": gid, "startRowIndex": 0, "endRowIndex": N, "startColumnIndex": 0, "endColumnIndex": 9},
+            "top": {"style": "SOLID", "color": {"red": 0.6, "green": 0.65, "blue": 0.72}},
+            "bottom": {"style": "SOLID", "color": {"red": 0.6, "green": 0.65, "blue": 0.72}},
+            "left": {"style": "SOLID", "color": {"red": 0.6, "green": 0.65, "blue": 0.72}},
+            "right": {"style": "SOLID", "color": {"red": 0.6, "green": 0.65, "blue": 0.72}},
+            "innerHorizontal": {"style": "SOLID", "color": {"red": 0.82, "green": 0.85, "blue": 0.89}},
+            "innerVertical": {"style": "SOLID", "color": {"red": 0.82, "green": 0.85, "blue": 0.89}}}},
+    ]
+    widths = [("A", 200), ("B", 200), ("C", 210), ("D", 210), ("E", 150), ("F", 190), ("G", 240), ("H", 260), ("I", 260)]
+    for idx, (col, w) in enumerate(widths):
+        fmt.append({"updateDimensionProperties": {"range": {"sheetId": gid, "dimension": "COLUMNS",
+            "startIndex": idx, "endIndex": idx + 1}, "properties": {"pixelSize": w}, "fields": "pixelSize"}})
+    try:
+        sp.batchUpdate(spreadsheetId=sid, body={"requests": fmt}).execute()
+    except Exception as e:
+        print("[DIST] 書式(基本)一部スキップ:", e)
+    # 交互色バンディング（既にあると失敗するので単独try）
+    try:
+        sp.batchUpdate(spreadsheetId=sid, body={"requests": [
+            {"addBanding": {"bandedRange": {"range": {"sheetId": gid, "startRowIndex": 1, "endRowIndex": N,
+                "startColumnIndex": 0, "endColumnIndex": 9},
+                "rowProperties": {"firstBandColor": {"red": 1, "green": 1, "blue": 1},
+                    "secondBandColor": {"red": 0.94, "green": 0.96, "blue": 0.98}}}}}]}).execute()
+    except Exception as e:
+        print("[DIST] 交互色は既に設定済みかスキップ:", e)
+    print("[DIST] 完了：画像/音楽フォルダ作成＋整形＋記入例入力: https://docs.google.com/spreadsheets/d/%s/edit" % sid)
+
+
+def _folder_id_from_url(u):
+    import re as _re
+    m = _re.search(r"/folders/([a-zA-Z0-9_-]+)", u or "")
+    return m.group(1) if m else ""
+
+
+def _child_folder(drive, parent_id, name):
+    q = ("'%s' in parents and name = '%s' and mimeType = 'application/vnd.google-apps.folder' "
+         "and trashed = false") % (parent_id, name.replace("'", "\\'"))
+    try:
+        r = drive.files().list(q=q, fields="files(id,name)", spaces="drive",
+            supportsAllDrives=True, includeItemsFromAllDrives=True).execute()
+        fs = r.get("files", [])
+        return fs[0]["id"] if fs else None
+    except Exception:
+        return None
+
+
+def _ensure_sub(drive, parent_id, name):
+    ex = _child_folder(drive, parent_id, name)
+    return ex if ex else _mkfolder(drive, name, parent_id)
+
+
+def distsub(target=None):
+    """既存の画像/音楽フォルダ(H/I列URL)の中にサブフォルダを作成し、アップロード案内タブを追加。
+    画像: フード/ドリンク/コース・集合写真/ロゴ/外観・内観、音楽: ノーマル/アップテンポ。冪等。"""
+    import re as _re
+    sid = (target or os.environ.get("REQ_SHEET_ID", "") or "").strip()
+    m = _re.search(r"/spreadsheets/d/([a-zA-Z0-9_-]+)", sid)
+    if m:
+        sid = m.group(1)
+    if not sid:
+        print("[SUB] シートID/URLが必要です"); return
+    cr = _creds(); sp = _sheets(cr); drive = _drive(cr)
+    props = sp.get(spreadsheetId=sid, fields="sheets.properties(sheetId,title)").execute()["sheets"][0]["properties"]
+    tab = props["title"]
+    rows = sp.values().get(spreadsheetId=sid, range="%s!A:I" % tab).execute().get("values", [])
+    IMG_SUB = ["フード", "ドリンク", "コース・集合写真", "ロゴ", "外観・内観"]
+    MUS_SUB = ["ノーマル", "アップテンポ"]
+    for i in range(1, len(rows)):
+        row = rows[i]
+        name = (row[0].strip() if row else "")
+        if not name:
+            continue
+        iid = _folder_id_from_url(row[7] if len(row) > 7 else "")
+        mid = _folder_id_from_url(row[8] if len(row) > 8 else "")
+        if iid:
+            for s in IMG_SUB:
+                _ensure_sub(drive, iid, s)
+        if mid:
+            for s in MUS_SUB:
+                _ensure_sub(drive, mid, s)
+        print("[SUB] %s サブフォルダ整備" % name)
+    # 案内タブ
+    guide_title = "アップロード案内"
+    meta = sp.get(spreadsheetId=sid, fields="sheets.properties(sheetId,title)").execute()
+    titles = [s["properties"]["title"] for s in meta.get("sheets", [])]
+    if guide_title not in titles:
+        sp.batchUpdate(spreadsheetId=sid, body={"requests": [
+            {"addSheet": {"properties": {"title": guide_title}}}]}).execute()
+    lines = [
+        ["■ 素材アップロードのご案内"],
+        [""],
+        ["各店の「画像データ用Drive」「音楽データ用Drive」（一覧シートのH・I列のURL）を開き、下記のフォルダに入れてください。"],
+        ["フォルダはこちらで用意しています。"],
+        [""],
+        ["【画像データ用Drive】"],
+        ["・フード … 料理の写真（必要ならフードの中をメニュー別にさらにフォルダ分けしてもOK）"],
+        ["・ドリンク … ドリンク・お酒の写真"],
+        ["・コース・集合写真 … コース料理／宴会／集合写真"],
+        ["・ロゴ … お店のロゴ画像"],
+        ["・外観・内観 … お店の外観・店内の写真"],
+        [""],
+        ["【音楽データ用Drive】"],
+        ["・ノーマル … 落ち着いた／通常テンポのBGM"],
+        ["・アップテンポ … 明るい／テンポの速いBGM"],
+        [""],
+        ["※ 写真はできるだけ高画質・タテ長(9:16)だときれいに使えます。"],
+        ["※ 各フォルダのURLは一覧シートのH列（画像）・I列（音楽）にあります。"],
+    ]
+    sp.values().update(spreadsheetId=sid, range="%s!A1" % guide_title,
+        valueInputOption="RAW", body={"values": lines}).execute()
+    try:
+        gg = [s["properties"]["sheetId"] for s in
+              sp.get(spreadsheetId=sid, fields="sheets.properties(sheetId,title)").execute()["sheets"]
+              if s["properties"]["title"] == guide_title][0]
+        sp.batchUpdate(spreadsheetId=sid, body={"requests": [
+            {"updateDimensionProperties": {"range": {"sheetId": gg, "dimension": "COLUMNS", "startIndex": 0, "endIndex": 1},
+                "properties": {"pixelSize": 760}, "fields": "pixelSize"}},
+            {"repeatCell": {"range": {"sheetId": gg, "startRowIndex": 0, "endRowIndex": 1, "startColumnIndex": 0, "endColumnIndex": 1},
+                "cell": {"userEnteredFormat": {"textFormat": {"bold": True, "fontSize": 13}}},
+                "fields": "userEnteredFormat.textFormat"}}]}).execute()
+    except Exception as e:
+        print("[SUB] 案内タブ書式スキップ:", e)
+    print("[SUB] 完了：サブフォルダ作成＋案内タブ: https://docs.google.com/spreadsheets/d/%s/edit" % sid)
+
+
+def distnote(target=None):
+    """一覧シートの右側(K列)に『フォルダの入れ方』案内を併記＋H1/I1(URL見出し)にセルメモ。"""
+    import re as _re
+    sid = (target or os.environ.get("REQ_SHEET_ID", "") or "").strip()
+    m = _re.search(r"/spreadsheets/d/([a-zA-Z0-9_-]+)", sid)
+    if m:
+        sid = m.group(1)
+    if not sid:
+        print("[NOTE] シートID/URLが必要です"); return
+    cr = _creds(); sp = _sheets(cr)
+    props = sp.get(spreadsheetId=sid, fields="sheets.properties(sheetId,title)").execute()["sheets"][0]["properties"]
+    gid = props["sheetId"]; tab = props["title"]
+    guide = [
+        ["📁 フォルダの入れ方（画像＝H列のURL／音楽＝I列のURL）"],
+        ["【画像データ用Drive】の中のフォルダ"],
+        ["　フード＝料理の写真（フードの中はメニュー別にさらに分けてもOK）"],
+        ["　ドリンク＝ドリンク・お酒の写真"],
+        ["　コース・集合写真＝コース料理／宴会／集合写真"],
+        ["　ロゴ＝お店のロゴ画像"],
+        ["　外観・内観＝お店の外観・店内の写真"],
+        ["【音楽データ用Drive】の中のフォルダ"],
+        ["　ノーマル＝落ち着いた／通常テンポのBGM"],
+        ["　アップテンポ＝明るい／テンポの速いBGM"],
+        ["※ 写真は高画質・タテ長(9:16)だときれいに使えます"],
+    ]
+    sp.values().update(spreadsheetId=sid, range="%s!K1" % tab,
+        valueInputOption="RAW", body={"values": guide}).execute()
+    n = len(guide)
+    reqs = [
+        {"updateDimensionProperties": {"range": {"sheetId": gid, "dimension": "COLUMNS", "startIndex": 10, "endIndex": 11},
+            "properties": {"pixelSize": 560}, "fields": "pixelSize"}},
+        {"repeatCell": {"range": {"sheetId": gid, "startRowIndex": 0, "endRowIndex": n, "startColumnIndex": 10, "endColumnIndex": 11},
+            "cell": {"userEnteredFormat": {"wrapStrategy": "WRAP", "verticalAlignment": "MIDDLE",
+                "backgroundColor": {"red": 1.0, "green": 0.97, "blue": 0.86}}},
+            "fields": "userEnteredFormat(wrapStrategy,verticalAlignment,backgroundColor)"}},
+        {"repeatCell": {"range": {"sheetId": gid, "startRowIndex": 0, "endRowIndex": 1, "startColumnIndex": 10, "endColumnIndex": 11},
+            "cell": {"userEnteredFormat": {"textFormat": {"bold": True, "fontSize": 12},
+                "backgroundColor": {"red": 0.99, "green": 0.9, "blue": 0.6}}},
+            "fields": "userEnteredFormat(textFormat,backgroundColor)"}},
+        {"updateBorders": {"range": {"sheetId": gid, "startRowIndex": 0, "endRowIndex": n, "startColumnIndex": 10, "endColumnIndex": 11},
+            "top": {"style": "SOLID", "color": {"red": 0.85, "green": 0.7, "blue": 0.3}},
+            "bottom": {"style": "SOLID", "color": {"red": 0.85, "green": 0.7, "blue": 0.3}},
+            "left": {"style": "SOLID", "color": {"red": 0.85, "green": 0.7, "blue": 0.3}},
+            "right": {"style": "SOLID", "color": {"red": 0.85, "green": 0.7, "blue": 0.3}},
+            "innerHorizontal": {"style": "SOLID", "color": {"red": 0.93, "green": 0.85, "blue": 0.6}}}},
+        {"updateCells": {"range": {"sheetId": gid, "startRowIndex": 0, "endRowIndex": 1, "startColumnIndex": 7, "endColumnIndex": 8},
+            "rows": [{"values": [{"note": "中のフォルダ：フード／ドリンク／コース・集合写真／ロゴ／外観・内観。フードはメニュー別にさらに分けてもOK。"}]}],
+            "fields": "note"}},
+        {"updateCells": {"range": {"sheetId": gid, "startRowIndex": 0, "endRowIndex": 1, "startColumnIndex": 8, "endColumnIndex": 9},
+            "rows": [{"values": [{"note": "中のフォルダ：ノーマル／アップテンポ。"}]}],
+            "fields": "note"}},
+    ]
+    try:
+        sp.batchUpdate(spreadsheetId=sid, body={"requests": reqs}).execute()
+    except Exception as e:
+        print("[NOTE] 書式一部スキップ:", e)
+    print("[NOTE] 完了：一覧シート右(K列)に案内併記＋URL見出しにメモ: https://docs.google.com/spreadsheets/d/%s/edit" % sid)
+
+
+def disttop(target=None):
+    """右のK列案内を撤去し、表の上（先頭）に案内バナーを差し込む。その下から表（見出し＋各店行）。"""
+    import re as _re
+    sid = (target or os.environ.get("REQ_SHEET_ID", "") or "").strip()
+    m = _re.search(r"/spreadsheets/d/([a-zA-Z0-9_-]+)", sid)
+    if m:
+        sid = m.group(1)
+    if not sid:
+        print("[TOP] シートID/URLが必要です"); return
+    cr = _creds(); sp = _sheets(cr)
+    props = sp.get(spreadsheetId=sid, fields="sheets.properties(sheetId,title)").execute()["sheets"][0]["properties"]
+    gid = props["sheetId"]; tab = props["title"]
+    # 先頭に4行挿入（案内3行＋空1行）→ 見出し/データはその下へ
+    sp.batchUpdate(spreadsheetId=sid, body={"requests": [
+        {"insertDimension": {"range": {"sheetId": gid, "dimension": "ROWS", "startIndex": 0, "endIndex": 4},
+            "inheritFromBefore": False}}]}).execute()
+    guide = [
+        ["📁 アップロードのご案内 ── 自分の店の行に入力し、Drive（H列＝画像／I列＝音楽）に素材を入れてください"],
+        ["【画像】フード＝料理写真（フードの中はメニュー別にさらに分けてもOK）／ドリンク＝ドリンク・お酒／コース・集合写真＝コース料理・宴会・集合／ロゴ＝店ロゴ／外観・内観＝外観・店内"],
+        ["【音楽】ノーマル＝落ち着いた・通常テンポのBGM／アップテンポ＝明るい・速いテンポのBGM　※写真は高画質・タテ長(9:16)推奨"],
+    ]
+    sp.values().update(spreadsheetId=sid, range="%s!A1" % tab, valueInputOption="RAW", body={"values": guide}).execute()
+    # 右のK列案内を消す（値）
+    sp.values().clear(spreadsheetId=sid, range="%s!K1:K200" % tab, body={}).execute()
+    B = {"style": "SOLID", "color": {"red": 0.85, "green": 0.7, "blue": 0.3}}
+    NB = {"style": "NONE"}
+    reqs = [
+        {"mergeCells": {"range": {"sheetId": gid, "startRowIndex": 0, "endRowIndex": 1, "startColumnIndex": 0, "endColumnIndex": 9}, "mergeType": "MERGE_ALL"}},
+        {"mergeCells": {"range": {"sheetId": gid, "startRowIndex": 1, "endRowIndex": 2, "startColumnIndex": 0, "endColumnIndex": 9}, "mergeType": "MERGE_ALL"}},
+        {"mergeCells": {"range": {"sheetId": gid, "startRowIndex": 2, "endRowIndex": 3, "startColumnIndex": 0, "endColumnIndex": 9}, "mergeType": "MERGE_ALL"}},
+        {"repeatCell": {"range": {"sheetId": gid, "startRowIndex": 0, "endRowIndex": 3, "startColumnIndex": 0, "endColumnIndex": 9},
+            "cell": {"userEnteredFormat": {"wrapStrategy": "WRAP", "verticalAlignment": "MIDDLE",
+                "backgroundColor": {"red": 1.0, "green": 0.97, "blue": 0.86}, "textFormat": {"fontSize": 11}}},
+            "fields": "userEnteredFormat(wrapStrategy,verticalAlignment,backgroundColor,textFormat)"}},
+        {"repeatCell": {"range": {"sheetId": gid, "startRowIndex": 0, "endRowIndex": 1, "startColumnIndex": 0, "endColumnIndex": 9},
+            "cell": {"userEnteredFormat": {"backgroundColor": {"red": 0.99, "green": 0.9, "blue": 0.6}, "textFormat": {"bold": True, "fontSize": 13}}},
+            "fields": "userEnteredFormat(backgroundColor,textFormat)"}},
+        {"updateBorders": {"range": {"sheetId": gid, "startRowIndex": 0, "endRowIndex": 3, "startColumnIndex": 0, "endColumnIndex": 9},
+            "top": B, "bottom": B, "left": B, "right": B, "innerHorizontal": B}},
+        {"updateDimensionProperties": {"range": {"sheetId": gid, "dimension": "COLUMNS", "startIndex": 10, "endIndex": 11},
+            "properties": {"pixelSize": 100}, "fields": "pixelSize"}},
+        {"repeatCell": {"range": {"sheetId": gid, "startRowIndex": 0, "endRowIndex": 200, "startColumnIndex": 10, "endColumnIndex": 11},
+            "cell": {"userEnteredFormat": {}}, "fields": "userEnteredFormat"}},
+        {"updateBorders": {"range": {"sheetId": gid, "startRowIndex": 0, "endRowIndex": 200, "startColumnIndex": 10, "endColumnIndex": 11},
+            "top": NB, "bottom": NB, "left": NB, "right": NB, "innerHorizontal": NB, "innerVertical": NB}},
+        {"updateSheetProperties": {"properties": {"sheetId": gid, "gridProperties": {"frozenRowCount": 5}},
+            "fields": "gridProperties.frozenRowCount"}},
+    ]
+    try:
+        sp.batchUpdate(spreadsheetId=sid, body={"requests": reqs}).execute()
+    except Exception as e:
+        print("[TOP] 書式一部スキップ:", e)
+    print("[TOP] 完了：案内を表の上へ移動＋K列撤去: https://docs.google.com/spreadsheets/d/%s/edit" % sid)
+
+
+def distwarn(target=None):
+    """表の上（見出し直上・4行目）に『画像は短辺1000px以上』の赤帯注意を入れる。冪等。"""
+    import re as _re
+    sid = (target or os.environ.get("REQ_SHEET_ID", "") or "").strip()
+    m = _re.search(r"/spreadsheets/d/([a-zA-Z0-9_-]+)", sid)
+    if m:
+        sid = m.group(1)
+    if not sid:
+        print("[WARN] シートID/URLが必要です"); return
+    cr = _creds(); sp = _sheets(cr)
+    props = sp.get(spreadsheetId=sid, fields="sheets.properties(sheetId,title)").execute()["sheets"][0]["properties"]
+    gid = props["sheetId"]; tab = props["title"]
+    warn = "⚠️ 画像は必ず【短辺1000ピクセル以上】でお願いします（小さい画像はきれいに使えません）／タテ長(9:16)推奨"
+    sp.values().update(spreadsheetId=sid, range="%s!A4" % tab, valueInputOption="RAW",
+        body={"values": [[warn]]}).execute()
+    reqs = [
+        {"mergeCells": {"range": {"sheetId": gid, "startRowIndex": 3, "endRowIndex": 4, "startColumnIndex": 0, "endColumnIndex": 9},
+            "mergeType": "MERGE_ALL"}},
+        {"repeatCell": {"range": {"sheetId": gid, "startRowIndex": 3, "endRowIndex": 4, "startColumnIndex": 0, "endColumnIndex": 9},
+            "cell": {"userEnteredFormat": {"wrapStrategy": "WRAP", "verticalAlignment": "MIDDLE", "horizontalAlignment": "CENTER",
+                "backgroundColor": {"red": 0.98, "green": 0.85, "blue": 0.85},
+                "textFormat": {"bold": True, "fontSize": 12, "foregroundColor": {"red": 0.7, "green": 0.0, "blue": 0.0}}}},
+            "fields": "userEnteredFormat(wrapStrategy,verticalAlignment,horizontalAlignment,backgroundColor,textFormat)"}},
+        {"updateBorders": {"range": {"sheetId": gid, "startRowIndex": 3, "endRowIndex": 4, "startColumnIndex": 0, "endColumnIndex": 9},
+            "top": {"style": "SOLID", "color": {"red": 0.8, "green": 0.2, "blue": 0.2}},
+            "bottom": {"style": "SOLID", "color": {"red": 0.8, "green": 0.2, "blue": 0.2}},
+            "left": {"style": "SOLID", "color": {"red": 0.8, "green": 0.2, "blue": 0.2}},
+            "right": {"style": "SOLID", "color": {"red": 0.8, "green": 0.2, "blue": 0.2}}}},
+    ]
+    try:
+        sp.batchUpdate(spreadsheetId=sid, body={"requests": reqs}).execute()
+    except Exception as e:
+        print("[WARN] 書式一部スキップ:", e)
+    print("[WARN] 完了：短辺1000px以上の赤帯注意を挿入: https://docs.google.com/spreadsheets/d/%s/edit" % sid)
+
+
+def disttime(target=None):
+    """『投稿希望時間』列(J)を追加。すさび湯三条を記入例で埋め、上部バナーをJまで拡張。"""
+    import re as _re
+    sid = (target or os.environ.get("REQ_SHEET_ID", "") or "").strip()
+    m = _re.search(r"/spreadsheets/d/([a-zA-Z0-9_-]+)", sid)
+    if m:
+        sid = m.group(1)
+    if not sid:
+        print("[TIME] シートID/URLが必要です"); return
+    cr = _creds(); sp = _sheets(cr)
+    props = sp.get(spreadsheetId=sid, fields="sheets.properties(sheetId,title)").execute()["sheets"][0]["properties"]
+    gid = props["sheetId"]; tab = props["title"]
+    rows = sp.values().get(spreadsheetId=sid, range="%s!A:J" % tab).execute().get("values", [])
+    # 見出し行を検出（「店舗名」で始まる行）
+    hr = None
+    for i, r in enumerate(rows):
+        if r and str(r[0]).strip().startswith("店舗名"):
+            hr = i; break
+    if hr is None:
+        hr = 4  # disttop後の既定（5行目）
+    # J見出し＋各店の投稿希望時間（三条は記入例）
+    sp.values().update(spreadsheetId=sid, range="%s!J%d" % (tab, hr + 1),
+        valueInputOption="RAW", body={"values": [["投稿希望時間（平日／祝日）"]]}).execute()
+    jvals = []
+    for i in range(hr + 1, len(rows)):
+        name = str(rows[i][0]).strip() if rows[i] else ""
+        if "すさび湯 河原町三条店" in name:
+            jvals.append(["平日 16:00／18:00／20:00　祝日 11:00／18:00／20:00"])
+        else:
+            jvals.append([""])
+    if jvals:
+        sp.values().update(spreadsheetId=sid, range="%s!J%d:J%d" % (tab, hr + 2, hr + 1 + len(jvals)),
+            valueInputOption="RAW", body={"values": jvals}).execute()
+    N = max(len(rows), hr + 26)
+    reqs = [
+        # 上部バナー(見出しより上の行)をJまで拡張：一旦解除→A:Jで再結合
+        {"unmergeCells": {"range": {"sheetId": gid, "startRowIndex": 0, "endRowIndex": hr, "startColumnIndex": 0, "endColumnIndex": 10}}},
+    ]
+    for rr in range(0, hr):
+        reqs.append({"mergeCells": {"range": {"sheetId": gid, "startRowIndex": rr, "endRowIndex": rr + 1,
+            "startColumnIndex": 0, "endColumnIndex": 10}, "mergeType": "MERGE_ALL"}})
+    reqs += [
+        # J見出しを他の見出しと同じ濃色＋白太字
+        {"repeatCell": {"range": {"sheetId": gid, "startRowIndex": hr, "endRowIndex": hr + 1, "startColumnIndex": 9, "endColumnIndex": 10},
+            "cell": {"userEnteredFormat": {"backgroundColor": {"red": 0.17, "green": 0.24, "blue": 0.33},
+                "horizontalAlignment": "CENTER", "verticalAlignment": "MIDDLE", "wrapStrategy": "WRAP",
+                "textFormat": {"bold": True, "foregroundColor": {"red": 1, "green": 1, "blue": 1}}}},
+            "fields": "userEnteredFormat(backgroundColor,horizontalAlignment,verticalAlignment,wrapStrategy,textFormat)"}},
+        # J列 幅＋データ折返し
+        {"updateDimensionProperties": {"range": {"sheetId": gid, "dimension": "COLUMNS", "startIndex": 9, "endIndex": 10},
+            "properties": {"pixelSize": 250}, "fields": "pixelSize"}},
+        {"repeatCell": {"range": {"sheetId": gid, "startRowIndex": hr + 1, "endRowIndex": N, "startColumnIndex": 9, "endColumnIndex": 10},
+            "cell": {"userEnteredFormat": {"wrapStrategy": "WRAP", "verticalAlignment": "MIDDLE"}},
+            "fields": "userEnteredFormat(wrapStrategy,verticalAlignment)"}},
+        # J列 罫線（見出し〜データ）
+        {"updateBorders": {"range": {"sheetId": gid, "startRowIndex": hr, "endRowIndex": N, "startColumnIndex": 9, "endColumnIndex": 10},
+            "top": {"style": "SOLID", "color": {"red": 0.6, "green": 0.65, "blue": 0.72}},
+            "bottom": {"style": "SOLID", "color": {"red": 0.6, "green": 0.65, "blue": 0.72}},
+            "left": {"style": "SOLID", "color": {"red": 0.6, "green": 0.65, "blue": 0.72}},
+            "right": {"style": "SOLID", "color": {"red": 0.6, "green": 0.65, "blue": 0.72}},
+            "innerHorizontal": {"style": "SOLID", "color": {"red": 0.85, "green": 0.87, "blue": 0.9}}}},
+    ]
+    try:
+        sp.batchUpdate(spreadsheetId=sid, body={"requests": reqs}).execute()
+    except Exception as e:
+        print("[TIME] 書式一部スキップ:", e)
+    print("[TIME] 完了：投稿希望時間(J列)追加＋三条の記入例: https://docs.google.com/spreadsheets/d/%s/edit" % sid)
+
+
+def distmove(target=None):
+    """投稿希望時間をDrive列より前(備考の隣=H)へ移動。旧J列を削除しHに新設、Drive列はI/Jへ。"""
+    import re as _re
+    sid = (target or os.environ.get("REQ_SHEET_ID", "") or "").strip()
+    m = _re.search(r"/spreadsheets/d/([a-zA-Z0-9_-]+)", sid)
+    if m:
+        sid = m.group(1)
+    if not sid:
+        print("[MOVE] シートID/URLが必要です"); return
+    cr = _creds(); sp = _sheets(cr)
+    props = sp.get(spreadsheetId=sid, fields="sheets.properties(sheetId,title)").execute()["sheets"][0]["properties"]
+    gid = props["sheetId"]; tab = props["title"]
+    rows = sp.values().get(spreadsheetId=sid, range="%s!A:K" % tab).execute().get("values", [])
+    hr = None
+    for i, r in enumerate(rows):
+        if r and str(r[0]).strip().startswith("店舗名"):
+            hr = i; break
+    if hr is None:
+        hr = 4
+    # 旧J(時間)を削除 → 備考の隣(index7=H)に新列を挿入。Drive(画像/音楽)はI/Jへ。
+    sp.batchUpdate(spreadsheetId=sid, body={"requests": [
+        {"deleteDimension": {"range": {"sheetId": gid, "dimension": "COLUMNS", "startIndex": 9, "endIndex": 10}}},
+        {"insertDimension": {"range": {"sheetId": gid, "dimension": "COLUMNS", "startIndex": 7, "endIndex": 8},
+            "inheritFromBefore": False}}]}).execute()
+    # 新H：見出し＋データ（三条は記入例）
+    sp.values().update(spreadsheetId=sid, range="%s!H%d" % (tab, hr + 1),
+        valueInputOption="RAW", body={"values": [["投稿希望時間（平日／祝日）"]]}).execute()
+    hvals = []
+    for i in range(hr + 1, len(rows)):
+        name = str(rows[i][0]).strip() if rows[i] else ""
+        if "すさび湯 河原町三条店" in name:
+            hvals.append(["平日 16:00／18:00／20:00　祝日 11:00／18:00／20:00"])
+        else:
+            hvals.append([""])
+    if hvals:
+        sp.values().update(spreadsheetId=sid, range="%s!H%d:H%d" % (tab, hr + 2, hr + 1 + len(hvals)),
+            valueInputOption="RAW", body={"values": hvals}).execute()
+    # バナー1行目の文言をI/Jに修正
+    sp.values().update(spreadsheetId=sid, range="%s!A1" % tab, valueInputOption="RAW", body={"values": [[
+        "📁 アップロードのご案内 ── 自分の店の行に入力し、Drive（I列＝画像／J列＝音楽）に素材を入れてください"]]}).execute()
+    N = max(len(rows), hr + 26)
+    reqs = [
+        {"repeatCell": {"range": {"sheetId": gid, "startRowIndex": hr, "endRowIndex": hr + 1, "startColumnIndex": 7, "endColumnIndex": 8},
+            "cell": {"userEnteredFormat": {"backgroundColor": {"red": 0.17, "green": 0.24, "blue": 0.33},
+                "horizontalAlignment": "CENTER", "verticalAlignment": "MIDDLE", "wrapStrategy": "WRAP",
+                "textFormat": {"bold": True, "foregroundColor": {"red": 1, "green": 1, "blue": 1}}}},
+            "fields": "userEnteredFormat(backgroundColor,horizontalAlignment,verticalAlignment,wrapStrategy,textFormat)"}},
+        {"updateDimensionProperties": {"range": {"sheetId": gid, "dimension": "COLUMNS", "startIndex": 7, "endIndex": 8},
+            "properties": {"pixelSize": 250}, "fields": "pixelSize"}},
+        {"repeatCell": {"range": {"sheetId": gid, "startRowIndex": hr + 1, "endRowIndex": N, "startColumnIndex": 7, "endColumnIndex": 8},
+            "cell": {"userEnteredFormat": {"wrapStrategy": "WRAP", "verticalAlignment": "MIDDLE",
+                "backgroundColor": {"red": 1, "green": 1, "blue": 1}}},
+            "fields": "userEnteredFormat(wrapStrategy,verticalAlignment,backgroundColor)"}},
+        {"updateBorders": {"range": {"sheetId": gid, "startRowIndex": hr, "endRowIndex": N, "startColumnIndex": 7, "endColumnIndex": 8},
+            "top": {"style": "SOLID", "color": {"red": 0.6, "green": 0.65, "blue": 0.72}},
+            "bottom": {"style": "SOLID", "color": {"red": 0.6, "green": 0.65, "blue": 0.72}},
+            "left": {"style": "SOLID", "color": {"red": 0.6, "green": 0.65, "blue": 0.72}},
+            "right": {"style": "SOLID", "color": {"red": 0.6, "green": 0.65, "blue": 0.72}},
+            "innerHorizontal": {"style": "SOLID", "color": {"red": 0.85, "green": 0.87, "blue": 0.9}}}},
+    ]
+    try:
+        sp.batchUpdate(spreadsheetId=sid, body={"requests": reqs}).execute()
+    except Exception as e:
+        print("[MOVE] 書式一部スキップ:", e)
+    print("[MOVE] 完了：投稿希望時間を備考の隣(H)へ移動／Drive=I,J: https://docs.google.com/spreadsheets/d/%s/edit" % sid)
+
+
+def patdump():
+    """パターンタブの key/label/url を出力（烏丸仮ページに焼き込むため）。posterは巨大なので省く。"""
+    import json as _j
+    cr = _creds(); sh = _sheets(cr)
+    rows = sh.values().get(spreadsheetId=SHEET_ID, range="パターン!A:G").execute().get("values", [])
+    for i in range(1, len(rows)):
+        r = rows[i]
+        if not r or not str(r[0]).strip():
+            continue
+        print("PAT|" + _j.dumps({"k": str(r[0]), "l": str(r[1]) if len(r) > 1 else "",
+                                 "u": str(r[2]) if len(r) > 2 else "",
+                                 "e": str(r[5]) if len(r) > 5 else ""}, ensure_ascii=False))
+    print("[PATDUMP] 完了")
+
+
+def sushifolder():
+    """見本（パターンタブ）のラベル先頭に【鮨処】を付けて保管区分にする。
+    行も動画も消さない。採用(enabled)は触らない＝新テンプレ採用まで投稿は従来どおり。"""
+    cr = _creds(); sh = _sheets(cr)
+    try:
+        rows = sh.values().get(spreadsheetId=SHEET_ID, range="パターン!A:G").execute().get("values", [])
+    except Exception as e:
+        print("[鮨処] パターンタブ読込失敗:", e); return
+    n = 0
+    for i in range(1, len(rows)):
+        r = rows[i]
+        if not r or not str(r[0]).strip():
+            continue
+        label = str(r[1]).strip() if len(r) > 1 else str(r[0]).strip()
+        if label.startswith("【鮨処】"):
+            continue
+        sh.values().update(spreadsheetId=SHEET_ID, range="パターン!B%d" % (i + 1),
+            valueInputOption="RAW", body={"values": [["【鮨処】" + label]]}).execute()
+        n += 1
+        print("[鮨処] 保管: %s → 【鮨処】%s" % (str(r[0]).strip(), label))
+    print("[鮨処] 完了: %d 件を保管区分にしました（見本ギャラリーの【鮨処】フォルダに表示）" % n)
+
+
+def inbox():
+    """CapCut等の参考動画を受け取るDriveフォルダを作成し、あなた(SHARE_EMAIL)に編集権限で共有＋
+    リンクを知っていれば閲覧可にする。ここに動画を入れてもらい、こちらで中身を確認する用。"""
+    cr = _creds(); drive = _drive(cr)
+    name = "参考テンプレ受け取り（CapCut等）"
+    fid = None
+    try:  # 既に作ってあれば同じフォルダを使い回す（毎回新規に作らない）
+        r = drive.files().list(
+            q="name='%s' and mimeType='application/vnd.google-apps.folder' and trashed=false" % name,
+            fields="files(id)", supportsAllDrives=True, includeItemsFromAllDrives=True).execute()
+        fs = r.get("files", [])
+        if fs:
+            fid = fs[0]["id"]
+            print("[INBOX] 既存フォルダを使用")
+    except Exception as e:
+        print("[INBOX] 既存検索スキップ:", e)
+    if not fid:
+        fid = _mkfolder(drive, name)
+    owner = SHARE_EMAIL or "amami@8sin.co.jp"
+    _share(drive, fid, owner)         # あなた本人に編集権限（アップロードできる）
+    try:                              # リンクを知っていれば誰でも編集可＝ログインしていればアップロード可
+        drive.permissions().create(fileId=fid, body={"type": "anyone", "role": "writer"},
+            supportsAllDrives=True).execute()
+    except Exception as e:
+        print("[INBOX] リンク共有(編集)スキップ:", e)
+    print("[INBOX] 受け取りフォルダURL: %s" % _folder_url(fid))
+    print("[INBOX] フォルダID: %s" % fid)
+    print("[INBOX] 編集共有先: %s" % SHARE_EMAIL)
+
+
+def sddrives(target=None):
+    """ロボット(SA)がメンバーの共有ドライブを一覧＋『プレビュー』を含む共有ドライブへ
+    実際に小ファイルをアップロードして書き込み可否を確認する（共有ドライブなら成功する）。"""
+    cr = _creds(); drive = _drive(cr)
+    r = drive.drives().list(fields="drives(id,name)", pageSize=100).execute()
+    ds = r.get("drives", [])
+    print("[SD] 共有ドライブ %d 件（ロボットがメンバーのもの）" % len(ds))
+    for d in ds:
+        print("SD|%s|%s" % (d["id"], d["name"]))
+    if not ds:
+        print("[SD] 見つかりません（共有ドライブにロボットが追加されていない可能性）"); return
+    pick = None
+    want = (target or "プレビュー")
+    for d in ds:
+        if want in d["name"]:
+            pick = d; break
+    if not pick:
+        pick = ds[0]
+    did = pick["id"]
+    try:
+        from googleapiclient.http import MediaInMemoryUpload
+        media = MediaInMemoryUpload(b"upload test", mimetype="text/plain")
+        f = drive.files().create(body={"name": "_uploadtest.txt", "parents": [did]},
+            media_body=media, fields="id", supportsAllDrives=True).execute()
+        print("[SD] アップロードテスト: 成功 ✅ 共有ドライブ『%s』(id=%s) file=%s" % (pick["name"], did, f["id"]))
+        try:
+            drive.files().delete(fileId=f["id"], supportsAllDrives=True).execute()
+        except Exception:
+            pass
+    except Exception as e:
+        print("[SD] アップロードテスト: 失敗 ❌ : %s" % e)
+
+
+def uptest(target=None):
+    """指定フォルダ(ID/URL)の素性を調べ、実際にロボットが書き込めるかテストする。
+    driveId が付いていれば共有ドライブ内＝書き込み可のはず。"""
+    fid = _folder_id_from_url(target or "") or (target or "").strip()
+    if not fid:
+        print("[UPTEST] フォルダID/URLが必要です"); return
+    cr = _creds(); drive = _drive(cr)
+    try:
+        meta = drive.files().get(fileId=fid, fields="id,name,mimeType,driveId,owners(emailAddress)",
+            supportsAllDrives=True).execute()
+        print("[UPTEST] 対象: name=%s / mimeType=%s / driveId=%s" % (
+            meta.get("name"), meta.get("mimeType"), meta.get("driveId")))
+        if meta.get("driveId"):
+            print("[UPTEST] → 共有ドライブ内のフォルダです（書き込める見込み）")
+        else:
+            print("[UPTEST] → 通常のマイドライブのフォルダです（ロボットは容量制限で入れられない見込み）")
+    except Exception as e:
+        print("[UPTEST] フォルダ情報取得に失敗（共有されていない可能性）:", e); return
+    try:
+        from googleapiclient.http import MediaInMemoryUpload
+        media = MediaInMemoryUpload(b"upload test", mimetype="text/plain")
+        f = drive.files().create(body={"name": "_uploadtest.txt", "parents": [fid]},
+            media_body=media, fields="id", supportsAllDrives=True).execute()
+        print("[UPTEST] アップロード: 成功 ✅（ここに自動で動画を入れられます） id=%s" % f["id"])
+        try:
+            drive.files().delete(fileId=f["id"], supportsAllDrives=True).execute()
+        except Exception:
+            pass
+    except Exception as e:
+        print("[UPTEST] アップロード: 失敗 ❌ : %s" % e)
+
+
+def outbox():
+    """あなた専用の非公開プレビュー用Driveフォルダを作成（あなたのメールだけに共有＝リンク公開なし）。
+    さらにサービスアカウントが動画をここへ入れられるか（ストレージ制限）を実地テストする。"""
+    cr = _creds(); drive = _drive(cr)
+    fid = _mkfolder(drive, "🎬 専用プレビュー（動画確認・非公開）")
+    owner = SHARE_EMAIL or "amami@8sin.co.jp"
+    _share(drive, fid, owner)         # あなただけに共有（anyoneリンクは付けない＝完全非公開）
+    print("[OUTBOX] 専用フォルダURL: %s" % _folder_url(fid))
+    print("[OUTBOX] フォルダID: %s" % fid)
+    print("[OUTBOX] 共有先(あなたのみ): %s" % owner)
+    # アップロード可否テスト（SAのMy Driveストレージ制限に当たるか）
+    try:
+        from googleapiclient.http import MediaInMemoryUpload
+        media = MediaInMemoryUpload(b"upload test", mimetype="text/plain")
+        f = drive.files().create(body={"name": "_uploadtest.txt", "parents": [fid]},
+            media_body=media, fields="id", supportsAllDrives=True).execute()
+        print("[OUTBOX] アップロードテスト: 成功 ✅（自動で動画を入れられます） id=%s" % f["id"])
+        try:
+            drive.files().delete(fileId=f["id"], supportsAllDrives=True).execute()
+        except Exception:
+            pass
+    except Exception as e:
+        print("[OUTBOX] アップロードテスト: 失敗 ❌（SA制限）: %s" % e)
+
+
+def inboxget(target=None):
+    """受け取りフォルダ(ID or URL)の中身を一覧表示（動画ファイルの確認用）。"""
+    sid = (target or "").strip()
+    fid = _folder_id_from_url(sid) or sid
+    if not fid:
+        print("[INBOXGET] フォルダID/URLが必要です"); return
+    cr = _creds(); drive = _drive(cr)
+    try:
+        r = drive.files().list(q="'%s' in parents and trashed=false" % fid,
+            fields="files(id,name,mimeType,size)", spaces="drive",
+            supportsAllDrives=True, includeItemsFromAllDrives=True).execute()
+    except Exception as e:
+        print("[INBOXGET] 一覧取得失敗:", e); return
+    fs = r.get("files", [])
+    for f in fs:
+        print("FILE|%s|%s|%s|%s" % (f.get("id"), f.get("name"), f.get("mimeType"), f.get("size", "")))
+    print("[INBOXGET] %d 件" % len(fs))
+
+
+def _find_list_tab(sp, sid):
+    """配布シートの『一覧タブ』を見出し基準で確実に特定する（sheets[0]に依存しない）。
+    先頭〜12行のどこかに『店舗名』で始まるセルを持つタブ＝入力一覧。
+    戻り値: (gid, title, header_row_index, header_list) / 見つからなければ (None,...)。"""
+    meta = sp.get(spreadsheetId=sid, fields="sheets.properties(sheetId,title,index)").execute()
+    for s in meta.get("sheets", []):
+        p = s["properties"]; title = p["title"]
+        rows = sp.values().get(spreadsheetId=sid, range="'%s'!A1:L12" % title).execute().get("values", [])
+        for i, r in enumerate(rows):
+            if r and str(r[0]).strip().startswith("店舗名"):
+                return p["sheetId"], title, i, r
+    return None, None, None, None
+
+
+def distfinal(target=None):
+    """配布シートの最終仕上げ（安全・冪等）。一覧タブを見出し『店舗名』で特定し、
+      ① 投稿希望時間(見出しに『投稿希望』を含む列)の三条の記入例が空なら補完
+      ② 一覧タブを先頭(index0)へ＝開いてすぐ入力欄が見える
+    既存のDrive URL・各店データには一切触れない。"""
+    import re as _re
+    sid = (target or os.environ.get("REQ_SHEET_ID", "") or "").strip()
+    m = _re.search(r"/spreadsheets/d/([a-zA-Z0-9_-]+)", sid)
+    if m:
+        sid = m.group(1)
+    if not sid:
+        print("[FINAL] シートID/URLが必要です"); return
+    cr = _creds(); sp = _sheets(cr)
+    gid, tab, hr, header = _find_list_tab(sp, sid)
+    if gid is None:
+        print("[FINAL] 一覧タブ（『店舗名』見出し）が見つかりません"); return
+
+    def col_of(key):
+        for j, c in enumerate(header):
+            if key in str(c):
+                return j
+        return None
+    c_time = col_of("投稿希望")
+    c_img = col_of("画像データ")
+    c_mus = col_of("音楽データ")
+    rows = sp.values().get(spreadsheetId=sid, range="'%s'!A:L" % tab).execute().get("values", [])
+    # ① 三条の投稿希望時間を記入例で補完（空のときだけ）
+    if c_time is not None:
+        for i in range(hr + 1, len(rows)):
+            r = rows[i]
+            name = str(r[0]).strip() if r else ""
+            if "すさび湯 河原町三条店" in name:
+                cur = r[c_time] if len(r) > c_time else ""
+                if not str(cur).strip():
+                    col = chr(65 + c_time)
+                    sp.values().update(spreadsheetId=sid, range="'%s'!%s%d" % (tab, col, i + 1),
+                        valueInputOption="RAW",
+                        body={"values": [["平日 16:00／18:00／20:00　祝日 11:00／18:00／20:00"]]}).execute()
+                    print("[FINAL] 三条の投稿希望時間を記入例で補完(%s%d)" % (col, i + 1))
+                break
+    # ② 一覧タブを先頭へ
+    try:
+        sp.batchUpdate(spreadsheetId=sid, body={"requests": [
+            {"updateSheetProperties": {"properties": {"sheetId": gid, "index": 0}, "fields": "index"}}]}).execute()
+        print("[FINAL] 一覧タブ『%s』を先頭に移動" % tab)
+    except Exception as e:
+        print("[FINAL] タブ並べ替えスキップ:", e)
+    tl = (lambda n: chr(65 + n) if isinstance(n, int) else "-")
+    print("[FINAL] 完了：一覧=%s ／ 時間列=%s 画像列=%s 音楽列=%s : "
+          "https://docs.google.com/spreadsheets/d/%s/edit"
+          % (tab, tl(c_time), tl(c_img), tl(c_mus), sid))
+
+
+def distdump(target=None):
+    """配布シートの上部数行を列付きで出力（レイアウト診断用）。"""
+    import re as _re
+    sid = (target or os.environ.get("REQ_SHEET_ID", "") or "").strip()
+    m = _re.search(r"/spreadsheets/d/([a-zA-Z0-9_-]+)", sid)
+    if m:
+        sid = m.group(1)
+    if not sid:
+        print("[DUMP] シートID/URLが必要です"); return
+    cr = _creds(); sp = _sheets(cr)
+    meta = sp.get(spreadsheetId=sid, fields="sheets.properties(sheetId,title,index)").execute()
+    for s in meta.get("sheets", []):
+        p = s["properties"]
+        title = p["title"]
+        print("=== TAB[%d] '%s' (id=%s) ===" % (p.get("index", -1), title, p.get("sheetId")))
+        rows = sp.values().get(spreadsheetId=sid, range="'%s'!A:L" % title).execute().get("values", [])
+        for i in range(min(7, len(rows))):
+            r = rows[i]
+            cells = [chr(65 + j) + "=" + str(r[j]).replace("\n", " ")[:22] for j in range(len(r))]
+            print("  R%d| %s" % (i + 1, " ｜ ".join(cells)))
+        print("  (行数 %d)" % len(rows))
+    print("[DUMP] 完了")
+
+
+def pending():
+    """承認待ちタブの各枠の状態（when/status/redo回数/pattern）を出力（redo詰まり診断用）。"""
+    cr = _creds(); sh = _sheets(cr)
+    try:
+        rows = sh.values().get(spreadsheetId=SHEET_ID, range="承認待ち!A:K").execute().get("values", [])
+    except Exception as e:
+        print("[PEND] 読込失敗:", e); return
+    for i in range(1, len(rows)):
+        r = rows[i]
+        g = lambda n: (r[n] if len(r) > n else "")
+        when = str(g(1)).strip()
+        if not when:
+            continue
+        print("PEND|when=%s|status=%s|redo=%s|pattern=%s|token=%s" % (when, g(7), g(10), g(3), g(0)))
+    print("[PEND] 完了")
+
+
+def names():
+    """『提出チェック』タブA列の店名を一覧出力（配布用CSVを作るために読み取る）。"""
+    cr = _creds(); sh = _sheets(cr)
+    try:
+        rows = sh.values().get(spreadsheetId=SHEET_ID, range=ROSTER_TAB + "!A2:A").execute().get("values", [])
+    except Exception as e:
+        print("[NAMES] 読み込み失敗:", e); return
+    cnt = 0
+    for r in rows:
+        n = (r[0] if r else "").strip()
+        if n and not n.startswith("（記入例）"):
+            print("STORE|" + n); cnt += 1
+    print("[NAMES] 合計 %d 店" % cnt)
+
+
+def drivefind(query=None):
+    """サービスアカウントがアクセスできるDrive全体を、ファイル名にキーワードを含む
+    画像/動画で検索して一覧表示（親フォルダ名も出す）。arg省略時は「170」で検索。
+    Driveに『170円均一ドリンク』等の画像があるか探す用。"""
+    kw = (query or "170").strip()
+    cr = _creds(); drive = _drive(cr)
+    # 親フォルダ名を引くためのキャッシュ
+    fname = {}
+    def folder_name(fid):
+        if not fid:
+            return ""
+        if fid in fname:
+            return fname[fid]
+        try:
+            m = drive.files().get(fileId=fid, fields="name", supportsAllDrives=True).execute()
+            fname[fid] = m.get("name", "")
+        except Exception:
+            fname[fid] = ""
+        return fname[fid]
+    q = "name contains '%s' and trashed=false and (mimeType contains 'image/' or mimeType contains 'video/')" % kw.replace("'", "")
+    out = []
+    page = None
+    try:
+        while True:
+            res = drive.files().list(q=q,
+                fields="nextPageToken, files(id,name,mimeType,parents)",
+                pageSize=100, pageToken=page,
+                supportsAllDrives=True, includeItemsFromAllDrives=True).execute()
+            out += res.get("files", [])
+            page = res.get("nextPageToken")
+            if not page:
+                break
+    except Exception as e:
+        print("[FIND] 検索失敗:", e); return
+    print("[FIND] キーワード「%s」で %d 件" % (kw, len(out)))
+    for f in out:
+        par = (f.get("parents") or [""])[0]
+        print("HIT|%s|%s|%s|%s" % (f.get("name"), folder_name(par), f.get("mimeType"), f.get("id")))
+    print("[FIND] 完了")
+
+
+def storesdump():
+    """『提出チェック』タブA〜C列（店舗名/表示名/アイコン短縮名）を一覧出力。
+    アプリの店舗アイコンホーム(stores.js)へ流し込むための読み取り専用ダンプ。"""
+    cr = _creds(); sh = _sheets(cr)
+    try:
+        rows = sh.values().get(spreadsheetId=SHEET_ID, range=ROSTER_TAB + "!A2:C").execute().get("values", [])
+    except Exception as e:
+        print("[STORES] 読み込み失敗:", e); return
+    cnt = 0
+    for r in rows:
+        g = lambda n: (r[n] if len(r) > n else "").strip()
+        name = g(0)
+        if not name or name.startswith("（記入例）"):
+            continue
+        print("STORE|%s|%s|%s" % (name, g(1), g(2)))
+        cnt += 1
+    print("[STORES] 合計 %d 店" % cnt)
+    # 店舗マスター側の表示名(C)・アイコン短縮名(U)も確認用に出力
+    try:
+        mrows = sh.values().get(spreadsheetId=SHEET_ID, range=MASTER_TAB + "!A:U").execute().get("values", [])
+    except Exception as e:
+        print("[STORES] マスター読込失敗:", e); mrows = []
+    for i in range(1, len(mrows)):
+        r = mrows[i]
+        g = lambda n: (r[n] if len(r) > n else "").strip()
+        if not g(0):
+            continue
+        print("MASTER|%s|%s|%s|%s" % (g(0), g(1), g(2), g(20)))
+    # 店舗受付タブ（表示名/アイコン短縮名の記入欄がある）
+    try:
+        irows = sh.values().get(spreadsheetId=SHEET_ID, range=INTAKE_TAB + "!A:C").execute().get("values", [])
+        for i in range(1, len(irows)):
+            r = irows[i]
+            g = lambda n: (r[n] if len(r) > n else "").strip()
+            if g(0):
+                print("INTAKE|%s|%s|%s" % (g(0), g(1), g(2)))
+    except Exception as e:
+        print("[STORES] 受付タブ読込スキップ:", e)
+    # 配布用の記入シート（REQ_SHEET_ID）側の全タブもA:Cを出力
+    rid = os.environ.get("REQ_SHEET_ID", "").strip()
+    if rid:
+        try:
+            meta = sh.get(spreadsheetId=rid, fields="sheets.properties.title").execute()
+            for t in [x["properties"]["title"] for x in meta.get("sheets", [])]:
+                rows2 = sh.values().get(spreadsheetId=rid, range="'%s'!A:D" % t).execute().get("values", [])
+                for i, r in enumerate(rows2):
+                    g = lambda n: (r[n] if len(r) > n else "").strip()
+                    if g(0) or g(1) or g(2) or g(3):
+                        print("REQ|%s|%d|%s|%s|%s|%s" % (t, i + 1, g(0), g(1), g(2), g(3)))
+        except Exception as e:
+            print("[STORES] 記入用シート読込スキップ:", e)
+    else:
+        print("[STORES] REQ_SHEET_ID未設定")
+
+
+def requestsheet():
+    """各店に配る『記入用の独立スプレッドシート』を作成。本体（機密）とは別ファイルなので安全に共有可。
+    列は『店舗受付』と同じ＝記入後そのまま本体の受付タブへコピペできる。
+    サービスアカウントで新規作成できない環境では REQ_SHEET_ID に空シートIDを入れて再実行。"""
+    cr = _creds(); sp = _sheets(cr); drive = _drive(cr)
+    existing = os.environ.get("REQ_SHEET_ID", "").strip()
+    if existing:
+        sid = existing
+        print("[REQ] 既存の記入用シートを使用:", sid)
+    else:
+        try:
+            ss = build("sheets", "v4", credentials=cr).spreadsheets().create(
+                body={"properties": {"title": "店舗受付（記入用・各店共有用）"},
+                      "sheets": [{"properties": {"title": "受付"}}]},
+                fields="spreadsheetId").execute()
+            sid = ss["spreadsheetId"]
+            print("[REQ] 新規スプレッドシートを作成:", sid)
+        except Exception as e:
+            print("[REQ] 作成失敗（サービスアカウントの制限の可能性）:", e)
+            print("[REQ] 対処：空のスプレッドシートを手動作成→サービスアカウントに編集権限で共有→"
+                  "そのIDを REQ_SHEET_ID に入れて再実行してください。")
+            return
+    try:
+        meta = sp.get(spreadsheetId=sid, fields="sheets.properties.title").execute()
+        titles = [s["properties"]["title"] for s in meta.get("sheets", [])]
+        tab = "受付" if "受付" in titles else (titles[0] if titles else "シート1")
+    except Exception:
+        tab = "受付"
+    sp.values().update(spreadsheetId=sid, range="%s!A1:J1" % tab, valueInputOption="RAW",
+        body={"values": [INTAKE_HEADER]}).execute()
+    ex = ["（記入例）すさび湯 河原町三条店", "すさび湯三条", "三条店", "@susabiyu_sanjyo",
+          "ロゴをDriveの『ロゴ』フォルダに入れました", "担当：山田／080-xxxx-xxxx",
+          "（空ならこちらで設定）", "（空ならこちらで設定）", "受付中",
+          "写真・音楽は各Driveフォルダに入れてください"]
+    sp.values().update(spreadsheetId=sid, range="%s!A2:J2" % tab, valueInputOption="RAW",
+        body={"values": [ex]}).execute()
+    _share(drive, sid, SHARE_EMAIL)
+    try:
+        drive.permissions().create(fileId=sid, body={"type": "anyone", "role": "writer"},
+            supportsAllDrives=True).execute()
+        link_note = "リンクを知っている人は編集可（必要なら後で制限可）"
+    except Exception as e:
+        print("[REQ] リンク共有設定はスキップ:", e); link_note = "（共有はあなたのみ。配布時に共有設定してください）"
+    print("[REQ] 記入用スプレッドシート: https://docs.google.com/spreadsheets/d/%s/edit" % sid)
+    print("[REQ] 共有先:", SHARE_EMAIL, "/", link_note)
+
+
+def _tab_id(sh, title):
+    meta = sh.get(spreadsheetId=SHEET_ID, fields="sheets.properties(title,sheetId)").execute()
+    for s in meta.get("sheets", []):
+        if s["properties"]["title"] == title:
+            return s["properties"]["sheetId"]
+    return None
+
+
+def columns():
+    """マスターに『アプリ表示』チェックボックス列(T)を用意。✓した店舗だけアプリに出す用。"""
+    cr = _creds(); sh = _sheets(cr)
+    _ensure_tab(sh, MASTER_TAB)
+    gid = _tab_id(sh, MASTER_TAB)
+    if gid is None:
+        print("[MASTER] タブが見つかりません"); return
+    sh.values().update(spreadsheetId=SHEET_ID, range=MASTER_TAB + "!T1",
+        valueInputOption="RAW", body={"values": [["アプリ表示"]]}).execute()
+    # T2:T1000 をチェックボックスに
+    sh.batchUpdate(spreadsheetId=SHEET_ID, body={"requests": [{
+        "setDataValidation": {
+            "range": {"sheetId": gid, "startRowIndex": 1, "endRowIndex": 1000,
+                      "startColumnIndex": 19, "endColumnIndex": 20},
+            "rule": {"condition": {"type": "BOOLEAN"}, "showCustomUi": True, "strict": True}
+        }
+    }]}).execute()
+    # すさび湯三条は稼働中なので最初からON
+    rows = _get_rows(sh)
+    for i in range(1, len(rows)):
+        if rows[i] and rows[i][0].strip() == "susabiyu_sanjyo":
+            sh.values().update(spreadsheetId=SHEET_ID, range="%s!T%d" % (MASTER_TAB, i + 1),
+                valueInputOption="USER_ENTERED", body={"values": [[True]]}).execute()
+            print("[MASTER] すさび湯三条を『アプリ表示』ONに設定")
+            break
+    # アイコン短縮名（任意・長い店名用）の列(U)。アプリのアイコン下ラベルに優先使用。
+    sh.values().update(spreadsheetId=SHEET_ID, range=MASTER_TAB + "!U1",
+        valueInputOption="RAW", body={"values": [["アイコン短縮名（任意）"]]}).execute()
+    print("[MASTER] 『アプリ表示』(T)＋『アイコン短縮名』(U)列を用意しました")
+
+
+def pendingdump():
+    """承認待ちタブの全行を診断用に出力（token/時刻/パターン/状態/URL長）。"""
+    cr = _creds()
+    sh = _sheets(cr)
+    rows = sh.values().get(spreadsheetId=SHEET_ID, range="承認待ち!A:Z").execute().get("values", [])
+    print("総行数(ヘッダー込み):", len(rows))
+    for i, r in enumerate(rows):
+        if i == 0:
+            continue
+        cells = []
+        for j, v in enumerate(r):
+            s = str(v)
+            if s:
+                cells.append("%s=%s" % (chr(65 + j), s[:60].replace("\n", " ")))
+        print("行%d(%d列) %s" % (i + 1, len(r), " | ".join(cells) if cells else "(全セル空)"))
+
+
+def usagedump():
+    """使用写真タブの直近30行（写真の使い回し防止の記録簿）を出力。"""
+    cr = _creds()
+    sh = _sheets(cr)
+    rows = sh.values().get(spreadsheetId=SHEET_ID, range="使用写真!A:H").execute().get("values", [])
+    print("総行数:", len(rows))
+    for i, r in enumerate(rows[-30:]):
+        cells = []
+        for j, v in enumerate(r):
+            s = str(v)
+            if s:
+                cells.append("%s=%s" % (chr(65 + j), s[:40]))
+        print(" ", " | ".join(cells) if cells else "(空)")
+
+
+def pendingfix():
+    """M列以降にズレて書き込まれた承認待ち行をA列基準に修復し、
+    同じ投稿時刻の重複は最後の1件だけ残して並べ直す。"""
+    cr = _creds()
+    sh = _sheets(cr)
+    rows = sh.values().get(spreadsheetId=SHEET_ID, range="承認待ち!A:Y").execute().get("values", [])
+    if len(rows) < 2:
+        print("対象なし")
+        return
+    items = []
+    for r in rows[1:]:
+        if len(r) > 0 and str(r[0]).strip():
+            item = (r + [""] * 13)[:13]
+        elif len(r) > 12 and str(r[12]).strip():
+            item = (r[12:] + [""] * 13)[:13]
+        else:
+            continue
+        items.append(item)
+    # 同じ「日時」は最後の1件を採用
+    by_when = {}
+    for it in items:
+        by_when[str(it[1]).strip()] = it
+    fixed = sorted(by_when.values(), key=lambda x: str(x[1]))
+    sh.values().clear(spreadsheetId=SHEET_ID, range="承認待ち!A2:Z").execute()
+    if fixed:
+        sh.values().update(spreadsheetId=SHEET_ID, range="承認待ち!A2",
+            valueInputOption="RAW", body={"values": fixed}).execute()
+    print("修復完了: 元%d件 → 重複整理後%d件" % (len(items), len(fixed)))
+    for it in fixed:
+        print("  ", it[0], "|", it[1], "|", it[3], "|", it[7])
+
+
+def sheetrevs():
+    """スプレッドシートの直近リビジョン一覧（いつ・誰が編集したか）を出力。"""
+    cr = _creds()
+    dr = _drive(cr)
+    try:
+        res = dr.revisions().list(fileId=SHEET_ID, pageSize=1000,
+            fields="revisions(id,modifiedTime,lastModifyingUser(displayName,emailAddress))").execute()
+        revs = res.get("revisions", [])
+        print("リビジョン数:", len(revs))
+        for r in revs[-25:]:
+            u = r.get("lastModifyingUser") or {}
+            print(r.get("modifiedTime"), "|", u.get("displayName", "?"), "|", u.get("emailAddress", "?"))
+    except Exception as e:
+        print("[REVS] 取得失敗:", e)
+
+
+def clearpending():
+    """承認待ちタブの行を全消去（ヘッダーは残す）。本番切替時に旧デザインの
+    予約投稿を一掃してから prepare で作り直すためのモード。"""
+    cr = _creds()
+    sh = _sheets(cr)
+    rows = sh.values().get(spreadsheetId=SHEET_ID, range="承認待ち!A:A").execute().get("values", [])
+    n = max(0, len(rows) - 1)
+    sh.values().clear(spreadsheetId=SHEET_ID, range="承認待ち!A2:Z").execute()
+    print("承認待ちを%d行削除しました（ヘッダーは維持）。" % n)
+
+
+def musicdirs():
+    """各店舗の音楽フォルダURLをログ用に出力（IDマスキング回避のため1文字ずつ~区切り）。"""
+    cr = _creds()
+    sh = _sheets(cr)
+    rows = _get_rows(sh)
+    for r in rows[1:]:
+        name = r[1] if len(r) > 1 else ""
+        up = r[14] if len(r) > 14 else ""
+        no = r[15] if len(r) > 15 else ""
+        if not name:
+            continue
+        print("MUSIC|" + name + "|uptempo|" + "~".join(up))
+        print("MUSIC|" + name + "|normal|" + "~".join(no))
+
+
+def musicrestore():
+    """ゴミ箱に入った音楽ファイルを探して復元を試みる（音楽ノーマル/アップテンポ両対象）。"""
+    cr = _creds()
+    dr = _drive(cr)
+    targets = [os.environ.get("GENRE_MUSIC_NORMAL_ID") or "", os.environ.get("GENRE_MUSIC_UPTEMPO_ID") or ""]
+    try:
+        res = dr.files().list(q="trashed = true",
+            fields="files(id,name,mimeType,parents,trashedTime,owners(emailAddress))",
+            pageSize=200, supportsAllDrives=True, includeItemsFromAllDrives=True).execute()
+    except Exception as e:
+        print("[RESTORE] ゴミ箱一覧の取得に失敗:", e)
+        return
+    files = res.get("files", [])
+    print("[RESTORE] ゴミ箱に見えるファイル:", len(files))
+    hit = 0
+    for f in files:
+        is_audio = (f.get("mimeType") or "").startswith("audio/") or (f.get("name") or "").lower().endswith((".mp3", ".m4a", ".wav"))
+        in_target = any(t and t in (f.get("parents") or []) for t in targets)
+        if not (is_audio or in_target):
+            continue
+        hit += 1
+        own = ",".join(o.get("emailAddress", "?") for o in f.get("owners", []))
+        try:
+            dr.files().update(fileId=f["id"], body={"trashed": False}, supportsAllDrives=True).execute()
+            print("RESTORED|" + f.get("name", "?") + "|owner:" + own)
+        except Exception as e:
+            print("FAIL|" + f.get("name", "?") + "|owner:" + own + "|" + str(e)[:120])
+    if hit == 0:
+        print("[RESTORE] 対象の音楽ファイルはSAのゴミ箱視界にありません（所有者本人のゴミ箱からの復元が必要）")
+    # 復元後のフォルダ内容を確認
+    for label, t in (("normal", targets[0]), ("uptempo", targets[1])):
+        if not t:
+            continue
+        try:
+            r2 = dr.files().list(q="'" + t + "' in parents and trashed = false",
+                fields="files(name)", pageSize=100).execute()
+            names = [x.get("name") for x in r2.get("files", [])]
+            print("[FOLDER " + label + "] " + str(len(names)) + "件: " + ", ".join(names[:20]))
+        except Exception as e:
+            print("[FOLDER " + label + "] 取得失敗:", e)
+
+
+def musiccheck(arg):
+    """引数のフォルダURL/ID（カンマ区切り）の正体を調べる。名前・親・中身・
+    システムが読むフォルダ(env)と同一かを表示。IDそのものは出力しない。"""
+    import re as _re
+    cr = _creds()
+    dr = _drive(cr)
+    env = {"uptempo": os.environ.get("GENRE_MUSIC_UPTEMPO_ID") or "",
+           "normal": os.environ.get("GENRE_MUSIC_NORMAL_ID") or ""}
+    def meta(fid):
+        try:
+            return dr.files().get(fileId=fid, fields="id,name,parents,owners(emailAddress),trashed",
+                                  supportsAllDrives=True).execute()
+        except Exception as e:
+            return {"error": str(e)[:100]}
+    for label, fid in env.items():
+        if not fid:
+            continue
+        m = meta(fid)
+        pn = ""
+        if m.get("parents"):
+            pm = meta(m["parents"][0])
+            pn = pm.get("name", "?")
+        print("ENV|" + label + "|name:" + m.get("name", "?") + "|parent:" + pn)
+    for tok in (arg or "").split(","):
+        tok = tok.strip()
+        if not tok:
+            continue
+        mm = _re.search(r"[-\w]{20,}", tok)
+        fid = mm.group(0) if mm else tok
+        m = meta(fid)
+        if "error" in m:
+            print("CHK|" + tok[-8:] + "|エラー:" + m["error"])
+            continue
+        same = [k for k, v in env.items() if v == fid]
+        pn = ""
+        if m.get("parents"):
+            pm = meta(m["parents"][0])
+            pn = pm.get("name", "?")
+        own = ",".join(o.get("emailAddress", "?") for o in m.get("owners", []))
+        try:
+            r2 = dr.files().list(q="'" + fid + "' in parents and trashed = false",
+                fields="files(name)", pageSize=100).execute()
+            names = [x.get("name") for x in r2.get("files", [])]
+        except Exception as e:
+            names = ["(一覧失敗:" + str(e)[:60] + ")"]
+        print("CHK|…" + fid[-6:] + "|name:" + m.get("name", "?") + "|parent:" + pn + "|owner:" + own +
+              "|env一致:" + (same[0] if same else "なし") + "|中身" + str(len(names)) + "件:" + ", ".join(names[:25]))
+
+
+if __name__ == "__main__":
+    mode = (sys.argv[1] if len(sys.argv) > 1 else "init").strip().lower()
+    arg = sys.argv[2].strip() if len(sys.argv) > 2 else None
+    if mode == "init":
+        init()
+    elif mode == "setup":
+        setup(arg)
+    elif mode == "all":
+        init(); setup(arg)
+    elif mode == "columns":
+        columns()
+    elif mode == "intake":
+        intake()
+    elif mode == "requestsheet":
+        requestsheet()
+    elif mode == "roster":
+        roster()
+    elif mode == "names":
+        names()
+    elif mode == "storesdump":
+        storesdump()
+    elif mode == "pending":
+        pending()
+    elif mode == "saemail":
+        saemail()
+    elif mode == "distsheet":
+        distsheet(arg)
+    elif mode == "distdrive":
+        distdrive(arg)
+    elif mode == "distsub":
+        distsub(arg)
+    elif mode == "distnote":
+        distnote(arg)
+    elif mode == "disttop":
+        disttop(arg)
+    elif mode == "distwarn":
+        distwarn(arg)
+    elif mode == "disttime":
+        disttime(arg)
+    elif mode == "distmove":
+        distmove(arg)
+    elif mode == "distfinal":
+        distfinal(arg)
+    elif mode == "musiccheck":
+        musiccheck(arg)
+    elif mode == "musicrestore":
+        musicrestore()
+    elif mode == "musicdirs":
+        musicdirs()
+    elif mode == "clearpending":
+        clearpending()
+    elif mode == "pendingdump":
+        pendingdump()
+    elif mode == "sheetrevs":
+        sheetrevs()
+    elif mode == "pendingfix":
+        pendingfix()
+    elif mode == "usagedump":
+        usagedump()
+    elif mode == "patdump":
+        patdump()
+    elif mode == "sushifolder":
+        sushifolder()
+    elif mode == "inbox":
+        inbox()
+    elif mode == "outbox":
+        outbox()
+    elif mode == "sddrives":
+        sddrives(arg)
+    elif mode == "uptest":
+        uptest(arg)
+    elif mode == "inboxget":
+        inboxget(arg)
+    elif mode == "distdump":
+        distdump(arg)
+    elif mode == "drivefind":
+        drivefind(arg)
+    else:
+        print("使い方: python store_master.py init | setup [store_id] | columns | intake | requestsheet | roster | names | pending | saemail | distsheet | all")

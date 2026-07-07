@@ -1,0 +1,61 @@
+﻿name: susabiyu-post
+on:
+  schedule:
+    - cron: '0 2 * * *'
+    - cron: '0 7 * * *'
+    - cron: '0 9 * * *'
+    - cron: '0 11 * * *'
+  workflow_dispatch:
+    inputs:
+      datetime:
+        description: "JST e.g. 2026-06-26 18:00 (empty=now)"
+        required: false
+        default: ""
+      dry:
+        description: "DRY (1=ON)"
+        required: false
+        default: "0"
+jobs:
+  post:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: susabiyu-remotion
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install Python deps
+        run: pip install google-api-python-client google-auth requests jpholiday Pillow boto3
+      - name: Install Node deps
+        run: npm ci
+      - name: Write creds.json
+        run: echo "$GOOGLE_CREDS_B64" | base64 -d > creds.json
+        env:
+          GOOGLE_CREDS_B64: ${{ secrets.GOOGLE_CREDS_B64 }}
+      - name: Run post (gated)
+        env:
+          GOOGLE_CREDS_B64: ${{ secrets.GOOGLE_CREDS_B64 }}
+          IG_ACCESS_TOKEN: ${{ secrets.IG_ACCESS_TOKEN }}
+          SHEET_ID: ${{ secrets.SHEET_ID }}
+          GENRE_FOOD_ID: ${{ secrets.GENRE_FOOD_ID }}
+          GENRE_SAKE_ID: ${{ secrets.GENRE_SAKE_ID }}
+          GENRE_INTERIOR_ID: ${{ secrets.GENRE_INTERIOR_ID }}
+          GENRE_EVENT_ID: ${{ secrets.GENRE_EVENT_ID }}
+          GENRE_MUSIC_UPTEMPO_ID: ${{ secrets.GENRE_MUSIC_UPTEMPO_ID }}
+          GENRE_MUSIC_NORMAL_ID: ${{ secrets.GENRE_MUSIC_NORMAL_ID }}
+          LINE_CHANNEL_TOKEN: ${{ secrets.LINE_CHANNEL_TOKEN }}
+          R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          R2_BUCKET: ${{ secrets.R2_BUCKET }}
+          R2_PUBLIC_BASE: ${{ secrets.R2_PUBLIC_BASE }}
+          GH_MEDIA_TOKEN: ${{ secrets.GH_MEDIA_TOKEN }}
+          GH_MEDIA_REPO: ${{ secrets.GH_MEDIA_REPO }}
+          DRY: ${{ github.event.inputs.dry }}
+        run: python post_approved.py creds.json "${{ github.event.inputs.datetime }}"

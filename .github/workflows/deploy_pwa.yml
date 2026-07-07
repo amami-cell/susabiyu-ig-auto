@@ -1,0 +1,66 @@
+name: deploy-pwa
+on:
+  workflow_dispatch:
+  push:
+    branches: [ main ]
+    paths: [ 'pwa/**', '.github/workflows/deploy_pwa.yml' ]
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Inject GAS URL into config.js
+        env:
+          GAS_EXEC_URL: ${{ secrets.GAS_EXEC_URL }}
+          R2_PUBLIC_BASE: ${{ secrets.R2_PUBLIC_BASE }}
+        run: |
+          if [ -n "$GAS_EXEC_URL" ]; then
+            sed -i "s#PASTE_YOUR_GAS_EXEC_URL_HERE#${GAS_EXEC_URL}#" pwa/config.js
+            echo "GAS URL injected."
+          else
+            echo "WARNING: GAS_EXEC_URL secret is empty; app will not connect until set."
+          fi
+          if [ -n "$R2_PUBLIC_BASE" ]; then
+            sed -i "s#PASTE_MEDIA_BASE_HERE#${R2_PUBLIC_BASE%/}#" pwa/config.js
+            echo "MEDIA_BASE injected."
+          fi
+      - name: 公開フロントを難読化（コメント除去＋本格minify＝作り方を読み取られにくく）
+        run: |
+          cd pwa
+          # JS: 変数名まで潰す本格minify。app.jsはIIFE内＝外部接点はwindowプロパティのみで安全。
+          for f in app.js sw.js config.js; do
+            if [ -f "$f" ]; then
+              npx -y terser "$f" --compress --mangle --comments false -o "$f.tmp" \
+                && mv "$f.tmp" "$f" && echo "minified $f" \
+                || echo "skip $f (terser失敗・元のまま継続)"
+            fi
+          done
+          # HTML: コメント削除＋CSSコメント削除（崩れ防止のため空白圧縮はしない）
+          if [ -f index.html ]; then
+            npx -y html-minifier-terser index.html --remove-comments --minify-css -o index.html.tmp \
+              && mv index.html.tmp index.html && echo "stripped index.html" \
+              || echo "skip index.html (継続)"
+          fi
+      - name: Publish pwa/ to public site repo (app/ subfolder)
+        env:
+          TOKEN: ${{ secrets.GH_MEDIA_TOKEN }}
+          MEDIA_REPO: ${{ secrets.GH_MEDIA_REPO }}
+        run: |
+          if [ -z "$TOKEN" ] || [ -z "$MEDIA_REPO" ]; then
+            echo "ERROR: GH_MEDIA_TOKEN / GH_MEDIA_REPO not set"; exit 1
+          fi
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git clone --depth 1 "https://x-access-token:${TOKEN}@github.com/${MEDIA_REPO}.git" _site
+          rm -rf _site/app
+          mkdir -p _site/app
+          cp -r pwa/. _site/app/
+          touch _site/.nojekyll
+          cd _site
+          git add app .nojekyll
+          if git diff --cached --quiet; then
+            echo "No changes to deploy."; exit 0
+          fi
+          git commit -m "deploy PWA app"
+          git push
+          echo "Deployed. Pages URL (after enabling Pages): https://${MEDIA_REPO%%/*}.github.io/${MEDIA_REPO#*/}/app/"

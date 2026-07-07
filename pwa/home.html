@@ -1,0 +1,1043 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
+<title>すさび湯 店舗ホーム</title>
+<meta name="theme-color" content="#83868c">
+<style>
+  :root{--bg:#83868c;--card:#171c26;--line:#262b35;--fg:#ffffff;--sub:#e6e8ec;--accent:#7fd1a0}
+  *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+  button{touch-action:manipulation;font-family:inherit}
+  html,body{background:var(--bg);color:var(--fg);font-family:-apple-system,BlinkMacSystemFont,"Hiragino Sans","Noto Sans JP",sans-serif;
+    min-height:100%;overscroll-behavior-y:none}
+  body{-webkit-user-select:none;user-select:none}
+  .top{position:sticky;top:0;z-index:10;background:rgba(112,115,121,.85);backdrop-filter:saturate(180%) blur(12px);
+    border-bottom:1px solid rgba(255,255,255,.14);display:flex;align-items:center;gap:10px;
+    padding:calc(env(safe-area-inset-top) + 14px) 18px 12px}
+  .top h1{font-size:16px;font-weight:800;letter-spacing:.5px;flex:1}
+  .top .done{display:none;border:1px solid #1f4d33;background:#10301f;color:var(--accent);
+    font-size:13px;font-weight:800;padding:7px 16px;border-radius:999px}
+  body.editing .top .done{display:inline-block}
+  .top .gear{border:1px solid rgba(255,255,255,.25);background:rgba(255,255,255,.16);color:#fff;
+    font-size:15px;padding:7px 12px;border-radius:999px}
+
+  /* 横スクロールのページ（携帯ホーム風・スナップ） */
+  .pages{display:flex;overflow-x:auto;scroll-snap-type:x mandatory;-webkit-overflow-scrolling:touch;
+    scrollbar-width:none}
+  .pages::-webkit-scrollbar{display:none}
+  .page{flex:0 0 100%;scroll-snap-align:start;padding:22px 18px 10px;
+    display:grid;grid-template-columns:repeat(3,1fr);grid-auto-rows:118px;gap:14px 10px;align-content:start;
+    min-height:300px}
+  .dots{display:flex;justify-content:center;gap:6px;margin:2px 0 10px}
+  .dots i{width:6px;height:6px;border-radius:50%;background:rgba(255,255,255,.4)}
+  .dots i.on{background:#fff}
+
+  /* 店舗アイコン */
+  .tile{position:relative;display:flex;flex-direction:column;align-items:center;gap:7px;
+    background:none;border:none;color:var(--fg)}
+  .tile .ic{position:relative;width:74px;height:74px;border-radius:20px;overflow:hidden;background:var(--card);
+    border:none;box-shadow:0 12px 24px rgba(0,0,0,.45), 0 3px 7px rgba(0,0,0,.35);
+    display:flex;align-items:center;justify-content:center;
+    transition:transform .22s ease, box-shadow .22s ease, filter .22s ease}
+  /* 押している間：少し沈んで暗くなる（押してる感） */
+  .tile.pressing .ic{transform:scale(.88);filter:brightness(.8)}
+  /* 長押し発動：フワッと持ち上がる */
+  .tile.lifted .ic{transform:scale(1.16);box-shadow:0 20px 36px rgba(0,0,0,.55), 0 5px 12px rgba(0,0,0,.4);
+    animation:none !important}
+  .tile .ic img{width:100%;height:100%;object-fit:contain;padding:5px;display:block;pointer-events:none}
+  .tile .ic .init{font-size:34px;font-weight:800;color:#e9dcc3;font-family:"Hiragino Mincho ProN",serif}
+  .tile .nm{font-size:13.5px;font-weight:700;color:#fff;text-shadow:0 1px 3px rgba(0,0,0,.45);max-width:112px;text-align:center;
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:1.18}
+  .tile .nm br{content:""}
+  .tile .sb{font-size:11px;color:#eef0f3;text-shadow:0 1px 2px rgba(0,0,0,.4);margin-top:-4px;max-width:100px;text-align:center;
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .tile .sb:empty{display:none}
+  .tile .prep{position:absolute;top:-5px;right:2px;background:#3a2f14;color:#ffd23f;border:1px solid #5c4a1c;
+    font-size:9px;font-weight:800;padding:2px 7px;border-radius:999px}
+  body:not(.editing) .tile:active .ic{transform:scale(.94)}
+
+  /* フォルダアイコン（中のミニアイコン9個まで） */
+  .tile .ic.fold{background:rgba(255,255,255,.32);backdrop-filter:blur(6px);padding:0}
+  .fgrid{display:grid;grid-template-columns:repeat(3,1fr);grid-template-rows:repeat(3,1fr);
+    gap:3px;padding:8px;width:100%;height:100%}
+  .fgrid .m{border-radius:5px;overflow:hidden;background:var(--card);display:flex;align-items:center;
+    justify-content:center;font-size:10px;font-weight:800;color:#e9dcc3}
+  .fgrid .m img{width:100%;height:100%;object-fit:contain;padding:2px;pointer-events:none}
+
+  /* 編集モード：ゆらゆら＋−バッジ */
+  body.editing .tile{touch-action:none}
+  body.editing .tile .ic{animation:wig 0.35s ease-in-out infinite alternate}
+  @keyframes wig{from{transform:rotate(-1.6deg)}to{transform:rotate(1.6deg)}}
+  .tile .minus{display:none;position:absolute;top:-7px;left:6px;width:24px;height:24px;border-radius:50%;
+    background:#c0473a;color:#fff;border:2px solid #fff;font-size:16px;font-weight:800;line-height:20px;z-index:2;
+    text-align:center}
+  body.editing .tile .minus{display:block}
+
+  /* ドラッグ中 */
+  .tile.ghost{opacity:0}
+  .drag-clone{position:fixed;z-index:99;pointer-events:none;margin:0;
+    opacity:.95;filter:drop-shadow(0 10px 24px rgba(0,0,0,.6))}
+  .drag-clone .ic{animation:none !important}
+  .tile.fover .ic{box-shadow:0 0 0 4px rgba(255,255,255,.9), 0 0 26px rgba(255,255,255,.55), 0 12px 24px rgba(0,0,0,.45);
+    transform:scale(1.24);animation:none !important}
+
+  /* フォルダを開いた画面 */
+  .fov{position:fixed;inset:0;background:rgba(90,93,99,.55);backdrop-filter:blur(16px);z-index:40;
+    display:none;flex-direction:column;align-items:center;justify-content:center;padding:20px}
+  .fov.show{display:flex}
+  .ftwrap{display:flex;align-items:center;gap:4px;background:rgba(255,255,255,.24);border-radius:999px;
+    padding:4px 8px 4px 16px;margin-bottom:6px;max-width:84vw}
+  .ftitle{background:none;border:none;color:#fff;font-size:19px;font-weight:800;text-align:center;
+    min-width:0;width:9em;max-width:58vw;padding:4px 2px;outline:none}
+  .ftclear{flex:0 0 auto;width:24px;height:24px;border-radius:50%;border:none;background:rgba(0,0,0,.3);
+    color:#fff;font-size:12px;line-height:1}
+  .fedit{color:#f0f1f4;font-size:10px;margin-bottom:10px;text-shadow:0 1px 2px rgba(0,0,0,.3)}
+  .fpanel{background:rgba(255,255,255,.26);backdrop-filter:blur(10px);border:none;border-radius:24px;width:min(92vw,400px);
+    padding:10px 0 4px;box-shadow:0 20px 60px rgba(0,0,0,.35);transition:opacity .15s}
+  .fpages{display:flex;overflow-x:auto;scroll-snap-type:x mandatory;-webkit-overflow-scrolling:touch;scrollbar-width:none}
+  .fpages::-webkit-scrollbar{display:none}
+  .fpage{flex:0 0 100%;scroll-snap-align:start;padding:14px 12px;
+    display:grid;grid-template-columns:repeat(3,1fr);grid-auto-rows:118px;gap:12px 8px;align-content:start;min-height:250px}
+  .fdots{display:flex;justify-content:center;gap:6px;padding:4px 0 10px}
+  .fdots i{width:6px;height:6px;border-radius:50%;background:rgba(255,255,255,.4)}
+  .fdots i.on{background:#fff}
+  .fclose{margin-top:14px;color:#fff;font-size:12px;background:rgba(255,255,255,.16);border:1px solid rgba(255,255,255,.3);
+    border-radius:999px;padding:8px 22px}
+
+  /* 表示/非表示の設定モーダル */
+  .ov{position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:50;display:none;align-items:flex-end}
+  .ov.show{display:flex}
+  .sheet{background:#141821;border-radius:18px 18px 0 0;width:100%;max-height:76vh;overflow-y:auto;
+    padding:18px 18px calc(env(safe-area-inset-bottom) + 22px)}
+  .sheet h2{font-size:15px;margin-bottom:4px;color:#e8ecf2}
+  .sheet .note{color:#9aa3b2;font-size:12px;margin-bottom:12px;line-height:1.6}
+  .row{display:flex;align-items:center;gap:12px;padding:11px 4px;border-bottom:1px solid var(--line)}
+  .row .mini{width:40px;height:40px;border-radius:12px;overflow:hidden;background:var(--card);border:1px solid var(--line);
+    display:flex;align-items:center;justify-content:center;flex:0 0 auto}
+  .row .mini img{width:100%;height:100%;object-fit:contain;padding:4px}
+  .row .mini span{font-size:18px;font-weight:800;color:#e9dcc3}
+  .row .t{flex:1;min-width:0}
+  .row .t b{font-size:13px;color:#e8ecf2;display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .row .t small{font-size:11px;color:#9aa3b2}
+  .row input{width:20px;height:20px;accent-color:#1f9d55}
+  .sheet .save{margin-top:16px;width:100%;background:#1f9d55;color:#fff;border:none;border-radius:12px;
+    padding:14px 0;font-size:15px;font-weight:800}
+  .foot{color:rgba(255,255,255,.55);font-size:10px;text-align:center;padding:10px 0 calc(env(safe-area-inset-bottom) + 16px)}
+  #toast{position:fixed;left:50%;bottom:calc(env(safe-area-inset-bottom) + 30px);transform:translateX(-50%);
+    background:#232a36;color:#fff;border:1px solid var(--line);border-radius:999px;
+    font-size:13px;font-weight:700;padding:10px 20px;z-index:60;opacity:0;transition:opacity .25s;pointer-events:none;
+    white-space:nowrap}
+  #toast.show{opacity:1}
+  /* 入場コード（関係者専用ゲート） */
+  .gate{position:fixed;inset:0;background:#0f1115;display:flex;flex-direction:column;justify-content:center;
+    align-items:center;gap:18px;padding:30px;z-index:100}
+  .gate h1{font-size:20px;letter-spacing:2px}
+  .gate p{color:#9aa3b2;font-size:13px;text-align:center;line-height:1.7}
+  .gate input{width:min(320px,80vw);padding:14px 16px;font-size:20px;text-align:center;letter-spacing:6px;
+    border-radius:12px;border:1px solid #2a3542;background:#141b23;color:#fff;outline:none}
+  .gate button{width:min(320px,80vw);padding:14px;font-size:16px;font-weight:700;border:0;border-radius:12px;
+    background:#c8a24a;color:#1a1206}
+  .gate .err{color:#ff8080;font-size:13px;min-height:18px}
+  .gate a{color:#9aa3b2;font-size:13px;text-decoration:none}
+</style>
+</head>
+<body>
+<div class="gate" id="gate">
+  <h1>🏮 すさび湯 店舗ホーム</h1>
+  <p>このページは関係者専用です。<br>入場コードを入力してください。</p>
+  <input id="gpass" type="password" inputmode="numeric" autocomplete="off" placeholder="●●●●●●">
+  <button id="ggo">入る</button>
+  <div class="err" id="gerr"></div>
+  <a href="./">← 三条アプリへ戻る</a>
+</div>
+<header class="top">
+  <h1>すさび湯 店舗ホーム</h1>
+  <button class="done" id="doneBtn">完了</button>
+  <button class="gear" id="gearBtn">⚙︎ 店舗の表示</button>
+</header>
+<div class="pages" id="pages"></div>
+<div class="dots" id="dots"></div>
+<div class="foot">すさび湯グループ 投稿管理</div>
+<div id="toast"></div>
+
+<!-- フォルダを開いた画面 -->
+<div class="fov" id="fov">
+  <div class="ftwrap"><input class="ftitle" id="ftitle" maxlength="20" placeholder="フォルダ名"><button class="ftclear" id="ftclear">✕</button></div>
+  <div class="fedit">標題はタップで編集できます</div>
+  <div class="fpanel" id="fpanel">
+    <div class="fpages" id="fpages"></div>
+    <div class="fdots" id="fdots"></div>
+  </div>
+  <button class="fclose" id="fclose">閉じる</button>
+</div>
+
+<div class="ov" id="ov">
+  <div class="sheet">
+    <h2>表示する店舗</h2>
+    <div class="note">チェックした店舗だけがホームに並びます。担当していない店舗は外してOK（あとからここで戻せます）。<br>この設定もこの端末だけに保存されます。</div>
+    <div id="rows"></div>
+    <button class="save" id="saveBtn">保存する</button>
+  </div>
+</div>
+
+<script src="stores.js"></script>
+<script>
+/* 入場ゲート（烏丸ページと同じコード・一度入れた端末はそのまま） */
+(function () {
+  var HASH = "92925488b28ab12584ac8fcaa8a27a0f497b2c62940c8f4fbc8ef19ebc87c43e";
+  var gate = document.getElementById("gate");
+  function sha256(str) {
+    return crypto.subtle.digest("SHA-256", new TextEncoder().encode(str)).then(function (h) {
+      var a = new Uint8Array(h), s = "";
+      for (var i = 0; i < a.length; i++) s += ("0" + a[i].toString(16)).slice(-2);
+      return s;
+    });
+  }
+  function tryPass() {
+    var v = (document.getElementById("gpass").value || "").trim();
+    if (!v) return;
+    sha256(v).then(function (h) {
+      if (h === HASH) {
+        try { localStorage.setItem("kar_ok", "1"); } catch (e) {}
+        gate.style.display = "none";
+      } else {
+        document.getElementById("gerr").textContent = "コードが違います";
+        document.getElementById("gpass").value = "";
+      }
+    });
+  }
+  document.getElementById("ggo").onclick = tryPass;
+  document.getElementById("gpass").addEventListener("keydown", function (e) { if (e.key === "Enter") tryPass(); });
+  var ok = false;
+  try { ok = localStorage.getItem("kar_ok") === "1"; } catch (e) {}
+  if (ok) gate.style.display = "none";
+})();
+(function () {
+  var STORES = window.SUSABIYU_STORES || [];
+  var BYID = {}; STORES.forEach(function (s) { BYID[s.id] = s; });
+  var PER_PAGE = 15;  // ホーム 3列×5行（説明文を消して1段増やした）
+  var F_PER = 9;      // フォルダ内 3列×3行（超えたら横スライド）
+  var LKEY = "sb_home_layout2";
+  var pagesEl = document.getElementById("pages");
+  var dotsEl = document.getElementById("dots");
+  var editing = false;
+  var openFid = null; // 開いているフォルダid
+
+  /* ---------- 並び・フォルダの保存（この端末だけ） ---------- */
+  function loadLayout() {
+    try {
+      var l = JSON.parse(localStorage.getItem(LKEY));
+      if (l && l.items) return l;
+    } catch (e) {}
+    var hid = [];
+    try { hid = JSON.parse(localStorage.getItem("sb_home_hidden") || "[]"); } catch (e) {}
+    return { items: STORES.map(function (s) { return { t: "s", id: s.id }; }), hidden: hid, fseq: 1 };
+  }
+  var layout = loadLayout();
+  function syncLayout() {
+    var seen = {};
+    layout.items = layout.items.filter(function (it) {
+      if (it.t === "s") {
+        if (!BYID[it.id] || seen[it.id]) return false;
+        seen[it.id] = 1; return true;
+      }
+      it.ids = (it.ids || []).filter(function (id) {
+        if (!BYID[id] || seen[id]) return false;
+        seen[id] = 1; return true;
+      });
+      return it.ids.length > 0;
+    });
+    STORES.forEach(function (s) { if (!seen[s.id]) layout.items.push({ t: "s", id: s.id }); });
+    (layout.hidden || []).forEach(pullFromFolders); // 非表示の店はフォルダに残さない
+    normalize();
+  }
+  // フォルダから取り出してフォルダの隣に置く（非表示の店の整理用）
+  function pullFromFolders(id) {
+    for (var i = 0; i < layout.items.length; i++) {
+      var it = layout.items[i];
+      if (it.t !== "f") continue;
+      var k = it.ids.indexOf(id);
+      if (k >= 0) { it.ids.splice(k, 1); layout.items.splice(i + 1, 0, { t: "s", id: id }); return; }
+    }
+  }
+  // 中身が1店舗だけのフォルダは自動で解消して普通のアイコンに戻す（iPhoneと同じ）
+  function normalize() {
+    for (var i = layout.items.length - 1; i >= 0; i--) {
+      var it = layout.items[i];
+      if (it.t !== "f") continue;
+      if (it.ids.length === 1) layout.items.splice(i, 1, { t: "s", id: it.ids[0] });
+      else if (it.ids.length === 0) layout.items.splice(i, 1);
+    }
+  }
+  function save() { normalize(); try { localStorage.setItem(LKEY, JSON.stringify(layout)); } catch (e) {} }
+  syncLayout();
+  save(); // 起動時の整理（1店舗フォルダ解消など）も保存しておく
+  function isHidden(id) { return layout.hidden.indexOf(id) >= 0; }
+  function findFolder(fid) {
+    for (var i = 0; i < layout.items.length; i++)
+      if (layout.items[i].t === "f" && layout.items[i].fid === fid) return layout.items[i];
+    return null;
+  }
+  function hideStore(id) {
+    if (!isHidden(id)) layout.hidden.push(id);
+    pullFromFolders(id); // フォルダ内なら外に出して、残り1店舗なら自動解消
+    save();
+    if (openFid && !findFolder(openFid)) closeFolder();
+    render();
+  }
+  function dissolveFolder(fid) {
+    var f = findFolder(fid);
+    var fi = itemIndexOf("f", fid);
+    if (f && fi >= 0) {
+      var back = f.ids.map(function (id) { return { t: "s", id: id }; });
+      Array.prototype.splice.apply(layout.items, [fi, 1].concat(back));
+      save(); render();
+    }
+  }
+
+  /* ---------- 描画 ---------- */
+  function esc(v) {
+    return String(v).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  }
+  // 名前に「/」が入っていたらその位置で改行（2行表示）
+  function nameHtml(v) {
+    return esc(v).split("/").map(function (p) { return p.trim(); }).join("<br>");
+  }
+  function iconHtml(s, cls) {
+    if (s.icon) return '<img src="' + s.icon + '" alt="">';
+    return '<span class="' + (cls || "init") + '">' + (s.initial || s.name.charAt(0)) + '</span>';
+  }
+  function storeTile(s) {
+    var t = document.createElement("button");
+    t.className = "tile";
+    t.setAttribute("data-kind", "s");
+    t.setAttribute("data-id", s.id);
+    t.innerHTML =
+      '<span class="minus">−</span>' +
+      '<span class="ic">' + iconHtml(s) + (s.live ? "" : '<span class="prep">準備中</span>') + '</span>' +
+      '<span class="nm">' + nameHtml(s.name) + '</span>' +
+      '<span class="sb">' + esc(s.short || "") + '</span>';
+    return t;
+  }
+  function folderTile(f) {
+    var vis = f.ids.filter(function (id) { return !isHidden(id); });
+    var minis = vis.slice(0, 9).map(function (id) {
+      var s = BYID[id];
+      return '<span class="m">' + (s.icon ? '<img src="' + s.icon + '" alt="">' : (s.initial || s.name.charAt(0))) + '</span>';
+    }).join("");
+    var t = document.createElement("button");
+    t.className = "tile";
+    t.setAttribute("data-kind", "f");
+    t.setAttribute("data-fid", f.fid);
+    t.innerHTML =
+      '<span class="minus">−</span>' +
+      '<span class="ic fold"><span class="fgrid">' + minis + '</span></span>' +
+      '<span class="nm">' + nameHtml(f.name || "フォルダ") + '</span>' +
+      '<span class="sb">' + vis.length + '店舗</span>';
+    return t;
+  }
+  function visibleEntries() {
+    return layout.items.filter(function (it) {
+      if (it.t === "s") return !isHidden(it.id);
+      return it.ids.some(function (id) { return !isHidden(id); });
+    });
+  }
+  function render() {
+    var vis = visibleEntries();
+    pagesEl.innerHTML = "";
+    dotsEl.innerHTML = "";
+    var pageCount = Math.max(1, Math.ceil(vis.length / PER_PAGE));
+    for (var p = 0; p < pageCount; p++) {
+      var pg = document.createElement("div");
+      pg.className = "page";
+      vis.slice(p * PER_PAGE, (p + 1) * PER_PAGE).forEach(function (it) {
+        var t = it.t === "s" ? storeTile(BYID[it.id]) : folderTile(it);
+        wireTile(t, "home");
+        pg.appendChild(t);
+      });
+      pagesEl.appendChild(pg);
+      var d = document.createElement("i");
+      if (p === 0) d.className = "on";
+      dotsEl.appendChild(d);
+    }
+    dotsEl.style.display = pageCount <= 1 ? "none" : "flex";
+    if (openFid) renderFolder();
+  }
+  pagesEl.addEventListener("scroll", function () {
+    if (drag && drag.sp) drag.sp.dirty = true; // ドラッグ中のページ送り→マス目を測り直す
+    var idx = Math.round(pagesEl.scrollLeft / pagesEl.clientWidth);
+    var ds = dotsEl.children;
+    for (var i = 0; i < ds.length; i++) ds[i].className = i === idx ? "on" : "";
+  }, { passive: true });
+
+  function setEditing(on) {
+    editing = on;
+    document.body.classList.toggle("editing", on);
+  }
+  // 長押し発動の「コッ」というポップ音（iPhoneの本体振動はブラウザでは出せないため音で代用）
+  var actx = null;
+  function popSound() {
+    try {
+      actx = actx || new (window.AudioContext || window.webkitAudioContext)();
+      if (actx.state === "suspended") actx.resume();
+      var t0 = actx.currentTime;
+      // 高めで控えめな「コッ」（短く・小さく）
+      var o = actx.createOscillator(), g = actx.createGain();
+      o.type = "sine";
+      o.frequency.setValueAtTime(640, t0);
+      o.frequency.exponentialRampToValueAtTime(420, t0 + 0.05);
+      g.gain.setValueAtTime(0.0001, t0);
+      g.gain.exponentialRampToValueAtTime(0.14, t0 + 0.003);
+      g.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.06);
+      o.connect(g); g.connect(actx.destination);
+      o.start(t0); o.stop(t0 + 0.07);
+      // ごく短いクリック成分（かすかに）
+      var buf = actx.createBuffer(1, Math.floor(actx.sampleRate * 0.008), actx.sampleRate);
+      var ch = buf.getChannelData(0);
+      for (var i = 0; i < ch.length; i++) ch[i] = (Math.random() * 2 - 1) * (1 - i / ch.length);
+      var n = actx.createBufferSource();
+      n.buffer = buf;
+      var bf = actx.createBiquadFilter();
+      bf.type = "bandpass"; bf.frequency.value = 2600; bf.Q.value = 1.4;
+      var g2 = actx.createGain();
+      g2.gain.value = 0.03;
+      n.connect(bf); bf.connect(g2); g2.connect(actx.destination);
+      n.start(t0);
+    } catch (e) {}
+  }
+  var toastEl = document.getElementById("toast"), toastT = null;
+  function toast(msg) {
+    toastEl.textContent = msg;
+    toastEl.classList.add("show");
+    clearTimeout(toastT);
+    toastT = setTimeout(function () { toastEl.classList.remove("show"); }, 2200);
+  }
+  document.getElementById("doneBtn").onclick = function () { setEditing(false); };
+
+  /* ---------- フォルダを開く ---------- */
+  var fov = document.getElementById("fov");
+  var fpanelEl = document.getElementById("fpanel");
+  var fpagesEl = document.getElementById("fpages");
+  var fdotsEl = document.getElementById("fdots");
+  var ftitleEl = document.getElementById("ftitle");
+  document.getElementById("ftclear").onclick = function () {
+    ftitleEl.value = "";
+    var f = findFolder(openFid);
+    if (f) { f.name = ""; save(); }
+    ftitleEl.focus();
+  };
+  function renderFolder() {
+    var f = findFolder(openFid);
+    if (!f) { closeFolder(); return; }
+    ftitleEl.value = f.name || "";
+    var vis = f.ids.filter(function (id) { return !isHidden(id); });
+    fpagesEl.innerHTML = "";
+    fdotsEl.innerHTML = "";
+    var pageCount = Math.max(1, Math.ceil(vis.length / F_PER));
+    for (var p = 0; p < pageCount; p++) {
+      var pg = document.createElement("div");
+      pg.className = "fpage";
+      vis.slice(p * F_PER, (p + 1) * F_PER).forEach(function (id) {
+        var t = storeTile(BYID[id]);
+        wireTile(t, "folder");
+        pg.appendChild(t);
+      });
+      fpagesEl.appendChild(pg);
+      var d = document.createElement("i");
+      if (p === 0) d.className = "on";
+      fdotsEl.appendChild(d);
+    }
+    fdotsEl.style.display = pageCount <= 1 ? "none" : "flex";
+  }
+  fpagesEl.addEventListener("scroll", function () {
+    if (drag && drag.sp) drag.sp.dirty = true;
+    var idx = Math.round(fpagesEl.scrollLeft / fpagesEl.clientWidth);
+    var ds = fdotsEl.children;
+    for (var i = 0; i < ds.length; i++) ds[i].className = i === idx ? "on" : "";
+  }, { passive: true });
+  function openFolder(fid, focusTitle) {
+    openFid = fid;
+    renderFolder();
+    fov.classList.add("show");
+    if (focusTitle) setTimeout(function () { ftitleEl.focus(); ftitleEl.select(); }, 60);
+  }
+  function closeFolder() {
+    openFid = null;
+    fov.classList.remove("show");
+  }
+  document.getElementById("fclose").onclick = closeFolder;
+  fov.addEventListener("click", function (e) { if (e.target === fov) closeFolder(); });
+  ftitleEl.addEventListener("input", function () {
+    var f = findFolder(openFid);
+    if (f) { f.name = ftitleEl.value.trim(); save(); }
+  });
+  ftitleEl.addEventListener("blur", function () {
+    render(); // ホーム側のフォルダ名表示を更新
+  });
+  ftitleEl.addEventListener("keydown", function (e) { if (e.key === "Enter") ftitleEl.blur(); });
+
+  // 空白タップ：編集モードを解除（iPhoneの壁紙タップと同じ）
+  var swallowClick = false; // ドラッグを離した直後の1クリックは無視
+  document.addEventListener("click", function (e) {
+    if (swallowClick) { swallowClick = false; return; }
+    if (editing && !e.target.closest(".tile") &&
+        !e.target.closest(".top") && !e.target.closest("#fov") && !e.target.closest(".ov")) {
+      setEditing(false);
+    }
+  });
+
+  /* ---------- ドラッグ（並べ替え／重ねてフォルダ）----------
+     iPhoneのなめらかさの完コピ：CSSアニメではなく毎フレームのバネ(スプリング)物理で
+     各アイコンを動かす。途中で行き先が変わっても勢いを保ったまま滑らかに向き直る。 */
+  var drag = null;
+  function startDrag(el, ctx, x, y) {
+    drag = { el: el, touchEl: el, ctx: ctx, moved: false, clone: null, sx: x, sy: y,
+             fover: null, hoverT: null, hoverZ: "", pendT: null, flipDir: 0, flipSince: 0,
+             outT: null, lastX: x, lastY: y, sp: null };
+  }
+  function beginClone(x, y) {
+    if (!editing) setEditing(true);
+    drag.el.classList.remove("lifted", "pressing");
+    var w = drag.el.offsetWidth, h = drag.el.offsetHeight;
+    var c = drag.el.cloneNode(true);
+    c.className = "tile drag-clone";
+    c.style.width = w + "px";
+    c.style.left = (x - w / 2) + "px";
+    c.style.top = (y - h / 2) + "px";
+    c.style.transition = "transform .15s ease";
+    c.style.transform = "scale(1)";
+    document.body.appendChild(c);
+    void c.offsetWidth; // 開始状態を確定
+    requestAnimationFrame(function () { c.style.transform = "scale(1.15)"; }); // フッと持ち上がる
+    drag.clone = c;
+    drag.w = w; drag.h = h;
+    drag.cx = x; drag.cy = y; drag.tx = x; drag.ty = y;
+    drag.el.classList.add("ghost");
+    drag.moved = true;
+    // 指にワンテンポ遅れて滑らかについてくる（毎フレーム目標へ35%ずつ寄る）
+    (function follow() {
+      if (!drag || drag.clone !== c) return;
+      drag.cx += (drag.tx - drag.cx) * 0.35;
+      drag.cy += (drag.ty - drag.cy) * 0.35;
+      c.style.left = (drag.cx - drag.w / 2) + "px";
+      c.style.top = (drag.cy - drag.h / 2) + "px";
+      drag.raf = requestAnimationFrame(follow);
+    })();
+    initSprings(drag);
+  }
+
+  /* ---- バネ物理エンジン ---- */
+  function initSprings(d) {
+    var root = d.ctx === "folder" ? fpagesEl : pagesEl;
+    var tiles = Array.prototype.slice.call(root.querySelectorAll(".tile"));
+    var ghostIdx = tiles.indexOf(d.el);
+    if (ghostIdx < 0) return;
+    var st = tiles.map(function () { return { px: 0, py: 0, vx: 0, vy: 0 }; });
+    var bases = tiles.map(function (t) {
+      var r = t.getBoundingClientRect();
+      return { x: r.left, y: r.top, w: r.width, h: r.height };
+    });
+    d.sp = { root: root, tiles: tiles, st: st, bases: bases, dirty: false,
+             ghostIdx: ghostIdx, k: ghostIdx, raf: 0, last: 0 };
+    springLoop(d);
+  }
+  // 各タイルの「本来のマス目位置」。ドラッグ中は動かないので基本キャッシュを使い回し、
+  // ページ送り等でスクロールした時だけ測り直す（毎フレーム測るとカクつく）
+  function springBases(sp) {
+    if (sp.dirty) {
+      for (var i = 0; i < sp.tiles.length; i++) {
+        var r = sp.tiles[i].getBoundingClientRect();
+        sp.bases[i] = { x: r.left - sp.st[i].px, y: r.top - sp.st[i].py, w: r.width, h: r.height };
+      }
+      sp.dirty = false;
+    }
+    return sp.bases;
+  }
+  // 挿入位置kのとき、各タイルが向かうべき目標オフセット
+  function springTargets(sp) {
+    var bases = springBases(sp);
+    var others = [];
+    for (var i = 0; i < sp.tiles.length; i++) if (i !== sp.ghostIdx) others.push(i);
+    var tg = new Array(sp.tiles.length);
+    var oi = 0;
+    for (var s = 0; s < bases.length; s++) {
+      if (s === sp.k) continue; // ghostのマス
+      var idx = others[oi++];
+      tg[idx] = { x: bases[s].x - bases[idx].x, y: bases[s].y - bases[idx].y };
+    }
+    return tg;
+  }
+  // 挿入位置kのとき、マスsに見えているタイル（フォルダ化の相手判定用）
+  function slotOccupant(sp, s) {
+    if (s === sp.k) return null;
+    var oi = 0;
+    for (var i = 0; i < sp.tiles.length; i++) {
+      if (i === sp.ghostIdx) continue;
+      var slot = oi < sp.k ? oi : oi + 1;
+      if (slot === s) return sp.tiles[i];
+      oi++;
+    }
+    return null;
+  }
+  function springLoop(d) {
+    var sp = d.sp;
+    var K = 140, C = 21.5; // バネの硬さと減衰（iOSのぬるっと感）
+    function frame(now) {
+      if (!drag || drag.sp !== sp) return;
+      var dt = sp.last ? Math.min(0.032, (now - sp.last) / 1000) : 0.016;
+      sp.last = now;
+      var tg = springTargets(sp);
+      for (var i = 0; i < sp.tiles.length; i++) {
+        if (i === sp.ghostIdx) continue;
+        var st = sp.st[i], g = tg[i];
+        if (!g) continue;
+        st.vx += (K * (g.x - st.px) - C * st.vx) * dt;
+        st.vy += (K * (g.y - st.py) - C * st.vy) * dt;
+        st.px += st.vx * dt;
+        st.py += st.vy * dt;
+        if (Math.abs(st.px) < 0.15 && Math.abs(st.py) < 0.15 &&
+            Math.abs(g.x) < 0.15 && Math.abs(g.y) < 0.15 &&
+            Math.abs(st.vx) < 2 && Math.abs(st.vy) < 2) {
+          st.px = 0; st.py = 0; st.vx = 0; st.vy = 0;
+          if (sp.tiles[i].style.transform) sp.tiles[i].style.transform = "";
+        } else {
+          sp.tiles[i].style.transform = "translate(" + st.px + "px," + st.py + "px)";
+        }
+      }
+      sp.raf = requestAnimationFrame(frame);
+    }
+    sp.raf = requestAnimationFrame(frame);
+  }
+  function killSprings(d) {
+    if (!d.sp) return;
+    cancelAnimationFrame(d.sp.raf);
+    d.sp = null;
+  }
+  // 離した位置の並びをDOMに反映（見た目の位置からズレた分は短いアニメで馴染ませる）
+  function commitSpringOrder(d) {
+    var sp = d.sp;
+    if (!sp) return;
+    cancelAnimationFrame(sp.raf);
+    var others = [];
+    for (var i = 0; i < sp.tiles.length; i++) if (i !== sp.ghostIdx) others.push(sp.tiles[i]);
+    var vis = sp.tiles.map(function (t) { return t.getBoundingClientRect(); });
+    if (others.length) {
+      if (sp.k < others.length) others[sp.k].parentNode.insertBefore(d.el, others[sp.k]);
+      else others[others.length - 1].parentNode.appendChild(d.el);
+    }
+    var movers = [];
+    for (var j = 0; j < sp.tiles.length; j++) {
+      var t = sp.tiles[j];
+      t.style.transition = "none";
+      t.style.transform = "";
+      if (t === d.el) continue;
+      var nr = t.getBoundingClientRect();
+      var dx = vis[j].left - nr.left, dy = vis[j].top - nr.top;
+      if (Math.abs(dx) < 0.5 && Math.abs(dy) < 0.5) continue;
+      t.style.transform = "translate(" + dx + "px," + dy + "px)";
+      movers.push(t);
+    }
+    if (movers.length) {
+      void sp.root.offsetWidth;
+      requestAnimationFrame(function () {
+        requestAnimationFrame(function () {
+          movers.forEach(function (t) {
+            t.style.transition = "transform .35s cubic-bezier(.22,.61,.21,1)";
+            t.style.transform = "";
+          });
+          setTimeout(function () {
+            movers.forEach(function (t) { t.style.transition = ""; });
+          }, 400);
+        });
+      });
+    }
+    d.sp = null;
+  }
+
+  function clearFover() {
+    if (drag && drag.fover) { drag.fover.classList.remove("fover"); drag.fover = null; }
+  }
+  function clearHover() {
+    if (!drag) return;
+    if (drag.pendT) { clearTimeout(drag.pendT); drag.pendT = null; }
+    drag.hoverT = null; drag.hoverZ = "";
+    clearFover();
+  }
+  // 指の位置に一番近いマス（同じ行を最優先）
+  function slotIndexAt(sp, x, y) {
+    var bases = springBases(sp);
+    var best = -1, bestD = 1e9, bb = null;
+    for (var i = 0; i < bases.length; i++) {
+      var b = bases[i];
+      if (!b.w) continue;
+      if (b.x + b.w < -20 || b.x > window.innerWidth + 20) continue; // 別ページは対象外
+      var cx = b.x + b.w / 2, cy = b.y + b.h / 2;
+      var dx = Math.abs(x - cx), dy = Math.abs(y - cy);
+      if (dy > 58 || dx > 115) continue;
+      var dd = dx + dy * 2.2;
+      if (dd < bestD) { bestD = dd; best = i; bb = b; }
+    }
+    if (best < 0) return null;
+    return { i: best, b: bb, cx: bb.x + bb.w / 2, cy: bb.y + bb.h / 2 };
+  }
+  function moveDrag(x, y) {
+    if (!drag) return;
+    if (!drag.moved) {
+      if (Math.abs(x - drag.sx) + Math.abs(y - drag.sy) < 9) return;
+      beginClone(x, y);
+    }
+    drag.tx = x; drag.ty = y; // 追従ループが滑らかに追いかける
+
+    // フォルダの外に出たら：少し待ってフォルダが閉じ、そのままホームでドラッグ継続（iPhoneと同じ）
+    if (drag.ctx === "folder") {
+      var pr = fpanelEl.getBoundingClientRect();
+      var out = x < pr.left || x > pr.right || y < pr.top || y > pr.bottom;
+      fpanelEl.style.opacity = out ? ".5" : "";
+      drag.lastX = x; drag.lastY = y;
+      if (out) {
+        if (!drag.outT) {
+          var d2 = drag;
+          d2.outT = setTimeout(function () {
+            if (drag !== d2 || d2.ctx !== "folder") return;
+            d2.outT = null;
+            var p2 = fpanelEl.getBoundingClientRect();
+            if (d2.lastX < p2.left || d2.lastX > p2.right || d2.lastY < p2.top || d2.lastY > p2.bottom) {
+              extractToHome();
+            }
+          }, 310);
+        }
+      } else if (drag.outT) {
+        clearTimeout(drag.outT); drag.outT = null;
+      }
+    }
+
+    // ホームでは画面端で自動ページ送り
+    if (drag.ctx === "home") {
+      var W = window.innerWidth, now = Date.now();
+      var dir = x < 42 ? -1 : (x > W - 42 ? 1 : 0);
+      if (dir !== drag.flipDir) { drag.flipDir = dir; drag.flipSince = now; }
+      else if (dir && now - drag.flipSince > 450) {
+        pagesEl.scrollBy({ left: dir * pagesEl.clientWidth, behavior: "smooth" });
+        drag.flipSince = now + 400;
+      }
+    }
+
+    if (!drag.sp) return;
+    var hit = slotIndexAt(drag.sp, x, y);
+    if (!hit) { clearHover(); return; }
+
+    // マス中央に重ねて待つ → そこに見えているアイコンとフォルダ化（ホームのみ）
+    var canFold = drag.ctx === "home" && drag.el.getAttribute("data-kind") === "s";
+    var central = canFold && Math.abs(x - hit.cx) < hit.b.w * 0.3 && Math.abs(y - hit.cy) < hit.b.h * 0.3;
+    if (central) {
+      var occ = slotOccupant(drag.sp, hit.i);
+      if (occ) {
+        if (drag.hoverT === occ && drag.hoverZ === "c") return;
+        if (drag.pendT) { clearTimeout(drag.pendT); drag.pendT = null; }
+        if (drag.fover && drag.fover !== occ) clearFover();
+        drag.hoverT = occ; drag.hoverZ = "c";
+        var d3 = drag;
+        d3.pendT = setTimeout(function () {
+          if (drag !== d3 || d3.hoverT !== occ) return;
+          d3.fover = occ;
+          occ.classList.add("fover"); // フォルダ化の合図（この状態で離すと重なる）
+        }, 380);
+        return;
+      }
+    }
+    // 差し込み：このマスへ（少し待ってからバネの目標を切り替え＝ぬるっと場所が空く）
+    var key = "k" + hit.i;
+    if (drag.hoverZ === key) return;
+    if (drag.pendT) { clearTimeout(drag.pendT); drag.pendT = null; }
+    clearFover();
+    drag.hoverT = null; drag.hoverZ = key;
+    var d4 = drag;
+    d4.pendT = setTimeout(function () {
+      if (drag !== d4 || d4.hoverZ !== key || !d4.sp) return;
+      d4.sp.k = hit.i;
+    }, 120);
+  }
+  // フォルダの中から外へ：フォルダを閉じてホーム上のドラッグに切り替える
+  function extractToHome() {
+    var d = drag;
+    var id = d.el.getAttribute("data-id");
+    var f = findFolder(openFid);
+    if (!f) return;
+    var k = f.ids.indexOf(id);
+    if (k < 0) return;
+    killSprings(d);
+    f.ids.splice(k, 1);
+    var fi = itemIndexOf("f", openFid);
+    layout.items.splice(fi < 0 ? layout.items.length : fi + 1, 0, { t: "s", id: id });
+    save(); // 残り1店舗ならフォルダ自動解消
+    closeFolder();
+    fpanelEl.style.opacity = "";
+    render();
+    var nt = pagesEl.querySelector('.tile[data-id="' + id + '"]');
+    if (nt) { d.el = nt; nt.classList.add("ghost"); }
+    d.ctx = "home";
+    d.hoverT = null; d.hoverZ = "";
+    if (d.outT) { clearTimeout(d.outT); d.outT = null; }
+    clearFover();
+    initSprings(d);
+  }
+  function itemIndexOf(kind, key) {
+    for (var i = 0; i < layout.items.length; i++) {
+      var it = layout.items[i];
+      if (kind === "s" && it.t === "s" && it.id === key) return i;
+      if (kind === "f" && it.t === "f" && it.fid === key) return i;
+    }
+    return -1;
+  }
+  function endDrag(x, y) {
+    if (!drag) return;
+    var d = drag; drag = null;
+    if (d.pendT) clearTimeout(d.pendT);
+    if (d.outT) clearTimeout(d.outT);
+    if (d.raf) cancelAnimationFrame(d.raf);
+    if (d.moved) swallowClick = true; // ドラッグ直後に飛ぶクリックで誤動作しない
+    fpanelEl.style.opacity = "";
+    if (!d.moved) {
+      if (d.clone) d.clone.remove();
+      d.el.classList.remove("ghost", "lifted", "pressing");
+      clearTargetHighlights();
+      return;
+    }
+
+    var dragId = d.el.getAttribute("data-id");
+
+    // 離した時：元タイルの場所へスッと収まってから確定（iPhoneの置く動き）
+    function settle(commit) {
+      if (!d.clone) { d.el.classList.remove("ghost"); commit(); return; }
+      var r = d.el.getBoundingClientRect();
+      var c = d.clone;
+      c.style.transition = "left .28s cubic-bezier(.22,.61,.21,1), top .28s cubic-bezier(.22,.61,.21,1), transform .28s ease";
+      c.style.left = r.left + "px";
+      c.style.top = r.top + "px";
+      c.style.transform = "scale(1)";
+      setTimeout(function () { c.remove(); d.el.classList.remove("ghost"); commit(); }, 300);
+    }
+    // フォルダへ吸い込まれる動き
+    function absorb(target, commit) {
+      if (!d.clone) { d.el.classList.remove("ghost"); commit(); return; }
+      var r = target.getBoundingClientRect();
+      var c = d.clone;
+      c.style.transition = "left .3s ease, top .3s ease, transform .3s ease, opacity .3s ease";
+      c.style.left = (r.left + r.width / 2 - d.w / 2) + "px";
+      c.style.top = (r.top + r.height / 2 - d.h / 2) + "px";
+      c.style.transform = "scale(.3)";
+      c.style.opacity = "0";
+      setTimeout(function () { c.remove(); d.el.classList.remove("ghost"); commit(); }, 310);
+    }
+
+    // 1) フォルダ化／フォルダへ追加（合図＝相手がハイライトされた状態で離した）
+    if (d.fover && d.ctx === "home" && dragId) {
+      var tgt = d.fover; clearHl(tgt);
+      var srcIdx = itemIndexOf("s", dragId);
+      if (srcIdx >= 0) {
+        if (tgt.getAttribute("data-kind") === "f") {
+          var f = findFolder(tgt.getAttribute("data-fid"));
+          if (f) {
+            killSprings(d);
+            layout.items.splice(srcIdx, 1);
+            f.ids.push(dragId);
+            absorb(tgt, function () { save(); render(); });
+            return;
+          }
+        } else {
+          var tgtId = tgt.getAttribute("data-id");
+          var tgtIdx = itemIndexOf("s", tgtId);
+          if (tgtIdx >= 0 && tgtId !== dragId) {
+            killSprings(d);
+            var nf = { t: "f", fid: "f" + (layout.fseq++), name: "フォルダ", ids: [tgtId, dragId] };
+            layout.items.splice(tgtIdx, 1, nf);
+            var si = itemIndexOf("s", dragId);
+            if (si >= 0) layout.items.splice(si, 1);
+            absorb(tgt, function () { save(); render(); }); // フォルダは開かない（名前はタップで開いて編集）
+            return;
+          }
+        }
+      }
+    }
+    clearTargetHighlights();
+
+    // 2) フォルダ内から外へドラッグ → フォルダから出す
+    if (d.ctx === "folder" && dragId) {
+      var panel = fpanelEl.getBoundingClientRect();
+      var outside = x < panel.left || x > panel.right || y < panel.top || y > panel.bottom;
+      var f2 = findFolder(openFid);
+      if (outside && f2) {
+        var k = f2.ids.indexOf(dragId);
+        if (k >= 0) {
+          killSprings(d);
+          f2.ids.splice(k, 1);
+          var fi = itemIndexOf("f", openFid);
+          layout.items.splice(fi + 1, 0, { t: "s", id: dragId });
+          if (d.clone) {
+            var c2 = d.clone;
+            c2.style.transition = "transform .18s ease, opacity .18s ease";
+            c2.style.transform = "scale(.85)";
+            c2.style.opacity = "0";
+            setTimeout(function () { c2.remove(); }, 180);
+          }
+          d.el.classList.remove("ghost");
+          save(); // 残り1店舗ならここでフォルダが自動解消される
+          if (!findFolder(openFid)) closeFolder();
+          render();
+          return;
+        }
+      }
+      // フォルダ内の並べ替え：離した位置の並びをDOMに反映してから保存
+      if (f2) {
+        commitSpringOrder(d);
+        settle(function () {
+          var order = [];
+          fpagesEl.querySelectorAll(".tile[data-id]").forEach(function (t) { order.push(t.getAttribute("data-id")); });
+          f2.ids.forEach(function (id) { if (order.indexOf(id) < 0) order.push(id); }); // 非表示分を末尾へ
+          f2.ids = order;
+          save(); render();
+        });
+      }
+      return;
+    }
+
+    // 3) ホームの並べ替え：離した位置の並びをDOMに反映してから保存
+    commitSpringOrder(d);
+    settle(function () {
+      var newItems = [];
+      pagesEl.querySelectorAll(".tile").forEach(function (t) {
+        var idx = t.getAttribute("data-kind") === "f"
+          ? itemIndexOf("f", t.getAttribute("data-fid"))
+          : itemIndexOf("s", t.getAttribute("data-id"));
+        if (idx >= 0) newItems.push(layout.items[idx]);
+      });
+      layout.items.forEach(function (it) { if (newItems.indexOf(it) < 0) newItems.push(it); }); // 非表示分
+      layout.items = newItems;
+      save(); render();
+    });
+  }
+  function clearHl(t) { t.classList.remove("fover"); }
+  function clearTargetHighlights() {
+    document.querySelectorAll(".tile.fover").forEach(clearHl);
+  }
+
+  /* ---------- タイルへの操作の配線 ---------- */
+  function wireTile(t, ctx) {
+    var timer = null, sx = 0, sy = 0, longp = false;
+
+    t.addEventListener("touchstart", function (e) {
+      var tp = e.touches[0];
+      sx = tp.clientX; sy = tp.clientY; longp = false;
+      if (editing) {
+        t.classList.add("lifted"); // 掴んだ感
+        startDrag(t, ctx, sx, sy);
+        return;
+      }
+      t.classList.add("pressing"); // 押してる感（少し沈む）
+      timer = setTimeout(function () {
+        longp = true;
+        if (navigator.vibrate) { try { navigator.vibrate(15); } catch (e2) {} }
+        popSound(); // iOSの長押し音
+        t.classList.remove("pressing");
+        t.classList.add("lifted"); // フワッと持ち上がる
+        setEditing(true);
+        startDrag(t, ctx, sx, sy); // 長押しからそのままドラッグできる
+      }, 550);
+    }, { passive: true });
+    t.addEventListener("touchmove", function (e) {
+      var tp = e.touches[0];
+      if (drag && drag.touchEl === t) { e.preventDefault(); moveDrag(tp.clientX, tp.clientY); return; }
+      if (Math.abs(tp.clientX - sx) + Math.abs(tp.clientY - sy) > 10) {
+        clearTimeout(timer);
+        t.classList.remove("pressing");
+      }
+    }, { passive: false });
+    t.addEventListener("touchend", function (e) {
+      clearTimeout(timer);
+      t.classList.remove("pressing", "lifted");
+      if (drag && drag.touchEl === t) {
+        var moved = drag.moved;
+        var tp = e.changedTouches[0];
+        endDrag(tp.clientX, tp.clientY);
+        if (moved || longp) { e.preventDefault(); }
+      }
+    }, { passive: false });
+    t.addEventListener("touchcancel", function () {
+      clearTimeout(timer);
+      t.classList.remove("pressing", "lifted");
+      if (drag && drag.touchEl === t) endDrag(-9999, -9999);
+    }, { passive: true });
+
+    // PC検証用：右クリックで編集モード、マウスドラッグ対応
+    t.addEventListener("contextmenu", function (e) { e.preventDefault(); setEditing(true); });
+    t.addEventListener("mousedown", function (e) {
+      if (!editing || e.button !== 0) return;
+      startDrag(t, ctx, e.clientX, e.clientY);
+      var mm = function (ev) { moveDrag(ev.clientX, ev.clientY); };
+      var mu = function (ev) {
+        document.removeEventListener("mousemove", mm);
+        document.removeEventListener("mouseup", mu);
+        if (drag && drag.touchEl === t) endDrag(ev.clientX, ev.clientY);
+      };
+      document.addEventListener("mousemove", mm);
+      document.addEventListener("mouseup", mu);
+    });
+
+    t.addEventListener("click", function (e) {
+      if (editing) {
+        if (e.target.classList.contains("minus")) {
+          if (t.getAttribute("data-kind") === "f") dissolveFolder(t.getAttribute("data-fid"));
+          else hideStore(t.getAttribute("data-id"));
+          return;
+        }
+        // マス目内の余白（アイコンや名前以外）をタップ → 空白扱いで編集モード解除
+        if (e.target === t) { setEditing(false); return; }
+        // 編集中でもフォルダは開ける（iPhoneと同じ・中もゆらゆらのまま）
+        if (t.getAttribute("data-kind") === "f" && e.target.closest(".ic")) openFolder(t.getAttribute("data-fid"));
+        return;
+      }
+      if (t.getAttribute("data-kind") === "f") { openFolder(t.getAttribute("data-fid")); return; }
+      var s = BYID[t.getAttribute("data-id")];
+      if (!s) return;
+      if (!s.url) { toast("「" + s.name + "」は準備中です"); return; }
+      location.href = s.url;
+    });
+  }
+
+  /* ---------- 表示/非表示の設定シート ---------- */
+  var ov = document.getElementById("ov");
+  var rowsEl = document.getElementById("rows");
+  document.getElementById("gearBtn").onclick = function () {
+    rowsEl.innerHTML = "";
+    STORES.forEach(function (s) {
+      var r = document.createElement("label");
+      r.className = "row";
+      r.innerHTML =
+        '<span class="mini">' + iconHtml(s, "") + '</span>' +
+        '<span class="t"><b>' + esc(s.full || s.name) + '</b><small>' + esc(String(s.name).replace(/\//g, " ")) + (s.live ? "" : "・準備中") + '</small></span>' +
+        '<input type="checkbox" data-id="' + s.id + '"' + (isHidden(s.id) ? "" : " checked") + '>';
+      rowsEl.appendChild(r);
+    });
+    ov.classList.add("show");
+  };
+  ov.addEventListener("click", function (e) { if (e.target === ov) ov.classList.remove("show"); });
+  document.getElementById("saveBtn").onclick = function () {
+    var hid = [];
+    var cbs = rowsEl.querySelectorAll("input[type=checkbox]");
+    for (var i = 0; i < cbs.length; i++) {
+      if (!cbs[i].checked) hid.push(cbs[i].getAttribute("data-id"));
+    }
+    layout.hidden = hid;
+    hid.forEach(pullFromFolders);
+    save();
+    ov.classList.remove("show");
+    setEditing(false);
+    render();
+  };
+
+  render();
+})();
+</script>
+</body>
+</html>
