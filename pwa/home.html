@@ -712,14 +712,14 @@
       }
     }
 
-    // ホームでは画面端で自動ページ送り
+    // ホームでは画面端で自動ページ送り（誤発動を防ぐため“本当に端”だけ・長めに待つ）
     if (drag.ctx === "home") {
       var W = window.innerWidth, now = Date.now();
-      var dir = x < 42 ? -1 : (x > W - 42 ? 1 : 0);
+      var dir = x < 16 ? -1 : (x > W - 16 ? 1 : 0);
       if (dir !== drag.flipDir) { drag.flipDir = dir; drag.flipSince = now; }
-      else if (dir && now - drag.flipSince > 450) {
+      else if (dir && now - drag.flipSince > 700) {
         pagesEl.scrollBy({ left: dir * pagesEl.clientWidth, behavior: "smooth" });
-        drag.flipSince = now + 400;
+        drag.flipSince = now + 500;
       }
     }
 
