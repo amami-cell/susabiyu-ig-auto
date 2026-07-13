@@ -1423,39 +1423,53 @@ def musiccheck(arg):
 
 
 def genredump():
-    """ジャンル別フォルダ(料理/酒/店内/イベント)の画像・動画を一覧出力する（読み取り専用）。
+    """三条の写真プールを再帰スキャンして画像・動画を一覧出力する（読み取り専用）。
     AI動画生成(image-to-video)に使える『店内・スタッフ』写真を選ぶための棚卸し用。
-    フォルダIDは drive_config.txt / 環境変数から解決する。"""
+    実際の写真は fetch_drive_photos.py と同じ FOOD_FOLDER(ハードコード) 配下にサブフォルダ含めて入っている。"""
     cfg = _drive_config()
     g = lambda k: os.environ.get(k) or cfg.get(k) or ""
-    genres = [("料理", g("GENRE_FOOD_ID")), ("酒", g("GENRE_SAKE_ID")),
-              ("店内", g("GENRE_INTERIOR_ID")), ("イベント", g("GENRE_EVENT_ID"))]
+    # fetch_drive_photos.py と同じ実フォルダ（サブフォルダ再帰）
+    roots = [("写真プール", "14oKNgdXee2NrI7Dkmbrlbid4f0_VZ5Cv"),
+             ("酒", g("GENRE_SAKE_ID") or "1vIAC9frejCyGhQAizT1Wsgmlaj8ULhTb"),
+             ("ロゴ", "1wAXPa6v3F-YC7dj6-j243xEkxra8RKOf"),
+             ("店内", g("GENRE_INTERIOR_ID")), ("イベント", g("GENRE_EVENT_ID"))]
     cr = _creds(); drive = _drive(cr)
-    for label, fid in genres:
-        fid = _folder_id_from_url(fid) or fid
-        if not fid:
-            print("[GENRE] %s: フォルダID未設定" % label); continue
-        files = []
+
+    def walk(fid, path, out, depth=0):
+        if not fid or depth > 6:
+            return
         page = None
-        try:
-            while True:
+        while True:
+            try:
                 r = drive.files().list(
-                    q="'%s' in parents and trashed=false and (mimeType contains 'image/' or mimeType contains 'video/')" % fid,
+                    q="'%s' in parents and trashed=false" % fid,
                     fields="nextPageToken, files(id,name,mimeType,imageMediaMetadata(width,height),videoMediaMetadata(width,height))",
                     pageSize=200, pageToken=page,
                     supportsAllDrives=True, includeItemsFromAllDrives=True).execute()
-                files += r.get("files", [])
-                page = r.get("nextPageToken")
-                if not page:
-                    break
-        except Exception as e:
-            print("[GENRE] %s: 一覧取得失敗: %s" % (label, e)); continue
-        print("[GENRE] %s（%d件）" % (label, len(files)))
-        for f in files:
+            except Exception as e:
+                print("[GENRE] %s: 取得失敗: %s" % (path, e)); return
+            for f in r.get("files", []):
+                mt = f.get("mimeType") or ""
+                if mt == "application/vnd.google-apps.folder":
+                    walk(f["id"], path + "/" + f.get("name", "?"), out, depth + 1)
+                elif "image" in mt or "video" in mt:
+                    out.append((path, f))
+            page = r.get("nextPageToken")
+            if not page:
+                break
+
+    for label, fid in roots:
+        fid = _folder_id_from_url(fid) or fid
+        if not fid:
+            print("[GENRE] %s: フォルダID未設定" % label); continue
+        out = []
+        walk(fid, label, out)
+        print("[GENRE] %s（%d件）" % (label, len(out)))
+        for path, f in out:
             m = f.get("imageMediaMetadata") or f.get("videoMediaMetadata") or {}
             dim = "%sx%s" % (m.get("width", "?"), m.get("height", "?"))
             kind = "video" if "video" in (f.get("mimeType") or "") else "image"
-            print("G|%s|%s|%s|%s|%s" % (label, f.get("name"), kind, dim, f.get("id")))
+            print("G|%s|%s|%s|%s|%s" % (path, f.get("name"), kind, dim, f.get("id")))
     print("[GENRE] 完了")
 
 
