@@ -1011,6 +1011,9 @@
         if (t.getAttribute("data-kind") === "f" && e.target.closest(".ic")) openFolder(t.getAttribute("data-fid"));
         return;
       }
+      // 通常時：アイコン本体か名前を押した時だけ起動する。マス目の余白（＝アイコン間の空間）を
+      // タップしても店舗を開かない。「間は間・アイコンはアイコン」を徹底。
+      if (!e.target.closest(".ic") && !e.target.closest(".nm") && !e.target.closest(".sb")) return;
       if (t.getAttribute("data-kind") === "f") { openFolder(t.getAttribute("data-fid")); return; }
       var s = BYID[t.getAttribute("data-id")];
       if (!s) return;
