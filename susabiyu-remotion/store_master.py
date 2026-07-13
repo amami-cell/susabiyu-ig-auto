@@ -1422,6 +1422,43 @@ def musiccheck(arg):
               "|env一致:" + (same[0] if same else "なし") + "|中身" + str(len(names)) + "件:" + ", ".join(names[:25]))
 
 
+def genredump():
+    """ジャンル別フォルダ(料理/酒/店内/イベント)の画像・動画を一覧出力する（読み取り専用）。
+    AI動画生成(image-to-video)に使える『店内・スタッフ』写真を選ぶための棚卸し用。
+    フォルダIDは drive_config.txt / 環境変数から解決する。"""
+    cfg = _drive_config()
+    g = lambda k: os.environ.get(k) or cfg.get(k) or ""
+    genres = [("料理", g("GENRE_FOOD_ID")), ("酒", g("GENRE_SAKE_ID")),
+              ("店内", g("GENRE_INTERIOR_ID")), ("イベント", g("GENRE_EVENT_ID"))]
+    cr = _creds(); drive = _drive(cr)
+    for label, fid in genres:
+        fid = _folder_id_from_url(fid) or fid
+        if not fid:
+            print("[GENRE] %s: フォルダID未設定" % label); continue
+        files = []
+        page = None
+        try:
+            while True:
+                r = drive.files().list(
+                    q="'%s' in parents and trashed=false and (mimeType contains 'image/' or mimeType contains 'video/')" % fid,
+                    fields="nextPageToken, files(id,name,mimeType,imageMediaMetadata(width,height),videoMediaMetadata(width,height))",
+                    pageSize=200, pageToken=page,
+                    supportsAllDrives=True, includeItemsFromAllDrives=True).execute()
+                files += r.get("files", [])
+                page = r.get("nextPageToken")
+                if not page:
+                    break
+        except Exception as e:
+            print("[GENRE] %s: 一覧取得失敗: %s" % (label, e)); continue
+        print("[GENRE] %s（%d件）" % (label, len(files)))
+        for f in files:
+            m = f.get("imageMediaMetadata") or f.get("videoMediaMetadata") or {}
+            dim = "%sx%s" % (m.get("width", "?"), m.get("height", "?"))
+            kind = "video" if "video" in (f.get("mimeType") or "") else "image"
+            print("G|%s|%s|%s|%s|%s" % (label, f.get("name"), kind, dim, f.get("id")))
+    print("[GENRE] 完了")
+
+
 if __name__ == "__main__":
     mode = (sys.argv[1] if len(sys.argv) > 1 else "init").strip().lower()
     arg = sys.argv[2].strip() if len(sys.argv) > 2 else None
@@ -1499,5 +1536,7 @@ if __name__ == "__main__":
         distdump(arg)
     elif mode == "drivefind":
         drivefind(arg)
+    elif mode == "genredump":
+        genredump()
     else:
         print("使い方: python store_master.py init | setup [store_id] | columns | intake | requestsheet | roster | names | pending | saemail | distsheet | all")
