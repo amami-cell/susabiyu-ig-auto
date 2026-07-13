@@ -2,7 +2,7 @@
    ・アプリのガワ(shell)を precache → 2回目以降は“開いた瞬間”に表示
    ・jsDelivr のメディアは stale-while-revalidate でランタイムキャッシュ
    ・GAS(JSONP)などデータ通信はキャッシュしない（常に最新を取りに行く） */
-var VER = "susabiyu-v54";
+var VER = "susabiyu-v55";
 var SHELL = VER + "-shell";
 var MEDIA = VER + "-media";
 var SHELL_FILES = [
@@ -36,17 +36,22 @@ self.addEventListener("fetch", function (e) {
   // 動画はSWを通さず素通し（Range通信をブラウザに任せる＝ホーム保存(standalone)でも再生できる）
   if (/\.(mp4|mov|webm)$/i.test(url.pathname)) return;
 
-  // 画像のみ stale-while-revalidate でキャッシュ
+  // 画像はネットワーク優先。以前は stale-while-revalidate で、jsDelivr等のクロスオリジン画像を
+  // opaque(中身不明)のままキャッシュしていたが、CDNのコールドキャッシュで失敗した空/404を掴むと
+  // “時間が経っても直らないぼやけ”になっていた。→ 常に最新を取り直し、確認できた成功(status200)
+  // だけオフライン用に保存。ネットワークが完全にダメな時だけキャッシュへフォールバック。
   if (url.hostname.indexOf("jsdelivr.net") >= 0 || /\.(jpg|jpeg|png|webp)$/i.test(url.pathname)) {
-    e.respondWith(caches.open(MEDIA).then(function (cache) {
-      return cache.match(req).then(function (hit) {
-        var net = fetch(req).then(function (res) {
-          if (res && (res.status === 200 || res.type === "opaque")) cache.put(req, res.clone());
-          return res;
-        }).catch(function () { return hit; });
-        return hit || net;
-      });
-    }));
+    e.respondWith(
+      fetch(req).then(function (res) {
+        if (res && res.status === 200 && res.type !== "opaque") {
+          var cl = res.clone();
+          caches.open(MEDIA).then(function (c) { c.put(req, cl); });
+        }
+        return res;   // ネットワーク応答をそのまま返す＝壊れた古いキャッシュを掴まない
+      }).catch(function () {
+        return caches.open(MEDIA).then(function (c) { return c.match(req); });
+      })
+    );
     return;
   }
 
