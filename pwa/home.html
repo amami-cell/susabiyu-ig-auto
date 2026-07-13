@@ -932,6 +932,14 @@
     t.addEventListener("touchstart", function (e) {
       var tp = e.touches[0];
       sx = tp.clientX; sy = tp.clientY; longp = false;
+      // −バッジ（削除）はドラッグ開始しない。clickで処理する。
+      if (e.target.closest(".minus")) return;
+      // アイコン本体か名前を押した時だけ反応する。マス目の余白＝アイコンとアイコンの間の
+      // 空間を押しても何も動かさない（iPhoneと同じ「間は間・アイコンはアイコン」）。
+      if (!e.target.closest(".ic") && !e.target.closest(".nm") && !e.target.closest(".sb")) {
+        if (editing) setEditing(false); // 余白タップで編集モードを抜ける
+        return;
+      }
       if (editing) {
         t.classList.add("lifted"); // 掴んだ感
         startDrag(t, ctx, sx, sy);
@@ -976,6 +984,9 @@
     t.addEventListener("contextmenu", function (e) { e.preventDefault(); setEditing(true); });
     t.addEventListener("mousedown", function (e) {
       if (!editing || e.button !== 0) return;
+      if (e.target.closest(".minus")) return;
+      // 余白（アイコン間の空間）は掴まない
+      if (!e.target.closest(".ic") && !e.target.closest(".nm") && !e.target.closest(".sb")) return;
       startDrag(t, ctx, e.clientX, e.clientY);
       var mm = function (ev) { moveDrag(ev.clientX, ev.clientY); };
       var mu = function (ev) {
