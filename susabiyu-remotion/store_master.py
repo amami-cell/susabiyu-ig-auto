@@ -1473,6 +1473,61 @@ def genredump():
     print("[GENRE] 完了")
 
 
+def photofetch(arg=None):
+    """指定フォルダ配下の画像を review_photos/ に再帰ダウンロードする（選定・閲覧用）。
+    arg にフォルダID/URL、または 'interior'（店内）/'food'（写真プール）を渡す。
+    ワークフロー側で review_photos をコミットするので、こちらで中身を見て選べる。"""
+    import io as _io
+    from googleapiclient.http import MediaIoBaseDownload
+    cfg = _drive_config()
+    g = lambda k: os.environ.get(k) or cfg.get(k) or ""
+    a = (arg or "interior").strip()
+    fid = {"interior": g("GENRE_INTERIOR_ID"), "店内": g("GENRE_INTERIOR_ID"),
+           "food": "14oKNgdXee2NrI7Dkmbrlbid4f0_VZ5Cv", "写真プール": "14oKNgdXee2NrI7Dkmbrlbid4f0_VZ5Cv",
+           "event": g("GENRE_EVENT_ID"), "イベント": g("GENRE_EVENT_ID")}.get(a, a)
+    fid = _folder_id_from_url(fid) or fid
+    if not fid:
+        print("[PHOTO] フォルダが特定できません:", a); return
+    cr = _creds(); drive = _drive(cr)
+    outdir = "review_photos"   # 実行時CWD(susabiyu-remotion)直下。ワークフローがこれをコミットする。
+    os.makedirs(outdir, exist_ok=True)
+    got = [0]
+
+    def walk(pid, path, depth=0):
+        if depth > 6:
+            return
+        page = None
+        while True:
+            r = drive.files().list(q="'%s' in parents and trashed=false" % pid,
+                fields="nextPageToken, files(id,name,mimeType)", pageSize=200, pageToken=page,
+                supportsAllDrives=True, includeItemsFromAllDrives=True).execute()
+            for f in r.get("files", []):
+                mt = f.get("mimeType") or ""
+                if mt == "application/vnd.google-apps.folder":
+                    walk(f["id"], path + "/" + f.get("name", "?"), depth + 1)
+                elif "image" in mt:
+                    safe = ("%s__%s" % (path.replace("/", "_"), f.get("name", "img")))
+                    dst = os.path.join(outdir, safe)
+                    try:
+                        req2 = drive.files().get_media(fileId=f["id"], supportsAllDrives=True)
+                        fh = _io.FileIO(dst, "wb")
+                        dl = MediaIoBaseDownload(fh, req2)
+                        done = False
+                        while not done:
+                            _, done = dl.next_chunk()
+                        fh.close()
+                        got[0] += 1
+                        print("PHOTO|%s" % safe)
+                    except Exception as e:
+                        print("[PHOTO] DL失敗 %s: %s" % (safe, e))
+            page = r.get("nextPageToken")
+            if not page:
+                break
+
+    walk(fid, a)
+    print("[PHOTO] %d枚を review_photos/ に取得" % got[0])
+
+
 if __name__ == "__main__":
     mode = (sys.argv[1] if len(sys.argv) > 1 else "init").strip().lower()
     arg = sys.argv[2].strip() if len(sys.argv) > 2 else None
@@ -1552,5 +1607,7 @@ if __name__ == "__main__":
         drivefind(arg)
     elif mode == "genredump":
         genredump()
+    elif mode == "photofetch":
+        photofetch(arg)
     else:
         print("使い方: python store_master.py init | setup [store_id] | columns | intake | requestsheet | roster | names | pending | saemail | distsheet | all")
