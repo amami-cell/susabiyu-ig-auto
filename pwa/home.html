@@ -727,26 +727,29 @@
     var hit = slotIndexAt(drag.sp, x, y);
     if (!hit) { clearHover(); return; }
 
-    // マス中央に重ねて待つ → そこに見えているアイコンとフォルダ化（ホームのみ）
+    // 「アイコンの上」か「アイコンの間（空間）」かを明確に分ける（感度を別々にする）
+    // ・アイコン(マス上部の約74px四角)に重なった → フォルダ化
+    // ・その外側=アイコンの間 → 差し込み(スライド)
     var canFold = drag.ctx === "home" && drag.el.getAttribute("data-kind") === "s";
-    var central = canFold && Math.abs(x - hit.cx) < hit.b.w * 0.3 && Math.abs(y - hit.cy) < hit.b.h * 0.3;
-    if (central) {
-      var occ = slotOccupant(drag.sp, hit.i);
-      if (occ) {
-        if (drag.hoverT === occ && drag.hoverZ === "c") return;
-        if (drag.pendT) { clearTimeout(drag.pendT); drag.pendT = null; }
-        if (drag.fover && drag.fover !== occ) clearFover();
-        drag.hoverT = occ; drag.hoverZ = "c";
-        var d3 = drag;
-        d3.pendT = setTimeout(function () {
-          if (drag !== d3 || d3.hoverT !== occ) return;
-          d3.fover = occ;
-          occ.classList.add("fover"); // フォルダ化の合図（この状態で離すと重なる）
-        }, 380);
-        return;
-      }
+    var iconCx = hit.b.x + hit.b.w / 2;
+    var iconCy = hit.b.y + 42;   // アイコンはマス上部にある（マス中心ではない）
+    var overIcon = canFold && Math.abs(x - iconCx) <= 44 && Math.abs(y - iconCy) <= 44;
+    var occ = overIcon ? slotOccupant(drag.sp, hit.i) : null;
+    if (overIcon && occ) {
+      // アイコンの上に重なっている間はスライドさせない → 確実にフォルダになる
+      if (drag.hoverT === occ && drag.hoverZ === "c") return;
+      if (drag.pendT) { clearTimeout(drag.pendT); drag.pendT = null; }
+      if (drag.fover && drag.fover !== occ) clearFover();
+      drag.hoverT = occ; drag.hoverZ = "c";
+      var d3 = drag;
+      d3.pendT = setTimeout(function () {
+        if (drag !== d3 || d3.hoverT !== occ) return;
+        d3.fover = occ;
+        occ.classList.add("fover"); // フォルダ化の合図（この状態で離すと重なる）
+      }, 260);
+      return;
     }
-    // 差し込み：このマスへ（少し待ってからバネの目標を切り替え＝ぬるっと場所が空く）
+    // アイコンの間の空間 → 差し込み（少し待ってからバネの目標を切り替え＝ぬるっと場所が空く）
     var key = "k" + hit.i;
     if (drag.hoverZ === key) return;
     if (drag.pendT) { clearTimeout(drag.pendT); drag.pendT = null; }
@@ -756,7 +759,7 @@
     d4.pendT = setTimeout(function () {
       if (drag !== d4 || d4.hoverZ !== key || !d4.sp) return;
       d4.sp.k = hit.i;
-    }, 120);
+    }, 150);
   }
   // フォルダの中から外へ：フォルダを閉じてホーム上のドラッグに切り替える
   function extractToHome() {
