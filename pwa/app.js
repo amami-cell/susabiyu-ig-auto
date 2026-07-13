@@ -163,8 +163,9 @@
              ' controls playsinline preload="' + pre + '" onloadeddata="window.__mediaOk&&window.__mediaOk(this)" onerror="window.__mediaErr&&window.__mediaErr(this)"></video><div class="badge">▶ タップで再生（音が出ます）</div></div>';
     }
     if (it.url) {
+      // 確認画面は枚数が少なく“すぐ鮮明に見たい”ので即時読み込み＋高優先度（遅延読み込みにしない）
       return '<div class="mediaWrap"><img class="media" style="' + bg(it.blur) + '" src="' + it.url +
-             '" alt="preview" decoding="async" loading="lazy" onload="window.__mediaOk&&window.__mediaOk(this)" onerror="window.__mediaErr&&window.__mediaErr(this)"></div>';
+             '" alt="preview" decoding="async" loading="eager" fetchpriority="high" onload="window.__mediaOk&&window.__mediaOk(this)" onerror="window.__mediaErr&&window.__mediaErr(this)"></div>';
     }
     return '<div class="mediaWrap"><div class="media" style="height:180px"></div></div>';
   }
