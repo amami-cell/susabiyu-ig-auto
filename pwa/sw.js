@@ -2,7 +2,7 @@
    ・アプリのガワ(shell)を precache → 2回目以降は“開いた瞬間”に表示
    ・jsDelivr のメディアは stale-while-revalidate でランタイムキャッシュ
    ・GAS(JSONP)などデータ通信はキャッシュしない（常に最新を取りに行く） */
-var VER = "susabiyu-v55";
+var VER = "susabiyu-v56";
 var SHELL = VER + "-shell";
 var MEDIA = VER + "-media";
 var SHELL_FILES = [
@@ -36,22 +36,22 @@ self.addEventListener("fetch", function (e) {
   // 動画はSWを通さず素通し（Range通信をブラウザに任せる＝ホーム保存(standalone)でも再生できる）
   if (/\.(mp4|mov|webm)$/i.test(url.pathname)) return;
 
-  // 画像はネットワーク優先。以前は stale-while-revalidate で、jsDelivr等のクロスオリジン画像を
-  // opaque(中身不明)のままキャッシュしていたが、CDNのコールドキャッシュで失敗した空/404を掴むと
-  // “時間が経っても直らないぼやけ”になっていた。→ 常に最新を取り直し、確認できた成功(status200)
-  // だけオフライン用に保存。ネットワークが完全にダメな時だけキャッシュへフォールバック。
+  // 画像(＝ポスター含む)はキャッシュ優先で“開いた瞬間”に鮮明表示する。
+  // かつて stale-while-revalidate で opaque(中身不明)応答まで保存し、CDNのコールドキャッシュで
+  // 失敗した空/404を掴んで“直らないぼやけ”になっていた。今回は画像/動画に crossorigin=anonymous を
+  // 付けて応答を cors(中身の読める)状態にしたので、status200 かつ非opaque の確認できた成功だけ保存する。
+  // URLは全てコミットSHA固定＝中身が変わらないので、キャッシュは常に正しい＝古い物を掴む心配がない。
   if (url.hostname.indexOf("jsdelivr.net") >= 0 || /\.(jpg|jpeg|png|webp)$/i.test(url.pathname)) {
-    e.respondWith(
-      fetch(req).then(function (res) {
-        if (res && res.status === 200 && res.type !== "opaque") {
-          var cl = res.clone();
-          caches.open(MEDIA).then(function (c) { c.put(req, cl); });
-        }
-        return res;   // ネットワーク応答をそのまま返す＝壊れた古いキャッシュを掴まない
-      }).catch(function () {
-        return caches.open(MEDIA).then(function (c) { return c.match(req); });
-      })
-    );
+    e.respondWith(caches.open(MEDIA).then(function (c) {
+      return c.match(req).then(function (hit) {
+        var net = fetch(req).then(function (res) {
+          if (res && res.status === 200 && res.type !== "opaque") c.put(req, res.clone());
+          return res;
+        });
+        if (hit) { net.catch(function () {}); return hit; } // 即キャッシュ返却＋裏で更新（失敗は無視）
+        return net;                                          // 未キャッシュのみネットワーク待ち（失敗はimgのonerrorへ）
+      });
+    }));
     return;
   }
 

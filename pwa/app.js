@@ -159,12 +159,14 @@
       var p = it.poster ? ' poster="' + it.poster + '"' : '';
       // ポスターがあれば動画本体は再生ボタンを押すまで読み込まない（省通信＝体感速度UP）
       var pre = it.poster ? "none" : "metadata";
-      return '<div class="mediaWrap"><video class="media" style="' + bg(it.blur) + '" src="' + it.url + '"' + p +
+      // crossorigin=anonymous：jsDelivrはCORSヘッダを返すので応答が“中身の読める(cors)”状態になり、
+      // SWがポスター(.jpg)を検証して保存→2回目以降は開いた瞬間に鮮明表示できる。解像度は不変。
+      return '<div class="mediaWrap"><video class="media" crossorigin="anonymous" style="' + bg(it.blur) + '" src="' + it.url + '"' + p +
              ' controls playsinline preload="' + pre + '" onloadeddata="window.__mediaOk&&window.__mediaOk(this)" onerror="window.__mediaErr&&window.__mediaErr(this)"></video><div class="badge">▶ タップで再生（音が出ます）</div></div>';
     }
     if (it.url) {
       // 確認画面は枚数が少なく“すぐ鮮明に見たい”ので即時読み込み＋高優先度（遅延読み込みにしない）
-      return '<div class="mediaWrap"><img class="media" style="' + bg(it.blur) + '" src="' + it.url +
+      return '<div class="mediaWrap"><img class="media" crossorigin="anonymous" style="' + bg(it.blur) + '" src="' + it.url +
              '" alt="preview" decoding="async" loading="eager" fetchpriority="high" onload="window.__mediaOk&&window.__mediaOk(this)" onerror="window.__mediaErr&&window.__mediaErr(this)"></div>';
     }
     return '<div class="mediaWrap"><div class="media" style="height:180px"></div></div>';
@@ -585,11 +587,11 @@
     } else if (isVideo(it)) {
       var srcAttr = vidObs ? ' data-vsrc="' + esc(it.url) + '"' : ' src="' + esc(it.url) + '"';
       var vpre = it.poster ? "none" : "metadata";   // ポスターがあれば再生まで本体を読まない
-      media = '<div class="mediaWrap"><video class="media" style="' + bg(it.blur) + '"' + srcAttr + p +
+      media = '<div class="mediaWrap"><video class="media" crossorigin="anonymous" style="' + bg(it.blur) + '"' + srcAttr + p +
         ' controls playsinline preload="' + vpre + '" onerror="window.__mediaErr&&window.__mediaErr(this)"></video><div class="badge">▶ タップで再生（音が出ます）</div></div>';
     } else {
       // 画像パターン（額装・写真一言など）は静止画をそのまま表示
-      media = '<div class="mediaWrap"><img class="media" style="' + bg(it.blur) + '" src="' + esc(it.url) +
+      media = '<div class="mediaWrap"><img class="media" crossorigin="anonymous" style="' + bg(it.blur) + '" src="' + esc(it.url) +
         '" alt="preview" decoding="async" loading="lazy" onerror="window.__mediaErr&&window.__mediaErr(this)"><div class="badge">画像投稿</div></div>';
     }
     // 採用ボタンと注意書きは両方DOMに入れ、表示は #gallery.admin クラスでCSS切替（再描画なし＝カクつかない）
