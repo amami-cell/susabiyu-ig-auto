@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#efe9dd">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="棚卸">
+<meta name="mobile-web-app-capable" content="yes">
+<link rel="manifest" href="./manifest.webmanifest">
+<link rel="apple-touch-icon" href="./icons/apple-touch-icon-180.png">
+<link rel="icon" type="image/png" sizes="192x192" href="./icons/icon-192.png">
+<link rel="icon" type="image/png" sizes="512x512" href="./icons/icon-512.png">
+<title>棚卸</title>
+<style>
+  :root { --bone: #efe9dd; }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { height: 100%; background: var(--bone); overflow: hidden; -webkit-tap-highlight-color: transparent; }
+  /* 棚卸ダッシュボード（GAS）を全画面表示 */
+  #app {
+    position: fixed; inset: 0; width: 100%; height: 100%; border: 0;
+    background: var(--bone);
+  }
+  /* 読み込み中の表示（アイコンと同じ生成りベース） */
+  #splash {
+    position: fixed; inset: 0; display: flex; flex-direction: column;
+    align-items: center; justify-content: center; gap: 14px;
+    background: linear-gradient(155deg, #f4efe6, #e3dccb);
+    transition: opacity .35s ease; z-index: 2;
+  }
+  #splash.hide { opacity: 0; pointer-events: none; }
+  #splash img { width: 96px; height: 96px; border-radius: 22px;
+    box-shadow: 0 10px 26px -10px rgba(40,35,28,.45); }
+  #splash .t { font-family: -apple-system, BlinkMacSystemFont, "Hiragino Mincho ProN", "Zen Old Mincho", serif;
+    font-size: 22px; font-weight: 700; color: #1c1a16; letter-spacing: .08em; }
+  #splash .s { font-size: 12px; color: #6b655a; }
+</style>
+</head>
+<body>
+<div id="splash">
+  <img src="./icons/icon-192.png" alt="棚卸">
+  <div class="t">棚卸</div>
+  <div class="s">読み込み中…</div>
+</div>
+<iframe id="app"
+  src="https://script.google.com/macros/s/AKfycbyvVFWDpXDnjDP9r7PvzlCYSycCcKtDe6fpd_lykXywETy51Y-s3kF1YoryDmpnn3621Q/exec"
+  allow="clipboard-write; fullscreen"
+  referrerpolicy="no-referrer-when-downgrade"></iframe>
+<script>
+  (function () {
+    var URL = 'https://script.google.com/macros/s/AKfycbyvVFWDpXDnjDP9r7PvzlCYSycCcKtDe6fpd_lykXywETy51Y-s3kF1YoryDmpnn3621Q/exec';
+    var app = document.getElementById('app');
+    var splash = document.getElementById('splash');
+    var loaded = false, hidden = false;
+    function hideSplash() { if (hidden) return; hidden = true; splash.classList.add('hide'); }
+    app.addEventListener('load', function () { loaded = true; setTimeout(hideSplash, 300); });
+    // 保険1: 読み込みイベントが来ても数秒でスプラッシュは必ず消す
+    setTimeout(hideSplash, 5000);
+    // 保険2: フレーム表示が何らかの理由で読み込めない環境では、直接アプリを開く
+    setTimeout(function () { if (!loaded) location.replace(URL); }, 6000);
+
+    // Service Worker（インストール可能に・オフライン時は入口だけキャッシュ）
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', function () {
+        navigator.serviceWorker.register('./sw.js').catch(function () {});
+      });
+    }
+  })();
+</script>
+</body>
+</html>
