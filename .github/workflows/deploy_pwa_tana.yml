@@ -1,0 +1,40 @@
+name: deploy-pwa-tana
+
+# pwa-tana/ 配下（棚卸のホーム画面アプリ入口）を変更して main に入れると、
+# インスタPWAと同じ公開サイト（GH_MEDIA_REPO）の /tana/ フォルダへ公開する。
+# 手動実行（Actionsの Run workflow）でも動く。
+on:
+  workflow_dispatch:
+  push:
+    branches: [ main ]
+    paths: [ 'pwa-tana/**', '.github/workflows/deploy_pwa_tana.yml' ]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Publish pwa-tana/ to public site repo (tana/ subfolder)
+        env:
+          TOKEN: ${{ secrets.GH_MEDIA_TOKEN }}
+          MEDIA_REPO: ${{ secrets.GH_MEDIA_REPO }}
+        run: |
+          if [ -z "$TOKEN" ] || [ -z "$MEDIA_REPO" ]; then
+            echo "::error::GH_MEDIA_TOKEN / GH_MEDIA_REPO が未設定です"; exit 1
+          fi
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git clone --depth 1 "https://x-access-token:${TOKEN}@github.com/${MEDIA_REPO}.git" _site
+          rm -rf _site/tana
+          mkdir -p _site/tana
+          cp -r pwa-tana/. _site/tana/
+          touch _site/.nojekyll
+          cd _site
+          git add tana .nojekyll
+          if git diff --cached --quiet; then
+            echo "No changes to deploy."; exit 0
+          fi
+          git commit -m "deploy 棚卸 PWA (tana)"
+          git push
+          echo "Deployed. Pages URL (Pages有効時): https://${MEDIA_REPO%%/*}.github.io/${MEDIA_REPO#*/}/tana/"
