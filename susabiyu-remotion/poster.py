@@ -249,12 +249,18 @@ def record_history(slot, pattern, is_video, ig_id, url):
 def ig_post(token, url, is_video):
     B = IGB
     me = req.get(f"{B}/me", params={"fields": "user_id,username", "access_token": token}).json()
+    if me.get("error"):
+        # /me が失敗＝アクセストークンが無効/失効の可能性。原因を明示して即終了。
+        print("[POST] /me ERROR（トークン失効の可能性・要再発行）:", me["error"]); return ""
     uid = me.get("user_id") or me.get("id")
-    print("[POST] @" + str(me.get("username")))
+    print("[POST] @%s (uid=%s)" % (me.get("username"), uid))
+    if not uid:
+        print("[POST] uid取得失敗 me=", me); return ""
     key = "video_url" if is_video else "image_url"
     c = req.post(f"{B}/{uid}/media", data={key: url, "media_type": "STORIES", "access_token": token}).json()
     if "error" in c:
-        print("[POST] ERROR:", c["error"]); return ""
+        # code 1「unknown error」は多くの場合IGが image_url を取得できていない＝ホスト起因。
+        print("[POST] media作成ERROR:", c["error"], "| url=", url); return ""
     cid = c["id"]
     for _ in range(30):
         s = req.get(f"{B}/{cid}", params={"fields": "status_code", "access_token": token}).json()
@@ -285,7 +291,10 @@ def post(media, is_video, phrase="", slot="", pattern=""):
     token = fresh_token()
     if not token:
         print("NG: IG_ACCESS_TOKEN が見つかりません（../.env を確認）"); return False
-    url = up(media)
+    # 投稿画像はIGサーバが確実に取得できる永続CDN(jsDelivr→R2)を優先。
+    # litterbox等の一時ホストはIGが取得に失敗し code1「unknown error」になることがあるため、
+    # 永続CDNが全滅した時だけ一時ホストにフォールバックする。
+    url = up(media, cdn=True) or up(media)
     pid = ig_post(token, url, is_video)
     if pid:
         kind = "動画ストーリー" if is_video else "画像ストーリー"
