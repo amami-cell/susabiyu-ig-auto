@@ -1422,6 +1422,59 @@ def musiccheck(arg):
               "|env一致:" + (same[0] if same else "なし") + "|中身" + str(len(names)) + "件:" + ", ".join(names[:25]))
 
 
+def tokencheck():
+    """IGアクセストークンの生存確認（投稿しない・読み取り専用）。env(IG_ACCESS_TOKEN)と
+    シート保存分(Config!B10)を /me で検査し、NGなら refresh を試す。トークン全体は表示しない。"""
+    def mask(t):
+        t = t or ""
+        return (t[:6] + "…" + t[-4:] + "(len%d)" % len(t)) if len(t) > 12 else "(なし/短)"
+    def check(label, tok):
+        if not tok:
+            print("[TOK] %s: なし" % label); return False
+        try:
+            r = req.get(IGB + "/me", params={"fields": "user_id,username", "access_token": tok}, timeout=30).json()
+        except Exception as e:
+            print("[TOK] %s %s: 通信失敗 %s" % (label, mask(tok), e)); return False
+        if r.get("error"):
+            print("[TOK] %s %s: NG error=%s" % (label, mask(tok), r["error"])); return False
+        print("[TOK] %s %s: OK @%s (uid=%s)" % (label, mask(tok), r.get("username"), r.get("user_id") or r.get("id")))
+        return True
+    def try_refresh(label, tok):
+        if not tok:
+            return None
+        for url in (IGB + "/refresh_access_token", "https://graph.instagram.com/refresh_access_token"):
+            try:
+                rr = req.get(url, params={"grant_type": "ig_refresh_token", "access_token": tok}, timeout=30).json()
+            except Exception as e:
+                print("[TOK] %s refresh 通信失敗: %s" % (label, e)); continue
+            if rr.get("access_token"):
+                print("[TOK] %s refresh OK expires_in=%s → %s" % (label, rr.get("expires_in"), mask(rr["access_token"])))
+                return rr["access_token"]
+            print("[TOK] %s refresh NG: %s" % (label, rr.get("error") or rr))
+        return None
+    env_tok = os.environ.get("IG_ACCESS_TOKEN", "")
+    print("=== env(IG_ACCESS_TOKEN) ===")
+    env_ok = check("env", env_tok)
+    sheet_tok = ""
+    try:
+        cr = _creds(); sh = _sheets(cr)
+        vals = sh.values().get(spreadsheetId=SHEET_ID, range="Config!B10").execute().get("values", [])
+        sheet_tok = (vals[0][0] if vals and vals[0] else "").strip()
+        last = sh.values().get(spreadsheetId=SHEET_ID, range="Config!B12").execute().get("values", [])
+        print("シート LAST_REFRESH =", (last[0][0] if last and last[0] else "?"))
+    except Exception as e:
+        print("[TOK] シート読み取り失敗:", e)
+    print("=== sheet(Config!B10) ===")
+    sheet_ok = check("sheet", sheet_tok)
+    if not env_ok and env_tok:
+        print(">> env をrefresh試行"); nt = try_refresh("env", env_tok)
+        if nt: check("env-refreshed", nt)
+    if not sheet_ok and sheet_tok:
+        print(">> sheet をrefresh試行"); nt = try_refresh("sheet", sheet_tok)
+        if nt: check("sheet-refreshed", nt)
+    print("[TOK] 完了")
+
+
 def genredump():
     """三条の写真プールを再帰スキャンして画像・動画を一覧出力する（読み取り専用）。
     AI動画生成(image-to-video)に使える『店内・スタッフ』写真を選ぶための棚卸し用。
@@ -1607,6 +1660,8 @@ if __name__ == "__main__":
         drivefind(arg)
     elif mode == "genredump":
         genredump()
+    elif mode == "tokencheck":
+        tokencheck()
     elif mode == "photofetch":
         photofetch(arg)
     else:
