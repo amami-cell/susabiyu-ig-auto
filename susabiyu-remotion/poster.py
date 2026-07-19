@@ -11,8 +11,8 @@ except Exception:
 
 IGB = "https://graph.instagram.com/v23.0"
 UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) susabiyu-ig-bot/1.0"
-TOK_CELL = "Config!B10"; DATE_CELL = "Config!B12"
-REFRESH_EVERY_DAYS = 20
+TOK_CELL = "Config!B10"; DATE_CELL = "Config!B12"; ALERT_CELL = "Config!B13"
+REFRESH_EVERY_DAYS = 7   # 20日→7日。毎週こまめに更新してトークンを長生きさせる
 HIST_TAB = "投稿履歴"
 
 try:
@@ -183,7 +183,55 @@ def _cell(sh, rng):
     except Exception:
         return ""
 
-def fresh_token():
+def _me_ok(tok):
+    """/me が通ればTrueとレスポンスを返す（トークン生存判定）。"""
+    if not tok:
+        return False, {}
+    try:
+        r = req.get(IGB + "/me", params={"fields": "user_id,username", "access_token": tok}, timeout=30).json()
+    except Exception as e:
+        return False, {"error": str(e)}
+    return ((not r.get("error")) and bool(r.get("user_id") or r.get("id"))), r
+
+def _try_refresh(tok):
+    """ig_refresh_token でトークン更新。成功で (new, expires_in) を返す。"""
+    if not tok:
+        return None, ""
+    for url in (IGB + "/refresh_access_token", "https://graph.instagram.com/refresh_access_token"):
+        try:
+            rr = req.get(url, params={"grant_type": "ig_refresh_token", "access_token": tok}, timeout=30).json()
+        except Exception:
+            continue
+        if rr.get("access_token"):
+            return rr["access_token"], str(rr.get("expires_in", ""))
+    return None, ""
+
+def _save_token(sh, new, exp):
+    try:
+        today = datetime.date.today().strftime("%Y-%m-%d")
+        sh.values().update(spreadsheetId=SHEET_ID, range="Config!A10:B12", valueInputOption="RAW",
+            body={"values": [["IG_TOKEN", new], ["EXPIRES_IN", exp], ["LAST_REFRESH", today]]}).execute()
+        print("[TOKEN] 更新＆保存OK (expires_in=%s)" % exp)
+    except Exception as e:
+        print("[TOKEN] 書き戻し失敗:", e)
+
+def alert_token_dead(detail=""):
+    """トークン失効を『1日1回だけ』はっきり通知（毎回の投稿失敗スパムを防ぐ）。"""
+    sh = _sheets() if (HAS_G and SHEET_ID) else None
+    today = datetime.date.today().strftime("%Y-%m-%d")
+    if sh and _cell(sh, ALERT_CELL) == today:
+        print("[TOKEN] 失効アラートは本日送信済み（重複送信しない）"); return
+    line_notify("⚠️【要対応】Instagramの投稿トークンが無効になりました。\n"
+                "自動投稿は一時停止中です（予約投稿は消えず、復旧後に自動で投稿されます）。\n"
+                "→ 新しいトークンの再発行が必要です。担当にご連絡ください。" + (("\n" + detail) if detail else ""))
+    if sh:
+        try:
+            sh.values().update(spreadsheetId=SHEET_ID, range=ALERT_CELL, valueInputOption="RAW",
+                body={"values": [[today]]}).execute()
+        except Exception:
+            pass
+
+def fresh_token(validate=True):
     base = TOKEN
     if not (HAS_G and SHEET_ID):
         print("[TOKEN] シート未接続のため環境変数トークンを使用"); return base
@@ -203,28 +251,52 @@ def fresh_token():
             age = (datetime.date.today() - d).days
         except Exception:
             age = None
-    if age is not None and age < REFRESH_EVERY_DAYS:
+    need_refresh = (age is None) or (age >= REFRESH_EVERY_DAYS)
+    # 期限内でも /me が通らなければ即リフレッシュ（途中失効に自動対応）
+    if validate and not need_refresh:
+        ok, _ = _me_ok(cur)
+        if not ok:
+            print("[TOKEN] 期限内だが/me不通→即リフレッシュ試行"); need_refresh = True
+    if not need_refresh:
         print("[TOKEN] 保存済みトークンを使用（前回更新 %s / %d日経過 / 残り%d日で再更新）"
               % (last, age, REFRESH_EVERY_DAYS - age))
         return cur
-    new = None; exp = ""
-    for url in (IGB + "/refresh_access_token", "https://graph.instagram.com/refresh_access_token"):
-        try:
-            rr = req.get(url, params={"grant_type": "ig_refresh_token", "access_token": cur}).json()
-        except Exception:
-            continue
-        if rr.get("access_token"):
-            new = rr["access_token"]; exp = str(rr.get("expires_in", "")); break
-    if not new:
-        print("[TOKEN] 更新スキップ（現トークン継続使用）"); return cur
+    # リフレッシュ：現行→ダメなら基底(Secret)。基底がそのまま有効ならそれを採用。
+    new, exp = _try_refresh(cur)
+    if not new and base and base != cur:
+        print("[TOKEN] 現行トークンの更新NG→基底(Secret)で再試行")
+        new, exp = _try_refresh(base)
+        if not new:
+            ok, _ = _me_ok(base)
+            if ok:
+                print("[TOKEN] 基底トークンが有効→採用"); _save_token(sh, base, ""); return base
+    if new:
+        _save_token(sh, new, exp)
+        return new
+    print("[TOKEN] 全トークン失効。再発行が必要。")
+    return cur
+
+def token_alive():
+    """今使うトークンが実際にIG投稿に使えるかを返す（必要ならこの中で更新も行う）。"""
+    return _me_ok(fresh_token())[0]
+
+def token_reset():
+    """保存済みトークンをクリアし、基底(Secret)トークンで再取得し直す（再発行後の復旧用）。"""
+    if not (HAS_G and SHEET_ID):
+        print("[TOKEN] シート未接続"); return False
+    sh = _sheets()
+    if not sh:
+        print("[TOKEN] 認証情報なし"); return False
     try:
-        today = datetime.date.today().strftime("%Y-%m-%d")
-        sh.values().update(spreadsheetId=SHEET_ID, range="Config!A10:B12", valueInputOption="RAW",
-            body={"values": [["IG_TOKEN", new], ["EXPIRES_IN", exp], ["LAST_REFRESH", today]]}).execute()
-        print("[TOKEN] 更新＆保存OK (expires_in=%s)" % exp)
+        sh.values().update(spreadsheetId=SHEET_ID, range="Config!A10:B13", valueInputOption="RAW",
+            body={"values": [["IG_TOKEN", ""], ["EXPIRES_IN", ""], ["LAST_REFRESH", ""], ["TOKEN_ALERT", ""]]}).execute()
+        print("[TOKEN] 保存トークンをクリア。基底(Secret)から取り直します。")
     except Exception as e:
-        print("[TOKEN] 書き戻し失敗（投稿は継続）:", e)
-    return new
+        print("[TOKEN] クリア失敗:", e); return False
+    t = fresh_token()
+    ok, me = _me_ok(t)
+    print("[TOKEN] 復旧結果:", "OK @" + str(me.get("username")) if ok else ("NG " + str(me.get("error"))))
+    return ok
 
 def record_history(slot, pattern, is_video, ig_id, url):
     if not (HAS_G and SHEET_ID):
