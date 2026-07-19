@@ -365,6 +365,13 @@ def main():
         os.environ["FIXED_MUSIC"] = music
     print("\u56fa\u5b9a\u751f\u6210: ids=%d caption=%r music=%r" % (len(ids), caption, music))
 
+    # トークンが失効している時は、生成も投稿もせず枠はpendingのまま残し、
+    # はっきりした通知を1日1回だけ出す（毎回の投稿失敗スパムを防ぐ・復旧後に自動投稿）。
+    if not DRY and not poster.token_alive():
+        poster.alert_token_dead()
+        print("IGトークン失効のため投稿スキップ（枠はpendingのまま・復旧後に自動投稿されます）")
+        return
+
     fetch, comp, is_video = REG[pattern]
     cf = ' "' + creds + '"' if creds else ""
     media = os.path.join("out", os.path.basename("out/post.mp4" if is_video else "out/post.png"))
