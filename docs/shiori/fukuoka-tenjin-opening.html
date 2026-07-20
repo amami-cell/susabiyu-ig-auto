@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<title>福岡天神店 開業準備資料</title>
+<style>
+  @page {
+    size: A4;
+    margin: 0;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body {
+    font-family: "IPAPGothic", "IPAGothic", sans-serif;
+    color: #2b2b2b;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+  .page {
+    width: 210mm;
+    height: 296mm;
+    overflow: hidden;
+    padding: 9mm 14mm 9mm;
+    position: relative;
+    background: #ffffff;
+  }
+
+  /* ===== 表紙ヘッダー ===== */
+  .cover-band {
+    background: linear-gradient(135deg, #0f4c81 0%, #1b6ca8 60%, #2e8bc0 100%);
+    border-radius: 4mm;
+    color: #fff;
+    padding: 4.5mm 10mm 4.2mm;
+    margin-bottom: 3.5mm;
+  }
+  .cover-band .kicker {
+    font-size: 7.5pt;
+    letter-spacing: 0.3em;
+    opacity: 0.85;
+    margin-bottom: 1.4mm;
+  }
+  .cover-band h1 {
+    font-size: 18pt;
+    font-weight: bold;
+    letter-spacing: 0.05em;
+    line-height: 1.25;
+  }
+  .cover-band .dates {
+    margin-top: 2mm;
+    display: flex;
+    gap: 3.5mm;
+  }
+  .cover-band .date-chip {
+    background: rgba(255,255,255,0.16);
+    border: 0.35mm solid rgba(255,255,255,0.5);
+    border-radius: 999px;
+    padding: 1mm 4.5mm;
+    font-size: 9.5pt;
+    letter-spacing: 0.04em;
+  }
+
+  /* ===== セクション見出し ===== */
+  .section { margin-bottom: 3.2mm; }
+  .section h2 {
+    display: flex;
+    align-items: center;
+    gap: 2.5mm;
+    font-size: 10.5pt;
+    color: #0f4c81;
+    border-bottom: 0.6mm solid #0f4c81;
+    padding-bottom: 0.9mm;
+    margin-bottom: 2mm;
+    letter-spacing: 0.08em;
+  }
+  .section h2 .num {
+    background: #0f4c81;
+    color: #fff;
+    border-radius: 1.6mm;
+    font-size: 8.5pt;
+    padding: 0.8mm 2.2mm;
+    letter-spacing: 0;
+  }
+
+  /* ===== スケジュールテーブル ===== */
+  table.timeline {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 8.5pt;
+    margin-bottom: 2mm;
+  }
+  table.timeline th {
+    background: #eaf1f8;
+    color: #0f4c81;
+    border: 0.25mm solid #cfd6de;
+    padding: 1.1mm 2.5mm;
+    font-size: 8pt;
+    letter-spacing: 0.05em;
+  }
+  table.timeline td {
+    border: 0.25mm solid #cfd6de;
+    padding: 1.2mm 2.5mm;
+    line-height: 1.5;
+    vertical-align: top;
+  }
+  table.timeline td.time {
+    width: 30mm;
+    text-align: center;
+    font-weight: bold;
+    color: #0f4c81;
+    white-space: nowrap;
+  }
+  table.timeline td.who { width: 30mm; text-align: center; }
+  table.timeline .highlight td { background: #f4f9f4; }
+  table.timeline .done td { color: #8a929c; background: #f6f7f8; }
+  .empty-row td { height: 7mm; color: #b7bec7; }
+
+  /* ===== 情報テーブル ===== */
+  table.info {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 8.5pt;
+  }
+  table.info th, table.info td {
+    border: 0.25mm solid #cfd6de;
+    padding: 1.2mm 3mm;
+    text-align: left;
+    line-height: 1.5;
+  }
+  table.info th {
+    background: #eaf1f8;
+    color: #0f4c81;
+    width: 34mm;
+    font-weight: bold;
+    white-space: nowrap;
+  }
+
+  /* ===== ステータスタグ ===== */
+  .tag-done, .tag-todo, .tag-wip {
+    display: inline-block;
+    border-radius: 1.2mm;
+    font-size: 7.5pt;
+    font-weight: bold;
+    padding: 0.5mm 2mm;
+    letter-spacing: 0.04em;
+  }
+  .tag-done { background: #e7f2e7; color: #2e7d32; }
+  .tag-wip  { background: #faf0e6; color: #c96a2b; }
+  .tag-todo { background: #eaf1f8; color: #0f4c81; }
+
+  /* ===== 差し込み枠 ===== */
+  .placeholder {
+    border: 0.4mm dashed #b0b8c4;
+    background: #f4f7fb;
+    border-radius: 2mm;
+    padding: 3mm 4mm;
+    color: #6b7480;
+    font-size: 8.5pt;
+    line-height: 1.7;
+  }
+  .placeholder strong { color: #0f4c81; }
+
+  .note {
+    font-size: 7.5pt;
+    color: #8a929c;
+    margin-top: 1mm;
+    line-height: 1.6;
+  }
+</style>
+</head>
+<body>
+
+<div class="page">
+  <div class="cover-band">
+    <div class="kicker">FUKUOKA TENJIN — OPENING PREPARATION</div>
+    <h1>福岡天神店 開業準備資料</h1>
+    <div class="dates">
+      <span class="date-chip">天神ビジネスセンター地下「天神イナチカ」</span>
+      <span class="date-chip">開業日：未定（決まり次第記載）</span>
+    </div>
+  </div>
+
+  <div class="section">
+    <h2><span class="num">01</span>店舗概要</h2>
+    <table class="info">
+      <tr>
+        <th>店舗名</th>
+        <td>福岡天神店</td>
+      </tr>
+      <tr>
+        <th>所在地</th>
+        <td>天神ビジネスセンター地下「天神イナチカ」（福岡市中央区天神1-10-20）／地下鉄空港線「天神駅」直結</td>
+      </tr>
+      <tr>
+        <th>開業予定日</th>
+        <td>　※決まり次第記載</td>
+      </tr>
+      <tr>
+        <th>営業時間</th>
+        <td>　※決まり次第記載</td>
+      </tr>
+    </table>
+  </div>
+
+  <div class="section">
+    <h2><span class="num">02</span>開業までのスケジュール</h2>
+    <table class="timeline">
+      <tr>
+        <th style="width:30mm">日付</th>
+        <th style="width:30mm">担当</th>
+        <th>内容</th>
+      </tr>
+      <tr class="done">
+        <td class="time">7/8（水）</td>
+        <td class="who">全員</td>
+        <td>入店説明会（キャナルシティ博多）／店舗引き渡し立ち合い（大石様）　<span class="tag-done">完了予定</span></td>
+      </tr>
+      <tr class="done">
+        <td class="time">7/9（木）</td>
+        <td class="who">全員／天見</td>
+        <td>USEN機器設置立会い／保健所申請（福岡市保健医療局 保健所）　<span class="tag-done">完了予定</span></td>
+      </tr>
+      <tr>
+        <td class="time">7/24以降</td>
+        <td class="who">　</td>
+        <td>博多乗り込み／ビールサーバー設置　<span class="tag-wip">日程調整中</span></td>
+      </tr>
+      <tr class="empty-row">
+        <td class="time">　</td><td class="who">　</td><td>　</td>
+      </tr>
+      <tr class="empty-row">
+        <td class="time">　</td><td class="who">　</td><td>　</td>
+      </tr>
+      <tr class="empty-row">
+        <td class="time">　</td><td class="who">　</td><td>　</td>
+      </tr>
+      <tr class="empty-row">
+        <td class="time">　</td><td class="who">　</td><td>　</td>
+      </tr>
+      <tr class="empty-row">
+        <td class="time">　</td><td class="who">　</td><td>　</td>
+      </tr>
+    </table>
+    <div class="note">※内容をいただき次第、日付・担当を追記します。</div>
+  </div>
+
+  <div class="section">
+    <h2><span class="num">03</span>準備タスク一覧</h2>
+    <div class="placeholder">
+      <strong>※ここに開業までの準備タスクを記載します。</strong><br>
+      内容をお送りいただき次第、担当・期限・ステータス付きで整理します。<br>
+      （例：営業許可関係／内装・設備／仕入れ・備品／採用・シフト／販促・SNS告知　など）
+    </div>
+  </div>
+
+  <div class="section">
+    <h2><span class="num">04</span>開業日当日のタイムスケジュール</h2>
+    <table class="timeline">
+      <tr>
+        <th style="width:30mm">時間</th>
+        <th style="width:30mm">担当</th>
+        <th>内容</th>
+      </tr>
+      <tr class="empty-row"><td class="time">　</td><td class="who">　</td><td>　</td></tr>
+      <tr class="empty-row"><td class="time">　</td><td class="who">　</td><td>　</td></tr>
+      <tr class="empty-row"><td class="time">　</td><td class="who">　</td><td>　</td></tr>
+      <tr class="empty-row"><td class="time">　</td><td class="who">　</td><td>　</td></tr>
+      <tr class="empty-row"><td class="time">　</td><td class="who">　</td><td>　</td></tr>
+      <tr class="empty-row"><td class="time">　</td><td class="who">　</td><td>　</td></tr>
+    </table>
+    <div class="note">※開業日・当日の流れが決まり次第反映します。</div>
+  </div>
+
+  <div class="section">
+    <h2><span class="num">05</span>連絡先</h2>
+    <table class="info">
+      <tr>
+        <th>保健所</th>
+        <td>福岡市保健医療局 保健所（中央区舞鶴2-5-1・あいれふ内）　代表電話：092-401-1769　FAX：092-406-5075</td>
+      </tr>
+      <tr>
+        <th>入店説明会担当</th>
+        <td>政住様　電話：090-9485-8776　メール：s.masazumi@fj-eworks.co.jp</td>
+      </tr>
+      <tr>
+        <th>　</th>
+        <td>　</td>
+      </tr>
+    </table>
+  </div>
+</div>
+
+</body>
+</html>
