@@ -88,7 +88,104 @@
     letter-spacing: 0;
   }
 
-  /* ===== スケジュールテーブル ===== */
+  /* ===== ガントチャート ===== */
+  .legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1.5mm 4mm;
+    margin-bottom: 1.6mm;
+    font-size: 7.5pt;
+    color: #5a636e;
+  }
+  .legend .key {
+    display: inline-flex;
+    align-items: center;
+    gap: 1.4mm;
+  }
+  .legend .sw {
+    width: 5mm;
+    height: 3mm;
+    border-radius: 0.8mm;
+  }
+  .gantt {
+    border: 0.3mm solid #cfd6de;
+    border-radius: 2mm;
+    overflow: hidden;
+  }
+  .g-row {
+    display: flex;
+    border-top: 0.25mm solid #dfe5ec;
+  }
+  .g-row:first-child { border-top: none; }
+  .g-day {
+    width: 22mm;
+    flex: 0 0 auto;
+    font-size: 8pt;
+    font-weight: bold;
+    color: #0f4c81;
+    padding: 1.5mm 2mm;
+    background: #eaf1f8;
+    border-right: 0.25mm solid #cfd6de;
+    display: flex;
+    align-items: center;
+  }
+  .g-row.sat .g-day { color: #1565c0; }
+  .g-row.sun .g-day { color: #c62828; }
+  .g-row.openday .g-day { background: #fff3c4; color: #b25e00; }
+  .g-lane {
+    flex: 1;
+    position: relative;
+    height: 6.8mm;
+    background-image: repeating-linear-gradient(
+      to right,
+      #e8edf3 0, #e8edf3 0.3mm,
+      transparent 0.3mm, transparent 8.3333%
+    );
+  }
+  .g-lane.tall { height: 11.6mm; }
+  .g-head .g-day {
+    background: #0f4c81;
+    color: #fff;
+    font-size: 7.5pt;
+    justify-content: center;
+  }
+  .g-head .g-lane {
+    height: 5.2mm;
+    background: #0f4c81;
+    background-image: none;
+  }
+  .g-head .tick {
+    position: absolute;
+    top: 0;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    transform: translateX(-50%);
+    font-size: 7pt;
+    color: #fff;
+    letter-spacing: 0.02em;
+  }
+  .bar {
+    position: absolute;
+    top: 1.2mm;
+    height: 4.4mm;
+    border-radius: 1mm;
+    font-size: 6.5pt;
+    color: #fff;
+    padding: 0 1.2mm;
+    line-height: 4.4mm;
+    white-space: nowrap;
+    overflow: hidden;
+  }
+  .bar.l2 { top: 6.2mm; }
+  .c-set  { background: #5b8db8; }
+  .c-trn  { background: #5f9e63; }
+  .c-fac  { background: #8a7fb8; }
+  .c-evt  { background: #e8923d; }
+  .c-open { background: #f2b705; color: #6b4a00; font-weight: bold; }
+  .c-misc { background: #9aa3ad; }
+
+  /* ===== スケジュール詳細テーブル ===== */
   table.timeline {
     width: 100%;
     border-collapse: collapse;
@@ -160,9 +257,7 @@
     background: #0f4c81;
     border-radius: 50%;
   }
-  .notice-list li.warn::before { background: #c96a2b; }
   .notice-list li strong { color: #0f4c81; }
-  .notice-list li.warn strong { color: #c96a2b; }
 
   /* ===== チップ ===== */
   .chip-row { display: flex; flex-wrap: wrap; gap: 1.6mm; }
@@ -173,6 +268,15 @@
     padding: 0.8mm 3.5mm;
     font-size: 8.5pt;
   }
+
+  /* ===== マップ ===== */
+  .map-wrap {
+    border: 0.3mm solid #cfd6de;
+    border-radius: 2mm;
+    overflow: hidden;
+    background: #f4f7fb;
+  }
+  .map-wrap svg { display: block; width: 100%; height: auto; }
 
   .note {
     font-size: 7.5pt;
@@ -192,7 +296,7 @@
 </head>
 <body>
 
-<!-- ===================== 1ページ目 ===================== -->
+<!-- ===================== 1ページ目：概要＋タイムスケジュール（可視化） ===================== -->
 <div class="page">
   <div class="cover-band">
     <div class="kicker">GIFUYA FUKUOKA TENJIN — OPENING PREPARATION</div>
@@ -220,7 +324,7 @@
       </tr>
       <tr>
         <th>担当管理職</th>
-        <td>青山SV（MG以上）　※店舗責任者：未定</td>
+        <td>青山SV　※店舗責任者：未定</td>
       </tr>
       <tr>
         <th>営業時間</th>
@@ -242,7 +346,125 @@
   </div>
 
   <div class="section">
-    <h2><span class="num">02</span>開業までのタイムスケジュール（7/24〜8/4）</h2>
+    <h2><span class="num">02</span>タイムスケジュール（7/24〜8/4）</h2>
+    <div class="legend">
+      <span class="key"><span class="sw c-set"></span>納品・仕込み・準備</span>
+      <span class="key"><span class="sw c-trn"></span>研修・ロープレ</span>
+      <span class="key"><span class="sw c-fac"></span>工事・設置・立会</span>
+      <span class="key"><span class="sw c-evt"></span>レセプション・プレオープン</span>
+      <span class="key"><span class="sw c-open"></span>グランドオープン</span>
+      <span class="key"><span class="sw c-misc"></span>その他</span>
+    </div>
+    <div class="gantt">
+      <div class="g-row g-head">
+        <div class="g-day">日付＼時間</div>
+        <div class="g-lane">
+          <span class="tick" style="left:0%;">9</span>
+          <span class="tick" style="left:16.67%;">11</span>
+          <span class="tick" style="left:33.33%;">13</span>
+          <span class="tick" style="left:50%;">15</span>
+          <span class="tick" style="left:66.67%;">17</span>
+          <span class="tick" style="left:83.33%;">19</span>
+          <span class="tick" style="left:99%;">21</span>
+        </div>
+      </div>
+      <div class="g-row">
+        <div class="g-day">7/24（金）</div>
+        <div class="g-lane">
+          <span class="bar c-misc" style="left:0%; width:8%;">川本入社</span>
+          <span class="bar c-fac" style="left:8.33%; width:16.3%;">保健所立会</span>
+          <span class="bar c-set" style="left:33.33%; width:33%;">ダスキン・サーバー・ガス・食器納品</span>
+        </div>
+      </div>
+      <div class="g-row sat">
+        <div class="g-day">7/25（土）</div>
+        <div class="g-lane">
+          <span class="bar c-set" style="left:16.67%; width:66.3%;">買い出し・納品・検品・洗浄・配置・キッチン仕込み</span>
+        </div>
+      </div>
+      <div class="g-row sun">
+        <div class="g-day">7/26（日）</div>
+        <div class="g-lane">
+          <span class="bar c-set" style="left:16.67%; width:41.3%;">仕込み・ホール準備・オペレーション確認</span>
+        </div>
+      </div>
+      <div class="g-row">
+        <div class="g-day">7/27（月）</div>
+        <div class="g-lane">
+          <span class="bar c-trn" style="left:66.67%; width:24.9%;">研修①（夜の部・学生メイン）</span>
+        </div>
+      </div>
+      <div class="g-row">
+        <div class="g-day">7/28（火）</div>
+        <div class="g-lane tall">
+          <span class="bar c-trn" style="left:25%; width:24.6%;">研修①（昼の部）</span>
+          <span class="bar c-trn" style="left:58.33%; width:16.3%;">USEN操作トレ</span>
+          <span class="bar c-fac l2" style="left:33.33%; width:8%;">説明会</span>
+          <span class="bar c-fac l2" style="left:50%; width:12%;">BGM・カメラ設置</span>
+        </div>
+      </div>
+      <div class="g-row">
+        <div class="g-day">7/29（水）</div>
+        <div class="g-lane">
+          <span class="bar c-fac" style="left:33.33%; width:16.3%;">店内外撮影</span>
+          <span class="bar c-trn" style="left:58.33%; width:33%;">合同ロープレ②（〜20:00 仕込み終了）</span>
+        </div>
+      </div>
+      <div class="g-row">
+        <div class="g-day">7/30（木）</div>
+        <div class="g-lane">
+          <span class="bar c-trn" style="left:25%; width:24.6%;">ロープレ③-1（ランチ）</span>
+          <span class="bar c-evt" style="left:58.33%; width:33%;">レセプション</span>
+        </div>
+      </div>
+      <div class="g-row">
+        <div class="g-day">7/31（金）</div>
+        <div class="g-lane tall">
+          <span class="bar c-trn" style="left:33.33%; width:8%;">USENトレ</span>
+          <span class="bar c-set" style="left:41.67%; width:16.3%;">オープン準備</span>
+          <span class="bar c-evt" style="left:58.33%; width:33%;">関係者プレオープン</span>
+          <span class="bar c-fac l2" style="left:33.33%; width:33%;">NTT設置工事（13〜17時）</span>
+        </div>
+      </div>
+      <div class="g-row sat">
+        <div class="g-day">8/1（土）</div>
+        <div class="g-lane">
+          <span class="bar c-set" style="left:25%; width:16.3%;">キッチン仕込み</span>
+          <span class="bar c-trn" style="left:58.33%; width:33%;">ホールキッチン合同ロープレ③</span>
+        </div>
+      </div>
+      <div class="g-row sun">
+        <div class="g-day">8/2（日）</div>
+        <div class="g-lane">
+          <span class="bar c-trn" style="left:25%; width:24.6%;">ロープレ③-2（ランチ）</span>
+          <span class="bar c-trn" style="left:58.33%; width:33%;">ホールキッチン合同ロープレ</span>
+        </div>
+      </div>
+      <div class="g-row">
+        <div class="g-day">8/3（月）</div>
+        <div class="g-lane">
+          <span class="bar c-trn" style="left:25%; width:24.6%;">ロープレ③-3（ランチ）</span>
+          <span class="bar c-trn" style="left:58.33%; width:33%;">ホールキッチン合同ロープレ</span>
+        </div>
+      </div>
+      <div class="g-row openday">
+        <div class="g-day">8/4（火）</div>
+        <div class="g-lane">
+          <span class="bar c-fac" style="left:1.4%; width:12%;">メディア内覧会</span>
+          <span class="bar c-open" style="left:29.17%; width:70%;">12:30〜 グランドオープン</span>
+        </div>
+      </div>
+    </div>
+    <div class="note">※横軸は9時〜21時。詳細は2ページ目の日別スケジュールをご参照ください。</div>
+  </div>
+
+  <div class="pagefoot">1 / 3</div>
+</div>
+
+<!-- ===================== 2ページ目：日別詳細＋研修＋準備物 ===================== -->
+<div class="page">
+  <div class="section">
+    <h2><span class="num">03</span>日別スケジュール詳細</h2>
     <table class="timeline">
       <tr>
         <th style="width:22mm">日付</th>
@@ -299,13 +521,8 @@
     </table>
   </div>
 
-  <div class="pagefoot">1 / 2</div>
-</div>
-
-<!-- ===================== 2ページ目 ===================== -->
-<div class="page">
   <div class="section">
-    <h2><span class="num">03</span>研修・作業の進め方</h2>
+    <h2><span class="num">04</span>研修・作業の進め方</h2>
     <ul class="notice-list">
       <li><strong>① 13:00〜16:00</strong>：納品物収納・ふきあげ・店舗清掃　<span style="color:#c62828;">※①・②は2部制で半分ずつ</span></li>
       <li><strong>② 16:30〜19:30</strong>：シミュレーション（最終時間が残れば全体ロープレ）</li>
@@ -314,7 +531,7 @@
   </div>
 
   <div class="section">
-    <h2><span class="num">04</span>準備物</h2>
+    <h2><span class="num">05</span>準備物</h2>
     <div class="chip-row">
       <span class="chip">パソコン</span>
       <span class="chip">ルーター</span>
@@ -325,8 +542,13 @@
     </div>
   </div>
 
+  <div class="pagefoot">2 / 3</div>
+</div>
+
+<!-- ===================== 3ページ目：宿泊＋マップ＋連絡先 ===================== -->
+<div class="page">
   <div class="section">
-    <h2><span class="num">05</span>マンスリーマンション（さくらす天神）</h2>
+    <h2><span class="num">06</span>マンスリーマンション（さくらす天神シリーズ）</h2>
     <table class="info">
       <tr>
         <th>青山 人事MG</th>
@@ -341,6 +563,14 @@
         <td>7/28〜8/9（12日）　さくらす天神54</td>
       </tr>
       <tr>
+        <th>所在エリア</th>
+        <td>天神駅西側の空港線沿線エリア（大名・舞鶴・赤坂周辺）　※各物件の詳細住所は契約時に案内</td>
+      </tr>
+      <tr>
+        <th>運営会社</th>
+        <td>株式会社さくらす（福岡市中央区大名2-4-22 新日本ビル5F）</td>
+      </tr>
+      <tr>
         <th>入居までの流れ</th>
         <td>本人確認書類（顔写真付き）をメール送付 → 審査 → 契約書・請求書をメールで受領し、振込またはクレジットで支払い（お申込みから5営業日以内にご入金） → 入居日当日は集合ポストのキーボックスで鍵の引き渡し（<strong>13時以降入居</strong>）</td>
       </tr>
@@ -348,8 +578,12 @@
   </div>
 
   <div class="section">
-    <h2><span class="num">06</span>ホテル（ホテルマイステイズ福岡天神南）</h2>
+    <h2><span class="num">07</span>ホテル（ホテルマイステイズ福岡天神南）</h2>
     <table class="info">
+      <tr>
+        <th>所在地</th>
+        <td>〒810-0003 福岡市中央区春吉3-14-20　※地下鉄七隈線「天神南駅」6番出口から徒歩約5分（天神駅から徒歩約10分）</td>
+      </tr>
       <tr>
         <th>① 古川社長・<br>小比賀統括本部長</th>
         <td>IN：7/30（木）15:00　OUT：7/31（金）　2部屋（各1名）　予約受付番号：RYa0n3h0b8_1〜2</td>
@@ -359,7 +593,7 @@
         <td>IN：8/3（月）15:00　OUT：8/4（火）　2部屋（各1名）　予約受付番号：RYa0n3h0sz_1〜2</td>
       </tr>
       <tr>
-        <th>③ 広瀬さん</th>
+        <th>③ 広瀬社員</th>
         <td>IN：8/3（月）15:00　OUT：8/6（木）　3泊・1部屋　予約受付番号：RYa0n3h18n</td>
       </tr>
       <tr>
@@ -370,24 +604,89 @@
   </div>
 
   <div class="section">
-    <h2><span class="num">07</span>連絡先</h2>
+    <h2><span class="num">08</span>周辺マップ（簡略図）</h2>
+    <div class="map-wrap">
+      <svg viewBox="0 0 760 310" xmlns="http://www.w3.org/2000/svg">
+        <!-- 背景 -->
+        <rect x="0" y="0" width="760" height="310" fill="#f4f7fb"/>
+        <!-- 那珂川 -->
+        <path d="M 650 0 L 620 80 L 600 170 L 605 250 L 625 310 L 675 310 L 655 250 L 650 170 L 668 80 L 695 0 Z" fill="#cfe3f2"/>
+        <text x="648" y="150" font-size="13" fill="#5b8db8" transform="rotate(80 648 150)">那珂川</text>
+        <!-- 道路 -->
+        <rect x="0" y="52" width="760" height="10" fill="#ffffff" stroke="#c9d2dc" stroke-width="1"/>
+        <text x="8" y="48" font-size="12" fill="#8a929c">昭和通り</text>
+        <rect x="0" y="138" width="760" height="10" fill="#ffffff" stroke="#c9d2dc" stroke-width="1"/>
+        <text x="8" y="134" font-size="12" fill="#8a929c">明治通り（地下鉄空港線）</text>
+        <rect x="0" y="222" width="760" height="10" fill="#ffffff" stroke="#c9d2dc" stroke-width="1"/>
+        <text x="8" y="218" font-size="12" fill="#8a929c">国体道路</text>
+        <rect x="325" y="0" width="10" height="310" fill="#ffffff" stroke="#c9d2dc" stroke-width="1"/>
+        <text x="340" y="22" font-size="12" fill="#8a929c">渡辺通り（地下鉄七隈線）</text>
+        <!-- 駅 -->
+        <g font-family="inherit">
+          <rect x="112" y="136" width="14" height="14" rx="3" fill="#0f4c81"/>
+          <text x="100" y="164" font-size="12" fill="#0f4c81" font-weight="bold">赤坂駅</text>
+          <rect x="323" y="136" width="14" height="14" rx="3" fill="#0f4c81"/>
+          <text x="288" y="164" font-size="13" fill="#0f4c81" font-weight="bold">天神駅</text>
+          <rect x="560" y="50" width="14" height="14" rx="3" fill="#0f4c81"/>
+          <text x="500" y="44" font-size="12" fill="#0f4c81" font-weight="bold">中洲川端駅</text>
+          <rect x="323" y="220" width="14" height="14" rx="3" fill="#2e7d32"/>
+          <text x="252" y="248" font-size="12" fill="#2e7d32" font-weight="bold">天神南駅</text>
+          <rect x="310" y="180" width="12" height="12" rx="3" fill="#8a929c"/>
+          <text x="188" y="192" font-size="11" fill="#8a929c">西鉄福岡（天神）駅</text>
+        </g>
+        <!-- マンスリーゾーン -->
+        <circle cx="165" cy="95" r="58" fill="#5f9e63" fill-opacity="0.12" stroke="#5f9e63" stroke-width="2" stroke-dasharray="6 4"/>
+        <text x="120" y="88" font-size="13" fill="#2e7d32" font-weight="bold">さくらす天神</text>
+        <text x="112" y="104" font-size="11" fill="#2e7d32">（大名・舞鶴周辺）</text>
+        <text x="104" y="118" font-size="10" fill="#5a8a5e">※物件により場所が異なる</text>
+        <!-- 店舗 -->
+        <circle cx="405" cy="92" r="11" fill="#c62828"/>
+        <text x="399" y="98" font-size="13" fill="#ffffff" font-weight="bold">★</text>
+        <text x="422" y="86" font-size="13" fill="#c62828" font-weight="bold">ぎふや福岡天神店</text>
+        <text x="422" y="101" font-size="11" fill="#c62828">天神ビジネスセンターⅡ B2F（天神駅直結）</text>
+        <!-- ホテル -->
+        <rect x="508" y="252" width="22" height="22" rx="4" fill="#e8923d"/>
+        <text x="513" y="269" font-size="13" fill="#ffffff" font-weight="bold">Ｈ</text>
+        <text x="404" y="292" font-size="12.5" fill="#b3641c" font-weight="bold">ホテルマイステイズ福岡天神南</text>
+        <text x="428" y="306" font-size="11" fill="#b3641c">春吉3-14-20（天神南駅 徒歩約5分）</text>
+        <!-- 方位 -->
+        <text x="728" y="26" font-size="15" fill="#8a929c" font-weight="bold">N↑</text>
+      </svg>
+    </div>
+    <div class="note">※位置関係を示す簡略図です。縮尺・道路形状は正確ではありません。さくらす天神は複数棟あるためエリア表示です。</div>
+  </div>
+
+  <div class="section">
+    <h2><span class="num">09</span>連絡先</h2>
     <table class="info">
       <tr>
         <th>店舗</th>
         <td>TEL：092-406-8613　FAX：092-406-8614　メール：gifuya.fukuokatenjin@gmail.com</td>
       </tr>
       <tr>
-        <th>保健所</th>
-        <td>福岡市保健医療局 保健所（中央区舞鶴2-5-1・あいれふ内）　代表電話：092-401-1769　FAX：092-406-5075</td>
+        <th>USEN（カメラ担当）</th>
+        <td>青山さん　090-8546-7212</td>
       </tr>
       <tr>
-        <th>宿泊ホテル</th>
-        <td>ホテルマイステイズ福岡天神南</td>
+        <th>USEN（BGM担当）</th>
+        <td>ノウズミさん　080-3682-2015</td>
+      </tr>
+      <tr>
+        <th>USEN（天神BC担当）</th>
+        <td>大石さん　080-3701-4488</td>
+      </tr>
+      <tr>
+        <th>天神BCⅡ営業担当</th>
+        <td>大石さん　090-2853-5280</td>
+      </tr>
+      <tr>
+        <th>保健所</th>
+        <td>福岡市保健医療局 保健所（中央区舞鶴2-5-1・あいれふ内）　代表電話：092-401-1769　FAX：092-406-5075</td>
       </tr>
     </table>
   </div>
 
-  <div class="pagefoot">2 / 2</div>
+  <div class="pagefoot">3 / 3</div>
 </div>
 
 </body>
