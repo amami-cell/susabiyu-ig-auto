@@ -165,6 +165,34 @@
     color: #fff;
     letter-spacing: 0.02em;
   }
+  .g-p {
+    width: 7mm;
+    flex: 0 0 auto;
+    border-left: 0.25mm solid #dfe5ec;
+    position: relative;
+  }
+  .g-head .g-p {
+    background: #0f4c81;
+    color: #fff;
+    font-size: 6.5pt;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-left: 0.25mm solid rgba(255,255,255,0.3);
+  }
+  .g-p .fill {
+    position: absolute;
+    left: 1.5mm;
+    right: 1.5mm;
+    top: 0;
+    bottom: 0;
+    display: block;
+  }
+  .g-p .fill.st { top: 1mm; border-radius: 1mm 1mm 0 0; }
+  .f-aoy { background: #3d6d99; }
+  .f-fun { background: #7a5ea8; }
+  .f-ama { background: #3f8f4f; }
+  .f-hir { background: #d97b2f; }
   .bar {
     position: absolute;
     top: 1.2mm;
@@ -259,14 +287,46 @@
   }
   .notice-list li strong { color: #0f4c81; }
 
-  /* ===== チップ ===== */
-  .chip-row { display: flex; flex-wrap: wrap; gap: 1.6mm; }
-  .chip {
-    border: 0.3mm solid #cfd6de;
+  /* ===== 準備物チェックリスト ===== */
+  .prep-grid {
+    display: flex;
+    gap: 2.5mm;
+    align-items: flex-start;
+  }
+  .prep-col {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 2.5mm;
+  }
+  .prep-card {
+    border: 0.35mm solid #cfd6de;
+    border-radius: 2mm;
+    overflow: hidden;
     background: #fbfcfe;
-    border-radius: 999px;
-    padding: 0.8mm 3.5mm;
-    font-size: 8.5pt;
+  }
+  .prep-card h3 {
+    background: #eaf1f8;
+    color: #0f4c81;
+    font-size: 8pt;
+    padding: 1mm 2.5mm;
+    letter-spacing: 0.05em;
+  }
+  .p-item {
+    display: flex;
+    align-items: center;
+    gap: 1.8mm;
+    font-size: 7.5pt;
+    padding: 0.7mm 2.5mm;
+    border-top: 0.2mm dotted #e3e9f0;
+    line-height: 1.4;
+  }
+  .p-item .box {
+    width: 2.8mm;
+    height: 2.8mm;
+    border: 0.35mm solid #0f4c81;
+    border-radius: 0.6mm;
+    flex: 0 0 auto;
   }
 
   /* ===== マップ ===== */
@@ -355,15 +415,83 @@
   </div>
 
   <div class="section">
-    <h2><span class="num">03</span>準備物</h2>
-    <div class="chip-row">
-      <span class="chip">パソコン</span>
-      <span class="chip">ルーター</span>
-      <span class="chip">電話機</span>
-      <span class="chip">プリンター</span>
-      <span class="chip">取り皿</span>
-      <span class="chip">とんすい</span>
+    <h2><span class="num">03</span>準備物・残タスク（未対応分のみ）</h2>
+    <div class="prep-grid">
+      <div class="prep-col">
+      <div class="prep-card">
+        <h3>業者確認・設備</h3>
+        <div class="p-item"><span class="box"></span>ホシザキ</div>
+        <div class="p-item"><span class="box"></span>食洗器洗剤手配（7/16以降）</div>
+        <div class="p-item"><span class="box"></span>アルコールボトル</div>
+        <div class="p-item"><span class="box"></span>グリスカッターボトル</div>
+        <div class="p-item"><span class="box"></span>中性洗剤ボトル</div>
+        <div class="p-item"><span class="box"></span>ブリーチボトル</div>
+        <div class="p-item"><span class="box"></span>NTT光回線</div>
+        <div class="p-item"><span class="box"></span>サーバー台設置（24日）</div>
+      </div>
+      <div class="prep-card">
+        <h3>その他・やる事</h3>
+        <div class="p-item"><span class="box"></span>制服</div>
+        <div class="p-item"><span class="box"></span>金庫</div>
+        <div class="p-item"><span class="box"></span>緊急連絡先表 作成</div>
+        <div class="p-item"><span class="box"></span>アピアランス表</div>
+        <div class="p-item"><span class="box"></span>ハウスルール</div>
+        <div class="p-item"><span class="box"></span>ドリンク簡易レシピ（藤本さん）</div>
+        <div class="p-item"><span class="box"></span>日本酒空瓶手配（80本）</div>
+        <div class="p-item"><span class="box"></span>予約表 作成</div>
+        <div class="p-item"><span class="box"></span>マニュアル作成</div>
+      </div>
+      </div>
+      <div class="prep-col">
+      <div class="prep-card">
+        <h3>購入品</h3>
+        <div class="p-item"><span class="box"></span>リードペーパー</div>
+        <div class="p-item"><span class="box"></span>カセットボンベ</div>
+        <div class="p-item"><span class="box"></span>日付シール</div>
+        <div class="p-item"><span class="box"></span>バンドエイド</div>
+        <div class="p-item"><span class="box"></span>油性マジック</div>
+        <div class="p-item"><span class="box"></span>爪楊枝</div>
+        <div class="p-item"><span class="box"></span>お冷ピッチャー 2個</div>
+        <div class="p-item"><span class="box"></span>塩</div>
+        <div class="p-item"><span class="box"></span>七味</div>
+        <div class="p-item"><span class="box"></span>さしみ醤油</div>
+      </div>
+      <div class="prep-card">
+        <h3>メーカー手配</h3>
+        <div class="p-item"><span class="box"></span>Tシャツ（計30枚・黒/白）</div>
+        <div class="p-item"><span class="box"></span>サロン（30）</div>
+        <div class="p-item"><span class="box"></span>ポスター各種（各3枚×5種類・レトロ/ドライ）</div>
+        <div class="p-item"><span class="box"></span>ボウラー（アサヒ）</div>
+        <div class="p-item"><span class="box"></span>プッシュポンプ（アサヒ）</div>
+      </div>
+      <div class="prep-card">
+        <h3>たのめーる</h3>
+        <div class="p-item"><span class="box"></span>インク（型番確認して発注）</div>
+      </div>
+      </div>
+      <div class="prep-col">
+      <div class="prep-card">
+        <h3>100均・小口</h3>
+        <div class="p-item"><span class="box"></span>キッチンハサミ</div>
+        <div class="p-item"><span class="box"></span>ディスペンサー（シロップ）</div>
+        <div class="p-item"><span class="box"></span>荷物カゴ</div>
+        <div class="p-item"><span class="box"></span>水切り</div>
+        <div class="p-item"><span class="box"></span>栓抜き</div>
+        <div class="p-item"><span class="box"></span>タレ用ディスペンサー</div>
+        <div class="p-item"><span class="box"></span>日本酒グラス用 下皿20個（色違い）</div>
+        <div class="p-item"><span class="box"></span>クリアファイル</div>
+        <div class="p-item"><span class="box"></span>書類まとめファイル</div>
+        <div class="p-item"><span class="box"></span>ディッシュボックス</div>
+        <div class="p-item"><span class="box"></span>仕切りありペン立て（4つ）</div>
+        <div class="p-item"><span class="box"></span>ホッチキス</div>
+        <div class="p-item"><span class="box"></span>延長コード（1m）</div>
+        <div class="p-item"><span class="box"></span>セロハンテープ</div>
+        <div class="p-item"><span class="box"></span>角のふわふわ</div>
+        <div class="p-item"><span class="box"></span>ハンドソープボトル</div>
+      </div>
+      </div>
     </div>
+    <div class="note">※チェック済み（準備完了）の項目は記載していません。</div>
   </div>
 
   <div class="pagefoot">1 / 3</div>
@@ -393,6 +521,10 @@
           <span class="tick" style="left:83.33%;">19</span>
           <span class="tick" style="left:99%;">21</span>
         </div>
+        <div class="g-p">青山</div>
+        <div class="g-p">船﨑</div>
+        <div class="g-p">天見</div>
+        <div class="g-p">広瀬</div>
       </div>
       <div class="g-row">
         <div class="g-day">7/24（金）</div>
@@ -401,24 +533,40 @@
           <span class="bar c-fac" style="left:8.33%; width:16.3%;">保健所立会</span>
           <span class="bar c-set" style="left:33.33%; width:33%;">ダスキン・サーバー・ガス・食器納品</span>
         </div>
+        <div class="g-p"><span class="fill f-aoy"></span></div>
+        <div class="g-p"><span class="fill f-fun st"></span></div>
+        <div class="g-p"></div>
+        <div class="g-p"></div>
       </div>
       <div class="g-row sat">
         <div class="g-day">7/25（土）</div>
         <div class="g-lane">
           <span class="bar c-set" style="left:16.67%; width:66.3%;">買い出し・納品・検品・洗浄・配置・キッチン仕込み</span>
         </div>
+        <div class="g-p"><span class="fill f-aoy"></span></div>
+        <div class="g-p"><span class="fill f-fun"></span></div>
+        <div class="g-p"></div>
+        <div class="g-p"></div>
       </div>
       <div class="g-row sun">
         <div class="g-day">7/26（日）</div>
         <div class="g-lane">
           <span class="bar c-set" style="left:16.67%; width:41.3%;">仕込み・ホール準備・オペレーション確認</span>
         </div>
+        <div class="g-p"><span class="fill f-aoy"></span></div>
+        <div class="g-p"><span class="fill f-fun"></span></div>
+        <div class="g-p"></div>
+        <div class="g-p"></div>
       </div>
       <div class="g-row">
         <div class="g-day">7/27（月）</div>
         <div class="g-lane">
           <span class="bar c-trn" style="left:66.67%; width:24.9%;">研修①（夜の部・学生メイン）</span>
         </div>
+        <div class="g-p"><span class="fill f-aoy"></span></div>
+        <div class="g-p"><span class="fill f-fun"></span></div>
+        <div class="g-p"></div>
+        <div class="g-p"></div>
       </div>
       <div class="g-row">
         <div class="g-day">7/28（火）</div>
@@ -428,6 +576,10 @@
           <span class="bar c-fac l2" style="left:33.33%; width:8%;">説明会</span>
           <span class="bar c-fac l2" style="left:50%; width:12%;">BGM・カメラ設置</span>
         </div>
+        <div class="g-p"><span class="fill f-aoy"></span></div>
+        <div class="g-p"><span class="fill f-fun"></span></div>
+        <div class="g-p"><span class="fill f-ama st"></span></div>
+        <div class="g-p"></div>
       </div>
       <div class="g-row">
         <div class="g-day">7/29（水）</div>
@@ -435,6 +587,10 @@
           <span class="bar c-fac" style="left:33.33%; width:16.3%;">店内外撮影</span>
           <span class="bar c-trn" style="left:58.33%; width:33%;">合同ロープレ②（〜20:00 仕込み終了）</span>
         </div>
+        <div class="g-p"><span class="fill f-aoy"></span></div>
+        <div class="g-p"><span class="fill f-fun"></span></div>
+        <div class="g-p"><span class="fill f-ama"></span></div>
+        <div class="g-p"></div>
       </div>
       <div class="g-row">
         <div class="g-day">7/30（木）</div>
@@ -442,6 +598,10 @@
           <span class="bar c-trn" style="left:25%; width:24.6%;">ロープレ③-1（ランチ）</span>
           <span class="bar c-evt" style="left:58.33%; width:33%;">レセプション</span>
         </div>
+        <div class="g-p"><span class="fill f-aoy"></span></div>
+        <div class="g-p"><span class="fill f-fun"></span></div>
+        <div class="g-p"><span class="fill f-ama"></span></div>
+        <div class="g-p"></div>
       </div>
       <div class="g-row">
         <div class="g-day">7/31（金）</div>
@@ -451,6 +611,10 @@
           <span class="bar c-evt" style="left:58.33%; width:33%;">関係者プレオープン</span>
           <span class="bar c-fac l2" style="left:33.33%; width:33%;">NTT設置工事（13〜17時）</span>
         </div>
+        <div class="g-p"><span class="fill f-aoy"></span></div>
+        <div class="g-p"><span class="fill f-fun"></span></div>
+        <div class="g-p"><span class="fill f-ama"></span></div>
+        <div class="g-p"></div>
       </div>
       <div class="g-row sat">
         <div class="g-day">8/1（土）</div>
@@ -458,6 +622,10 @@
           <span class="bar c-set" style="left:25%; width:16.3%;">キッチン仕込み</span>
           <span class="bar c-trn" style="left:58.33%; width:33%;">ホールキッチン合同ロープレ③</span>
         </div>
+        <div class="g-p"><span class="fill f-aoy"></span></div>
+        <div class="g-p"><span class="fill f-fun"></span></div>
+        <div class="g-p"><span class="fill f-ama"></span></div>
+        <div class="g-p"></div>
       </div>
       <div class="g-row sun">
         <div class="g-day">8/2（日）</div>
@@ -465,6 +633,10 @@
           <span class="bar c-trn" style="left:25%; width:24.6%;">ロープレ③-2（ランチ）</span>
           <span class="bar c-trn" style="left:58.33%; width:33%;">ホールキッチン合同ロープレ</span>
         </div>
+        <div class="g-p"><span class="fill f-aoy"></span></div>
+        <div class="g-p"><span class="fill f-fun"></span></div>
+        <div class="g-p"><span class="fill f-ama"></span></div>
+        <div class="g-p"></div>
       </div>
       <div class="g-row">
         <div class="g-day">8/3（月）</div>
@@ -472,6 +644,10 @@
           <span class="bar c-trn" style="left:25%; width:24.6%;">ロープレ③-3（ランチ）</span>
           <span class="bar c-trn" style="left:58.33%; width:33%;">ホールキッチン合同ロープレ</span>
         </div>
+        <div class="g-p"><span class="fill f-aoy"></span></div>
+        <div class="g-p"><span class="fill f-fun"></span></div>
+        <div class="g-p"><span class="fill f-ama"></span></div>
+        <div class="g-p"><span class="fill f-hir st"></span></div>
       </div>
       <div class="g-row openday">
         <div class="g-day">8/4（火）</div>
@@ -479,9 +655,13 @@
           <span class="bar c-fac" style="left:1.4%; width:12%;">メディア内覧会</span>
           <span class="bar c-open" style="left:29.17%; width:70%;">12:30〜 グランドオープン</span>
         </div>
+        <div class="g-p"><span class="fill f-aoy"></span></div>
+        <div class="g-p"><span class="fill f-fun"></span></div>
+        <div class="g-p"><span class="fill f-ama"></span></div>
+        <div class="g-p"><span class="fill f-hir"></span></div>
       </div>
     </div>
-    <div class="note">※横軸は9時〜21時。</div>
+    <div class="note">※横軸は9時〜21時。右側の色付き列は各メンバーの博多乗り込み（滞在）期間　——　<span style="color:#3d6d99;font-weight:bold;">■青山</span> 7/23〜10/21／<span style="color:#7a5ea8;font-weight:bold;">■船﨑</span> 7/24〜8/10／<span style="color:#3f8f4f;font-weight:bold;">■天見</span> 7/28〜8/9／<span style="color:#d97b2f;font-weight:bold;">■広瀬</span> 8/3〜8/6（ホテル泊）</div>
   </div>
 
   <div class="section">
@@ -602,53 +782,73 @@
   <div class="section">
     <h2><span class="num">08</span>周辺マップ（簡略図）</h2>
     <div class="map-wrap">
-      <svg viewBox="0 0 760 330" xmlns="http://www.w3.org/2000/svg">
+      <svg viewBox="0 0 760 360" xmlns="http://www.w3.org/2000/svg">
         <!-- 背景 -->
-        <rect x="0" y="0" width="760" height="330" fill="#f4f7fb"/>
+        <rect x="0" y="0" width="760" height="360" fill="#f7fafc"/>
         <!-- 那珂川 -->
-        <path d="M 650 0 L 620 80 L 600 170 L 605 250 L 622 330 L 672 330 L 652 250 L 650 170 L 668 80 L 695 0 Z" fill="#cfe3f2"/>
-        <text x="648" y="150" font-size="13" fill="#5b8db8" transform="rotate(80 648 150)">那珂川</text>
+        <path d="M 655 0 L 625 85 L 605 175 L 610 260 L 628 360 L 678 360 L 658 260 L 655 175 L 673 85 L 700 0 Z" fill="#cfe3f2"/>
+        <text x="652" y="180" font-size="13" fill="#5b8db8" transform="rotate(83 652 180)">那珂川</text>
         <!-- 道路 -->
         <rect x="0" y="52" width="760" height="10" fill="#ffffff" stroke="#c9d2dc" stroke-width="1"/>
         <text x="8" y="48" font-size="12" fill="#8a929c">昭和通り</text>
-        <rect x="0" y="138" width="760" height="10" fill="#ffffff" stroke="#c9d2dc" stroke-width="1"/>
-        <text x="8" y="134" font-size="12" fill="#8a929c">明治通り（地下鉄空港線）</text>
-        <rect x="0" y="222" width="760" height="10" fill="#ffffff" stroke="#c9d2dc" stroke-width="1"/>
-        <text x="8" y="218" font-size="12" fill="#8a929c">国体道路</text>
-        <rect x="325" y="0" width="10" height="330" fill="#ffffff" stroke="#c9d2dc" stroke-width="1"/>
-        <text x="340" y="22" font-size="12" fill="#8a929c">渡辺通り（地下鉄七隈線）</text>
+        <rect x="0" y="150" width="760" height="12" fill="#ffffff" stroke="#c9d2dc" stroke-width="1"/>
+        <text x="8" y="146" font-size="12" fill="#8a929c">明治通り</text>
+        <rect x="0" y="238" width="760" height="10" fill="#ffffff" stroke="#c9d2dc" stroke-width="1"/>
+        <text x="8" y="234" font-size="12" fill="#8a929c">国体道路</text>
+        <rect x="328" y="0" width="12" height="360" fill="#ffffff" stroke="#c9d2dc" stroke-width="1"/>
+        <text x="348" y="46" font-size="12" fill="#8a929c">渡辺通り</text>
+        <!-- 地下鉄路線 -->
+        <polyline points="0,156 470,156 575,70 660,45" fill="none" stroke="#f39800" stroke-width="4" stroke-dasharray="10 5" opacity="0.9"/>
+        <polyline points="334,360 334,244 620,244" fill="none" stroke="#2f9e44" stroke-width="4" stroke-dasharray="10 5" opacity="0.9"/>
+        <!-- 凡例 -->
+        <rect x="8" y="8" width="170" height="40" rx="5" fill="#ffffff" fill-opacity="0.95" stroke="#c9d2dc" stroke-width="1"/>
+        <line x1="18" y1="20" x2="46" y2="20" stroke="#f39800" stroke-width="4" stroke-dasharray="8 4"/>
+        <text x="53" y="24" font-size="10.5" fill="#5a636e">地下鉄空港線</text>
+        <line x1="18" y1="36" x2="46" y2="36" stroke="#2f9e44" stroke-width="4" stroke-dasharray="8 4"/>
+        <text x="53" y="40" font-size="10.5" fill="#5a636e">地下鉄七隈線</text>
         <!-- 駅 -->
-        <g font-family="inherit">
-          <rect x="112" y="136" width="14" height="14" rx="3" fill="#0f4c81"/>
-          <text x="100" y="164" font-size="12" fill="#0f4c81" font-weight="bold">赤坂駅</text>
-          <rect x="323" y="136" width="14" height="14" rx="3" fill="#0f4c81"/>
-          <text x="288" y="164" font-size="13" fill="#0f4c81" font-weight="bold">天神駅</text>
-          <rect x="560" y="50" width="14" height="14" rx="3" fill="#0f4c81"/>
-          <text x="500" y="44" font-size="12" fill="#0f4c81" font-weight="bold">中洲川端駅</text>
-          <rect x="323" y="220" width="14" height="14" rx="3" fill="#2e7d32"/>
-          <text x="240" y="248" font-size="12" fill="#2e7d32" font-weight="bold">天神南駅</text>
-          <rect x="310" y="180" width="12" height="12" rx="3" fill="#8a929c"/>
-          <text x="188" y="192" font-size="11" fill="#8a929c">西鉄福岡（天神）駅</text>
+        <g>
+          <circle cx="120" cy="156" r="7" fill="#ffffff" stroke="#f39800" stroke-width="3"/>
+          <text x="98" y="180" font-size="12" fill="#0f4c81" font-weight="bold">赤坂駅</text>
+          <circle cx="330" cy="156" r="8" fill="#ffffff" stroke="#f39800" stroke-width="3.5"/>
+          <text x="290" y="182" font-size="13" fill="#0f4c81" font-weight="bold">天神駅</text>
+          <circle cx="575" cy="70" r="7" fill="#ffffff" stroke="#f39800" stroke-width="3"/>
+          <text x="482" y="64" font-size="12" fill="#0f4c81" font-weight="bold">中洲川端駅</text>
+          <circle cx="334" cy="244" r="7" fill="#ffffff" stroke="#2f9e44" stroke-width="3"/>
+          <text x="248" y="266" font-size="12" fill="#1e7a2e" font-weight="bold">天神南駅</text>
+          <rect x="316" y="192" width="12" height="12" rx="3" fill="#9aa3ad"/>
+          <text x="192" y="203" font-size="11" fill="#8a929c">西鉄福岡（天神）駅</text>
         </g>
-        <!-- 店舗 -->
-        <circle cx="405" cy="92" r="11" fill="#c62828"/>
-        <text x="399" y="98" font-size="13" fill="#ffffff" font-weight="bold">★</text>
-        <text x="422" y="86" font-size="13" fill="#c62828" font-weight="bold">ぎふや福岡天神店</text>
-        <text x="422" y="101" font-size="11" fill="#c62828">天神ビジネスセンターⅡ B2F（天神駅直結）</text>
-        <!-- ホテル（春吉3-14-20） -->
-        <rect x="532" y="240" width="20" height="20" rx="4" fill="#e8923d"/>
-        <text x="536" y="255" font-size="12" fill="#ffffff" font-weight="bold">Ｈ</text>
-        <text x="368" y="253" font-size="11" fill="#b3641c" font-weight="bold">ホテルマイステイズ福岡天神南</text>
-        <!-- さくらす天神81・54（サラA棟 春吉3-15-28） -->
-        <rect x="490" y="274" width="18" height="18" rx="4" fill="#2e7d32"/>
-        <text x="514" y="283" font-size="11" fill="#2e7d32" font-weight="bold">さくらす天神81・54</text>
-        <text x="384" y="316" font-size="10" fill="#2e7d32">ダイナコートエスタディオサラA棟（春吉3-15-28）</text>
-        <!-- さくらす天神24（ビジネス・ワン天神 渡辺通5-7-22） -->
-        <rect x="340" y="296" width="18" height="18" rx="4" fill="#2e7d32"/>
-        <text x="140" y="304" font-size="11" fill="#2e7d32" font-weight="bold">さくらす天神24</text>
-        <text x="86" y="319" font-size="10" fill="#2e7d32">ビジネス・ワン天神（渡辺通5-7-22）</text>
+        <!-- ①店舗 吹き出し -->
+        <rect x="430" y="80" width="316" height="50" rx="6" fill="#ffffff" fill-opacity="0.96" stroke="#c62828" stroke-width="1.5"/>
+        <line x1="419" y1="100" x2="430" y2="100" stroke="#c62828" stroke-width="1.5"/>
+        <text x="442" y="100" font-size="12.5" fill="#c62828" font-weight="bold">① ぎふや福岡天神店</text>
+        <text x="442" y="118" font-size="10" fill="#555e68">天神ビジネスセンターⅡ B2F（天神駅直結）</text>
+        <circle cx="408" cy="100" r="11" fill="#c62828"/>
+        <text x="403" y="105" font-size="12" fill="#ffffff" font-weight="bold">①</text>
+        <!-- ②ホテル 吹き出し -->
+        <rect x="400" y="188" width="346" height="44" rx="6" fill="#ffffff" fill-opacity="0.96" stroke="#e8923d" stroke-width="1.5"/>
+        <line x1="546" y1="252" x2="546" y2="232" stroke="#e8923d" stroke-width="1.5"/>
+        <text x="412" y="206" font-size="12" fill="#b3641c" font-weight="bold">② ホテルマイステイズ福岡天神南</text>
+        <text x="412" y="223" font-size="10" fill="#555e68">春吉3-14-20｜天神南駅6番出口 徒歩約5分</text>
+        <circle cx="546" cy="262" r="11" fill="#e8923d"/>
+        <text x="541" y="267" font-size="12" fill="#ffffff" font-weight="bold">②</text>
+        <!-- ③サラA棟 吹き出し -->
+        <rect x="300" y="318" width="446" height="36" rx="6" fill="#ffffff" fill-opacity="0.96" stroke="#2e7d32" stroke-width="1.5"/>
+        <line x1="509" y1="304" x2="509" y2="318" stroke="#2e7d32" stroke-width="1.5"/>
+        <text x="312" y="333" font-size="11" fill="#2e7d32" font-weight="bold">③ さくらす天神81・54｜ダイナコートエスタディオサラA棟</text>
+        <text x="312" y="349" font-size="10" fill="#555e68">春吉3-15-28（天神南駅 徒歩約8分）※ホテル②のすぐ近く</text>
+        <circle cx="509" cy="294" r="10" fill="#2e7d32"/>
+        <text x="504" y="299" font-size="11" fill="#ffffff" font-weight="bold">③</text>
+        <!-- ④ビジネス・ワン天神 吹き出し -->
+        <rect x="60" y="276" width="252" height="40" rx="6" fill="#ffffff" fill-opacity="0.96" stroke="#2e7d32" stroke-width="1.5"/>
+        <line x1="312" y1="296" x2="342" y2="300" stroke="#2e7d32" stroke-width="1.5"/>
+        <text x="72" y="292" font-size="11" fill="#2e7d32" font-weight="bold">④ さくらす天神24</text>
+        <text x="72" y="309" font-size="10" fill="#555e68">ビジネス・ワン天神｜渡辺通5-7-22</text>
+        <circle cx="352" cy="301" r="10" fill="#2e7d32"/>
+        <text x="347" y="306" font-size="11" fill="#ffffff" font-weight="bold">④</text>
         <!-- 方位 -->
-        <text x="728" y="26" font-size="15" fill="#8a929c" font-weight="bold">N↑</text>
+        <text x="726" y="26" font-size="15" fill="#8a929c" font-weight="bold">N↑</text>
       </svg>
     </div>
     <div class="note">※位置関係を示す簡略図です。縮尺・道路形状は正確ではありません。</div>
