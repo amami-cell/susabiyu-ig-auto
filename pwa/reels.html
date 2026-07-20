@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0f1115">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>リール/投稿 確認</title>
+<style>
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  :root{--bg:#0f1115;--card:#181c23;--line:#262c36;--fg:#eaeef2;--sub:#9aa3b2;
+        --ok:#1f9d55;--rd:#3b6fd6;--ng:#444b57;--accent:#7fd1a0}
+  html,body{margin:0;background:var(--bg);color:var(--fg);
+    font-family:-apple-system,BlinkMacSystemFont,"Hiragino Kaku Gothic ProN","Noto Sans JP",sans-serif}
+  body{padding:0 0 env(safe-area-inset-bottom)}
+  button{touch-action:manipulation}
+  .topbar{position:sticky;top:0;z-index:10;background:rgba(15,17,21,.86);
+    backdrop-filter:saturate(180%) blur(12px);border-bottom:1px solid var(--line)}
+  .bar{display:flex;align-items:center;gap:10px;padding:calc(env(safe-area-inset-top) + 12px) 16px 12px}
+  .bar .back{border:1px solid var(--line);background:#181c23;color:var(--fg);font-size:13px;font-weight:800;
+    padding:7px 13px;border-radius:999px}
+  .bar h1{font-size:16px;margin:0;font-weight:800;letter-spacing:.2px;flex:1}
+  .bar .badge{font-size:11px;font-weight:800;color:var(--accent);background:#10301f;padding:5px 11px;border-radius:999px}
+  #wrap{padding:14px 14px 40px;max-width:560px;margin:0 auto}
+  .hint{color:var(--sub);font-size:12.5px;line-height:1.7;text-align:center;margin:6px 2px 16px}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:12px;margin-bottom:16px}
+  .chead{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:10px}
+  .kind{font-size:12.5px;font-weight:800;color:#fff;background:#7a4fd6;padding:3px 10px;border-radius:999px}
+  .kind.feed{background:#3b6fd6}
+  .time{font-size:12.5px;color:var(--sub)}
+  .sched{margin-left:auto;font-size:12px;font-weight:800;color:var(--accent);background:#10301f;padding:3px 10px;border-radius:999px}
+  .mediaWrap{position:relative;border-radius:13px;overflow:hidden;background:#000;width:100%;aspect-ratio:9/16}
+  .mediaWrap video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;background:#000}
+  .cap{font-size:14px;line-height:1.55;margin:11px 2px 4px;white-space:pre-wrap}
+  .tagpreview{font-size:13px;color:#7fb0ff;line-height:1.7;margin:2px 2px 10px;word-break:break-all}
+  .seclabel{font-size:12px;font-weight:800;color:var(--sub);margin:14px 2px 8px;display:flex;align-items:center;gap:8px}
+  .seclabel .cnt{color:var(--accent)}
+  .rankrow{margin:0 0 10px}
+  .rankttl{font-size:11.5px;color:var(--sub);font-weight:800;margin:0 2px 6px;display:flex;align-items:center;gap:6px}
+  .stars{color:#f2c14e;letter-spacing:1px}
+  .chips{display:flex;flex-wrap:wrap;gap:8px}
+  .chip{border:1px solid var(--line);background:#12161d;color:var(--fg);font-size:13px;font-weight:700;
+    padding:8px 12px;border-radius:999px;display:flex;align-items:center;gap:6px;transition:.12s}
+  .chip .s{font-size:10px;color:#f2c14e;letter-spacing:1px}
+  .chip.on{background:#10301f;border-color:#1f4d33;color:var(--accent)}
+  .chip.on .s{color:var(--accent)}
+  .chip:active{transform:scale(.95)}
+  .btns{display:flex;gap:8px;margin-top:14px}
+  .btns button{flex:1;border:0;border-radius:13px;padding:14px 0;font-size:15px;font-weight:800;color:#fff;transition:transform .06s,opacity .15s}
+  .ok{background:var(--ok)}.rd{background:var(--rd)}.ng{background:var(--ng)}
+  .btns button:active{transform:scale(.96);opacity:.92}
+  #toast{position:fixed;left:50%;bottom:calc(env(safe-area-inset-bottom) + 22px);transform:translateX(-50%);
+    background:#000;color:#fff;padding:11px 18px;border-radius:24px;font-size:14px;opacity:0;transition:.2s;pointer-events:none;z-index:30;max-width:90%;text-align:center}
+  #toast.show{opacity:.96}
+  .devnote{margin:2px 2px 18px;font-size:11.5px;color:#c79a3a;background:#241d10;border:1px solid #4a3c17;border-radius:12px;padding:10px 12px;line-height:1.6}
+</style>
+</head>
+<body>
+  <header class="topbar">
+    <div class="bar">
+      <button class="back" onclick="location.href='./index.html'">← 戻る</button>
+      <h1>リール / 投稿 確認</h1>
+      <span class="badge" id="cnt">1件</span>
+    </div>
+  </header>
+  <div id="wrap">
+    <div class="devnote">🚧 これは画面デザインの下書き（サンプル1件）です。中身の自動連携・実際の予約投稿はこの後つなぎます。見た目・操作感を先に確認してください。</div>
+    <div class="hint">承認するまで投稿されません。ハッシュタグは★が人気の目安（大→小）。おすすめ5件は最初から選択済み・タップで追加/解除できます。</div>
+    <div id="cards"></div>
+  </div>
+  <div id="toast"></div>
+<script>
+  var toastEl = document.getElementById("toast");
+  function toast(t){ toastEl.textContent=t; toastEl.classList.add("show"); clearTimeout(window._tt); window._tt=setTimeout(function(){toastEl.classList.remove("show");},1700); }
+
+  // ハッシュタグ辞書（★=人気の目安。3=大/2=中/1=小）
+  var HTAGS = [
+    {t:"飯テロ",r:3},{t:"寿司",r:3},{t:"京都グルメ",r:3},
+    {t:"大衆酒場",r:2},{t:"京都居酒屋",r:2},{t:"すし酒場",r:2},{t:"海鮮",r:2},{t:"日本酒",r:2},{t:"食べスタグラム",r:2},{t:"京都グルメ巡り",r:2},
+    {t:"河原町三条",r:1},{t:"三条グルメ",r:1},{t:"河原町グルメ",r:1},{t:"京都寿司",r:1},{t:"生ビール",r:1},{t:"乾杯",r:1},{t:"すさび湯三条",r:1}
+  ];
+  var DEFAULT = ["京都グルメ","河原町三条","京都居酒屋","すし酒場","飯テロ"];
+  var STAR = {3:"★★★",2:"★★",1:"★"};
+  var RANKTTL = {3:"人気 大",2:"人気 中",1:"人気 小（上位表示ねらい）"};
+
+  // サンプル投稿（デザイン確認用）。実データは後でバックエンドから差し込む。
+  var SAMPLE = {
+    kind:"reel", when:"7/21 18:00",
+    caption:"大衆価格で本気の握り。職人がその場で握る、できたてを。\n京都・河原町三条／すさび湯 三条",
+    video:"https://cdn.jsdelivr.net/gh/amami-cell/susabiyu-media@594980686729a6ec0fc2c41873615443d42fa9a4/preview/20260720125216_0788.mp4"
+  };
+
+  function buildCard(it){
+    var sel = {}; DEFAULT.forEach(function(t){ sel[t]=1; });
+    var card = document.createElement("div"); card.className="card";
+    var kindLabel = it.kind==="feed" ? "フィード投稿" : "リール投稿";
+    var head = '<div class="chead"><span class="kind '+(it.kind==="feed"?"feed":"")+'">'+kindLabel+'</span>'+
+               '<span class="time">'+it.when+' 予約</span><span class="sched">承認待ち</span></div>';
+    var media = '<div class="mediaWrap"><video src="'+it.video+'" controls playsinline preload="metadata"></video></div>';
+    var cap = '<div class="cap">'+it.caption+'</div>';
+    var tagprev = '<div class="tagpreview" id="tp"></div>';
+    // ランク別チップ
+    var picker = '<div class="seclabel">ハッシュタグ <span class="cnt" id="hcnt"></span></div>';
+    [3,2,1].forEach(function(r){
+      var items = HTAGS.filter(function(h){return h.r===r;});
+      picker += '<div class="rankrow"><div class="rankttl"><span class="stars">'+STAR[r]+'</span>'+RANKTTL[r]+'</div><div class="chips">';
+      items.forEach(function(h){
+        picker += '<button class="chip'+(sel[h.t]?" on":"")+'" data-t="'+h.t+'"><span>#'+h.t+'</span><span class="s">'+STAR[r]+'</span></button>';
+      });
+      picker += '</div></div>';
+    });
+    var btns = '<div class="btns"><button class="ok">投稿する</button><button class="rd">作り直す</button><button class="ng">やめる</button></div>';
+    card.innerHTML = head+media+cap+tagprev+picker+btns;
+
+    function tags(){ return HTAGS.filter(function(h){return sel[h.t];}).map(function(h){return h.t;}); }
+    function refresh(){
+      var t = tags();
+      card.querySelector("#tp").textContent = t.map(function(x){return "#"+x;}).join(" ");
+      card.querySelector("#hcnt").textContent = t.length+"件選択中";
+    }
+    card.querySelectorAll(".chip").forEach(function(ch){
+      ch.onclick = function(){ var t=ch.getAttribute("data-t"); if(sel[t]){delete sel[t];ch.classList.remove("on");}else{sel[t]=1;ch.classList.add("on");} refresh(); };
+    });
+    refresh();
+    card.querySelector(".ok").onclick = function(){ toast("（下書き）"+it.when+"に予約投稿します・ハッシュタグ"+tags().length+"件"); };
+    card.querySelector(".rd").onclick = function(){ toast("（下書き）作り直しを依頼します"); };
+    card.querySelector(".ng").onclick = function(){ toast("（下書き）この投稿をやめます"); };
+    return card;
+  }
+
+  document.getElementById("cards").appendChild(buildCard(SAMPLE));
+  document.getElementById("cnt").textContent = "1件";
+</script>
+</body>
+</html>
