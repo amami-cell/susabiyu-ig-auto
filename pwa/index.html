@@ -31,7 +31,8 @@
   .bar{display:flex;align-items:center;gap:10px;
     padding:calc(env(safe-area-inset-top) + 12px) 16px 8px}
   .bar .logo{height:32px;width:auto;max-width:96px;border-radius:6px;display:block;flex:0 0 auto;object-fit:contain}
-  .bar h1{font-size:16px;margin:0;font-weight:700;letter-spacing:.2px;flex:1}
+  .bar h1{font-size:16px;margin:0;font-weight:700;letter-spacing:.2px;flex:1;
+    min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .tabs{display:flex;gap:6px;padding:0 16px 10px}
   /* タップ遅延・ダブルタップ拡大判定を無効化＝ボタンの反応を即時に */
   button,.tab,.seg button,.rm,.alink,.gfilter button,.npbar button,.repkpi.tap,.reppost.tap{touch-action:manipulation}
@@ -86,9 +87,9 @@
   #gallery:not(.admin) .card .seg,
   #gallery:not(.admin) .card .ghintline{display:none}
   #gallery.admin .card .gnote{display:none}
-  .bar .reelbtn{border:1px solid var(--line);background:#181c23;color:var(--sub);
-    font-size:12px;font-weight:800;padding:6px 11px;border-radius:999px;flex:0 0 auto}
-  .bar .reelbtn:active{transform:scale(.95)}
+  .tabs .reeltab{margin-left:auto;border:1px solid var(--line);background:#181c23;color:var(--sub);
+    font-size:12px;font-weight:800;padding:7px 13px;border-radius:999px;flex:0 0 auto}
+  .tabs .reeltab:active{transform:scale(.94)}
   .bar .push{border:1px solid var(--line);background:#222835;color:var(--fg);
     font-size:12px;font-weight:700;padding:6px 11px;border-radius:999px;display:none}
   .bar .push.on{background:#10301f;color:var(--accent);border-color:#1f4d33}
@@ -314,7 +315,6 @@
     <div class="bar">
       <img class="logo" src="./icons/storelogo_white.png" alt="すさび湯三条">
       <h1 id="storeName">すさび湯三条</h1>
-      <button class="reelbtn" onclick="location.href='./reels.html'">🎬 リール</button>
       <button class="push" id="pushBtn">🔔 通知ON</button>
       <div class="dot" id="live"><i></i><span id="liveTxt">接続中…</span></div>
     </div>
@@ -322,6 +322,7 @@
       <button class="tab on" id="tabFeed">確認</button>
       <button class="tab" id="tabGallery">見本</button>
       <button class="tab" id="tabReport">レポート</button>
+      <button class="reeltab" onclick="location.href='./reels.html'">🎬 リール</button>
     </div>
     <div class="rmbar" id="repmodeBar" style="display:none">
       <button class="rm" data-m="week">週間</button>
