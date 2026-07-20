@@ -1581,6 +1581,16 @@ def photofetch(arg=None):
     print("[PHOTO] %d枚を review_photos/ に取得" % got[0])
 
 
+def uploadurl(arg=None):
+    """指定ファイルを永続CDN(jsDelivr→R2)にアップして、ブラウザで見れるURLを出力する。"""
+    import poster
+    path = (arg or "").strip()
+    if not path or not os.path.exists(path):
+        print("[UPLOAD] ファイルが見つかりません:", path); return
+    u = poster.up(path, cdn=True)
+    print("URL|" + (u or "(アップロード失敗)"))
+
+
 def musicfetch(arg=None):
     """音楽フォルダ(既定=normal)の音源を review_music/ にダウンロードする（ストーリーBGM選定用）。
     arg に 'normal'/'uptempo' またはフォルダID/URL。ワークフロー側でコミットする。"""
@@ -1706,5 +1716,7 @@ if __name__ == "__main__":
         photofetch(arg)
     elif mode == "musicfetch":
         musicfetch(arg)
+    elif mode == "uploadurl":
+        uploadurl(arg)
     else:
         print("使い方: python store_master.py init | setup [store_id] | columns | intake | requestsheet | roster | names | pending | saemail | distsheet | all")

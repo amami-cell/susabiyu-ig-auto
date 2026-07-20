@@ -7,7 +7,7 @@ on:
         required: true
         default: "init"
         type: choice
-        options: [init, setup, columns, intake, requestsheet, roster, names, storesdump, pending, saemail, distsheet, distdrive, distsub, distnote, disttop, distwarn, disttime, distmove, distfinal, distdump, drivefind, genredump, photofetch, musicfetch, tokencheck, inbox, inboxget, outbox, sddrives, uptest, frames, preview, capsamples, ffcsample, sushifolder, patdump, musicdirs, musicrestore, musiccheck, clearpending, pendingdump, pendingfix, usagedump, sheetrevs, all]
+        options: [init, setup, columns, intake, requestsheet, roster, names, storesdump, pending, saemail, distsheet, distdrive, distsub, distnote, disttop, distwarn, disttime, distmove, distfinal, distdump, drivefind, genredump, photofetch, musicfetch, uploadurl, tokencheck, inbox, inboxget, outbox, sddrives, uptest, frames, preview, capsamples, ffcsample, sushifolder, patdump, musicdirs, musicrestore, musiccheck, clearpending, pendingdump, pendingfix, usagedump, sheetrevs, all]
       store_id:
         description: "setup対象のstore_id（framesは動画フォルダID/URL）"
         required: false
@@ -139,6 +139,13 @@ jobs:
           GENRE_MUSIC_NORMAL_ID: ${{ secrets.GENRE_MUSIC_NORMAL_ID }}
           SHARE_EMAIL: ${{ secrets.SHARE_EMAIL }}
           REQ_SHEET_ID: ${{ secrets.REQ_SHEET_ID }}
+          GH_MEDIA_TOKEN: ${{ secrets.GH_MEDIA_TOKEN }}
+          GH_MEDIA_REPO: ${{ secrets.GH_MEDIA_REPO }}
+          R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          R2_BUCKET: ${{ secrets.R2_BUCKET }}
+          R2_PUBLIC_BASE: ${{ secrets.R2_PUBLIC_BASE }}
         run: python store_master.py "${{ github.event.inputs.mode }}" "${{ github.event.inputs.store_id }}"
       - name: Extract frames (framesのみ)
         if: github.event.inputs.mode == 'frames'
