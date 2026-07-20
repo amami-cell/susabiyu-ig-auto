@@ -1537,6 +1537,8 @@ def photofetch(arg=None):
     a = (arg or "interior").strip()
     fid = {"interior": g("GENRE_INTERIOR_ID"), "店内": g("GENRE_INTERIOR_ID"),
            "food": "14oKNgdXee2NrI7Dkmbrlbid4f0_VZ5Cv", "写真プール": "14oKNgdXee2NrI7Dkmbrlbid4f0_VZ5Cv",
+           "sake": g("GENRE_SAKE_ID") or "1vIAC9frejCyGhQAizT1Wsgmlaj8ULhTb",
+           "酒": g("GENRE_SAKE_ID") or "1vIAC9frejCyGhQAizT1Wsgmlaj8ULhTb",
            "event": g("GENRE_EVENT_ID"), "イベント": g("GENRE_EVENT_ID")}.get(a, a)
     fid = _folder_id_from_url(fid) or fid
     if not fid:
