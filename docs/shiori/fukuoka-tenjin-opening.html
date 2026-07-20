@@ -189,10 +189,7 @@
     display: block;
   }
   .g-p .fill.st { top: 1mm; border-radius: 1mm 1mm 0 0; }
-  .f-aoy { background: #3d6d99; }
-  .f-fun { background: #7a5ea8; }
-  .f-ama { background: #3f8f4f; }
-  .f-hir { background: #d97b2f; }
+  .f-aoy, .f-fun, .f-ama, .f-hir { background: #9aa8b6; }
   .bar {
     position: absolute;
     top: 0.9mm;
@@ -206,12 +203,13 @@
     overflow: hidden;
   }
   .bar.l2 { top: 4.6mm; }
-  .c-set  { background: #5b8db8; }
-  .c-trn  { background: #5f9e63; }
-  .c-fac  { background: #8a7fb8; }
-  .c-evt  { background: #e8923d; }
+  /* 3系統に集約：グレー=準備・作業／青緑=研修・ロープレ／金=オープン系 */
+  .c-set  { background: #97a3b0; }
+  .c-fac  { background: #97a3b0; }
+  .c-misc { background: #b7bec7; }
+  .c-trn  { background: #2f9e8f; }
+  .c-evt  { background: #e0a52e; color: #4a3400; }
   .c-open { background: #f2b705; color: #6b4a00; font-weight: bold; }
-  .c-misc { background: #9aa3ad; }
 
   /* ===== スケジュール詳細テーブル ===== */
   table.timeline {
@@ -242,7 +240,7 @@
   }
   table.timeline tr.sat td.time { color: #1565c0; }
   table.timeline tr.sun td.time { color: #c62828; }
-  table.timeline tr.pre td { background: #faf0e6; }
+  table.timeline tr.pre td { background: #fbfcfd; }
   table.timeline tr.open td { background: #fff3c4; }
   table.timeline tr.open td.time { color: #b25e00; }
 
@@ -386,8 +384,8 @@
   }
   table.resv td.rmk {
     vertical-align: middle;
-    background: #f4f9f4;
-    color: #2e7d32;
+    background: #eef2f6;
+    color: #0f4c81;
     font-weight: bold;
     font-size: 7.5pt;
     line-height: 1.3;
@@ -590,12 +588,11 @@
   <div class="section">
     <h2><span class="num">05</span>タイムスケジュール（7/24〜8/4）</h2>
     <div class="legend">
-      <span class="key"><span class="sw c-set"></span>納品・仕込み・準備</span>
+      <span class="key"><span class="sw c-set"></span>準備・仕込み・設置作業</span>
       <span class="key"><span class="sw c-trn"></span>研修・ロープレ</span>
-      <span class="key"><span class="sw c-fac"></span>工事・設置・立会</span>
-      <span class="key"><span class="sw c-evt"></span>関係者プレオープン</span>
+      <span class="key"><span class="sw c-evt"></span>プレオープン</span>
       <span class="key"><span class="sw c-open"></span>グランドオープン</span>
-      <span class="key"><span class="sw c-misc"></span>その他</span>
+      <span class="key"><span class="sw" style="background:#9aa8b6;"></span>乗り込み（滞在）期間</span>
     </div>
     <div class="gantt">
       <div class="g-row g-head">
@@ -751,7 +748,7 @@
       </div>
     </div>
     <div class="note"><strong>①研修</strong>＝夜1回（7/27）・昼1回（7/28）／<strong>②ランチロープレ</strong>＝12〜15時（②-1〜）／<strong>③ディナー合同ロープレ</strong>＝16〜20時（③-1〜）</div>
-    <div class="note">※横軸9〜21時。右列＝博多乗り込み期間：<span style="color:#3d6d99;font-weight:bold;">青山</span> 7/23〜10/21／<span style="color:#7a5ea8;font-weight:bold;">船﨑</span> 7/24〜8/10／<span style="color:#3f8f4f;font-weight:bold;">天見</span> 7/28〜8/1・8/3〜8/9／<span style="color:#d97b2f;font-weight:bold;">広瀬</span> 8/3〜8/6（ホテル泊）</div>
+    <div class="note">※横軸9〜21時。右列＝博多乗り込み期間：<strong>青山</strong> 7/23〜10/21／<strong>船﨑</strong> 7/24〜8/10／<strong>天見</strong> 7/28〜8/1・8/3〜8/9／<strong>広瀬</strong> 8/3〜8/6（ホテル泊）</div>
   </div>
 
   <div class="section">
