@@ -86,6 +86,9 @@
   #gallery:not(.admin) .card .seg,
   #gallery:not(.admin) .card .ghintline{display:none}
   #gallery.admin .card .gnote{display:none}
+  .bar .reelbtn{border:1px solid var(--line);background:#181c23;color:var(--sub);
+    font-size:12px;font-weight:800;padding:6px 11px;border-radius:999px;flex:0 0 auto}
+  .bar .reelbtn:active{transform:scale(.95)}
   .bar .push{border:1px solid var(--line);background:#222835;color:var(--fg);
     font-size:12px;font-weight:700;padding:6px 11px;border-radius:999px;display:none}
   .bar .push.on{background:#10301f;color:var(--accent);border-color:#1f4d33}
@@ -311,6 +314,7 @@
     <div class="bar">
       <img class="logo" src="./icons/storelogo_white.png" alt="すさび湯三条">
       <h1 id="storeName">すさび湯三条</h1>
+      <button class="reelbtn" onclick="location.href='./reels.html'">🎬 リール</button>
       <button class="push" id="pushBtn">🔔 通知ON</button>
       <div class="dot" id="live"><i></i><span id="liveTxt">接続中…</span></div>
     </div>
