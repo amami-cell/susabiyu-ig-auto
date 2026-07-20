@@ -1581,6 +1581,46 @@ def photofetch(arg=None):
     print("[PHOTO] %d枚を review_photos/ に取得" % got[0])
 
 
+def musicfetch(arg=None):
+    """音楽フォルダ(既定=normal)の音源を review_music/ にダウンロードする（ストーリーBGM選定用）。
+    arg に 'normal'/'uptempo' またはフォルダID/URL。ワークフロー側でコミットする。"""
+    import io as _io
+    from googleapiclient.http import MediaIoBaseDownload
+    cfg = _drive_config()
+    g = lambda k: os.environ.get(k) or cfg.get(k) or ""
+    a = (arg or "normal").strip().lower()
+    fid = {"normal": g("GENRE_MUSIC_NORMAL_ID"), "uptempo": g("GENRE_MUSIC_UPTEMPO_ID")}.get(a, arg)
+    fid = _folder_id_from_url(fid) or fid
+    if not fid:
+        print("[MUSIC] フォルダ未特定:", a); return
+    cr = _creds(); drive = _drive(cr)
+    outdir = "review_music"
+    os.makedirs(outdir, exist_ok=True)
+    page = None; n = 0
+    while True:
+        r = drive.files().list(q="'%s' in parents and trashed=false and (mimeType contains 'audio/' or name contains '.mp3')" % fid,
+            fields="nextPageToken, files(id,name,mimeType)", pageSize=200, pageToken=page,
+            supportsAllDrives=True, includeItemsFromAllDrives=True).execute()
+        for f in r.get("files", []):
+            if "folder" in (f.get("mimeType") or ""):
+                continue
+            dst = os.path.join(outdir, f.get("name", "bgm.mp3"))
+            try:
+                fh = _io.FileIO(dst, "wb")
+                dl = MediaIoBaseDownload(fh, drive.files().get_media(fileId=f["id"], supportsAllDrives=True))
+                done = False
+                while not done:
+                    _, done = dl.next_chunk()
+                fh.close(); n += 1
+                print("MUSIC|%s" % f.get("name"))
+            except Exception as e:
+                print("[MUSIC] DL失敗 %s: %s" % (f.get("name"), e))
+        page = r.get("nextPageToken")
+        if not page:
+            break
+    print("[MUSIC] %d曲を review_music/ に取得" % n)
+
+
 if __name__ == "__main__":
     mode = (sys.argv[1] if len(sys.argv) > 1 else "init").strip().lower()
     arg = sys.argv[2].strip() if len(sys.argv) > 2 else None
@@ -1664,5 +1704,7 @@ if __name__ == "__main__":
         tokencheck()
     elif mode == "photofetch":
         photofetch(arg)
+    elif mode == "musicfetch":
+        musicfetch(arg)
     else:
         print("使い方: python store_master.py init | setup [store_id] | columns | intake | requestsheet | roster | names | pending | saemail | distsheet | all")

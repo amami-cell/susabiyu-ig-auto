@@ -7,7 +7,7 @@ on:
         required: true
         default: "init"
         type: choice
-        options: [init, setup, columns, intake, requestsheet, roster, names, storesdump, pending, saemail, distsheet, distdrive, distsub, distnote, disttop, distwarn, disttime, distmove, distfinal, distdump, drivefind, genredump, photofetch, tokencheck, inbox, inboxget, outbox, sddrives, uptest, frames, preview, capsamples, ffcsample, sushifolder, patdump, musicdirs, musicrestore, musiccheck, clearpending, pendingdump, pendingfix, usagedump, sheetrevs, all]
+        options: [init, setup, columns, intake, requestsheet, roster, names, storesdump, pending, saemail, distsheet, distdrive, distsub, distnote, disttop, distwarn, disttime, distmove, distfinal, distdump, drivefind, genredump, photofetch, musicfetch, tokencheck, inbox, inboxget, outbox, sddrives, uptest, frames, preview, capsamples, ffcsample, sushifolder, patdump, musicdirs, musicrestore, musiccheck, clearpending, pendingdump, pendingfix, usagedump, sheetrevs, all]
       store_id:
         description: "setup対象のstore_id（framesは動画フォルダID/URL）"
         required: false
@@ -164,4 +164,13 @@ jobs:
           git config user.email "noreply@anthropic.com"
           git add -A review_photos
           git commit -m "chore(review): 店内写真の取り込み（AI動画の選定用）" || echo "no changes"
+          git push origin HEAD:${{ github.ref_name }}
+      - name: Commit music (musicfetchのみ)
+        if: github.event.inputs.mode == 'musicfetch'
+        run: |
+          rm -f creds.json
+          git config user.name "Claude"
+          git config user.email "noreply@anthropic.com"
+          git add -A review_music
+          git commit -m "chore(review): BGM音源の取り込み（ストーリー仕上げ用）" || echo "no changes"
           git push origin HEAD:${{ github.ref_name }}
