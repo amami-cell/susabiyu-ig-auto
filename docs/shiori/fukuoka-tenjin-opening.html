@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
-<title>福岡天神店 開業準備資料</title>
+<title>ぎふや福岡天神店 開業準備資料</title>
 <style>
   @page {
     size: A4;
@@ -20,9 +20,11 @@
     height: 296mm;
     overflow: hidden;
     padding: 9mm 14mm 9mm;
+    page-break-after: always;
     position: relative;
     background: #ffffff;
   }
+  .page:last-child { page-break-after: auto; }
 
   /* ===== 表紙ヘッダー ===== */
   .cover-band {
@@ -39,9 +41,9 @@
     margin-bottom: 1.4mm;
   }
   .cover-band h1 {
-    font-size: 18pt;
+    font-size: 17pt;
     font-weight: bold;
-    letter-spacing: 0.05em;
+    letter-spacing: 0.04em;
     line-height: 1.25;
   }
   .cover-band .dates {
@@ -54,8 +56,14 @@
     border: 0.35mm solid rgba(255,255,255,0.5);
     border-radius: 999px;
     padding: 1mm 4.5mm;
-    font-size: 9.5pt;
+    font-size: 9pt;
     letter-spacing: 0.04em;
+  }
+  .cover-band .date-chip.accent {
+    background: #ffd54d;
+    border-color: #ffd54d;
+    color: #7a4a00;
+    font-weight: bold;
   }
 
   /* ===== セクション見出し ===== */
@@ -85,7 +93,6 @@
     width: 100%;
     border-collapse: collapse;
     font-size: 8.5pt;
-    margin-bottom: 2mm;
   }
   table.timeline th {
     background: #eaf1f8;
@@ -102,16 +109,17 @@
     vertical-align: top;
   }
   table.timeline td.time {
-    width: 30mm;
+    width: 22mm;
     text-align: center;
     font-weight: bold;
     color: #0f4c81;
     white-space: nowrap;
   }
-  table.timeline td.who { width: 30mm; text-align: center; }
-  table.timeline .highlight td { background: #f4f9f4; }
-  table.timeline .done td { color: #8a929c; background: #f6f7f8; }
-  .empty-row td { height: 7mm; color: #b7bec7; }
+  table.timeline tr.sat td.time { color: #1565c0; }
+  table.timeline tr.sun td.time { color: #c62828; }
+  table.timeline tr.pre td { background: #faf0e6; }
+  table.timeline tr.open td { background: #fff3c4; }
+  table.timeline tr.open td.time { color: #b25e00; }
 
   /* ===== 情報テーブル ===== */
   table.info {
@@ -133,30 +141,38 @@
     white-space: nowrap;
   }
 
-  /* ===== ステータスタグ ===== */
-  .tag-done, .tag-todo, .tag-wip {
-    display: inline-block;
-    border-radius: 1.2mm;
-    font-size: 7.5pt;
-    font-weight: bold;
-    padding: 0.5mm 2mm;
-    letter-spacing: 0.04em;
-  }
-  .tag-done { background: #e7f2e7; color: #2e7d32; }
-  .tag-wip  { background: #faf0e6; color: #c96a2b; }
-  .tag-todo { background: #eaf1f8; color: #0f4c81; }
-
-  /* ===== 差し込み枠 ===== */
-  .placeholder {
-    border: 0.4mm dashed #b0b8c4;
-    background: #f4f7fb;
-    border-radius: 2mm;
-    padding: 3mm 4mm;
-    color: #6b7480;
+  /* ===== リスト ===== */
+  .notice-list { list-style: none; }
+  .notice-list li {
+    position: relative;
+    padding: 0.9mm 0 0.9mm 6mm;
     font-size: 8.5pt;
-    line-height: 1.7;
+    line-height: 1.55;
+    border-bottom: 0.2mm dotted #cfd6de;
   }
-  .placeholder strong { color: #0f4c81; }
+  .notice-list li::before {
+    content: "";
+    position: absolute;
+    left: 1mm;
+    top: 2.4mm;
+    width: 2.2mm;
+    height: 2.2mm;
+    background: #0f4c81;
+    border-radius: 50%;
+  }
+  .notice-list li.warn::before { background: #c96a2b; }
+  .notice-list li strong { color: #0f4c81; }
+  .notice-list li.warn strong { color: #c96a2b; }
+
+  /* ===== チップ ===== */
+  .chip-row { display: flex; flex-wrap: wrap; gap: 1.6mm; }
+  .chip {
+    border: 0.3mm solid #cfd6de;
+    background: #fbfcfe;
+    border-radius: 999px;
+    padding: 0.8mm 3.5mm;
+    font-size: 8.5pt;
+  }
 
   .note {
     font-size: 7.5pt;
@@ -164,17 +180,26 @@
     margin-top: 1mm;
     line-height: 1.6;
   }
+  .pagefoot {
+    position: absolute;
+    bottom: 4.5mm;
+    right: 14mm;
+    font-size: 7.5pt;
+    color: #9aa3ad;
+    letter-spacing: 0.08em;
+  }
 </style>
 </head>
 <body>
 
+<!-- ===================== 1ページ目 ===================== -->
 <div class="page">
   <div class="cover-band">
-    <div class="kicker">FUKUOKA TENJIN — OPENING PREPARATION</div>
-    <h1>福岡天神店 開業準備資料</h1>
+    <div class="kicker">GIFUYA FUKUOKA TENJIN — OPENING PREPARATION</div>
+    <h1>大衆酒場 ぎふや福岡天神店　開業準備資料</h1>
     <div class="dates">
-      <span class="date-chip">天神ビジネスセンター地下「天神イナチカ」</span>
-      <span class="date-chip">開業日：未定（決まり次第記載）</span>
+      <span class="date-chip accent">グランドオープン：2026年8月4日（火）12:30〜</span>
+      <span class="date-chip">準備期間：7/24（金）〜 8/4（火）</span>
     </div>
   </div>
 
@@ -183,109 +208,186 @@
     <table class="info">
       <tr>
         <th>店舗名</th>
-        <td>福岡天神店</td>
+        <td><strong>大衆酒場 ぎふや福岡天神店</strong>（営業部：イニシエート）</td>
       </tr>
       <tr>
         <th>所在地</th>
-        <td>天神ビジネスセンター地下「天神イナチカ」（福岡市中央区天神1-10-20）／地下鉄空港線「天神駅」直結</td>
+        <td>〒810-0001 福岡市中央区天神1丁目10番10号 天神ビジネスセンターⅡ B2F／地下鉄空港線「天神駅」直結</td>
       </tr>
       <tr>
-        <th>開業予定日</th>
-        <td>　※決まり次第記載</td>
+        <th>オープン予定日</th>
+        <td><strong>2026年8月4日（火）12:30〜 グランドオープン</strong>（8/4 9:10〜10:40 メディア内覧会）</td>
+      </tr>
+      <tr>
+        <th>担当管理職</th>
+        <td>青山SV（MG以上）　※店舗責任者：未定</td>
       </tr>
       <tr>
         <th>営業時間</th>
-        <td>　※決まり次第記載</td>
+        <td>11:00〜23:00（L.O. フード22:00／ドリンク22:30）</td>
+      </tr>
+      <tr>
+        <th>電話／FAX</th>
+        <td>TEL：092-406-8613　FAX：092-406-8614</td>
+      </tr>
+      <tr>
+        <th>メール</th>
+        <td>gifuya.fukuokatenjin@gmail.com</td>
+      </tr>
+      <tr>
+        <th>時給</th>
+        <td>平日：1,200円／週末（金土）：1,250円</td>
       </tr>
     </table>
   </div>
 
   <div class="section">
-    <h2><span class="num">02</span>開業までのスケジュール</h2>
+    <h2><span class="num">02</span>開業までのタイムスケジュール（7/24〜8/4）</h2>
     <table class="timeline">
       <tr>
-        <th style="width:30mm">日付</th>
-        <th style="width:30mm">担当</th>
+        <th style="width:22mm">日付</th>
         <th>内容</th>
       </tr>
-      <tr class="done">
-        <td class="time">7/8（水）</td>
-        <td class="who">全員</td>
-        <td>入店説明会（キャナルシティ博多）／店舗引き渡し立ち合い（大石様）　<span class="tag-done">完了予定</span></td>
+      <tr>
+        <td class="time">7/24（金）</td>
+        <td>9:00 川本さん入社／10:00〜12:00 <strong>保健所立会</strong>（食品衛生・衛生管理シート提出）／13時 ダスキン確認・サーバー手配／ガス繋ぎ込み／取り皿・とんすい・グラス納品　<strong>※厨房設備使用可能予定</strong></td>
       </tr>
-      <tr class="done">
-        <td class="time">7/9（木）</td>
-        <td class="who">全員／天見</td>
-        <td>USEN機器設置立会い／保健所申請（福岡市保健医療局 保健所）　<span class="tag-done">完了予定</span></td>
+      <tr class="sat">
+        <td class="time">7/25（土）</td>
+        <td>100均・備品買い出し／食材・ネット備品・ドリンク商材納品／荷下ろし・検品・梱包解体作業（たのめーる・消耗品）／備品・食器・グラス洗浄と配置／キッチン仕込み</td>
+      </tr>
+      <tr class="sun">
+        <td class="time">7/26（日）</td>
+        <td>キッチン仕込み／ホール準備・片付け／オペレーション確認</td>
       </tr>
       <tr>
-        <td class="time">7/24以降</td>
-        <td class="who">　</td>
-        <td>博多乗り込み／ビールサーバー設置　<span class="tag-wip">日程調整中</span></td>
+        <td class="time">7/27（月）</td>
+        <td>①17:00〜20:00 <strong>スタッフ研修・ロープレ・シミュレーション</strong>（夜の部・学生メイン）／ホール準備・キッチン仕込み</td>
       </tr>
-      <tr class="empty-row">
-        <td class="time">　</td><td class="who">　</td><td>　</td>
+      <tr>
+        <td class="time">7/28（火）</td>
+        <td>①12:00〜15:00 <strong>スタッフ研修・ロープレ・シミュレーション</strong>（昼の部）／13時 開業関係者説明会／15時 岩田フーズ顔合わせ・USEN BGM設置・カメラ設置／16:00〜18:00 USEN操作トレーニング</td>
       </tr>
-      <tr class="empty-row">
-        <td class="time">　</td><td class="who">　</td><td>　</td>
+      <tr>
+        <td class="time">7/29（水）</td>
+        <td>13:00〜 店内・店外撮影／②16:00〜20:00 ホールキッチン合同ロープレ／20:00 仕込み終了</td>
       </tr>
-      <tr class="empty-row">
-        <td class="time">　</td><td class="who">　</td><td>　</td>
+      <tr class="pre">
+        <td class="time">7/30（木）</td>
+        <td>③-1 12:00〜15:00 合同ロープレ（ランチメニュー）／16:00〜20:00 合同ロープレ・<strong>レセプション</strong></td>
       </tr>
-      <tr class="empty-row">
-        <td class="time">　</td><td class="who">　</td><td>　</td>
+      <tr class="pre">
+        <td class="time">7/31（金）</td>
+        <td>13〜17時 NTT設置工事／13:00〜14:00 USEN操作トレーニング／14:00〜16:00 オープン準備／16:00〜20:00 <strong>関係者プレオープン</strong></td>
       </tr>
-      <tr class="empty-row">
-        <td class="time">　</td><td class="who">　</td><td>　</td>
+      <tr class="sat">
+        <td class="time">8/1（土）</td>
+        <td>キッチン仕込み／③16:00〜20:00 ホールキッチン合同ロープレ</td>
+      </tr>
+      <tr class="sun">
+        <td class="time">8/2（日）</td>
+        <td>③-2 12:00〜15:00 合同ロープレ（ランチメニュー）／16:00〜20:00 ホールキッチン合同ロープレ</td>
+      </tr>
+      <tr>
+        <td class="time">8/3（月）</td>
+        <td>③-3 12:00〜15:00 合同ロープレ（ランチメニュー）／16:00〜20:00 ホールキッチン合同ロープレ</td>
+      </tr>
+      <tr class="open">
+        <td class="time">8/4（火）</td>
+        <td>9:10〜10:40 メディア内覧会／<strong>12:30〜 グランドオープン</strong></td>
       </tr>
     </table>
-    <div class="note">※内容をいただき次第、日付・担当を追記します。</div>
+  </div>
+
+  <div class="pagefoot">1 / 2</div>
+</div>
+
+<!-- ===================== 2ページ目 ===================== -->
+<div class="page">
+  <div class="section">
+    <h2><span class="num">03</span>研修・作業の進め方</h2>
+    <ul class="notice-list">
+      <li><strong>① 13:00〜16:00</strong>：納品物収納・ふきあげ・店舗清掃　<span style="color:#c62828;">※①・②は2部制で半分ずつ</span></li>
+      <li><strong>② 16:30〜19:30</strong>：シミュレーション（最終時間が残れば全体ロープレ）</li>
+      <li><strong>研修内容（計140〜150分）</strong>：ハウスルール説明45分／休憩15分／オペレーション設備説明15分／卓番説明10分／メニュー説明15分／各作業マニュアル研修20分／ロープレ20〜30分</li>
+    </ul>
   </div>
 
   <div class="section">
-    <h2><span class="num">03</span>準備タスク一覧</h2>
-    <div class="placeholder">
-      <strong>※ここに開業までの準備タスクを記載します。</strong><br>
-      内容をお送りいただき次第、担当・期限・ステータス付きで整理します。<br>
-      （例：営業許可関係／内装・設備／仕入れ・備品／採用・シフト／販促・SNS告知　など）
+    <h2><span class="num">04</span>準備物</h2>
+    <div class="chip-row">
+      <span class="chip">パソコン</span>
+      <span class="chip">ルーター</span>
+      <span class="chip">電話機</span>
+      <span class="chip">プリンター</span>
+      <span class="chip">取り皿</span>
+      <span class="chip">とんすい</span>
     </div>
   </div>
 
   <div class="section">
-    <h2><span class="num">04</span>開業日当日のタイムスケジュール</h2>
-    <table class="timeline">
+    <h2><span class="num">05</span>マンスリーマンション（さくらす天神）</h2>
+    <table class="info">
       <tr>
-        <th style="width:30mm">時間</th>
-        <th style="width:30mm">担当</th>
-        <th>内容</th>
+        <th>青山 人事MG</th>
+        <td>7/23〜10/21（90日）　さくらす天神81</td>
       </tr>
-      <tr class="empty-row"><td class="time">　</td><td class="who">　</td><td>　</td></tr>
-      <tr class="empty-row"><td class="time">　</td><td class="who">　</td><td>　</td></tr>
-      <tr class="empty-row"><td class="time">　</td><td class="who">　</td><td>　</td></tr>
-      <tr class="empty-row"><td class="time">　</td><td class="who">　</td><td>　</td></tr>
-      <tr class="empty-row"><td class="time">　</td><td class="who">　</td><td>　</td></tr>
-      <tr class="empty-row"><td class="time">　</td><td class="who">　</td><td>　</td></tr>
+      <tr>
+        <th>船﨑 料理長</th>
+        <td>7/24〜8/10（17日）　さくらす天神24</td>
+      </tr>
+      <tr>
+        <th>天見</th>
+        <td>7/28〜8/9（12日）　さくらす天神54</td>
+      </tr>
+      <tr>
+        <th>入居までの流れ</th>
+        <td>本人確認書類（顔写真付き）をメール送付 → 審査 → 契約書・請求書をメールで受領し、振込またはクレジットで支払い（お申込みから5営業日以内にご入金） → 入居日当日は集合ポストのキーボックスで鍵の引き渡し（<strong>13時以降入居</strong>）</td>
+      </tr>
     </table>
-    <div class="note">※開業日・当日の流れが決まり次第反映します。</div>
   </div>
 
   <div class="section">
-    <h2><span class="num">05</span>連絡先</h2>
+    <h2><span class="num">06</span>ホテル（ホテルマイステイズ福岡天神南）</h2>
     <table class="info">
+      <tr>
+        <th>① 古川社長・<br>小比賀統括本部長</th>
+        <td>IN：7/30（木）15:00　OUT：7/31（金）　2部屋（各1名）　予約受付番号：RYa0n3h0b8_1〜2</td>
+      </tr>
+      <tr>
+        <th>② 古川社長・<br>小比賀統括本部長</th>
+        <td>IN：8/3（月）15:00　OUT：8/4（火）　2部屋（各1名）　予約受付番号：RYa0n3h0sz_1〜2</td>
+      </tr>
+      <tr>
+        <th>③ 広瀬さん</th>
+        <td>IN：8/3（月）15:00　OUT：8/6（木）　3泊・1部屋　予約受付番号：RYa0n3h18n</td>
+      </tr>
+      <tr>
+        <th>精算</th>
+        <td><strong>一括精算</strong>（宿泊税1人200円のみ現地フロントでお支払い）</td>
+      </tr>
+    </table>
+  </div>
+
+  <div class="section">
+    <h2><span class="num">07</span>連絡先</h2>
+    <table class="info">
+      <tr>
+        <th>店舗</th>
+        <td>TEL：092-406-8613　FAX：092-406-8614　メール：gifuya.fukuokatenjin@gmail.com</td>
+      </tr>
       <tr>
         <th>保健所</th>
         <td>福岡市保健医療局 保健所（中央区舞鶴2-5-1・あいれふ内）　代表電話：092-401-1769　FAX：092-406-5075</td>
       </tr>
       <tr>
-        <th>入店説明会担当</th>
-        <td>政住様　電話：090-9485-8776　メール：s.masazumi@fj-eworks.co.jp</td>
-      </tr>
-      <tr>
-        <th>　</th>
-        <td>　</td>
+        <th>宿泊ホテル</th>
+        <td>ホテルマイステイズ福岡天神南</td>
       </tr>
     </table>
   </div>
+
+  <div class="pagefoot">2 / 2</div>
 </div>
 
 </body>
