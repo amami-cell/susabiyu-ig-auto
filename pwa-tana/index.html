@@ -44,7 +44,6 @@
   <div class="s">読み込み中…</div>
 </div>
 <iframe id="app"
-  src="https://script.google.com/macros/s/AKfycbyvVFWDpXDnjDP9r7PvzlCYSycCcKtDe6fpd_lykXywETy51Y-s3kF1YoryDmpnn3621Q/exec"
   allow="clipboard-write; fullscreen"
   referrerpolicy="no-referrer-when-downgrade"></iframe>
 <script>
@@ -53,12 +52,35 @@
     var app = document.getElementById('app');
     var splash = document.getElementById('splash');
     var loaded = false, hidden = false;
+
+    // ── ログイン保持（IG自動投稿と同じ方式）─────────────────────────
+    // GASダッシュボードはiframe内で表示されるため、iOSではiframe内に保存した
+    // パスコードが消され、毎回ログイン画面が出てしまう。そこで「消えない親ページ
+    // （このGitHub Pages側）」にパスコードを覚えさせ、iframeを ?p= 付きで開いて
+    // 自動ログインさせる。初回ログイン成功時にGASから postMessage で受け取り保存。
+    function savedPass() { try { return localStorage.getItem('tana_p') || ''; } catch (e) { return ''; } }
+    function srcWithPass() {
+      var p = savedPass();
+      return p ? (URL + '?p=' + encodeURIComponent(p)) : URL;
+    }
+    // GAS（サンドボックス）からのログイン成功通知を受けてパスコードを保存
+    window.addEventListener('message', function (ev) {
+      try {
+        var o = ev.data;
+        if (!o || o.type !== 'tana-auth' || !o.p) return;
+        if (!/^https:\/\/([a-z0-9-]+\.googleusercontent\.com|script\.google\.com)$/.test(ev.origin || '')) return;
+        if (String(o.p) !== savedPass()) localStorage.setItem('tana_p', String(o.p));
+      } catch (e) {}
+    });
+    // 保存済みパスコードがあれば ?p= 付きで自動ログイン、無ければ通常表示（iframe内でログイン）
+    app.src = srcWithPass();
+
     function hideSplash() { if (hidden) return; hidden = true; splash.classList.add('hide'); }
     app.addEventListener('load', function () { loaded = true; setTimeout(hideSplash, 300); });
     // 保険1: 読み込みイベントが来ても数秒でスプラッシュは必ず消す
     setTimeout(hideSplash, 5000);
     // 保険2: フレーム表示が何らかの理由で読み込めない環境では、直接アプリを開く
-    setTimeout(function () { if (!loaded) location.replace(URL); }, 6000);
+    setTimeout(function () { if (!loaded) location.replace(srcWithPass()); }, 6000);
 
     // Service Worker（インストール可能に・オフライン時は入口だけキャッシュ）
     if ('serviceWorker' in navigator) {
