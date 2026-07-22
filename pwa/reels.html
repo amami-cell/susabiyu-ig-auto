@@ -6,131 +6,291 @@
 <meta name="theme-color" content="#0f1115">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<title>リール/投稿 確認</title>
+<title>投稿の確認（フィード / リール）</title>
 <style>
-  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;margin:0;padding:0}
   :root{--bg:#0f1115;--card:#181c23;--line:#262c36;--fg:#eaeef2;--sub:#9aa3b2;
-        --ok:#1f9d55;--rd:#3b6fd6;--ng:#444b57;--accent:#7fd1a0}
-  html,body{margin:0;background:var(--bg);color:var(--fg);
+        --ok:#1f9d55;--rd:#3b6fd6;--ng:#3a414d;--accent:#7fd1a0;--gold:#e0b56e;--reel:#7a4fd6}
+  html,body{background:var(--bg);color:var(--fg);
     font-family:-apple-system,BlinkMacSystemFont,"Hiragino Kaku Gothic ProN","Noto Sans JP",sans-serif}
-  body{padding:0 0 env(safe-area-inset-bottom)}
-  button{touch-action:manipulation}
-  .topbar{position:sticky;top:0;z-index:10;background:rgba(15,17,21,.86);
+  button{touch-action:manipulation;font-family:inherit}
+  .topbar{position:sticky;top:0;z-index:20;background:rgba(15,17,21,.92);
     backdrop-filter:saturate(180%) blur(12px);border-bottom:1px solid var(--line)}
-  .bar{display:flex;align-items:center;gap:10px;padding:calc(env(safe-area-inset-top) + 12px) 16px 12px}
-  .bar .back{border:1px solid var(--line);background:#181c23;color:var(--fg);font-size:13px;font-weight:800;
-    padding:7px 13px;border-radius:999px}
-  .bar h1{font-size:16px;margin:0;font-weight:800;letter-spacing:.2px;flex:1}
-  .bar .badge{font-size:11px;font-weight:800;color:var(--accent);background:#10301f;padding:5px 11px;border-radius:999px}
-  #wrap{padding:14px 14px 40px;max-width:560px;margin:0 auto}
-  .hint{color:var(--sub);font-size:12.5px;line-height:1.7;text-align:center;margin:6px 2px 16px}
-  .card{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:12px;margin-bottom:16px}
-  .chead{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:10px}
-  .kind{font-size:12.5px;font-weight:800;color:#fff;background:#7a4fd6;padding:3px 10px;border-radius:999px}
-  .kind.feed{background:#3b6fd6}
-  .time{font-size:12.5px;color:var(--sub)}
-  .sched{margin-left:auto;font-size:12px;font-weight:800;color:var(--accent);background:#10301f;padding:3px 10px;border-radius:999px}
-  .mediaWrap{position:relative;border-radius:13px;overflow:hidden;background:#000;width:100%;aspect-ratio:9/16}
-  .mediaWrap video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;background:#000}
-  .cap{font-size:14px;line-height:1.55;margin:11px 2px 4px;white-space:pre-wrap}
-  .tagpreview{font-size:13px;color:#7fb0ff;line-height:1.7;margin:2px 2px 10px;word-break:break-all}
-  .seclabel{font-size:12px;font-weight:800;color:var(--sub);margin:14px 2px 8px;display:flex;align-items:center;gap:8px}
-  .seclabel .cnt{color:var(--accent)}
-  .rankrow{margin:0 0 10px}
+  .bar{display:flex;align-items:center;gap:10px;padding:calc(env(safe-area-inset-top) + 12px) 16px 10px}
+  .bar .back{border:1px solid var(--line);background:#181c23;color:var(--fg);font-size:13px;font-weight:800;padding:7px 13px;border-radius:999px}
+  .bar h1{font-size:16px;font-weight:800;flex:1}
+  .bar .lock{font-size:14px;color:var(--sub)}
+  .tabs{display:flex;gap:8px;padding:0 14px 12px}
+  .tab{flex:1;text-align:center;padding:11px;border-radius:12px;border:1px solid var(--line);background:#141922;color:var(--sub);font-weight:800;font-size:14px}
+  .tab.on{background:#12263a;border-color:#2f5a8f;color:#cfe4ff}
+  .tab.on.reel{background:#241a33;border-color:#5a3fa0;color:#e2d3ff}
+  #wrap{padding:14px 14px 60px;max-width:520px;margin:0 auto}
+  .hint{color:var(--sub);font-size:12.5px;line-height:1.7;text-align:center;margin:2px 2px 16px}
+  .seclabel{font-size:13px;font-weight:800;color:var(--fg);margin:8px 2px 10px;display:flex;align-items:center;gap:8px}
+  .seclabel .cnt{color:var(--accent);font-size:12px;font-weight:800}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:12px;margin-bottom:16px;position:relative}
+  .card.reco{border-color:var(--gold);box-shadow:0 0 0 1px rgba(224,181,110,.35)}
+  .reco-badge{position:absolute;top:-11px;left:14px;background:linear-gradient(90deg,#e0b56e,#caa14e);color:#241c08;font-size:11.5px;font-weight:900;padding:4px 11px;border-radius:999px}
+  .chead{display:flex;align-items:center;gap:8px;margin-bottom:10px}
+  .kind{font-size:12px;font-weight:800;color:#fff;background:var(--rd);padding:3px 10px;border-radius:999px}
+  .kind.reel{background:var(--reel)}
+  .cno{font-size:12.5px;color:var(--sub);font-weight:800}
+  .mediaWrap{position:relative;border-radius:13px;overflow:hidden;background:#000;width:100%}
+  .mediaWrap.feed{aspect-ratio:4/5}
+  .mediaWrap.reel{aspect-ratio:9/16}
+  .mediaWrap img,.mediaWrap video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;background:#000}
+  .ph{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;
+    background:linear-gradient(160deg,#2a2016,#241a33);color:#cbd3e0;font-weight:800;font-size:15px;text-align:center;padding:16px}
+  .ph small{color:#9aa3b2;font-weight:700;font-size:12px}
+  /* トリミング */
+  .trim{margin:10px 2px 2px}
+  .trimhd{display:flex;justify-content:space-between;font-size:12px;color:var(--sub);font-weight:800;margin-bottom:6px}
+  .trimhd b{color:#e2d3ff}
+  .rangewrap{position:relative;height:34px}
+  .rangewrap input[type=range]{position:absolute;left:0;top:0;width:100%;margin:0;-webkit-appearance:none;background:transparent;pointer-events:none}
+  .rangewrap input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;pointer-events:auto;width:20px;height:20px;border-radius:50%;background:var(--reel);border:2px solid #fff;margin-top:-8px}
+  .rangewrap .track{position:absolute;left:0;right:0;top:15px;height:5px;border-radius:3px;background:#2a3140}
+  .rangewrap .sel{position:absolute;top:15px;height:5px;border-radius:3px;background:var(--reel)}
+  .cap{font-size:13.5px;line-height:1.6;margin:11px 2px 4px;white-space:pre-wrap;color:#dfe5ee}
+  .more{color:#7fb0ff;font-weight:800;font-size:13px;cursor:pointer;margin:2px 2px 6px;display:inline-block}
+  .seclabel.tag{margin-top:12px}
+  .rankrow{margin:0 0 8px}
   .rankttl{font-size:11.5px;color:var(--sub);font-weight:800;margin:0 2px 6px;display:flex;align-items:center;gap:6px}
-  .stars{color:#f2c14e;letter-spacing:1px}
-  .chips{display:flex;flex-wrap:wrap;gap:8px}
-  .chip{border:1px solid var(--line);background:#12161d;color:var(--fg);font-size:13px;font-weight:700;
-    padding:8px 12px;border-radius:999px;display:flex;align-items:center;gap:6px;transition:.12s}
-  .chip .s{font-size:10px;color:#f2c14e;letter-spacing:1px}
-  .chip.on{background:#10301f;border-color:#1f4d33;color:var(--accent)}
-  .chip.on .s{color:var(--accent)}
+  .stars{color:var(--gold);letter-spacing:1px}
+  .chips{display:flex;flex-wrap:wrap;gap:7px}
+  .chip{border:1px solid var(--line);background:#12161d;color:#8ea0b6;font-size:12.5px;font-weight:700;padding:7px 11px;border-radius:999px;display:flex;align-items:center;gap:6px;transition:.12s}
+  .chip .s{font-size:10px;color:var(--gold);letter-spacing:1px}
+  .chip.on{background:#12263a;border-color:#2f5a8f;color:#bcd6ff}
+  .chip.inb{border-style:dashed}
+  .chip.on.inb{background:#241a33;border-color:#5a3fa0;color:#e2d3ff}
   .chip:active{transform:scale(.95)}
-  .btns{display:flex;gap:8px;margin-top:14px}
-  .btns button{flex:1;border:0;border-radius:13px;padding:14px 0;font-size:15px;font-weight:800;color:#fff;transition:transform .06s,opacity .15s}
-  .ok{background:var(--ok)}.rd{background:var(--rd)}.ng{background:var(--ng)}
-  .btns button:active{transform:scale(.96);opacity:.92}
-  #toast{position:fixed;left:50%;bottom:calc(env(safe-area-inset-bottom) + 22px);transform:translateX(-50%);
-    background:#000;color:#fff;padding:11px 18px;border-radius:24px;font-size:14px;opacity:0;transition:.2s;pointer-events:none;z-index:30;max-width:90%;text-align:center}
+  .actions{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:12px}
+  .btn{padding:12px;border-radius:12px;border:0;font-weight:800;font-size:14px;color:#fff}
+  .btn.post{background:var(--ok)}.btn.resv{background:var(--rd)}
+  .btn.redo{background:#2a3140;color:#cdd5e1}.btn.no{background:transparent;color:#7c8698;border:1px solid var(--line)}
+  .resvbox{margin-top:8px;background:#10161f;border:1px solid var(--line);border-radius:12px;padding:11px;display:none;gap:8px;align-items:center;flex-wrap:wrap}
+  .resvbox.open{display:flex}
+  .resvbox label{font-size:12.5px;color:var(--sub);font-weight:800}
+  .resvbox input{background:#0c1017;border:1px solid var(--line);color:var(--fg);border-radius:9px;padding:9px;font-size:13px}
+  .resvbox .go{background:var(--rd);color:#fff;border:0;font-weight:800;padding:10px 14px;border-radius:10px;font-size:13px}
+  /* 予約済み */
+  .srow{display:flex;align-items:center;gap:11px;background:var(--card);border:1px solid var(--line);border-radius:14px;padding:10px;margin-bottom:10px}
+  .sthumb{width:52px;height:65px;border-radius:8px;object-fit:cover;background:#000;flex:none;display:flex;align-items:center;justify-content:center;font-size:18px}
+  .sthumb.reel{background:linear-gradient(160deg,#1a2233,#241a33)}
+  .smeta{flex:1;min-width:0}
+  .sk{font-size:11px;font-weight:800;color:#fff;padding:2px 8px;border-radius:999px;background:var(--rd)}
+  .sk.reel{background:var(--reel)}
+  .sdate{font-size:13.5px;font-weight:800;color:#cfe4ff;margin:3px 0 2px}
+  .stxt{font-size:12px;color:var(--sub);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .scancel{border:1px solid var(--line);background:#181c23;color:#9aa3b2;font-size:12px;font-weight:800;padding:7px 11px;border-radius:999px;flex:none}
+  .empty{color:var(--sub);font-size:12.5px;text-align:center;padding:18px;border:1px dashed var(--line);border-radius:14px}
+  /* 詳細モーダル */
+  #modal{position:fixed;inset:0;z-index:40;background:rgba(0,0,0,.72);display:none;align-items:flex-end}
+  #modal.open{display:flex}
+  .sheet{background:var(--bg);width:100%;max-height:92vh;border-radius:20px 20px 0 0;border-top:1px solid var(--line);overflow:auto;padding:0 0 40px}
+  .shhd{position:sticky;top:0;background:var(--bg);display:flex;align-items:center;gap:10px;padding:14px 16px;border-bottom:1px solid var(--line)}
+  .shhd h3{font-size:15px;font-weight:800;flex:1}
+  .shhd .x{border:1px solid var(--line);background:#181c23;color:var(--fg);font-weight:800;border-radius:999px;padding:6px 12px;font-size:13px}
+  .shbody{padding:14px 16px}
+  .fs-video{position:relative;width:100%;aspect-ratio:9/16;background:#000;border-radius:14px;overflow:hidden}
+  .fs-video video{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;background:#000}
+  .fs-img{width:100%;aspect-ratio:4/5;object-fit:cover;border-radius:14px;background:#000}
+  .dmeta{font-size:13px;color:var(--sub);margin:12px 2px 4px;font-weight:800}
+  .dcap{font-size:14px;line-height:1.65;white-space:pre-wrap;margin:6px 2px 12px}
+  .dtags{font-size:13px;color:#8ea0ff;line-height:1.7;word-break:break-all;margin-bottom:14px}
+  .dact{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+  #toast{position:fixed;left:50%;bottom:calc(env(safe-area-inset-bottom) + 22px);transform:translateX(-50%);background:#000;color:#fff;padding:11px 18px;border-radius:24px;font-size:14px;opacity:0;transition:.2s;pointer-events:none;z-index:60;max-width:90%;text-align:center}
   #toast.show{opacity:.96}
-  .devnote{margin:2px 2px 18px;font-size:11.5px;color:#c79a3a;background:#241d10;border:1px solid #4a3c17;border-radius:12px;padding:10px 12px;line-height:1.6}
+  .devnote{margin:2px 2px 16px;font-size:11.5px;color:#c79a3a;background:#241d10;border:1px solid #4a3c17;border-radius:12px;padding:10px 12px;line-height:1.6}
 </style>
 </head>
 <body>
   <header class="topbar">
     <div class="bar">
       <button class="back" onclick="location.href='./index.html'">← 戻る</button>
-      <h1>リール / 投稿 確認</h1>
-      <span class="badge" id="cnt">1件</span>
+      <h1>投稿の確認</h1><span class="lock">🔒</span>
+    </div>
+    <div class="tabs">
+      <div class="tab on" id="tabFeed" onclick="switchTab('feed')">📸 フィード投稿</div>
+      <div class="tab reel" id="tabReel" onclick="switchTab('reel')">🎬 リール投稿</div>
     </div>
   </header>
   <div id="wrap">
-    <div class="devnote">🚧 これは画面デザインの下書き（サンプル1件）です。中身の自動連携・実際の予約投稿はこの後つなぎます。見た目・操作感を先に確認してください。</div>
-    <div class="hint">承認するまで投稿されません。ハッシュタグは★が人気の目安（大→小）。おすすめ5件は最初から選択済み・タップで追加/解除できます。</div>
+    <div class="devnote">🚧 画面デザインの下書き（サンプル）です。自動連携・実際の予約投稿はこの後つなぎます。操作感を先に確認してください。</div>
+    <div class="hint">各3案から選んで「今すぐ投稿」または「日時を決めて予約」。直したい時は「作り直す」で指示できます。</div>
+    <div class="seclabel"><span id="secttl">📸 フィード投稿の候補</span> <span class="cnt">3案</span></div>
     <div id="cards"></div>
+    <div class="seclabel" style="margin-top:22px">📅 予約済み <span class="cnt">フィード・リール共通</span></div>
+    <div id="sched"></div>
   </div>
+  <div id="modal"><div class="sheet"><div class="shhd"><h3 id="mtitle">投稿の詳細</h3><button class="x" onclick="closeModal()">閉じる</button></div><div class="shbody" id="mbody"></div></div></div>
   <div id="toast"></div>
 <script>
-  var toastEl = document.getElementById("toast");
-  function toast(t){ toastEl.textContent=t; toastEl.classList.add("show"); clearTimeout(window._tt); window._tt=setTimeout(function(){toastEl.classList.remove("show");},1700); }
+  var toastEl=document.getElementById("toast");
+  function toast(t){toastEl.textContent=t;toastEl.classList.add("show");clearTimeout(window._tt);window._tt=setTimeout(function(){toastEl.classList.remove("show");},1800);}
+  function esc(s){return (s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");}
+  function fmt(t){t=Math.max(0,Math.round(t));var m=Math.floor(t/60),s=t%60;return m+":"+(s<10?"0":"")+s;}
 
-  // ハッシュタグ辞書（★=人気の目安。3=大/2=中/1=小）
-  var HTAGS = [
-    {t:"飯テロ",r:3},{t:"寿司",r:3},{t:"京都グルメ",r:3},
-    {t:"大衆酒場",r:2},{t:"京都居酒屋",r:2},{t:"すし酒場",r:2},{t:"海鮮",r:2},{t:"日本酒",r:2},{t:"食べスタグラム",r:2},{t:"京都グルメ巡り",r:2},
-    {t:"河原町三条",r:1},{t:"三条グルメ",r:1},{t:"河原町グルメ",r:1},{t:"京都寿司",r:1},{t:"生ビール",r:1},{t:"乾杯",r:1},{t:"すさび湯三条",r:1}
+  /* ハッシュタグ辞書（★=人気の目安）＋インバウンド */
+  var HTAGS=[
+    {t:"京都グルメ",r:3},{t:"飯テロ",r:3},{t:"寿司",r:3},
+    {t:"京都居酒屋",r:2},{t:"すし酒場",r:2},{t:"大衆酒場",r:2},{t:"海鮮",r:2},{t:"日本酒",r:2},
+    {t:"河原町三条",r:1},{t:"三条グルメ",r:1},{t:"京都寿司",r:1},{t:"生ビール",r:1},{t:"すさび湯三条",r:1},
+    {t:"sushi",r:3,inb:1},{t:"kyoto",r:3,inb:1},{t:"japanfood",r:2,inb:1},{t:"kyotofood",r:2,inb:1},{t:"visitkyoto",r:1,inb:1},{t:"japantrip",r:1,inb:1}
   ];
-  var DEFAULT = ["京都グルメ","河原町三条","京都居酒屋","すし酒場","飯テロ"];
-  var STAR = {3:"★★★",2:"★★",1:"★"};
-  var RANKTTL = {3:"人気 大",2:"人気 中",1:"人気 小（上位表示ねらい）"};
+  var DEFAULT=["京都グルメ","河原町三条","京都居酒屋","すし酒場","飯テロ","sushi","kyoto"]; // 国内5＋インバウンド2＝7
+  var STAR={3:"★★★",2:"★★",1:"★"}, RANKTTL={3:"人気 大",2:"人気 中",1:"人気 小（上位ねらい）"};
 
-  // サンプル投稿（デザイン確認用）。実データは後でバックエンドから差し込む。
-  var SAMPLE = {
-    kind:"reel", when:"7/21 18:00",
-    caption:"大衆価格で本気の握り。職人がその場で握る、できたてを。\n京都・河原町三条／すさび湯 三条",
-    video:"https://cdn.jsdelivr.net/gh/amami-cell/susabiyu-media@594980686729a6ec0fc2c41873615443d42fa9a4/preview/20260720125216_0788.mp4"
+  var FEEDCAP="こんにちは 河原町三条店の【大衆寿司酒場すさび湯】です🍻\n\n安くて旨い、が自慢です。本日は “まぐろ三昧” のご紹介。\n\n♨️\"すさび湯\"とは『遊びに来る感覚で楽しんでほしい』という想いから“遊ぶ”の語源“すさぶ”と“銭湯”を掛け合わせた名前です。価格はカジュアルに、お寿司は本格的に。\n\n▪️営業時間 月〜金16:00〜23:00／土日祝11:00〜23:00\n▪️住所 京都市中京区河原町通三条上る恵比寿町534-16（京阪三条駅 徒歩4分）\n\n新メニューやお得情報も投稿します。ぜひフォローを！";
+  var REELCAP="安くて旨い、が自慢です。本日は “まぐろ三昧” 🍣\n河原町三条／すさび湯 三条";
+  var SAMPLEVID="https://cdn.jsdelivr.net/gh/amami-cell/susabiyu-media@594980686729a6ec0fc2c41873615443d42fa9a4/preview/20260720125216_0788.mp4";
+
+  /* サンプル候補（実データは後でバックエンドから差し込む） */
+  var DATA={
+    feed:[
+      {name:"まぐろ三昧", copy:"旨い、安い、賑やかに。", cap:FEEDCAP, reco:true},
+      {name:"サーモン三昧", copy:"この安さは、ちょっと反則。", cap:FEEDCAP.replace("まぐろ三昧","サーモン三昧"), reco:false},
+      {name:"トロ三昧", copy:"仕事帰りに、フラッと一杯。", cap:FEEDCAP.replace("まぐろ三昧","トロ三昧"), reco:false}
+    ],
+    reel:[
+      {name:"本日のにぎり", copy:"できたてを、その場で。", cap:REELCAP, video:SAMPLEVID, dur:48, reco:true},
+      {name:"乾杯シーン", copy:"まずは一杯、いかがですか。", cap:REELCAP, video:SAMPLEVID, dur:48, reco:false},
+      {name:"揚げたて天ぷら", copy:"サクッと、揚げたて。", cap:REELCAP, video:SAMPLEVID, dur:48, reco:false}
+    ]
   };
+  var SCHED=[
+    {kind:"feed", name:"サーモン三昧", copy:"この安さは、ちょっと反則。", cap:DATA.feed[1].cap, when:"5/12(月) 18:00"},
+    {kind:"reel", name:"本日のにぎり", copy:"できたてを、その場で。", cap:REELCAP, video:SAMPLEVID, when:"5/14(水) 20:00"}
+  ];
 
-  function buildCard(it){
-    var sel = {}; DEFAULT.forEach(function(t){ sel[t]=1; });
-    var card = document.createElement("div"); card.className="card";
-    var kindLabel = it.kind==="feed" ? "フィード投稿" : "リール投稿";
-    var head = '<div class="chead"><span class="kind '+(it.kind==="feed"?"feed":"")+'">'+kindLabel+'</span>'+
-               '<span class="time">'+it.when+' 予約</span><span class="sched">承認待ち</span></div>';
-    var media = '<div class="mediaWrap"><video src="'+it.video+'" controls playsinline preload="metadata"></video></div>';
-    var cap = '<div class="cap">'+it.caption+'</div>';
-    var tagprev = '<div class="tagpreview" id="tp"></div>';
-    // ランク別チップ
-    var picker = '<div class="seclabel">ハッシュタグ <span class="cnt" id="hcnt"></span></div>';
+  var TAB="feed";
+  function switchTab(k){
+    TAB=k;
+    document.getElementById("tabFeed").classList.toggle("on",k==="feed");
+    document.getElementById("tabReel").classList.toggle("on",k==="reel");
+    document.getElementById("secttl").textContent=(k==="feed"?"📸 フィード投稿の候補":"🎬 リール投稿の候補");
+    render();
+  }
+
+  function tagPicker(sel){
+    var html='<div class="seclabel tag">ハッシュタグ <span class="cnt">'+Object.keys(sel).length+'個選択（点線＝インバウンド）</span></div>';
     [3,2,1].forEach(function(r){
-      var items = HTAGS.filter(function(h){return h.r===r;});
-      picker += '<div class="rankrow"><div class="rankttl"><span class="stars">'+STAR[r]+'</span>'+RANKTTL[r]+'</div><div class="chips">';
+      var items=HTAGS.filter(function(h){return h.r===r;});
+      html+='<div class="rankrow"><div class="rankttl"><span class="stars">'+STAR[r]+'</span>'+RANKTTL[r]+'</div><div class="chips">';
       items.forEach(function(h){
-        picker += '<button class="chip'+(sel[h.t]?" on":"")+'" data-t="'+h.t+'"><span>#'+h.t+'</span><span class="s">'+STAR[r]+'</span></button>';
+        html+='<button class="chip'+(sel[h.t]?" on":"")+(h.inb?" inb":"")+'" data-t="'+h.t+'"><span>#'+esc(h.t)+'</span><span class="s">'+STAR[r]+'</span></button>';
       });
-      picker += '</div></div>';
+      html+='</div></div>';
     });
-    var btns = '<div class="btns"><button class="ok">投稿する</button><button class="rd">作り直す</button><button class="ng">やめる</button></div>';
-    card.innerHTML = head+media+cap+tagprev+picker+btns;
+    return html;
+  }
 
-    function tags(){ return HTAGS.filter(function(h){return sel[h.t];}).map(function(h){return h.t;}); }
-    function refresh(){
-      var t = tags();
-      card.querySelector("#tp").textContent = t.map(function(x){return "#"+x;}).join(" ");
-      card.querySelector("#hcnt").textContent = t.length+"件選択中";
+  function buildCard(it,i){
+    var sel={}; DEFAULT.forEach(function(t){sel[t]=1;});
+    var card=document.createElement("div"); card.className="card"+(it.reco?" reco":"");
+    var head=(it.reco?'<div class="reco-badge">★ '+(TAB==="feed"?"フィード向きオススメ":"リール向きオススメ")+'</div>':"")+
+      '<div class="chead"><span class="kind '+(TAB==="reel"?"reel":"")+'">'+(TAB==="feed"?"フィード":"リール")+'</span><span class="cno">候補 '+(i+1)+' / 3</span></div>';
+    var media, trim="";
+    if(TAB==="feed"){
+      media='<div class="mediaWrap feed"><div class="ph">'+esc(it.name)+'<small>📸 フィード画像 4:5<br>（実際は生成済みポスター）</small></div></div>';
+    } else {
+      media='<div class="mediaWrap reel"><video src="'+it.video+'" playsinline preload="metadata" muted controls></video></div>';
+      trim='<div class="trim"><div class="trimhd"><span>切り取り（リール用）</span><span><b class="tlen">--</b> / 元<span class="tall">--</span></span></div>'+
+           '<div class="rangewrap"><div class="track"></div><div class="sel"></div>'+
+           '<input type="range" class="ts" min="0" max="100" value="0"><input type="range" class="te" min="0" max="100" value="60"></div>'+
+           '<div class="trimhd" style="margin-top:4px"><span class="tstart">開始 0:00</span><span class="tend">終了 0:30</span></div></div>';
     }
-    card.querySelectorAll(".chip").forEach(function(ch){
-      ch.onclick = function(){ var t=ch.getAttribute("data-t"); if(sel[t]){delete sel[t];ch.classList.remove("on");}else{sel[t]=1;ch.classList.add("on");} refresh(); };
-    });
-    refresh();
-    card.querySelector(".ok").onclick = function(){ toast("（下書き）"+it.when+"に予約投稿します・ハッシュタグ"+tags().length+"件"); };
-    card.querySelector(".rd").onclick = function(){ toast("（下書き）作り直しを依頼します"); };
-    card.querySelector(".ng").onclick = function(){ toast("（下書き）この投稿をやめます"); };
+    var full=it.cap, short=full.length>70?full.slice(0,70)+"…":full;
+    var cap='<div class="cap" data-full="'+esc(full)+'" data-short="'+esc(short)+'">'+esc(short)+'</div>'+
+            (full.length>70?'<span class="more">…続きを読む</span>':"");
+    var actions='<div class="actions"><button class="btn post">今すぐ投稿</button><button class="btn resv">日時を決めて予約</button>'+
+      '<button class="btn redo">作り直す</button><button class="btn no">やめる</button></div>'+
+      '<div class="resvbox"><label>予約日時</label><input type="date" class="rdate"><input type="time" class="rtime" value="18:00"><button class="go">この日時で予約</button></div>';
+    card.innerHTML=head+media+trim+cap+tagPicker(sel)+actions;
+
+    // 続きを読む
+    var capEl=card.querySelector(".cap"), moreEl=card.querySelector(".more"), open=false;
+    if(moreEl){ moreEl.onclick=function(){ open=!open; capEl.textContent=open?capEl.getAttribute("data-full"):capEl.getAttribute("data-short"); moreEl.textContent=open?"閉じる":"…続きを読む"; }; }
+    // ハッシュタグ
+    card.querySelectorAll(".chip").forEach(function(ch){ ch.onclick=function(){var t=ch.getAttribute("data-t"); if(sel[t]){delete sel[t];ch.classList.remove("on");}else{sel[t]=1;ch.classList.add("on");} card.querySelector(".tag .cnt").textContent=Object.keys(sel).length+"個選択（点線＝インバウンド）";};});
+    // 予約ピッカー開閉
+    var rbox=card.querySelector(".resvbox");
+    card.querySelector(".resv").onclick=function(){ rbox.classList.toggle("open"); };
+    card.querySelector(".go").onclick=function(){ var d=card.querySelector(".rdate").value||"(日付未選択)", t=card.querySelector(".rtime").value; toast("（下書き）"+d+" "+t+" に予約しました"); };
+    card.querySelector(".post").onclick=function(){ toast("（下書き）"+it.name+"を今すぐ投稿します・タグ"+Object.keys(sel).length+"件"); };
+    card.querySelector(".redo").onclick=function(){ toast("（下書き）"+it.name+"の作り直しを依頼"); };
+    card.querySelector(".no").onclick=function(){ toast("（下書き）この案をやめます"); };
+    // リール：トリミング
+    if(TAB==="reel"){ setupTrim(card,it); }
     return card;
   }
 
-  document.getElementById("cards").appendChild(buildCard(SAMPLE));
-  document.getElementById("cnt").textContent = "1件";
+  function setupTrim(card,it){
+    var v=card.querySelector("video"), ts=card.querySelector(".ts"), te=card.querySelector(".te"),
+        sel=card.querySelector(".sel"), lenEl=card.querySelector(".tlen"), allEl=card.querySelector(".tall"),
+        stEl=card.querySelector(".tstart"), enEl=card.querySelector(".tend");
+    var TARGET=30, dur=it.dur||30;
+    function apply(){
+      var total=dur; var s=ts.value/100*total, e=te.value/100*total;
+      if(e-s<3){ if(te===document.activeElement){ ts.value=Math.max(0,(e-3)/total*100);} else { te.value=Math.min(100,(s+3)/total*100);} s=ts.value/100*total; e=te.value/100*total; }
+      sel.style.left=ts.value+"%"; sel.style.width=(te.value-ts.value)+"%";
+      lenEl.textContent=fmt(e-s); allEl.textContent=fmt(total);
+      stEl.textContent="開始 "+fmt(s); enEl.textContent="終了 "+fmt(e);
+      try{ v.currentTime=s; }catch(x){}
+    }
+    function initRange(){
+      dur=(v.duration&&isFinite(v.duration))?v.duration:dur;
+      // 自動で先頭付近から30秒（頭0.5秒スキップ）を初期選択
+      var start=Math.min(0.5,dur*0.02), end=Math.min(dur,start+TARGET);
+      ts.value=start/dur*100; te.value=end/dur*100; apply();
+    }
+    ts.oninput=apply; te.oninput=apply;
+    if(v.readyState>=1){ initRange(); } else { v.addEventListener("loadedmetadata",initRange); }
+    apply();
+  }
+
+  function render(){
+    var box=document.getElementById("cards"); box.innerHTML="";
+    DATA[TAB].forEach(function(it,i){ box.appendChild(buildCard(it,i)); });
+    renderSched();
+  }
+
+  function renderSched(){
+    var box=document.getElementById("sched"); box.innerHTML="";
+    if(!SCHED.length){ box.innerHTML='<div class="empty">まだ予約はありません</div>'; return; }
+    SCHED.forEach(function(s,idx){
+      var row=document.createElement("div"); row.className="srow";
+      var thumb=s.kind==="reel"?'<div class="sthumb reel">🎬</div>':'<div class="sthumb">🍣</div>';
+      row.innerHTML=thumb+'<div class="smeta"><span class="sk '+(s.kind==="reel"?"reel":"")+'">'+(s.kind==="feed"?"フィード":"リール")+'</span>'+
+        '<div class="sdate">'+esc(s.when)+'</div><div class="stxt">'+esc(s.name)+'「'+esc(s.copy)+'」</div></div>'+
+        '<button class="scancel">取消</button>';
+      row.querySelector(".smeta").onclick=function(){ openDetail(s); };
+      thumbClick(row,s);
+      row.querySelector(".scancel").onclick=function(e){ e.stopPropagation(); if(confirm("この予約を取り消しますか？")){ SCHED.splice(idx,1); renderSched(); toast("予約を取り消しました"); } };
+      box.appendChild(row);
+    });
+  }
+  function thumbClick(row,s){ row.querySelector(".sthumb").onclick=function(){ openDetail(s); }; }
+
+  function openDetail(s){
+    var m=document.getElementById("modal"), body=document.getElementById("mbody");
+    document.getElementById("mtitle").textContent=(s.kind==="feed"?"フィード投稿の詳細":"リール投稿の詳細");
+    var media = s.kind==="reel"
+      ? '<div class="fs-video"><video src="'+s.video+'" playsinline autoplay muted loop controls></video></div>'
+      : '<div class="fs-img ph" style="position:relative"><div class="ph">'+esc(s.name)+'<small>📸 フィード画像</small></div></div>';
+    var tags=DEFAULT.map(function(t){return "#"+t;}).join(" ");
+    body.innerHTML=media+
+      '<div class="dmeta">予約日時</div><div class="dcap">'+esc(s.when)+'</div>'+
+      '<div class="dmeta">本文</div><div class="dcap">'+esc(s.cap||"")+'</div>'+
+      '<div class="dmeta">ハッシュタグ</div><div class="dtags">'+tags+'</div>'+
+      '<div class="dact"><button class="btn post" onclick="toast(\'（下書き）今すぐ投稿\')">今すぐ投稿</button>'+
+      '<button class="btn resv" onclick="toast(\'（下書き）日時を変更\')">日時を変更</button></div>';
+    m.classList.add("open");
+  }
+  function closeModal(){ var m=document.getElementById("modal"); var v=m.querySelector("video"); if(v){try{v.pause();}catch(x){}} m.classList.remove("open"); }
+  document.getElementById("modal").addEventListener("click",function(e){ if(e.target===this) closeModal(); });
+
+  render();
 </script>
 </body>
 </html>
