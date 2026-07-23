@@ -141,26 +141,28 @@
   var DEFAULT=["京都グルメ","河原町三条","京都居酒屋","すし酒場","三条グルメ","sushi","kyoto"]; // 国内5＋インバウンド2＝7
   var STAR={3:"★★★",2:"★★",1:"★"}, RANKTTL={3:"人気 大",2:"人気 中",1:"人気 小（上位ねらい）"};
 
-  var FEEDCAP="こんにちは\n河原町三条店の【大衆寿司酒場すさび湯】です🍻\n\n安くて旨い、が自慢です。本日は “まぐろ三昧” のご紹介。\n新鮮なネタのお寿司も、豊富な一品料理も、うれしい価格でご用意しています。\nドリンク全品170円で、気兼ねなく乾杯を。\n\n♨️\"すさび湯\"とは\n『遊びに来る感覚で楽しんでほしい』という想いから、“遊ぶ”の語源である“すさぶ”と、日常に溶け込んだ“銭湯”を掛け合わせて“すさび湯”と名付けました。\n価格はカジュアルに、お寿司は本格的に。\n\n▪️▪️▪️▪️▪️▪️▪️▪️▪️▪️\n#すさび湯\n・営業時間\n月〜金 16:00〜23:00（FLO.22:00 DLO.22:30）\n土日祝 11:00〜23:00\n・住所\n京都市中京区河原町通三条上る恵比寿町534-16\n京阪本線 三条駅から徒歩約4分\n▪️▪️▪️▪️▪️▪️▪️▪️▪️▪️\n\n新メニューやお得な情報も投稿していきます。\nぜひフォローお願いします！";
-  var REELCAP="安くて旨い、が自慢です。本日は “まぐろ三昧” 🍣\n河原町三条／すさび湯 三条";
+  var FEEDCAP="こんにちは\n河原町三条店の【大衆寿司酒場すさび湯】です🍻\n\n本日のおすすめは、{NAME}です！\n新鮮なネタのお寿司も、豊富な一品料理も、うれしい価格でご用意しています。\nドリンク全品170円で、気兼ねなく乾杯を。\n\n♨️\"すさび湯\"とは\n『遊びに来る感覚で楽しんでほしい』という想いから、“遊ぶ”の語源である“すさぶ”と、日常に溶け込んだ“銭湯”を掛け合わせて“すさび湯”と名付けました。\n価格はカジュアルに、お寿司は本格的に。\n\n▪️▪️▪️▪️▪️▪️▪️▪️▪️▪️\n#すさび湯\n・営業時間\n月〜金 16:00〜23:00\n土日祝 11:00〜23:00\n・住所\n京都市中京区河原町通三条上る恵比寿町534-16\n京阪本線 三条駅から徒歩約4分\n▪️▪️▪️▪️▪️▪️▪️▪️▪️▪️\n\n新メニューやお得な情報も投稿していきます。\nぜひフォローお願いします！";
+  var REELCAP="本日のおすすめは、{NAME}です！🍣\n河原町三条／すさび湯 三条";
+  function cleanName(n){ return (n||"").replace(/\s*\d+$/,"").trim(); }        // 商品名末尾の数字を除去（例：サーモン三昧2→サーモン三昧）
+  function capFor(tmpl,name){ return tmpl.replace(/\{NAME\}/g, cleanName(name)); }
   var SAMPLEVID="https://cdn.jsdelivr.net/gh/amami-cell/susabiyu-media@594980686729a6ec0fc2c41873615443d42fa9a4/preview/20260720125216_0788.mp4";
 
   /* サンプル候補（実データは後でバックエンドから差し込む） */
   var DATA={
     feed:[
-      {name:"まぐろ三昧", copy:"旨い、安い、賑やかに。", cap:FEEDCAP, img:"./sample/feed1.jpg", reco:true},
-      {name:"サーモン三昧", copy:"この安さは、ちょっと反則。", cap:FEEDCAP.replace(/まぐろ三昧/g,"サーモン三昧"), img:"./sample/feed2.jpg", reco:false},
-      {name:"トロ三昧", copy:"仕事帰りに、フラッと一杯。", cap:FEEDCAP.replace(/まぐろ三昧/g,"トロ三昧"), img:"./sample/feed3.jpg", reco:false}
+      {name:"まぐろ三昧", copy:"旨い、安い、賑やかに。", img:"./sample/feed1.jpg", reco:true},
+      {name:"サーモン三昧", copy:"この安さは、ちょっと反則。", img:"./sample/feed2.jpg", reco:false},
+      {name:"トロ三昧", copy:"仕事帰りに、フラッと一杯。", img:"./sample/feed3.jpg", reco:false}
     ],
     reel:[
-      {name:"本日のにぎり", copy:"できたてを、その場で。", cap:REELCAP, video:SAMPLEVID, dur:48, reco:true},
-      {name:"乾杯シーン", copy:"まずは一杯、いかがですか。", cap:REELCAP, video:SAMPLEVID, dur:48, reco:false},
-      {name:"揚げたて天ぷら", copy:"サクッと、揚げたて。", cap:REELCAP, video:SAMPLEVID, dur:48, reco:false}
+      {name:"本日のにぎり", copy:"できたてを、その場で。", video:SAMPLEVID, dur:48, reco:true},
+      {name:"乾杯シーン", copy:"まずは一杯、いかがですか。", video:SAMPLEVID, dur:48, reco:false},
+      {name:"揚げたて天ぷら", copy:"サクッと、揚げたて。", video:SAMPLEVID, dur:48, reco:false}
     ]
   };
   var SCHED=[
-    {kind:"feed", name:"サーモン三昧", copy:"この安さは、ちょっと反則。", cap:DATA.feed[1].cap, img:"./sample/feed2.jpg", when:"5/12(月) 18:00"},
-    {kind:"reel", name:"本日のにぎり", copy:"できたてを、その場で。", cap:REELCAP, video:SAMPLEVID, when:"5/14(水) 20:00"}
+    {kind:"feed", name:"サーモン三昧", copy:"この安さは、ちょっと反則。", img:"./sample/feed2.jpg", when:"5/12(月) 18:00"},
+    {kind:"reel", name:"本日のにぎり", copy:"できたてを、その場で。", video:SAMPLEVID, when:"5/14(水) 20:00"}
   ];
 
   var TAB="feed";
@@ -200,7 +202,7 @@
            '<input type="range" class="ts" min="0" max="100" value="0"><input type="range" class="te" min="0" max="100" value="60"></div>'+
            '<div class="trimhd" style="margin-top:4px"><span class="tstart">開始 0:00</span><span class="tend">終了 0:30</span></div></div>';
     }
-    var full=it.cap, short=full.length>70?full.slice(0,70)+"…":full;
+    var full=capFor(TAB==="feed"?FEEDCAP:REELCAP, it.name), short=full.length>70?full.slice(0,70)+"…":full;
     var cap='<div class="cap" data-full="'+esc(full)+'" data-short="'+esc(short)+'">'+esc(short)+'</div>'+
             (full.length>70?'<span class="more">…続きを読む</span>':"");
     var actions='<div class="actions"><button class="btn post">今すぐ投稿</button><button class="btn resv">日時を決めて予約</button>'+
@@ -262,7 +264,7 @@
       var row=document.createElement("div"); row.className="srow";
       var thumb=s.kind==="reel"?'<div class="sthumb reel">🎬</div>':(s.img?'<img class="sthumb" src="'+s.img+'">':'<div class="sthumb">🍣</div>');
       row.innerHTML=thumb+'<div class="smeta"><span class="sk '+(s.kind==="reel"?"reel":"")+'">'+(s.kind==="feed"?"フィード":"リール")+'</span>'+
-        '<div class="sdate">'+esc(s.when)+'</div><div class="stxt">'+esc(s.name)+'「'+esc(s.copy)+'」</div></div>'+
+        '<div class="sdate">'+esc(s.when)+'</div><div class="stxt">'+esc(cleanName(s.name))+'「'+esc(s.copy)+'」</div></div>'+
         '<button class="scancel">取消</button>';
       row.querySelector(".smeta").onclick=function(){ openDetail(s); };
       thumbClick(row,s);
@@ -281,7 +283,7 @@
     var tags=DEFAULT.map(function(t){return "#"+t;}).join(" ");
     body.innerHTML=media+
       '<div class="dmeta">予約日時</div><div class="dcap">'+esc(s.when)+'</div>'+
-      '<div class="dmeta">本文</div><div class="dcap">'+esc(s.cap||"")+'</div>'+
+      '<div class="dmeta">本文</div><div class="dcap">'+esc(capFor(s.kind==="feed"?FEEDCAP:REELCAP, s.name))+'</div>'+
       '<div class="dmeta">ハッシュタグ</div><div class="dtags">'+tags+'</div>'+
       '<div class="dact"><button class="btn post" onclick="toast(\'（下書き）今すぐ投稿\')">今すぐ投稿</button>'+
       '<button class="btn resv" onclick="toast(\'（下書き）日時を変更\')">日時を変更</button></div>';
