@@ -135,6 +135,7 @@
   <div id="modal"><div class="sheet"><div class="shhd"><h3 id="mtitle">投稿の詳細</h3><button class="x" onclick="closeModal()">閉じる</button></div><div class="shbody" id="mbody"></div></div></div>
   <div id="tagmodal"><div class="sheet"><div class="shhd"><h3>ハッシュタグを選択</h3><button class="x" onclick="closeTagEditor()">完了</button></div><div class="shbody" id="tagbody"></div></div></div>
   <div id="toast"></div>
+<script src="./config.js"></script>
 <script>
   var toastEl=document.getElementById("toast");
   function toast(t){toastEl.textContent=t;toastEl.classList.add("show");clearTimeout(window._tt);window._tt=setTimeout(function(){toastEl.classList.remove("show");},1800);}
@@ -185,7 +186,34 @@
   }
 
   /* ===== ハッシュタグ編集（別画面） ===== */
-  var REGIONAL=[]; // 「今の地域のおすすめ」を取得したタグ（実運用ではバックエンドが調べて返す）
+  var REGIONAL=[];      // 「今の地域のおすすめ」で取得したタグ
+  var REG_LIVE=false;   // true=Instagramの今の活発さを反映 / false=調査済みの地域おすすめ
+  var REGION_NAME="河原町三条（京都）";
+  // 実際に河原町三条・京都エリアで使われている飲食タグを調査して人気度で3段に整理（国内＋インバウンド）。
+  // バックエンド未接続でも即使える“地域おすすめ”。接続時はこの並びをIGの活発さで上書き。
+  var REGION_POOL=[
+    {t:"京都ディナー",r:3},{t:"河原町グルメ",r:3},{t:"京都飲み",r:2},{t:"京都食べ歩き",r:2},
+    {t:"河原町ディナー",r:2},{t:"京都寿司",r:2},{t:"京都ランチ",r:2},{t:"三条河原町",r:1},
+    {t:"先斗町",r:1},{t:"木屋町グルメ",r:1},{t:"河原町居酒屋",r:1},{t:"京都晩ごはん",r:1},
+    {t:"kyotojapan",r:3,inb:1},{t:"kyotofood",r:3,inb:1},{t:"kyotogourmet",r:2,inb:1},
+    {t:"japanesefood",r:2,inb:1},{t:"izakaya",r:2,inb:1},{t:"kyotorestaurant",r:1,inb:1},
+    {t:"kyotonight",r:1,inb:1},{t:"visitkyoto",r:1,inb:1},{t:"kawaramachi",r:1,inb:1}
+  ];
+  /* GAS(JSONP)で今の地域タグを取りに行く。config.jsのGAS_URL未設定なら reject（→調査済みプールにフォールバック） */
+  function regJsonp(params){
+    return new Promise(function(resolve,reject){
+      var CFG=window.SUSABIYU||{}, GAS=(CFG.GAS_URL||"").trim();
+      if(!GAS||GAS.indexOf("PASTE_")===0){ reject(new Error("no-backend")); return; }
+      var cb="__rg"+Date.now(), s=document.createElement("script");
+      var to=setTimeout(function(){cleanup();reject(new Error("timeout"));},12000);
+      function cleanup(){clearTimeout(to);delete window[cb];if(s.parentNode)s.parentNode.removeChild(s);}
+      window[cb]=function(d){cleanup();resolve(d);};
+      var q=Object.keys(params).map(function(k){return k+"="+encodeURIComponent(params[k]);}).join("&");
+      s.src=GAS+(GAS.indexOf("?")>=0?"&":"?")+q+"&cb="+cb;
+      s.onerror=function(){cleanup();reject(new Error("network"));};
+      document.head.appendChild(s);
+    });
+  }
   var activeCard=null;
   function chip(h,sel){ return '<button class="chip'+(sel[h.t]?" on":"")+(h.inb?" inb":"")+'" data-t="'+esc(h.t)+'"><span>#'+esc(h.t)+'</span>'+(h.r?'<span class="s">'+STAR[h.r]+'</span>':"")+'</button>'; }
   function renderTagEditor(){
@@ -193,7 +221,8 @@
     var html='<div class="tebar">選択中 <b class="tesel">'+Object.keys(sel).length+'</b> 個 ／ 点線＝インバウンド</div>'+
       '<button class="fetchbtn" id="fetchreg">🔄 今の地域のおすすめを取得</button>';
     if(REGIONAL.length){
-      html+='<div class="reglabel">🔥 今の地域のおすすめ</div><div class="chips" id="regchips">';
+      var rlab=REG_LIVE?"🔥 今の人気（Instagram調べ・"+REGION_NAME+"）":"📍 "+REGION_NAME+"の地域おすすめ";
+      html+='<div class="reglabel">'+rlab+'</div><div class="chips" id="regchips">';
       REGIONAL.forEach(function(h){ html+=chip(h,sel); }); html+='</div>';
     }
     [3,2,1].forEach(function(r){
@@ -207,13 +236,18 @@
     document.getElementById("fetchreg").onclick=fetchRegional;
   }
   function fetchRegional(){
-    var btn=document.getElementById("fetchreg"); btn.disabled=true; btn.textContent="🔎 地域の人気タグを調べています…";
-    // 実運用：ここでバックエンド(その時の地域トレンドを調査)を呼ぶ。今はサンプルを提示。
-    setTimeout(function(){
-      var pool=[{t:"京都観光",r:2},{t:"三条河原町",r:1},{t:"京都ディナー",r:2},{t:"先斗町",r:1},{t:"木屋町グルメ",r:1},{t:"kyotogourmet",r:2,inb:1},{t:"kyotonight",r:1,inb:1},{t:"kyotobar",r:1,inb:1}];
-      REGIONAL=pool;
-      renderTagEditor(); toast("今の地域のおすすめタグを取得しました（サンプル）");
-    },900);
+    var btn=document.getElementById("fetchreg"); btn.disabled=true; btn.textContent="🔎 "+REGION_NAME+"の人気タグを調べています…";
+    // バックエンド接続時：GASがIGの活発さを調べて返す。未接続/失敗時：調査済みの地域おすすめプールを提示。
+    regJsonp({api:"regionaltags", region:REGION_NAME}).then(function(res){
+      var live=!!(res&&res.ok&&res.live&&res.tags&&res.tags.length);
+      REGIONAL=live?res.tags:REGION_POOL; REG_LIVE=live;
+      renderTagEditor();
+      toast(live?"今の人気タグを取得しました（Instagram調べ）":"地域のおすすめタグを表示しました");
+    }).catch(function(){
+      REGIONAL=REGION_POOL; REG_LIVE=false;
+      renderTagEditor();
+      toast("地域のおすすめタグを表示しました");
+    });
   }
   function openTagEditor(card){ activeCard=card; renderTagEditor(); document.getElementById("tagmodal").classList.add("open"); }
   function closeTagEditor(){ document.getElementById("tagmodal").classList.remove("open"); if(activeCard&&activeCard._refresh) activeCard._refresh(); }
