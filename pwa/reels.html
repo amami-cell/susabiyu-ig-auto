@@ -85,8 +85,17 @@
   .scancel{border:1px solid var(--line);background:#181c23;color:#9aa3b2;font-size:12px;font-weight:800;padding:7px 11px;border-radius:999px;flex:none}
   .empty{color:var(--sub);font-size:12.5px;text-align:center;padding:18px;border:1px dashed var(--line);border-radius:14px}
   /* 詳細モーダル */
-  #modal{position:fixed;inset:0;z-index:40;background:rgba(0,0,0,.72);display:none;align-items:flex-end}
-  #modal.open{display:flex}
+  .tagsel{display:flex;flex-wrap:wrap;gap:6px;margin:2px 2px 10px}
+  .tagsel .t{font-size:12.5px;font-weight:700;color:#bcd6ff;background:#12263a;border:1px solid #2f5a8f;border-radius:999px;padding:5px 10px}
+  .tagsel .t.inb{color:#e2d3ff;background:#241a33;border-color:#5a3fa0}
+  .btn.tagedit{width:100%;background:#232a37;color:#cdd5e1;margin-bottom:2px}
+  .tebar{font-size:12.5px;color:var(--sub);font-weight:800;margin:2px 2px 12px}
+  .tebar b{color:var(--accent)}
+  .fetchbtn{width:100%;background:#245038;color:#dfeee5;border:0;border-radius:12px;padding:13px;font-weight:800;font-size:14px;margin:0 0 16px}
+  .fetchbtn:disabled{opacity:.65}
+  .reglabel{font-size:12px;color:#7fd1a0;font-weight:800;margin:2px 2px 8px}
+  #modal,#tagmodal{position:fixed;inset:0;z-index:40;background:rgba(0,0,0,.72);display:none;align-items:flex-end}
+  #modal.open,#tagmodal.open{display:flex}
   .sheet{background:var(--bg);width:100%;max-height:92vh;border-radius:20px 20px 0 0;border-top:1px solid var(--line);overflow:auto;padding:0 0 40px}
   .shhd{position:sticky;top:0;background:var(--bg);display:flex;align-items:center;gap:10px;padding:14px 16px;border-bottom:1px solid var(--line)}
   .shhd h3{font-size:15px;font-weight:800;flex:1}
@@ -124,6 +133,7 @@
     <div id="sched"></div>
   </div>
   <div id="modal"><div class="sheet"><div class="shhd"><h3 id="mtitle">投稿の詳細</h3><button class="x" onclick="closeModal()">閉じる</button></div><div class="shbody" id="mbody"></div></div></div>
+  <div id="tagmodal"><div class="sheet"><div class="shhd"><h3>ハッシュタグを選択</h3><button class="x" onclick="closeTagEditor()">完了</button></div><div class="shbody" id="tagbody"></div></div></div>
   <div id="toast"></div>
 <script>
   var toastEl=document.getElementById("toast");
@@ -174,18 +184,39 @@
     render();
   }
 
-  function tagPicker(sel){
-    var html='<div class="seclabel tag">ハッシュタグ <span class="cnt">'+Object.keys(sel).length+'個選択（点線＝インバウンド）</span></div>';
+  /* ===== ハッシュタグ編集（別画面） ===== */
+  var REGIONAL=[]; // 「今の地域のおすすめ」を取得したタグ（実運用ではバックエンドが調べて返す）
+  var activeCard=null;
+  function chip(h,sel){ return '<button class="chip'+(sel[h.t]?" on":"")+(h.inb?" inb":"")+'" data-t="'+esc(h.t)+'"><span>#'+esc(h.t)+'</span>'+(h.r?'<span class="s">'+STAR[h.r]+'</span>':"")+'</button>'; }
+  function renderTagEditor(){
+    var sel=activeCard._sel, body=document.getElementById("tagbody");
+    var html='<div class="tebar">選択中 <b class="tesel">'+Object.keys(sel).length+'</b> 個 ／ 点線＝インバウンド</div>'+
+      '<button class="fetchbtn" id="fetchreg">🔄 今の地域のおすすめを取得</button>';
+    if(REGIONAL.length){
+      html+='<div class="reglabel">🔥 今の地域のおすすめ</div><div class="chips" id="regchips">';
+      REGIONAL.forEach(function(h){ html+=chip(h,sel); }); html+='</div>';
+    }
     [3,2,1].forEach(function(r){
       var items=HTAGS.filter(function(h){return h.r===r;});
       html+='<div class="rankrow"><div class="rankttl"><span class="stars">'+STAR[r]+'</span>'+RANKTTL[r]+'</div><div class="chips">';
-      items.forEach(function(h){
-        html+='<button class="chip'+(sel[h.t]?" on":"")+(h.inb?" inb":"")+'" data-t="'+h.t+'"><span>#'+esc(h.t)+'</span><span class="s">'+STAR[r]+'</span></button>';
-      });
+      items.forEach(function(h){ html+=chip(h,sel); });
       html+='</div></div>';
     });
-    return html;
+    body.innerHTML=html;
+    body.querySelectorAll(".chip").forEach(function(ch){ ch.onclick=function(){ var t=ch.getAttribute("data-t"); if(sel[t]){delete sel[t];ch.classList.remove("on");}else{sel[t]=1;ch.classList.add("on");} body.querySelector(".tesel").textContent=Object.keys(sel).length; }; });
+    document.getElementById("fetchreg").onclick=fetchRegional;
   }
+  function fetchRegional(){
+    var btn=document.getElementById("fetchreg"); btn.disabled=true; btn.textContent="🔎 地域の人気タグを調べています…";
+    // 実運用：ここでバックエンド(その時の地域トレンドを調査)を呼ぶ。今はサンプルを提示。
+    setTimeout(function(){
+      var pool=[{t:"京都観光",r:2},{t:"三条河原町",r:1},{t:"京都ディナー",r:2},{t:"先斗町",r:1},{t:"木屋町グルメ",r:1},{t:"kyotogourmet",r:2,inb:1},{t:"kyotonight",r:1,inb:1},{t:"kyotobar",r:1,inb:1}];
+      REGIONAL=pool;
+      renderTagEditor(); toast("今の地域のおすすめタグを取得しました（サンプル）");
+    },900);
+  }
+  function openTagEditor(card){ activeCard=card; renderTagEditor(); document.getElementById("tagmodal").classList.add("open"); }
+  function closeTagEditor(){ document.getElementById("tagmodal").classList.remove("open"); if(activeCard&&activeCard._refresh) activeCard._refresh(); }
 
   function buildCard(it,i){
     var sel={}; DEFAULT.forEach(function(t){sel[t]=1;});
@@ -208,13 +239,25 @@
     var actions='<div class="actions"><button class="btn post">今すぐ投稿</button><button class="btn resv">日時を決めて予約</button>'+
       '<button class="btn redo">作り直す</button><button class="btn no">やめる</button></div>'+
       '<div class="resvbox"><label>予約日時</label><input type="date" class="rdate"><input type="time" class="rtime" value="18:00"><button class="go">この日時で予約</button></div>';
-    card.innerHTML=head+media+trim+cap+tagPicker(sel)+actions;
+    var tagblock='<div class="seclabel tag">ハッシュタグ <span class="cnt tcnt"></span></div>'+
+      '<div class="tagsel"></div><button class="btn tagedit">✏️ ハッシュタグを編集</button>';
+    card.innerHTML=head+media+trim+cap+tagblock+actions;
 
     // 続きを読む
     var capEl=card.querySelector(".cap"), moreEl=card.querySelector(".more"), open=false;
     if(moreEl){ moreEl.onclick=function(){ open=!open; capEl.textContent=open?capEl.getAttribute("data-full"):capEl.getAttribute("data-short"); moreEl.textContent=open?"閉じる":"…続きを読む"; }; }
-    // ハッシュタグ
-    card.querySelectorAll(".chip").forEach(function(ch){ ch.onclick=function(){var t=ch.getAttribute("data-t"); if(sel[t]){delete sel[t];ch.classList.remove("on");}else{sel[t]=1;ch.classList.add("on");} card.querySelector(".tag .cnt").textContent=Object.keys(sel).length+"個選択（点線＝インバウンド）";};});
+    // ハッシュタグ：確認画面は選択中のみ表示。編集は別画面。
+    card._sel=sel;
+    function refreshSel(){
+      var wrap=card.querySelector(".tagsel"); wrap.innerHTML="";
+      var chosen=HTAGS.filter(function(h){return sel[h.t];});
+      Object.keys(sel).forEach(function(t){ if(!HTAGS.some(function(h){return h.t===t;})) chosen.push({t:t,inb:0}); });
+      if(!chosen.length){ wrap.innerHTML='<span style="color:#7c8698;font-size:12.5px">（未選択）</span>'; }
+      chosen.forEach(function(h){ var sp=document.createElement("span"); sp.className="t"+(h.inb?" inb":""); sp.textContent="#"+h.t; wrap.appendChild(sp); });
+      card.querySelector(".tcnt").textContent=Object.keys(sel).length+"個";
+    }
+    card._refresh=refreshSel; refreshSel();
+    card.querySelector(".tagedit").onclick=function(){ openTagEditor(card); };
     // 予約ピッカー開閉
     var rbox=card.querySelector(".resvbox");
     card.querySelector(".resv").onclick=function(){ rbox.classList.toggle("open"); };
@@ -291,6 +334,7 @@
   }
   function closeModal(){ var m=document.getElementById("modal"); var v=m.querySelector("video"); if(v){try{v.pause();}catch(x){}} m.classList.remove("open"); }
   document.getElementById("modal").addEventListener("click",function(e){ if(e.target===this) closeModal(); });
+  document.getElementById("tagmodal").addEventListener("click",function(e){ if(e.target===this) closeTagEditor(); });
 
   render();
 </script>
