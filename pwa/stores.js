@@ -9,7 +9,7 @@
 // live:    true=稼働中 / false=準備中バッジを出す
 window.SUSABIYU_STORES = [
   { id: "sanjo",        name: "すさび湯三条店",       full: "すさび湯 河原町三条店",       short: "稼働中", icon: "icons/storelogo_tile.png", initial: "湯", url: "./index.html",    live: true },
-  { id: "taishusushi",  name: "すさび湯/梅田",        full: "大衆寿司酒場すさび湯",         short: "", icon: "icons/store_taishusushi.png", initial: "湯", url: "./store.html?id=taishusushi", live: false },
+  { id: "taishusushi",  name: "すさび湯/梅田",        full: "大衆寿司酒場すさび湯",         short: "", icon: "icons/storelogo_tile.png", initial: "湯", url: "./store.html?id=taishusushi", live: false },
   { id: "hiyoko",       name: "ひよこ飯店",           full: "ひよこ飯店",                   short: "", icon: "icons/store_hiyoko.png", initial: "ひ", url: "./store.html?id=hiyoko", live: false },
   { id: "arata",        name: "ARATA",                full: "ARATA",                        short: "", icon: "icons/store_arata.png", initial: "A", url: "./store.html?id=arata", live: false },
   { id: "chachan",      name: "ちゃーちゃん",         full: "ちゃーちゃん",                 short: "", icon: "icons/store_chachan.png", initial: "ち", url: "./store.html?id=chachan", live: false },
@@ -22,14 +22,14 @@ window.SUSABIYU_STORES = [
   { id: "tanukiya",     name: "味のたぬきや",         full: "味のたぬきや",                 short: "", icon: "icons/store_tanukiya.png", initial: "た", url: "./store.html?id=tanukiya", live: false },
   { id: "gold",         name: "GOLD梅田",             full: "フレンチ酒場GOLD",             short: "", icon: "icons/store_gold.png", initial: "G", url: "./store.html?id=gold", live: false },
   { id: "goldporta",    name: "GOLD/京都ポルタ",      full: "GOLD京都ポルタ",               short: "", icon: "icons/store_goldporta.png", initial: "G", url: "./store.html?id=goldporta", live: false },
-  { id: "sannomiya",    name: "すさび湯/三宮店",      full: "すさび湯 三宮",                short: "", icon: "icons/store_sannomiya.png", initial: "湯", url: "./store.html?id=sannomiya", live: false },
+  { id: "sannomiya",    name: "すさび湯/三宮店",      full: "すさび湯 三宮",                short: "", icon: "icons/storelogo_tile.png", initial: "湯", url: "./store.html?id=sannomiya", live: false },
   { id: "karasuma",     name: "すさび湯/京都烏丸",    full: "すさび湯 京都烏丸",            short: "", icon: "icons/store_karasuma.png", initial: "鮨", url: "./karasuma.html", live: false },
   { id: "kadoma",       name: "門真Largo",            full: "門真Largo",                    short: "", icon: "icons/store_kadoma.png", initial: "門", url: "./store.html?id=kadoma", live: false },
-  { id: "temmabashi",   name: "すさび湯/天満橋店",    full: "すさび湯 天満橋",              short: "", icon: "icons/store_temmabashi.png", initial: "湯", url: "./store.html?id=temmabashi", live: false },
+  { id: "temmabashi",   name: "すさび湯/天満橋店",    full: "すさび湯 天満橋",              short: "", icon: "icons/storelogo_tile.png", initial: "湯", url: "./store.html?id=temmabashi", live: false },
   { id: "goldohatsu",   name: "GOLD/お初天神",        full: "フレンチ酒場GOLDお初",         short: "", icon: "icons/store_goldohatsu.png", initial: "G", url: "./store.html?id=goldohatsu", live: false },
   { id: "gifuya",       name: "ぎふや 天満橋",        full: "ぎふや 天満橋店",              short: "", icon: "icons/store_gifuya.png", initial: "ぎ", url: "./store.html?id=gifuya", live: false },
-  { id: "shinjuku",     name: "すさび湯/新宿東口店",  full: "すさび湯 新宿東口",            short: "", icon: "icons/store_shinjuku.png", initial: "湯", url: "./store.html?id=shinjuku", live: false },
-  { id: "kabukicho",    name: "すさび湯/歌舞伎町店",  full: "すさび湯 歌舞伎町",            short: "", icon: "icons/store_kabukicho.png", initial: "湯", url: "./store.html?id=kabukicho", live: false },
-  { id: "ndanda",       name: "んだんだ",             full: "んだんだ",                     short: "", icon: "", initial: "ん", url: "./store.html?id=ndanda", live: false },
+  { id: "shinjuku",     name: "すさび湯/新宿東口店",  full: "すさび湯 新宿東口",            short: "", icon: "icons/storelogo_tile.png", initial: "湯", url: "./store.html?id=shinjuku", live: false },
+  { id: "kabukicho",    name: "すさび湯/歌舞伎町店",  full: "すさび湯 歌舞伎町",            short: "", icon: "icons/storelogo_tile.png", initial: "湯", url: "./store.html?id=kabukicho", live: false },
+  { id: "ndanda",       name: "んだんだ",             full: "んだんだ",                     short: "", icon: "icons/store_ndanda.png", initial: "ん", url: "./store.html?id=ndanda", live: false },
   { id: "gifuyatenjin", name: "ぎふや 福岡天神",      full: "大衆酒場 ぎふや福岡天神",      short: "", icon: "icons/store_gifuyatenjin.png", initial: "ぎ", url: "./store.html?id=gifuyatenjin", live: false },
 ];
