@@ -287,7 +287,8 @@
       '<div class="fetchnote">※「今の人気（Instagram調べ）」はInstagram Graph APIの制限で、ハッシュタグ検索が7日間で30個まで（投稿処理と共有の枠）。1人が取得すると全員に共有され、次回取得までの日付が出ます。</div>';
     if(REGIONAL.length){
       var rlab=REG_LIVE?"🔥 最新取得（Instagram調べ）":"🕘 最新取得（地域おすすめ）";
-      var meta='<span class="regmeta">更新 '+fmtDT(REG_UPDATED)+(REG_NEXT?' ・ 次回取得可能 '+fmtDate(REG_NEXT):'')+'</span>';
+      var nextTxt=cd?('次回取得可能 '+fmtDate(REG_NEXT)):'🔄 今すぐ再取得できます';
+      var meta='<span class="regmeta">更新 '+fmtDT(REG_UPDATED)+' ・ '+nextTxt+'</span>';
       html+='<div class="reglabel">'+rlab+meta+'</div><div class="chips" id="regchips">';
       REGIONAL.forEach(function(h){ html+=chip(h,sel); }); html+='</div>';
     }
