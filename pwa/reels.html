@@ -93,8 +93,10 @@
   .tebar b{color:var(--accent)}
   .fetchbtn{width:100%;background:#245038;color:#dfeee5;border:0;border-radius:12px;padding:13px;font-weight:800;font-size:14px;margin:0 0 6px}
   .fetchbtn:disabled{opacity:.65}
+  .fetchbtn.cd{background:#2a3140;color:#aeb8c6}
   .fetchnote{font-size:11px;color:#7c8698;line-height:1.5;margin:0 2px 16px}
-  .reglabel{font-size:12px;color:#7fd1a0;font-weight:800;margin:2px 2px 8px}
+  .reglabel{font-size:12px;color:#7fd1a0;font-weight:800;margin:2px 2px 8px;display:flex;flex-wrap:wrap;align-items:baseline;gap:6px}
+  .regmeta{font-weight:600;color:#8b95a5;font-size:11px}
   #modal,#tagmodal{position:fixed;inset:0;z-index:40;background:rgba(0,0,0,.72);display:none;align-items:flex-end}
   #modal.open,#tagmodal.open{display:flex}
   .sheet{background:var(--bg);width:100%;max-height:92vh;border-radius:20px 20px 0 0;border-top:1px solid var(--line);overflow:auto;padding:0 0 40px}
@@ -224,8 +226,12 @@
   }
 
   /* ===== ハッシュタグ編集（別画面） ===== */
-  var REGIONAL=[];      // 「今の地域のおすすめ」で取得したタグ
+  var REGIONAL=[];      // 「最新取得」で取得・共有されたタグ（保持される）
   var REG_LIVE=false;   // true=Instagramの今の活発さを反映 / false=調査済みの地域おすすめ
+  var REG_UPDATED=0;    // 最新取得の更新日時(ms)
+  var REG_NEXT=0;       // 次に再取得できる日時(ms)＝クールダウン明け
+  var REG_COOLDOWN_DAYS=7;                         // IGのタグ検索は7日枠。1回取ったら7日は共有分を使う
+  var REG_LS={t:"sb_reg_tags",u:"sb_reg_up",n:"sb_reg_nx",l:"sb_reg_live"};
   var REGION_NAME="河原町三条（京都）";
   // 実際に河原町三条・京都エリアで使われている飲食タグを調査して人気度で3段に整理（国内＋インバウンド）。
   // バックエンド未接続でも即使える“地域おすすめ”。接続時はこの並びをIGの活発さで上書き。
@@ -252,16 +258,37 @@
       document.head.appendChild(s);
     });
   }
+  function fmtDT(ms){ if(!ms) return "—"; var d=new Date(ms); return (d.getMonth()+1)+"/"+d.getDate()+" "+d.getHours()+":"+("0"+d.getMinutes()).slice(-2); }
+  function fmtDate(ms){ if(!ms) return "—"; var d=new Date(ms); return (d.getMonth()+1)+"/"+d.getDate(); }
+  function regApply(res,now){  // GAS応答→状態へ反映（共有ストアの内容）
+    if(res&&res.ok&&res.tags&&res.tags.length){
+      REGIONAL=res.tags; REG_LIVE=!!res.live;
+      REG_UPDATED=res.updatedAt||now||0; REG_NEXT=res.nextAt||0; return true;
+    }
+    return false;
+  }
+  function regSaveLocal(){ try{ localStorage.setItem(REG_LS.t,JSON.stringify(REGIONAL)); localStorage.setItem(REG_LS.u,String(REG_UPDATED)); localStorage.setItem(REG_LS.n,String(REG_NEXT)); localStorage.setItem(REG_LS.l,REG_LIVE?"1":"0"); }catch(e){} }
+  function regLoadLocal(){ try{ var t=JSON.parse(localStorage.getItem(REG_LS.t)||"null"); if(t&&t.length){ REGIONAL=t; REG_UPDATED=+localStorage.getItem(REG_LS.u)||0; REG_NEXT=+localStorage.getItem(REG_LS.n)||0; REG_LIVE=localStorage.getItem(REG_LS.l)==="1"; } }catch(e){} }
+  /* 起動時：共有ストア(GAS)から最新取得を読む→無ければ端末保存を使う。誰かが取得済みなら全員に反映される。 */
+  function loadRegional(){
+    regLoadLocal();
+    regJsonp({api:"regionaltags", region:REGION_NAME, peek:1}).then(function(res){
+      if(regApply(res,Date.now())) regSaveLocal();
+    }).catch(function(){});
+  }
   var activeCard=null;
   function chip(h,sel){ return '<button class="chip'+(sel[h.t]?" on":"")+(h.inb?" inb":"")+'" data-t="'+esc(h.t)+'"><span>#'+esc(h.t)+'</span>'+(h.r?'<span class="s">'+STAR[h.r]+'</span>':"")+'</button>'; }
   function renderTagEditor(){
     var sel=activeCard._sel, body=document.getElementById("tagbody");
+    var now=Date.now(), cd=(REG_NEXT&&now<REG_NEXT);   // クールダウン中＝先に誰かが取得済み
+    var btnTxt=cd?("🔒 取得済み（次回取得可能 "+fmtDate(REG_NEXT)+"）"):"🔄 今の地域のおすすめを取得";
     var html='<div class="tebar">選択中 <b class="tesel">'+Object.keys(sel).length+'</b> 個 ／ 点線＝インバウンド</div>'+
-      '<button class="fetchbtn" id="fetchreg">🔄 今の地域のおすすめを取得</button>'+
-      '<div class="fetchnote">※「今の人気（Instagram調べ）」はInstagram Graph APIの制限で、ハッシュタグ検索が7日間で30個まで（投稿処理と共有の枠）。ふだんは地域おすすめでOK。</div>';
+      '<button class="fetchbtn'+(cd?" cd":"")+'" id="fetchreg">'+btnTxt+'</button>'+
+      '<div class="fetchnote">※「今の人気（Instagram調べ）」はInstagram Graph APIの制限で、ハッシュタグ検索が7日間で30個まで（投稿処理と共有の枠）。1人が取得すると全員に共有され、次回取得までの日付が出ます。</div>';
     if(REGIONAL.length){
-      var rlab=REG_LIVE?"🔥 今の人気（Instagram調べ・"+REGION_NAME+"）":"📍 "+REGION_NAME+"の地域おすすめ";
-      html+='<div class="reglabel">'+rlab+'</div><div class="chips" id="regchips">';
+      var rlab=REG_LIVE?"🔥 最新取得（Instagram調べ）":"🕘 最新取得（地域おすすめ）";
+      var meta='<span class="regmeta">更新 '+fmtDT(REG_UPDATED)+(REG_NEXT?' ・ 次回取得可能 '+fmtDate(REG_NEXT):'')+'</span>';
+      html+='<div class="reglabel">'+rlab+meta+'</div><div class="chips" id="regchips">';
       REGIONAL.forEach(function(h){ html+=chip(h,sel); }); html+='</div>';
     }
     [3,2,1].forEach(function(r){
@@ -275,17 +302,22 @@
     document.getElementById("fetchreg").onclick=fetchRegional;
   }
   function fetchRegional(){
+    var now=Date.now();
+    if(REG_NEXT&&now<REG_NEXT){   // 先に誰かが取得済み→再取得はクールダウン明けまで。保存済み（共有分）を見せる。
+      toast("すでに取得済みです（次回取得可能 "+fmtDate(REG_NEXT)+"）");
+      renderTagEditor(); return;
+    }
     var btn=document.getElementById("fetchreg"); btn.disabled=true; btn.textContent="🔎 "+REGION_NAME+"の人気タグを調べています…";
-    // バックエンド接続時：GASがIGの活発さを調べて返す。未接続/失敗時：調査済みの地域おすすめプールを提示。
+    // バックエンド接続時：GASがIGで調べて共有ストアに保存＋更新日時/次回日時を返す。未接続時：端末に疑似保存。
     regJsonp({api:"regionaltags", region:REGION_NAME}).then(function(res){
-      var live=!!(res&&res.ok&&res.live&&res.tags&&res.tags.length);
-      REGIONAL=live?res.tags:REGION_POOL; REG_LIVE=live;
-      renderTagEditor();
-      toast(live?"今の人気タグを取得しました（Instagram調べ）":"地域のおすすめタグを表示しました");
+      var ok=regApply(res,now);
+      if(!ok){ REGIONAL=REGION_POOL; REG_LIVE=false; REG_UPDATED=now; REG_NEXT=now+REG_COOLDOWN_DAYS*864e5; }
+      regSaveLocal(); renderTagEditor();
+      toast(REG_LIVE?"最新のおすすめタグを取得・共有しました":"地域のおすすめタグを更新しました");
     }).catch(function(){
-      REGIONAL=REGION_POOL; REG_LIVE=false;
-      renderTagEditor();
-      toast("地域のおすすめタグを表示しました");
+      REGIONAL=REGION_POOL; REG_LIVE=false; REG_UPDATED=now; REG_NEXT=now+REG_COOLDOWN_DAYS*864e5;
+      regSaveLocal(); renderTagEditor();
+      toast("地域のおすすめタグを更新しました（この端末に保存）");
     });
   }
   function openTagEditor(card){ activeCard=card; renderTagEditor(); document.getElementById("tagmodal").classList.add("open"); }
@@ -410,6 +442,7 @@
   document.getElementById("tagmodal").addEventListener("click",function(e){ if(e.target===this) closeTagEditor(); });
 
   render();
+  loadRegional();   // 共有ストアから「最新取得」を読み込む（他の人が取得済みならここで反映）
 </script>
 </body>
 </html>
