@@ -1,0 +1,7 @@
+{
+  "_comment": "ログインフォームとCSV出力ボタンのセレクタ。空欄なら自動検出を試みる。自動検出が外れたら scripts/record_login.py で調べて埋める。",
+  "login_user": "",
+  "login_pass": "",
+  "login_button": "",
+  "csv_button": ""
+}
