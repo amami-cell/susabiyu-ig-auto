@@ -91,8 +91,6 @@
   .btn.tagedit{width:100%;background:#232a37;color:#cdd5e1;margin-bottom:2px}
   .tebar{font-size:12.5px;color:var(--sub);font-weight:800;margin:2px 2px 12px}
   .tebar b{color:var(--accent)}
-  .tebar b.over{color:#ff8a8a}
-  .tenote{display:block;font-weight:600;color:#7c8698;font-size:11px;margin-top:3px}
   .fetchbtn{width:100%;background:#245038;color:#dfeee5;border:0;border-radius:12px;padding:13px;font-weight:800;font-size:14px;margin:0 0 6px}
   .fetchbtn:disabled{opacity:.65}
   .fetchnote{font-size:11px;color:#7c8698;line-height:1.5;margin:0 2px 16px}
@@ -256,14 +254,11 @@
   }
   var activeCard=null;
   function chip(h,sel){ return '<button class="chip'+(sel[h.t]?" on":"")+(h.inb?" inb":"")+'" data-t="'+esc(h.t)+'"><span>#'+esc(h.t)+'</span>'+(h.r?'<span class="s">'+STAR[h.r]+'</span>':"")+'</button>'; }
-  var TAG_MAX=30;   // Instagramは1投稿あたりハッシュタグ30個まで
   function renderTagEditor(){
     var sel=activeCard._sel, body=document.getElementById("tagbody");
-    var n0=Object.keys(sel).length;
-    var html='<div class="tebar">選択中 <b class="tesel'+(n0>TAG_MAX?" over":"")+'">'+n0+'</b> / '+TAG_MAX+' 個 ・ 点線＝インバウンド'+
-        '<span class="tenote">※Instagramは1投稿あたりハッシュタグ30個まで</span></div>'+
+    var html='<div class="tebar">選択中 <b class="tesel">'+Object.keys(sel).length+'</b> 個 ／ 点線＝インバウンド</div>'+
       '<button class="fetchbtn" id="fetchreg">🔄 今の地域のおすすめを取得</button>'+
-      '<div class="fetchnote">「今の人気（Instagram調べ）」はIGの制限で1週間に数回まで。ふだんは地域おすすめでOKです。</div>';
+      '<div class="fetchnote">※「今の人気（Instagram調べ）」はInstagram Graph APIの制限で、ハッシュタグ検索が7日間で30個まで（投稿処理と共有の枠）。ふだんは地域おすすめでOK。</div>';
     if(REGIONAL.length){
       var rlab=REG_LIVE?"🔥 今の人気（Instagram調べ・"+REGION_NAME+"）":"📍 "+REGION_NAME+"の地域おすすめ";
       html+='<div class="reglabel">'+rlab+'</div><div class="chips" id="regchips">';
@@ -276,7 +271,7 @@
       html+='</div></div>';
     });
     body.innerHTML=html;
-    body.querySelectorAll(".chip").forEach(function(ch){ ch.onclick=function(){ var t=ch.getAttribute("data-t"); if(sel[t]){delete sel[t];ch.classList.remove("on");}else{ if(Object.keys(sel).length>=TAG_MAX){ toast("ハッシュタグは"+TAG_MAX+"個までです"); return; } sel[t]=1;ch.classList.add("on");} var n=Object.keys(sel).length,b=body.querySelector(".tesel"); b.textContent=n; b.classList.toggle("over",n>TAG_MAX); }; });
+    body.querySelectorAll(".chip").forEach(function(ch){ ch.onclick=function(){ var t=ch.getAttribute("data-t"); if(sel[t]){delete sel[t];ch.classList.remove("on");}else{sel[t]=1;ch.classList.add("on");} body.querySelector(".tesel").textContent=Object.keys(sel).length; }; });
     document.getElementById("fetchreg").onclick=fetchRegional;
   }
   function fetchRegional(){
