@@ -39,6 +39,7 @@
   .mediaWrap.feed{aspect-ratio:4/5}
   .mediaWrap.reel{aspect-ratio:9/16}
   .mediaWrap img,.mediaWrap video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;background:#000}
+  .mediaWrap.feed img{object-fit:contain}   /* デザイン済みポスターは全体を必ず表示（切り取らない） */
   .ph{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;
     background:linear-gradient(160deg,#2a2016,#241a33);color:#cbd3e0;font-weight:800;font-size:15px;text-align:center;padding:16px}
   .ph small{color:#9aa3b2;font-weight:700;font-size:12px}
@@ -106,7 +107,7 @@
   .shbody{padding:14px 16px}
   .fs-video{position:relative;width:100%;aspect-ratio:9/16;background:#000;border-radius:14px;overflow:hidden}
   .fs-video video{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;background:#000}
-  .fs-img{width:100%;aspect-ratio:4/5;object-fit:cover;border-radius:14px;background:#000}
+  .fs-img{width:100%;aspect-ratio:4/5;object-fit:contain;border-radius:14px;background:#000}
   .dmeta{font-size:13px;color:var(--sub);margin:12px 2px 4px;font-weight:800}
   .dcap{font-size:14px;line-height:1.65;white-space:pre-wrap;margin:6px 2px 12px}
   .dtags{font-size:13px;color:#8ea0ff;line-height:1.7;word-break:break-all;margin-bottom:14px}
@@ -124,17 +125,18 @@
   .gate button{width:min(320px,80vw);padding:14px;font-size:16px;font-weight:700;border:0;border-radius:12px;
     background:#c8a24a;color:#1a1206}
   .gate .err{color:#ff8080;font-size:13px;min-height:18px}
-  .gate a{color:#9aa3b2;font-size:13px;text-decoration:none}
+  .gate a{color:#9aa3b2;font-size:13px;text-decoration:none;cursor:pointer}
+  .gate p small{color:#7c8698;font-size:11.5px}
 </style>
 </head>
 <body>
-  <div class="gate" id="gate">
-    <h1>🍻 投稿の確認</h1>
-    <p>このページは関係者専用です。<br>入場コードを入力してください。</p>
-    <input id="gpass" type="password" inputmode="numeric" autocomplete="off" placeholder="●●●●">
-    <button id="ggo">入る</button>
-    <div class="err" id="gerr"></div>
-    <a href="./index.html">← 三条アプリへ戻る</a>
+  <div class="gate" id="pcgate" style="display:none">
+    <h1>🔑 最新タグの取得</h1>
+    <p>地域の最新ハッシュタグを取得します。<br>取得コードを入力してください。<br><small>※取得すると全員に共有され、7日間は再取得できません。</small></p>
+    <input id="pcpass" type="password" inputmode="numeric" autocomplete="off" placeholder="●●●●">
+    <button id="pcgo">取得する</button>
+    <div class="err" id="pcerr"></div>
+    <a id="pccancel">キャンセル</a>
   </div>
   <header class="topbar">
     <div class="bar">
@@ -162,23 +164,19 @@
   var toastEl=document.getElementById("toast");
   function toast(t){toastEl.textContent=t;toastEl.classList.add("show");clearTimeout(window._tt);window._tt=setTimeout(function(){toastEl.classList.remove("show");},1800);}
 
-  /* 入場ゲート（パスコード8888・一度入れた端末はそのまま） */
-  (function(){
-    var HASH="2926a2731f4b312c08982cacf8061eb14bf65c1a87cc5d70e864e079c6220731"; // sha256("8888")
-    var gate=document.getElementById("gate");
-    function sha256(str){return crypto.subtle.digest("SHA-256",new TextEncoder().encode(str)).then(function(h){var a=new Uint8Array(h),s="";for(var i=0;i<a.length;i++)s+=("0"+a[i].toString(16)).slice(-2);return s;});}
-    function tryPass(){
-      var v=(document.getElementById("gpass").value||"").trim(); if(!v) return;
-      sha256(v).then(function(h){
-        if(h===HASH){ try{localStorage.setItem("sb_reels_ok","1");}catch(e){} gate.style.display="none"; }
-        else{ document.getElementById("gerr").textContent="コードが違います"; document.getElementById("gpass").value=""; }
-      });
-    }
-    document.getElementById("ggo").onclick=tryPass;
-    document.getElementById("gpass").addEventListener("keydown",function(e){if(e.key==="Enter")tryPass();});
-    var ok=false; try{ok=localStorage.getItem("sb_reels_ok")==="1";}catch(e){}
-    if(ok) gate.style.display="none";
-  })();
+  /* 最新タグ取得のパスコード（8888）。確認画面自体はコード不要・取得の時だけ確認する。 */
+  var PC_HASH="2926a2731f4b312c08982cacf8061eb14bf65c1a87cc5d70e864e079c6220731"; // sha256("8888")
+  function sha256(str){return crypto.subtle.digest("SHA-256",new TextEncoder().encode(str)).then(function(h){var a=new Uint8Array(h),s="";for(var i=0;i<a.length;i++)s+=("0"+a[i].toString(16)).slice(-2);return s;});}
+  function requireFetchPass(cb){
+    var g=document.getElementById("pcgate"), inp=document.getElementById("pcpass"), err=document.getElementById("pcerr");
+    inp.value=""; err.textContent=""; g.style.display="flex"; setTimeout(function(){try{inp.focus();}catch(e){}},60);
+    function close(){ g.style.display="none"; }
+    function submit(){ var v=(inp.value||"").trim(); if(!v) return;
+      sha256(v).then(function(h){ if(h===PC_HASH){ close(); cb(); } else { err.textContent="コードが違います"; inp.value=""; } }); }
+    document.getElementById("pcgo").onclick=submit;
+    document.getElementById("pccancel").onclick=close;
+    inp.onkeydown=function(e){ if(e.key==="Enter") submit(); };
+  }
   function esc(s){return (s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;").replace(/'/g,"&#39;");}
   function fmt(t){t=Math.max(0,Math.round(t));var m=Math.floor(t/60),s=t%60;return m+":"+(s<10?"0":"")+s;}
 
@@ -308,7 +306,10 @@
       toast("すでに取得済みです（次回取得可能 "+fmtDate(REG_NEXT)+"）");
       renderTagEditor(); return;
     }
-    var btn=document.getElementById("fetchreg"); btn.disabled=true; btn.textContent="🔎 "+REGION_NAME+"の人気タグを調べています…";
+    requireFetchPass(function(){ doFetchRegional(Date.now()); });   // 取得の時だけコード確認（8888）
+  }
+  function doFetchRegional(now){
+    var btn=document.getElementById("fetchreg"); if(btn){ btn.disabled=true; btn.textContent="🔎 "+REGION_NAME+"の人気タグを調べています…"; }
     // バックエンド接続時：GASがIGで調べて共有ストアに保存＋更新日時/次回日時を返す。未接続時：端末に疑似保存。
     regJsonp({api:"regionaltags", region:REGION_NAME}).then(function(res){
       var ok=regApply(res,now);
