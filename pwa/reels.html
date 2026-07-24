@@ -91,8 +91,11 @@
   .btn.tagedit{width:100%;background:#232a37;color:#cdd5e1;margin-bottom:2px}
   .tebar{font-size:12.5px;color:var(--sub);font-weight:800;margin:2px 2px 12px}
   .tebar b{color:var(--accent)}
-  .fetchbtn{width:100%;background:#245038;color:#dfeee5;border:0;border-radius:12px;padding:13px;font-weight:800;font-size:14px;margin:0 0 16px}
+  .tebar b.over{color:#ff8a8a}
+  .tenote{display:block;font-weight:600;color:#7c8698;font-size:11px;margin-top:3px}
+  .fetchbtn{width:100%;background:#245038;color:#dfeee5;border:0;border-radius:12px;padding:13px;font-weight:800;font-size:14px;margin:0 0 6px}
   .fetchbtn:disabled{opacity:.65}
+  .fetchnote{font-size:11px;color:#7c8698;line-height:1.5;margin:0 2px 16px}
   .reglabel{font-size:12px;color:#7fd1a0;font-weight:800;margin:2px 2px 8px}
   #modal,#tagmodal{position:fixed;inset:0;z-index:40;background:rgba(0,0,0,.72);display:none;align-items:flex-end}
   #modal.open,#tagmodal.open{display:flex}
@@ -111,9 +114,28 @@
   #toast{position:fixed;left:50%;bottom:calc(env(safe-area-inset-bottom) + 22px);transform:translateX(-50%);background:#000;color:#fff;padding:11px 18px;border-radius:24px;font-size:14px;opacity:0;transition:.2s;pointer-events:none;z-index:60;max-width:90%;text-align:center}
   #toast.show{opacity:.96}
   .devnote{margin:2px 2px 16px;font-size:11.5px;color:#c79a3a;background:#241d10;border:1px solid #4a3c17;border-radius:12px;padding:10px 12px;line-height:1.6}
+  /* 入場コード（関係者専用ゲート） */
+  .gate{position:fixed;inset:0;background:#0f1115;display:flex;flex-direction:column;justify-content:center;
+    align-items:center;gap:18px;padding:30px;z-index:200}
+  .gate h1{font-size:20px;letter-spacing:2px}
+  .gate p{color:#9aa3b2;font-size:13px;text-align:center;line-height:1.7}
+  .gate input{width:min(320px,80vw);padding:14px 16px;font-size:20px;text-align:center;letter-spacing:6px;
+    border-radius:12px;border:1px solid #2a3542;background:#141b23;color:#fff;outline:none}
+  .gate button{width:min(320px,80vw);padding:14px;font-size:16px;font-weight:700;border:0;border-radius:12px;
+    background:#c8a24a;color:#1a1206}
+  .gate .err{color:#ff8080;font-size:13px;min-height:18px}
+  .gate a{color:#9aa3b2;font-size:13px;text-decoration:none}
 </style>
 </head>
 <body>
+  <div class="gate" id="gate">
+    <h1>🍻 投稿の確認</h1>
+    <p>このページは関係者専用です。<br>入場コードを入力してください。</p>
+    <input id="gpass" type="password" inputmode="numeric" autocomplete="off" placeholder="●●●●">
+    <button id="ggo">入る</button>
+    <div class="err" id="gerr"></div>
+    <a href="./index.html">← 三条アプリへ戻る</a>
+  </div>
   <header class="topbar">
     <div class="bar">
       <button class="back" onclick="location.href='./index.html'">← 戻る</button>
@@ -139,6 +161,24 @@
 <script>
   var toastEl=document.getElementById("toast");
   function toast(t){toastEl.textContent=t;toastEl.classList.add("show");clearTimeout(window._tt);window._tt=setTimeout(function(){toastEl.classList.remove("show");},1800);}
+
+  /* 入場ゲート（パスコード8888・一度入れた端末はそのまま） */
+  (function(){
+    var HASH="2926a2731f4b312c08982cacf8061eb14bf65c1a87cc5d70e864e079c6220731"; // sha256("8888")
+    var gate=document.getElementById("gate");
+    function sha256(str){return crypto.subtle.digest("SHA-256",new TextEncoder().encode(str)).then(function(h){var a=new Uint8Array(h),s="";for(var i=0;i<a.length;i++)s+=("0"+a[i].toString(16)).slice(-2);return s;});}
+    function tryPass(){
+      var v=(document.getElementById("gpass").value||"").trim(); if(!v) return;
+      sha256(v).then(function(h){
+        if(h===HASH){ try{localStorage.setItem("sb_reels_ok","1");}catch(e){} gate.style.display="none"; }
+        else{ document.getElementById("gerr").textContent="コードが違います"; document.getElementById("gpass").value=""; }
+      });
+    }
+    document.getElementById("ggo").onclick=tryPass;
+    document.getElementById("gpass").addEventListener("keydown",function(e){if(e.key==="Enter")tryPass();});
+    var ok=false; try{ok=localStorage.getItem("sb_reels_ok")==="1";}catch(e){}
+    if(ok) gate.style.display="none";
+  })();
   function esc(s){return (s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;").replace(/'/g,"&#39;");}
   function fmt(t){t=Math.max(0,Math.round(t));var m=Math.floor(t/60),s=t%60;return m+":"+(s<10?"0":"")+s;}
 
@@ -216,10 +256,14 @@
   }
   var activeCard=null;
   function chip(h,sel){ return '<button class="chip'+(sel[h.t]?" on":"")+(h.inb?" inb":"")+'" data-t="'+esc(h.t)+'"><span>#'+esc(h.t)+'</span>'+(h.r?'<span class="s">'+STAR[h.r]+'</span>':"")+'</button>'; }
+  var TAG_MAX=30;   // Instagramは1投稿あたりハッシュタグ30個まで
   function renderTagEditor(){
     var sel=activeCard._sel, body=document.getElementById("tagbody");
-    var html='<div class="tebar">選択中 <b class="tesel">'+Object.keys(sel).length+'</b> 個 ／ 点線＝インバウンド</div>'+
-      '<button class="fetchbtn" id="fetchreg">🔄 今の地域のおすすめを取得</button>';
+    var n0=Object.keys(sel).length;
+    var html='<div class="tebar">選択中 <b class="tesel'+(n0>TAG_MAX?" over":"")+'">'+n0+'</b> / '+TAG_MAX+' 個 ・ 点線＝インバウンド'+
+        '<span class="tenote">※Instagramは1投稿あたりハッシュタグ30個まで</span></div>'+
+      '<button class="fetchbtn" id="fetchreg">🔄 今の地域のおすすめを取得</button>'+
+      '<div class="fetchnote">「今の人気（Instagram調べ）」はIGの制限で1週間に数回まで。ふだんは地域おすすめでOKです。</div>';
     if(REGIONAL.length){
       var rlab=REG_LIVE?"🔥 今の人気（Instagram調べ・"+REGION_NAME+"）":"📍 "+REGION_NAME+"の地域おすすめ";
       html+='<div class="reglabel">'+rlab+'</div><div class="chips" id="regchips">';
@@ -232,7 +276,7 @@
       html+='</div></div>';
     });
     body.innerHTML=html;
-    body.querySelectorAll(".chip").forEach(function(ch){ ch.onclick=function(){ var t=ch.getAttribute("data-t"); if(sel[t]){delete sel[t];ch.classList.remove("on");}else{sel[t]=1;ch.classList.add("on");} body.querySelector(".tesel").textContent=Object.keys(sel).length; }; });
+    body.querySelectorAll(".chip").forEach(function(ch){ ch.onclick=function(){ var t=ch.getAttribute("data-t"); if(sel[t]){delete sel[t];ch.classList.remove("on");}else{ if(Object.keys(sel).length>=TAG_MAX){ toast("ハッシュタグは"+TAG_MAX+"個までです"); return; } sel[t]=1;ch.classList.add("on");} var n=Object.keys(sel).length,b=body.querySelector(".tesel"); b.textContent=n; b.classList.toggle("over",n>TAG_MAX); }; });
     document.getElementById("fetchreg").onclick=fetchRegional;
   }
   function fetchRegional(){
