@@ -19,7 +19,6 @@
   .bar{display:flex;align-items:center;gap:10px;padding:calc(env(safe-area-inset-top) + 12px) 16px 10px}
   .bar .back{border:1px solid var(--line);background:#181c23;color:var(--fg);font-size:13px;font-weight:800;padding:7px 13px;border-radius:999px}
   .bar h1{font-size:16px;font-weight:800;flex:1}
-  .bar .lock{font-size:14px;color:var(--sub)}
   .tabs{display:flex;gap:8px;padding:0 14px 12px}
   .tab{flex:1;text-align:center;padding:11px;border-radius:12px;border:1px solid var(--line);background:#141922;color:var(--sub);font-weight:800;font-size:14px}
   .tab.on{background:#12263a;border-color:#2f5a8f;color:#cfe4ff}
@@ -141,7 +140,7 @@
   <header class="topbar">
     <div class="bar">
       <button class="back" onclick="location.href='./index.html'">← 戻る</button>
-      <h1>投稿の確認</h1><span class="lock">🔒</span>
+      <h1>投稿の確認</h1>
     </div>
     <div class="tabs">
       <div class="tab on" id="tabFeed" onclick="switchTab('feed')">📸 フィード投稿</div>
