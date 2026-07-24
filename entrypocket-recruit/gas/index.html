@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <base target="_top">
+  <style>
+    :root {
+      --bg: #0f1419; --card: #1a222c; --line: #2a3644;
+      --fg: #e6edf3; --muted: #8b98a5; --accent: #4a9eff; --warn: #ffb454;
+      --f1: #4a9eff; --f2: #38c172; --f3: #f6c343; --f4: #ff8a65; --f5: #ba68c8; --f6: #78909c;
+    }
+    * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+    body {
+      margin: 0; background: var(--bg); color: var(--fg);
+      font-family: -apple-system, "Hiragino Kaku Gothic ProN", "Noto Sans JP", sans-serif;
+      font-size: 15px; padding-bottom: 40px;
+    }
+    header {
+      position: sticky; top: 0; z-index: 5; background: var(--bg);
+      padding: 14px 16px; border-bottom: 1px solid var(--line);
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    header h1 { font-size: 17px; margin: 0; }
+    .updated { font-size: 11px; color: var(--muted); }
+    button.refresh {
+      background: var(--accent); color: #fff; border: 0; border-radius: 8px;
+      padding: 9px 14px; font-size: 14px; font-weight: 600;
+    }
+    button.refresh:disabled { opacity: .5; }
+    main { padding: 12px 16px; max-width: 720px; margin: 0 auto; }
+    .card { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 14px; margin-bottom: 14px; }
+    .card h2 { font-size: 13px; color: var(--muted); margin: 0 0 12px; font-weight: 600; }
+    .kpis { display: flex; gap: 10px; }
+    .kpi { flex: 1; text-align: center; }
+    .kpi .n { font-size: 26px; font-weight: 700; }
+    .kpi .l { font-size: 11px; color: var(--muted); }
+    .funnel-row { display: flex; align-items: center; margin: 6px 0; gap: 10px; }
+    .funnel-row .name { width: 44px; font-size: 13px; color: var(--muted); }
+    .bar { height: 26px; border-radius: 6px; min-width: 2px; display: flex; align-items: center; padding: 0 8px; color: #fff; font-size: 13px; font-weight: 600; }
+    .stage-応募 { background: var(--f1); } .stage-接触 { background: var(--f2); }
+    .stage-面接 { background: var(--f3); color:#222; } .stage-内定 { background: var(--f4); }
+    .stage-入社 { background: var(--f5); } .stage-終了 { background: var(--f6); }
+    .filters { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 10px; }
+    .chip { border: 1px solid var(--line); background: transparent; color: var(--muted); border-radius: 999px; padding: 6px 12px; font-size: 12px; }
+    .chip.on { background: var(--accent); color: #fff; border-color: var(--accent); }
+    .app { border-top: 1px solid var(--line); padding: 10px 2px; display: flex; align-items: center; gap: 10px; }
+    .app:first-child { border-top: 0; }
+    .app .info { flex: 1; min-width: 0; }
+    .app .nm { font-weight: 600; }
+    .app .sub { font-size: 12px; color: var(--muted); margin-top: 2px; }
+    .tag { font-size: 10px; padding: 2px 6px; border-radius: 4px; margin-left: 6px; }
+    .tag.dup { background: #4a2c2c; color: var(--warn); }
+    .tag.st { background: #22303f; color: var(--accent); }
+    .call { background: var(--f2); color: #fff; border-radius: 8px; padding: 8px 12px; text-decoration: none; font-size: 13px; white-space: nowrap; }
+    .call.off { background: var(--line); color: var(--muted); pointer-events: none; }
+    .empty { color: var(--muted); font-size: 13px; text-align: center; padding: 20px; }
+    .toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: var(--card); border: 1px solid var(--line); padding: 10px 16px; border-radius: 8px; font-size: 13px; opacity: 0; transition: opacity .3s; }
+    .toast.show { opacity: 1; }
+    .heatnote { font-size: 12px; color: var(--muted); }
+  </style>
+</head>
+<body>
+  <header>
+    <div>
+      <h1>求人進捗</h1>
+      <div class="updated" id="updated">読み込み中…</div>
+    </div>
+    <button class="refresh" id="refreshBtn" onclick="doRefresh()">更新</button>
+  </header>
+
+  <main>
+    <div class="card">
+      <div class="kpis">
+        <div class="kpi"><div class="n" id="kpiTotal">–</div><div class="l">応募者(現在)</div></div>
+        <div class="kpi"><div class="n" id="kpiDup">–</div><div class="l">重複率</div></div>
+        <div class="kpi"><div class="n" id="kpiChg">–</div><div class="l">前回変更検知</div></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>ファネル</h2>
+      <div id="funnel"></div>
+    </div>
+
+    <div class="card">
+      <h2>応募者一覧</h2>
+      <div class="filters" id="filters"></div>
+      <div id="list"><div class="empty">読み込み中…</div></div>
+    </div>
+
+    <div class="card">
+      <h2>勤務可能 曜日×時間帯 ヒートマップ</h2>
+      <div class="heatnote">サンプルCSVでは全件0のため空。バイトル以外の媒体・求人でこの項目が入り始めると表示される。</div>
+    </div>
+  </main>
+
+  <div class="toast" id="toast"></div>
+
+  <script>
+    var STAGES = ['応募', '接触', '面接', '内定', '入社', '終了'];
+    var applicants = [];
+    var stores = {};
+    var activeFunnel = null;
+
+    function toast(msg) {
+      var t = document.getElementById('toast');
+      t.textContent = msg; t.classList.add('show');
+      setTimeout(function () { t.classList.remove('show'); }, 2600);
+    }
+
+    function loadDashboard() {
+      google.script.run.withSuccessHandler(renderDashboard).withFailureHandler(function (e) {
+        document.getElementById('updated').textContent = '取得失敗: ' + e.message;
+      }).getDashboard();
+      google.script.run.withSuccessHandler(function (r) {
+        if (r) document.getElementById('kpiChg').textContent = r.changes != null ? r.changes : '–';
+      }).getLatestRun();
+      google.script.run.withSuccessHandler(function (rows) {
+        applicants = rows || []; renderList();
+      }).getApplicants();
+    }
+
+    function renderDashboard(d) {
+      stores = d.stores || {};
+      document.getElementById('kpiTotal').textContent = d.total != null ? d.total : '–';
+      document.getElementById('kpiDup').textContent = d.duplicate_rate != null ? Math.round(d.duplicate_rate * 100) + '%' : '–';
+      document.getElementById('updated').textContent = d.generated_at ? ('最終更新 ' + d.generated_at) : '未取得';
+
+      var funnel = d.funnel || {};
+      var max = 1;
+      STAGES.forEach(function (s) { max = Math.max(max, funnel[s] || 0); });
+      var html = '';
+      STAGES.forEach(function (s) {
+        var v = funnel[s] || 0;
+        var w = Math.round((v / max) * 100);
+        html += '<div class="funnel-row"><div class="name">' + s + '</div>' +
+          '<div class="bar stage-' + s + '" style="width:' + Math.max(w, v ? 8 : 0) + '%">' + (v || '') + '</div></div>';
+      });
+      document.getElementById('funnel').innerHTML = html;
+    }
+
+    function renderList() {
+      var filt = document.getElementById('filters');
+      var chips = '<button class="chip ' + (activeFunnel === null ? 'on' : '') + '" onclick="setFilter(null)">すべて</button>';
+      STAGES.forEach(function (s) {
+        chips += '<button class="chip ' + (activeFunnel === s ? 'on' : '') + '" onclick="setFilter(\'' + s + '\')">' + s + '</button>';
+      });
+      filt.innerHTML = chips;
+
+      var rows = applicants.filter(function (a) { return activeFunnel === null || a.funnel === activeFunnel; });
+      if (!rows.length) {
+        document.getElementById('list').innerHTML = '<div class="empty">該当なし</div>';
+        return;
+      }
+      var html = '';
+      rows.forEach(function (a) {
+        var storeName = stores[a.storeId] || a.storeId || '';
+        var dup = a.duplicate ? '<span class="tag dup">重複</span>' : '';
+        var st = a.status ? '<span class="tag st">' + a.status + '</span>' : '';
+        var call = a.telLink
+          ? '<a class="call" href="' + a.telLink + '">発信</a>'
+          : '<span class="call off">TELなし</span>';
+        html += '<div class="app"><div class="info"><div class="nm">' + esc(a.name) + dup + st + '</div>' +
+          '<div class="sub">' + esc(storeName) + ' ・ ' + esc(a.media || '') + ' ・ ' + esc(a.appliedAt || '') + '</div></div>' +
+          call + '</div>';
+      });
+      document.getElementById('list').innerHTML = html;
+    }
+
+    function setFilter(s) { activeFunnel = s; renderList(); }
+
+    function esc(s) {
+      return String(s == null ? '' : s).replace(/[&<>"]/g, function (c) {
+        return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c];
+      });
+    }
+
+    var pollTimer = null, pollSince = '', pollCount = 0;
+    function doRefresh() {
+      var btn = document.getElementById('refreshBtn');
+      btn.disabled = true; btn.textContent = '起動中…';
+      google.script.run.withSuccessHandler(function (r) {
+        if (!r.ok) { toast(r.error || '起動に失敗'); resetBtn(); return; }
+        pollSince = r.since || ''; pollCount = 0;
+        btn.textContent = '取得中…';
+        toast('取得を開始しました（1〜2分）');
+        pollTimer = setInterval(poll, 5000);
+      }).withFailureHandler(function (e) { toast(e.message); resetBtn(); }).triggerRefresh();
+    }
+
+    function poll() {
+      pollCount++;
+      google.script.run.withSuccessHandler(function (r) {
+        if (r && r.at && r.at !== pollSince) {
+          clearInterval(pollTimer);
+          toast(r.result === 'success' ? '取得完了' : ('取得失敗: ' + (r.note || '')));
+          resetBtn(); loadDashboard();
+        } else if (pollCount > 48) { // 約4分でタイムアウト
+          clearInterval(pollTimer); toast('タイムアウト。あとで更新してください。'); resetBtn();
+        }
+      }).getLatestRun();
+    }
+
+    function resetBtn() {
+      var btn = document.getElementById('refreshBtn');
+      btn.disabled = false; btn.textContent = '更新';
+    }
+
+    loadDashboard();
+  </script>
+</body>
+</html>

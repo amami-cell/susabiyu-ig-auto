@@ -1,0 +1,4 @@
+{
+  "_comment": "CSV出力の前に検索条件のセットが必要な場合の操作列。空でよければ pre_export_actions を空配列のままにする。type は select / click / wait / fill をサポート。",
+  "pre_export_actions": []
+}
