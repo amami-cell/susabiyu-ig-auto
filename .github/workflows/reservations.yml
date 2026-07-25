@@ -1,0 +1,54 @@
+name: susabiyu-reservations
+# 確認画面(PWA)で予約した投稿を、その時刻になったら自動で本投稿する。
+# 専用タブ「予約投稿」だけを見るので、既存の自動スロット投稿(post.yml)には影響しない。
+# 実投稿は Variables の RESV_LIVE=1 のときだけ。未設定＝DRY-RUN（ログのみ・投稿しない）。
+on:
+  schedule:
+    - cron: "*/15 * * * *"   # 15分ごと。予約時刻から最大15分以内に投稿
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: "live=実投稿 / dry=ログのみ（既定dry）"
+        required: false
+        default: "dry"
+        type: choice
+        options: [dry, live]
+permissions:
+  contents: read
+concurrency:
+  group: susabiyu-reservations   # 多重起動での二重投稿を防ぐ
+  cancel-in-progress: false
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: susabiyu-remotion
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install deps
+        run: pip install google-api-python-client google-auth requests
+      - name: Write creds.json
+        run: echo "$GOOGLE_CREDS_B64" | base64 -d > creds.json
+        env:
+          GOOGLE_CREDS_B64: ${{ secrets.GOOGLE_CREDS_B64 }}
+      - name: Run reservation poster
+        env:
+          SHEET_ID: ${{ secrets.SHEET_ID }}
+          IG_ACCESS_TOKEN: ${{ secrets.IG_ACCESS_TOKEN }}
+          GH_MEDIA_TOKEN: ${{ secrets.GH_MEDIA_TOKEN }}
+          GH_MEDIA_REPO: ${{ secrets.GH_MEDIA_REPO }}
+          R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          R2_BUCKET: ${{ secrets.R2_BUCKET }}
+          R2_PUBLIC_BASE: ${{ secrets.R2_PUBLIC_BASE }}
+          LINE_CHANNEL_TOKEN: ${{ secrets.LINE_CHANNEL_TOKEN }}
+          # 実投稿スイッチ：Variablesに RESV_LIVE=1 を入れたら本投稿。手動dispatchのliveでも可。
+          RESV_LIVE: ${{ github.event.inputs.mode == 'live' && '1' || vars.RESV_LIVE }}
+        run: |
+          python post_reservations.py creds.json

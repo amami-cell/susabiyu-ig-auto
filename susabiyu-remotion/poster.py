@@ -348,6 +348,42 @@ def ig_post(token, url, is_video):
     pid = p.get("id", "")
     print("[POST] done!", pid); return pid
 
+def ig_post_media(token, url, kind, caption=""):
+    """フィード画像 / リール動画を本投稿する（ストーリー用 ig_post とは別系統）。
+       kind: 'feed'=画像フィード投稿 / 'reel'=リール動画投稿。成功でメディアIDを返す。"""
+    B = IGB
+    me = req.get(f"{B}/me", params={"fields": "user_id,username", "access_token": token}).json()
+    if me.get("error"):
+        print("[POST] /me ERROR（トークン失効の可能性・要再発行）:", me["error"]); return ""
+    uid = me.get("user_id") or me.get("id")
+    if not uid:
+        print("[POST] uid取得失敗 me=", me); return ""
+    print("[POST] @%s (uid=%s) kind=%s" % (me.get("username"), uid, kind))
+    if kind == "reel":
+        data = {"media_type": "REELS", "video_url": url, "access_token": token}
+    else:
+        data = {"image_url": url, "access_token": token}   # 画像フィード（media_type省略＝IMAGE）
+    if caption:
+        data["caption"] = caption
+    c = req.post(f"{B}/{uid}/media", data=data).json()
+    if "error" in c:
+        print("[POST] media作成ERROR:", c["error"], "| url=", url); return ""
+    cid = c["id"]
+    # 動画は処理待ち（数十秒）がある。画像は基本すぐ FINISHED。
+    for _ in range(60):
+        s = req.get(f"{B}/{cid}", params={"fields": "status_code", "access_token": token}).json()
+        sc = s.get("status_code")
+        if sc == "FINISHED":
+            break
+        if sc == "ERROR":
+            print("[POST] status error", s); return ""
+        time.sleep(5)
+    p = req.post(f"{B}/{uid}/media_publish", data={"creation_id": cid, "access_token": token}).json()
+    if "error" in p:
+        print("[POST] publish ERROR:", p["error"]); return ""
+    pid = p.get("id", "")
+    print("[POST] done!", pid); return pid
+
 def line_notify(text):
     if not LINE_TOKEN:
         return
