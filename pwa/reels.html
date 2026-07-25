@@ -367,7 +367,23 @@
     // 予約ピッカー開閉
     var rbox=card.querySelector(".resvbox");
     card.querySelector(".resv").onclick=function(){ rbox.classList.toggle("open"); };
-    card.querySelector(".go").onclick=function(){ var d=card.querySelector(".rdate").value||"(日付未選択)", t=card.querySelector(".rtime").value; toast("（下書き）"+d+" "+t+" に予約しました"); };
+    card.querySelector(".go").onclick=function(){
+      var d=card.querySelector(".rdate").value, t=card.querySelector(".rtime").value||"18:00";
+      if(!d){ toast("予約日を選んでください"); return; }
+      var when=d+" "+t;
+      var tags=Object.keys(sel).map(function(x){return "#"+x;}).join(" ");
+      var media=(TAB==="feed")?(it.img||""):(it.video||"");
+      var cap=capFor(TAB==="feed"?FEEDCAP:REELCAP, it.name);
+      var go=card.querySelector(".go"); go.disabled=true;
+      // バックエンド接続時：GASが予約投稿タブに書き込み→時刻になったら自動投稿。未接続時は下書き表示。
+      regJsonp({api:"schedule", kind:TAB, name:it.name, when:when, media:media, caption:cap, hashtags:tags}).then(function(res){
+        go.disabled=false;
+        if(res&&res.ok){ toast(when+" に予約しました（自動投稿されます）"); rbox.classList.remove("open"); loadSched(); }
+        else { toast("予約に失敗しました。時間をおいて再度お試しください"); }
+      }).catch(function(){
+        go.disabled=false; toast("（下書き）"+when+" に予約しました"); rbox.classList.remove("open");
+      });
+    };
     card.querySelector(".post").onclick=function(){ toast("（下書き）"+it.name+"を今すぐ投稿します・タグ"+Object.keys(sel).length+"件"); };
     card.querySelector(".redo").onclick=function(){ toast("（下書き）"+it.name+"の作り直しを依頼"); };
     card.querySelector(".no").onclick=function(){ toast("（下書き）この案をやめます"); };
@@ -405,6 +421,19 @@
     DATA[TAB].forEach(function(it,i){ box.appendChild(buildCard(it,i)); });
     renderSched();
   }
+  /* 予約済み一覧を共有ストア(GAS)から読む。未接続なら現状のサンプルのまま。 */
+  function loadSched(){
+    regJsonp({api:"schedlist"}).then(function(res){
+      if(res&&res.ok&&res.items){
+        SCHED=res.items.map(function(it){
+          var o={token:it.token, kind:(it.kind==="reel"?"reel":"feed"), name:it.name||"", copy:it.copy||"", when:it.when||""};
+          if(o.kind==="reel") o.video=it.media||SAMPLEVID; else o.img=it.media||"";
+          return o;
+        });
+        renderSched();
+      }
+    }).catch(function(){});
+  }
 
   function renderSched(){
     var box=document.getElementById("sched"); box.innerHTML="";
@@ -417,7 +446,9 @@
         '<button class="scancel">取消</button>';
       row.querySelector(".smeta").onclick=function(){ openDetail(s); };
       thumbClick(row,s);
-      row.querySelector(".scancel").onclick=function(e){ e.stopPropagation(); if(confirm("この予約を取り消しますか？")){ SCHED.splice(idx,1); renderSched(); toast("予約を取り消しました"); } };
+      row.querySelector(".scancel").onclick=function(e){ e.stopPropagation(); if(!confirm("この予約を取り消しますか？")) return;
+        if(s.token){ regJsonp({api:"schedcancel", token:s.token}).then(function(){ loadSched(); toast("予約を取り消しました"); }).catch(function(){ toast("取消に失敗しました"); }); }
+        else { SCHED.splice(idx,1); renderSched(); toast("予約を取り消しました"); } };
       box.appendChild(row);
     });
   }
@@ -444,6 +475,7 @@
 
   render();
   loadRegional();   // 共有ストアから「最新取得」を読み込む（他の人が取得済みならここで反映）
+  loadSched();      // 予約済み一覧を共有ストアから読み込む（接続時）
 </script>
 </body>
 </html>
