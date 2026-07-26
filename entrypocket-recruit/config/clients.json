@@ -1,0 +1,10 @@
+{
+  "_comment": "複数拠点・複数アカウントを回す場合の設定。1件だけなら applicant_url を埋めるか、環境変数 EP_APPLICANT_URL を使う。login_url も同様に環境変数 EP_LOGIN_URL で上書きできる。ここに書けば Secrets を増やさずに拠点を足せる。",
+  "clients": [
+    {
+      "name": "default",
+      "login_url": "",
+      "applicant_url": ""
+    }
+  ]
+}
