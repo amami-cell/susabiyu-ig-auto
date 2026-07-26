@@ -53,6 +53,34 @@ def build_caption(caption, hashtags):
         return (cap + "\n\n" + tags).strip() if cap else tags
     return cap
 
+def _on_cdn(url):
+    low = (url or "").lower()
+    return ("jsdelivr.net" in low) or (".r2.dev" in low) or ("cloudflarestorage" in low) or ("r2.cloudflarestorage" in low)
+
+def resolve_media(media, kind):
+    """IGが確実に取得できる公開URLに解決する。
+       画像(feed)で非CDNのhttp(例:github.io)は、DL→jsDelivr/R2へ再ホスト（IG取得失敗を防ぐ）。
+       ローカルパスも再ホスト。動画(reel)は既にCDN配信なのでそのまま。失敗時は元URL。"""
+    if not media:
+        return ""
+    if media.startswith("http"):
+        if kind == "feed" and not _on_cdn(media):
+            try:
+                import tempfile
+                r = poster.req.get(media, timeout=30)
+                if r.status_code == 200 and r.content:
+                    ext = os.path.splitext(media.split("?")[0])[1] or ".jpg"
+                    tf = tempfile.NamedTemporaryFile(suffix=ext, delete=False)
+                    tf.write(r.content); tf.close()
+                    return poster.up(tf.name, cdn=True) or media
+            except Exception as e:
+                print("  [WARN] 再ホスト失敗→元URL使用:", e)
+            return media
+        return media
+    if os.path.exists(media):
+        return poster.up(media, cdn=True) or poster.up(media)
+    return media
+
 # ---- シート入出力 ----
 def _read_rows(sh):
     r = sh.values().get(spreadsheetId=poster.SHEET_ID, range=RESV_TAB + "!A2:I").execute()
@@ -113,9 +141,7 @@ def run(live):
 
         # 二重投稿防止：先に posting で確保
         _set(sh, i + 1, "G", "posting"); _set(sh, i + 1, "I", "投稿中 " + _now_str(now))
-        url = media
-        if media and not media.startswith("http") and os.path.exists(media):
-            url = poster.up(media, cdn=True) or poster.up(media)
+        url = resolve_media(media, kind)
         if not url:
             _set(sh, i + 1, "G", "failed"); _set(sh, i + 1, "I", "メディアURL取得失敗")
             print("  [FAIL] media URL なし token=%s" % token_id); continue
@@ -148,6 +174,10 @@ def selftest():
     assert build_caption("本文", "#a #b") == "本文\n\n#a #b"
     assert build_caption("", "#a") == "#a"
     assert build_caption("本文", "") == "本文"
+    assert _on_cdn("https://cdn.jsdelivr.net/gh/x/y@z/a.jpg") is True
+    assert _on_cdn("https://amami-cell.github.io/susabiyu-media/app/sample/feed1.jpg") is False
+    assert resolve_media("", "feed") == ""
+    assert resolve_media("https://cdn.jsdelivr.net/gh/x/y@z/a.mp4", "reel") == "https://cdn.jsdelivr.net/gh/x/y@z/a.mp4"
     print("selftest OK")
 
 if __name__ == "__main__":
