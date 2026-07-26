@@ -34,7 +34,11 @@ CSV_BTN_CANDIDATES = [
 def _first_visible(page, configured: str, candidates: list[str]):
     """設定値が空でなければそれを優先、無ければ候補から最初に見えるものを返す。"""
     if configured:
-        return page.locator(configured).first
+        loc = page.locator(configured).first
+        try:
+            return loc if loc.count() > 0 else None
+        except Exception:
+            return None
     for sel in candidates:
         loc = page.locator(sel).first
         try:
@@ -43,6 +47,35 @@ def _first_visible(page, configured: str, candidates: list[str]):
         except Exception:
             continue
     return None
+
+
+def _auto_username_field(page):
+    """候補で当たらない時の保険：パスワード欄の直前にある見えるテキスト入力欄を返す。
+
+    ログイン画面はほぼ必ず「ID欄→パスワード欄」の順に並ぶので、パスワード欄を
+    基準に、その手前で一番近い入力欄をID欄とみなす。これで多くのサイトに当たる。
+    """
+    try:
+        handle = page.evaluate_handle(
+            """() => {
+                const isVis = el => !!(el.offsetParent || el.getClientRects().length);
+                const skip = ['password','hidden','checkbox','radio','submit','button','file','image','reset'];
+                const inputs = [...document.querySelectorAll('input, textarea')].filter(el => {
+                    const t = (el.getAttribute('type') || 'text').toLowerCase();
+                    return isVis(el) && !skip.includes(t);
+                });
+                const pw = document.querySelector('input[type="password"]');
+                if (pw) {
+                    const before = inputs.filter(el =>
+                        el.compareDocumentPosition(pw) & Node.DOCUMENT_POSITION_FOLLOWING);
+                    if (before.length) return before[before.length - 1];
+                }
+                return inputs[0] || null;
+            }"""
+        )
+        return handle.as_element()
+    except Exception:
+        return None
 
 
 def _shot(page, artifacts_dir: Path, name: str) -> None:
@@ -84,11 +117,21 @@ def fetch_csv(settings: Settings) -> bytes:
         try:
             # --- ログイン画面 ---
             page.goto(settings.ep_login_url, wait_until="domcontentloaded", timeout=60000)
-            page.wait_for_timeout(1000)
+            # SPA等でフォームが遅れて描画される場合に備え、パスワード欄の出現を待つ
+            try:
+                page.wait_for_selector(
+                    "input[type='password']", timeout=15000, state="visible"
+                )
+            except Exception:
+                pass
+            page.wait_for_timeout(800)
             _shot(page, artifacts, "01_login")
 
-            user = _first_visible(page, sel.get("login_user", ""), USER_CANDIDATES)
             pw = _first_visible(page, sel.get("login_pass", ""), PASS_CANDIDATES)
+            user = _first_visible(page, sel.get("login_user", ""), USER_CANDIDATES)
+            if not user and not sel.get("login_user"):
+                # 候補で当たらなければ、パスワード欄の直前の入力欄をIDとみなす
+                user = _auto_username_field(page)
             if not user or not pw:
                 _shot(page, artifacts, "01_login_fields_not_found")
                 raise RuntimeError(
