@@ -1084,6 +1084,43 @@ def drivefind(query=None):
     print("[FIND] 完了")
 
 
+def foldersearch(query=None):
+    """フォルダ名にキーワードを含むフォルダを検索し、その直下(サブフォルダ名+画像枚数)も出力。
+    店の画像フォルダを特定する用。arg=キーワード（例: ぎふや / 天神）。"""
+    kw = (query or "ぎふや").strip().replace("'", "")
+    cr = _creds(); drive = _drive(cr)
+    def nm(fid):
+        try:
+            return drive.files().get(fileId=fid, fields="name", supportsAllDrives=True).execute().get("name", "")
+        except Exception:
+            return ""
+    q = "name contains '%s' and mimeType='application/vnd.google-apps.folder' and trashed=false" % kw
+    fol = []; page = None
+    try:
+        while True:
+            res = drive.files().list(q=q, fields="nextPageToken,files(id,name,parents)", pageSize=100,
+                pageToken=page, supportsAllDrives=True, includeItemsFromAllDrives=True).execute()
+            fol += res.get("files", []); page = res.get("nextPageToken")
+            if not page:
+                break
+    except Exception as e:
+        print("[FOLDER] 検索失敗:", e); return
+    print("[FOLDER] 「%s」で %d フォルダ" % (kw, len(fol)))
+    for f in fol:
+        par = (f.get("parents") or [""])[0]
+        print("DIR|%s|parent=%s|id=%s" % (f.get("name"), nm(par), f.get("id")))
+        try:
+            kids = drive.files().list(q="'%s' in parents and trashed=false" % f["id"],
+                fields="files(id,name,mimeType)", pageSize=300,
+                supportsAllDrives=True, includeItemsFromAllDrives=True).execute().get("files", [])
+            imgs = [k for k in kids if k["mimeType"].startswith("image/")]
+            for sd in [k for k in kids if k["mimeType"] == "application/vnd.google-apps.folder"]:
+                print("   SUB|%s|id=%s" % (sd["name"], sd["id"]))
+            print("   IMAGES|%d枚" % len(imgs))
+        except Exception as e:
+            print("   (子取得失敗)", e)
+    print("[FOLDER] 完了")
+
 def masterdump():
     """店舗マスターの各行: store_id / 表示名 / ルートURL(J) / 食事URL(K) を出力（フォルダID取得用・読取専用）。"""
     cr = _creds(); sh = _sheets(cr)
@@ -1667,6 +1704,8 @@ if __name__ == "__main__":
         storesdump()
     elif mode == "masterdump":
         masterdump()
+    elif mode == "foldersearch":
+        foldersearch(arg)
     elif mode == "pending":
         pending()
     elif mode == "saemail":
