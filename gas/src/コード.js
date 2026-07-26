@@ -19,8 +19,8 @@ const PUSH_TAB = '購読';
 const PATTERN_TAB = 'パターン';
 
 // ===== GitHub（作り直しdispatch用）=====
-// ※このトークンはチャットに出てしまったので、後で再発行して下記を差し替えてください。
-const GH_TOKEN = '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';
+// GH_TOKEN はGASの「プロジェクトの設定→スクリプト プロパティ」に GH_TOKEN として登録（コードに置かない）。
+const GH_TOKEN = PropertiesService.getScriptProperties().getProperty('GH_TOKEN') || '';
 const GH_OWNER = 'amami-cell';
 const GH_REPO  = 'susabiyu-ig-auto';
 const GH_WORKFLOW = 'redo.yml';
