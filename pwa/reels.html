@@ -249,6 +249,8 @@
       var to=setTimeout(function(){cleanup();reject(new Error("timeout"));},12000);
       function cleanup(){clearTimeout(to);delete window[cb];if(s.parentNode)s.parentNode.removeChild(s);}
       window[cb]=function(d){cleanup();resolve(d);};
+      // GAS側はAPP_KEY(=8888)を要求。確認画面もキーを送る（本アプリと同じsb_key、無ければ既定8888）。
+      if(!params.key){ try{ params.key=localStorage.getItem("sb_key")||"8888"; }catch(e){ params.key="8888"; } }
       var q=Object.keys(params).map(function(k){return k+"="+encodeURIComponent(params[k]);}).join("&");
       s.src=GAS+(GAS.indexOf("?")>=0?"&":"?")+q+"&cb="+cb;
       s.onerror=function(){cleanup();reject(new Error("network"));};
