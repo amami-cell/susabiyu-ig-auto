@@ -48,7 +48,7 @@ jobs:
           R2_BUCKET: ${{ secrets.R2_BUCKET }}
           R2_PUBLIC_BASE: ${{ secrets.R2_PUBLIC_BASE }}
           LINE_CHANNEL_TOKEN: ${{ secrets.LINE_CHANNEL_TOKEN }}
-          # 実投稿スイッチ：Variablesに RESV_LIVE=1 を入れたら本投稿。手動dispatchのliveでも可。
-          RESV_LIVE: ${{ github.event.inputs.mode == 'live' && '1' || vars.RESV_LIVE }}
+          # 既定で実投稿ON（全自動運用）。手動dispatchで mode=dry の時だけ投稿しない。
+          RESV_LIVE: ${{ github.event.inputs.mode == 'dry' && '0' || '1' }}
         run: |
           python post_reservations.py creds.json
