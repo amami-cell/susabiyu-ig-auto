@@ -148,7 +148,7 @@
     </div>
   </header>
   <div id="wrap">
-    <div class="devnote">🚧 画面デザインの下書き（サンプル）です。自動連携・実際の予約投稿はこの後つなぎます。操作感を先に確認してください。</div>
+    <div class="devnote">📡 予約はバックエンドに接続済み（接続後は予約時刻に自動投稿）。候補は接続時にシートから読み込み、未接続の間は組み込みの三条ポスターを表示します。</div>
     <div class="hint">各3案から選んで「今すぐ投稿」または「日時を決めて予約」。直したい時は「作り直す」で指示できます。</div>
     <div class="seclabel"><span id="secttl">📸 フィード投稿の候補</span> <span class="cnt">3案</span></div>
     <div id="cards"></div>
@@ -372,7 +372,9 @@
       if(!d){ toast("予約日を選んでください"); return; }
       var when=d+" "+t;
       var tags=Object.keys(sel).map(function(x){return "#"+x;}).join(" ");
-      var media=(TAB==="feed")?(it.img||""):(it.video||"");
+      var raw=(TAB==="feed")?(it.img||""):(it.video||"");
+      // IGサーバが取得できる絶対URLに解決（相対パスのままだと自動投稿できない）
+      var media=raw?(function(){try{return new URL(raw, location.href).href;}catch(e){return raw;}})():"";
       var cap=capFor(TAB==="feed"?FEEDCAP:REELCAP, it.name);
       var go=card.querySelector(".go"); go.disabled=true;
       // バックエンド接続時：GASが予約投稿タブに書き込み→時刻になったら自動投稿。未接続時は下書き表示。
@@ -434,6 +436,19 @@
       }
     }).catch(function(){});
   }
+  /* 投稿候補を共有ストア(GAS)から読む。未接続なら組み込みの三条ポスターのまま。 */
+  function loadCands(){
+    regJsonp({api:"cands"}).then(function(res){
+      if(!res||!res.ok) return;
+      if(res.feed&&res.feed.length){
+        DATA.feed=res.feed.map(function(c){ return {name:c.name||"", copy:c.copy||"", img:c.media||"", reco:!!c.reco}; });
+      }
+      if(res.reel&&res.reel.length){
+        DATA.reel=res.reel.map(function(c){ return {name:c.name||"", copy:c.copy||"", video:c.media||SAMPLEVID, dur:c.dur||48, reco:!!c.reco}; });
+      }
+      render();
+    }).catch(function(){});
+  }
 
   function renderSched(){
     var box=document.getElementById("sched"); box.innerHTML="";
@@ -474,6 +489,7 @@
   document.getElementById("tagmodal").addEventListener("click",function(e){ if(e.target===this) closeTagEditor(); });
 
   render();
+  loadCands();      // 投稿候補を共有ストアから読み込む（接続時。未接続は組み込みの三条ポスター）
   loadRegional();   // 共有ストアから「最新取得」を読み込む（他の人が取得済みならここで反映）
   loadSched();      // 予約済み一覧を共有ストアから読み込む（接続時）
 </script>
