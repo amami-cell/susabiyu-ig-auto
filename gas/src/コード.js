@@ -499,6 +499,11 @@ function _api_(p) {
       if (OWNER_KEY && String(p.owner || "") !== OWNER_KEY) return _jsonp_(cb, { error: "owner" });
       return _jsonp_(cb, { result: _setPattern_(p.pattern, p.on) });
     }
+    if (p.api === "schedule")     return _jsonp_(cb, schedCreate_(p));
+    if (p.api === "schedlist")    return _jsonp_(cb, schedList_());
+    if (p.api === "schedcancel")  return _jsonp_(cb, schedCancel_(p.token));
+    if (p.api === "regionaltags") return _jsonp_(cb, regionalTags_(p.region || "", p.peek === "1"));
+    if (p.api === "cands")        return _jsonp_(cb, cands_());
     return _jsonp_(cb, { error: "unknown api" });
   } catch (err) {
     return _jsonp_(cb, { error: String(err) });
@@ -710,4 +715,89 @@ function _ghDispatch_(workflow, inputs) {
     muteHttpExceptions: true
   });
   Logger.log(workflow + ' -> ' + res.getResponseCode() + ' ' + res.getContentText());
+}
+
+// ===== 予約投稿 / 地域タグ共有 / 投稿候補（PWA確認画面用・Claude追加） =====
+var RESV_TAB = "予約投稿";
+function schedSheet_() {
+  var ss = SpreadsheetApp.openById(SHEET_ID), sh = ss.getSheetByName(RESV_TAB);
+  if (!sh) { sh = ss.insertSheet(RESV_TAB); sh.appendRow(["token", "when", "kind", "media_url", "caption", "hashtags", "status", "created_at", "note"]); }
+  return sh;
+}
+function schedCreate_(p) {
+  var sh = schedSheet_();
+  var token = "R" + Utilities.formatDate(new Date(), "Asia/Tokyo", "yyyyMMddHHmmss") + "_" + Math.floor(Math.random() * 1000);
+  var kind = (p.kind === "reel") ? "reel" : "feed";
+  sh.appendRow([token, String(p.when || "").slice(0, 16), kind, p.media || "", p.caption || "", p.hashtags || "",
+    "scheduled", Utilities.formatDate(new Date(), "Asia/Tokyo", "yyyy-MM-dd HH:mm"), ""]);
+  return { ok: true, token: token };
+}
+function schedList_() {
+  var sh = schedSheet_(), v = sh.getDataRange().getValues(), out = [];
+  for (var i = 1; i < v.length; i++) {
+    if (String(v[i][6]).trim() !== "scheduled") continue;
+    out.push({ token: v[i][0], when: v[i][1], kind: v[i][2], media: v[i][3], name: (v[i][4] || "").split("\n")[0].slice(0, 24), copy: "" });
+  }
+  out.sort(function (a, b) { return String(a.when) < String(b.when) ? -1 : 1; });
+  return { ok: true, items: out };
+}
+function schedCancel_(token) {
+  var sh = schedSheet_(), v = sh.getDataRange().getValues();
+  for (var i = 1; i < v.length; i++) { if (v[i][0] === token) { sh.getRange(i + 1, 7).setValue("canceled"); return { ok: true }; } }
+  return { ok: false, error: "not found" };
+}
+function cands_() {
+  var ss = SpreadsheetApp.openById(SHEET_ID), sh = ss.getSheetByName("投稿候補");
+  if (!sh) return { ok: true, feed: [], reel: [] };
+  var v = sh.getDataRange().getValues(), feed = [], reel = [];
+  for (var i = 1; i < v.length; i++) {
+    var kind = String(v[i][0] || "").trim(), media = v[i][3] || "";
+    if (!media) continue;
+    (kind === "reel" ? reel : feed).push({ name: v[i][1] || "", copy: v[i][2] || "", media: media, reco: String(v[i][4] || "") === "1" });
+  }
+  return { ok: true, feed: feed, reel: reel };
+}
+function regionalTags_(region, peek) {
+  var COOLDOWN_MS = 7 * 24 * 3600 * 1000, LIMIT = 10;
+  var props = PropertiesService.getScriptProperties(), SK = "regstore_" + (region || "default");
+  var saved = null; try { saved = JSON.parse(props.getProperty(SK) || "null"); } catch (e) {}
+  if (peek) {
+    return saved ? { ok: true, tags: saved.tags, updatedAt: saved.updatedAt, nextAt: saved.nextAt, live: saved.live, cooldown: Date.now() < saved.nextAt }
+                 : { ok: true, tags: [], updatedAt: 0, nextAt: 0, live: false, cooldown: false };
+  }
+  if (saved && Date.now() < saved.nextAt) {
+    return { ok: true, tags: saved.tags, updatedAt: saved.updatedAt, nextAt: saved.nextAt, live: saved.live, cooldown: true };
+  }
+  var POOL = [
+    { t: "京都ディナー", r: 3 }, { t: "河原町グルメ", r: 3 }, { t: "京都飲み", r: 2 }, { t: "京都食べ歩き", r: 2 },
+    { t: "河原町ディナー", r: 2 }, { t: "京都寿司", r: 2 }, { t: "京都ランチ", r: 2 }, { t: "三条河原町", r: 1 },
+    { t: "先斗町", r: 1 }, { t: "木屋町グルメ", r: 1 }, { t: "河原町居酒屋", r: 1 }, { t: "京都晩ごはん", r: 1 },
+    { t: "kyotojapan", r: 3, inb: 1 }, { t: "kyotofood", r: 3, inb: 1 }, { t: "kyotogourmet", r: 2, inb: 1 },
+    { t: "japanesefood", r: 2, inb: 1 }, { t: "izakaya", r: 2, inb: 1 }, { t: "kyotorestaurant", r: 1, inb: 1 },
+    { t: "kyotonight", r: 1, inb: 1 }, { t: "visitkyoto", r: 1, inb: 1 }, { t: "kawaramachi", r: 1, inb: 1 }
+  ];
+  var TOKEN = props.getProperty("IG_ACCESS_TOKEN"), IGUSER = props.getProperty("IG_USER_ID");
+  var live = false, scored = [];
+  for (var i = 0; i < POOL.length; i++) {
+    var tag = POOL[i], score = 0;
+    if (TOKEN && IGUSER && i < LIMIT) {
+      try {
+        var idKey = "hid_" + tag.t, hid = props.getProperty(idKey);
+        if (!hid) {
+          var sr = UrlFetchApp.fetch("https://graph.facebook.com/v21.0/ig_hashtag_search?user_id=" + IGUSER + "&q=" + encodeURIComponent(tag.t) + "&access_token=" + TOKEN, { muteHttpExceptions: true });
+          var sd = JSON.parse(sr.getContentText()); if (sd.data && sd.data[0]) { hid = sd.data[0].id; props.setProperty(idKey, hid); }
+        }
+        if (hid) {
+          var rr = UrlFetchApp.fetch("https://graph.facebook.com/v21.0/" + hid + "/recent_media?user_id=" + IGUSER + "&fields=timestamp&limit=5&access_token=" + TOKEN, { muteHttpExceptions: true });
+          var rd = JSON.parse(rr.getContentText());
+          if (rd.data && rd.data.length) { live = true; var h = (Date.now() - new Date(rd.data[0].timestamp).getTime()) / 3600000; score = (h < 24 ? 30 : h < 72 ? 20 : 10) + rd.data.length; }
+        }
+      } catch (e) {}
+    }
+    scored.push({ tag: tag, score: score, base: tag.r, idx: i });
+  }
+  scored.sort(function (a, b) { return (b.score - a.score) || (b.base - a.base) || (a.idx - b.idx); });
+  var tags = scored.map(function (s, n) { var r = live ? (n < 6 ? 3 : n < 13 ? 2 : 1) : s.base; return { t: s.tag.t, r: r, inb: s.tag.inb ? 1 : 0 }; });
+  var now = Date.now(), out = { ok: true, tags: tags, updatedAt: now, nextAt: now + COOLDOWN_MS, live: live };
+  props.setProperty(SK, JSON.stringify(out)); out.cooldown = false; return out;
 }
