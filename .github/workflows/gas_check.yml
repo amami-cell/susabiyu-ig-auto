@@ -1,0 +1,21 @@
+name: susabiyu-gas-check
+# 本番GAS(/exec)を実際に叩いて、新APIが生きているか確認する（読み取りのみ・手動実行）。
+on:
+  workflow_dispatch: {}
+permissions:
+  contents: read
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping live GAS endpoints
+        run: |
+          BASE="https://script.google.com/macros/s/AKfycbxKn_MUfPgJ0nA8LJPp6YGb2Jehp9G8CpckV5bOAhe3M53eBC3Kle3O3Bf7mFzUJ2TMQw/exec"
+          echo "=== regionaltags (peek) ==="
+          curl -sL "$BASE?api=regionaltags&peek=1&key=8888&cb=x" | head -c 900; echo
+          echo "=== schedlist ==="
+          curl -sL "$BASE?api=schedlist&key=8888&cb=x" | head -c 900; echo
+          echo "=== cands ==="
+          curl -sL "$BASE?api=cands&key=8888&cb=x" | head -c 900; echo
+          echo "=== no key (auth拒否のはず) ==="
+          curl -sL "$BASE?api=schedlist&cb=x" | head -c 400; echo
