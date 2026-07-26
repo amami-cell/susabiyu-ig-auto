@@ -26,6 +26,25 @@ jobs:
           python-version: "3.11"
           cache: pip
 
+      - name: 診断（EPアクセス可否とWAF特定）
+        if: always()
+        continue-on-error: true
+        env:
+          EP_LOGIN_URL: ${{ secrets.EP_LOGIN_URL }}
+        run: |
+          echo "===== このランナーのIP / 国 ====="
+          curl -sS --max-time 20 https://ipinfo.io/json || true
+          echo; echo "===== EP: 素のcurl（レスポンスヘッダのみ） ====="
+          curl -sS -o /dev/null -D - --max-time 30 "$EP_LOGIN_URL" || true
+          echo; echo "===== EP: ブラウザUA + 日本語 ====="
+          curl -sS -o /tmp/ep_body.html -D - --max-time 30 \
+            -A "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36" \
+            -H "Accept-Language: ja-JP,ja;q=0.9" \
+            "$EP_LOGIN_URL" || true
+          echo "===== 本文の先頭600字 ====="
+          head -c 600 /tmp/ep_body.html 2>/dev/null || true
+          echo
+
       - name: 依存インストール
         run: |
           python -m pip install --upgrade pip
