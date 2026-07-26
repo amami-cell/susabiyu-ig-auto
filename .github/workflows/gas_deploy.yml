@@ -1,0 +1,68 @@
+name: susabiyu-gas-deploy
+# GASコードを clasp で自動デプロイ。
+#   pull   = 現行の susabiyu承認 を gas/src に取り込む（初回・上書き防止）
+#   deploy = gas/src を GAS に反映＋既存デプロイを更新（/exec URLは維持）
+# gas/src/** を push しても自動で deploy が走る。
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: "pull=現行GASを取り込む / deploy=gas/srcを反映"
+        required: true
+        default: "pull"
+        type: choice
+        options: [pull, deploy]
+  push:
+    branches: [main]
+    paths: ["gas/src/**"]
+permissions:
+  contents: write
+concurrency:
+  group: susabiyu-gas-deploy
+  cancel-in-progress: false
+jobs:
+  gas:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      # /exec URL 内のこの文字列＝デプロイID。これを更新するとURLが変わらない。
+      DEPLOY_ID: AKfycbxKn_MUfPgJ0nA8LJPp6YGb2Jehp9G8CpckV5bOAhe3M53eBC3Kle3O3Bf7mFzUJ2TMQw
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - name: Install clasp
+        run: npm install -g @google/clasp
+      - name: Write clasp credentials (~/.clasprc.json)
+        run: printf '%s' "$CLASPRC_JSON" > "$HOME/.clasprc.json"
+        env:
+          CLASPRC_JSON: ${{ secrets.CLASPRC_JSON }}
+      - name: Write gas/.clasp.json
+        run: |
+          mkdir -p gas/src
+          printf '{ "scriptId": "%s", "rootDir": "src" }\n' "$SCRIPT_ID" > gas/.clasp.json
+          echo "--- clasp version ---"; clasp --version || true
+        env:
+          SCRIPT_ID: ${{ secrets.GAS_SCRIPT_ID }}
+      - name: Pull current GAS (mode=pull)
+        if: github.event.inputs.mode == 'pull'
+        working-directory: gas
+        run: |
+          clasp pull
+          echo "--- pulled files ---"; ls -la src
+      - name: Commit pulled code (mode=pull)
+        if: github.event.inputs.mode == 'pull'
+        run: |
+          git config user.name "Claude"
+          git config user.email "noreply@anthropic.com"
+          git add gas/src
+          git commit -m "chore(gas): 現行 susabiyu承認 を取り込み（clasp pull）" || echo "no changes"
+          git push origin HEAD:${{ github.ref_name }}
+      - name: Push + update deployment (mode=deploy / push)
+        if: github.event.inputs.mode == 'deploy' || github.event_name == 'push'
+        working-directory: gas
+        run: |
+          clasp push -f
+          clasp deploy -i "$DEPLOY_ID" -d "auto-deploy from CI" || clasp deploy -i "$DEPLOY_ID"
+          echo "deployed to existing /exec (id=$DEPLOY_ID)"
