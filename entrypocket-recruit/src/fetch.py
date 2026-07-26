@@ -5,6 +5,7 @@
 """
 from __future__ import annotations
 
+import os
 from pathlib import Path
 
 from .config import Settings
@@ -215,8 +216,34 @@ def fetch_csv(settings: Settings) -> bytes:
     sel = settings.selectors
 
     with sync_playwright() as p:
-        browser = p.chromium.launch(headless=settings.headless)
-        context = browser.new_context(accept_downloads=True)
+        # 自動化ブラウザだと弾くサイト対策：自動化フラグを消し、実ブラウザに寄せる
+        browser = p.chromium.launch(
+            headless=settings.headless,
+            args=[
+                "--disable-blink-features=AutomationControlled",
+                "--no-sandbox",
+            ],
+        )
+        default_ua = (
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
+            "(KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36"
+        )
+        context = browser.new_context(
+            accept_downloads=True,
+            locale="ja-JP",
+            timezone_id="Asia/Tokyo",
+            user_agent=os.environ.get("EP_USER_AGENT", default_ua),
+            extra_http_headers={
+                "Accept-Language": "ja-JP,ja;q=0.9,en-US;q=0.8,en;q=0.7",
+            },
+        )
+        # navigator.webdriver を隠す（自動化検知よけ）
+        try:
+            context.add_init_script(
+                "Object.defineProperty(navigator, 'webdriver', {get: () => undefined});"
+            )
+        except Exception:
+            pass
         page = context.new_page()
         try:
             # --- ログイン画面 ---
