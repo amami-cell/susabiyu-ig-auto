@@ -26,7 +26,12 @@
   if (api === "schedlist")   return jsonpOut(e, schedList_());
   if (api === "schedcancel") return jsonpOut(e, schedCancel_(e.parameter.token));
   if (api === "regionaltags")return jsonpOut(e, regionalTags_(e.parameter.region||"", e.parameter.peek==="1"));
+  if (api === "cands")       return jsonpOut(e, cands_());
 ```
+
+> **投稿候補タブ**（任意）：`cands` はシート「投稿候補」を読む。列
+> `kind(feed|reel) / name / copy / media_url(公開URL) / reco(1でオススメ)`。
+> このタブに行を足すと確認画面に実素材の候補が並ぶ（空なら組み込みの三条ポスターのまま）。
 
 ## 【B】Code.gs の一番下に貼る
 ```javascript
@@ -55,6 +60,19 @@ function schedCancel_(token){
   var sh=schedSheet_(); var v=sh.getDataRange().getValues();
   for(var i=1;i<v.length;i++){ if(v[i][0]===token){ sh.getRange(i+1,7).setValue("canceled"); return {ok:true}; } }
   return { ok:false, error:"not found" };
+}
+
+/* ===== 投稿候補（確認画面に実素材を並べる） ===== */
+function cands_(){
+  var ss=SpreadsheetApp.openById(SHEET_ID), sh=ss.getSheetByName("投稿候補");
+  if(!sh) return { ok:true, feed:[], reel:[] };   // 無ければ組み込み三条ポスターのまま
+  var v=sh.getDataRange().getValues(), feed=[], reel=[];
+  for(var i=1;i<v.length;i++){
+    var kind=String(v[i][0]||"").trim(), name=v[i][1]||"", copy=v[i][2]||"", media=v[i][3]||"", reco=String(v[i][4]||"")==="1";
+    if(!media) continue;
+    (kind==="reel"?reel:feed).push({ name:name, copy:copy, media:media, reco:reco });
+  }
+  return { ok:true, feed:feed, reel:reel };
 }
 
 /* ===== 地域タグ（共有ストア＋7日クールダウン） ===== */
