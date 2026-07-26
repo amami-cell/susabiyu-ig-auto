@@ -5,6 +5,8 @@
 """
 from __future__ import annotations
 
+import base64
+import binascii
 import json
 from typing import Any
 
@@ -50,9 +52,37 @@ HEADERS: dict[str, list[str]] = {
 SHEET_ORDER = list(HEADERS.keys())
 
 
+def _load_credentials_info(value: str) -> dict:
+    """サービスアカウント資格情報を dict にする。
+
+    Secret には次のいずれの形で貼られていても受け付ける:
+      - JSON の中身そのまま（{"type": "service_account", ...}）
+      - その JSON を base64 で包んだもの（既存の GOOGLE_CREDS_B64 を流用した場合）
+    """
+    if not value or not value.strip():
+        raise RuntimeError("GOOGLE_SERVICE_ACCOUNT_JSON が空です。")
+    text = value.strip()
+
+    # まず素の JSON として試す
+    try:
+        return json.loads(text)
+    except json.JSONDecodeError:
+        pass
+
+    # base64 として復号してから JSON を試す
+    try:
+        decoded = base64.b64decode(text, validate=True).decode("utf-8")
+        return json.loads(decoded)
+    except (binascii.Error, ValueError, json.JSONDecodeError) as exc:
+        raise RuntimeError(
+            "GOOGLE_SERVICE_ACCOUNT_JSON を読めませんでした。"
+            "サービスアカウントのJSONキーの中身、またはそのbase64を貼ってください。"
+        ) from exc
+
+
 class SheetsClient:
     def __init__(self, service_account_json: str, spreadsheet_id: str):
-        info = json.loads(service_account_json)
+        info = _load_credentials_info(service_account_json)
         creds = Credentials.from_service_account_info(info, scopes=SCOPES)
         self.svc = build("sheets", "v4", credentials=creds, cache_discovery=False)
         self.spreadsheet_id = spreadsheet_id
