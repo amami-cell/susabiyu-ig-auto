@@ -1084,6 +1084,17 @@ def drivefind(query=None):
     print("[FIND] 完了")
 
 
+def masterdump():
+    """店舗マスターの各行: store_id / 表示名 / ルートURL(J) / 食事URL(K) を出力（フォルダID取得用・読取専用）。"""
+    cr = _creds(); sh = _sheets(cr)
+    rows = sh.values().get(spreadsheetId=SHEET_ID, range=MASTER_TAB + "!A:S").execute().get("values", [])
+    for i in range(1, len(rows)):
+        r = rows[i]; g = lambda n: (r[n] if len(r) > n else "").strip()
+        if not g(0):
+            continue
+        print("M|%s|%s|root=%s|food=%s" % (g(0), g(2), g(9), g(10)))
+    print("[MASTER] %d rows" % (len(rows) - 1))
+
 def storesdump():
     """『提出チェック』タブA〜C列（店舗名/表示名/アイコン短縮名）を一覧出力。
     アプリの店舗アイコンホーム(stores.js)へ流し込むための読み取り専用ダンプ。"""
@@ -1654,6 +1665,8 @@ if __name__ == "__main__":
         names()
     elif mode == "storesdump":
         storesdump()
+    elif mode == "masterdump":
+        masterdump()
     elif mode == "pending":
         pending()
     elif mode == "saemail":
