@@ -35,6 +35,10 @@ def load_env():
     for k in ("IG_ACCESS_TOKEN", "SHEET_ID", "LINE_CHANNEL_TOKEN"):
         if os.environ.get(k):
             env[k] = os.environ[k]
+    # 店舗別トークン（IG_ACCESS_TOKEN_<ACCOUNT>）も環境変数から取り込む＝多店舗の投稿先に対応
+    for k, v in os.environ.items():
+        if k.startswith("IG_ACCESS_TOKEN_") and v:
+            env[k] = v
     return env
 
 ENV = load_env()
@@ -275,6 +279,40 @@ def fresh_token(validate=True):
         return new
     print("[TOKEN] 全トークン失効。再発行が必要。")
     return cur
+
+def account_base_token(account=""):
+    """アカウント別のベース(Secret)トークン。account指定時は IG_ACCESS_TOKEN_<ACCOUNT> を優先。
+       無ければ既定 IG_ACCESS_TOKEN。account が空なら従来どおり既定トークン。"""
+    if account:
+        safe = "".join(c for c in account.upper() if c.isalnum() or c == "_")
+        key = "IG_ACCESS_TOKEN_" + safe
+        t = ENV.get(key) or os.environ.get(key) or ""
+        if t:
+            return t
+    return TOKEN
+
+def fresh_token_for(account="", validate=True):
+    """アカウント別の実効トークンを返す。
+       ・account 未指定（既定＝三条）は従来の fresh_token() をそのまま使用（挙動不変）。
+       ・名前付きアカウントは専用Secretを検証し、失効時はリフレッシュを試行。ダメなら空を返す。"""
+    if not account:
+        return fresh_token(validate=validate)
+    base = account_base_token(account)
+    if not base:
+        print("[TOKEN] アカウント '%s' 用トークン未設定（Secret: IG_ACCESS_TOKEN_%s を登録してください）"
+              % (account, account.upper()))
+        return ""
+    if not validate:
+        return base
+    ok, _ = _me_ok(base)
+    if ok:
+        return base
+    new, _ = _try_refresh(base)
+    if new and _me_ok(new)[0]:
+        print("[TOKEN] アカウント '%s' トークンをリフレッシュしました" % account)
+        return new
+    print("[TOKEN] アカウント '%s' のトークンが無効です。再発行が必要です。" % account)
+    return ""
 
 def token_alive():
     """今使うトークンが実際にIG投稿に使えるかを返す（必要ならこの中で更新も行う）。"""

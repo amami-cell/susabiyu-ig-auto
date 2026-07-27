@@ -15,7 +15,7 @@
 予約投稿タブ（列 A〜I）:
   A token / B when("%Y-%m-%d %H:%M" JST) / C kind(feed|reel) / D media_url(公開URL or ローカルパス)
   E caption / F hashtags(スペース区切り "#a #b") / G status(scheduled|posting|posted|failed|canceled|expired)
-  H created_at / I note(posted_at や失敗理由)
+  H created_at / I note(posted_at や失敗理由) / J account(投稿先アカウント。空=既定/三条。例:gifuyatenjin)
 """
 import os, sys, datetime
 import poster  # 既存の _sheets/_ensure_tab/fresh_token/up/ig_post_media/line_notify を再利用
@@ -83,7 +83,7 @@ def resolve_media(media, kind):
 
 # ---- シート入出力 ----
 def _read_rows(sh):
-    r = sh.values().get(spreadsheetId=poster.SHEET_ID, range=RESV_TAB + "!A2:I").execute()
+    r = sh.values().get(spreadsheetId=poster.SHEET_ID, range=RESV_TAB + "!A2:J").execute()
     return r.get("values", [])
 
 def _set(sh, row_idx, col, value):
@@ -110,14 +110,17 @@ def run(live):
     rows = _read_rows(sh)
     now = datetime.datetime.now(JST)
     print("[RESV] now=%s / rows=%d / mode=%s" % (_now_str(now), len(rows), "LIVE" if live else "DRY-RUN"))
-    token = poster.fresh_token() if live else ""
-    if live and not token:
-        print("NG: IG_ACCESS_TOKEN が無効。実投稿できません。"); return 1
+    tok_cache = {}   # account -> token（アカウント別に一度だけ解決してキャッシュ）
+    def token_of(account):
+        acc = (account or "").strip()
+        if acc not in tok_cache:
+            tok_cache[acc] = poster.fresh_token_for(acc) if live else ""
+        return tok_cache[acc]
 
     posted = 0
     for i, row in enumerate(rows):   # i は0-based（データ行）
-        row = (row + [""] * 9)[:9]
-        token_id, when_s, kind, media, caption, tags, status, created, note = row
+        row = (row + [""] * 10)[:10]
+        token_id, when_s, kind, media, caption, tags, status, created, note, account = row
         status = (status or "scheduled").strip()
         if status != "scheduled":
             continue
@@ -135,9 +138,17 @@ def run(live):
         # due
         kind = "reel" if (kind or "").strip().lower() == "reel" else "feed"
         cap = build_caption(caption, tags)
+        acc = (account or "").strip()
+        acc_label = acc or "既定(三条)"
         if not live:
-            print("  [DRY] 投稿する→ token=%s kind=%s when=%s media=%s" % (token_id, kind, when_s, media))
+            print("  [DRY] 投稿する→ token=%s account=%s kind=%s when=%s media=%s" % (token_id, acc_label, kind, when_s, media))
             print("        caption=%r" % cap[:80]); posted += 1; continue
+
+        # 投稿先アカウントのトークンを解決（アカウント別）
+        atoken = token_of(acc)
+        if not atoken:
+            _set(sh, i + 1, "G", "failed"); _set(sh, i + 1, "I", "アカウント %s のトークン無効/未設定" % acc_label)
+            print("  [FAIL] トークン無効/未設定 account=%s token=%s" % (acc_label, token_id)); continue
 
         # 二重投稿防止：先に posting で確保
         _set(sh, i + 1, "G", "posting"); _set(sh, i + 1, "I", "投稿中 " + _now_str(now))
@@ -146,7 +157,7 @@ def run(live):
             _set(sh, i + 1, "G", "failed"); _set(sh, i + 1, "I", "メディアURL取得失敗")
             print("  [FAIL] media URL なし token=%s" % token_id); continue
         try:
-            pid = poster.ig_post_media(token, url, kind, cap)
+            pid = poster.ig_post_media(atoken, url, kind, cap)
         except Exception as e:
             pid = ""; print("  [FAIL] 例外:", e)
         if pid:
