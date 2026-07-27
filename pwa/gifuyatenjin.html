@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex,nofollow">
+<title>大衆酒場 ぎふや 福岡天神店</title>
+<meta name="theme-color" content="#0b0a08">
+<style>
+  :root{color-scheme:dark;--gold:#d4af5a;--red:#c41e1c}
+  *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+  button{font-family:inherit;touch-action:manipulation}
+  body{background:#0b0a08;color:#f0ece3;font-family:-apple-system,BlinkMacSystemFont,"Hiragino Sans","Noto Sans JP",sans-serif;line-height:1.6}
+  .top{position:sticky;top:0;z-index:10;background:rgba(11,10,8,.86);backdrop-filter:saturate(160%) blur(12px);
+    border-bottom:1px solid #1e1b16;display:flex;align-items:center;gap:10px;padding:calc(env(safe-area-inset-top) + 12px) 16px 10px}
+  .top a{color:#9a938a;font-size:13px;text-decoration:none;flex:0 0 auto}
+  .top h1{font-size:15px;font-weight:800;letter-spacing:.5px;flex:1;text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .top .sp{width:64px}
+  .hero{text-align:center;padding:26px 20px 6px}
+  .hero img{width:120px;height:120px;object-fit:contain;background:#fff;border-radius:22px;padding:10px;
+    box-shadow:0 14px 30px rgba(0,0,0,.5)}
+  .hero h2{font-size:18px;font-weight:800;margin-top:12px;letter-spacing:1px}
+  .hero .sub{color:var(--gold);font-size:12px;letter-spacing:2px;margin-top:4px}
+  .note{margin:16px;padding:12px 15px;background:#15120d;border:1px solid #2a241a;border-radius:12px;color:#b3aa9b;font-size:12.5px}
+  .sect{margin:22px 16px 8px;font-size:13px;font-weight:800;letter-spacing:1px;color:var(--gold);
+    border-left:3px solid var(--red);padding-left:10px}
+  .reel{margin:0 16px 6px;border-radius:16px;overflow:hidden;border:1px solid #221d15;background:#000}
+  .reel video{width:100%;display:block;aspect-ratio:4/5;background:#000}
+  .grid{padding:8px 12px 60px;display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:16px}
+  .card{background:#14110c;border:1px solid #241f16;border-radius:16px;overflow:hidden;display:flex;flex-direction:column}
+  .card img{width:100%;aspect-ratio:4/5;object-fit:cover;display:block;background:#000}
+  .card .body{padding:12px 14px 14px;display:flex;flex-direction:column;gap:9px}
+  .card .no{color:var(--gold);font-size:11px;font-weight:800;letter-spacing:1px}
+  .card .ttl{font-size:15px;font-weight:800}
+  .card .cap{font-size:12.5px;color:#cfc7b8;white-space:pre-wrap}
+  .card .tags{font-size:11.5px;color:#8f97c0;word-break:break-all}
+  .card .btn{margin-top:2px;border:0;border-radius:10px;background:var(--red);color:#fff;font-weight:800;
+    font-size:13px;padding:11px;display:flex;align-items:center;justify-content:center;gap:7px}
+  .card .btn:active{transform:scale(.98)}
+  .card .btn.done{background:#2c7a45}
+  #toast{position:fixed;left:50%;bottom:calc(env(safe-area-inset-bottom) + 26px);transform:translateX(-50%);
+    background:#241f16;color:#fff;border:1px solid var(--gold);border-radius:999px;font-size:13px;font-weight:700;
+    padding:10px 20px;z-index:60;opacity:0;transition:opacity .25s;pointer-events:none;white-space:nowrap}
+  #toast.show{opacity:1}
+  .foot{color:#6f685d;font-size:10px;text-align:center;padding:20px 0 calc(env(safe-area-inset-bottom) + 16px)}
+</style>
+</head>
+<body>
+<header class="top">
+  <a href="./home.html">← ホーム</a>
+  <h1>ぎふや 福岡天神店</h1>
+  <span class="sp"></span>
+</header>
+
+<div class="hero">
+  <img src="icons/store_gifuyatenjin.png" alt="ぎふや 福岡天神店">
+  <h2>大衆酒場 ぎふや 福岡天神店</h2>
+  <div class="sub">大正5年創業 ・ 串かつ ・ 福岡/天神</div>
+</div>
+
+<div class="note">
+  投稿予定の12本の見本です。写真はGoogleドライブの実データ、ロゴは天神店の公式ロゴを使用しています。各カードの「キャプションをコピー」で本文＋ハッシュタグをまとめてコピーできます。<br>
+  ※Instagramアカウントの情報が届き次第、この画面から予約投稿・自動投稿まで連携します。
+</div>
+
+<div class="sect">フェード動画（3パターン・リール見本）</div>
+<div class="reel">
+  <video controls playsinline preload="metadata" src="gifuya/fade.mp4"></video>
+</div>
+
+<div class="sect">投稿12本</div>
+<div class="grid" id="grid"></div>
+
+<div id="toast"></div>
+<div class="foot">すさび湯グループ 投稿管理 ・ ぎふや 福岡天神店</div>
+
+<script>
+(function () {
+  "use strict";
+  var COMMON = "#ぎふや #ぎふや福岡天神店 #大衆酒場 #天神グルメ #福岡グルメ #天神居酒屋 #福岡居酒屋 #天神 #福岡 #天神飲み #福岡グルメ好きと繋がりたい #大正5年創業 #fukuoka #tenjin #fukuokafood";
+  var POSTS = [
+    {img:"feed_01.jpg", t:"元祖どぶ漬けどてかつ",
+     cap:"名物、元祖どぶ漬けどてかつ🍢\n秘伝の自家製どて味噌にどっぷり漬け込んだ一本。安くて旨い、まずは一杯。",
+     tags:"#どてかつ #串かつ #どて焼き #天神串かつ"},
+    {img:"feed_02.jpg", t:"ぎふや厳選 串かつ10種盛り",
+     cap:"迷ったらこれ。ぎふや厳選 串かつ10種盛り🍢\n定番から変わり種まで、一度に楽しめる欲張りな盛り合わせ。",
+     tags:"#串かつ #串カツ #串かつ食べ放題 #天神グルメ"},
+    {img:"feed_03.jpg", t:"名物どて焼き",
+     cap:"大正5年から受け継ぐ看板の味、名物どて焼き。\nとろとろに煮込んだ自家製どて味噌が、酒を呼ぶ。",
+     tags:"#どて焼き #もつ煮込み #天神居酒屋 #福岡飲み"},
+    {img:"feed_04.jpg", t:"ぎふやの明太出汁巻き",
+     cap:"ふわとろ、明太出汁巻き。\n福岡ならではの明太子を、あつあつの出汁巻きで包みました。",
+     tags:"#明太子 #出汁巻き卵 #福岡明太子 #天神ディナー"},
+    {img:"feed_05.jpg", t:"刺身盛り合わせ",
+     cap:"福岡の鮮度、そのままに。刺身盛り合わせ🐟\nその日の良いものを、良い状態で。日本酒との相性も抜群。",
+     tags:"#刺身 #海鮮 #福岡海鮮 #天神ディナー"},
+    {img:"feed_06.jpg", t:"ぎふやの炊き餃子",
+     cap:"福岡名物、炊き餃子。\nコラーゲンたっぷりの白湯スープで炊き上げる、体にしみる一品。",
+     tags:"#炊き餃子 #餃子 #福岡名物 #天神グルメ"},
+    {img:"feed_07.jpg", t:"本家 牛串かつ",
+     cap:"肉の旨みを、串で。本家 牛串かつ🍢\nサクッと衣、ジューシーな牛肉。ビールが止まらない。",
+     tags:"#牛串 #串かつ #肉串 #天神肉バル"},
+    {img:"feed_08.jpg", t:"自家製 鶏唐揚げ",
+     cap:"揚げたて、ジューシー。自家製鶏唐揚げ🍗\n下味しっかり、外はカリッと中はジュワッと。レモンをキュッと。",
+     tags:"#唐揚げ #からあげ #福岡唐揚げ #天神グルメ"},
+    {img:"feed_09.jpg", t:"馬刺し",
+     cap:"酒が進む、馬刺し🐴\nとろける赤身とコクのある旨み。九州の酒場の定番をぎふやで。",
+     tags:"#馬刺し #馬肉 #九州グルメ #福岡飲み"},
+    {img:"feed_10.jpg", t:"和牛マルシンのたたき",
+     cap:"希少部位を、贅沢に。和牛マルシンのたたき。\n一頭からわずかしか取れない部位を、香ばしく炙って。",
+     tags:"#和牛 #希少部位 #肉好きと繋がりたい #天神ディナー"},
+    {img:"feed_11.jpg", t:"〆のラーメン",
+     cap:"〆はやっぱり、ラーメン🍜\n飲んだ後のシメに、ぎふやの一杯。福岡の夜はこれで完成。",
+     tags:"#ラーメン #〆ラーメン #福岡ラーメン #天神ラーメン"},
+    {img:"feed_12.jpg", t:"生ハムポテト",
+     cap:"一杯目の相棒、生ハムポテト🍟\nあつあつポテトに生ハムをのせて。ついつい頼んでしまう名脇役。",
+     tags:"#ポテト #生ハム #おつまみ #天神居酒屋"}
+  ];
+
+  var g = document.getElementById("grid");
+  var toastEl = document.getElementById("toast"), toastT = null;
+  function toast(m){ toastEl.textContent=m; toastEl.classList.add("show"); clearTimeout(toastT);
+    toastT=setTimeout(function(){toastEl.classList.remove("show");},1900); }
+
+  POSTS.forEach(function (p, i) {
+    var full = p.cap + "\n\n" + p.tags + " " + COMMON;
+    var c = document.createElement("div"); c.className = "card";
+    var img = document.createElement("img");
+    img.src = "gifuya/" + p.img; img.loading = "lazy"; img.alt = p.t;
+    var body = document.createElement("div"); body.className = "body";
+    body.innerHTML =
+      '<div class="no">POST ' + (i+1) + ' / 12</div>' +
+      '<div class="ttl">' + p.t + '</div>' +
+      '<div class="cap"></div>' +
+      '<div class="tags"></div>';
+    body.querySelector(".cap").textContent = p.cap;
+    body.querySelector(".tags").textContent = p.tags + " " + COMMON;
+    var btn = document.createElement("button"); btn.className = "btn";
+    btn.textContent = "📋 キャプションをコピー";
+    btn.onclick = function () {
+      var done = function () {
+        btn.textContent = "✓ コピーしました"; btn.classList.add("done"); toast("キャプションをコピーしました");
+        setTimeout(function(){ btn.textContent="📋 キャプションをコピー"; btn.classList.remove("done"); }, 2200);
+      };
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(full).then(done, function(){ fallback(); });
+      } else { fallback(); }
+      function fallback(){
+        var ta=document.createElement("textarea"); ta.value=full; document.body.appendChild(ta); ta.select();
+        try{ document.execCommand("copy"); done(); }catch(e){ toast("コピーできませんでした"); }
+        document.body.removeChild(ta);
+      }
+    };
+    c.appendChild(img); c.appendChild(body); body.appendChild(btn); g.appendChild(c);
+  });
+})();
+</script>
+</body>
+</html>
