@@ -87,69 +87,29 @@ function epLogin_() {
   var p = PropertiesService.getScriptProperties();
   var user = p.getProperty("EP_USER"), pass = p.getProperty("EP_PASS");
   if (!user || !pass) { Logger.log("★ EP_USER / EP_PASS を設定してください"); return null; }
-  Logger.log("  設定確認: ID長=" + user.length + " / PASS長=" + pass.length + " / ID先頭=" + user.slice(0, 3) + "***");
 
   var jar = {};
-  var r1 = epFetch_(EP_LOGIN_URL, { method: "get", followRedirects: false }, jar);
-  var pageHtml = r1.getContentText();
-  var form = epExtractForm_(pageHtml);
-  if (!form) { Logger.log("  フォーム未検出"); return null; }
-
+  // ログインページからセッションと認証トークンを得る
+  var html = epFetch_(EP_LOGIN_URL, { method: "get", followRedirects: false }, jar).getContentText();
   jar["COOKIE_SUPPORT"] = "true";
   jar["GUEST_LANGUAGE_ID"] = "ja_JP";
+  var pauth = (html.match(/Liferay\.authToken\s*=\s*['"]([^'"]+)['"]/) || [])[1] || "";
 
-  var pauth = (pageHtml.match(/Liferay\.authToken\s*=\s*['"]([^'"]+)['"]/) ||
-               pageHtml.match(/["']p_auth["']\s*:\s*["']([^"']+)["']/) ||
-               pageHtml.match(/\bp_auth=([A-Za-z0-9]+)/) || [])[1] || "";
-  if (pauth) form.inputs["p_auth"] = pauth;
-  // EntryPocket独自トークン
-  var gToken = (pageHtml.match(/globalAuthToken\s*=\s*['"]([^'"]+)['"]/) || [])[1] || "";
-  if (gToken) form.inputs["globalAuthToken"] = gToken;
-
-  form.inputs[form.userField] = user;
-  form.inputs[form.passField] = pass;
-  if ("_58_redirect" in form.inputs && !form.inputs["_58_redirect"]) {
-    form.inputs["_58_redirect"] = EP_APPLICANT_URL;
-  }
-  var action = epAbsUrl_(form.action, EP_LOGIN_URL);
-  if (pauth && action.indexOf("p_auth=") < 0) {
-    action += (action.indexOf("?") >= 0 ? "&" : "?") + "p_auth=" + encodeURIComponent(pauth);
-  }
-  var hdr = { "Referer": EP_LOGIN_URL };
-  if (gToken) { hdr["globalAuthToken"] = gToken; hdr["X-Auth-Token"] = gToken; }
-  var r2 = epFetch_(action, { method: "post", payload: form.inputs, followRedirects: false, headers: hdr }, jar);
+  // Liferayの正規ログインservlet に login/password で送る（検証済みの勝ちパターン）
+  var payload = { login: user, password: pass, rememberMe: "false" };
+  if (pauth) payload["p_auth"] = pauth;
+  var r2 = epFetch_("https://manage.entrypocket.jp/c/portal/login",
+    { method: "post", payload: payload, followRedirects: false, headers: { "Referer": EP_LOGIN_URL } }, jar);
   var loc = r2.getAllHeaders()["Location"] || "";
-  if (loc) epFetch_(epAbsUrl_(loc, action), { method: "get", followRedirects: false }, jar);
+  if (loc) epFetch_(epAbsUrl_(loc, EP_LOGIN_URL), { method: "get", followRedirects: false }, jar);
 
-  // 成否判定：パスワード欄が無ければログイン成功
-  var r3 = epFetch_(EP_APPLICANT_URL, { method: "get", followRedirects: true }, jar);
-  var hasPass = /name\s*=\s*["']?_58_password/i.test(r3.getContentText());
-  Logger.log("【診断】暗号化=" + (/encrypt|jsencrypt|rsa|publickey/i.test(pageHtml) ? "有" : "無") +
-             " / p_auth=" + (pauth ? "有" : "無") + " / globalAuthToken=" + (gToken ? "有" : "無"));
-  Logger.log("  POST HTTP=" + r2.getResponseCode() + " redirect=" + loc);
-  Logger.log("  応募者ページ パス欄有=" + hasPass + "（パス欄なし=ログイン成功）");
-  if (!hasPass) { Logger.log("  → ログイン成功"); return jar; }
-
-  // 失敗時：本当のエラーメッセージを拾う（フォーム直前に出ることが多い）
-  var b = r2.getContentText();
-  var errDiv = (b.match(/portlet-msg-error[^>]*>([\s\S]*?)<\/div>/i) ||
-                b.match(/alert-error[^>]*>([\s\S]*?)<\/div>/i) ||
-                b.match(/class=["'][^"']*error[^"']*["'][^>]*>([\s\S]*?)<\/(?:div|span|p)>/i) || [])[1] || "";
-  errDiv = errDiv.replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
-  var pos = b.search(/_58_password/i), near = "";
-  if (pos > 0) {
-    near = b.slice(Math.max(0, pos - 1500), pos).replace(/<script[\s\S]*?<\/script>/gi, " ")
-      .replace(/<[^>]*>/g, " ").replace(/&nbsp;/g, " ").replace(/\s+/g, " ").trim().slice(-350);
+  // 成否判定：応募者ページにパスワード欄が無ければログイン成功
+  var app = epFetch_(EP_APPLICANT_URL, { method: "get", followRedirects: true }, jar).getContentText();
+  if (!/name\s*=\s*["']?_58_password/i.test(app)) {
+    Logger.log("  ログイン成功 (HTTP=" + r2.getResponseCode() + ")");
+    return jar;
   }
-  Logger.log("  エラー表示: " + (errDiv || "(専用のエラー枠なし)"));
-  Logger.log("  フォーム直前テキスト: " + near);
-
-  // 方法B: Basic認証
-  EP_BASIC = "Basic " + Utilities.base64Encode(user + ":" + pass, Utilities.Charset.UTF_8);
-  var rb = epFetch_(EP_APPLICANT_URL, { method: "get", followRedirects: true }, jar);
-  if (!/name\s*=\s*["']?_58_password/i.test(rb.getContentText())) { Logger.log("  方法B(Basic認証)で成功"); return jar; }
-  EP_BASIC = "";
-  Logger.log("  方法B(Basic認証)も失敗");
+  Logger.log("  ログイン失敗 HTTP=" + r2.getResponseCode() + " redirect=" + loc);
   return null;
 }
 
@@ -185,8 +145,17 @@ function epDownloadCsv_(jar) {
     var text = epTryCsv_(uniq[i], jar);
     if (text) { Logger.log("  → 採用: " + uniq[i]); return text; }
   }
-  // 候補が無い時は応募者ページ本文の一部を出して手掛かりにする
-  if (!uniq.length) Logger.log("  （CSVリンク未検出。応募者ページ本文の一部）\n" + html.replace(/\s+/g, " ").slice(0, 1000));
+  // 見つからない時は「CSV」「ダウンロード」の周辺HTMLを出して手掛かりにする
+  if (!uniq.length) {
+    var pageTitle = ((html.match(/<title>([\s\S]*?)<\/title>/i) || [])[1] || "").replace(/\s+/g, " ").trim();
+    Logger.log("  応募者ページ title=" + pageTitle + " / 長さ=" + html.length);
+    var hits = 0, kw = /(csv|ダウンロード|出力|エクスポート|ＣＳＶ)/gi, mm;
+    while ((mm = kw.exec(html)) && hits < 6) {
+      hits++;
+      Logger.log("  周辺[" + hits + "]: " + html.slice(Math.max(0, mm.index - 140), mm.index + 140).replace(/\s+/g, " "));
+    }
+    if (!hits) Logger.log("  「CSV/ダウンロード」語句なし。本文冒頭:\n" + html.replace(/\s+/g, " ").slice(0, 800));
+  }
   return null;
 }
 
