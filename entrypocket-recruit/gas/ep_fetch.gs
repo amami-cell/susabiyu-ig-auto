@@ -87,6 +87,7 @@ function epLogin_() {
   var p = PropertiesService.getScriptProperties();
   var user = p.getProperty("EP_USER"), pass = p.getProperty("EP_PASS");
   if (!user || !pass) { Logger.log("★ EP_USER / EP_PASS を設定してください"); return null; }
+  Logger.log("  設定確認: ID長=" + user.length + " / PASS長=" + pass.length + " / ID先頭=" + user.slice(0, 3) + "***");
 
   var jar = {};
   var r1 = epFetch_(EP_LOGIN_URL, { method: "get", followRedirects: false }, jar);
@@ -94,15 +95,16 @@ function epLogin_() {
   var form = epExtractForm_(pageHtml);
   if (!form) { Logger.log("  フォーム未検出"); return null; }
 
-  // Liferayはブラウザ相当のクッキーを要求する
   jar["COOKIE_SUPPORT"] = "true";
   jar["GUEST_LANGUAGE_ID"] = "ja_JP";
 
-  // Liferayの認証トークン p_auth（本来はJavaScriptが送信時に付ける）を抽出
   var pauth = (pageHtml.match(/Liferay\.authToken\s*=\s*['"]([^'"]+)['"]/) ||
                pageHtml.match(/["']p_auth["']\s*:\s*["']([^"']+)["']/) ||
                pageHtml.match(/\bp_auth=([A-Za-z0-9]+)/) || [])[1] || "";
   if (pauth) form.inputs["p_auth"] = pauth;
+  // EntryPocket独自トークン
+  var gToken = (pageHtml.match(/globalAuthToken\s*=\s*['"]([^'"]+)['"]/) || [])[1] || "";
+  if (gToken) form.inputs["globalAuthToken"] = gToken;
 
   form.inputs[form.userField] = user;
   form.inputs[form.passField] = pass;
@@ -113,31 +115,36 @@ function epLogin_() {
   if (pauth && action.indexOf("p_auth=") < 0) {
     action += (action.indexOf("?") >= 0 ? "&" : "?") + "p_auth=" + encodeURIComponent(pauth);
   }
-  var r2 = epFetch_(action, { method: "post", payload: form.inputs, followRedirects: false,
-                              headers: { "Referer": EP_LOGIN_URL } }, jar);
+  var hdr = { "Referer": EP_LOGIN_URL };
+  if (gToken) { hdr["globalAuthToken"] = gToken; hdr["X-Auth-Token"] = gToken; }
+  var r2 = epFetch_(action, { method: "post", payload: form.inputs, followRedirects: false, headers: hdr }, jar);
   var loc = r2.getAllHeaders()["Location"] || "";
   if (loc) epFetch_(epAbsUrl_(loc, action), { method: "get", followRedirects: false }, jar);
 
-  // ログインページがJavaScript依存か（暗号化・onsubmit）の手掛かり
-  var jsEnc = /encrypt|jsencrypt|rsa|publickey|hashpassword|\bmd5\b|\bsha\d/i.test(pageHtml) ? "有" : "無";
-  var onsub = /<form[^>]*onsubmit/i.test(pageHtml) ? "有" : "無";
-
-  // 応募者ページで成否判定（パスワード欄が無い or ログアウトがあれば成功）
+  // 成否判定：パスワード欄が無ければログイン成功
   var r3 = epFetch_(EP_APPLICANT_URL, { method: "get", followRedirects: true }, jar);
-  var app = r3.getContentText();
-  var hasPass = /name\s*=\s*["']?_58_password/i.test(app);
-  var hasLogout = /ログアウト|logout/i.test(app);
-  var appTitle = ((app.match(/<title>([\s\S]*?)<\/title>/i) || [])[1] || "").replace(/\s+/g, " ").trim().slice(0, 40);
-  Logger.log("【診断】ログインJS: 暗号化=" + jsEnc + " / onsubmit=" + onsub + " / p_auth=" + (pauth ? "有" : "無"));
-  Logger.log("  POST結果 HTTP=" + r2.getResponseCode() + " redirect=" + loc + " cookies=" + Object.keys(jar).join(","));
-  Logger.log("  応募者ページ title=" + appTitle + " / ログアウト有=" + hasLogout + " / パス欄有=" + hasPass);
-  if (hasLogout || !hasPass) { Logger.log("  → ログイン成功と判定"); return jar; }
+  var hasPass = /name\s*=\s*["']?_58_password/i.test(r3.getContentText());
+  Logger.log("【診断】暗号化=" + (/encrypt|jsencrypt|rsa|publickey/i.test(pageHtml) ? "有" : "無") +
+             " / p_auth=" + (pauth ? "有" : "無") + " / globalAuthToken=" + (gToken ? "有" : "無"));
+  Logger.log("  POST HTTP=" + r2.getResponseCode() + " redirect=" + loc);
+  Logger.log("  応募者ページ パス欄有=" + hasPass + "（パス欄なし=ログイン成功）");
+  if (!hasPass) { Logger.log("  → ログイン成功"); return jar; }
 
-  // POST応答の可視テキスト（原因の手掛かり）
-  var txt = r2.getContentText().replace(/<script[\s\S]*?<\/script>/gi, " ").replace(/<style[\s\S]*?<\/style>/gi, " ").replace(/<[^>]*>/g, " ").replace(/&nbsp;/g, " ").replace(/\s+/g, " ").trim();
-  Logger.log("  POST応答テキスト: " + txt.slice(0, 500));
+  // 失敗時：本当のエラーメッセージを拾う（フォーム直前に出ることが多い）
+  var b = r2.getContentText();
+  var errDiv = (b.match(/portlet-msg-error[^>]*>([\s\S]*?)<\/div>/i) ||
+                b.match(/alert-error[^>]*>([\s\S]*?)<\/div>/i) ||
+                b.match(/class=["'][^"']*error[^"']*["'][^>]*>([\s\S]*?)<\/(?:div|span|p)>/i) || [])[1] || "";
+  errDiv = errDiv.replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
+  var pos = b.search(/_58_password/i), near = "";
+  if (pos > 0) {
+    near = b.slice(Math.max(0, pos - 1500), pos).replace(/<script[\s\S]*?<\/script>/gi, " ")
+      .replace(/<[^>]*>/g, " ").replace(/&nbsp;/g, " ").replace(/\s+/g, " ").trim().slice(-350);
+  }
+  Logger.log("  エラー表示: " + (errDiv || "(専用のエラー枠なし)"));
+  Logger.log("  フォーム直前テキスト: " + near);
 
-  // 方法B: Basic認証（多くのLiferayで有効）
+  // 方法B: Basic認証
   EP_BASIC = "Basic " + Utilities.base64Encode(user + ":" + pass, Utilities.Charset.UTF_8);
   var rb = epFetch_(EP_APPLICANT_URL, { method: "get", followRedirects: true }, jar);
   if (!/name\s*=\s*["']?_58_password/i.test(rb.getContentText())) { Logger.log("  方法B(Basic認証)で成功"); return jar; }
