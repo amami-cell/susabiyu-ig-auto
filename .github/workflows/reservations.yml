@@ -4,7 +4,7 @@ name: susabiyu-reservations
 # 実投稿は Variables の RESV_LIVE=1 のときだけ。未設定＝DRY-RUN（ログのみ・投稿しない）。
 on:
   schedule:
-    - cron: "*/15 * * * *"   # 15分ごと。予約時刻から最大15分以内に投稿
+    - cron: "*/30 * * * *"   # 30分ごと（無料枠節約）。予約時刻から最大30分以内に投稿
   workflow_dispatch:
     inputs:
       mode:

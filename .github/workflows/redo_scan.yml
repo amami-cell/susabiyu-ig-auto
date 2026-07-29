@@ -2,7 +2,7 @@ name: susabiyu-redo-scan
 on:
   workflow_dispatch:
   schedule:
-    - cron: '*/30 * * * *'   # 30分ごとに redo枠を確実に処理（GAS→GitHub起動に依存しない安全網）
+    - cron: '0 */3 * * *'   # 3時間ごと（無料枠節約）。redo枠の安全網
 jobs:
   scan:
     runs-on: ubuntu-latest
