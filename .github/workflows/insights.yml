@@ -8,7 +8,7 @@ on:
         default: "check"
   schedule:
     - cron: '30 14 * * *'   # 毎日 23:30 JST に日次収集＋heal
-    - cron: '15 */6 * * *'    # 6時間ごと heal（無料枠節約）
+    - cron: '15 */12 * * *'    # 12時間ごと heal（無料枠節約）
     - cron: '0 0 * * 1'     # 毎週月曜 09:00 JST に先週のまとめを通知
 jobs:
   insights:
