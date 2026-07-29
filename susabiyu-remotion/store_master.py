@@ -1520,6 +1520,18 @@ def tokencheck():
     if not sheet_ok and sheet_tok:
         print(">> sheet をrefresh試行"); nt = try_refresh("sheet", sheet_tok)
         if nt: check("sheet-refreshed", nt)
+    # 店舗別アカウント（IG_ACCESS_TOKEN_<ACCOUNT>）の生存確認
+    acct_keys = sorted(k for k in os.environ if k.startswith("IG_ACCESS_TOKEN_") and os.environ.get(k))
+    if acct_keys:
+        print("=== 店舗別アカウント ===")
+        for k in acct_keys:
+            acc = k[len("IG_ACCESS_TOKEN_"):]
+            ok = check(acc, os.environ.get(k, ""))
+            if not ok:
+                nt = try_refresh(acc, os.environ.get(k, ""))
+                if nt: check(acc + "-refreshed", nt)
+    else:
+        print("=== 店舗別アカウント: 未設定（IG_ACCESS_TOKEN_<ACCOUNT> 無し） ===")
     print("[TOK] 完了")
 
 
