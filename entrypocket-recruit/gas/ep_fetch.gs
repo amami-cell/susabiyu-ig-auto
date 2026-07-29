@@ -118,21 +118,29 @@ function epLogin_() {
   var loc = r2.getAllHeaders()["Location"] || "";
   if (loc) epFetch_(epAbsUrl_(loc, action), { method: "get", followRedirects: false }, jar);
 
-  // 応募者ページでログイン成否を判定（_58_login が無ければ成功）
-  var r3 = epFetch_(EP_APPLICANT_URL, { method: "get", followRedirects: true }, jar);
-  if (!/name\s*=\s*["']?_58_login/i.test(r3.getContentText())) { Logger.log("  方法A(フォーム)で成功 p_auth=" + (pauth ? "有" : "無")); return jar; }
+  // ログインページがJavaScript依存か（暗号化・onsubmit）の手掛かり
+  var jsEnc = /encrypt|jsencrypt|rsa|publickey|hashpassword|\bmd5\b|\bsha\d/i.test(pageHtml) ? "有" : "無";
+  var onsub = /<form[^>]*onsubmit/i.test(pageHtml) ? "有" : "無";
 
-  // 方法A失敗の診断：POST応答の本文から日本語のエラー文言を拾う
-  Logger.log("  方法A失敗: POST HTTP=" + r2.getResponseCode() + " redirect=" + loc +
-             " p_auth=" + (pauth ? "有" : "無") + " cookies=" + Object.keys(jar).join(","));
-  var txt = r2.getContentText().replace(/<script[\s\S]*?<\/script>/gi, " ").replace(/<[^>]*>/g, " ").replace(/&nbsp;/g, " ").replace(/\s+/g, " ");
-  var mm = txt.match(/.{0,40}(認証|パスワード|正しく|一致しません|失敗|ロック|無効|できません|再度)[^]{0,40}/);
-  Logger.log("  画面の文言: " + (mm ? mm[0].trim() : "(該当なし)"));
+  // 応募者ページで成否判定（パスワード欄が無い or ログアウトがあれば成功）
+  var r3 = epFetch_(EP_APPLICANT_URL, { method: "get", followRedirects: true }, jar);
+  var app = r3.getContentText();
+  var hasPass = /name\s*=\s*["']?_58_password/i.test(app);
+  var hasLogout = /ログアウト|logout/i.test(app);
+  var appTitle = ((app.match(/<title>([\s\S]*?)<\/title>/i) || [])[1] || "").replace(/\s+/g, " ").trim().slice(0, 40);
+  Logger.log("【診断】ログインJS: 暗号化=" + jsEnc + " / onsubmit=" + onsub + " / p_auth=" + (pauth ? "有" : "無"));
+  Logger.log("  POST結果 HTTP=" + r2.getResponseCode() + " redirect=" + loc + " cookies=" + Object.keys(jar).join(","));
+  Logger.log("  応募者ページ title=" + appTitle + " / ログアウト有=" + hasLogout + " / パス欄有=" + hasPass);
+  if (hasLogout || !hasPass) { Logger.log("  → ログイン成功と判定"); return jar; }
+
+  // POST応答の可視テキスト（原因の手掛かり）
+  var txt = r2.getContentText().replace(/<script[\s\S]*?<\/script>/gi, " ").replace(/<style[\s\S]*?<\/style>/gi, " ").replace(/<[^>]*>/g, " ").replace(/&nbsp;/g, " ").replace(/\s+/g, " ").trim();
+  Logger.log("  POST応答テキスト: " + txt.slice(0, 500));
 
   // 方法B: Basic認証（多くのLiferayで有効）
   EP_BASIC = "Basic " + Utilities.base64Encode(user + ":" + pass, Utilities.Charset.UTF_8);
   var rb = epFetch_(EP_APPLICANT_URL, { method: "get", followRedirects: true }, jar);
-  if (!/name\s*=\s*["']?_58_login/i.test(rb.getContentText())) { Logger.log("  方法B(Basic認証)で成功"); return jar; }
+  if (!/name\s*=\s*["']?_58_password/i.test(rb.getContentText())) { Logger.log("  方法B(Basic認証)で成功"); return jar; }
   EP_BASIC = "";
   Logger.log("  方法B(Basic認証)も失敗");
   return null;
