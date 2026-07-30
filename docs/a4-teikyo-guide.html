@@ -67,11 +67,12 @@
   .chip.alert{ background:var(--shu-soft); color:var(--shu); }
 
   /* ---- layout ---- */
-  .top{ display:grid; grid-template-columns:1.62fr 1fr; gap:5mm; align-items:start; }
-  .col{ display:flex; flex-direction:column; gap:2.6mm; }
-  .foodsec{ display:grid; grid-template-columns:1fr 1fr; column-gap:5mm; align-content:start; }
+  .top{ display:grid; grid-template-columns:1.35fr 1fr; gap:5mm; align-items:start; }
+  .top > *{ min-width:0; }
+  .col{ display:flex; flex-direction:column; gap:2.6mm; min-width:0; }
+  .foodsec{ display:grid; grid-template-columns:1fr 1fr; column-gap:5mm; align-content:start; min-width:0; }
   .foodsec > h2{ grid-column:1 / -1; }
-  .fcol{ display:flex; flex-direction:column; }
+  .fcol{ display:flex; flex-direction:column; min-width:0; }
 
   .block h2{
     margin:0 0 1.4mm; font-size:10.5pt; letter-spacing:.05em; font-weight:800;
@@ -101,8 +102,8 @@
   .alertbox-h::before{ content:"!"; display:inline-flex; align-items:center; justify-content:center;
     width:3.6mm; height:3.6mm; background:var(--shu); color:#fff; border-radius:50%; font-size:7pt; font-weight:800; }
   .alertbox ul{ margin:0; padding:0; list-style:none; display:flex; flex-direction:column; gap:1mm; }
-  .alertbox li{ position:relative; padding-left:3.2mm; font-size:7.3pt; line-height:1.35;
-    letter-spacing:-.01em; color:#3f382c; white-space:nowrap; }
+  .alertbox li{ position:relative; padding-left:3.2mm; font-size:7pt; line-height:1.4;
+    letter-spacing:-.012em; color:#3f382c; white-space:nowrap; }
   .alertbox li::before{ content:""; position:absolute; left:.3mm; top:1.15mm;
     width:1.4mm; height:1.4mm; border-radius:50%; background:var(--shu); }
   .alertbox b{ color:var(--shu); }
@@ -116,7 +117,7 @@
   .inline-list{ font-size:8pt; line-height:1.5; color:#3f382c; }
 
   /* ---- drink table ---- */
-  table.drink-tbl{ border:1px solid var(--line-strong); }
+  table.drink-tbl{ border:1px solid var(--line-strong); table-layout:fixed; }
   table.drink-tbl th{
     background:var(--ai); color:#fff; font-size:7.4pt; font-weight:700; letter-spacing:.03em;
     padding:.9mm 1.4mm; text-align:left; border-right:1px solid rgba(255,255,255,.28);
