@@ -96,6 +96,20 @@
   .binfo .tag.k{ background:var(--kin); }
   .inline-list{ font-size:8pt; line-height:1.5; color:#3f382c; }
 
+  /* ---- drink table ---- */
+  table.drink-tbl{ border:1px solid var(--line-strong); }
+  table.drink-tbl th{
+    background:var(--ai); color:#fff; font-size:7.4pt; font-weight:700; letter-spacing:.03em;
+    padding:.9mm 1.4mm; text-align:left; border-right:1px solid rgba(255,255,255,.28);
+  }
+  table.drink-tbl td{
+    border-top:1px solid var(--line); border-right:1px solid var(--line);
+    padding:1.1mm 1.4mm; font-size:7.9pt; line-height:1.3; vertical-align:middle;
+  }
+  table.drink-tbl .cat{ font-weight:800; color:var(--ai); white-space:nowrap; }
+  table.drink-tbl .tag,
+  table.drink-tbl .must{ margin-right:1.2mm; }
+
   /* ---- sake table ---- */
   .sake h2{ color:var(--kin); }
   .sake h2::before{ background:var(--kin); }
@@ -173,7 +187,7 @@
           <tr><td class="name">ぎふや厳選 5種盛り</td><td class="memo">牛・ウインナー・れんこん・玉ねぎ・海老</td></tr>
           <tr><td class="name">ぎふや厳選 7種盛り</td><td class="memo">5種＋キス・うずら</td></tr>
           <tr><td class="name">ぎふや厳選 10種盛り</td><td class="memo">7種＋しいたけ・アスパラ・餅</td></tr>
-          <tr><td class="name">岩中ささみ 梅しそ</td><td class="memo"><span class="quote">『ソース付けずにお召し上がりください』</span></td></tr>
+          <tr><td class="name">鶏ささみ梅しそ</td><td class="memo"><span class="quote">『ソース付けずにお召し上がりください』</span></td></tr>
           <tr><td class="name">コンポタ</td><td class="memo"><span class="quote">『ソース付けずにお召し上がりください』</span></td></tr>
           <tr><td class="name">レアサーモン（2本）</td><td class="memo"><span class="quote">『ソース付けずにお召し上がりください』</span></td></tr>
         </tbody></table>
@@ -193,7 +207,6 @@
           <tr><td class="name">和牛マルシンのたたき</td><td class="memo">ポン酢を<b>のぞき</b>に入れて（希少部位）</td></tr>
           <tr><td class="name">刺身盛り合わせ（1人前）</td><td class="memo">提供時、卓上に<b>【のぞき】</b>が人数分あるか確認</td></tr>
           <tr><td class="name">赤身たたき</td><td class="memo">ポン酢を<b>のぞき</b>に入れて</td></tr>
-          <tr><td class="name">赤身レバー刺し</td><td class="memo"><b>のぞき</b>に入れて</td></tr>
           <tr><td class="name">馬刺し</td><td class="memo">甘醤油を<b>のぞき</b>に入れて</td></tr>
         </tbody></table>
 
@@ -212,21 +225,33 @@
     <section class="block col">
       <div>
         <h2>ドリンク 提供備品</h2>
-
-        <div class="grp">■ 瓶ビール</div>
-        <div class="inline-list">アサヒスーパードライ 中瓶　／　サッポロ赤星 中瓶　／　キリン一番搾り 中瓶</div>
-        <div class="binfo"><span class="tag">ビアタン</span>必要数を用意</div>
-
-        <div class="grp">■ ソフトドリンク</div>
-        <div class="inline-list">ウーロン茶・緑茶・ジンジャーエール・コカ・コーラ・カルピス・オレンジジュース</div>
-        <div class="binfo"><span class="must">ストロー必須（絶対に付ける）</span></div>
-
-        <div class="grp">■ 日本酒（8銘柄）</div>
-        <div class="inline-list">提供形態は <b>グラス</b> と <b>徳利1合</b> の2種類。<br>銘柄・特徴・接客トークは下の早見表を参照。</div>
-        <div class="binfo"><span class="tag k">おちょこ</span>徳利で提供する時は必要数を用意</div>
+        <table class="drink-tbl"><thead>
+          <tr><th style="width:24%">種別</th><th>商品</th><th style="width:26%">必要備品</th></tr>
+        </thead><tbody>
+          <tr>
+            <td class="cat">瓶ビール</td>
+            <td>アサヒスーパードライ／サッポロ赤星／キリン一番搾り（各 中瓶）</td>
+            <td><span class="tag">ビアタン</span>必要数</td>
+          </tr>
+          <tr>
+            <td class="cat">ソフトドリンク</td>
+            <td>ウーロン茶・緑茶・ジンジャーエール・コカ・コーラ・カルピス・オレンジジュース</td>
+            <td><span class="must">ストロー必須</span></td>
+          </tr>
+          <tr>
+            <td class="cat">日本酒／グラス</td>
+            <td>8銘柄（<b>下の早見表</b>を参照）</td>
+            <td class="note">そのまま提供</td>
+          </tr>
+          <tr>
+            <td class="cat">日本酒／徳利 1合</td>
+            <td>8銘柄（<b>下の早見表</b>を参照）</td>
+            <td><span class="tag k">おちょこ</span>必要数</td>
+          </tr>
+        </tbody></table>
       </div>
 
-      <div style="margin-top:1mm">
+      <div style="margin-top:1.5mm">
         <h2>提供の基本フロー</h2>
         <table class="items"><tbody>
           <tr><td class="name">① 卓上確認</td><td class="memo">刺身・巻き物・たたき系は<b>のぞき</b>が人数分あるか</td></tr>
