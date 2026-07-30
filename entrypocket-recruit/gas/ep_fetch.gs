@@ -115,62 +115,54 @@ function epLogin_() {
 
 // ========================= CSVダウンロード =========================
 
+// downloadCSV() が叩く Liferay リソースURL（p_p_lifecycle=2 = serveResource）
+var EP_CSV_RES = "https://manage.entrypocket.jp/web/8sin-saiyo/applicant" +
+  "?p_p_id=applycontrol_WAR_MYNApplyControlportlet&p_p_lifecycle=2&p_p_state=normal" +
+  "&p_p_mode=view&p_p_cacheability=cacheLevelPage&p_p_col_id=column-1&p_p_col_count=1";
+var EP_CSV_NS = "_applycontrol_WAR_MYNApplyControlportlet_";
+
 function epDownloadCsv_(jar) {
-  var app = epFetch_(EP_APPLICANT_URL, { method: "get", followRedirects: true }, jar);
-  var html = app.getContentText();
+  var html = epFetch_(EP_APPLICANT_URL, { method: "get", followRedirects: true }, jar).getContentText();
+  var hdr = { "Referer": EP_APPLICANT_URL, "X-Requested-With": "XMLHttpRequest" };
 
-  // 候補URLを幅広く集める（リンク・ボタンonclick・フォーム・Liferayリソースurl）
-  var cands = [];
-  var m, re;
-  re = /\bhref\s*=\s*["']([^"']+)["']/gi;
-  while ((m = re.exec(html))) if (/csv|download|ダウンロード|出力|export|lifecycle=2/i.test(m[1])) cands.push(epAbsUrl_(epUnescape_(m[1]), EP_APPLICANT_URL));
-  re = /\b(?:onclick|data-url|data-href)\s*=\s*["']([^"']+)["']/gi;
-  while ((m = re.exec(html))) { var u = (m[1].match(/https?:\/\/[^\s"')]+|\/[^\s"')]+/) || [])[0]; if (u && /csv|download|ダウンロード|出力|export/i.test(m[1])) cands.push(epAbsUrl_(epUnescape_(u), EP_APPLICANT_URL)); }
-  re = /<form\b[\s\S]*?<\/form>/gi;
-  var forms = html.match(re) || [];
-  forms.forEach(function (f) {
-    if (!/csv|download|ダウンロード|出力|export/i.test(f)) return;
-    var act = (f.match(/\baction\s*=\s*["']([^"']*)["']/i) || [])[1] || EP_APPLICANT_URL;
-    cands.push(epAbsUrl_(epUnescape_(act), EP_APPLICANT_URL));
-  });
+  // 1) 事前チェック（応募者0件だとERRORが返る）
+  var chk = epFetch_(EP_CSV_RES, { method: "post", payload: epKv_(EP_CSV_NS + "part", "downloadCSVCheck"), headers: hdr }, jar).getContentText();
+  Logger.log("  CSVチェック応答: " + chk.replace(/\s+/g, " ").slice(0, 150));
+  if (/["']value["']\s*:\s*["']ERROR["']/i.test(chk) || /検索結果が0件/.test(chk)) { Logger.log("  応募者0件のためCSVなし"); return null; }
 
-  // 重複を除いてログ
-  var seen = {}, uniq = [];
-  cands.forEach(function (u) { if (u && !seen[u]) { seen[u] = 1; uniq.push(u); } });
-  Logger.log("  CSV候補 " + uniq.length + "件:");
-  uniq.forEach(function (u) { Logger.log("   - " + u); });
+  // 2) ダウンロード用 part の候補（ページから抽出＋定番）
+  var parts = {}, m, re = /part["']?\s*[:=]\s*["']([A-Za-z]+)["']/g;
+  while ((m = re.exec(html))) parts[m[1]] = 1;
+  ["downloadCSV", "downloadCSVData", "downloadCsvData", "csvDownload", "download", "getCSV"].forEach(function (x) { parts[x] = 1; });
+  delete parts["downloadCSVCheck"];
+  var list = Object.keys(parts);
+  Logger.log("  ダウンロードpart候補: " + list.join(","));
 
-  // 各候補をGETしてCSVらしければ採用
-  for (var i = 0; i < uniq.length; i++) {
-    var text = epTryCsv_(uniq[i], jar);
-    if (text) { Logger.log("  → 採用: " + uniq[i]); return text; }
+  for (var i = 0; i < list.length; i++) {
+    var pr = list[i];
+    var t = epTryCsvBody_(epFetch_(EP_CSV_RES, { method: "post", payload: epKv_(EP_CSV_NS + "part", pr), headers: hdr }, jar));
+    if (t) { Logger.log("  → 採用(POST part=" + pr + ")"); return t; }
+    var t2 = epTryCsvBody_(epFetch_(EP_CSV_RES + "&" + EP_CSV_NS + "part=" + encodeURIComponent(pr), { method: "get", headers: hdr }, jar));
+    if (t2) { Logger.log("  → 採用(GET part=" + pr + ")"); return t2; }
   }
-  // 見つからない時は「CSV」「ダウンロード」の周辺HTMLを出して手掛かりにする
-  if (!uniq.length) {
-    var pageTitle = ((html.match(/<title>([\s\S]*?)<\/title>/i) || [])[1] || "").replace(/\s+/g, " ").trim();
-    Logger.log("  応募者ページ title=" + pageTitle + " / 長さ=" + html.length);
-    var hits = 0, kw = /(csv|ダウンロード|出力|エクスポート|ＣＳＶ)/gi, mm;
-    while ((mm = kw.exec(html)) && hits < 6) {
-      hits++;
-      Logger.log("  周辺[" + hits + "]: " + html.slice(Math.max(0, mm.index - 140), mm.index + 140).replace(/\s+/g, " "));
-    }
-    if (!hits) Logger.log("  「CSV/ダウンロード」語句なし。本文冒頭:\n" + html.replace(/\s+/g, " ").slice(0, 800));
-  }
+
+  // 3) どれもダメなら downloadCSV 関数を出して次段を特定
+  var idx = html.search(/function\s+downloadCSV/);
+  if (idx >= 0) Logger.log("  downloadCSV関数:\n" + html.slice(idx, idx + 1600).replace(/\s+/g, " "));
+  else Logger.log("  downloadCSV関数が見つからず");
   return null;
 }
 
-function epTryCsv_(url, jar) {
+function epKv_(k, v) { var o = {}; o[k] = v; return o; }
+
+function epTryCsvBody_(res) {
   try {
-    var res = epFetch_(url, { method: "get", followRedirects: true }, jar);
     if (res.getResponseCode() !== 200) return null;
-    var ct = (res.getAllHeaders()["Content-Type"] || "").toString().toLowerCase();
     var text = epDecode_(res.getBlob());
-    // HTMLはCSVでない。カンマ区切り＋改行があり、既知の列名を含むかで判定
-    var looksHtml = /^\s*<(!doctype|html)/i.test(text);
-    var hasCols = /応募者コード|応募者ID|氏名|ステータス/.test(text.slice(0, 2000));
-    if ((ct.indexOf("csv") >= 0 || ct.indexOf("octet-stream") >= 0 || ct.indexOf("excel") >= 0 || !looksHtml) && hasCols && text.indexOf(",") >= 0) {
-      return text;
-    }
+    if (/^\s*<(!doctype|html)/i.test(text)) return null;   // HTMLは除外
+    if (/^\s*[{\[]/.test(text)) return null;               // JSONは除外
+    var hasCols = /応募者コード|応募者ID|氏名|ステータス/.test(text.slice(0, 3000));
+    if (hasCols && text.indexOf(",") >= 0) return text;
   } catch (e) { }
   return null;
 }
