@@ -122,34 +122,30 @@ var EP_CSV_RES = "https://manage.entrypocket.jp/web/8sin-saiyo/applicant" +
 var EP_CSV_NS = "_applycontrol_WAR_MYNApplyControlportlet_";
 
 function epDownloadCsv_(jar) {
-  var html = epFetch_(EP_APPLICANT_URL, { method: "get", followRedirects: true }, jar).getContentText();
   var hdr = { "Referer": EP_APPLICANT_URL, "X-Requested-With": "XMLHttpRequest" };
 
-  // 1) 事前チェック（応募者0件だとERRORが返る）
+  // 1) 事前チェック（応募者0件だと value:ERROR が返る）
   var chk = epFetch_(EP_CSV_RES, { method: "post", payload: epKv_(EP_CSV_NS + "part", "downloadCSVCheck"), headers: hdr }, jar).getContentText();
   Logger.log("  CSVチェック応答: " + chk.replace(/\s+/g, " ").slice(0, 150));
   if (/["']value["']\s*:\s*["']ERROR["']/i.test(chk) || /検索結果が0件/.test(chk)) { Logger.log("  応募者0件のためCSVなし"); return null; }
 
-  // 2) ダウンロード用 part の候補（ページから抽出＋定番）
-  var parts = {}, m, re = /part["']?\s*[:=]\s*["']([A-Za-z]+)["']/g;
-  while ((m = re.exec(html))) parts[m[1]] = 1;
-  ["downloadCSV", "downloadCSVData", "downloadCsvData", "csvDownload", "download", "getCSV"].forEach(function (x) { parts[x] = 1; });
-  delete parts["downloadCSVCheck"];
-  var list = Object.keys(parts);
-  Logger.log("  ダウンロードpart候補: " + list.join(","));
+  // 2) 本家 downloadFile() と同一：part=downloadCSV をURL末尾に付けて POST
+  //    （changeStatus 等の他 part は絶対に叩かない＝ダウンロード専用に限定）
+  var url = EP_CSV_RES + "&" + EP_CSV_NS + "part=downloadCSV";
+  var res = epFetch_(url, { method: "post", payload: "", headers: hdr }, jar);
+  Logger.log("  CSV DL: HTTP=" + res.getResponseCode() +
+             " / Content-Type=" + (res.getAllHeaders()["Content-Type"] || "") +
+             " / Disposition=" + (res.getAllHeaders()["Content-Disposition"] || ""));
+  var text = epTryCsvBody_(res);
+  if (text) { Logger.log("  → CSV取得成功(POST)"); return text; }
 
-  for (var i = 0; i < list.length; i++) {
-    var pr = list[i];
-    var t = epTryCsvBody_(epFetch_(EP_CSV_RES, { method: "post", payload: epKv_(EP_CSV_NS + "part", pr), headers: hdr }, jar));
-    if (t) { Logger.log("  → 採用(POST part=" + pr + ")"); return t; }
-    var t2 = epTryCsvBody_(epFetch_(EP_CSV_RES + "&" + EP_CSV_NS + "part=" + encodeURIComponent(pr), { method: "get", headers: hdr }, jar));
-    if (t2) { Logger.log("  → 採用(GET part=" + pr + ")"); return t2; }
-  }
+  // 予備: GET も試す
+  var res2 = epFetch_(url, { method: "get", headers: hdr }, jar);
+  var text2 = epTryCsvBody_(res2);
+  if (text2) { Logger.log("  → CSV取得成功(GET)"); return text2; }
 
-  // 3) どれもダメなら downloadCSV 関数を出して次段を特定
-  var idx = html.search(/function\s+downloadCSV/);
-  if (idx >= 0) Logger.log("  downloadCSV関数:\n" + html.slice(idx, idx + 1600).replace(/\s+/g, " "));
-  else Logger.log("  downloadCSV関数が見つからず");
+  // だめなら応答冒頭を出す（次段の手掛かり）
+  Logger.log("  CSV応答冒頭: " + epDecode_(res.getBlob()).replace(/\s+/g, " ").slice(0, 300));
   return null;
 }
 
