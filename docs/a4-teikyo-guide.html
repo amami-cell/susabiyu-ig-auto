@@ -88,6 +88,19 @@
   .must{ color:var(--shu); font-weight:700; }
   .quote{ color:var(--shu); }
 
+  .alertbox{
+    margin-top:2.6mm; border:1px solid var(--shu); border-left:3px solid var(--shu);
+    background:var(--shu-soft); border-radius:2px; padding:1.8mm 2.4mm 2mm;
+  }
+  .alertbox-h{ font-size:8.4pt; font-weight:800; color:var(--shu); letter-spacing:.04em; margin-bottom:1mm;
+    display:flex; align-items:center; gap:1.6mm; }
+  .alertbox-h::before{ content:"!"; display:inline-flex; align-items:center; justify-content:center;
+    width:3.6mm; height:3.6mm; background:var(--shu); color:#fff; border-radius:50%; font-size:7pt; font-weight:800; }
+  .alertbox ul{ margin:0; padding-left:4.2mm; }
+  .alertbox li{ font-size:7.9pt; line-height:1.5; color:#3f382c; }
+  .alertbox li::marker{ color:var(--shu); }
+  .alertbox b{ color:var(--shu); }
+
   .binfo{ display:flex; gap:1.6mm; align-items:center; margin:.8mm 0 0; font-size:7.9pt; }
   .binfo .tag{
     background:var(--ai); color:#fff; font-weight:700; font-size:7.4pt;
@@ -178,8 +191,8 @@
         <div class="grp">■ 名物</div>
         <table class="items"><tbody>
           <tr><td class="name">ぎふやの炊き餃子</td><td class="memo">人数分・とんすい・レンゲ／お玉セット・酢醤油</td></tr>
-          <tr><td class="name">メライス</td><td class="memo"><span class="must">【×】の注文が入ったら厨房に一度下げてくる</span></td></tr>
-          <tr><td class="name">メラーメン</td><td class="memo"><span class="must">【×】の注文が入ったら厨房に一度下げてくる</span></td></tr>
+          <tr><td class="name">メライス</td><td class="memo"><span class="must">【〆】の注文が入ったら厨房に一度下げてくる</span></td></tr>
+          <tr><td class="name">メラーメン</td><td class="memo"><span class="must">【〆】の注文が入ったら厨房に一度下げてくる</span></td></tr>
         </tbody></table>
 
         <div class="grp">■ 串かつ</div>
@@ -198,8 +211,8 @@
         <table class="items"><tbody>
           <tr><td class="name">塩ゆで枝豆</td><td class="memo">とんすい1枚（ガラ入れ）</td></tr>
           <tr><td class="name">トロっと焼きなす</td><td class="memo"><span class="quote">『卓上の醤油をお好みでどうぞ』</span></td></tr>
-          <tr><td class="name">シャキシャキ長芋の短冊</td><td class="memo note">備品なし</td></tr>
-          <tr><td class="name">明太出汁巻き</td><td class="memo note">備品なし</td></tr>
+          <tr><td class="name">シャキシャキ長芋の短冊</td><td class="memo"><span class="quote">『卓上の醤油をお好みでどうぞ』</span></td></tr>
+          <tr><td class="name">明太出汁巻き</td><td class="memo">とんすい・レンゲ 人数分</td></tr>
         </tbody></table>
 
         <div class="grp">■ 逸品・刺身・肉造り</div>
@@ -212,7 +225,7 @@
 
         <div class="grp">■ 巻き物・丼</div>
         <table class="items"><tbody>
-          <tr><td class="name">炙り巻き</td><td class="memo">提供時、卓上に<b>【のぞき】</b>が人数分あるか確認</td></tr>
+          <tr><td class="name">鉄火巻き</td><td class="memo">提供時、卓上に<b>【のぞき】</b>が人数分あるか確認</td></tr>
           <tr><td class="name">サーモンチーズ巻き</td><td class="memo">提供時、卓上に<b>【のぞき】</b>が人数分あるか確認</td></tr>
           <tr><td class="name">トロタク巻き</td><td class="memo">提供時、卓上に<b>【のぞき】</b>が人数分あるか確認</td></tr>
           <tr><td class="name">天かす巻き</td><td class="memo"><span class="quote">『タレを塗ってあるのでそのままどうぞ』</span></td></tr>
@@ -259,6 +272,16 @@
           <tr><td class="name">③ 一言そえる</td><td class="memo">『　』の説明トークをお客様へお伝えする</td></tr>
           <tr><td class="name">④ 日本酒</td><td class="memo">おすすめは料理との<b>相性トーク</b>で提案</td></tr>
         </tbody></table>
+      </div>
+
+      <div class="alertbox">
+        <div class="alertbox-h">特に注意（忘れずに）</div>
+        <ul>
+          <li>ソフトドリンクは<b>必ずストロー</b>を付ける</li>
+          <li>メライス／メラーメンは<b>【〆】</b>の注文で厨房へ一度下げる</li>
+          <li>鶏ささみ梅しそ・コンポタ・レアサーモンは<b>ソースを付けずに</b>提供</li>
+          <li>刺身・巻き物・たたき系は<b>のぞき</b>を人数分そろえる</li>
+        </ul>
       </div>
     </section>
   </div>
