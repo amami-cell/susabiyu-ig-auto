@@ -1,0 +1,306 @@
+<title>すさび湯／ぎふや 提供備品・日本酒 接客ガイド（A4）</title>
+<style>
+  :root{
+    --paper:#F8F5EC;      /* 和紙 off-white */
+    --ink:#232019;        /* 墨 warm near-black */
+    --ai:#1E3A5F;         /* 藍 indigo */
+    --ai-soft:#E7EDF3;    /* indigo tint */
+    --shu:#B23A25;        /* 朱 vermilion – 注意喚起 */
+    --shu-soft:#FBEDE9;
+    --kin:#B4892F;        /* 金 sake gold */
+    --kin-soft:#F5EDD8;
+    --line:#D8D0BE;       /* warm hairline */
+    --line-strong:#C3B9A2;
+    --muted:#6E6552;
+    --surround:#ECE8DD;
+  }
+  @media (prefers-color-scheme: dark){
+    :root{ --surround:#1a1814; }
+  }
+  :root[data-theme="dark"]{ --surround:#1a1814; }
+  :root[data-theme="light"]{ --surround:#ECE8DD; }
+
+  *{ box-sizing:border-box; }
+  body{
+    margin:0;
+    background:var(--surround);
+    color:var(--ink);
+    font-family:"Hiragino Kaku Gothic ProN","Hiragino Sans","Yu Gothic",YuGothic,"Noto Sans JP","Meiryo",sans-serif;
+    -webkit-font-smoothing:antialiased;
+    font-feature-settings:"palt" 1;
+  }
+  .scroll{ overflow-x:auto; padding:16px; }
+
+  /* ---- A4 landscape sheet ---- */
+  .sheet{
+    width:297mm; min-height:210mm;
+    margin:0 auto;
+    background:var(--paper);
+    color:var(--ink);
+    padding:8mm 9mm 7mm;
+    box-shadow:0 4px 22px rgba(0,0,0,.22);
+    display:flex; flex-direction:column; gap:4mm;
+  }
+  .mincho{ font-family:"Hiragino Mincho ProN","Yu Mincho",YuMincho,"Noto Serif JP",serif; }
+
+  /* ---- header ---- */
+  header{
+    display:flex; align-items:flex-end; justify-content:space-between;
+    border-bottom:2.5px solid var(--ai);
+    padding-bottom:2.5mm;
+  }
+  header h1{
+    margin:0; font-size:18.5pt; letter-spacing:.06em; line-height:1.1;
+    color:var(--ai); font-weight:800;
+  }
+  header .sub{ margin-top:1.5mm; font-size:8.2pt; color:var(--muted); letter-spacing:.02em; }
+  header .brandtag{
+    text-align:right; font-size:8pt; color:var(--muted); line-height:1.5; white-space:nowrap;
+  }
+  header .brandtag b{ color:var(--shu); font-size:8.5pt; letter-spacing:.04em; }
+
+  /* ---- legend ---- */
+  .legend{ display:flex; gap:5mm; flex-wrap:wrap; font-size:7.6pt; color:var(--muted); align-items:center; }
+  .legend span{ display:inline-flex; align-items:center; gap:1.4mm; }
+  .chip{ display:inline-block; padding:.2mm 1.6mm; border-radius:2px; font-weight:700; font-size:7.4pt; }
+  .chip.nozoki{ background:var(--ai-soft); color:var(--ai); }
+  .chip.alert{ background:var(--shu-soft); color:var(--shu); }
+
+  /* ---- layout ---- */
+  .top{ display:grid; grid-template-columns:1.32fr 1fr; gap:5mm; align-items:start; }
+  .col{ display:flex; flex-direction:column; gap:2.6mm; }
+
+  .block h2{
+    margin:0 0 1.4mm; font-size:10.5pt; letter-spacing:.05em; font-weight:800;
+    color:var(--ai); display:flex; align-items:center; gap:2mm;
+  }
+  .block h2::before{ content:""; width:3mm; height:3mm; background:var(--ai); border-radius:1px; flex:0 0 auto; }
+  .grp{ font-size:8pt; font-weight:800; color:var(--shu); letter-spacing:.04em; margin:1.6mm 0 .6mm; }
+
+  table{ width:100%; border-collapse:collapse; }
+  .items td{
+    border-top:1px solid var(--line); padding:.85mm 1.4mm; vertical-align:top; font-size:8pt; line-height:1.28;
+  }
+  .items td.name{ width:37%; font-weight:600; white-space:nowrap; }
+  .items td.memo{ color:#3f382c; }
+  .items tr:first-child td{ border-top:none; }
+  .note{ color:var(--muted); }
+  .must{ color:var(--shu); font-weight:700; }
+  .quote{ color:var(--shu); }
+
+  .binfo{ display:flex; gap:1.6mm; align-items:center; margin:.8mm 0 0; font-size:7.9pt; }
+  .binfo .tag{
+    background:var(--ai); color:#fff; font-weight:700; font-size:7.4pt;
+    padding:.3mm 1.8mm; border-radius:2px; letter-spacing:.03em; white-space:nowrap;
+  }
+  .binfo .tag.k{ background:var(--kin); }
+  .inline-list{ font-size:8pt; line-height:1.5; color:#3f382c; }
+
+  /* ---- sake table ---- */
+  .sake h2{ color:var(--kin); }
+  .sake h2::before{ background:var(--kin); }
+  table.sake-tbl{ border:1px solid var(--line-strong); }
+  table.sake-tbl th{
+    background:var(--kin); color:#fff; font-size:7.6pt; font-weight:700; letter-spacing:.03em;
+    padding:1.1mm 1.4mm; text-align:left; border-right:1px solid rgba(255,255,255,.28);
+  }
+  table.sake-tbl td{
+    border-top:1px solid var(--line); border-right:1px solid var(--line);
+    padding:1mm 1.4mm; font-size:7.9pt; line-height:1.24; vertical-align:top;
+  }
+  table.sake-tbl tr:nth-child(even) td{ background:rgba(180,137,47,.06); }
+  table.sake-tbl .mei{ font-weight:800; color:var(--ink); white-space:nowrap; }
+  table.sake-tbl .num{ font-variant-numeric:tabular-nums; text-align:center; white-space:nowrap; font-weight:700; color:var(--kin); }
+  table.sake-tbl .talk{ color:#3f382c; }
+  table.sake-tbl .talk::before{ content:"“"; color:var(--kin); font-weight:700; }
+  table.sake-tbl .talk::after{ content:"”"; color:var(--kin); font-weight:700; }
+
+  footer{ margin-top:auto; padding-top:2mm; border-top:1px solid var(--line);
+    font-size:7pt; color:var(--muted); display:flex; justify-content:space-between; }
+
+  /* ---- print ---- */
+  @page{ size:A4 landscape; margin:0; }
+  @media print{
+    body{ background:#fff; }
+    .scroll{ padding:0; overflow:visible; }
+    .sheet{ box-shadow:none; width:297mm; min-height:auto; height:210mm; margin:0; }
+  }
+</style>
+
+<div class="scroll">
+<div class="sheet">
+
+  <header>
+    <div>
+      <h1 class="mincho">提供備品・日本酒 接客ガイド</h1>
+      <div class="sub">卓上備品の準備と、提供時の説明トーク早見表 ／ ホール・キッチン共有用</div>
+    </div>
+    <div class="brandtag">
+      すさび湯 ・ ぎふや<br>
+      <b>1枚で確認</b>
+    </div>
+  </header>
+
+  <div class="legend">
+    <span><span class="chip nozoki">のぞき</span>＝卓上の小皿。提供時に人数分あるか必ず確認</span>
+    <span><span class="chip alert">重要</span>＝赤字は必須オペ・お客様への声かけ</span>
+    <span>『　』＝そのままお客様へお伝えする一言</span>
+  </div>
+
+  <!-- ===== TOP: FOOD + DRINK ===== -->
+  <div class="top">
+
+    <!-- FOOD -->
+    <section class="block col">
+      <div>
+        <h2>フード 提供備品</h2>
+
+        <div class="grp">■ おすすめ（別POP）</div>
+        <table class="items"><tbody>
+          <tr><td class="name">玄界灘 イカの姿造り</td><td class="memo">提供時、卓上に<b>【のぞき】</b>が人数分あるか確認</td></tr>
+          <tr><td class="name">旬の刺身</td><td class="memo">提供時、卓上に<b>【のぞき】</b>が人数分あるか確認</td></tr>
+        </tbody></table>
+
+        <div class="grp">■ 名物</div>
+        <table class="items"><tbody>
+          <tr><td class="name">ぎふやの炊き餃子</td><td class="memo">人数分・とんすい・レンゲ／お玉セット・酢醤油</td></tr>
+          <tr><td class="name">メライス</td><td class="memo"><span class="must">【×】の注文が入ったら厨房に一度下げてくる</span></td></tr>
+          <tr><td class="name">メラーメン</td><td class="memo"><span class="must">【×】の注文が入ったら厨房に一度下げてくる</span></td></tr>
+        </tbody></table>
+
+        <div class="grp">■ 串かつ</div>
+        <table class="items"><tbody>
+          <tr><td class="name">ぎふや厳選 5種盛り</td><td class="memo">牛・ウインナー・れんこん・玉ねぎ・海老</td></tr>
+          <tr><td class="name">ぎふや厳選 7種盛り</td><td class="memo">5種＋キス・うずら</td></tr>
+          <tr><td class="name">ぎふや厳選 10種盛り</td><td class="memo">7種＋しいたけ・アスパラ・餅</td></tr>
+          <tr><td class="name">岩中ささみ 梅しそ</td><td class="memo"><span class="quote">『ソース付けずにお召し上がりください』</span></td></tr>
+          <tr><td class="name">コンポタ</td><td class="memo"><span class="quote">『ソース付けずにお召し上がりください』</span></td></tr>
+          <tr><td class="name">レアサーモン（2本）</td><td class="memo"><span class="quote">『ソース付けずにお召し上がりください』</span></td></tr>
+        </tbody></table>
+      </div>
+
+      <div>
+        <div class="grp">■ 前菜・野菜・珍味</div>
+        <table class="items"><tbody>
+          <tr><td class="name">塩ゆで枝豆</td><td class="memo">とんすい1枚（ガラ入れ）</td></tr>
+          <tr><td class="name">トロっと焼きなす</td><td class="memo"><span class="quote">『卓上の醤油をお好みでどうぞ』</span></td></tr>
+          <tr><td class="name">シャキシャキ長芋の短冊</td><td class="memo note">備品なし</td></tr>
+          <tr><td class="name">明太出汁巻き</td><td class="memo note">備品なし</td></tr>
+        </tbody></table>
+
+        <div class="grp">■ 逸品・刺身・肉造り</div>
+        <table class="items"><tbody>
+          <tr><td class="name">和牛マルシンのたたき</td><td class="memo">ポン酢を<b>のぞき</b>に入れて（希少部位）</td></tr>
+          <tr><td class="name">刺身盛り合わせ（1人前）</td><td class="memo">提供時、卓上に<b>【のぞき】</b>が人数分あるか確認</td></tr>
+          <tr><td class="name">赤身たたき</td><td class="memo">ポン酢を<b>のぞき</b>に入れて</td></tr>
+          <tr><td class="name">赤身レバー刺し</td><td class="memo"><b>のぞき</b>に入れて</td></tr>
+          <tr><td class="name">馬刺し</td><td class="memo">甘醤油を<b>のぞき</b>に入れて</td></tr>
+        </tbody></table>
+
+        <div class="grp">■ 巻き物・丼</div>
+        <table class="items"><tbody>
+          <tr><td class="name">炙り巻き</td><td class="memo">提供時、卓上に<b>【のぞき】</b>が人数分あるか確認</td></tr>
+          <tr><td class="name">サーモンチーズ巻き</td><td class="memo">提供時、卓上に<b>【のぞき】</b>が人数分あるか確認</td></tr>
+          <tr><td class="name">トロタク巻き</td><td class="memo">提供時、卓上に<b>【のぞき】</b>が人数分あるか確認</td></tr>
+          <tr><td class="name">天かす巻き</td><td class="memo"><span class="quote">『タレを塗ってあるのでそのままどうぞ』</span></td></tr>
+          <tr><td class="name">漁師の漬け丼</td><td class="memo">とんすい・レンゲ 人数分</td></tr>
+        </tbody></table>
+      </div>
+    </section>
+
+    <!-- DRINK -->
+    <section class="block col">
+      <div>
+        <h2>ドリンク 提供備品</h2>
+
+        <div class="grp">■ 瓶ビール</div>
+        <div class="inline-list">アサヒスーパードライ 中瓶　／　サッポロ赤星 中瓶　／　キリン一番搾り 中瓶</div>
+        <div class="binfo"><span class="tag">ビアタン</span>必要数を用意</div>
+
+        <div class="grp">■ ソフトドリンク</div>
+        <div class="inline-list">ウーロン茶・緑茶・ジンジャーエール・コカ・コーラ・カルピス・オレンジジュース</div>
+        <div class="binfo"><span class="must">ストロー必須（絶対に付ける）</span></div>
+
+        <div class="grp">■ 日本酒（8銘柄）</div>
+        <div class="inline-list">提供形態は <b>グラス</b> と <b>徳利1合</b> の2種類。<br>銘柄・特徴・接客トークは下の早見表を参照。</div>
+        <div class="binfo"><span class="tag k">おちょこ</span>徳利で提供する時は必要数を用意</div>
+      </div>
+
+      <div style="margin-top:1mm">
+        <h2>提供の基本フロー</h2>
+        <table class="items"><tbody>
+          <tr><td class="name">① 卓上確認</td><td class="memo">刺身・巻き物・たたき系は<b>のぞき</b>が人数分あるか</td></tr>
+          <tr><td class="name">② 備品セット</td><td class="memo">とんすい・レンゲ・ビアタン・おちょこ・ストロー</td></tr>
+          <tr><td class="name">③ 一言そえる</td><td class="memo">『　』の説明トークをお客様へお伝えする</td></tr>
+          <tr><td class="name">④ 日本酒</td><td class="memo">おすすめは料理との<b>相性トーク</b>で提案</td></tr>
+        </tbody></table>
+      </div>
+    </section>
+  </div>
+
+  <!-- ===== SAKE 早見表 ===== -->
+  <section class="block sake">
+    <h2>日本酒 早見表 ＆ 接客トーク（8銘柄）</h2>
+    <div class="scroll" style="padding:0; overflow-x:auto;">
+    <table class="sake-tbl"><thead>
+      <tr>
+        <th style="width:15%">銘柄</th>
+        <th style="width:6%">産地</th>
+        <th style="width:7%">日本酒度</th>
+        <th style="width:9%">酒米</th>
+        <th style="width:15%">特徴</th>
+        <th style="width:12%">おすすめ料理</th>
+        <th>接客トーク</th>
+      </tr>
+    </thead><tbody>
+      <tr>
+        <td class="mei">金剛力士</td><td>栃木</td><td class="num">非公開</td><td>非公開</td>
+        <td>詳細情報が少ない銘柄</td><td>料理を邪魔しない食中酒</td>
+        <td class="talk">詳細は控えめですが、料理を邪魔しない食中酒として何にでも合わせやすくおすすめです</td>
+      </tr>
+      <tr>
+        <td class="mei">白鶴 大吟醸</td><td>兵庫</td><td class="num">+3</td><td>山田錦 など</td>
+        <td>華やかな吟醸香・淡麗</td><td>刺身・天ぷら</td>
+        <td class="talk">華やかな吟醸香で淡麗ですので、刺身や天ぷらとの相性が良くおすすめです</td>
+      </tr>
+      <tr>
+        <td class="mei">獺祭 純米大吟醸</td><td>山口</td><td class="num">+3前後</td><td>山田錦</td>
+        <td>フルーティー・上品な甘み</td><td>刺身・白身魚</td>
+        <td class="talk">フルーティーで上品な甘みですので、刺身や白身魚との相性が良くおすすめです</td>
+      </tr>
+      <tr>
+        <td class="mei">東洋美人 純米吟醸辛口</td><td>山口</td><td class="num">+8前後</td><td>山田錦 等</td>
+        <td>キレのある辛口・爽快</td><td>焼鳥・揚げ物</td>
+        <td class="talk">キレのある爽快な辛口ですので、焼鳥や揚げ物との相性が良くおすすめです</td>
+      </tr>
+      <tr>
+        <td class="mei">作 純米吟醸 和悦</td><td>三重</td><td class="num">+1前後</td><td>国産米</td>
+        <td>香りと旨味のバランス</td><td>串かつ・和食</td>
+        <td class="talk">香りと旨味のバランスが良く、串かつや和食全般との相性が良くおすすめです</td>
+      </tr>
+      <tr>
+        <td class="mei">八海山 大吟醸</td><td>新潟</td><td class="num">+5</td><td>山田錦 他</td>
+        <td>淡麗辛口・透明感</td><td>寿司・天ぷら</td>
+        <td class="talk">淡麗辛口で透明感のある味わいですので、寿司や天ぷらとの相性が良くおすすめです</td>
+      </tr>
+      <tr>
+        <td class="mei">九平治 純米大吟醸</td><td>愛知</td><td class="num">+2前後</td><td>山田錦</td>
+        <td>エレガントで果実香</td><td>カルパッチョ</td>
+        <td class="talk">エレガントで果実のような香りですので、カルパッチョとの相性が良くおすすめです</td>
+      </tr>
+      <tr>
+        <td class="mei">加茂錦 純米大吟醸</td><td>新潟</td><td class="num">-1〜+2</td><td>越淡麗 等</td>
+        <td>ジューシーでモダン</td><td>チーズ・創作和食</td>
+        <td class="talk">ジューシーでモダンな味わいですので、チーズや創作和食との相性が良くおすすめです</td>
+      </tr>
+    </tbody></table>
+    </div>
+  </section>
+
+  <footer>
+    <span>※ 日本酒度は目安。銘柄・入荷状況により変動する場合があります。</span>
+    <span>すさび湯／ぎふや 提供備品・日本酒 接客ガイド</span>
+  </footer>
+
+</div>
+</div>
