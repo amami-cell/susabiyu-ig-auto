@@ -96,9 +96,10 @@
     display:flex; align-items:center; gap:1.6mm; }
   .alertbox-h::before{ content:"!"; display:inline-flex; align-items:center; justify-content:center;
     width:3.6mm; height:3.6mm; background:var(--shu); color:#fff; border-radius:50%; font-size:7pt; font-weight:800; }
-  .alertbox ul{ margin:0; padding-left:4.2mm; }
-  .alertbox li{ font-size:7.9pt; line-height:1.5; color:#3f382c; }
-  .alertbox li::marker{ color:var(--shu); }
+  .alertbox ul{ margin:0; padding:0; list-style:none; display:flex; flex-direction:column; gap:.9mm; }
+  .alertbox li{ position:relative; padding-left:3.6mm; font-size:7.9pt; line-height:1.4; color:#3f382c; }
+  .alertbox li::before{ content:""; position:absolute; left:.4mm; top:1.35mm;
+    width:1.5mm; height:1.5mm; border-radius:50%; background:var(--shu); }
   .alertbox b{ color:var(--shu); }
 
   .binfo{ display:flex; gap:1.6mm; align-items:center; margin:.8mm 0 0; font-size:7.9pt; }
