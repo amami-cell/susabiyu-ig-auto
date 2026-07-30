@@ -28,10 +28,10 @@ var COLMAP = {
   applicant_code: ["応募者コード", "応募者ID", "応募ID", "ID"],
   name: ["氏名", "応募者氏名", "名前", "お名前"],
   name_kana: ["フリガナ", "カナ", "氏名カナ"],
-  status_code: ["ステータスコード", "対応状況コード", "選考ステータスコード"],
-  status_name: ["ステータス", "対応状況", "選考ステータス", "ステータス名"],
+  status_code: ["選考状況ステータスコード", "ステータスコード", "対応状況コード", "選考ステータスコード"],
+  status_name: ["選考状況ステータス", "ステータス", "対応状況", "選考ステータス", "ステータス名"],
   store_id: ["店舗ID", "店舗コード", "勤務地ID", "求人ID", "クライアントID", "クライアントコード"],
-  store_name: ["店舗名", "勤務地", "求人名", "クライアント名", "クライアント", "応募店舗", "募集店舗"],
+  store_name: ["店舗マスタ名", "店舗名", "勤務地", "求人名", "クライアント名", "クライアント", "応募店舗", "募集店舗"],
   tel: ["電話番号", "TEL", "携帯電話", "連絡先"],
   email: ["メールアドレス", "Email", "メール"],
   media: ["媒体名", "媒体", "応募媒体", "流入元", "応募経路"],
@@ -41,7 +41,8 @@ var COLMAP = {
   is_duplicate: ["重複フラグ", "重複", "重複応募"],
   change_history: ["変更履歴1", "変更履歴", "対応履歴"],
   gender: ["性別"],
-  birth: ["生年月日", "生年月日（西暦）", "誕生日"]
+  birth: ["生年月日", "生年月日（西暦）", "誕生日"],
+  age_col: ["年齢"]
 };
 
 // ========================= エントリポイント =========================
@@ -180,6 +181,8 @@ function epParseCsv_(text) {
     if (!code) continue;
     var telRaw = get("tel");
     var birth = get("birth");
+    var ageCol = get("age_col");                          // 「年齢」列があればそれを使う
+    var age = (ageCol && /^\d{1,3}$/.test(ageCol)) ? +ageCol : epAge_(birth);
     rows.push({
       code: code, name: get("name"), kana: get("name_kana"),
       statusCode: get("status_code"), statusName: get("status_name"),
@@ -188,7 +191,7 @@ function epParseCsv_(text) {
       media: get("media"), appliedAt: get("applied_at"),
       interviewAt: get("interview_at"), hiredAt: get("hired_at"),
       dup: epBool_(get("is_duplicate")), history: get("change_history"),
-      gender: get("gender"), birth: birth, age: epAge_(birth)
+      gender: get("gender"), birth: birth, age: (age == null || age < 0 || age > 120) ? null : age
     });
   }
   return { headers: headers, idx: idx, rows: rows };
