@@ -69,6 +69,7 @@ function epRun() {
     var parsed = epParseCsv_(csv);
     n = parsed.rows.length;
     Logger.log("✓ ③ 応募者 " + n + "件 / 列 " + parsed.headers.length);
+    Logger.log("   ヘッダ例: " + parsed.headers.slice(0, 10).join(" | "));
     if (!n) { throw new Error("CSVから応募者を読めず（列名マッピング要確認）"); }
 
     epWriteSheets_(parsed);
@@ -133,35 +134,20 @@ function epDownloadCsv_(jar) {
   //    （changeStatus 等の他 part は絶対に叩かない＝ダウンロード専用に限定）
   var url = EP_CSV_RES + "&" + EP_CSV_NS + "part=downloadCSV";
   var res = epFetch_(url, { method: "post", payload: "", headers: hdr }, jar);
-  Logger.log("  CSV DL: HTTP=" + res.getResponseCode() +
-             " / Content-Type=" + (res.getAllHeaders()["Content-Type"] || "") +
-             " / Disposition=" + (res.getAllHeaders()["Content-Disposition"] || ""));
-  var text = epTryCsvBody_(res);
-  if (text) { Logger.log("  → CSV取得成功(POST)"); return text; }
-
-  // 予備: GET も試す
-  var res2 = epFetch_(url, { method: "get", headers: hdr }, jar);
-  var text2 = epTryCsvBody_(res2);
-  if (text2) { Logger.log("  → CSV取得成功(GET)"); return text2; }
-
-  // だめなら応答冒頭を出す（次段の手掛かり）
-  Logger.log("  CSV応答冒頭: " + epDecode_(res.getBlob()).replace(/\s+/g, " ").slice(0, 300));
+  var ct = String(res.getAllHeaders()["Content-Type"] || "");
+  var cd = String(res.getAllHeaders()["Content-Disposition"] || "");
+  Logger.log("  CSV DL: HTTP=" + res.getResponseCode() + " / " + ct + " / " + cd);
+  // Content-Type が csv、または添付ファイルなら CSV とみなす（列名に依存しない）
+  if (res.getResponseCode() === 200 && (/csv/i.test(ct) || /\.csv/i.test(cd) || /attachment/i.test(cd))) {
+    var text = epDecode_(res, ct);
+    Logger.log("  → CSV取得成功 / 先頭: " + text.replace(/\s+/g, " ").slice(0, 80));
+    return text;
+  }
+  Logger.log("  CSV応答冒頭: " + epDecode_(res, ct).replace(/\s+/g, " ").slice(0, 200));
   return null;
 }
 
 function epKv_(k, v) { var o = {}; o[k] = v; return o; }
-
-function epTryCsvBody_(res) {
-  try {
-    if (res.getResponseCode() !== 200) return null;
-    var text = epDecode_(res.getBlob());
-    if (/^\s*<(!doctype|html)/i.test(text)) return null;   // HTMLは除外
-    if (/^\s*[{\[]/.test(text)) return null;               // JSONは除外
-    var hasCols = /応募者コード|応募者ID|氏名|ステータス/.test(text.slice(0, 3000));
-    if (hasCols && text.indexOf(",") >= 0) return text;
-  } catch (e) { }
-  return null;
-}
 
 // ========================= CSVパース =========================
 
@@ -369,13 +355,23 @@ function epUnescape_(s) { return String(s).replace(/&amp;/g, "&").replace(/&#38;
 
 function epBool_(v) { v = String(v || "").trim().toLowerCase(); return v === "1" || v === "true" || v === "○" || v === "◯" || v === "あり" || v === "重複" || v === "yes"; }
 
-function epDecode_(blob) {
-  var t;
-  try { t = blob.getDataAsString("Shift_JIS"); } catch (e) { t = ""; }
-  // 文字化けが多い/空なら UTF-8 として読み直す
-  var bad = (t.match(/�/g) || []).length;
-  if (!t || bad > 5) { try { var u = blob.getDataAsString("UTF-8"); if (u) t = u; } catch (e2) { } }
-  return t;
+function epDecode_(res, ct) {
+  // 生バイトから読み直すのがGASでの鉄則（getContentText等は壊すことがある）
+  var blob = Utilities.newBlob(res.getContent());
+  var cands = [];
+  var mcs = ct && String(ct).match(/charset=([\w\-]+)/i);
+  if (mcs) cands.push(mcs[1]);           // 宣言charset(MS932等)を最優先
+  cands = cands.concat(["MS932", "Shift_JIS", "Windows-31J", "UTF-8"]);
+  var best = "", bestBad = 1e9;
+  for (var i = 0; i < cands.length; i++) {
+    try {
+      var t = blob.getDataAsString(cands[i]);
+      var bad = (t.match(/�/g) || []).length;   // 文字化け(置換文字)の数
+      if (bad < bestBad) { bestBad = bad; best = t; }
+      if (bad === 0) break;
+    } catch (e) { }
+  }
+  return best;
 }
 
 // CSV全体を「レコード（行）の配列」に。各行はセルの配列。改行/カンマのクオート対応。
