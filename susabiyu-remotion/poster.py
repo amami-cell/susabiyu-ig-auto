@@ -291,28 +291,97 @@ def account_base_token(account=""):
             return t
     return TOKEN
 
+ACCT_TAB = "AcctTokens"   # 店舗別トークンの保存先（account / token / expires_in / last_refresh）
+
+def _age_days(datestr):
+    try:
+        d = datetime.datetime.strptime((datestr or "").strip(), "%Y-%m-%d").date()
+        return (datetime.date.today() - d).days
+    except Exception:
+        return None
+
+def _acct_row(sh, account):
+    """AcctTokens から account の行を探す。戻り: (rowidx1based or None, token, exp, last)。"""
+    try:
+        r = sh.values().get(spreadsheetId=SHEET_ID, range=ACCT_TAB + "!A2:D").execute()
+        for i, row in enumerate(r.get("values", [])):
+            row = (row + ["", "", "", ""])[:4]
+            if (row[0] or "").strip().lower() == account.strip().lower():
+                return i + 2, row[1].strip(), row[2].strip(), row[3].strip()
+    except Exception:
+        pass
+    return None, "", "", ""
+
+def _acct_save(sh, account, token, exp):
+    """AcctTokens に account 行を upsert（更新日を今日で記録）。"""
+    try:
+        _ensure_tab(sh, ACCT_TAB)
+        today = datetime.date.today().strftime("%Y-%m-%d")
+        idx, _, _, _ = _acct_row(sh, account)
+        vals = [[account, token, exp, today]]
+        if idx:
+            sh.values().update(spreadsheetId=SHEET_ID, range="%s!A%d:D%d" % (ACCT_TAB, idx, idx),
+                               valueInputOption="RAW", body={"values": vals}).execute()
+        else:
+            sh.values().append(spreadsheetId=SHEET_ID, range=ACCT_TAB + "!A:D",
+                               valueInputOption="RAW", insertDataOption="INSERT_ROWS",
+                               body={"values": vals}).execute()
+        print("[TOKEN] アカウント '%s' を保存/延命（exp=%s）" % (account, exp))
+    except Exception as e:
+        print("[TOKEN] アカウント '%s' 保存失敗: %s" % (account, e))
+
 def fresh_token_for(account="", validate=True):
     """アカウント別の実効トークンを返す。
-       ・account 未指定（既定＝三条）は従来の fresh_token() をそのまま使用（挙動不変）。
-       ・名前付きアカウントは専用Secretを検証し、失効時はリフレッシュを試行。ダメなら空を返す。"""
+       ・account 未指定（既定＝三条）は従来の fresh_token()（挙動不変）。
+       ・名前付きは AcctTokens の保存トークンを優先し、7日毎/失効時にリフレッシュして保存＝60日で切れず延命。
+         保存が無ければ Secret(IG_ACCESS_TOKEN_<ACCOUNT>) を基底に使う。全滅時は空を返す。"""
     if not account:
         return fresh_token(validate=validate)
     base = account_base_token(account)
-    if not base:
-        print("[TOKEN] アカウント '%s' 用トークン未設定（Secret: IG_ACCESS_TOKEN_%s を登録してください）"
-              % (account, account.upper()))
-        return ""
+    if not (HAS_G and SHEET_ID):
+        # シート未接続：Secretを検証のみ
+        if not base:
+            print("[TOKEN] アカウント '%s' 未設定（Secret IG_ACCESS_TOKEN_%s）" % (account, account.upper())); return ""
+        if not validate or _me_ok(base)[0]:
+            return base
+        nt, _ = _try_refresh(base); return nt if (nt and _me_ok(nt)[0]) else ""
+    sh = _sheets()
+    if not sh:
+        return base
+    idx, stored, exp, last = _acct_row(sh, account)
+    cur = stored or base
+    if not cur:
+        print("[TOKEN] アカウント '%s' 未設定（Secret IG_ACCESS_TOKEN_%s を登録）" % (account, account.upper())); return ""
     if not validate:
-        return base
-    ok, _ = _me_ok(base)
-    if ok:
-        return base
-    new, _ = _try_refresh(base)
+        return cur
+    age = _age_days(last)
+    need = (age is None) or (age >= REFRESH_EVERY_DAYS)
+    if not need and not _me_ok(cur)[0]:
+        need = True
+    if not need:
+        return cur
+    # リフレッシュ：現行→ダメなら基底(Secret)
+    new, e2 = _try_refresh(cur)
+    if not new and base and base != cur:
+        new, e2 = _try_refresh(base)
+        if not new and _me_ok(base)[0]:
+            _acct_save(sh, account, base, ""); return base
     if new and _me_ok(new)[0]:
-        print("[TOKEN] アカウント '%s' トークンをリフレッシュしました" % account)
-        return new
-    print("[TOKEN] アカウント '%s' のトークンが無効です。再発行が必要です。" % account)
+        _acct_save(sh, account, new, e2); return new
+    if _me_ok(cur)[0]:
+        return cur   # 更新はできないが現行は生存
+    print("[TOKEN] アカウント '%s' のトークンが無効。再発行が必要です。" % account)
     return ""
+
+def guard_account(account):
+    """店舗別トークンの点検＆延命（token_guard から呼ぶ）。生存はTrue。"""
+    t = fresh_token_for(account)
+    ok, me = _me_ok(t) if t else (False, {})
+    if ok:
+        print("[GUARD] アカウント '%s' 正常 @%s" % (account, me.get("username")))
+    else:
+        print("[GUARD] アカウント '%s' 異常: %s" % (account, me.get("error")))
+    return ok
 
 def token_alive():
     """今使うトークンが実際にIG投稿に使えるかを返す（必要ならこの中で更新も行う）。"""
