@@ -83,10 +83,10 @@
 
   table{ width:100%; border-collapse:collapse; }
   .items td{
-    border-top:1px solid var(--line); padding:.5mm 1.1mm; vertical-align:top; font-size:7.4pt; line-height:1.22;
+    border-top:1px solid var(--line); padding:.75mm 1.1mm; vertical-align:middle; font-size:7.5pt; line-height:1.25;
   }
-  .items td.name{ width:37%; font-weight:600; white-space:nowrap; }
-  .items td.memo{ color:#3f382c; }
+  .items td.name{ width:33%; font-weight:600; white-space:nowrap; }
+  .items td.memo{ color:#3f382c; white-space:nowrap; }
   .items tr:first-child td{ border-top:none; }
   .note{ color:var(--muted); }
   .must{ color:var(--shu); font-weight:700; }
@@ -139,9 +139,10 @@
   }
   table.sake-tbl td{
     border-top:1px solid var(--line); border-right:1px solid var(--line);
-    padding:.5mm 1.2mm; font-size:7pt; line-height:1.15; vertical-align:top;
-    letter-spacing:-.01em; overflow:hidden;
+    padding:.85mm 1.2mm; font-size:7.2pt; line-height:1.2; vertical-align:middle;
+    letter-spacing:-.005em; white-space:nowrap; overflow:hidden;
   }
+  table.sake-tbl .talk{ white-space:normal; }
   table.sake-tbl tr:nth-child(even) td{ background:rgba(180,137,47,.06); }
   table.sake-tbl .mei{ font-weight:800; color:var(--ink); white-space:nowrap; }
   table.sake-tbl .num{ font-variant-numeric:tabular-nums; text-align:center; white-space:nowrap; font-weight:700; color:var(--kin); }
@@ -197,7 +198,7 @@
 
         <div class="grp">■ 名物</div>
         <table class="items"><tbody>
-          <tr><td class="name">ぎふやの炊き餃子</td><td class="memo">人数分・とんすい・レンゲ／お玉セット・酢醤油</td></tr>
+          <tr><td class="name">ぎふやの炊き餃子</td><td class="memo">とんすい・レンゲ・お玉・酢醤油</td></tr>
           <tr><td class="name">メライス</td><td class="memo"><span class="must">【〆】注文で厨房へ一度下げる</span></td></tr>
           <tr><td class="name">メラーメン</td><td class="memo"><span class="must">【〆】注文で厨房へ一度下げる</span></td></tr>
         </tbody></table>
@@ -207,9 +208,9 @@
           <tr><td class="name">ぎふや厳選 5種盛り</td><td class="memo">牛・ウインナー・れんこん・玉ねぎ・海老</td></tr>
           <tr><td class="name">ぎふや厳選 7種盛り</td><td class="memo">5種＋キス・うずら</td></tr>
           <tr><td class="name">ぎふや厳選 10種盛り</td><td class="memo">7種＋しいたけ・アスパラ・餅</td></tr>
-          <tr><td class="name">鶏ささみ梅しそ</td><td class="memo"><span class="quote">『ソース付けずにお召し上がりください』</span></td></tr>
-          <tr><td class="name">コンポタ</td><td class="memo"><span class="quote">『ソース付けずにお召し上がりください』</span></td></tr>
-          <tr><td class="name">レアサーモン（2本）</td><td class="memo"><span class="quote">『ソース付けずにお召し上がりください』</span></td></tr>
+          <tr><td class="name">鶏ささみ梅しそ</td><td class="memo"><span class="quote">『ソースは付けずにどうぞ』</span></td></tr>
+          <tr><td class="name">コンポタ</td><td class="memo"><span class="quote">『ソースは付けずにどうぞ』</span></td></tr>
+          <tr><td class="name">レアサーモン（2本）</td><td class="memo"><span class="quote">『ソースは付けずにどうぞ』</span></td></tr>
         </tbody></table>
       </div>
 
@@ -224,7 +225,7 @@
 
         <div class="grp">■ 逸品・刺身・肉造り</div>
         <table class="items"><tbody>
-          <tr><td class="name">和牛マルシンのたたき</td><td class="memo">ポン酢を<b>のぞき</b>に入れて（希少部位）</td></tr>
+          <tr><td class="name">和牛マルシンのたたき</td><td class="memo">ポン酢を<b>のぞき</b>に（希少部位）</td></tr>
           <tr><td class="name">刺身盛り合わせ（1人前）</td><td class="memo">卓上に<b>【のぞき】</b>人数分を確認</td></tr>
           <tr><td class="name">赤身たたき</td><td class="memo">ポン酢を<b>のぞき</b>に入れて</td></tr>
           <tr><td class="name">馬刺し</td><td class="memo">甘醤油を<b>のぞき</b>に入れて</td></tr>
@@ -299,12 +300,12 @@
     <div class="scroll" style="padding:0; overflow-x:auto;">
     <table class="sake-tbl"><thead>
       <tr>
-        <th style="width:15%">銘柄</th>
-        <th style="width:6%">産地</th>
+        <th style="width:14%">銘柄</th>
+        <th style="width:5%">産地</th>
         <th style="width:7%">日本酒度</th>
-        <th style="width:9%">酒米</th>
-        <th style="width:15%">特徴</th>
-        <th style="width:12%">おすすめ料理</th>
+        <th style="width:8%">酒米</th>
+        <th style="width:13%">特徴</th>
+        <th style="width:13%">おすすめ料理</th>
         <th>接客トーク</th>
       </tr>
     </thead><tbody>
@@ -346,7 +347,7 @@
       <tr>
         <td class="mei">加茂錦 純米大吟醸</td><td>新潟</td><td class="num">-1〜+2</td><td>越淡麗 等</td>
         <td>ジューシーでモダン</td><td>居酒屋メニュー・煮込み</td>
-        <td class="talk">ジューシーでモダンな味わいですので、居酒屋メニューや煮込みとの相性が良くおすすめです</td>
+        <td class="talk">ジューシーでモダンですので、居酒屋メニューや煮込みとの相性が良くおすすめです</td>
       </tr>
     </tbody></table>
     </div>
