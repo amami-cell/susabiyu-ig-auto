@@ -26,7 +26,11 @@
     border-left:3px solid var(--red);padding-left:10px}
   .reel{margin:0 16px 6px;border-radius:16px;overflow:hidden;border:1px solid #221d15;background:#000}
   .reel video{width:100%;display:block;aspect-ratio:4/5;background:#000}
-  .grid{padding:8px 12px 60px;display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:16px}
+  .grid{padding:8px 12px 24px;display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:16px}
+  .sgrid{padding:8px 12px 60px;display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:12px}
+  .scard{background:#14110c;border:1px solid #241f16;border-radius:12px;overflow:hidden}
+  .scard img{width:100%;aspect-ratio:9/16;object-fit:cover;display:block;background:#000}
+  .scard .st{padding:8px 10px;font-size:12px;font-weight:700;color:#e8e0d0}
   .card{background:#14110c;border:1px solid #241f16;border-radius:16px;overflow:hidden;display:flex;flex-direction:column}
   .card img{width:100%;aspect-ratio:4/5;object-fit:cover;display:block;background:#000}
   .card .body{padding:12px 14px 14px;display:flex;flex-direction:column;gap:9px}
@@ -59,8 +63,8 @@
 </div>
 
 <div class="note">
-  投稿予定の12本の見本です。写真はGoogleドライブの実データ、ロゴは天神店の公式ロゴを使用しています。各カードの「キャプションをコピー」で本文＋ハッシュタグをまとめてコピーできます。<br>
-  ※Instagramアカウントの情報が届き次第、この画面から予約投稿・自動投稿まで連携します。
+  投稿前の最終確認用ページです。<b>①フィード投稿</b>と<b>②ストーリー</b>の両方を見て、相違が無いかご確認ください。写真はGoogleドライブの実データ、ロゴは天神店の公式ロゴです。フィードは各カードの「キャプションをコピー」で本文＋ハッシュタグをコピーできます。<br>
+  ※アカウント連携は完了済み（@gifuya_fukuokatenjin）。この確認後に投稿を開始できます。
 </div>
 
 <div class="sect">フェード動画（3パターン・リール見本）</div>
@@ -68,8 +72,12 @@
   <video controls playsinline preload="metadata" src="gifuya/fade.mp4"></video>
 </div>
 
-<div class="sect">投稿12本</div>
+<div class="sect">① 投稿（フィード）確認 ・ 12本</div>
 <div class="grid" id="grid"></div>
+
+<div class="sect">② ストーリー確認 ・ 12本</div>
+<div class="note" style="margin-top:6px">縦型（9:16）のストーリー用です。フィードと同じ料理・コピーで、上下はストーリーのUI（アイコン・返信欄）に隠れない位置に配置しています。</div>
+<div class="sgrid" id="sgrid"></div>
 
 <div id="toast"></div>
 <div class="foot">すさび湯グループ 投稿管理 ・ ぎふや 福岡天神店</div>
@@ -152,6 +160,17 @@
       }
     };
     c.appendChild(img); c.appendChild(body); body.appendChild(btn); g.appendChild(c);
+  });
+
+  // ② ストーリー（縦9:16）— フィードと同じ料理名で対応を確認できるように
+  var sg = document.getElementById("sgrid");
+  POSTS.forEach(function (p, i) {
+    var n = String(i + 1).padStart(2, "0");
+    var c = document.createElement("div"); c.className = "scard";
+    var img = document.createElement("img");
+    img.src = "gifuya/story_" + n + ".jpg"; img.loading = "lazy"; img.alt = p.t;
+    var st = document.createElement("div"); st.className = "st"; st.textContent = "S" + (i + 1) + " " + p.t;
+    c.appendChild(img); c.appendChild(st); sg.appendChild(c);
   });
 })();
 </script>
