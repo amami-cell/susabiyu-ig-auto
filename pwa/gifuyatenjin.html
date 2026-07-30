@@ -31,6 +31,12 @@
   .scard{background:#14110c;border:1px solid #241f16;border-radius:12px;overflow:hidden}
   .scard img{width:100%;aspect-ratio:9/16;object-fit:cover;display:block;background:#000}
   .scard .st{padding:8px 10px;font-size:12px;font-weight:700;color:#e8e0d0}
+  .pgrid{padding:8px 12px 60px;display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:16px}
+  .pcard{background:#14110c;border:1px solid #241f16;border-radius:16px;overflow:hidden}
+  .pcard img{width:100%;aspect-ratio:4/5;object-fit:cover;display:block;background:#000}
+  .pcard .pb{padding:11px 14px}
+  .pcard .pt{font-size:15px;font-weight:800;color:var(--gold)}
+  .pcard .pd{font-size:12.5px;color:#cfc7b8;margin-top:3px}
   .card{background:#14110c;border:1px solid #241f16;border-radius:16px;overflow:hidden;display:flex;flex-direction:column}
   .card img{width:100%;aspect-ratio:4/5;object-fit:cover;display:block;background:#000}
   .card .body{padding:12px 14px 14px;display:flex;flex-direction:column;gap:9px}
@@ -78,6 +84,10 @@
 <div class="sect">② ストーリー確認 ・ 12本</div>
 <div class="note" style="margin-top:6px">縦型（9:16）のストーリー用です。フィードと同じ料理・コピーで、上下はストーリーのUI（アイコン・返信欄）に隠れない位置に配置しています。</div>
 <div class="sgrid" id="sgrid"></div>
+
+<div class="sect">③ パターン見本 ・ デザインの型</div>
+<div class="note" style="margin-top:6px">投稿に使えるデザインの型です。今の12本は「短冊」で統一していますが、G・Hを混ぜることもできます。使いたい型を教えてください。</div>
+<div class="pgrid" id="pgrid"></div>
 
 <div id="toast"></div>
 <div class="foot">すさび湯グループ 投稿管理 ・ ぎふや 福岡天神店</div>
@@ -171,6 +181,24 @@
     img.src = "gifuya/story_" + n + ".jpg"; img.loading = "lazy"; img.alt = p.t;
     var st = document.createElement("div"); st.className = "st"; st.textContent = "S" + (i + 1) + " " + p.t;
     c.appendChild(img); c.appendChild(st); sg.appendChild(c);
+  });
+
+  // ③ パターン見本（デザインの型）
+  var PATTERNS = [
+    {img:"pattern_tanzaku.jpg", t:"短冊（採用中）", d:"福岡天神店の赤短冊＋見出し。今の12本の型。安さ・名物訴求に強い。"},
+    {img:"pattern_cinema.jpg",  t:"G シネマ帯",   d:"上下の黒帯＋金ロゴ・金線。上品で高級感。刺身や逸品向け。"},
+    {img:"pattern_bigname.jpg", t:"H 巨大縦書き", d:"料理名を大きく縦書き。インパクト大で和の雰囲気。名物1品押しに。"}
+  ];
+  var pg = document.getElementById("pgrid");
+  PATTERNS.forEach(function (p) {
+    var c = document.createElement("div"); c.className = "pcard";
+    var img = document.createElement("img");
+    img.src = "gifuya/" + p.img; img.loading = "lazy"; img.alt = p.t;
+    var pb = document.createElement("div"); pb.className = "pb";
+    pb.innerHTML = '<div class="pt"></div><div class="pd"></div>';
+    pb.querySelector(".pt").textContent = p.t;
+    pb.querySelector(".pd").textContent = p.d;
+    c.appendChild(img); c.appendChild(pb); pg.appendChild(c);
   });
 })();
 </script>
