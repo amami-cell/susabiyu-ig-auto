@@ -30,16 +30,18 @@ var COLMAP = {
   name_kana: ["フリガナ", "カナ", "氏名カナ"],
   status_code: ["ステータスコード", "対応状況コード", "選考ステータスコード"],
   status_name: ["ステータス", "対応状況", "選考ステータス", "ステータス名"],
-  store_id: ["店舗ID", "店舗コード", "勤務地ID", "求人ID"],
-  store_name: ["店舗名", "勤務地", "求人名"],
+  store_id: ["店舗ID", "店舗コード", "勤務地ID", "求人ID", "クライアントID", "クライアントコード"],
+  store_name: ["店舗名", "勤務地", "求人名", "クライアント名", "クライアント", "応募店舗", "募集店舗"],
   tel: ["電話番号", "TEL", "携帯電話", "連絡先"],
   email: ["メールアドレス", "Email", "メール"],
-  media: ["媒体", "応募媒体", "流入元", "応募経路"],
+  media: ["媒体名", "媒体", "応募媒体", "流入元", "応募経路"],
   applied_at: ["応募日時", "応募日", "エントリー日時", "登録日時"],
   interview_at: ["面接日時", "面接予定日時", "面接日"],
   hired_at: ["入社日", "入社予定日", "採用日"],
   is_duplicate: ["重複フラグ", "重複", "重複応募"],
-  change_history: ["変更履歴1", "変更履歴", "対応履歴"]
+  change_history: ["変更履歴1", "変更履歴", "対応履歴"],
+  gender: ["性別"],
+  birth: ["生年月日", "生年月日（西暦）", "誕生日"]
 };
 
 // ========================= エントリポイント =========================
@@ -69,7 +71,14 @@ function epRun() {
     var parsed = epParseCsv_(csv);
     n = parsed.rows.length;
     Logger.log("✓ ③ 応募者 " + n + "件 / 列 " + parsed.headers.length);
-    Logger.log("   ヘッダ例: " + parsed.headers.slice(0, 10).join(" | "));
+    // 集計に使う列がちゃんと当たっているか確認（店舗/性別/生年月日）
+    var i = parsed.idx || {};
+    Logger.log("   マッピング: 店舗名=" + (parsed.headers[i.store_name] || "×") +
+               " / 店舗ID=" + (parsed.headers[i.store_id] || "×") +
+               " / 性別=" + (parsed.headers[i.gender] || "×") +
+               " / 生年月日=" + (parsed.headers[i.birth] || "×") +
+               " / ステータス=" + (parsed.headers[i.status_name] || "×"));
+    Logger.log("   全ヘッダ: " + parsed.headers.join(","));
     if (!n) { throw new Error("CSVから応募者を読めず（列名マッピング要確認）"); }
 
     epWriteSheets_(parsed);
@@ -170,6 +179,7 @@ function epParseCsv_(text) {
     var code = get("applicant_code");
     if (!code) continue;
     var telRaw = get("tel");
+    var birth = get("birth");
     rows.push({
       code: code, name: get("name"), kana: get("name_kana"),
       statusCode: get("status_code"), statusName: get("status_name"),
@@ -177,7 +187,8 @@ function epParseCsv_(text) {
       telRaw: telRaw, tel: telRaw.replace(/\D/g, ""), email: get("email"),
       media: get("media"), appliedAt: get("applied_at"),
       interviewAt: get("interview_at"), hiredAt: get("hired_at"),
-      dup: epBool_(get("is_duplicate")), history: get("change_history")
+      dup: epBool_(get("is_duplicate")), history: get("change_history"),
+      gender: get("gender"), birth: birth, age: epAge_(birth)
     });
   }
   return { headers: headers, idx: idx, rows: rows };
@@ -275,19 +286,26 @@ function epUpsertSnapshot_(sh, rows, funnel, today) {
 }
 
 function epWriteDashboard_(sh, rows, funnel) {
-  var total = rows.length, dup = 0, fc = {}, byStore = {}, byStatus = {};
+  var total = rows.length, dup = 0, fc = {};
+  var byStore = {}, byStatus = {}, byGender = {}, byAgeGroup = {}, byAge = {};
   FUNNEL_ORDER.forEach(function (s) { fc[s] = 0; });
+  function inc(o, k) { k = (k === "" || k == null) ? "不明" : k; o[k] = (o[k] || 0) + 1; }
   rows.forEach(function (r) {
     if (r.dup) dup++;
     var st = funnel[r.statusCode] || "";
     if (fc[st] != null) fc[st]++;
-    byStatus[r.statusCode || r.statusName || "不明"] = (byStatus[r.statusCode || r.statusName || "不明"] || 0) + 1;
-    if (r.storeId) { byStore[r.storeId] = byStore[r.storeId] || {}; byStore[r.storeId][st] = (byStore[r.storeId][st] || 0) + 1; }
+    inc(byStore, r.storeName || r.storeId);                 // ① 応募店舗別
+    inc(byStatus, r.statusName || r.statusCode);            // ② ステータス別（採用・連絡中 等）
+    inc(byGender, r.gender);                                // ④ 性別
+    inc(byAgeGroup, epAgeGroup_(r.age));                    // ③ 年齢層
+    if (r.age != null) inc(byAge, String(r.age));           // ⑤ 年齢
   });
   var payload = {
     generated_at: Utilities.formatDate(new Date(), "Asia/Tokyo", "yyyy-MM-dd HH:mm:ss"),
     total: total, duplicate_count: dup, duplicate_rate: total ? Math.round(dup / total * 1e4) / 1e4 : 0,
-    funnel: fc, by_store: byStore, by_status: byStatus
+    funnel: fc,
+    by_store: byStore, by_status: byStatus, by_gender: byGender,
+    by_age_group: byAgeGroup, by_age: byAge
   };
   if (sh.getLastRow() > 1) sh.getRange(2, 1, sh.getLastRow() - 1, 2).clearContent();
   sh.getRange(2, 1, 3, 2).setValues([["json", JSON.stringify(payload)], ["generated_at", payload.generated_at], ["total", total]]);
@@ -354,6 +372,29 @@ function epAbsUrl_(u, base) {
 function epUnescape_(s) { return String(s).replace(/&amp;/g, "&").replace(/&#38;/g, "&").replace(/&quot;/g, '"').replace(/&#39;/g, "'"); }
 
 function epBool_(v) { v = String(v || "").trim().toLowerCase(); return v === "1" || v === "true" || v === "○" || v === "◯" || v === "あり" || v === "重複" || v === "yes"; }
+
+// 生年月日→満年齢（YYYY/MM/DD, YYYY-MM-DD, YYYYMMDD 等に対応）
+function epAge_(s) {
+  if (!s) return null;
+  var m = String(s).match(/(\d{4})\D?(\d{1,2})\D?(\d{1,2})/);
+  if (!m) return null;
+  var by = +m[1], bm = +m[2], bd = +m[3];
+  if (by < 1900 || bm < 1 || bm > 12) return null;
+  var now = new Date(), age = now.getFullYear() - by;
+  if ((now.getMonth() + 1) < bm || ((now.getMonth() + 1) === bm && now.getDate() < bd)) age--;
+  return (age < 0 || age > 120) ? null : age;
+}
+
+// 年齢→年齢層
+function epAgeGroup_(age) {
+  if (age == null) return "不明";
+  if (age < 20) return "〜19歳";
+  if (age < 30) return "20代";
+  if (age < 40) return "30代";
+  if (age < 50) return "40代";
+  if (age < 60) return "50代";
+  return "60代〜";
+}
 
 function epDecode_(res, ct) {
   // 生バイトから読み直すのがGASでの鉄則（getContentText等は壊すことがある）
