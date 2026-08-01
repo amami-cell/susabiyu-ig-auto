@@ -29,8 +29,9 @@
   .grid{padding:8px 12px 24px;display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:16px}
   .sgrid{padding:8px 12px 60px;display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:12px}
   .scard{background:#14110c;border:1px solid #241f16;border-radius:12px;overflow:hidden}
-  .scard img{width:100%;aspect-ratio:9/16;object-fit:cover;display:block;background:#000}
+  .scard img,.scard video{width:100%;aspect-ratio:9/16;object-fit:cover;display:block;background:#000}
   .scard .st{padding:8px 10px;font-size:12px;font-weight:700;color:#e8e0d0}
+  .scard .sn{padding:0 10px 8px;font-size:11px;color:#9a917f}
   .pgrid{padding:8px 12px 60px;display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:16px}
   .pcard{background:#14110c;border:1px solid #241f16;border-radius:16px;overflow:hidden}
   .pcard img{width:100%;aspect-ratio:4/5;object-fit:cover;display:block;background:#000}
@@ -81,8 +82,8 @@
 <div class="sect">① 投稿（フィード）確認 ・ 12本</div>
 <div class="grid" id="grid"></div>
 
-<div class="sect">② ストーリー確認 ・ 12本</div>
-<div class="note" style="margin-top:6px">縦型（9:16）のストーリー用です。フィードと同じ料理・コピーで、上下はストーリーのUI（アイコン・返信欄）に隠れない位置に配置しています。</div>
+<div class="sect">② ストーリー確認（動画・15パターン）</div>
+<div class="note" style="margin-top:6px">にぎやかな大衆酒場イメージの縦型ストーリー動画（各15秒・ゆるいズーム＋BGM）。タップで再生できます。この15パターンから使うものを<b>抜粋</b>してください。上下はストーリーUI（アイコン・返信欄）に隠れない配置です。</div>
 <div class="sgrid" id="sgrid"></div>
 
 <div class="sect">③ パターン見本 ・ デザインの型</div>
@@ -172,15 +173,34 @@
     c.appendChild(img); c.appendChild(body); body.appendChild(btn); g.appendChild(c);
   });
 
-  // ② ストーリー（縦9:16）— フィードと同じ料理名で対応を確認できるように
+  // ② ストーリー（縦9:16・動画15パターン）— にぎやかな大衆酒場イメージ
+  var STORYVIDS = [
+    {t:"統一",        d:"基本形。ロゴ＋見出し＋料理名"},
+    {t:"巨大縦書き",  d:"料理名を大きく縦書き・和"},
+    {t:"お品書き",    d:"縦メニュー・価格ずらり"},
+    {t:"にぎやか価格",d:"赤札＋料理キャプション"},
+    {t:"価格短冊",    d:"赤札を数枚・値札の壁"},
+    {t:"名物バッジ",  d:"名物バッジ＋炊き餃子"},
+    {t:"黒板POP",     d:"黒板メニュー風"},
+    {t:"提灯暖簾",    d:"赤提灯・暖簾で酒場感"},
+    {t:"全画面シズル",d:"料理どアップ＋一言"},
+    {t:"グリッド",    d:"人気メニュー6枚並べ"},
+    {t:"雑誌風",      d:"大タイトル＋キャプション"},
+    {t:"本日のおすすめ",d:"リボン＋明太出汁巻き"},
+    {t:"乾杯ビール",  d:"ドリンク推し・生ビール"},
+    {t:"特大コピー",  d:"安い！旨い！インパクト"},
+    {t:"吹き出し",    d:"漫画風フキダシ・牛串かつ"}
+  ];
   var sg = document.getElementById("sgrid");
-  POSTS.forEach(function (p, i) {
+  STORYVIDS.forEach(function (p, i) {
     var n = String(i + 1).padStart(2, "0");
     var c = document.createElement("div"); c.className = "scard";
-    var img = document.createElement("img");
-    img.src = "gifuya/story_" + n + ".jpg"; img.loading = "lazy"; img.alt = p.t;
+    var v = document.createElement("video");
+    v.src = "gifuya/sv_" + n + ".mp4"; v.controls = true; v.playsInline = true;
+    v.preload = "metadata"; v.setAttribute("webkit-playsinline", "");
     var st = document.createElement("div"); st.className = "st"; st.textContent = "S" + (i + 1) + " " + p.t;
-    c.appendChild(img); c.appendChild(st); sg.appendChild(c);
+    var sn = document.createElement("div"); sn.className = "sn"; sn.textContent = p.d;
+    c.appendChild(v); c.appendChild(st); c.appendChild(sn); sg.appendChild(c);
   });
 
   // ③ パターン見本（デザインの型）
