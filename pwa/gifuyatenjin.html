@@ -2,97 +2,161 @@
 <html lang="ja">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="robots" content="noindex,nofollow">
-<title>大衆酒場 ぎふや 福岡天神店</title>
-<meta name="theme-color" content="#0b0a08">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0f1115">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="ぎふや 福岡天神">
+<link rel="manifest" href="./manifest.webmanifest">
+<link rel="apple-touch-icon" href="./icons/icon-192.png">
+<link rel="icon" href="./icons/icon-192.png">
+<title>ぎふや 福岡天神 ・ 投稿確認</title>
 <style>
-  :root{color-scheme:dark;--gold:#d4af5a;--red:#c41e1c}
-  *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
-  button{font-family:inherit;touch-action:manipulation}
-  body{background:#0b0a08;color:#f0ece3;font-family:-apple-system,BlinkMacSystemFont,"Hiragino Sans","Noto Sans JP",sans-serif;line-height:1.6}
-  .top{position:sticky;top:0;z-index:10;background:rgba(11,10,8,.86);backdrop-filter:saturate(160%) blur(12px);
-    border-bottom:1px solid #1e1b16;display:flex;align-items:center;gap:10px;padding:calc(env(safe-area-inset-top) + 12px) 16px 10px}
-  .top a{color:#9a938a;font-size:13px;text-decoration:none;flex:0 0 auto}
-  .top h1{font-size:15px;font-weight:800;letter-spacing:.5px;flex:1;text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-  .top .sp{width:64px}
-  .hero{text-align:center;padding:26px 20px 6px}
-  .hero img{width:120px;height:120px;object-fit:contain;background:#fff;border-radius:22px;padding:10px;
-    box-shadow:0 14px 30px rgba(0,0,0,.5)}
-  .hero h2{font-size:18px;font-weight:800;margin-top:12px;letter-spacing:1px}
-  .hero .sub{color:var(--gold);font-size:12px;letter-spacing:2px;margin-top:4px}
-  .note{margin:16px;padding:12px 15px;background:#15120d;border:1px solid #2a241a;border-radius:12px;color:#b3aa9b;font-size:12.5px}
-  .sect{margin:22px 16px 8px;font-size:13px;font-weight:800;letter-spacing:1px;color:var(--gold);
-    border-left:3px solid var(--red);padding-left:10px}
-  .reel{margin:0 16px 6px;border-radius:16px;overflow:hidden;border:1px solid #221d15;background:#000}
-  .reel video{width:100%;display:block;aspect-ratio:4/5;background:#000}
-  .grid{padding:8px 12px 24px;display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:16px}
-  .sgrid{padding:8px 12px 60px;display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:12px}
-  .scard{background:#14110c;border:1px solid #241f16;border-radius:12px;overflow:hidden}
-  .scard img,.scard video{width:100%;aspect-ratio:9/16;object-fit:cover;display:block;background:#000}
-  .scard .st{padding:8px 10px;font-size:12px;font-weight:700;color:#e8e0d0}
-  .scard .sn{padding:0 10px 8px;font-size:11px;color:#9a917f}
-  .pgrid{padding:8px 12px 60px;display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:16px}
-  .pcard{background:#14110c;border:1px solid #241f16;border-radius:16px;overflow:hidden}
-  .pcard img{width:100%;aspect-ratio:4/5;object-fit:cover;display:block;background:#000}
-  .pcard .pb{padding:11px 14px}
-  .pcard .pt{font-size:15px;font-weight:800;color:var(--gold)}
-  .pcard .pd{font-size:12.5px;color:#cfc7b8;margin-top:3px}
-  .card{background:#14110c;border:1px solid #241f16;border-radius:16px;overflow:hidden;display:flex;flex-direction:column}
-  .card img{width:100%;aspect-ratio:4/5;object-fit:cover;display:block;background:#000}
-  .card .body{padding:12px 14px 14px;display:flex;flex-direction:column;gap:9px}
-  .card .no{color:var(--gold);font-size:11px;font-weight:800;letter-spacing:1px}
-  .card .ttl{font-size:15px;font-weight:800}
-  .card .cap{font-size:12.5px;color:#cfc7b8;white-space:pre-wrap}
-  .card .tags{font-size:11.5px;color:#8f97c0;word-break:break-all}
-  .card .btn{margin-top:2px;border:0;border-radius:10px;background:var(--red);color:#fff;font-weight:800;
-    font-size:13px;padding:11px;display:flex;align-items:center;justify-content:center;gap:7px}
-  .card .btn:active{transform:scale(.98)}
-  .card .btn.done{background:#2c7a45}
-  #toast{position:fixed;left:50%;bottom:calc(env(safe-area-inset-bottom) + 26px);transform:translateX(-50%);
-    background:#241f16;color:#fff;border:1px solid var(--gold);border-radius:999px;font-size:13px;font-weight:700;
-    padding:10px 20px;z-index:60;opacity:0;transition:opacity .25s;pointer-events:none;white-space:nowrap}
-  #toast.show{opacity:1}
+  /* 三条アプリ(index.html)と同一の土台デザイン。ぎふや福岡天神の見本用に自己完結で実装。 */
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  :root{--bg:#0f1115;--card:#181c23;--line:#262c36;--fg:#eaeef2;--sub:#9aa3b2;
+        --ok:#1f9d55;--rd:#3b6fd6;--ng:#444b57;--accent:#7fd1a0}
+  html,body{margin:0;background:var(--bg);color:var(--fg);overscroll-behavior-y:contain;
+    font-family:-apple-system,BlinkMacSystemFont,"Hiragino Kaku Gothic ProN","Noto Sans JP",sans-serif}
+  body{padding:0 0 env(safe-area-inset-bottom)}
+  .topbar{position:sticky;top:0;z-index:10;background:rgba(15,17,21,.86);
+    backdrop-filter:saturate(180%) blur(12px);border-bottom:1px solid var(--line)}
+  .bar{display:flex;align-items:center;gap:10px;padding:calc(env(safe-area-inset-top) + 12px) 16px 8px}
+  .bar .logo{height:32px;width:auto;max-width:96px;border-radius:6px;display:block;flex:0 0 auto;object-fit:contain}
+  .bar h1{font-size:16px;margin:0;font-weight:700;letter-spacing:.2px;flex:1;
+    min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .bar .push{border:1px solid var(--line);background:#222835;color:var(--fg);
+    font-size:12px;font-weight:700;padding:6px 11px;border-radius:999px}
+  .bar .dot{font-size:12px;color:var(--sub);display:flex;align-items:center;gap:6px;margin-left:10px}
+  .bar .dot i{width:8px;height:8px;border-radius:50%;background:#c79a3a;display:inline-block}
+  .tabs{display:flex;gap:6px;padding:0 16px 10px}
+  button,.tab,.seg button,.gfilter button{touch-action:manipulation}
+  .tab{border:1px solid var(--line);background:#181c23;color:var(--sub);font-size:13px;font-weight:800;
+    padding:7px 16px;border-radius:999px;transition:.12s}
+  .tab.on{background:#10301f;color:var(--accent);border-color:#1f4d33}
+  .tab:active{transform:scale(.92)}
+  .tabs .reeltab{margin-left:auto;border:1px solid var(--line);background:#181c23;color:var(--sub);
+    font-size:12px;font-weight:800;padding:7px 13px;border-radius:999px;flex:0 0 auto;text-decoration:none;display:flex;align-items:center}
+  .tabs .reeltab:active{transform:scale(.94)}
+  .note{margin:14px 14px 0;padding:12px 15px;background:#15120d;border:1px solid #2a241a;border-radius:12px;color:#b3aa9b;font-size:12.5px;line-height:1.7;max-width:560px}
+  @media(min-width:592px){.note{margin-left:auto;margin-right:auto}}
+  /* ===== 確認（投稿カード） ===== */
+  #feed{padding:14px 14px 28px;max-width:560px;margin:0 auto}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:12px;margin-bottom:14px;
+    transition:opacity .25s ease,transform .25s ease}
+  .card.done{opacity:.55}
+  .head{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:9px}
+  .time{font-size:13px;color:var(--sub)}
+  .pat{font-size:14px;font-weight:700;color:#fff;background:#222835;padding:2px 9px;border-radius:999px}
+  .remain{margin-left:auto;font-size:12px;font-weight:700;color:var(--accent);background:#10301f;padding:3px 9px;border-radius:999px}
+  .mediaWrap{position:relative;border-radius:13px;overflow:hidden;background:#000;width:100%;aspect-ratio:4/5}
+  .mediaWrap.story{aspect-ratio:9/16}
+  .media{position:absolute;inset:0;width:100%;height:100%;display:block;object-fit:cover;background:#000}
+  .cap{font-size:14px;line-height:1.55;margin:10px 2px 2px;white-space:pre-wrap}
+  .tags{font-size:11.5px;color:#8f97c0;word-break:break-all;margin:6px 2px 0}
+  .slot{margin-top:10px}
+  .btns{display:flex;gap:8px}
+  .btns button{flex:1;border:0;border-radius:13px;padding:13px 0;font-size:15px;font-weight:800;color:#fff;transition:transform .06s,opacity .15s}
+  .ok{background:var(--ok)}.rd{background:var(--rd)}.ng{background:var(--ng)}
+  .btns button:active{transform:scale(.96);opacity:.92}
+  .copybtn{margin-top:8px;width:100%;border:1px solid var(--line);border-radius:12px;background:#12161d;color:var(--accent);font-weight:800;font-size:13.5px;padding:11px;display:flex;align-items:center;justify-content:center;gap:7px}
+  .copybtn.done{background:#10301f;border-color:#1f4d33}
+  .banner{text-align:center;font-size:15px;font-weight:800;padding:13px 0;border-radius:13px}
+  .banner.okb{background:#10301f;color:var(--accent)}
+  .banner.okb small{display:block;font-size:11px;font-weight:600;color:#6fb595;margin-top:4px}
+  .banner.ngb{background:#23262d;color:#aeb6c2}
+  .redoing{display:flex;align-items:center;justify-content:center;gap:10px;font-size:14px;color:#ffcf66;background:#241d10;padding:14px 0;border-radius:13px}
+  .spin{width:16px;height:16px;border:3px solid #ffcf66;border-top-color:transparent;border-radius:50%;animation:sp .8s linear infinite}
+  @keyframes sp{to{transform:rotate(360deg)}}
+  /* ===== 見本ギャラリー ===== */
+  #gallery{padding:14px 14px 28px;max-width:560px;margin:0 auto}
+  .gfilter{position:sticky;top:104px;z-index:9;width:max-content;margin:0 auto 14px;display:flex;gap:4px;
+    background:rgba(15,17,21,.94);backdrop-filter:saturate(180%) blur(12px);
+    border:1px solid var(--line);border-radius:999px;padding:5px;box-shadow:0 10px 30px rgba(0,0,0,.55)}
+  .gfilter button{border:none;background:transparent;color:var(--sub);font-size:14px;font-weight:800;padding:11px 24px;border-radius:999px;transition:.12s;white-space:nowrap}
+  .gfilter button.sel{background:#10301f;color:var(--accent)}
+  .gsub{font-size:13px;font-weight:800;color:var(--accent);margin:6px 2px 10px;border-left:3px solid #1f4d33;padding-left:9px}
+  .ggrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:12px;margin-bottom:8px}
+  #gallery.fvid .gimg{display:none}
+  #gallery.fimg .gvid{display:none}
+  #gallery.fvid .gsub.imgonly,#gallery.fimg .gsub.vidonly{display:none}
+  .gcard{background:#14110c;border:1px solid #241f16;border-radius:12px;overflow:hidden}
+  .gcard img,.gcard video{width:100%;aspect-ratio:9/16;object-fit:cover;display:block;background:#000}
+  .gcard.feed img{aspect-ratio:4/5}
+  .gcard .gt{padding:8px 10px 2px;font-size:12px;font-weight:700;color:#e8e0d0}
+  .gcard .gd{padding:0 10px 9px;font-size:11px;color:#9a917f}
+  /* ===== レポート ===== */
+  #report{padding:14px 12px 36px;max-width:560px;margin:0 auto}
+  .rephint{color:var(--sub);font-size:12px;text-align:center;margin:0 4px 14px;line-height:1.6}
+  .repdoc{background:#fff;color:#1b2433;border-radius:14px;overflow:hidden}
+  .rephd{background:linear-gradient(135deg,#1b2433,#2e3c52);color:#fff;padding:22px 22px}
+  .rephd .t{font-size:20px;font-weight:800;letter-spacing:.5px}
+  .rephd .s{font-size:13px;color:#cdd6e4;margin-top:4px}
+  .rephd .p{font-size:14px;font-weight:700;margin-top:12px}
+  .rephd .p small{display:block;font-size:12px;color:#aebbcf;font-weight:400;margin-top:3px}
+  .repsec{padding:16px 18px 4px}
+  .repsec h3{font-size:15px;font-weight:800;color:#1b2433;margin:0 0 12px;display:flex;align-items:center;gap:8px}
+  .repsec h3::before{content:"";width:6px;height:18px;background:#e0a93b;border-radius:3px}
+  .repkpis{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:8px}
+  .repkpi{background:#f4f6f9;border-radius:12px;padding:14px 14px}
+  .repkpi .l{font-size:12px;color:#6c7689;font-weight:700}
+  .repkpi .v{font-size:26px;font-weight:800;color:#1b2433;margin-top:3px;line-height:1.1}
+  .repkpi .v small{font-size:13px;color:#8a94a6;font-weight:700}
+  .repkpi .d{display:inline-block;margin-top:8px;font-size:12px;font-weight:800;padding:3px 9px;border-radius:999px}
+  .repkpi .prev{font-size:11px;color:#9aa3b2;margin-top:6px}
+  .up{color:#127a40;background:#e3f5ea}.down{color:#b23b3b;background:#fbe7e7}.flat{color:#6c7689;background:#eceff3}
+  .repbars{display:flex;align-items:flex-end;gap:3px;height:120px;background:#f4f6f9;border-radius:12px;padding:12px 12px 8px}
+  .repbars i{flex:1;background:#33507f;border-radius:3px 3px 0 0;min-height:2px;opacity:.9}
+  .repbars i.hot{background:#e0a93b;opacity:1}
+  .repax{display:flex;justify-content:space-between;font-size:11px;color:#9aa3b2;margin:6px 4px 0}
+  .repanal{display:flex;flex-direction:column;gap:10px}
+  .repcard{background:#fff;border:1px solid #eef1f5;border-left:6px solid #ccc;border-radius:12px;padding:14px 16px}
+  .repcard.good{border-left-color:#2bb673}.repcard.warn{border-left-color:#e0a93b}.repcard.act{border-left-color:#3b6fd6}
+  .repcard h4{font-size:14px;font-weight:800;margin:0 0 8px}
+  .repcard.good h4{color:#127a40}.repcard.warn h4{color:#a9781a}.repcard.act h4{color:#2a55b0}
+  .repcard ul{margin:0;padding:0;list-style:none}
+  .repcard li{font-size:13.5px;line-height:1.65;color:#384153;padding:5px 0 5px 16px;position:relative}
+  .repcard li::before{content:"";position:absolute;left:2px;top:12px;width:7px;height:7px;border-radius:50%;background:#c4ccd8}
+  .repcard.good li::before{background:#2bb673}.repcard.warn li::before{background:#e0a93b}.repcard.act li::before{background:#3b6fd6}
+  .repcard li b{color:#1b2433;font-weight:800}
+  .repposts{display:flex;flex-direction:column;gap:8px}
+  .reppost{background:#f4f6f9;border-radius:12px;padding:9px 11px;display:flex;gap:11px;align-items:center}
+  .reppost .rt{width:62px;height:62px;border-radius:10px;object-fit:cover;flex:0 0 auto;background:#e7ebf1}
+  .reppost .ri{flex:1;min-width:0}
+  .reppost .rl{display:flex;align-items:center;gap:8px;margin-bottom:5px}
+  .reppost .rb{font-size:10.5px;font-weight:800;color:#fff;background:#8a94a6;border-radius:999px;padding:2px 9px}
+  .reppost .rb.story{background:#c0567f}.reppost .rb.feed{background:#3b6fd6}.reppost .rb.reel{background:#7a4fd6}
+  .reppost .rd{font-size:11.5px;color:#9aa3b2;font-weight:700}
+  .reppost .rc{font-size:13px;color:#384153;line-height:1.45;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-bottom:5px}
+  .reppost .rr{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}
+  .reppost .rr b{font-size:15px;color:#1b2433;font-weight:800}
+  .reppost .rr small{font-size:11.5px;color:#6c7689}
+  .repfoot{color:#9aa3b2;font-size:11px;text-align:center;padding:14px 16px 18px;line-height:1.6}
+  #toast{position:fixed;left:50%;bottom:calc(env(safe-area-inset-bottom) + 22px);transform:translateX(-50%);
+    background:#000;color:#fff;padding:11px 18px;border-radius:24px;font-size:14px;opacity:0;transition:.2s;pointer-events:none;z-index:30;max-width:90%;text-align:center}
+  #toast.show{opacity:.96}
   .foot{color:#6f685d;font-size:10px;text-align:center;padding:20px 0 calc(env(safe-area-inset-bottom) + 16px)}
 </style>
 </head>
 <body>
-<header class="top">
-  <a href="./home.html">← ホーム</a>
-  <h1>ぎふや 福岡天神店</h1>
-  <span class="sp"></span>
+<header class="topbar">
+  <div class="bar">
+    <img class="logo" src="./icons/store_gifuyatenjin.png" alt="ぎふや 福岡天神店">
+    <h1 id="storeName">ぎふや 福岡天神店</h1>
+    <button class="push" id="pushBtn">🔔 通知</button>
+    <div class="dot"><i></i><span>見本モード</span></div>
+  </div>
+  <div class="tabs">
+    <button class="tab on" id="tabFeed">確認</button>
+    <button class="tab" id="tabGallery">見本</button>
+    <button class="tab" id="tabReport">レポート</button>
+    <a class="reeltab" href="./gifuya_reels.html">🎬 リール</a>
+  </div>
 </header>
 
-<div class="hero">
-  <img src="icons/store_gifuyatenjin.png" alt="ぎふや 福岡天神店">
-  <h2>大衆酒場 ぎふや 福岡天神店</h2>
-  <div class="sub">大正5年創業 ・ 串かつ ・ 福岡/天神</div>
-</div>
-
-<div class="note">
-  投稿前の最終確認用ページです。<b>①フィード投稿</b>と<b>②ストーリー</b>の両方を見て、相違が無いかご確認ください。写真はGoogleドライブの実データ、ロゴは天神店の公式ロゴです。フィードは各カードの「キャプションをコピー」で本文＋ハッシュタグをコピーできます。<br>
-  ※アカウント連携は完了済み（@gifuya_fukuokatenjin）。この確認後に投稿を開始できます。
-</div>
-
-<div class="sect">フェード動画（3パターン・リール見本）</div>
-<div class="reel">
-  <video controls playsinline preload="metadata" src="gifuya/fade.mp4"></video>
-</div>
-
-<div class="sect">① 投稿（フィード）確認 ・ 12本</div>
-<div class="grid" id="grid"></div>
-
-<div class="sect">② 動きのあるストーリー（写真が切り替わる・5本）★おすすめ</div>
-<div class="note" style="margin-top:6px">三条と同じ演出エンジンで、ぎふやの写真・料理名・ロゴに差し替えて書き出した<b>動く</b>ストーリーです（写真が次々切り替わる／札や文字が動く）。タップで再生。この中から使うものを<b>抜粋</b>してください。</div>
-<div class="sgrid" id="dgrid"></div>
-
-<div class="sect">③ ストーリー・デザインパターン（静止ベース・15本）</div>
-<div class="note" style="margin-top:6px">こちらは1枚写真＋ゆるいズームの静止ベース版（各15秒）。デザインの型の参考用です。</div>
-<div class="sgrid" id="sgrid"></div>
-
-<div class="sect">④ パターン見本 ・ デザインの型</div>
-<div class="note" style="margin-top:6px">ぎふやは「短冊（メイン）」＋名物2品を「H 巨大縦書き」で構成しています。上の①フィードがその混在版です。</div>
-<div class="pgrid" id="pgrid"></div>
+<div id="feed"></div>
+<div id="gallery" style="display:none"></div>
+<div id="report" style="display:none"></div>
 
 <div id="toast"></div>
 <div class="foot">すさび湯グループ 投稿管理 ・ ぎふや 福岡天神店</div>
@@ -101,149 +165,201 @@
 (function () {
   "use strict";
   var COMMON = "#ぎふや #ぎふや福岡天神店 #大衆酒場 #天神グルメ #福岡グルメ #天神居酒屋 #福岡居酒屋 #天神 #福岡 #天神飲み #福岡グルメ好きと繋がりたい #大正5年創業 #fukuoka #tenjin #fukuokafood";
-  var POSTS = [
-    {img:"feed_01.jpg", t:"元祖どぶ漬けどてかつ",
-     cap:"名物、元祖どぶ漬けどてかつ🍢\n秘伝の自家製どて味噌にどっぷり漬け込んだ一本。安くて旨い、まずは一杯。",
-     tags:"#どてかつ #串かつ #どて焼き #天神串かつ"},
-    {img:"feed_02.jpg", t:"ぎふや厳選 串かつ10種盛り",
-     cap:"迷ったらこれ。ぎふや厳選 串かつ10種盛り🍢\n定番から変わり種まで、一度に楽しめる欲張りな盛り合わせ。",
-     tags:"#串かつ #串カツ #串かつ食べ放題 #天神グルメ"},
-    {img:"feed_03.jpg", t:"名物どて焼き",
-     cap:"大正5年から受け継ぐ看板の味、名物どて焼き。\nとろとろに煮込んだ自家製どて味噌が、酒を呼ぶ。",
-     tags:"#どて焼き #もつ煮込み #天神居酒屋 #福岡飲み"},
-    {img:"feed_04.jpg", t:"ぎふやの明太出汁巻き",
-     cap:"ふわとろ、明太出汁巻き。\n福岡ならではの明太子を、あつあつの出汁巻きで包みました。",
-     tags:"#明太子 #出汁巻き卵 #福岡明太子 #天神ディナー"},
-    {img:"feed_05.jpg", t:"刺身盛り合わせ",
-     cap:"福岡の鮮度、そのままに。刺身盛り合わせ🐟\nその日の良いものを、良い状態で。日本酒との相性も抜群。",
-     tags:"#刺身 #海鮮 #福岡海鮮 #天神ディナー"},
-    {img:"feed_06.jpg", t:"ぎふやの炊き餃子",
-     cap:"福岡名物、炊き餃子。\nコラーゲンたっぷりの白湯スープで炊き上げる、体にしみる一品。",
-     tags:"#炊き餃子 #餃子 #福岡名物 #天神グルメ"},
-    {img:"feed_07.jpg", t:"本家 牛串かつ",
-     cap:"肉の旨みを、串で。本家 牛串かつ🍢\nサクッと衣、ジューシーな牛肉。ビールが止まらない。",
-     tags:"#牛串 #串かつ #肉串 #天神肉バル"},
-    {img:"feed_08.jpg", t:"自家製 鶏唐揚げ",
-     cap:"揚げたて、ジューシー。自家製鶏唐揚げ🍗\n下味しっかり、外はカリッと中はジュワッと。レモンをキュッと。",
-     tags:"#唐揚げ #からあげ #福岡唐揚げ #天神グルメ"},
-    {img:"feed_09.jpg", t:"馬刺し",
-     cap:"酒が進む、馬刺し🐴\nとろける赤身とコクのある旨み。九州の酒場の定番をぎふやで。",
-     tags:"#馬刺し #馬肉 #九州グルメ #福岡飲み"},
-    {img:"feed_10.jpg", t:"和牛マルシンのたたき",
-     cap:"希少部位を、贅沢に。和牛マルシンのたたき。\n一頭からわずかしか取れない部位を、香ばしく炙って。",
-     tags:"#和牛 #希少部位 #肉好きと繋がりたい #天神ディナー"},
-    {img:"feed_11.jpg", t:"〆のラーメン",
-     cap:"〆はやっぱり、ラーメン🍜\n飲んだ後のシメに、ぎふやの一杯。福岡の夜はこれで完成。",
-     tags:"#ラーメン #〆ラーメン #福岡ラーメン #天神ラーメン"},
-    {img:"feed_12.jpg", t:"生ハムポテト",
-     cap:"一杯目の相棒、生ハムポテト🍟\nあつあつポテトに生ハムをのせて。ついつい頼んでしまう名脇役。",
-     tags:"#ポテト #生ハム #おつまみ #天神居酒屋"}
-  ];
-
-  var g = document.getElementById("grid");
   var toastEl = document.getElementById("toast"), toastT = null;
   function toast(m){ toastEl.textContent=m; toastEl.classList.add("show"); clearTimeout(toastT);
     toastT=setTimeout(function(){toastEl.classList.remove("show");},1900); }
+  function copy(text, cb){
+    if (navigator.clipboard && navigator.clipboard.writeText){ navigator.clipboard.writeText(text).then(cb, fallback); }
+    else fallback();
+    function fallback(){ var ta=document.createElement("textarea"); ta.value=text; document.body.appendChild(ta); ta.select();
+      try{ document.execCommand("copy"); cb(); }catch(e){ toast("コピーできませんでした"); } document.body.removeChild(ta); }
+  }
 
-  POSTS.forEach(function (p, i) {
-    var full = p.cap + "\n\n" + p.tags + " " + COMMON;
-    var c = document.createElement("div"); c.className = "card";
-    var img = document.createElement("img");
-    img.src = "gifuya/" + p.img; img.loading = "lazy"; img.alt = p.t;
-    var body = document.createElement("div"); body.className = "body";
-    body.innerHTML =
-      '<div class="no">POST ' + (i+1) + ' / 12</div>' +
-      '<div class="ttl">' + p.t + '</div>' +
-      '<div class="cap"></div>' +
-      '<div class="tags"></div>';
-    body.querySelector(".cap").textContent = p.cap;
-    body.querySelector(".tags").textContent = p.tags + " " + COMMON;
-    var btn = document.createElement("button"); btn.className = "btn";
-    btn.textContent = "📋 キャプションをコピー";
-    btn.onclick = function () {
-      var done = function () {
-        btn.textContent = "✓ コピーしました"; btn.classList.add("done"); toast("キャプションをコピーしました");
-        setTimeout(function(){ btn.textContent="📋 キャプションをコピー"; btn.classList.remove("done"); }, 2200);
-      };
-      if (navigator.clipboard && navigator.clipboard.writeText) {
-        navigator.clipboard.writeText(full).then(done, function(){ fallback(); });
-      } else { fallback(); }
-      function fallback(){
-        var ta=document.createElement("textarea"); ta.value=full; document.body.appendChild(ta); ta.select();
-        try{ document.execCommand("copy"); done(); }catch(e){ toast("コピーできませんでした"); }
-        document.body.removeChild(ta);
-      }
-    };
-    c.appendChild(img); c.appendChild(body); body.appendChild(btn); g.appendChild(c);
-  });
-
-  // ② 動きのあるストーリー（Remotion・写真が切り替わる）
+  // ===== データ =====
+  var POSTS = [
+    {img:"feed_01.jpg", t:"元祖どぶ漬けどてかつ", pat:"短冊", when:"本日 18:00 予定",
+     cap:"名物、元祖どぶ漬けどてかつ🍢\n秘伝の自家製どて味噌にどっぷり漬け込んだ一本。安くて旨い、まずは一杯。",
+     tags:"#どてかつ #串かつ #どて焼き #天神串かつ"},
+    {img:"feed_02.jpg", t:"ぎふや厳選 串かつ10種盛り", pat:"短冊", when:"明日 12:00 予定",
+     cap:"迷ったらこれ。ぎふや厳選 串かつ10種盛り🍢\n定番から変わり種まで、一度に楽しめる欲張りな盛り合わせ。",
+     tags:"#串かつ #串カツ #串かつ食べ放題 #天神グルメ"},
+    {img:"feed_03.jpg", t:"名物どて焼き", pat:"H 巨大縦書き", when:"明日 18:00 予定",
+     cap:"大正5年から受け継ぐ看板の味、名物どて焼き。\nとろとろに煮込んだ自家製どて味噌が、酒を呼ぶ。",
+     tags:"#どて焼き #もつ煮込み #天神居酒屋 #福岡飲み"},
+    {img:"feed_04.jpg", t:"ぎふやの明太出汁巻き", pat:"短冊", when:"明後日 12:00 予定",
+     cap:"ふわとろ、明太出汁巻き。\n福岡ならではの明太子を、あつあつの出汁巻きで包みました。",
+     tags:"#明太子 #出汁巻き卵 #福岡明太子 #天神ディナー"},
+    {img:"feed_05.jpg", t:"刺身盛り合わせ", pat:"短冊", when:"明後日 18:00 予定",
+     cap:"福岡の鮮度、そのままに。刺身盛り合わせ🐟\nその日の良いものを、良い状態で。日本酒との相性も抜群。",
+     tags:"#刺身 #海鮮 #福岡海鮮 #天神ディナー"},
+    {img:"feed_06.jpg", t:"ぎふやの炊き餃子", pat:"短冊", when:"3日後 12:00 予定",
+     cap:"福岡名物、炊き餃子。\nコラーゲンたっぷりの白湯スープで炊き上げる、体にしみる一品。",
+     tags:"#炊き餃子 #餃子 #福岡名物 #天神グルメ"},
+    {img:"feed_07.jpg", t:"本家 牛串かつ", pat:"短冊", when:"3日後 18:00 予定",
+     cap:"肉の旨みを、串で。本家 牛串かつ🍢\nサクッと衣、ジューシーな牛肉。ビールが止まらない。",
+     tags:"#牛串 #串かつ #肉串 #天神肉バル"},
+    {img:"feed_08.jpg", t:"自家製 鶏唐揚げ", pat:"短冊", when:"4日後 12:00 予定",
+     cap:"揚げたて、ジューシー。自家製鶏唐揚げ🍗\n下味しっかり、外はカリッと中はジュワッと。レモンをキュッと。",
+     tags:"#唐揚げ #からあげ #福岡唐揚げ #天神グルメ"},
+    {img:"feed_09.jpg", t:"馬刺し", pat:"短冊", when:"4日後 18:00 予定",
+     cap:"酒が進む、馬刺し🐴\nとろける赤身とコクのある旨み。九州の酒場の定番をぎふやで。",
+     tags:"#馬刺し #馬肉 #九州グルメ #福岡飲み"},
+    {img:"feed_10.jpg", t:"和牛マルシンのたたき", pat:"短冊", when:"5日後 12:00 予定",
+     cap:"希少部位を、贅沢に。和牛マルシンのたたき。\n一頭からわずかしか取れない部位を、香ばしく炙って。",
+     tags:"#和牛 #希少部位 #肉好きと繋がりたい #天神ディナー"},
+    {img:"feed_11.jpg", t:"〆のラーメン", pat:"短冊", when:"5日後 18:00 予定",
+     cap:"〆はやっぱり、ラーメン🍜\n飲んだ後のシメに、ぎふやの一杯。福岡の夜はこれで完成。",
+     tags:"#ラーメン #〆ラーメン #福岡ラーメン #天神ラーメン"},
+    {img:"feed_12.jpg", t:"生ハムポテト", pat:"短冊", when:"6日後 12:00 予定",
+     cap:"一杯目の相棒、生ハムポテト🍟\nあつあつポテトに生ハムをのせて。ついつい頼んでしまう名脇役。",
+     tags:"#ポテト #生ハム #おつまみ #天神居酒屋"}
+  ];
   var DYNVIDS = [
-    {t:"回転（コンベア）",   d:"写真が2レーンで流れる・のれん→ロゴ締め"},
-    {t:"にぎやか貼付け",     d:"写真がポラロイドで次々貼られる手書き風"},
-    {t:"グリッド→ズーム",   d:"メニュー並べ→タップで1品ズーム"},
-    {t:"新聞・切り抜き",     d:"スポーツ新聞風・写真が飛び込む"},
-    {t:"短冊・貼り上げ",     d:"木札に写真を貼り上げていく"}
+    {n:"01", t:"回転（コンベア）",   d:"写真が2レーンで流れる・のれん→ロゴ締め"},
+    {n:"02", t:"にぎやか貼付け",     d:"写真がポラロイドで次々貼られる手書き風"},
+    {n:"03", t:"グリッド→ズーム",   d:"メニュー並べ→タップで1品ズーム"},
+    {n:"04", t:"新聞・切り抜き",     d:"スポーツ新聞風・写真が飛び込む"},
+    {n:"05", t:"短冊・貼り上げ",     d:"木札に写真を貼り上げていく"}
   ];
-  var dg = document.getElementById("dgrid");
-  DYNVIDS.forEach(function (p, i) {
-    var n = String(i + 1).padStart(2, "0");
-    var c = document.createElement("div"); c.className = "scard";
-    var v = document.createElement("video");
-    v.src = "gifuya/dv_" + n + ".mp4"; v.controls = true; v.playsInline = true;
-    v.preload = "metadata"; v.setAttribute("webkit-playsinline", "");
-    var st = document.createElement("div"); st.className = "st"; st.textContent = "D" + (i + 1) + " " + p.t;
-    var sn = document.createElement("div"); sn.className = "sn"; sn.textContent = p.d;
-    c.appendChild(v); c.appendChild(st); c.appendChild(sn); dg.appendChild(c);
-  });
-
-  // ③ ストーリー（縦9:16・静止ベース15パターン）— にぎやかな大衆酒場イメージ
   var STORYVIDS = [
-    {t:"統一",        d:"基本形。ロゴ＋見出し＋料理名"},
-    {t:"巨大縦書き",  d:"料理名を大きく縦書き・和"},
-    {t:"お品書き",    d:"縦メニュー・価格ずらり"},
-    {t:"にぎやか価格",d:"赤札＋料理キャプション"},
-    {t:"価格短冊",    d:"赤札を数枚・値札の壁"},
-    {t:"名物バッジ",  d:"名物バッジ＋炊き餃子"},
-    {t:"黒板POP",     d:"黒板メニュー風"},
-    {t:"提灯暖簾",    d:"赤提灯・暖簾で酒場感"},
-    {t:"全画面シズル",d:"料理どアップ＋一言"},
-    {t:"グリッド",    d:"人気メニュー6枚並べ"},
-    {t:"雑誌風",      d:"大タイトル＋キャプション"},
-    {t:"本日のおすすめ",d:"リボン＋明太出汁巻き"},
-    {t:"乾杯ビール",  d:"ドリンク推し・生ビール"},
-    {t:"特大コピー",  d:"安い！旨い！インパクト"},
-    {t:"吹き出し",    d:"漫画風フキダシ・牛串かつ"}
+    "統一","巨大縦書き","お品書き","にぎやか価格","価格短冊","名物バッジ","黒板POP","提灯暖簾",
+    "全画面シズル","グリッド","雑誌風","本日のおすすめ","乾杯ビール","特大コピー","吹き出し"
   ];
-  var sg = document.getElementById("sgrid");
-  STORYVIDS.forEach(function (p, i) {
-    var n = String(i + 1).padStart(2, "0");
-    var c = document.createElement("div"); c.className = "scard";
-    var v = document.createElement("video");
-    v.src = "gifuya/sv_" + n + ".mp4"; v.controls = true; v.playsInline = true;
-    v.preload = "metadata"; v.setAttribute("webkit-playsinline", "");
-    var st = document.createElement("div"); st.className = "st"; st.textContent = "S" + (i + 1) + " " + p.t;
-    var sn = document.createElement("div"); sn.className = "sn"; sn.textContent = p.d;
-    c.appendChild(v); c.appendChild(st); c.appendChild(sn); sg.appendChild(c);
-  });
-
-  // ③ パターン見本（デザインの型）
   var PATTERNS = [
     {img:"pattern_tanzaku.jpg", t:"短冊（メイン）", d:"福岡天神店の赤短冊＋見出し。安さ・名物訴求に強い。フィードの主役。"},
-    {img:"pattern_bigname.jpg", t:"H 巨大縦書き", d:"料理名を大きく縦書き。インパクト大で和の雰囲気。名物1品押しに（元祖どてかつ・名物どて焼き で採用）。"}
+    {img:"pattern_bigname.jpg", t:"H 巨大縦書き", d:"料理名を大きく縦書き。名物1品押しに（元祖どてかつ・名物どて焼き）。"}
   ];
-  var pg = document.getElementById("pgrid");
-  PATTERNS.forEach(function (p) {
-    var c = document.createElement("div"); c.className = "pcard";
-    var img = document.createElement("img");
-    img.src = "gifuya/" + p.img; img.loading = "lazy"; img.alt = p.t;
-    var pb = document.createElement("div"); pb.className = "pb";
-    pb.innerHTML = '<div class="pt"></div><div class="pd"></div>';
-    pb.querySelector(".pt").textContent = p.t;
-    pb.querySelector(".pd").textContent = p.d;
-    c.appendChild(img); c.appendChild(pb); pg.appendChild(c);
+
+  // ===== ① 確認（投稿カード・三条と同じ形） =====
+  var feed = document.getElementById("feed");
+  var note = document.createElement("div"); note.className="note";
+  note.innerHTML = "<b>投稿の確認</b>（見本モード）。三条と同じ確認画面です。各投稿を見て <b>投稿OK / 作り直す / やめる</b> で判断、「キャプションをコピー」で本文＋ハッシュタグをコピーできます。<br>※ぎふや福岡天神は連携済み（@gifuya_fukuokatenjin）。ストーリー自動投稿は現在準備中のため、この画面ではフィード投稿のみ確認できます。";
+  feed.appendChild(note);
+
+  POSTS.forEach(function(p,i){
+    var full = p.cap + "\n\n" + p.tags + " " + COMMON;
+    var c = document.createElement("div"); c.className="card";
+    c.innerHTML =
+      '<div class="head"><span class="pat">'+p.pat+'</span><span class="time">'+p.when+'</span><span class="remain">フィード</span></div>'+
+      '<div class="mediaWrap"><img class="media" loading="lazy" src="gifuya/'+p.img+'" alt=""></div>'+
+      '<div class="cap"></div><div class="tags"></div>'+
+      '<div class="slot"></div>'+
+      '<button class="copybtn">📋 キャプションをコピー</button>';
+    c.querySelector(".cap").textContent = p.cap;
+    c.querySelector(".tags").textContent = p.tags + " " + COMMON;
+    var slot = c.querySelector(".slot");
+    function setButtons(){
+      slot.innerHTML = '<div class="btns"><button class="ok">投稿OK</button><button class="rd">作り直す</button><button class="ng">やめる</button></div>';
+      slot.querySelector(".ok").onclick = function(){ slot.innerHTML='<div class="banner okb">✓ 承認済み（予定時刻に投稿されます）<small>タップで取り消し</small></div>';
+        slot.querySelector(".banner").onclick=function(){ setButtons(); }; c.classList.remove("done"); toast("承認しました（見本）"); };
+      slot.querySelector(".rd").onclick = function(){ slot.innerHTML='<div class="redoing"><span class="spin"></span>作り直しています…</div>';
+        setTimeout(function(){ setButtons(); toast("別案を作成しました（見本）"); }, 1500); };
+      slot.querySelector(".ng").onclick = function(){ slot.innerHTML='<div class="banner ngb">— 取りやめました</div>'; c.classList.add("done"); };
+    }
+    setButtons();
+    var cb = c.querySelector(".copybtn");
+    cb.onclick = function(){ copy(full, function(){ cb.textContent="✓ コピーしました"; cb.classList.add("done"); toast("キャプションをコピーしました");
+      setTimeout(function(){ cb.textContent="📋 キャプションをコピー"; cb.classList.remove("done"); },2200); }); };
+    feed.appendChild(c);
   });
+
+  // ===== ② 見本（ギャラリー・動画/画像フィルタ付き） =====
+  var gal = document.getElementById("gallery");
+  gal.className = "fvid";
+  var filt = document.createElement("div"); filt.className="gfilter";
+  filt.innerHTML = '<button data-f="fvid" class="sel">動画</button><button data-f="fimg">画像</button>';
+  gal.appendChild(filt);
+  filt.querySelectorAll("button").forEach(function(b){ b.onclick=function(){
+    gal.className=b.dataset.f; filt.querySelectorAll("button").forEach(function(x){x.classList.remove("sel");}); b.classList.add("sel");
+    window.scrollTo({top:0,behavior:"smooth"}); }; });
+
+  function sub(txt, cls){ var s=document.createElement("div"); s.className="gsub"+(cls?" "+cls:""); s.textContent=txt; gal.appendChild(s); }
+  function grid(){ var g=document.createElement("div"); g.className="ggrid"; gal.appendChild(g); return g; }
+
+  // 動画：動きのあるストーリー
+  sub("動きのあるストーリー（5本）★おすすめ","vidonly");
+  var g1=grid();
+  DYNVIDS.forEach(function(v){ var c=document.createElement("div"); c.className="gcard gvid";
+    c.innerHTML='<video src="gifuya/dv_'+v.n+'.mp4" controls playsinline preload="metadata" webkit-playsinline></video>'+
+      '<div class="gt">D'+(+v.n)+' '+v.t+'</div><div class="gd">'+v.d+'</div>'; g1.appendChild(c); });
+  // 動画：静止ベースのストーリー
+  sub("ストーリー・デザインパターン（静止ベース・15本）","vidonly");
+  var g2=grid();
+  STORYVIDS.forEach(function(t,i){ var n=String(i+1).padStart(2,"0"); var c=document.createElement("div"); c.className="gcard gvid";
+    c.innerHTML='<video src="gifuya/sv_'+n+'.mp4" controls playsinline preload="metadata" webkit-playsinline></video>'+
+      '<div class="gt">S'+(i+1)+' '+t+'</div>'; g2.appendChild(c); });
+  // 動画：フェード
+  sub("フェード動画（リール見本）","vidonly");
+  var g3=grid();
+  var fc=document.createElement("div"); fc.className="gcard gvid";
+  fc.innerHTML='<video src="gifuya/fade.mp4" controls playsinline preload="metadata" webkit-playsinline></video><div class="gt">フェード見本</div>'; g3.appendChild(fc);
+  // 画像：投稿（フィード）見本
+  sub("投稿（フィード）見本・12本","imgonly");
+  var g4=grid();
+  POSTS.forEach(function(p,i){ var c=document.createElement("div"); c.className="gcard gimg feed";
+    c.innerHTML='<img loading="lazy" src="gifuya/'+p.img+'" alt=""><div class="gt">'+(i+1)+' '+p.t+'</div>'; g4.appendChild(c); });
+  // 画像：デザインの型
+  sub("パターン見本・デザインの型","imgonly");
+  var g5=grid();
+  PATTERNS.forEach(function(p){ var c=document.createElement("div"); c.className="gcard gimg feed";
+    c.innerHTML='<img loading="lazy" src="gifuya/'+p.img+'" alt=""><div class="gt">'+p.t+'</div><div class="gd">'+p.d+'</div>'; g5.appendChild(c); });
+
+  // ===== ③ レポート（三条と同じ体裁・サンプル値） =====
+  var rep = document.getElementById("report");
+  function kpi(l,v,unit,dcls,dtxt,prev){
+    return '<div class="repkpi"><div class="l">'+l+'</div><div class="v">'+v+(unit?' <small>'+unit+'</small>':'')+'</div>'+
+      '<span class="d '+dcls+'">'+dtxt+'</span><div class="prev">'+prev+'</div></div>';
+  }
+  var bars=""; var vals=[42,55,48,63,70,58,66,80,74,88,95,82,90,104,98,112];
+  vals.forEach(function(v,i){ bars+='<i class="'+(i>=vals.length-3?'hot':'')+'" style="height:'+v+'%"></i>'; });
+  rep.innerHTML =
+    '<div class="rephint">Instagram インサイト（見本のサンプル値です。実データは連携後に自動表示されます）</div>'+
+    '<div class="repdoc">'+
+      '<div class="rephd"><div class="t">Instagram インサイトレポート</div><div class="s">ぎふや 福岡天神店</div>'+
+        '<div class="p">@gifuya_fukuokatenjin<small>集計期間：直近30日（見本）</small></div></div>'+
+      '<div class="repsec"><h3>主要指標</h3><div class="repkpis">'+
+        kpi("リーチ","12,480","","up","▲ 18%","前期 10,580")+
+        kpi("閲覧数","31,200","","up","▲ 24%","前期 25,100")+
+        kpi("プロフィール表示","1,340","","up","▲ 12%","前期 1,196")+
+        kpi("フォロワー","842","","up","▲ 46","前期 796")+
+      '</div></div>'+
+      '<div class="repsec"><h3>リーチの推移</h3><div class="repbars">'+bars+'</div>'+
+        '<div class="repax"><span>30日前</span><span>今日</span></div></div>'+
+      '<div class="repsec"><h3>人気の投稿</h3><div class="repposts">'+
+        '<div class="reppost"><img class="rt" src="gifuya/feed_01.jpg"><div class="ri"><div class="rl"><span class="rb feed">フィード</span><span class="rd">3日前</span></div>'+
+          '<div class="rc">名物、元祖どぶ漬けどてかつ🍢</div><div class="rr"><b>2,140</b><small>リーチ</small><b>186</b><small>いいね</small></div></div></div>'+
+        '<div class="reppost"><img class="rt" src="gifuya/feed_06.jpg"><div class="ri"><div class="rl"><span class="rb feed">フィード</span><span class="rd">6日前</span></div>'+
+          '<div class="rc">福岡名物、炊き餃子。</div><div class="rr"><b>1,880</b><small>リーチ</small><b>152</b><small>いいね</small></div></div></div>'+
+        '<div class="reppost"><img class="rt" src="gifuya/story_01.jpg"><div class="ri"><div class="rl"><span class="rb story">ストーリー</span><span class="rd">2日前</span></div>'+
+          '<div class="rc">安くて、旨い。まずは一杯。</div><div class="rr"><b>980</b><small>閲覧</small><b>64</b><small>反応</small></div></div></div>'+
+      '</div></div>'+
+      '<div class="repsec"><h3>分析とアドバイス</h3><div class="repanal">'+
+        '<div class="repcard good"><h4>好調なポイント</h4><ul><li>名物系（<b>どてかつ・炊き餃子</b>）の反応が高い。看板メニュー押しが効いています。</li><li>リーチが前期比 <b>+18%</b> と伸長。投稿頻度が安定してきました。</li></ul></div>'+
+        '<div class="repcard warn"><h4>改善の余地</h4><ul><li>プロフィール表示に対し保存率がやや低め。<b>価格・営業時間</b>をキャプション冒頭に。</li></ul></div>'+
+        '<div class="repcard act"><h4>次の一手</h4><ul><li>反応の良い名物投稿を<b>ストーリー（動く見本）</b>にも展開。</li><li>週末の <b>18:00台</b> 投稿が伸びやすい傾向。</li></ul></div>'+
+      '</div></div>'+
+      '<div class="repfoot">※本レポートは見本のサンプルです。@gifuya_fukuokatenjin の実データ連携後、自動で更新されます。</div>'+
+    '</div>';
+
+  // ===== タブ切替 =====
+  var tabs = {tabFeed:feed, tabGallery:gal, tabReport:rep};
+  function show(id){
+    for (var k in tabs){ tabs[k].style.display = (k===id)?"":"none"; document.getElementById(k).classList.toggle("on", k===id); }
+    window.scrollTo({top:0});
+  }
+  document.getElementById("tabFeed").onclick = function(){ show("tabFeed"); };
+  document.getElementById("tabGallery").onclick = function(){ show("tabGallery"); };
+  document.getElementById("tabReport").onclick = function(){ show("tabReport"); };
+  document.getElementById("pushBtn").onclick = function(){ toast("見本モードのため通知は連携後に有効化されます"); };
 })();
+</script>
+
+<script>
+  if ("serviceWorker" in navigator) {
+    window.addEventListener("load", function () {
+      navigator.serviceWorker.register("./sw.js").catch(function () {});
+    });
+  }
 </script>
 </body>
 </html>

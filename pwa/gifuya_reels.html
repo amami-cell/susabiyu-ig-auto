@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0f1115">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>ぎふや 福岡天神 ・ 投稿の確認（フィード / リール）</title>
+<style>
+  /* 三条 reels.html と同一の土台デザイン。ぎふや福岡天神の見本用に自己完結で実装。 */
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;margin:0;padding:0}
+  :root{--bg:#0f1115;--card:#181c23;--line:#262c36;--fg:#eaeef2;--sub:#9aa3b2;
+        --ok:#1f9d55;--rd:#3b6fd6;--ng:#3a414d;--accent:#7fd1a0;--gold:#e0b56e;--reel:#7a4fd6}
+  html,body{background:var(--bg);color:var(--fg);
+    font-family:-apple-system,BlinkMacSystemFont,"Hiragino Kaku Gothic ProN","Noto Sans JP",sans-serif}
+  button{touch-action:manipulation;font-family:inherit}
+  .topbar{position:sticky;top:0;z-index:20;background:rgba(15,17,21,.92);
+    backdrop-filter:saturate(180%) blur(12px);border-bottom:1px solid var(--line)}
+  .bar{display:flex;align-items:center;gap:10px;padding:calc(env(safe-area-inset-top) + 12px) 16px 10px}
+  .bar .back{border:1px solid var(--line);background:#181c23;color:var(--fg);font-size:13px;font-weight:800;padding:7px 13px;border-radius:999px;text-decoration:none}
+  .bar h1{font-size:16px;font-weight:800;flex:1}
+  .tabs{display:flex;gap:8px;padding:0 14px 12px}
+  .tab{flex:1;text-align:center;padding:11px;border-radius:12px;border:1px solid var(--line);background:#141922;color:var(--sub);font-weight:800;font-size:14px}
+  .tab.on{background:#12263a;border-color:#2f5a8f;color:#cfe4ff}
+  .tab.on.reel{background:#241a33;border-color:#5a3fa0;color:#e2d3ff}
+  #wrap{padding:14px 14px 60px;max-width:520px;margin:0 auto}
+  .hint{color:var(--sub);font-size:12.5px;line-height:1.7;text-align:center;margin:2px 2px 16px}
+  .seclabel{font-size:13px;font-weight:800;color:var(--fg);margin:8px 2px 10px;display:flex;align-items:center;gap:8px}
+  .seclabel .cnt{color:var(--accent);font-size:12px;font-weight:800}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:12px;margin-bottom:16px;position:relative}
+  .card.reco{border-color:var(--gold);box-shadow:0 0 0 1px rgba(224,181,110,.35)}
+  .reco-badge{position:absolute;top:-11px;left:14px;background:linear-gradient(90deg,#e0b56e,#caa14e);color:#241c08;font-size:11.5px;font-weight:900;padding:4px 11px;border-radius:999px}
+  .chead{display:flex;align-items:center;gap:8px;margin-bottom:10px}
+  .kind{font-size:12px;font-weight:800;color:#fff;background:var(--rd);padding:3px 10px;border-radius:999px}
+  .kind.reel{background:var(--reel)}
+  .cno{font-size:12.5px;color:var(--sub);font-weight:800;margin-left:auto}
+  .mediaWrap{position:relative;border-radius:13px;overflow:hidden;background:#000;width:100%}
+  .mediaWrap.feed{aspect-ratio:4/5}
+  .mediaWrap.reel{aspect-ratio:9/16}
+  .mediaWrap img,.mediaWrap video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;background:#000}
+  .mediaWrap.feed img{object-fit:contain}
+  .cap{font-size:13.5px;line-height:1.6;margin:11px 2px 4px;white-space:pre-wrap;color:#dfe5ee}
+  .tags{font-size:11.5px;color:#8f97c0;word-break:break-all;margin:6px 2px 2px}
+  .acts{display:flex;gap:8px;margin-top:11px}
+  .acts button{flex:1;border:0;border-radius:13px;padding:13px 0;font-size:14.5px;font-weight:800;color:#fff}
+  .acts .now{background:var(--ok)}
+  .acts .resv{background:#2a3547;border:1px solid var(--line);color:#dfe5ee}
+  .acts button:active{transform:scale(.97)}
+  .copybtn{margin-top:8px;width:100%;border:1px solid var(--line);border-radius:12px;background:#12161d;color:var(--accent);font-weight:800;font-size:13.5px;padding:11px;display:flex;align-items:center;justify-content:center;gap:7px}
+  .copybtn.done{background:#10301f;border-color:#1f4d33}
+  .banner{text-align:center;font-size:14.5px;font-weight:800;padding:13px 0;border-radius:13px;margin-top:11px}
+  .banner.okb{background:#10301f;color:var(--accent)}
+  .banner.ngb{background:#23262d;color:#aeb6c2}
+  #toast{position:fixed;left:50%;bottom:calc(env(safe-area-inset-bottom) + 22px);transform:translateX(-50%);
+    background:#000;color:#fff;padding:11px 18px;border-radius:24px;font-size:14px;opacity:0;transition:.2s;pointer-events:none;z-index:30;max-width:90%;text-align:center}
+  #toast.show{opacity:.96}
+  .foot{color:#6f685d;font-size:10px;text-align:center;padding:6px 0 calc(env(safe-area-inset-bottom) + 16px)}
+</style>
+</head>
+<body>
+<header class="topbar">
+  <div class="bar">
+    <a class="back" href="./gifuyatenjin.html">← 戻る</a>
+    <h1>投稿の確認</h1>
+  </div>
+  <div class="tabs">
+    <button class="tab on" id="tFeed">📸 フィード投稿</button>
+    <button class="tab reel" id="tReel">🎬 リール投稿</button>
+  </div>
+</header>
+
+<div id="wrap"></div>
+<div id="toast"></div>
+<div class="foot">すさび湯グループ 投稿管理 ・ ぎふや 福岡天神店 ・ 見本モード</div>
+
+<script>
+(function(){
+  "use strict";
+  var COMMON = "#ぎふや #ぎふや福岡天神店 #大衆酒場 #天神グルメ #福岡グルメ #天神居酒屋 #福岡居酒屋 #天神 #福岡 #天神飲み #大正5年創業 #fukuoka #tenjin #fukuokafood";
+  var toastEl=document.getElementById("toast"),toastT=null;
+  function toast(m){ toastEl.textContent=m; toastEl.classList.add("show"); clearTimeout(toastT); toastT=setTimeout(function(){toastEl.classList.remove("show");},1900); }
+  function copy(text,cb){ if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(text).then(cb,fb);}else fb();
+    function fb(){var ta=document.createElement("textarea");ta.value=text;document.body.appendChild(ta);ta.select();try{document.execCommand("copy");cb();}catch(e){toast("コピーできませんでした");}document.body.removeChild(ta);} }
+
+  var FEED = [
+    {img:"feed_01.jpg", t:"元祖どぶ漬けどてかつ", reco:true,
+     cap:"名物、元祖どぶ漬けどてかつ🍢\n秘伝の自家製どて味噌にどっぷり漬け込んだ一本。安くて旨い、まずは一杯。",
+     tags:"#どてかつ #串かつ #どて焼き #天神串かつ"},
+    {img:"feed_06.jpg", t:"ぎふやの炊き餃子",
+     cap:"福岡名物、炊き餃子。\nコラーゲンたっぷりの白湯スープで炊き上げる、体にしみる一品。",
+     tags:"#炊き餃子 #餃子 #福岡名物 #天神グルメ"},
+    {img:"feed_02.jpg", t:"ぎふや厳選 串かつ10種盛り",
+     cap:"迷ったらこれ。ぎふや厳選 串かつ10種盛り🍢\n定番から変わり種まで、一度に楽しめる欲張りな盛り合わせ。",
+     tags:"#串かつ #串カツ #串かつ食べ放題 #天神グルメ"},
+    {img:"feed_04.jpg", t:"ぎふやの明太出汁巻き",
+     cap:"ふわとろ、明太出汁巻き。\n福岡ならではの明太子を、あつあつの出汁巻きで包みました。",
+     tags:"#明太子 #出汁巻き卵 #福岡明太子 #天神ディナー"}
+  ];
+  var REEL = [
+    {vid:"dv_01.mp4", t:"回転（コンベア）", reco:true,
+     cap:"安くて、旨い。まずは一杯。🍢\nぎふや福岡天神の名物を、テンポよくご紹介。",
+     tags:"#ぎふや #大衆酒場 #天神グルメ #串かつ"},
+    {vid:"dv_03.mp4", t:"グリッド→ズーム",
+     cap:"迷ったら名物から。ぎふやの人気メニュー。\n天神の夜は、ぎふやで。",
+     tags:"#天神居酒屋 #福岡グルメ #串かつ #どて焼き"},
+    {vid:"dv_04.mp4", t:"新聞・切り抜き",
+     cap:"本日も大にぎわい。ぎふや福岡天神店。\n名物どてかつ・炊き餃子・串かつ。",
+     tags:"#福岡グルメ #天神グルメ #大衆酒場 #ぎふや"},
+    {vid:"fade.mp4", t:"フェード見本",
+     cap:"ぎふや福岡天神店。安くて、旨い。\nまずは一杯、いかがですか。",
+     tags:"#天神飲み #福岡居酒屋 #串かつ #大衆酒場"}
+  ];
+
+  var wrap = document.getElementById("wrap");
+  function render(kind){
+    wrap.innerHTML="";
+    var hint=document.createElement("div"); hint.className="hint";
+    hint.innerHTML = (kind==="feed"
+      ? "候補のフィード投稿です。各投稿を <b>今すぐ投稿</b> または <b>日時を決めて予約</b>できます（見本モード）。"
+      : "候補のリール（動画）です。<b>今すぐ投稿</b> または <b>日時を決めて予約</b>できます（見本モード）。")
+      + "<br>※ぎふや福岡天神は連携済み（@gifuya_fukuokatenjin）。ストーリー自動投稿は現在準備中です。";
+    wrap.appendChild(hint);
+    var lab=document.createElement("div"); lab.className="seclabel";
+    var list = kind==="feed"?FEED:REEL;
+    lab.innerHTML = (kind==="feed"?"📸 フィード投稿の候補":"🎬 リール投稿の候補")+' <span class="cnt">'+list.length+'件</span>';
+    wrap.appendChild(lab);
+
+    list.forEach(function(p,i){
+      var full = p.cap + "\n\n" + p.tags + " " + COMMON;
+      var c=document.createElement("div"); c.className="card"+(p.reco?" reco":"");
+      var media = kind==="feed"
+        ? '<div class="mediaWrap feed"><img loading="lazy" src="gifuya/'+p.img+'" alt=""></div>'
+        : '<div class="mediaWrap reel"><video src="gifuya/'+p.vid+'" controls playsinline preload="metadata" webkit-playsinline></video></div>';
+      c.innerHTML =
+        (p.reco?'<div class="reco-badge">★ おすすめ</div>':'')+
+        '<div class="chead"><span class="kind'+(kind==="reel"?" reel":"")+'">'+(kind==="feed"?"フィード":"リール")+'</span>'+
+          '<span class="cno">'+(i+1)+' / '+list.length+' ・ '+p.t+'</span></div>'+
+        media+
+        '<div class="cap"></div><div class="tags"></div>'+
+        '<div class="slot"></div>'+
+        '<button class="copybtn">📋 キャプションをコピー</button>';
+      c.querySelector(".cap").textContent = p.cap;
+      c.querySelector(".tags").textContent = p.tags + " " + COMMON;
+      var slot=c.querySelector(".slot");
+      function acts(){
+        slot.innerHTML='<div class="acts"><button class="now">今すぐ投稿</button><button class="resv">日時を決めて予約</button></div>';
+        slot.querySelector(".now").onclick=function(){ slot.innerHTML='<div class="banner okb">✓ 投稿しました（見本）</div>'; toast("投稿しました（見本）"); };
+        slot.querySelector(".resv").onclick=function(){ slot.innerHTML='<div class="banner okb">✓ 予約しました（見本）<br><small style="font-weight:600;color:#6fb595">予定時刻に自動投稿されます</small></div>'; toast("予約しました（見本）"); };
+      }
+      acts();
+      var cb=c.querySelector(".copybtn");
+      cb.onclick=function(){ copy(full,function(){ cb.textContent="✓ コピーしました"; cb.classList.add("done"); toast("キャプションをコピーしました");
+        setTimeout(function(){ cb.textContent="📋 キャプションをコピー"; cb.classList.remove("done"); },2200); }); };
+      wrap.appendChild(c);
+    });
+  }
+  var tF=document.getElementById("tFeed"), tR=document.getElementById("tReel");
+  tF.onclick=function(){ tF.classList.add("on"); tR.classList.remove("on"); render("feed"); window.scrollTo({top:0}); };
+  tR.onclick=function(){ tR.classList.add("on"); tF.classList.remove("on"); render("reel"); window.scrollTo({top:0}); };
+  render("feed");
+})();
+</script>
+<script>
+  if ("serviceWorker" in navigator) { window.addEventListener("load", function(){ navigator.serviceWorker.register("./sw.js").catch(function(){}); }); }
+</script>
+</body>
+</html>
