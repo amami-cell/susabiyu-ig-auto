@@ -26,10 +26,19 @@ function dashData() {
     for (var i = 0; i < v.length; i++) if (v[i][0] === 'json') { try { dash = JSON.parse(v[i][1]); } catch (e) { } break; }
   }
 
-  // 店舗ID→表示名
-  var stores = {};
+  // 店舗ID→表示名 ＆ 表示名→募集手動フラグ（F列。募集中/終了 と書けば自動判定を上書き）
+  var stores = {}, storeManual = {};
   var ms = ss.getSheetByName('master_店舗');
-  if (ms) { var sv = ms.getDataRange().getValues(); for (var i = 1; i < sv.length; i++) if (sv[i][0] !== '') stores[String(sv[i][0])] = sv[i][1] || String(sv[i][0]); }
+  if (ms) {
+    var sv = ms.getDataRange().getValues();
+    for (var i = 1; i < sv.length; i++) {
+      if (sv[i][0] === '') continue;
+      var disp = sv[i][1] || String(sv[i][0]);
+      stores[String(sv[i][0])] = disp;
+      var man = sv[i].length > 5 ? String(sv[i][5] || '').trim() : '';
+      if (man) storeManual[disp] = man;
+    }
+  }
 
   // ステータスコード→ファネル段階
   var funnel = {};
@@ -60,7 +69,7 @@ function dashData() {
   var last = null, run = ss.getSheetByName('_実行ログ');
   if (run && run.getLastRow() > 1) { var lr = run.getRange(run.getLastRow(), 1, 1, 6).getValues()[0]; last = { at: String(lr[0]), result: String(lr[2]), n: lr[3] }; }
 
-  return { dash: dash, apps: apps, last: last };
+  return { dash: dash, apps: apps, last: last, storeManual: storeManual };
 }
 
 /** 更新ボタン: その場で取得を実行して結果を返す。 */

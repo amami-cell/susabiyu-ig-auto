@@ -210,8 +210,8 @@ function epWriteSheets_(parsed) {
   var mst = epSheet_(ss, "master_ステータス", ["コード", "名称", "ファネル段階", "要確認", "初出日"]);
   var funnel = epSyncStatusMaster_(mst, rows, today);
 
-  // master_店舗（新店舗自動追記）
-  var mstore = epSheet_(ss, "master_店舗", ["店舗ID", "表示名", "ブランド", "エリア", "初出日"]);
+  // master_店舗（新店舗自動追記。F列「募集手動」に 募集中/終了 と書けば自動判定を上書き）
+  var mstore = epSheet_(ss, "master_店舗", ["店舗ID", "表示名", "ブランド", "エリア", "初出日", "募集手動"]);
   epSyncStoreMaster_(mstore, rows, today);
 
   // raw_応募者（全書き換え。今回消えた応募者は消失フラグで残す）
@@ -246,13 +246,15 @@ function epSyncStatusMaster_(sh, rows, today) {
 }
 
 function epSyncStoreMaster_(sh, rows, today) {
+  // 既存シートにも「募集手動」見出しを補う（手で書き足せる列）
+  if (String(sh.getRange(1, 6).getValue() || "").trim() === "") sh.getRange(1, 6).setValue("募集手動");
   var vals = sh.getDataRange().getValues(), known = {};
   for (var i = 1; i < vals.length; i++) if (vals[i][0] !== "") known[vals[i][0]] = 1;
   var add = [], seen = {};
   rows.forEach(function (r) {
-    if (r.storeId && !known[r.storeId] && !seen[r.storeId]) { seen[r.storeId] = 1; add.push([r.storeId, r.storeName, "", "", today]); }
+    if (r.storeId && !known[r.storeId] && !seen[r.storeId]) { seen[r.storeId] = 1; add.push([r.storeId, r.storeName, "", "", today, ""]); }
   });
-  if (add.length) sh.getRange(sh.getLastRow() + 1, 1, add.length, 5).setValues(add);
+  if (add.length) sh.getRange(sh.getLastRow() + 1, 1, add.length, 6).setValues(add);
 }
 
 function epUpsertRaw_(sh, rows, today) {

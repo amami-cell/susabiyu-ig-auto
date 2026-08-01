@@ -28,7 +28,18 @@
     .bd .bn{width:56px;text-align:right;font-variant-numeric:tabular-nums;}
     .bd .bf.on{background:var(--f2);}
     .badge{font-size:10px;color:var(--f2);margin-left:6px;white-space:nowrap;}
+    .badge.end{color:var(--muted);}
     .rc{color:var(--f2);}
+    .st-row{margin:9px 0;}
+    .st-head{display:flex;align-items:center;gap:6px;margin-bottom:3px;flex-wrap:wrap;}
+    .st-nm{font-weight:600;font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:56%;}
+    .st-row.end .st-nm{color:#66757f;font-weight:500;}
+    .st-bar{display:flex;align-items:center;gap:8px;}
+    .st-bar .bb{flex:1;height:18px;background:#22303f;border-radius:5px;overflow:hidden;}
+    .st-bar .bf{height:100%;background:var(--f2);border-radius:5px;}
+    .st-bar .bf.end{background:#39434f;}
+    .st-bar .bn{width:56px;text-align:right;font-size:13px;font-variant-numeric:tabular-nums;}
+    .ago{font-size:11px;color:var(--muted);white-space:nowrap;}
     .filters { display:flex; gap:8px; flex-wrap:wrap; margin-bottom:10px; }
     .chip { border:1px solid var(--line); background:transparent; color:var(--muted); border-radius:999px; padding:6px 12px; font-size:12px; }
     .chip.on { background:var(--accent); color:#fff; border-color:var(--accent); }
@@ -56,7 +67,7 @@
     </div></div>
     <div class="card"><h2>ファネル</h2><div id="funnel"></div></div>
     <div class="card"><h2>ステータス別</h2><div id="bdStatus"></div></div>
-    <div class="card"><h2>応募店舗別（●募集中＝直近30日に応募あり。上ほど募集中）</h2><div id="bdStore"></div></div>
+    <div class="card"><h2>応募店舗別（●募集中＝直近30日に応募あり／💤終了＝途絶。master_店舗「募集手動」で上書き可）</h2><div id="bdStore"></div></div>
     <div class="card"><h2>年齢層</h2><div id="bdAgeGroup"></div></div>
     <div class="card"><h2>性別</h2><div id="bdGender"></div></div>
     <div class="card"><h2>年齢（単年）</h2><div id="bdAge"></div></div>
@@ -65,7 +76,7 @@
   <div class="toast" id="toast"></div>
   <script>
     var STAGES = ['応募','接触','面接','内定','入社','終了'];
-    var apps = [], activeFunnel = null;
+    var apps = [], activeFunnel = null, storeManual = {};
     function toast(m){ var t=document.getElementById('toast'); t.textContent=m; t.classList.add('show'); setTimeout(function(){t.classList.remove('show');},2600); }
     function esc(s){ return String(s==null?'':s).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];}); }
     function load(){ google.script.run.withSuccessHandler(render).withFailureHandler(function(e){document.getElementById('updated').textContent='取得失敗: '+e.message;}).dashData(); }
@@ -79,11 +90,11 @@
       var html=''; STAGES.forEach(function(s){ var v=f[s]||0, w=Math.round(v/max*100); html+='<div class="frow"><div class="nm">'+s+'</div><div class="bar s'+s+'" style="width:'+Math.max(w,v?8:0)+'%">'+(v||'')+'</div></div>'; });
       document.getElementById('funnel').innerHTML=html;
       renderBD('bdStatus', dash.by_status);
-      renderStores();
       renderBD('bdAgeGroup', dash.by_age_group, ['〜19歳','20代','30代','40代','50代','60代〜','不明']);
       renderBD('bdGender', dash.by_gender);
       renderBD('bdAge', dash.by_age, 'num');
-      apps=d.apps||[]; renderList();
+      storeManual=d.storeManual||{};
+      apps=d.apps||[]; renderStores(); renderList();
     }
     function renderBD(id, obj, order){
       obj=obj||{}; var el=document.getElementById(id); if(!el) return;
@@ -111,25 +122,57 @@
       if(rows.length>500) h+='<div class="empty">ほか '+(rows.length-500)+' 件（多いので省略）</div>';
       document.getElementById('list').innerHTML=h;
     }
-    // 応募店舗別：最近30日に応募がある店舗＝「募集中」とみなしトップに並べる
+    // 応募店舗別：直近30日に応募があれば「募集中」、途絶えていれば「募集終了」とみなす。
+    // master_店舗 F列「募集手動」に 募集中/終了 と書けば、その店だけ手動で上書きできる。
     var RECENT_DAYS = 30;
+    // 手動フラグを active / ended / null(自動) に正規化
+    function manOverride(man){
+      var s=String(man||'').trim();
+      if(!s) return null;
+      if(/終了|停止|休止|クローズ|close|off|×|✕|ｘ/i.test(s)) return 'ended';
+      if(/^(0|なし)$/i.test(s)) return 'ended';
+      if(/中|継続|再開|募集|active|on|○|◯|〇/i.test(s)) return 'active';
+      if(/^(1|あり)$/i.test(s)) return 'active';
+      return null;
+    }
     function renderStores(){
       var el=document.getElementById('bdStore'); if(!el) return;
-      var cutoff = Date.now() - RECENT_DAYS*86400000;
-      var tot={}, rec={};
+      var now=Date.now(), cutoff=now-RECENT_DAYS*86400000;
+      var tot={}, rec={}, last={};
       apps.forEach(function(a){
         var s=a.store||'不明'; tot[s]=(tot[s]||0)+1;
-        var d=new Date(a.appliedAt); if(!isNaN(d.getTime()) && d.getTime()>=cutoff) rec[s]=(rec[s]||0)+1;
+        var t=new Date(a.appliedAt).getTime();
+        if(!isNaN(t)){ if(t>=cutoff) rec[s]=(rec[s]||0)+1; if(!last[s]||t>last[s]) last[s]=t; }
       });
       var names=Object.keys(tot);
       if(!names.length){ el.innerHTML='<div class="empty">データなし</div>'; return; }
-      names.sort(function(a,b){ var ra=rec[a]||0, rb=rec[b]||0; if(rb!==ra) return rb-ra; return tot[b]-tot[a]; });
-      var max=1; names.forEach(function(k){ max=Math.max(max, tot[k]); });
+      var info={};
+      names.forEach(function(k){
+        var mo=manOverride(storeManual[k]);
+        var state = mo || ((rec[k]||0)>0 ? 'active' : 'ended');
+        info[k]={ tot:tot[k], rec:rec[k]||0, last:last[k]||0, state:state, manual:!!mo };
+      });
+      // 募集中を上へ。募集中どうしは直近応募数→総数、終了どうしは最終応募が新しい順→総数
+      names.sort(function(a,b){
+        var A=info[a], B=info[b];
+        if(A.state!==B.state) return A.state==='active'?-1:1;
+        if(A.state==='active'){ if(B.rec!==A.rec) return B.rec-A.rec; return B.tot-A.tot; }
+        if(B.last!==A.last) return B.last-A.last; return B.tot-A.tot;
+      });
+      var max=1; names.forEach(function(k){ max=Math.max(max, info[k].tot); });
       el.innerHTML=names.map(function(k){
-        var t=tot[k], rc=rec[k]||0, w=Math.round(t/max*100);
-        var badge = rc>0 ? '<span class="badge">●募集中</span>' : '';
-        var num = t + (rc>0 ? ' <span class="rc">+'+rc+'</span>' : '');
-        return '<div class="bd"><div class="bl">'+esc(k)+badge+'</div><div class="bb"><div class="bf'+(rc>0?' on':'')+'" style="width:'+Math.max(w,4)+'%"></div></div><div class="bn">'+num+'</div></div>';
+        var o=info[k], w=Math.round(o.tot/max*100);
+        var ago = o.last ? Math.floor((now-o.last)/86400000) : null;
+        var agoTxt = ago==null ? '' : (ago<=0 ? '本日応募' : ('最終'+ago+'日前'));
+        var mk = o.manual ? '手動' : '';
+        var badge, cls, bf;
+        if(o.state==='active'){ badge='<span class="badge">●募集中'+(mk?'・'+mk:'')+'</span>'; cls=''; bf=''; }
+        else { badge='<span class="badge end">💤終了'+(mk?'・'+mk:'')+'</span>'; cls=' end'; bf=' end'; }
+        var num = o.tot + (o.state==='active'&&o.rec>0 ? ' <span class="rc">+'+o.rec+'</span>' : '');
+        return '<div class="st-row'+cls+'">'+
+          '<div class="st-head"><span class="st-nm">'+esc(k)+'</span>'+badge+(agoTxt?'<span class="ago">'+agoTxt+'</span>':'')+'</div>'+
+          '<div class="st-bar"><div class="bb"><div class="bf'+bf+'" style="width:'+Math.max(w,4)+'%"></div></div><div class="bn">'+num+'</div></div>'+
+        '</div>';
       }).join('');
     }
     function setF(s){ activeFunnel=s; renderList(); }
