@@ -25,7 +25,10 @@
     .bd .bl{width:98px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
     .bd .bb{flex:1;height:20px;background:#22303f;border-radius:5px;overflow:hidden;}
     .bd .bf{height:100%;background:var(--accent);border-radius:5px;}
-    .bd .bn{width:46px;text-align:right;font-variant-numeric:tabular-nums;}
+    .bd .bn{width:56px;text-align:right;font-variant-numeric:tabular-nums;}
+    .bd .bf.on{background:var(--f2);}
+    .badge{font-size:10px;color:var(--f2);margin-left:6px;white-space:nowrap;}
+    .rc{color:var(--f2);}
     .filters { display:flex; gap:8px; flex-wrap:wrap; margin-bottom:10px; }
     .chip { border:1px solid var(--line); background:transparent; color:var(--muted); border-radius:999px; padding:6px 12px; font-size:12px; }
     .chip.on { background:var(--accent); color:#fff; border-color:var(--accent); }
@@ -53,7 +56,7 @@
     </div></div>
     <div class="card"><h2>ファネル</h2><div id="funnel"></div></div>
     <div class="card"><h2>ステータス別</h2><div id="bdStatus"></div></div>
-    <div class="card"><h2>応募店舗別</h2><div id="bdStore"></div></div>
+    <div class="card"><h2>応募店舗別（●募集中＝直近30日に応募あり。上ほど募集中）</h2><div id="bdStore"></div></div>
     <div class="card"><h2>年齢層</h2><div id="bdAgeGroup"></div></div>
     <div class="card"><h2>性別</h2><div id="bdGender"></div></div>
     <div class="card"><h2>年齢（単年）</h2><div id="bdAge"></div></div>
@@ -76,7 +79,7 @@
       var html=''; STAGES.forEach(function(s){ var v=f[s]||0, w=Math.round(v/max*100); html+='<div class="frow"><div class="nm">'+s+'</div><div class="bar s'+s+'" style="width:'+Math.max(w,v?8:0)+'%">'+(v||'')+'</div></div>'; });
       document.getElementById('funnel').innerHTML=html;
       renderBD('bdStatus', dash.by_status);
-      renderBD('bdStore', dash.by_store);
+      renderStores();
       renderBD('bdAgeGroup', dash.by_age_group, ['〜19歳','20代','30代','40代','50代','60代〜','不明']);
       renderBD('bdGender', dash.by_gender);
       renderBD('bdAge', dash.by_age, 'num');
@@ -107,6 +110,27 @@
       });
       if(rows.length>500) h+='<div class="empty">ほか '+(rows.length-500)+' 件（多いので省略）</div>';
       document.getElementById('list').innerHTML=h;
+    }
+    // 応募店舗別：最近30日に応募がある店舗＝「募集中」とみなしトップに並べる
+    var RECENT_DAYS = 30;
+    function renderStores(){
+      var el=document.getElementById('bdStore'); if(!el) return;
+      var cutoff = Date.now() - RECENT_DAYS*86400000;
+      var tot={}, rec={};
+      apps.forEach(function(a){
+        var s=a.store||'不明'; tot[s]=(tot[s]||0)+1;
+        var d=new Date(a.appliedAt); if(!isNaN(d.getTime()) && d.getTime()>=cutoff) rec[s]=(rec[s]||0)+1;
+      });
+      var names=Object.keys(tot);
+      if(!names.length){ el.innerHTML='<div class="empty">データなし</div>'; return; }
+      names.sort(function(a,b){ var ra=rec[a]||0, rb=rec[b]||0; if(rb!==ra) return rb-ra; return tot[b]-tot[a]; });
+      var max=1; names.forEach(function(k){ max=Math.max(max, tot[k]); });
+      el.innerHTML=names.map(function(k){
+        var t=tot[k], rc=rec[k]||0, w=Math.round(t/max*100);
+        var badge = rc>0 ? '<span class="badge">●募集中</span>' : '';
+        var num = t + (rc>0 ? ' <span class="rc">+'+rc+'</span>' : '');
+        return '<div class="bd"><div class="bl">'+esc(k)+badge+'</div><div class="bb"><div class="bf'+(rc>0?' on':'')+'" style="width:'+Math.max(w,4)+'%"></div></div><div class="bn">'+num+'</div></div>';
+      }).join('');
     }
     function setF(s){ activeFunnel=s; renderList(); }
     function doRefresh(){
