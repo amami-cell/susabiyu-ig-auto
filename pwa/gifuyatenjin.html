@@ -82,11 +82,15 @@
 <div class="sect">① 投稿（フィード）確認 ・ 12本</div>
 <div class="grid" id="grid"></div>
 
-<div class="sect">② ストーリー確認（動画・15パターン）</div>
-<div class="note" style="margin-top:6px">にぎやかな大衆酒場イメージの縦型ストーリー動画（各15秒・ゆるいズーム＋BGM）。タップで再生できます。この15パターンから使うものを<b>抜粋</b>してください。上下はストーリーUI（アイコン・返信欄）に隠れない配置です。</div>
+<div class="sect">② 動きのあるストーリー（写真が切り替わる・5本）★おすすめ</div>
+<div class="note" style="margin-top:6px">三条と同じ演出エンジンで、ぎふやの写真・料理名・ロゴに差し替えて書き出した<b>動く</b>ストーリーです（写真が次々切り替わる／札や文字が動く）。タップで再生。この中から使うものを<b>抜粋</b>してください。</div>
+<div class="sgrid" id="dgrid"></div>
+
+<div class="sect">③ ストーリー・デザインパターン（静止ベース・15本）</div>
+<div class="note" style="margin-top:6px">こちらは1枚写真＋ゆるいズームの静止ベース版（各15秒）。デザインの型の参考用です。</div>
 <div class="sgrid" id="sgrid"></div>
 
-<div class="sect">③ パターン見本 ・ デザインの型</div>
+<div class="sect">④ パターン見本 ・ デザインの型</div>
 <div class="note" style="margin-top:6px">ぎふやは「短冊（メイン）」＋名物2品を「H 巨大縦書き」で構成しています。上の①フィードがその混在版です。</div>
 <div class="pgrid" id="pgrid"></div>
 
@@ -173,7 +177,27 @@
     c.appendChild(img); c.appendChild(body); body.appendChild(btn); g.appendChild(c);
   });
 
-  // ② ストーリー（縦9:16・動画15パターン）— にぎやかな大衆酒場イメージ
+  // ② 動きのあるストーリー（Remotion・写真が切り替わる）
+  var DYNVIDS = [
+    {t:"回転（コンベア）",   d:"写真が2レーンで流れる・のれん→ロゴ締め"},
+    {t:"にぎやか貼付け",     d:"写真がポラロイドで次々貼られる手書き風"},
+    {t:"グリッド→ズーム",   d:"メニュー並べ→タップで1品ズーム"},
+    {t:"新聞・切り抜き",     d:"スポーツ新聞風・写真が飛び込む"},
+    {t:"短冊・貼り上げ",     d:"木札に写真を貼り上げていく"}
+  ];
+  var dg = document.getElementById("dgrid");
+  DYNVIDS.forEach(function (p, i) {
+    var n = String(i + 1).padStart(2, "0");
+    var c = document.createElement("div"); c.className = "scard";
+    var v = document.createElement("video");
+    v.src = "gifuya/dv_" + n + ".mp4"; v.controls = true; v.playsInline = true;
+    v.preload = "metadata"; v.setAttribute("webkit-playsinline", "");
+    var st = document.createElement("div"); st.className = "st"; st.textContent = "D" + (i + 1) + " " + p.t;
+    var sn = document.createElement("div"); sn.className = "sn"; sn.textContent = p.d;
+    c.appendChild(v); c.appendChild(st); c.appendChild(sn); dg.appendChild(c);
+  });
+
+  // ③ ストーリー（縦9:16・静止ベース15パターン）— にぎやかな大衆酒場イメージ
   var STORYVIDS = [
     {t:"統一",        d:"基本形。ロゴ＋見出し＋料理名"},
     {t:"巨大縦書き",  d:"料理名を大きく縦書き・和"},
