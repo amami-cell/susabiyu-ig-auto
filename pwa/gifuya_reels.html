@@ -78,6 +78,7 @@
 <script>
 (function(){
   "use strict";
+  var V = "?v=91";  // メディアのキャッシュ更新用
   var LIVE = !!window.GIFUYA_LIVE;   // 専用GAS注入後に実データ連携へ切替予定（現状は見本）
   var COMMON = "#ぎふや #ぎふや福岡天神店 #大衆酒場 #天神グルメ #福岡グルメ #天神居酒屋 #福岡居酒屋 #天神 #福岡 #天神飲み #大正5年創業 #fukuoka #tenjin #fukuokafood";
   var toastEl=document.getElementById("toast"),toastT=null;
@@ -133,7 +134,7 @@
       var c=document.createElement("div"); c.className="card"+(p.reco?" reco":"");
       var media = kind==="feed"
         ? '<div class="mediaWrap feed"><img loading="lazy" src="gifuya/'+p.img+'" alt=""></div>'
-        : '<div class="mediaWrap reel"><video src="gifuya/'+p.vid+'" controls playsinline preload="metadata" webkit-playsinline></video></div>';
+        : '<div class="mediaWrap reel"><video src="gifuya/'+p.vid+V+'" controls playsinline preload="metadata" webkit-playsinline></video></div>';
       c.innerHTML =
         (p.reco?'<div class="reco-badge">★ おすすめ</div>':'')+
         '<div class="chead"><span class="kind'+(kind==="reel"?" reel":"")+'">'+(kind==="feed"?"フィード":"リール")+'</span>'+
