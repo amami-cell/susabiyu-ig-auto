@@ -76,15 +76,24 @@
   .gfilter button{border:none;background:transparent;color:var(--sub);font-size:14px;font-weight:800;padding:11px 24px;border-radius:999px;transition:.12s;white-space:nowrap}
   .gfilter button.sel{background:#10301f;color:var(--accent)}
   .gsub{font-size:13px;font-weight:800;color:var(--accent);margin:6px 2px 10px;border-left:3px solid #1f4d33;padding-left:9px}
-  .ggrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:12px;margin-bottom:8px}
+  .glist{display:flex;flex-direction:column;gap:14px;margin-bottom:8px}
   #gallery.fvid .gimg{display:none}
   #gallery.fimg .gvid{display:none}
   #gallery.fvid .gsub.imgonly,#gallery.fimg .gsub.vidonly{display:none}
-  .gcard{background:#14110c;border:1px solid #241f16;border-radius:12px;overflow:hidden}
-  .gcard img,.gcard video{width:100%;aspect-ratio:9/16;object-fit:cover;display:block;background:#000}
-  .gcard.feed img{aspect-ratio:4/5}
-  .gcard .gt{padding:8px 10px 2px;font-size:12px;font-weight:700;color:#e8e0d0}
-  .gcard .gd{padding:0 10px 9px;font-size:11px;color:#9a917f}
+  .gcard{background:#14110c;border:1px solid #241f16;border-radius:16px;overflow:hidden;padding-bottom:12px}
+  .gcard .gmedia{width:100%;aspect-ratio:9/16;max-height:62vh;object-fit:cover;display:block;background:#000}
+  .gcard.feed .gmedia{aspect-ratio:4/5;max-height:none}
+  .gchead{display:flex;align-items:center;gap:8px;padding:10px 12px 0}
+  .gcard .gt{font-size:14px;font-weight:800;color:#e8e0d0;flex:1;min-width:0}
+  .gstate{font-size:12px;font-weight:800;padding:3px 11px;border-radius:999px;flex:0 0 auto}
+  .gstate.on{color:var(--accent);background:#10301f}
+  .gstate.off{color:#aeb6c2;background:#23262d}
+  .gcard .gd{padding:2px 12px 0;font-size:12px;color:#9a917f}
+  .seg{display:flex;gap:8px;margin:11px 12px 0}
+  .seg button{flex:1;border:2px solid var(--line);background:transparent;color:var(--sub);border-radius:13px;padding:12px 0;font-size:14px;font-weight:800;transition:.15s}
+  .seg button:active{transform:scale(.97)}
+  .seg .seg-on.sel{background:var(--ok);border-color:var(--ok);color:#fff;box-shadow:0 4px 14px rgba(31,157,85,.35)}
+  .seg .seg-off.sel{background:#c0473a;border-color:#c0473a;color:#fff;box-shadow:0 4px 14px rgba(192,71,58,.35)}
   /* ===== レポート ===== */
   #report{padding:14px 12px 36px;max-width:560px;margin:0 auto}
   .rephint{color:var(--sub);font-size:12px;text-align:center;margin:0 4px 14px;line-height:1.6}
@@ -278,36 +287,53 @@
     gal.className=b.dataset.f; filt.querySelectorAll("button").forEach(function(x){x.classList.remove("sel");}); b.classList.add("sel");
     window.scrollTo({top:0,behavior:"smooth"}); }; });
 
+  var gnote = document.createElement("div"); gnote.className="note";
+  gnote.innerHTML = "三条と同じ<b>見本ギャラリー</b>です。各見本を <b>採用する / 無しにする</b> で選ぶと、投稿ローテーションに入れる／外すを指定できます（見本モードのため選択状態のみ保存）。上の <b>動画／画像</b> で絞り込めます。";
+  gal.appendChild(gnote);
   function sub(txt, cls){ var s=document.createElement("div"); s.className="gsub"+(cls?" "+cls:""); s.textContent=txt; gal.appendChild(s); }
-  function grid(){ var g=document.createElement("div"); g.className="ggrid"; gal.appendChild(g); return g; }
+  function list(){ var g=document.createElement("div"); g.className="glist"; gal.appendChild(g); return g; }
+  // 1枚のカード（メディア＋採用する/無しにする）。三条の見本カードと同じ操作。
+  function card(container, kind, feed, mediaHtml, title, desc, on){
+    var c=document.createElement("div"); c.className="gcard "+kind+(feed?" feed":"");
+    c.innerHTML =
+      mediaHtml+
+      '<div class="gchead"><span class="gt">'+title+'</span><span class="gstate '+(on?"on":"off")+'">'+(on?"採用中":"無し")+'</span></div>'+
+      (desc?'<div class="gd">'+desc+'</div>':'')+
+      '<div class="seg"><button class="seg-on'+(on?" sel":"")+'">採用する</button><button class="seg-off'+(on?"":" sel")+'">無しにする</button></div>';
+    var st=c.querySelector(".gstate"), bon=c.querySelector(".seg-on"), boff=c.querySelector(".seg-off");
+    function set(v){ st.className="gstate "+(v?"on":"off"); st.textContent=v?"採用中":"無し";
+      bon.classList.toggle("sel",v); boff.classList.toggle("sel",!v); }
+    bon.onclick=function(){ set(true); toast("採用にしました（見本）"); };
+    boff.onclick=function(){ set(false); toast("無しにしました（見本）"); };
+    container.appendChild(c);
+  }
 
-  // 動画：動きのあるストーリー
+  // 動画：動きのあるストーリー（既定=採用中）
   sub("動きのあるストーリー（5本）★おすすめ","vidonly");
-  var g1=grid();
-  DYNVIDS.forEach(function(v){ var c=document.createElement("div"); c.className="gcard gvid";
-    c.innerHTML='<video src="gifuya/dv_'+v.n+'.mp4" controls playsinline preload="metadata" webkit-playsinline></video>'+
-      '<div class="gt">D'+(+v.n)+' '+v.t+'</div><div class="gd">'+v.d+'</div>'; g1.appendChild(c); });
-  // 動画：静止ベースのストーリー
+  var g1=list();
+  DYNVIDS.forEach(function(v){ card(g1,"gvid",false,
+    '<video class="gmedia" src="gifuya/dv_'+v.n+'.mp4" controls playsinline preload="metadata" webkit-playsinline></video>',
+    "D"+(+v.n)+" "+v.t, v.d, true); });
+  // 動画：静止ベースのストーリー（既定=無し＝代替案）
   sub("ストーリー・デザインパターン（静止ベース・15本）","vidonly");
-  var g2=grid();
-  STORYVIDS.forEach(function(t,i){ var n=String(i+1).padStart(2,"0"); var c=document.createElement("div"); c.className="gcard gvid";
-    c.innerHTML='<video src="gifuya/sv_'+n+'.mp4" controls playsinline preload="metadata" webkit-playsinline></video>'+
-      '<div class="gt">S'+(i+1)+' '+t+'</div>'; g2.appendChild(c); });
+  var g2=list();
+  STORYVIDS.forEach(function(t,i){ var n=String(i+1).padStart(2,"0"); card(g2,"gvid",false,
+    '<video class="gmedia" src="gifuya/sv_'+n+'.mp4" controls playsinline preload="metadata" webkit-playsinline></video>',
+    "S"+(i+1)+" "+t, "", false); });
   // 動画：フェード
   sub("フェード動画（リール見本）","vidonly");
-  var g3=grid();
-  var fc=document.createElement("div"); fc.className="gcard gvid";
-  fc.innerHTML='<video src="gifuya/fade.mp4" controls playsinline preload="metadata" webkit-playsinline></video><div class="gt">フェード見本</div>'; g3.appendChild(fc);
+  var g3=list();
+  card(g3,"gvid",false,'<video class="gmedia" src="gifuya/fade.mp4" controls playsinline preload="metadata" webkit-playsinline></video>',"フェード見本","",true);
   // 画像：投稿（フィード）見本
   sub("投稿（フィード）見本・12本","imgonly");
-  var g4=grid();
-  POSTS.forEach(function(p,i){ var c=document.createElement("div"); c.className="gcard gimg feed";
-    c.innerHTML='<img loading="lazy" src="gifuya/'+p.img+'" alt=""><div class="gt">'+(i+1)+' '+p.t+'</div>'; g4.appendChild(c); });
+  var g4=list();
+  POSTS.forEach(function(p,i){ card(g4,"gimg",true,
+    '<img class="gmedia" loading="lazy" src="gifuya/'+p.img+'" alt="">', (i+1)+" "+p.t, "", true); });
   // 画像：デザインの型
   sub("パターン見本・デザインの型","imgonly");
-  var g5=grid();
-  PATTERNS.forEach(function(p){ var c=document.createElement("div"); c.className="gcard gimg feed";
-    c.innerHTML='<img loading="lazy" src="gifuya/'+p.img+'" alt=""><div class="gt">'+p.t+'</div><div class="gd">'+p.d+'</div>'; g5.appendChild(c); });
+  var g5=list();
+  PATTERNS.forEach(function(p){ card(g5,"gimg",true,
+    '<img class="gmedia" loading="lazy" src="gifuya/'+p.img+'" alt="">', p.t, p.d, true); });
 
   // ===== ③ レポート（三条と同じ体裁・サンプル値） =====
   var rep = document.getElementById("report");
