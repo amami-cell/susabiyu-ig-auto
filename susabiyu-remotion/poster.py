@@ -383,9 +383,11 @@ def guard_account(account):
         print("[GUARD] アカウント '%s' 異常: %s" % (account, me.get("error")))
     return ok
 
-def token_alive():
-    """今使うトークンが実際にIG投稿に使えるかを返す（必要ならこの中で更新も行う）。"""
-    return _me_ok(fresh_token())[0]
+def token_alive(account=""):
+    """今使うトークンが実際にIG投稿に使えるかを返す（必要ならこの中で更新も行う）。
+       account 未指定は従来どおり三条トークンを判定（挙動不変）。"""
+    t = fresh_token_for(account) if account else fresh_token()
+    return _me_ok(t)[0] if t else False
 
 def token_reset():
     """保存済みトークンをクリアし、基底(Secret)トークンで再取得し直す（再発行後の復旧用）。"""
@@ -502,10 +504,12 @@ def line_notify(text):
     except Exception as e:
         print("[LINE]", e)
 
-def post(media, is_video, phrase="", slot="", pattern=""):
-    token = fresh_token()
+def post(media, is_video, phrase="", slot="", pattern="", account=""):
+    # account 未指定（既定＝三条）は従来どおり fresh_token()（挙動不変）。
+    # account 指定時は店舗別トークン（IG_ACCESS_TOKEN_<ACCOUNT> / AcctTokens）で投稿。
+    token = fresh_token_for(account) if account else fresh_token()
     if not token:
-        print("NG: IG_ACCESS_TOKEN が見つかりません（../.env を確認）"); return False
+        print("NG: IG_ACCESS_TOKEN が見つかりません（account=%r / ../.env を確認）" % account); return False
     # 投稿画像はIGサーバが確実に取得できる永続CDN(jsDelivr→R2)を優先。
     # litterbox等の一時ホストはIGが取得に失敗し code1「unknown error」になることがあるため、
     # 永続CDNが全滅した時だけ一時ホストにフォールバックする。

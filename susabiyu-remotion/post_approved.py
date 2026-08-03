@@ -4,7 +4,10 @@ import poster
 import prepare
 
 JST = datetime.timezone(datetime.timedelta(hours=9))
-SHEET_ID = "13zKaUblOwmgZ-lgCfxylCLlW2Fqutqct5h5TvMRWv30"
+# 既定＝三条シート。STORE_SHEET_ID を渡した店舗（ぎふや等）はそのシートを使う（未設定なら三条＝挙動不変）。
+SHEET_ID = os.environ.get("STORE_SHEET_ID") or "13zKaUblOwmgZ-lgCfxylCLlW2Fqutqct5h5TvMRWv30"
+# 投稿アカウント。空＝三条（fresh_token・挙動不変）。"gifuyatenjin" 等でIG_ACCESS_TOKEN_<ACCOUNT>/AcctTokensを使用。
+STORE_ACCOUNT = os.environ.get("STORE_ACCOUNT", "").strip()
 APP_TAB = prepare.APP_TAB  # 承認待
 DRY = os.environ.get("DRY") == "1"
 MAX_REDO = 5
@@ -367,9 +370,9 @@ def main():
 
     # トークンが失効している時は、生成も投稿もせず枠はpendingのまま残し、
     # はっきりした通知を1日1回だけ出す（毎回の投稿失敗スパムを防ぐ・復旧後に自動投稿）。
-    if not DRY and not poster.token_alive():
+    if not DRY and not poster.token_alive(STORE_ACCOUNT):
         poster.alert_token_dead()
-        print("IGトークン失効のため投稿スキップ（枠はpendingのまま・復旧後に自動投稿されます）")
+        print("IGトークン失効のため投稿スキップ（枠はpendingのまま・復旧後に自動投稿されます） account=%r" % STORE_ACCOUNT)
         return
 
     fetch, comp, is_video = REG[pattern]
@@ -396,7 +399,7 @@ def main():
                 _, fresh = find_row(sh, when_str)
                 if fresh is not None and len(fresh) > 7 and str(fresh[7]) == "posted":
                     print("\u4ed6\u30c8\u30ea\u30ac\u30fc\u304c\u65e2\u306b\u6295\u7a3f\u6e08 -> \u30b9\u30ad\u30c3\u30d7"); return
-                ok = poster.post(media, is_video, caption, slot, pattern)
+                ok = poster.post(media, is_video, caption, slot, pattern, account=STORE_ACCOUNT)
                 if not ok:
                     raise RuntimeError("IG\u6295\u7a3fAPI\u304c\u5931\u6557\u3092\u8fd4\u3057\u307e\u3057\u305f")
                 posted = True

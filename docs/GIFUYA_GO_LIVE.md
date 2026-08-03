@@ -57,15 +57,27 @@
 - 確認アプリの表示が「実データ連携」（ヘッダ右上）になるか。
 - `予約投稿` に J=gifuyatenjin の行を1件入れ、`reservations.yml`（15分毎）で実投稿されるか（まずは `mode=dry` 推奨）。
 
-## 5. ストーリー自動投稿（保留・触らないこと）
+## 5. ストーリー自動投稿（レバー実装済み・安全ゲート付き）
 
-- ストーリーは別経路: `poster.py:428-456 ig_post()`（`media_type:"STORIES"`）→ `poster.py:505-519 post()`。
-- **`post()` は `fresh_token()`（三条トークン固定）**で、account 引数を持たない（`poster.py:506`）。呼び出しは `post_approved.py:399`＋`post.yml`（三条のみ）。
-- ⇒ **`post()`/`ig_post`/`post.yml` に `IG_ACCESS_TOKEN_GIFUYATENJIN` 経路を足さない限り、ぎふやのストーリーは動かない＝保留のまま安全。**
-- 解禁する時は: `post()` に `account` 引数を追加し `fresh_token_for("gifuyatenjin")` を使用、ぎふや用 `post_approved`/`post.yml` を用意（本手順書のスコープ外）。
+**実装済み（三条は無変更・追加のみ）：**
+- `poster.post(..., account="")` … account 未指定は従来どおり `fresh_token()`（三条）。指定時は `fresh_token_for(account)`（`IG_ACCESS_TOKEN_<ACCOUNT>`/AcctTokens）。
+- `poster.token_alive(account="")` … 同様に account 対応。
+- `post_approved.py` … `STORE_SHEET_ID` / `STORE_ACCOUNT` の env で店舗を切替（未設定＝三条・挙動不変）。
+- `.github/workflows/post_gifuya.yml` … ぎふや専用。cron **11:00 / 17:00 / 20:00 JST**（UTC 02/08/11）。`STORE_ACCOUNT=gifuyatenjin`＋`STORE_SHEET_ID=GIFUYA_SHEET_ID` で共有 `post_approved.py` を“ぎふや口”実行。
+
+**安全ゲート（誤投稿防止）：** 次が全部そろうまで、スケジュールが回っても `gate` ジョブで即スキップ（何も生成・投稿しない）。
+1. リポジトリ変数 **`GIFUYA_STORY_LIVE = 1`**（準備完了後に手動でON）
+2. Secret **`GIFUYA_SHEET_ID`**（ぎふや専用スプレッドシートID＝`承認待ち`タブを持つ）
+3. Secret **`IG_ACCESS_TOKEN_GIFUYATENJIN`**（ぎふやの投稿トークン）
+
+**まだ必要な外部準備（本番でぎふやの“中身”を投稿するため）：**
+- ぎふや専用スプレッドシート（`承認待ち`ほかタブ）と GAS（§1〜§2）。
+- **ぎふやのストーリー生成元**：`承認待ち` にぎふや写真ID/キャプションで枠を作る仕組み（ぎふや用 Drive ジャンル `GIFUYA_GENRE_*_ID`、またはぎふや Remotion データでの生成）。※未整備の間はゲートOFFのまま＝安全。
+- 承認画面：`gifuyatenjin.html` の「確認」タブを GAS `list`/`act` に接続（`GIFUYA_GAS_EXEC_URL` 注入で自動連携）。
 
 ---
 
 ### まとめ
-「実装直前」= 上記 §0 完了・§1〜§2 の外部作成待ち。外部が揃えば §3 の少量フリップで実稼働。
-ストーリーは §5 のレバーに触れない限り保留。
+フィード/リール確認画面・ハッシュタグ取得・ストーリー投稿レバー（11/17/20）＝**コードは実装済み**。
+残りは §0〜§2 の外部作成（スプレッドシート/GAS/Secrets）と、上記「ぎふやストーリー生成元」。
+外部が揃い `GIFUYA_STORY_LIVE=1` にした瞬間、11:00/17:00/20:00 の自動投稿が有効化される（三条は一切無変更）。
