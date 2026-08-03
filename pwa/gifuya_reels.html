@@ -20,6 +20,9 @@
   .bar{display:flex;align-items:center;gap:10px;padding:calc(env(safe-area-inset-top) + 12px) 16px 10px}
   .bar .back{border:1px solid var(--line);background:#181c23;color:var(--fg);font-size:13px;font-weight:800;padding:7px 13px;border-radius:999px;text-decoration:none}
   .bar h1{font-size:16px;font-weight:800;flex:1}
+  .bar .mode{font-size:11px;font-weight:800;padding:4px 10px;border-radius:999px}
+  .bar .mode.live{color:var(--accent);background:#10301f}
+  .bar .mode.demo{color:#d9b25a;background:#241d10}
   .tabs{display:flex;gap:8px;padding:0 14px 12px}
   .tab{flex:1;text-align:center;padding:11px;border-radius:12px;border:1px solid var(--line);background:#141922;color:var(--sub);font-weight:800;font-size:14px}
   .tab.on{background:#12263a;border-color:#2f5a8f;color:#cfe4ff}
@@ -41,19 +44,53 @@
   .mediaWrap img,.mediaWrap video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;background:#000}
   .mediaWrap.feed img{object-fit:contain}
   .cap{font-size:13.5px;line-height:1.6;margin:11px 2px 4px;white-space:pre-wrap;color:#dfe5ee}
-  .tags{font-size:11.5px;color:#8f97c0;word-break:break-all;margin:6px 2px 2px}
+  /* ハッシュタグ */
+  .tagttl{font-size:12.5px;font-weight:800;color:#cfd6e2;margin:12px 2px 7px;display:flex;align-items:center;gap:7px}
+  .tagttl .tcnt{color:var(--accent);font-size:11.5px}
+  .tagsel{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 8px}
+  .tagsel .t{font-size:12px;color:#bfe0cf;background:#12241a;border:1px solid #21402f;border-radius:999px;padding:4px 9px}
+  .tagsel .t.inb{color:#cfe0ff;background:#131f30;border-color:#274063}
+  .tagedit{width:100%;border:1px dashed var(--line);border-radius:11px;background:#12161d;color:#cfd6e2;font-weight:800;font-size:12.5px;padding:9px}
   .acts{display:flex;gap:8px;margin-top:11px}
   .acts button{flex:1;border:0;border-radius:13px;padding:13px 0;font-size:14.5px;font-weight:800;color:#fff}
   .acts .now{background:var(--ok)}
   .acts .resv{background:#2a3547;border:1px solid var(--line);color:#dfe5ee}
   .acts button:active{transform:scale(.97)}
+  .resvbox{display:none;gap:7px;margin-top:9px;align-items:center;flex-wrap:wrap;background:#12161d;border:1px solid var(--line);border-radius:12px;padding:10px}
+  .resvbox.open{display:flex}
+  .resvbox label{font-size:12px;font-weight:800;color:var(--sub);width:100%}
+  .resvbox input{background:#0f1115;border:1px solid var(--line);color:var(--fg);border-radius:9px;padding:9px;font-size:13px;font-family:inherit}
+  .resvbox .go{flex:1;background:var(--rd);border:0;color:#fff;font-weight:800;border-radius:10px;padding:11px;font-size:13.5px}
   .copybtn{margin-top:8px;width:100%;border:1px solid var(--line);border-radius:12px;background:#12161d;color:var(--accent);font-weight:800;font-size:13.5px;padding:11px;display:flex;align-items:center;justify-content:center;gap:7px}
   .copybtn.done{background:#10301f;border-color:#1f4d33}
   .banner{text-align:center;font-size:14.5px;font-weight:800;padding:13px 0;border-radius:13px;margin-top:11px}
   .banner.okb{background:#10301f;color:var(--accent)}
   .banner.ngb{background:#23262d;color:#aeb6c2}
+  /* ハッシュタグ編集モーダル */
+  .modal{position:fixed;inset:0;z-index:40;background:rgba(0,0,0,.55);display:none;align-items:flex-end;justify-content:center}
+  .modal.open{display:flex}
+  .sheet{background:#141922;width:100%;max-width:520px;max-height:88vh;overflow:auto;border-radius:20px 20px 0 0;border:1px solid var(--line);padding:16px 16px calc(env(safe-area-inset-bottom) + 20px)}
+  .sheet h3{font-size:15px;font-weight:900;margin-bottom:4px}
+  .sheet .sub{font-size:12px;color:var(--sub);margin-bottom:12px;line-height:1.6}
+  .tebar{font-size:12px;color:var(--sub);margin-bottom:9px}
+  .tebar b{color:var(--accent)}
+  .fetchbtn{width:100%;border:1px solid #2f5a8f;background:#12263a;color:#cfe4ff;font-weight:800;font-size:13px;border-radius:11px;padding:11px;margin-bottom:6px}
+  .fetchbtn.cd{border-color:var(--line);background:#12161d;color:var(--sub)}
+  .fetchnote{font-size:10.5px;color:#6f7684;line-height:1.6;margin-bottom:12px}
+  .reglabel{font-size:12px;font-weight:800;color:#e0b56e;margin:10px 0 7px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:4px}
+  .regmeta{font-size:10.5px;color:#6f7684;font-weight:600}
+  .rankrow{margin:10px 0 4px}
+  .rankttl{font-size:11.5px;font-weight:800;color:#aab2c0;margin-bottom:6px;display:flex;gap:6px;align-items:center}
+  .rankttl .stars{color:#e0b56e}
+  .chips{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:6px}
+  .chip{border:1px solid var(--line);background:#12161d;color:#cfd6e2;border-radius:999px;padding:6px 11px;font-size:12.5px;font-weight:700;display:flex;align-items:center;gap:5px}
+  .chip.inb{border-style:dashed}
+  .chip.on{background:#10301f;border-color:#1f4d33;color:var(--accent)}
+  .chip .s{font-size:9px;color:#e0b56e}
+  .chip.on .s{color:#7fd1a0}
+  .sheetclose{width:100%;margin-top:14px;border:0;border-radius:12px;background:var(--ok);color:#fff;font-weight:800;font-size:14.5px;padding:13px}
   #toast{position:fixed;left:50%;bottom:calc(env(safe-area-inset-bottom) + 22px);transform:translateX(-50%);
-    background:#000;color:#fff;padding:11px 18px;border-radius:24px;font-size:14px;opacity:0;transition:.2s;pointer-events:none;z-index:30;max-width:90%;text-align:center}
+    background:#000;color:#fff;padding:11px 18px;border-radius:24px;font-size:14px;opacity:0;transition:.2s;pointer-events:none;z-index:60;max-width:90%;text-align:center}
   #toast.show{opacity:.96}
   .foot{color:#6f685d;font-size:10px;text-align:center;padding:6px 0 calc(env(safe-area-inset-bottom) + 16px)}
 </style>
@@ -63,6 +100,7 @@
   <div class="bar">
     <a class="back" href="./gifuyatenjin.html">← 戻る</a>
     <h1>投稿の確認</h1>
+    <span class="mode" id="mode"></span>
   </div>
   <div class="tabs">
     <button class="tab on" id="tFeed">📸 フィード投稿</button>
@@ -71,21 +109,86 @@
 </header>
 
 <div id="wrap"></div>
+
+<!-- ハッシュタグ編集モーダル（三条と同じ） -->
+<div class="modal" id="tagmodal">
+  <div class="sheet">
+    <h3>ハッシュタグを編集</h3>
+    <div class="sub">タップで選択／解除。★＝人気の目安、点線＝インバウンド向け。「今の地域のおすすめ」で天神・福岡の人気タグを取得できます。</div>
+    <div id="tagbody"></div>
+    <button class="sheetclose" id="tagclose">この内容で決定</button>
+  </div>
+</div>
+
 <div id="toast"></div>
-<div class="foot">すさび湯グループ 投稿管理 ・ ぎふや 福岡天神店 ・ 見本モード</div>
+<div class="foot">すさび湯グループ 投稿管理 ・ ぎふや 福岡天神店</div>
 
 <script src="./config.gifuya.js"></script>
 <script>
 (function(){
   "use strict";
-  var V = "?v=98";  // メディアのキャッシュ更新用
-  var LIVE = !!window.GIFUYA_LIVE;   // 専用GAS注入後に実データ連携へ切替予定（現状は見本）
+  var V = "?v=99";  // メディアのキャッシュ更新用
+  var CFG = window.GIFUYA || {};
+  var LIVE = !!window.GIFUYA_LIVE;               // 専用GAS注入済みなら実データ連携
+  var GAS = (CFG.GAS_URL||"").trim();
+  var ACCOUNT = CFG.ACCOUNT || "gifuyatenjin";   // 予約投稿タブ J列 / AcctTokens と一致
   var COMMON = "#ぎふや #ぎふや福岡天神店 #大衆酒場 #天神グルメ #福岡グルメ #天神居酒屋 #福岡居酒屋 #天神 #福岡 #天神飲み #大正5年創業 #fukuoka #tenjin #fukuokafood";
   var toastEl=document.getElementById("toast"),toastT=null;
   function toast(m){ toastEl.textContent=m; toastEl.classList.add("show"); clearTimeout(toastT); toastT=setTimeout(function(){toastEl.classList.remove("show");},1900); }
+  function esc(s){return (s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;").replace(/'/g,"&#39;");}
   function copy(text,cb){ if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(text).then(cb,fb);}else fb();
     function fb(){var ta=document.createElement("textarea");ta.value=text;document.body.appendChild(ta);ta.select();try{document.execCommand("copy");cb();}catch(e){toast("コピーできませんでした");}document.body.removeChild(ta);} }
+  var mode=document.getElementById("mode");
+  mode.textContent = LIVE ? "実データ連携" : "見本モード";
+  mode.className = "mode " + (LIVE ? "live" : "demo");
 
+  /* ---------- 専用GAS(JSONP) ---------- */
+  var jc=0;
+  function gJsonp(params){
+    return new Promise(function(resolve,reject){
+      if(!LIVE || !GAS || GAS.indexOf("PASTE_")===0){ reject(new Error("no-backend")); return; }
+      var cb="__gf"+(++jc)+"_"+Date.now(), s=document.createElement("script");
+      var to=setTimeout(function(){cleanup();reject(new Error("timeout"));},14000);
+      function cleanup(){clearTimeout(to);delete window[cb];if(s.parentNode)s.parentNode.removeChild(s);}
+      window[cb]=function(d){cleanup();resolve(d);};
+      if(params.account===undefined) params.account=ACCOUNT;
+      if(!params.key){ try{ params.key=localStorage.getItem("gf_key")||"8888"; }catch(e){ params.key="8888"; } }
+      var q=Object.keys(params).map(function(k){return k+"="+encodeURIComponent(params[k]);}).join("&");
+      s.src=GAS+(GAS.indexOf("?")>=0?"&":"?")+q+"&cb="+cb;
+      s.onerror=function(){cleanup();reject(new Error("network"));};
+      document.head.appendChild(s);
+    });
+  }
+  function absUrl(raw){ if(!raw) return ""; try{ return new URL(raw, location.href).href; }catch(e){ return raw; } }
+
+  /* ---------- ハッシュタグ辞書（福岡・天神／★=人気の目安・点線=インバウンド） ---------- */
+  var HTAGS=[
+    {t:"福岡グルメ",r:3},{t:"天神グルメ",r:3},{t:"飯テロ",r:3},
+    {t:"天神居酒屋",r:2},{t:"福岡居酒屋",r:2},{t:"大衆酒場",r:2},{t:"串かつ",r:2},{t:"明太子",r:2},
+    {t:"ぎふや",r:1},{t:"ぎふや福岡天神店",r:1},{t:"天神飲み",r:1},{t:"福岡飲み",r:1},{t:"大正5年創業",r:1},
+    {t:"fukuoka",r:3,inb:1},{t:"tenjin",r:2,inb:1},{t:"japanfood",r:2,inb:1},{t:"fukuokafood",r:2,inb:1},{t:"japantrip",r:1,inb:1}
+  ];
+  var DEFAULT=["福岡グルメ","天神グルメ","天神居酒屋","串かつ","ぎふや福岡天神店","fukuoka","tenjin"]; // 国内5＋インバウンド2＝7
+  var STAR={3:"★★★",2:"★★",1:"★"}, RANKTTL={3:"人気 大",2:"人気 中",1:"人気 小（上位ねらい）"};
+
+  /* ---------- 地域おすすめタグ（天神・福岡） ---------- */
+  var REGIONAL=[], REG_LIVE=false, REG_UPDATED=0, REG_NEXT=0, REG_COOLDOWN_DAYS=7;
+  var REG_LS={t:"gf_reg_tags",u:"gf_reg_up",n:"gf_reg_nx",l:"gf_reg_live"};
+  var REGION_NAME="天神（福岡）";
+  var REGION_POOL=[
+    {t:"天神ディナー",r:3},{t:"福岡飲み",r:3},{t:"天神ランチ",r:2},{t:"福岡食べ歩き",r:2},
+    {t:"天神居酒屋",r:2},{t:"博多グルメ",r:2},{t:"中洲グルメ",r:1},{t:"大名グルメ",r:1},
+    {t:"今泉グルメ",r:1},{t:"天神晩ごはん",r:1},
+    {t:"fukuokajapan",r:3,inb:1},{t:"fukuokafood",r:3,inb:1},{t:"fukuokagourmet",r:2,inb:1},{t:"tenjinjapan",r:1,inb:1}
+  ];
+  function fmtDT(ms){ if(!ms) return "—"; var d=new Date(ms); return (d.getMonth()+1)+"/"+d.getDate()+" "+d.getHours()+":"+("0"+d.getMinutes()).slice(-2); }
+  function fmtDate(ms){ if(!ms) return "—"; var d=new Date(ms); return (d.getMonth()+1)+"/"+d.getDate(); }
+  function regApply(res,now){ if(res&&res.ok&&res.tags&&res.tags.length){ REGIONAL=res.tags; REG_LIVE=!!res.live; REG_UPDATED=res.updatedAt||now||0; REG_NEXT=res.nextAt||0; return true; } return false; }
+  function regSaveLocal(){ try{ localStorage.setItem(REG_LS.t,JSON.stringify(REGIONAL)); localStorage.setItem(REG_LS.u,String(REG_UPDATED)); localStorage.setItem(REG_LS.n,String(REG_NEXT)); localStorage.setItem(REG_LS.l,REG_LIVE?"1":"0"); }catch(e){} }
+  function regLoadLocal(){ try{ var t=JSON.parse(localStorage.getItem(REG_LS.t)||"null"); if(t&&t.length){ REGIONAL=t; REG_UPDATED=+localStorage.getItem(REG_LS.u)||0; REG_NEXT=+localStorage.getItem(REG_LS.n)||0; REG_LIVE=localStorage.getItem(REG_LS.l)==="1"; } }catch(e){} }
+  function loadRegional(){ regLoadLocal(); gJsonp({api:"regionaltags", region:REGION_NAME, peek:1}).then(function(res){ if(regApply(res,Date.now())) regSaveLocal(); }).catch(function(){}); }
+
+  /* ---------- 候補データ（実データ接続時は cands で差し替え可能） ---------- */
   var FEED = [
     {img:"feed_01.jpg", t:"元祖どぶ漬けどてかつ", reco:true,
      cap:"名物、元祖どぶ漬けどてかつ🍢\n秘伝の自家製どて味噌にどっぷり漬け込んだ一本。安くて旨い、まずは一杯。",
@@ -115,14 +218,76 @@
      tags:"#天神飲み #福岡居酒屋 #串かつ #大衆酒場"}
   ];
 
+  /* ---------- ハッシュタグ編集（別画面・全カード共有） ---------- */
+  var activeCard=null;
+  function chip(h,sel){ return '<button class="chip'+(sel[h.t]?" on":"")+(h.inb?" inb":"")+'" data-t="'+esc(h.t)+'"><span>#'+esc(h.t)+'</span>'+(h.r?'<span class="s">'+STAR[h.r]+'</span>':"")+'</button>'; }
+  function renderTagEditor(){
+    var sel=activeCard._sel, body=document.getElementById("tagbody");
+    var now=Date.now(), cd=(REG_NEXT&&now<REG_NEXT);
+    var btnTxt=cd?("🔒 取得済み（次回取得可能 "+fmtDate(REG_NEXT)+"）"):"🔄 今の天神・福岡のおすすめを取得";
+    var html='<div class="tebar">選択中 <b class="tesel">'+Object.keys(sel).length+'</b> 個 ／ 点線＝インバウンド</div>'+
+      '<button class="fetchbtn'+(cd?" cd":"")+'" id="fetchreg">'+btnTxt+'</button>'+
+      '<div class="fetchnote">※「今の人気（Instagram調べ）」はInstagram Graph APIの制限で、ハッシュタグ検索が7日で30個まで。1人が取得すると全員に共有され、次回取得可能日が出ます。'+(LIVE?"":"（見本モードでは地域おすすめを表示）")+'</div>';
+    if(REGIONAL.length){
+      var rlab=REG_LIVE?"🔥 最新取得（Instagram調べ）":"🕘 最新取得（地域おすすめ）";
+      var nextTxt=cd?('次回取得可能 '+fmtDate(REG_NEXT)):'🔄 今すぐ再取得できます';
+      html+='<div class="reglabel">'+rlab+'<span class="regmeta">更新 '+fmtDT(REG_UPDATED)+' ・ '+nextTxt+'</span></div><div class="chips">';
+      REGIONAL.forEach(function(h){ html+=chip(h,sel); }); html+='</div>';
+    }
+    [3,2,1].forEach(function(r){
+      var items=HTAGS.filter(function(h){return h.r===r;});
+      html+='<div class="rankrow"><div class="rankttl"><span class="stars">'+STAR[r]+'</span>'+RANKTTL[r]+'</div><div class="chips">';
+      items.forEach(function(h){ html+=chip(h,sel); });
+      html+='</div></div>';
+    });
+    body.innerHTML=html;
+    body.querySelectorAll(".chip").forEach(function(ch){ ch.onclick=function(){ var t=ch.getAttribute("data-t"); if(sel[t]){delete sel[t];ch.classList.remove("on");}else{sel[t]=1;ch.classList.add("on");} body.querySelector(".tesel").textContent=Object.keys(sel).length; }; });
+    document.getElementById("fetchreg").onclick=fetchRegional;
+  }
+  function fetchRegional(){
+    var now=Date.now();
+    if(REG_NEXT&&now<REG_NEXT){ toast("すでに取得済みです（次回取得可能 "+fmtDate(REG_NEXT)+"）"); renderTagEditor(); return; }
+    var btn=document.getElementById("fetchreg"); if(btn){ btn.disabled=true; btn.textContent="🔎 "+REGION_NAME+"の人気タグを調べています…"; }
+    gJsonp({api:"regionaltags", region:REGION_NAME}).then(function(res){
+      var ok=regApply(res,now);
+      if(!ok){ REGIONAL=REGION_POOL; REG_LIVE=false; REG_UPDATED=now; REG_NEXT=now+REG_COOLDOWN_DAYS*864e5; }
+      regSaveLocal(); renderTagEditor();
+      toast(REG_LIVE?"最新のおすすめタグを取得・共有しました":"地域のおすすめタグを更新しました");
+    }).catch(function(){
+      REGIONAL=REGION_POOL; REG_LIVE=false; REG_UPDATED=now; REG_NEXT=now+REG_COOLDOWN_DAYS*864e5;
+      regSaveLocal(); renderTagEditor();
+      toast(LIVE?"取得できませんでした。地域おすすめを表示":"地域のおすすめタグを表示（見本）");
+    });
+  }
+  function openTagEditor(card){ activeCard=card; renderTagEditor(); document.getElementById("tagmodal").classList.add("open"); }
+  document.getElementById("tagclose").onclick=function(){ document.getElementById("tagmodal").classList.remove("open"); if(activeCard&&activeCard._refresh) activeCard._refresh(); };
+  document.getElementById("tagmodal").addEventListener("click",function(e){ if(e.target===this){ this.classList.remove("open"); if(activeCard&&activeCard._refresh) activeCard._refresh(); } });
+
+  /* ---------- 実投稿/予約（実データ接続時はGASへ、未接続は見本） ---------- */
+  function doSchedule(kind,it,when,sel,slot,label){
+    var tags=Object.keys(sel).map(function(x){return "#"+x;}).join(" ");
+    var name=it.t||"";
+    var caption=(it.cap||"")+"\n\n"+tags+" "+COMMON;
+    var media=absUrl("gifuya/"+(kind==="feed"?it.img:it.vid));
+    if(LIVE){
+      slot.innerHTML='<div class="banner okb">送信中…</div>';
+      gJsonp({api:"schedule", kind:(kind==="feed"?"feed":"reel"), name:name, when:when, media:media, caption:caption, hashtags:tags}).then(function(res){
+        if(res&&(res.ok||res.result==="ok")){ slot.innerHTML='<div class="banner okb">✓ '+label+'<br><small style="font-weight:600;color:#6fb595">予定時刻に自動投稿されます</small></div>'; toast(label); }
+        else { slot.innerHTML='<div class="banner ngb">送信できませんでした</div>'; toast("失敗しました。再度お試しください"); }
+      }).catch(function(){ slot.innerHTML='<div class="banner ngb">通信エラー</div>'; toast("通信エラー"); });
+    } else {
+      slot.innerHTML='<div class="banner okb">✓ '+label+'（見本）<br><small style="font-weight:600;color:#6fb595">実データ連携後に本当に投稿されます</small></div>'; toast(label+"（見本）");
+    }
+  }
+
   var wrap = document.getElementById("wrap");
   function render(kind){
     wrap.innerHTML="";
     var hint=document.createElement("div"); hint.className="hint";
     hint.innerHTML = (kind==="feed"
-      ? "候補のフィード投稿です。各投稿を <b>今すぐ投稿</b> または <b>日時を決めて予約</b>できます（見本モード）。"
-      : "候補のリール（動画）です。<b>今すぐ投稿</b> または <b>日時を決めて予約</b>できます（見本モード）。")
-      + "<br>※ぎふや福岡天神は連携済み（@gifuya_fukuokatenjin）。ストーリー自動投稿は現在準備中です。";
+      ? "候補のフィード投稿です。ハッシュタグを整えて <b>今すぐ投稿</b> または <b>日時を決めて予約</b>できます。"
+      : "候補のリール（動画）です。<b>今すぐ投稿</b> または <b>日時を決めて予約</b>できます。")
+      + "<br>※ぎふや福岡天神（@gifuya_fukuokatenjin）" + (LIVE?"：実データ連携中。":"：現在は見本モードです。") + "ストーリー自動投稿は準備中。";
     wrap.appendChild(hint);
     var lab=document.createElement("div"); lab.className="seclabel";
     var list = kind==="feed"?FEED:REEL;
@@ -130,7 +295,7 @@
     wrap.appendChild(lab);
 
     list.forEach(function(p,i){
-      var full = p.cap + "\n\n" + p.tags + " " + COMMON;
+      var sel={}; DEFAULT.forEach(function(t){sel[t]=1;}); (p.tags||"").split(/\s+/).forEach(function(x){ x=x.replace(/^#/,""); if(x) sel[x]=1; });
       var c=document.createElement("div"); c.className="card"+(p.reco?" reco":"");
       var media = kind==="feed"
         ? '<div class="mediaWrap feed"><img loading="lazy" src="gifuya/'+p.img+'" alt=""></div>'
@@ -138,22 +303,39 @@
       c.innerHTML =
         (p.reco?'<div class="reco-badge">★ おすすめ</div>':'')+
         '<div class="chead"><span class="kind'+(kind==="reel"?" reel":"")+'">'+(kind==="feed"?"フィード":"リール")+'</span>'+
-          '<span class="cno">'+(i+1)+' / '+list.length+' ・ '+p.t+'</span></div>'+
+          '<span class="cno">'+(i+1)+' / '+list.length+' ・ '+esc(p.t)+'</span></div>'+
         media+
-        '<div class="cap"></div><div class="tags"></div>'+
+        '<div class="cap"></div>'+
+        '<div class="tagttl">ハッシュタグ <span class="tcnt"></span></div>'+
+        '<div class="tagsel"></div><button class="tagedit">✏️ ハッシュタグを編集</button>'+
+        '<div class="acts"><button class="now">今すぐ投稿</button><button class="resv">日時を決めて予約</button></div>'+
+        '<div class="resvbox"><label>予約日時</label><input type="date" class="rdate"><input type="time" class="rtime" value="18:00"><button class="go">この日時で予約</button></div>'+
         '<div class="slot"></div>'+
         '<button class="copybtn">📋 キャプションをコピー</button>';
       c.querySelector(".cap").textContent = p.cap;
-      c.querySelector(".tags").textContent = p.tags + " " + COMMON;
-      var slot=c.querySelector(".slot");
-      function acts(){
-        slot.innerHTML='<div class="acts"><button class="now">今すぐ投稿</button><button class="resv">日時を決めて予約</button></div>';
-        slot.querySelector(".now").onclick=function(){ slot.innerHTML='<div class="banner okb">✓ 投稿しました（見本）</div>'; toast("投稿しました（見本）"); };
-        slot.querySelector(".resv").onclick=function(){ slot.innerHTML='<div class="banner okb">✓ 予約しました（見本）<br><small style="font-weight:600;color:#6fb595">予定時刻に自動投稿されます</small></div>'; toast("予約しました（見本）"); };
+      c._sel=sel;
+      function refreshSel(){
+        var w=c.querySelector(".tagsel"); w.innerHTML="";
+        var keys=Object.keys(sel);
+        if(!keys.length){ w.innerHTML='<span style="color:#7c8698;font-size:12.5px">（未選択）</span>'; }
+        keys.forEach(function(t){ var inb=HTAGS.concat(REGION_POOL,REGIONAL).some(function(h){return h.t===t&&h.inb;}); var sp=document.createElement("span"); sp.className="t"+(inb?" inb":""); sp.textContent="#"+t; w.appendChild(sp); });
+        c.querySelector(".tcnt").textContent=keys.length+"個";
       }
-      acts();
+      c._refresh=refreshSel; refreshSel();
+      c.querySelector(".tagedit").onclick=function(){ openTagEditor(c); };
+      var slot=c.querySelector(".slot"), rbox=c.querySelector(".resvbox");
+      c.querySelector(".now").onclick=function(){ var d=new Date(); var when=d.getFullYear()+"-"+("0"+(d.getMonth()+1)).slice(-2)+"-"+("0"+d.getDate()).slice(-2)+" "+("0"+d.getHours()).slice(-2)+":"+("0"+d.getMinutes()).slice(-2); doSchedule(kind,p,when,sel,slot,"投稿しました"); };
+      c.querySelector(".resv").onclick=function(){ rbox.classList.toggle("open"); };
+      c.querySelector(".go").onclick=function(){
+        var dd=c.querySelector(".rdate").value, tt=c.querySelector(".rtime").value||"18:00";
+        if(!dd){ toast("予約日を選んでください"); return; }
+        rbox.classList.remove("open");
+        doSchedule(kind,p,dd+" "+tt,sel,slot,"予約しました");
+      };
+      var full = p.cap + "\n\n" + Object.keys(sel).map(function(x){return "#"+x;}).join(" ") + " " + COMMON;
       var cb=c.querySelector(".copybtn");
-      cb.onclick=function(){ copy(full,function(){ cb.textContent="✓ コピーしました"; cb.classList.add("done"); toast("キャプションをコピーしました");
+      cb.onclick=function(){ var f = p.cap + "\n\n" + Object.keys(sel).map(function(x){return "#"+x;}).join(" ") + " " + COMMON;
+        copy(f,function(){ cb.textContent="✓ コピーしました"; cb.classList.add("done"); toast("キャプションをコピーしました");
         setTimeout(function(){ cb.textContent="📋 キャプションをコピー"; cb.classList.remove("done"); },2200); }); };
       wrap.appendChild(c);
     });
@@ -161,6 +343,7 @@
   var tF=document.getElementById("tFeed"), tR=document.getElementById("tReel");
   tF.onclick=function(){ tF.classList.add("on"); tR.classList.remove("on"); render("feed"); window.scrollTo({top:0}); };
   tR.onclick=function(){ tR.classList.add("on"); tF.classList.remove("on"); render("reel"); window.scrollTo({top:0}); };
+  loadRegional();
   render("feed");
 })();
 </script>
