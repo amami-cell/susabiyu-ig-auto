@@ -1,12 +1,11 @@
 name: gifuya-post
 # ぎふや福岡天神店 ストーリー自動投稿（1日3回：11:00 / 17:00 / 20:00 JST）
-# 三条(post.yml)と同じ「承認→自動投稿」の仕組み。共有の post_approved.py を
-# STORE_SHEET_ID / STORE_ACCOUNT の env 上書きで“ぎふや口”として実行する（三条は無変更）。
+# 自己完結版：採用中のぎふやストーリー動画（CDN公開済み）をローテーション投稿する。
+# Googleスプレッドシート/GAS/生成パイプラインは不要。
 #
-# ★安全ゲート：以下がすべて揃うまで、スケジュールが回っても何もしない（誤投稿防止）。
-#   - リポジトリ変数 vars.GIFUYA_STORY_LIVE == '1'（準備完了後に手動でON）
-#   - secrets.GIFUYA_SHEET_ID（ぎふや専用スプレッドシートID／承認待ちタブを持つ）
-#   - secrets.IG_ACCESS_TOKEN_GIFUYATENJIN（ぎふやの投稿トークン）
+# ★必要なのは Secret「IG_ACCESS_TOKEN_GIFUYATENJIN」だけ。
+#   未設定なら gate ジョブで即スキップ（何も投稿しない＝安全）。
+#   登録した瞬間から、次の 11/17/20 の枠で自動投稿が始まる。
 on:
   schedule:
     - cron: '0 2 * * *'    # 11:00 JST
@@ -19,7 +18,7 @@ on:
         required: false
         default: ""
       dry:
-        description: "DRY (1=ON・生成のみ/投稿しない)"
+        description: "DRY (1=ON・URL確認のみ/投稿しない)"
         required: false
         default: "0"
 jobs:
@@ -30,64 +29,36 @@ jobs:
     steps:
       - id: check
         env:
-          LIVE: ${{ vars.GIFUYA_STORY_LIVE }}
-          SHEET: ${{ secrets.GIFUYA_SHEET_ID }}
           TOKEN: ${{ secrets.IG_ACCESS_TOKEN_GIFUYATENJIN }}
         run: |
-          if [ "$LIVE" = "1" ] && [ -n "$SHEET" ] && [ -n "$TOKEN" ]; then
-            echo "go=1" >> "$GITHUB_OUTPUT"; echo "ゲート通過：ぎふやストーリー投稿を実行します。"
+          if [ -n "$TOKEN" ]; then
+            echo "go=1" >> "$GITHUB_OUTPUT"; echo "トークン設定あり：ぎふやストーリー投稿を実行します。"
           else
             echo "go=0" >> "$GITHUB_OUTPUT"
-            echo "スキップ：準備未完（GIFUYA_STORY_LIVE=$LIVE / SHEET設定=$([ -n "$SHEET" ] && echo yes || echo no) / TOKEN設定=$([ -n "$TOKEN" ] && echo yes || echo no)）。誤投稿防止のため何もしません。"
+            echo "スキップ：IG_ACCESS_TOKEN_GIFUYATENJIN 未設定。登録すると11/17/20の自動投稿が始まります。"
           fi
   post:
     needs: gate
     if: needs.gate.outputs.go == '1'
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 15
     defaults:
       run:
         working-directory: susabiyu-remotion
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '20'
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
       - name: Install Python deps
-        run: pip install google-api-python-client google-auth requests jpholiday Pillow boto3
-      - name: Install Node deps
-        run: npm ci
-      - name: Write creds.json
-        run: echo "$GOOGLE_CREDS_B64" | base64 -d > creds.json
+        run: pip install requests google-api-python-client google-auth jpholiday Pillow boto3
+      - name: Post gifuya story (rotation)
         env:
-          GOOGLE_CREDS_B64: ${{ secrets.GOOGLE_CREDS_B64 }}
-      - name: Run gifuya post (approved -> story)
-        env:
-          GOOGLE_CREDS_B64: ${{ secrets.GOOGLE_CREDS_B64 }}
-          # ── ぎふや口の切替（ここが要）──
-          STORE_ACCOUNT: gifuyatenjin
-          STORE_SHEET_ID: ${{ secrets.GIFUYA_SHEET_ID }}
           IG_ACCESS_TOKEN_GIFUYATENJIN: ${{ secrets.IG_ACCESS_TOKEN_GIFUYATENJIN }}
-          # 生成に使う設定（ぎふや専用があればそれを、無ければ三条既定にフォールバック）
-          GENRE_FOOD_ID: ${{ secrets.GIFUYA_GENRE_FOOD_ID || secrets.GENRE_FOOD_ID }}
-          GENRE_SAKE_ID: ${{ secrets.GIFUYA_GENRE_SAKE_ID || secrets.GENRE_SAKE_ID }}
-          GENRE_INTERIOR_ID: ${{ secrets.GIFUYA_GENRE_INTERIOR_ID || secrets.GENRE_INTERIOR_ID }}
-          GENRE_EVENT_ID: ${{ secrets.GIFUYA_GENRE_EVENT_ID || secrets.GENRE_EVENT_ID }}
-          GENRE_MUSIC_UPTEMPO_ID: ${{ secrets.GIFUYA_GENRE_MUSIC_UPTEMPO_ID || secrets.GENRE_MUSIC_UPTEMPO_ID }}
-          GENRE_MUSIC_NORMAL_ID: ${{ secrets.GIFUYA_GENRE_MUSIC_NORMAL_ID || secrets.GENRE_MUSIC_NORMAL_ID }}
+          GIFUYA_MEDIA_BASE: ${{ vars.GIFUYA_MEDIA_BASE }}
           LINE_CHANNEL_TOKEN: ${{ secrets.LINE_CHANNEL_TOKEN }}
-          R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
-          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
-          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
-          R2_BUCKET: ${{ secrets.R2_BUCKET }}
-          R2_PUBLIC_BASE: ${{ secrets.R2_PUBLIC_BASE }}
-          GH_MEDIA_TOKEN: ${{ secrets.GH_MEDIA_TOKEN }}
-          GH_MEDIA_REPO: ${{ secrets.GH_MEDIA_REPO }}
           DRY: ${{ github.event.inputs.dry }}
-        run: python post_approved.py creds.json "${{ github.event.inputs.datetime }}"
+        run: python post_gifuya_story.py "${{ github.event.inputs.datetime }}"
       - name: 失敗をLINE通知
         if: failure()
         env:

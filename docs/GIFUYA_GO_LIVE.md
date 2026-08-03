@@ -57,27 +57,29 @@
 - 確認アプリの表示が「実データ連携」（ヘッダ右上）になるか。
 - `予約投稿` に J=gifuyatenjin の行を1件入れ、`reservations.yml`（15分毎）で実投稿されるか（まずは `mode=dry` 推奨）。
 
-## 5. ストーリー自動投稿（レバー実装済み・安全ゲート付き）
+## 5. ストーリー自動投稿（自己完結版・スプレッドシート/GAS 不要）
 
-**実装済み（三条は無変更・追加のみ）：**
-- `poster.post(..., account="")` … account 未指定は従来どおり `fresh_token()`（三条）。指定時は `fresh_token_for(account)`（`IG_ACCESS_TOKEN_<ACCOUNT>`/AcctTokens）。
-- `poster.token_alive(account="")` … 同様に account 対応。
-- `post_approved.py` … `STORE_SHEET_ID` / `STORE_ACCOUNT` の env で店舗を切替（未設定＝三条・挙動不変）。
-- `.github/workflows/post_gifuya.yml` … ぎふや専用。cron **11:00 / 17:00 / 20:00 JST**（UTC 02/08/11）。`STORE_ACCOUNT=gifuyatenjin`＋`STORE_SHEET_ID=GIFUYA_SHEET_ID` で共有 `post_approved.py` を“ぎふや口”実行。
+**方針変更：** 承認フロー（Sheet/GAS）を使わず、**採用中のぎふやストーリー動画（CDN公開済み）をローテーションで自動投稿**する自己完結版にした。運用者の準備は **トークン1個だけ**。
 
-**安全ゲート（誤投稿防止）：** 次が全部そろうまで、スケジュールが回っても `gate` ジョブで即スキップ（何も生成・投稿しない）。
-1. リポジトリ変数 **`GIFUYA_STORY_LIVE = 1`**（準備完了後に手動でON）
-2. Secret **`GIFUYA_SHEET_ID`**（ぎふや専用スプレッドシートID＝`承認待ち`タブを持つ）
-3. Secret **`IG_ACCESS_TOKEN_GIFUYATENJIN`**（ぎふやの投稿トークン）
+**実装済み：**
+- `susabiyu-remotion/post_gifuya_story.py` … ぎふやストーリー動画（`dv_01/03/04/05/07/08/09/12/14/15`）を日付ベースのローテーションで選び、`poster.ig_post()` で `media_type:STORIES` 投稿。Sheet/GAS/生成パイプライン不要。
+- `.github/workflows/post_gifuya.yml` … cron **11:00 / 17:00 / 20:00 JST**（UTC 02/08/11）。`gate` で **`IG_ACCESS_TOKEN_GIFUYATENJIN` が設定されている時だけ**実行（未設定なら即スキップ＝安全）。
+- 動画URLは既定で jsDelivr（`cdn.jsdelivr.net/gh/amami-cell/susabiyu-media@main/app/gifuya/…`）。必要なら変数 `GIFUYA_MEDIA_BASE` で差し替え可。
+- 三条の投稿パイプライン（`post.yml` / `post_approved.py` / `poster.post` 既定）は**一切無変更**。`poster.post(account=…)` 等の account 対応は追加のみで、この自己完結版では未使用（将来の承認フロー用に温存）。
 
-**まだ必要な外部準備（本番でぎふやの“中身”を投稿するため）：**
-- ぎふや専用スプレッドシート（`承認待ち`ほかタブ）と GAS（§1〜§2）。
-- **ぎふやのストーリー生成元**：`承認待ち` にぎふや写真ID/キャプションで枠を作る仕組み（ぎふや用 Drive ジャンル `GIFUYA_GENRE_*_ID`、またはぎふや Remotion データでの生成）。※未整備の間はゲートOFFのまま＝安全。
-- 承認画面：`gifuyatenjin.html` の「確認」タブを GAS `list`/`act` に接続（`GIFUYA_GAS_EXEC_URL` 注入で自動連携）。
+**運用者がやること（これだけ）：**
+1. Meta（ぎふやのFB/IG）で **アクセストークンを発行** → GitHub Secret **`IG_ACCESS_TOKEN_GIFUYATENJIN`** に登録。
+   → 登録した瞬間から、次の 11/17/20 の枠で自動投稿が始まる。
+2. （任意）投稿する動画セットや順番を変えたい → `post_gifuya_story.py` の `STORIES` を編集。
+3. （任意・テスト）Actions → gifuya-post → Run workflow → `dry=1` でURLだけ確認 / `dry=0` で即時テスト投稿。
+
+**トークン発行の要点（Instagram Graph API / ストーリー投稿権限）：**
+- ぎふやのInstagramを **プロアカウント（ビジネス/クリエイター）** にし、Facebookページに連携。
+- Meta for Developers でアプリに `instagram_basic` `instagram_content_publish`（+ ページ権限）を付与し、**長期（60日）ユーザーアクセストークン**を取得。
+- そのトークンを `IG_ACCESS_TOKEN_GIFUYATENJIN` に登録。※60日で失効するため、切れたら再登録（三条は `AcctTokens` で自動延命しているので、恒久運用にしたい場合は §1 のぎふやシート＋`AcctTokens` 方式に寄せる）。
 
 ---
 
 ### まとめ
-フィード/リール確認画面・ハッシュタグ取得・ストーリー投稿レバー（11/17/20）＝**コードは実装済み**。
-残りは §0〜§2 の外部作成（スプレッドシート/GAS/Secrets）と、上記「ぎふやストーリー生成元」。
-外部が揃い `GIFUYA_STORY_LIVE=1` にした瞬間、11:00/17:00/20:00 の自動投稿が有効化される（三条は一切無変更）。
+フィード/リール確認画面・ハッシュタグ取得＝実装・反映済み（見本モード、GAS接続で実データ化）。
+**ストーリー自動投稿（11/17/20）＝自己完結で実装・GitHub登録済み。運用者は `IG_ACCESS_TOKEN_GIFUYATENJIN` を登録するだけで稼働**（三条は一切無変更）。
