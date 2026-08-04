@@ -7,7 +7,10 @@
 // STORE_NAME / HANDLE: 画面表示用（実稼働後もそのまま）。
 // ------------------------------------------------------------------
 window.GIFUYA = {
-  GAS_URL: "PASTE_GIFUYA_GAS_EXEC_URL_HERE",   // ←実稼働時に自動注入。未設定なら見本モード
+  // 多店舗共有GAS（三条と同じ /exec）。予約は account="gifuyatenjin" でJ列に書かれ、
+  // 予約投稿エンジン(post_reservations)がぎふやのIGへ振り分ける。地域タグは region で分離。
+  // ※専用GASに切り替えたい場合はこのURLを差し替えるだけ。
+  GAS_URL: "https://script.google.com/macros/s/AKfycbxKn_MUfPgJ0nA8LJPp6YGb2Jehp9G8CpckV5bOAhe3M53eBC3Kle3O3Bf7mFzUJ2TMQw/exec",
   MEDIA_BASE: "PASTE_MEDIA_BASE_HERE",
   STORE_NAME: "ぎふや 福岡天神店",
   HANDLE: "@gifuya_fukuokatenjin",

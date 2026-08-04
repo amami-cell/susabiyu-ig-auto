@@ -500,7 +500,7 @@ function _api_(p) {
       return _jsonp_(cb, { result: _setPattern_(p.pattern, p.on) });
     }
     if (p.api === "schedule")     return _jsonp_(cb, schedCreate_(p));
-    if (p.api === "schedlist")    return _jsonp_(cb, schedList_());
+    if (p.api === "schedlist")    return _jsonp_(cb, schedList_(p.account || ""));
     if (p.api === "schedcancel")  return _jsonp_(cb, schedCancel_(p.token));
     if (p.api === "regionaltags") return _jsonp_(cb, regionalTags_(p.region || "", p.peek === "1"));
     if (p.api === "cands")        return _jsonp_(cb, cands_());
@@ -721,21 +721,24 @@ function _ghDispatch_(workflow, inputs) {
 var RESV_TAB = "予約投稿";
 function schedSheet_() {
   var ss = SpreadsheetApp.openById(SHEET_ID), sh = ss.getSheetByName(RESV_TAB);
-  if (!sh) { sh = ss.insertSheet(RESV_TAB); sh.appendRow(["token", "when", "kind", "media_url", "caption", "hashtags", "status", "created_at", "note"]); }
+  if (!sh) { sh = ss.insertSheet(RESV_TAB); sh.appendRow(["token", "when", "kind", "media_url", "caption", "hashtags", "status", "created_at", "note", "account"]); }
   return sh;
 }
 function schedCreate_(p) {
   var sh = schedSheet_();
   var token = "R" + Utilities.formatDate(new Date(), "Asia/Tokyo", "yyyyMMddHHmmss") + "_" + Math.floor(Math.random() * 1000);
   var kind = (p.kind === "reel") ? "reel" : "feed";
+  var account = String(p.account || "").trim();   // J列: 空=三条 / "gifuyatenjin"=ぎふや（post_reservations が振り分け）
   sh.appendRow([token, String(p.when || "").slice(0, 16), kind, p.media || "", p.caption || "", p.hashtags || "",
-    "scheduled", Utilities.formatDate(new Date(), "Asia/Tokyo", "yyyy-MM-dd HH:mm"), ""]);
+    "scheduled", Utilities.formatDate(new Date(), "Asia/Tokyo", "yyyy-MM-dd HH:mm"), "", account]);
   return { ok: true, token: token };
 }
-function schedList_() {
+function schedList_(account) {
+  var want = String(account || "").trim();          // 店舗別に分離（空=三条・従来どおり）
   var sh = schedSheet_(), v = sh.getDataRange().getValues(), out = [];
   for (var i = 1; i < v.length; i++) {
     if (String(v[i][6]).trim() !== "scheduled") continue;
+    if (String(v[i][9] || "").trim() !== want) continue;
     out.push({ token: v[i][0], when: v[i][1], kind: v[i][2], media: v[i][3], name: (v[i][4] || "").split("\n")[0].slice(0, 24), copy: "" });
   }
   out.sort(function (a, b) { return String(a.when) < String(b.when) ? -1 : 1; });
@@ -768,7 +771,7 @@ function regionalTags_(region, peek) {
   if (saved && Date.now() < saved.nextAt) {
     return { ok: true, tags: saved.tags, updatedAt: saved.updatedAt, nextAt: saved.nextAt, live: saved.live, cooldown: true };
   }
-  var POOL = [
+  var POOL_KYOTO = [
     { t: "京都ディナー", r: 3 }, { t: "河原町グルメ", r: 3 }, { t: "京都飲み", r: 2 }, { t: "京都食べ歩き", r: 2 },
     { t: "河原町ディナー", r: 2 }, { t: "京都寿司", r: 2 }, { t: "京都ランチ", r: 2 }, { t: "三条河原町", r: 1 },
     { t: "先斗町", r: 1 }, { t: "木屋町グルメ", r: 1 }, { t: "河原町居酒屋", r: 1 }, { t: "京都晩ごはん", r: 1 },
@@ -776,6 +779,15 @@ function regionalTags_(region, peek) {
     { t: "japanesefood", r: 2, inb: 1 }, { t: "izakaya", r: 2, inb: 1 }, { t: "kyotorestaurant", r: 1, inb: 1 },
     { t: "kyotonight", r: 1, inb: 1 }, { t: "visitkyoto", r: 1, inb: 1 }, { t: "kawaramachi", r: 1, inb: 1 }
   ];
+  var POOL_FUKUOKA = [
+    { t: "天神ディナー", r: 3 }, { t: "福岡飲み", r: 3 }, { t: "天神ランチ", r: 2 }, { t: "福岡食べ歩き", r: 2 },
+    { t: "天神居酒屋", r: 2 }, { t: "博多グルメ", r: 2 }, { t: "中洲グルメ", r: 1 }, { t: "大名グルメ", r: 1 },
+    { t: "今泉グルメ", r: 1 }, { t: "天神晩ごはん", r: 1 }, { t: "博多飲み", r: 1 }, { t: "福岡ディナー", r: 2 },
+    { t: "fukuokajapan", r: 3, inb: 1 }, { t: "fukuokafood", r: 3, inb: 1 }, { t: "fukuokagourmet", r: 2, inb: 1 },
+    { t: "japanesefood", r: 2, inb: 1 }, { t: "izakaya", r: 2, inb: 1 }, { t: "tenjin", r: 1, inb: 1 },
+    { t: "hakata", r: 1, inb: 1 }, { t: "visitfukuoka", r: 1, inb: 1 }, { t: "fukuoka", r: 3, inb: 1 }
+  ];
+  var POOL = (/福岡|天神|博多|fukuoka|tenjin|hakata/i.test(String(region || ""))) ? POOL_FUKUOKA : POOL_KYOTO;
   var TOKEN = props.getProperty("IG_ACCESS_TOKEN"), IGUSER = props.getProperty("IG_USER_ID");
   var live = false, scored = [];
   for (var i = 0; i < POOL.length; i++) {
