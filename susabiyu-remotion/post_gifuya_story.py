@@ -26,9 +26,26 @@ STORIES = [
 ]
 SLOT_HOURS = [11, 17, 20]           # 1日3回の枠（JST）
 EPOCH = datetime.date(2026, 1, 1)   # ローテーション基準日
+ACCOUNT = "gifuyatenjin"            # AcctTokens / IG_ACCESS_TOKEN_<ACCOUNT> と一致
 
 
 def _token():
+    """三条と同じ自動延命：スプレッドシートの AcctTokens に保存された“延命済み”トークンを使う。
+       Secret（IG_ACCESS_TOKEN_GIFUYATENJIN）は種。7日ごとに fresh_token_for が自動更新して保存するので
+       60日で切れず投稿し続けられる（token_guard も毎日延命）。
+       シート未接続（SHEET_ID/creds なし）の時だけ Secret を直接使う。"""
+    poster.SHEET_ID = os.environ.get("SHEET_ID", poster.SHEET_ID)
+    has_sheet = bool(getattr(poster, "SHEET_ID", "") and
+                     (os.path.exists("creds.json") or os.environ.get("GOOGLE_CREDS_B64")))
+    if has_sheet:
+        try:
+            t = (poster.fresh_token_for(ACCOUNT) or "").strip()
+            if t:
+                return t
+            print("[TOKEN] AcctTokens/Secret のトークンが無効（token_guard が別途通知）。")
+            return ""
+        except Exception as e:
+            print("[TOKEN] fresh_token_for 失敗 -> Secret にフォールバック:", e)
     return (os.environ.get("IG_ACCESS_TOKEN_GIFUYATENJIN") or "").strip()
 
 

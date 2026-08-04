@@ -65,21 +65,22 @@
 - `susabiyu-remotion/post_gifuya_story.py` … ぎふやストーリー動画（`dv_01/03/04/05/07/08/09/12/14/15`）を日付ベースのローテーションで選び、`poster.ig_post()` で `media_type:STORIES` 投稿。Sheet/GAS/生成パイプライン不要。
 - `.github/workflows/post_gifuya.yml` … cron **11:00 / 17:00 / 20:00 JST**（UTC 02/08/11）。`gate` で **`IG_ACCESS_TOKEN_GIFUYATENJIN` が設定されている時だけ**実行（未設定なら即スキップ＝安全）。
 - 動画URLは既定で jsDelivr（`cdn.jsdelivr.net/gh/amami-cell/susabiyu-media@main/app/gifuya/…`）。必要なら変数 `GIFUYA_MEDIA_BASE` で差し替え可。
-- 三条の投稿パイプライン（`post.yml` / `post_approved.py` / `poster.post` 既定）は**一切無変更**。`poster.post(account=…)` 等の account 対応は追加のみで、この自己完結版では未使用（将来の承認フロー用に温存）。
+- 三条の投稿パイプライン（`post.yml` / `post_approved.py` / `poster.post` 既定）は**一切無変更**。`poster.post(account=…)` 等の account 対応は追加のみ。
+
+**トークン自動延命（三条と同じ・実装済み）：**
+- `post_gifuya_story.py` はトークンを **`poster.fresh_token_for("gifuyatenjin")`** で取得。三条の既存スプレッドシートの **`AcctTokens` タブ**に“延命済みトークン”を保存し、**7日ごとに自動更新**する（60日で切れない）。Secret `IG_ACCESS_TOKEN_GIFUYATENJIN` は最初の“種”。
+- さらに `tokenguard.yml`（毎日07:00 JST）の `token_guard.py` が `IG_ACCESS_TOKEN_*` を検出して**毎日 `guard_account` で各店舗トークンを点検＆延命**（ぎふやも対象）。死んだ時だけLINEで1回通知。
+- `post_gifuya.yml` に `SHEET_ID` / `GOOGLE_CREDS_B64` を渡して `AcctTokens` に読み書き（三条の既存シートを再利用＝**新しいGoogleセットアップ不要**。トークンは店舗別に分離保存）。
 
 **運用者がやること（これだけ）：**
-1. Meta（ぎふやのFB/IG）で **アクセストークンを発行** → GitHub Secret **`IG_ACCESS_TOKEN_GIFUYATENJIN`** に登録。
-   → 登録した瞬間から、次の 11/17/20 の枠で自動投稿が始まる。
-2. （任意）投稿する動画セットや順番を変えたい → `post_gifuya_story.py` の `STORIES` を編集。
-3. （任意・テスト）Actions → gifuya-post → Run workflow → `dry=1` でURLだけ確認 / `dry=0` で即時テスト投稿。
-
-**トークン発行の要点（Instagram Graph API / ストーリー投稿権限）：**
-- ぎふやのInstagramを **プロアカウント（ビジネス/クリエイター）** にし、Facebookページに連携。
-- Meta for Developers でアプリに `instagram_basic` `instagram_content_publish`（+ ページ権限）を付与し、**長期（60日）ユーザーアクセストークン**を取得。
-- そのトークンを `IG_ACCESS_TOKEN_GIFUYATENJIN` に登録。※60日で失効するため、切れたら再登録（三条は `AcctTokens` で自動延命しているので、恒久運用にしたい場合は §1 のぎふやシート＋`AcctTokens` 方式に寄せる）。
+1. Meta（ぎふやのFB/IG）で **アクセストークンを発行** → GitHub Secret **`IG_ACCESS_TOKEN_GIFUYATENJIN`** に登録（済）。
+   → 登録した瞬間から 11/17/20 で自動投稿。以後は **自動延命され、原則ずっと切れない**。
+2. （復旧時のみ）万一トークンが完全に無効化されたら（IG側でパスワード変更等）、Secret を新トークンで再登録 → `tokenguard.yml` を `reset` 実行で `AcctTokens` を種から取り直し。
+3. （任意）動画セット/順番を変える → `post_gifuya_story.py` の `STORIES` を編集。
+4. （任意・テスト）Actions → gifuya-post → Run workflow → `dry=1` でURL確認 / `dry=0` で即時テスト投稿。
 
 ---
 
 ### まとめ
 フィード/リール確認画面・ハッシュタグ取得＝実装・反映済み（見本モード、GAS接続で実データ化）。
-**ストーリー自動投稿（11/17/20）＝自己完結で実装・GitHub登録済み。運用者は `IG_ACCESS_TOKEN_GIFUYATENJIN` を登録するだけで稼働**（三条は一切無変更）。
+**ストーリー自動投稿（11/17/20）＝実装・GitHub登録済み・本番投稿確認済み。トークンは三条と同じく `AcctTokens`＋`token_guard` で自動延命**（新規Googleセットアップ不要／三条は一切無変更）。
