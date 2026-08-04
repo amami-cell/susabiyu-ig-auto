@@ -127,12 +127,39 @@
 <script>
 (function(){
   "use strict";
-  var V = "?v=100";  // メディアのキャッシュ更新用
+  var V = "?v=101";  // メディアのキャッシュ更新用
   var CFG = window.GIFUYA || {};
   var LIVE = !!window.GIFUYA_LIVE;               // 専用GAS注入済みなら実データ連携
   var GAS = (CFG.GAS_URL||"").trim();
   var ACCOUNT = CFG.ACCOUNT || "gifuyatenjin";   // 予約投稿タブ J列 / AcctTokens と一致
   var COMMON = "#ぎふや #ぎふや福岡天神店 #大衆酒場 #天神グルメ #福岡グルメ #天神居酒屋 #福岡居酒屋 #天神 #福岡 #天神飲み #大正5年創業 #fukuoka #tenjin #fukuokafood";
+  // 店舗情報テンプレ（各投稿のキャプション末尾に自動追加）。空行の見えない文字(U+2061)はInstagramで改行を保持するため。
+  var TEMPLATE = [
+    "▪️▪️▪️▪️▪️▪️▪️▪️▪️▪️▪️▪️▪️▪️▪️▪️",
+    "⁡",
+    "#ぎふや福岡天神店",
+    "⁡",
+    "営業時間：11:00～23:00",
+    "⁡",
+    "📍福岡県福岡市中央区天神1丁目10番10号",
+    "天神ビジネスセンターⅡ B2F「イナチカ」",
+    "⁡",
+    "🚶地下鉄天神駅から徒歩約3分",
+    "⁡",
+    "▪️▪️▪️▪️▪️▪️▪️▪️▪️▪️▪️▪️▪️▪️▪️▪️",
+    "⁡",
+    "名物の串かつをはじめ、新鮮なお刺身や九州の味覚、お酒に合う逸品料理を豊富にご用意しております🍺"
+  ].join("\n");
+  // 選択ハッシュタグは全カード共有＋端末に保存（更新すると以降の投稿にも反映）。
+  var GSEL_LS = "gf_tags_v1";
+  var GSEL = null;
+  function defaultSel(){ var s={}; for(var i=0;i<DEFAULT.length;i++) s[DEFAULT[i]]=1; return s; }
+  function loadGsel(){ try{ var o=JSON.parse(localStorage.getItem(GSEL_LS)||"null"); if(o&&typeof o==="object"&&Object.keys(o).length) return o; }catch(e){} return null; }
+  function saveGsel(){ try{ localStorage.setItem(GSEL_LS, JSON.stringify(GSEL)); }catch(e){} }
+  function selTags(){ return Object.keys(GSEL).map(function(x){return "#"+x;}).join(" "); }
+  function fullCaption(cap){ return (cap||"") + "\n\n" + selTags() + " " + COMMON + "\n\n" + TEMPLATE; }
+  var refreshers=[];  // 全カードのタグ表示を一括更新するための登録先
+  function refreshAll(){ for(var i=0;i<refreshers.length;i++){ try{ refreshers[i](); }catch(e){} } }
   var toastEl=document.getElementById("toast"),toastT=null;
   function toast(m){ toastEl.textContent=m; toastEl.classList.add("show"); clearTimeout(toastT); toastT=setTimeout(function(){toastEl.classList.remove("show");},1900); }
   function esc(s){return (s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;").replace(/'/g,"&#39;");}
@@ -222,7 +249,7 @@
   var activeCard=null;
   function chip(h,sel){ return '<button class="chip'+(sel[h.t]?" on":"")+(h.inb?" inb":"")+'" data-t="'+esc(h.t)+'"><span>#'+esc(h.t)+'</span>'+(h.r?'<span class="s">'+STAR[h.r]+'</span>':"")+'</button>'; }
   function renderTagEditor(){
-    var sel=activeCard._sel, body=document.getElementById("tagbody");
+    var sel=GSEL, body=document.getElementById("tagbody");
     var now=Date.now(), cd=(REG_NEXT&&now<REG_NEXT);
     var btnTxt=cd?("🔒 取得済み（次回取得可能 "+fmtDate(REG_NEXT)+"）"):"🔄 今の天神・福岡のおすすめを取得";
     var html='<div class="tebar">選択中 <b class="tesel">'+Object.keys(sel).length+'</b> 個 ／ 点線＝インバウンド</div>'+
@@ -260,14 +287,15 @@
     });
   }
   function openTagEditor(card){ activeCard=card; renderTagEditor(); document.getElementById("tagmodal").classList.add("open"); }
-  document.getElementById("tagclose").onclick=function(){ document.getElementById("tagmodal").classList.remove("open"); if(activeCard&&activeCard._refresh) activeCard._refresh(); };
-  document.getElementById("tagmodal").addEventListener("click",function(e){ if(e.target===this){ this.classList.remove("open"); if(activeCard&&activeCard._refresh) activeCard._refresh(); } });
+  function closeTagEditor(){ document.getElementById("tagmodal").classList.remove("open"); saveGsel(); refreshAll(); toast("ハッシュタグを保存しました（以降の投稿にも反映）"); }
+  document.getElementById("tagclose").onclick=closeTagEditor;
+  document.getElementById("tagmodal").addEventListener("click",function(e){ if(e.target===this){ closeTagEditor(); } });
 
   /* ---------- 実投稿/予約（実データ接続時はGASへ、未接続は見本） ---------- */
-  function doSchedule(kind,it,when,sel,slot,label){
-    var tags=Object.keys(sel).map(function(x){return "#"+x;}).join(" ");
+  function doSchedule(kind,it,when,slot,label){
+    var tags=selTags();
     var name=it.t||"";
-    var caption=(it.cap||"")+"\n\n"+tags+" "+COMMON;
+    var caption=fullCaption(it.cap);
     var media=absUrl("gifuya/"+(kind==="feed"?it.img:it.vid));
     if(LIVE){
       slot.innerHTML='<div class="banner okb">送信中…</div>';
@@ -282,7 +310,7 @@
 
   var wrap = document.getElementById("wrap");
   function render(kind){
-    wrap.innerHTML="";
+    wrap.innerHTML=""; refreshers=[];
     var hint=document.createElement("div"); hint.className="hint";
     hint.innerHTML = (kind==="feed"
       ? "候補のフィード投稿です。ハッシュタグを整えて <b>今すぐ投稿</b> または <b>日時を決めて予約</b>できます。"
@@ -295,7 +323,6 @@
     wrap.appendChild(lab);
 
     list.forEach(function(p,i){
-      var sel={}; DEFAULT.forEach(function(t){sel[t]=1;}); (p.tags||"").split(/\s+/).forEach(function(x){ x=x.replace(/^#/,""); if(x) sel[x]=1; });
       var c=document.createElement("div"); c.className="card"+(p.reco?" reco":"");
       var media = kind==="feed"
         ? '<div class="mediaWrap feed"><img loading="lazy" src="gifuya/'+p.img+'" alt=""></div>'
@@ -313,28 +340,26 @@
         '<div class="slot"></div>'+
         '<button class="copybtn">📋 キャプションをコピー</button>';
       c.querySelector(".cap").textContent = p.cap;
-      c._sel=sel;
       function refreshSel(){
         var w=c.querySelector(".tagsel"); w.innerHTML="";
-        var keys=Object.keys(sel);
+        var keys=Object.keys(GSEL);
         if(!keys.length){ w.innerHTML='<span style="color:#7c8698;font-size:12.5px">（未選択）</span>'; }
         keys.forEach(function(t){ var inb=HTAGS.concat(REGION_POOL,REGIONAL).some(function(h){return h.t===t&&h.inb;}); var sp=document.createElement("span"); sp.className="t"+(inb?" inb":""); sp.textContent="#"+t; w.appendChild(sp); });
         c.querySelector(".tcnt").textContent=keys.length+"個";
       }
-      c._refresh=refreshSel; refreshSel();
+      c._refresh=refreshSel; refreshers.push(refreshSel); refreshSel();
       c.querySelector(".tagedit").onclick=function(){ openTagEditor(c); };
       var slot=c.querySelector(".slot"), rbox=c.querySelector(".resvbox");
-      c.querySelector(".now").onclick=function(){ var d=new Date(); var when=d.getFullYear()+"-"+("0"+(d.getMonth()+1)).slice(-2)+"-"+("0"+d.getDate()).slice(-2)+" "+("0"+d.getHours()).slice(-2)+":"+("0"+d.getMinutes()).slice(-2); doSchedule(kind,p,when,sel,slot,"投稿しました"); };
+      c.querySelector(".now").onclick=function(){ var d=new Date(); var when=d.getFullYear()+"-"+("0"+(d.getMonth()+1)).slice(-2)+"-"+("0"+d.getDate()).slice(-2)+" "+("0"+d.getHours()).slice(-2)+":"+("0"+d.getMinutes()).slice(-2); doSchedule(kind,p,when,slot,"投稿しました"); };
       c.querySelector(".resv").onclick=function(){ rbox.classList.toggle("open"); };
       c.querySelector(".go").onclick=function(){
         var dd=c.querySelector(".rdate").value, tt=c.querySelector(".rtime").value||"18:00";
         if(!dd){ toast("予約日を選んでください"); return; }
         rbox.classList.remove("open");
-        doSchedule(kind,p,dd+" "+tt,sel,slot,"予約しました");
+        doSchedule(kind,p,dd+" "+tt,slot,"予約しました");
       };
-      var full = p.cap + "\n\n" + Object.keys(sel).map(function(x){return "#"+x;}).join(" ") + " " + COMMON;
       var cb=c.querySelector(".copybtn");
-      cb.onclick=function(){ var f = p.cap + "\n\n" + Object.keys(sel).map(function(x){return "#"+x;}).join(" ") + " " + COMMON;
+      cb.onclick=function(){ var f = fullCaption(p.cap);
         copy(f,function(){ cb.textContent="✓ コピーしました"; cb.classList.add("done"); toast("キャプションをコピーしました");
         setTimeout(function(){ cb.textContent="📋 キャプションをコピー"; cb.classList.remove("done"); },2200); }); };
       wrap.appendChild(c);
@@ -343,6 +368,7 @@
   var tF=document.getElementById("tFeed"), tR=document.getElementById("tReel");
   tF.onclick=function(){ tF.classList.add("on"); tR.classList.remove("on"); render("feed"); window.scrollTo({top:0}); };
   tR.onclick=function(){ tR.classList.add("on"); tF.classList.remove("on"); render("reel"); window.scrollTo({top:0}); };
+  GSEL = loadGsel() || defaultSel();
   loadRegional();
   render("feed");
 })();
