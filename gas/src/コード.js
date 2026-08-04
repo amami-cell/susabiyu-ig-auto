@@ -504,6 +504,8 @@ function _api_(p) {
     if (p.api === "schedcancel")  return _jsonp_(cb, schedCancel_(p.token));
     if (p.api === "regionaltags") return _jsonp_(cb, regionalTags_(p.region || "", p.peek === "1"));
     if (p.api === "cands")        return _jsonp_(cb, cands_());
+    if (p.api === "storyset")     return _jsonp_(cb, storySet_(p.account || "", p.slot || "", p.action || "", p.file || ""));
+    if (p.api === "storyplan")    return _jsonp_(cb, storyPlan_(p.account || ""));
     return _jsonp_(cb, { error: "unknown api" });
   } catch (err) {
     return _jsonp_(cb, { error: String(err) });
@@ -748,6 +750,41 @@ function schedCancel_(token) {
   var sh = schedSheet_(), v = sh.getDataRange().getValues();
   for (var i = 1; i < v.length; i++) { if (v[i][0] === token) { sh.getRange(i + 1, 7).setValue("canceled"); return { ok: true }; } }
   return { ok: false, error: "not found" };
+}
+// ストーリー自動投稿の「回ごとの指示」を保存/取得（三条と同じオプトアウト方式）。
+// StoryPlan タブ: account / slot(YYYY-MM-DD-H) / action(skip|set|ok) / file / updated。
+// poster(post_gifuya_story.py) が投稿前にこの表を見て skip/差し替えを反映する。
+function storyPlanSheet_() {
+  var ss = SpreadsheetApp.openById(SHEET_ID), sh = ss.getSheetByName("StoryPlan");
+  if (!sh) { sh = ss.insertSheet("StoryPlan"); sh.appendRow(["account", "slot", "action", "file", "updated"]); }
+  return sh;
+}
+function storySet_(account, slot, action, file) {
+  var acc = String(account || "").trim(), sk = String(slot || "").trim(), ac = String(action || "").trim();
+  if (!acc || !sk) return { ok: false, error: "missing account/slot" };
+  var sh = storyPlanSheet_(), v = sh.getDataRange().getValues(), row = -1;
+  for (var i = 1; i < v.length; i++) {
+    if (String(v[i][0]).trim() === acc && String(v[i][1]).trim() === sk) { row = i + 1; break; }
+  }
+  var now = Utilities.formatDate(new Date(), "Asia/Tokyo", "yyyy-MM-dd HH:mm");
+  if (ac === "clear" || ac === "ok") {
+    // ok=承認（やめない限り投稿）＝既定と同じ挙動。clear=指示消去。どちらも行を消して既定ローテーションへ戻す。
+    if (row > 0) sh.deleteRow(row);
+    return { ok: true, cleared: true };
+  }
+  var rowVals = [acc, sk, ac, String(file || ""), now];
+  if (row > 0) sh.getRange(row, 1, 1, 5).setValues([rowVals]);
+  else sh.appendRow(rowVals);
+  return { ok: true };
+}
+function storyPlan_(account) {
+  var acc = String(account || "").trim();
+  var sh = storyPlanSheet_(), v = sh.getDataRange().getValues(), plan = {};
+  for (var i = 1; i < v.length; i++) {
+    if (String(v[i][0]).trim() !== acc) continue;
+    plan[String(v[i][1]).trim()] = { action: String(v[i][2]).trim(), file: String(v[i][3] || "").trim() };
+  }
+  return { ok: true, plan: plan };
 }
 function cands_() {
   var ss = SpreadsheetApp.openById(SHEET_ID), sh = ss.getSheetByName("投稿候補");

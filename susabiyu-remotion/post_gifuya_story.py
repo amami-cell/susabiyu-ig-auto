@@ -9,10 +9,19 @@
 """
 import os
 import sys
+import json
 import datetime
+import urllib.request
+import urllib.parse
 import poster
 
 JST = datetime.timezone(datetime.timedelta(hours=9))
+
+# 確認アプリ（トップ画面）の「やめる/差し替え/OK」を反映するための共有GAS。
+# 未設定でも既定ローテーションで安全に投稿する（取得失敗は無視）。
+GAS_EXEC_URL = (os.environ.get("GAS_EXEC_URL") or os.environ.get("GIFUYA_GAS_URL") or
+                "https://script.google.com/macros/s/AKfycbxKn_MUfPgJ0nA8LJPp6YGb2Jehp9G8CpckV5bOAhe3M53eBC3Kle3O3Bf7mFzUJ2TMQw/exec").rstrip("/")
+GAS_APP_KEY = os.environ.get("GAS_APP_KEY", "8888")
 
 # CDN上のぎふやメディア置き場（deploy_pwa で susabiyu-media/app/gifuya へ配信済み）。
 # jsDelivr はIGサーバが確実に取得できる公開CDN。
@@ -61,6 +70,26 @@ def _pick_story(now):
     return STORIES[idx], si
 
 
+def _slot_key(now, si):
+    """確認アプリと同じ枠キー（例 2026-08-04-17）。"""
+    return "%s-%d" % (now.date().isoformat(), SLOT_HOURS[si])
+
+
+def _fetch_plan():
+    """共有GASから account=gifuyatenjin の回ごとの指示を取得。失敗時は空dict（＝既定ローテーション）。"""
+    if not GAS_EXEC_URL or "PASTE_" in GAS_EXEC_URL:
+        return {}
+    try:
+        q = urllib.parse.urlencode({"api": "storyplan", "account": ACCOUNT, "key": GAS_APP_KEY})
+        req = urllib.request.Request(GAS_EXEC_URL + "?" + q, headers={"User-Agent": "gifuya-story/1.0"})
+        with urllib.request.urlopen(req, timeout=15) as r:
+            data = json.loads(r.read().decode("utf-8"))
+        return data.get("plan", {}) if isinstance(data, dict) else {}
+    except Exception as e:
+        print("[PLAN] 取得できませんでした（既定ローテーションで続行）:", e)
+        return {}
+
+
 def _line(msg):
     try:
         poster.line_notify(msg)
@@ -85,6 +114,22 @@ def main():
         now = datetime.datetime.now(JST)
 
     story, si = _pick_story(now)
+
+    # 確認アプリの指示（やめる/差し替え）を反映。オプトアウト方式＝指示が無ければ既定どおり投稿。
+    key = _slot_key(now, si)
+    entry = _fetch_plan().get(key)
+    if entry:
+        action = str(entry.get("action", "")).strip()
+        if action == "skip":
+            print("この枠は確認画面で「やめる」が選択されています（%s）。スキップします。" % key)
+            _line("[ぎふや自動投稿] %d:00の回は「やめる」指定のため投稿をスキップしました。" % SLOT_HOURS[si])
+            return
+        if action == "set":
+            f = str(entry.get("file", "")).strip()
+            if f in STORIES:
+                print("確認画面の指定により差し替え: %s -> %s" % (story, f))
+                story = f
+
     url = MEDIA_BASE + "/" + story
     print("ぎふやストーリー投稿: 枠%d（%d:00 JST） -> %s" % (si + 1, SLOT_HOURS[si], url))
 

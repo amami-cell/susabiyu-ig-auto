@@ -127,7 +127,7 @@
 <script>
 (function(){
   "use strict";
-  var V = "?v=101";  // メディアのキャッシュ更新用
+  var V = "?v=102";  // メディアのキャッシュ更新用
   var CFG = window.GIFUYA || {};
   var LIVE = !!window.GIFUYA_LIVE;               // 専用GAS注入済みなら実データ連携
   var GAS = (CFG.GAS_URL||"").trim();
@@ -315,7 +315,7 @@
     hint.innerHTML = (kind==="feed"
       ? "候補のフィード投稿です。ハッシュタグを整えて <b>今すぐ投稿</b> または <b>日時を決めて予約</b>できます。"
       : "候補のリール（動画）です。<b>今すぐ投稿</b> または <b>日時を決めて予約</b>できます。")
-      + "<br>※ぎふや福岡天神（@gifuya_fukuokatenjin）" + (LIVE?"：実データ連携中。":"：現在は見本モードです。") + "ストーリー自動投稿は準備中。";
+      + "<br>※ぎふや福岡天神（@gifuya_fukuokatenjin）" + (LIVE?"：実データ連携中。":"：現在は見本モードです。") + "ストーリーは毎日11時・17時・20時に自動投稿中（確認はトップ画面）。";
     wrap.appendChild(hint);
     var lab=document.createElement("div"); lab.className="seclabel";
     var list = kind==="feed"?FEED:REEL;
