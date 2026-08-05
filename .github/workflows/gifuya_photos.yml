@@ -27,6 +27,7 @@ on:
         default: ""
 permissions:
   contents: write
+  actions: write
 concurrency:
   group: gifuya-photos
   cancel-in-progress: false
@@ -80,3 +81,8 @@ jobs:
           git add pwa/gifuya pwa/sw.js pwa/gifuyatenjin.html pwa/gifuya_reels.html
           git commit -m "ぎふや: 料理写真をドライブから拾い直し＋キャッシュv$nxt"
           git push origin HEAD:main
+          # GITHUB_TOKEN のpushは他ワークフローを起動しないため、deploy_pwa を明示的に発火する
+          curl -sS -X POST -H "Authorization: Bearer ${{ github.token }}" \
+            -H "Accept: application/vnd.github+json" \
+            "${{ github.api_url }}/repos/${{ github.repository }}/actions/workflows/deploy_pwa.yml/dispatches" \
+            -d '{"ref":"main"}' && echo "deploy_pwa をトリガーしました。"
