@@ -1,0 +1,82 @@
+name: gifuya-photos
+# ぎふや福岡天神の料理写真をGoogleドライブから拾い直す（手動実行）。
+#   mode=discover   … 「ぎふや/天神」フォルダとファイル名を一覧（folderID把握・読取専用）
+#   mode=listfolder … folder_id 配下の画像を新しい順に一覧（読取専用）
+#   mode=fetch      … folder_id から料理名にマッチする最新写真をDL→4:5トリミング→
+#                     pwa/gifuya/feed_XX.jpg を更新し、キャッシュ版数を上げてコミット
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: "discover / listfolder / fetch"
+        required: true
+        default: "discover"
+        type: choice
+        options: [discover, listfolder, fetch]
+      keyword:
+        description: "discover用キーワード（既定: ぎふや）"
+        required: false
+        default: "ぎふや"
+      folder_id:
+        description: "listfolder/fetch用 DriveフォルダID"
+        required: false
+        default: ""
+      map:
+        description: 'fetch用 マップJSON 例 {"feed_05":["刺身","盛り"],"feed_03":["どて焼き","どて"]}'
+        required: false
+        default: ""
+permissions:
+  contents: write
+concurrency:
+  group: gifuya-photos
+  cancel-in-progress: false
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install deps
+        run: pip install google-api-python-client google-auth Pillow
+      - name: Write creds.json
+        working-directory: susabiyu-remotion
+        run: echo "$GOOGLE_CREDS_B64" | base64 -d > creds.json
+        env:
+          GOOGLE_CREDS_B64: ${{ secrets.GOOGLE_CREDS_B64 }}
+
+      - name: Discover
+        if: github.event.inputs.mode == 'discover'
+        working-directory: susabiyu-remotion
+        run: python gifuya_photos.py discover "${{ github.event.inputs.keyword }}"
+
+      - name: List folder
+        if: github.event.inputs.mode == 'listfolder'
+        working-directory: susabiyu-remotion
+        run: python gifuya_photos.py listfolder "${{ github.event.inputs.folder_id }}"
+
+      - name: Fetch & crop
+        if: github.event.inputs.mode == 'fetch'
+        working-directory: susabiyu-remotion
+        run: python gifuya_photos.py fetch "${{ github.event.inputs.folder_id }}" '${{ github.event.inputs.map }}'
+
+      - name: Bump cache version + commit
+        if: github.event.inputs.mode == 'fetch'
+        run: |
+          set -e
+          rm -f susabiyu-remotion/creds.json
+          if git diff --quiet -- pwa/gifuya; then
+            echo "画像に変更がありません（コミットなし）。"; exit 0
+          fi
+          cur=$(grep -oE 'susabiyu-v[0-9]+' pwa/sw.js | grep -oE '[0-9]+' | head -1)
+          nxt=$((cur + 1))
+          sed -i "s/susabiyu-v$cur/susabiyu-v$nxt/" pwa/sw.js
+          sed -i "s/?v=$cur/?v=$nxt/" pwa/gifuyatenjin.html pwa/gifuya_reels.html
+          echo "cache v$cur -> v$nxt"
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add pwa/gifuya pwa/sw.js pwa/gifuyatenjin.html pwa/gifuya_reels.html
+          git commit -m "ぎふや: 料理写真をドライブから拾い直し＋キャッシュv$nxt"
+          git push origin HEAD:main
