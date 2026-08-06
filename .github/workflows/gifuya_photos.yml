@@ -78,7 +78,7 @@ jobs:
         run: |
           set -e
           rm -f susabiyu-remotion/creds.json
-          if git diff --quiet -- pwa/gifuya; then
+          if [ -z "$(git status --porcelain -- pwa/gifuya)" ]; then
             echo "画像に変更がありません（コミットなし）。"; exit 0
           fi
           cur=$(grep -oE 'susabiyu-v[0-9]+' pwa/sw.js | grep -oE '[0-9]+' | head -1)

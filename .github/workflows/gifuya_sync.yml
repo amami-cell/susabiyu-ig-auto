@@ -40,7 +40,7 @@ jobs:
       - name: Commit changes + deploy
         run: |
           set -e
-          if git diff --quiet -- pwa/gifuya; then
+          if [ -z "$(git status --porcelain -- pwa/gifuya)" ]; then
             echo "変更なし（Drive未更新）。コミットしません。"; exit 0
           fi
           cur=$(grep -oE 'susabiyu-v[0-9]+' pwa/sw.js | grep -oE '[0-9]+' | head -1)
