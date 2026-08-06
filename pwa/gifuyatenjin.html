@@ -325,34 +325,45 @@
     feed.appendChild(c);
   });
 
-  // --- フィード投稿の候補（従来どおり・コピー/確認用の見本） ---
-  seclabel2("📸 フィード投稿の候補");
-  POSTS.forEach(function(p,i){
-    var full = p.cap + "\n\n" + p.tags + " " + COMMON;
-    var c = document.createElement("div"); c.className="card";
-    c.innerHTML =
-      '<div class="head"><span class="pat">'+p.pat+'</span><span class="time">'+p.when+'</span><span class="remain">フィード</span></div>'+
-      '<div class="mediaWrap"><img class="media" loading="lazy" src="gifuya/'+p.img+'" alt=""></div>'+
-      '<div class="cap"></div><div class="tags"></div>'+
-      '<div class="slot"></div>'+
-      '<button class="copybtn">📋 キャプションをコピー</button>';
-    c.querySelector(".cap").textContent = p.cap;
-    c.querySelector(".tags").textContent = p.tags + " " + COMMON;
-    var slot = c.querySelector(".slot");
-    function setButtons(){
-      slot.innerHTML = '<div class="btns"><button class="ok">投稿OK</button><button class="rd">作り直す</button><button class="ng">やめる</button></div>';
-      slot.querySelector(".ok").onclick = function(){ slot.innerHTML='<div class="banner okb">✓ 承認済み（予定時刻に投稿されます）<small>タップで取り消し</small></div>';
-        slot.querySelector(".banner").onclick=function(){ setButtons(); }; c.classList.remove("done"); toast("承認しました（見本）"); };
-      slot.querySelector(".rd").onclick = function(){ slot.innerHTML='<div class="redoing"><span class="spin"></span>作り直しています…</div>';
-        setTimeout(function(){ setButtons(); toast("別案を作成しました（見本）"); }, 1500); };
-      slot.querySelector(".ng").onclick = function(){ slot.innerHTML='<div class="banner ngb">— 取りやめました</div>'; c.classList.add("done"); };
+  // --- フィード投稿の候補（Driveから毎日同期。feed.json があればそれを、無ければ内蔵見本を表示） ---
+  function buildFeedCandidates(list){
+    feed.querySelectorAll(".fc").forEach(function(el){ el.remove(); });   // 既存候補を消して作り直し
+    var lab=document.createElement("div"); lab.className="fc"; lab.textContent="📸 フィード投稿の候補（"+list.length+"品）";
+    lab.style.cssText="font-weight:800;margin:18px 4px 8px;color:#e7ecf3;font-size:15px"; feed.appendChild(lab);
+    list.forEach(function(p,i){
+      var full = p.cap + "\n\n" + (p.tags?p.tags+" ":"") + COMMON;
+      var c = document.createElement("div"); c.className="card fc";
+      c.innerHTML =
+        '<div class="head"><span class="pat">'+(p.pat||(p.reco?"★ おすすめ":"料理"))+'</span><span class="time">'+(p.when||"")+'</span><span class="remain">フィード</span></div>'+
+        '<div class="mediaWrap"><img class="media" loading="lazy" src="gifuya/'+p.img+V+'" alt=""></div>'+
+        '<div class="cap"></div><div class="tags"></div>'+
+        '<div class="slot"></div>'+
+        '<button class="copybtn">📋 キャプションをコピー</button>';
+      c.querySelector(".cap").textContent = p.cap;
+      c.querySelector(".tags").textContent = (p.tags?p.tags+" ":"") + COMMON;
+      var slot = c.querySelector(".slot");
+      function setButtons(){
+        slot.innerHTML = '<div class="btns"><button class="ok">投稿OK</button><button class="rd">作り直す</button><button class="ng">やめる</button></div>';
+        slot.querySelector(".ok").onclick = function(){ slot.innerHTML='<div class="banner okb">✓ 承認済み（予定時刻に投稿されます）<small>タップで取り消し</small></div>';
+          slot.querySelector(".banner").onclick=function(){ setButtons(); }; c.classList.remove("done"); toast("承認しました（見本）"); };
+        slot.querySelector(".rd").onclick = function(){ slot.innerHTML='<div class="redoing"><span class="spin"></span>作り直しています…</div>';
+          setTimeout(function(){ setButtons(); toast("別案を作成しました（見本）"); }, 1500); };
+        slot.querySelector(".ng").onclick = function(){ slot.innerHTML='<div class="banner ngb">— 取りやめました</div>'; c.classList.add("done"); };
+      }
+      setButtons();
+      var cb = c.querySelector(".copybtn");
+      cb.onclick = function(){ copy(full, function(){ cb.textContent="✓ コピーしました"; cb.classList.add("done"); toast("キャプションをコピーしました");
+        setTimeout(function(){ cb.textContent="📋 キャプションをコピー"; cb.classList.remove("done"); },2200); }); };
+      feed.appendChild(c);
+    });
+  }
+  buildFeedCandidates(POSTS);
+  // Driveから毎日同期される料理写真（feed.json）があれば候補を差し替え。
+  fetch("./gifuya/feed.json"+V, {cache:"no-store"}).then(function(r){ return r.ok?r.json():null; }).then(function(d){
+    if(d && d.items && d.items.length){
+      buildFeedCandidates(d.items.map(function(it){ return {img: it.img, cap: it.name, pat: (it.reco?"★ おすすめ":"料理"), when:"", tags:"", reco: !!it.reco}; }));
     }
-    setButtons();
-    var cb = c.querySelector(".copybtn");
-    cb.onclick = function(){ copy(full, function(){ cb.textContent="✓ コピーしました"; cb.classList.add("done"); toast("キャプションをコピーしました");
-      setTimeout(function(){ cb.textContent="📋 キャプションをコピー"; cb.classList.remove("done"); },2200); }); };
-    feed.appendChild(c);
-  });
+  }).catch(function(){});
 
   // ===== ② 見本（ギャラリー・動画/画像フィルタ付き） =====
   var gal = document.getElementById("gallery");

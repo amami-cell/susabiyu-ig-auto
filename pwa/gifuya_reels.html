@@ -371,6 +371,14 @@
   GSEL = loadGsel() || defaultSel();
   loadRegional();
   render("feed");
+  // Driveから毎日同期される料理写真（feed.json）があれば候補を差し替え（無ければ内蔵の見本のまま）。
+  (function loadFeedJson(){
+    fetch("./gifuya/feed.json"+V, {cache:"no-store"}).then(function(r){ return r.ok?r.json():null; }).then(function(d){
+      if(!d || !d.items || !d.items.length) return;
+      FEED = d.items.map(function(it){ return {img: it.img, t: it.name, cap: it.name, tags:"", reco: !!it.reco}; });
+      if(tF.classList.contains("on")) render("feed");
+    }).catch(function(){});
+  })();
 })();
 </script>
 <script>
