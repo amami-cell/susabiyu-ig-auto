@@ -8,11 +8,11 @@ on:
   workflow_dispatch:
     inputs:
       mode:
-        description: "discover / listfolder / fetch"
+        description: "discover / listfolder / fetch / plan / sync"
         required: true
         default: "discover"
         type: choice
-        options: [discover, listfolder, fetch]
+        options: [discover, listfolder, fetch, plan, sync]
       keyword:
         description: "discover用キーワード（既定: ぎふや）"
         required: false
@@ -63,8 +63,18 @@ jobs:
         working-directory: susabiyu-remotion
         run: python gifuya_photos.py fetch "${{ github.event.inputs.folder_id }}" '${{ github.event.inputs.map }}'
 
+      - name: Plan (dry)
+        if: github.event.inputs.mode == 'plan'
+        working-directory: susabiyu-remotion
+        run: python gifuya_photos.py plan "${{ github.event.inputs.folder_id }}"
+
+      - name: Sync all food photos
+        if: github.event.inputs.mode == 'sync'
+        working-directory: susabiyu-remotion
+        run: python gifuya_photos.py sync "${{ github.event.inputs.folder_id }}"
+
       - name: Bump cache version + commit
-        if: github.event.inputs.mode == 'fetch'
+        if: github.event.inputs.mode == 'fetch' || github.event.inputs.mode == 'sync'
         run: |
           set -e
           rm -f susabiyu-remotion/creds.json

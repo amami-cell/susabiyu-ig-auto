@@ -15,6 +15,7 @@ import io
 import sys
 import json
 import base64
+import hashlib
 
 from google.oauth2.service_account import Credentials
 from googleapiclient.discovery import build
@@ -25,6 +26,15 @@ SCOPES = ["https://www.googleapis.com/auth/drive"]
 HERE = os.path.dirname(os.path.abspath(__file__))
 OUT_DIR = os.path.join(HERE, "..", "pwa", "gifuya")
 TARGET_W, TARGET_H = 1080, 1350   # Instagram フィード 4:5
+
+# ぎふや福岡天神「画像」フォルダ（この配下の料理写真をフィード候補に全同期）。
+IMG_ROOT_DEFAULT = "1HUtrzFFJiCuazZOhHBW88RVVdrvyh1Ox"
+# 料理以外のサブフォルダは同期対象から除外（名前に含めば除外）。
+FOLDER_EXCLUDE = ["ロゴ", "外観", "内観", "ドリンク", "飲み", "音楽", "集合"]
+# 料理写真ではないファイル（寄せ集め/ロゴ等）を除外。
+FILE_EXCLUDE = ["料理集合", "集合写真", "GFY", "logo", "ロゴ"]
+# 「おすすめ」の目印（専用フォルダ名 or ファイル名の接頭辞）。
+RECO_HINT = ["おすすめ", "オススメ", "お勧め", "★"]
 
 
 def _drive():
@@ -151,6 +161,86 @@ def fetch(folder_id, map_json):
         raise SystemExit("更新対象が見つかりませんでした（パターン要調整）")
 
 
+def _walk_ctx(drive, fid, folder_name="", depth=0):
+    """(画像ファイル, 直上フォルダ名) を返す。料理以外のサブフォルダは辿らない。"""
+    out = []
+    for f in _children(drive, fid):
+        nm = f.get("name", "")
+        if f["mimeType"] == "application/vnd.google-apps.folder":
+            if any(x in nm for x in FOLDER_EXCLUDE):
+                continue
+            if depth < 3:
+                out += _walk_ctx(drive, f["id"], nm, depth + 1)
+        elif f["mimeType"].startswith("image/"):
+            out.append((f, folder_name))
+    return out
+
+
+def _dish_name(fname):
+    n = os.path.splitext(fname)[0]
+    for h in RECO_HINT:
+        n = n.replace(h, "")
+    return n.strip(" _-★[]（）()　")
+
+
+def _is_reco(fname, folder_name):
+    return any(h in folder_name for h in RECO_HINT) or any(h in fname for h in RECO_HINT)
+
+
+def _slug(name):
+    return "f_" + hashlib.md5(name.encode("utf-8")).hexdigest()[:10] + ".jpg"
+
+
+def _select(drive, root):
+    """画像フォルダ配下から料理写真を選定。おすすめ優先・同名は新しい方。"""
+    items = _walk_ctx(drive, root or IMG_ROOT_DEFAULT)
+    seen = {}
+    for f, folder in items:
+        fn = f.get("name", "")
+        if any(x in fn for x in FILE_EXCLUDE):
+            continue
+        name = _dish_name(fn)
+        if not name:
+            continue
+        reco = _is_reco(fn, folder)
+        mt = f.get("modifiedTime", "")
+        prev = seen.get(name)
+        if prev is None or (reco and not prev["reco"]) or (mt > prev["mt"]):
+            seen[name] = {"name": name, "reco": reco, "id": f["id"], "src": fn, "folder": folder, "mt": mt}
+    return sorted(seen.values(), key=lambda d: (not d["reco"], d["name"]))
+
+
+def plan(root=None):
+    """同期対象を一覧表示（DLもコミットもしない・確認用）。"""
+    ordered = _select(_drive(), root)
+    print("[PLAN] %d品（おすすめ %d）" % (len(ordered), sum(1 for d in ordered if d["reco"])))
+    for d in ordered:
+        print("ITEM|%s|reco=%d|folder=%s|%s" % (d["name"], 1 if d["reco"] else 0, d["folder"] or "(直下)", d["src"]))
+    print("[PLAN] 完了")
+    return ordered
+
+
+def sync(root=None):
+    """料理写真を全同期：4:5トリミングして pwa/gifuya/f_*.jpg を更新し feed.json を書き出す。"""
+    drive = _drive()
+    ordered = _select(drive, root)
+    if not ordered:
+        print("NG: 同期対象の料理写真が見つかりません。")
+        raise SystemExit(1)
+    manifest = []
+    for d in ordered:
+        img = _slug(d["name"])
+        _save_45(_download(drive, d["id"]), os.path.join(OUT_DIR, img))
+        manifest.append({"img": img, "name": d["name"], "reco": bool(d["reco"])})
+    feed = {"store": "gifuyatenjin", "count": len(manifest), "items": manifest}
+    with open(os.path.join(OUT_DIR, "feed.json"), "w", encoding="utf-8") as fp:
+        json.dump(feed, fp, ensure_ascii=False, indent=1)
+    print("[SYNC] %d品を同期し feed.json を書き出しました（おすすめ %d）"
+          % (len(manifest), sum(1 for m in manifest if m["reco"])))
+    for m in manifest:
+        print("SYNCED|%s|reco=%d|%s" % (m["name"], 1 if m["reco"] else 0, m["img"]))
+
+
 if __name__ == "__main__":
     mode = (sys.argv[1] if len(sys.argv) > 1 else "discover").strip().lower()
     if mode == "discover":
@@ -159,6 +249,10 @@ if __name__ == "__main__":
         listfolder(sys.argv[2])
     elif mode == "fetch":
         fetch(sys.argv[2], sys.argv[3])
+    elif mode == "plan":
+        plan(sys.argv[2] if len(sys.argv) > 2 else None)
+    elif mode == "sync":
+        sync(sys.argv[2] if len(sys.argv) > 2 else None)
     else:
         print("unknown mode:", mode)
         raise SystemExit(2)
