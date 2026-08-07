@@ -1,8 +1,9 @@
 # -*- coding: utf-8 -*-
 """ぎふや福岡天神 ストーリー自動投稿（Googleスプレッドシート/GAS 不要の自己完結版）。
 
-採用中のぎふやストーリー動画（既にCDN公開済み）を、日付ベースのローテーションで
-1日3回（11:00 / 17:00 / 20:00 JST）Instagramストーリーに自動投稿する。
+採用中のぎふやストーリー動画（既にCDN公開済み）を、三条と同じ“ランダム”方式
+（決定的シャッフル＝被りなしで毎回入れ替え）で1日3回（11:00 / 17:00 / 20:00 JST）
+Instagramストーリーに自動投稿する。
 
 必要な外部要素は **IG_ACCESS_TOKEN_GIFUYATENJIN（Metaで発行するアクセストークン）だけ**。
 未設定なら何もしない（安全）。トークンを登録した瞬間から 11/17/20 の投稿が始まる。
@@ -63,11 +64,29 @@ def _slot_index(now):
     return min(range(len(SLOT_HOURS)), key=lambda i: abs(SLOT_HOURS[i] - now.hour))
 
 
+def _seeded_order(n, seed):
+    """seed から決まる順列（Fisher-Yates + LCG）。アプリJSと同一式なので両者の結果が必ず一致する。"""
+    a = list(range(n))
+    s = (seed & 0xFFFFFFFF) or 1
+    for i in range(n - 1, 0, -1):
+        s = (s * 1664525 + 1013904223) & 0xFFFFFFFF
+        j = s % (i + 1)
+        a[i], a[j] = a[j], a[i]
+    return a
+
+
 def _pick_story(now):
+    """三条と同じ“ランダム”方式：10本を1サイクルで1回ずつ・順番はサイクルごとにシャッフル。
+       日付から決まる決定的シャッフルなので、確認アプリのプレビューと実投稿は必ず一致する。"""
     days = (now.date() - EPOCH).days
     si = _slot_index(now)
-    idx = (days * len(SLOT_HOURS) + si) % len(STORIES)
-    return STORIES[idx], si
+    n = len(STORIES)
+    g = days * len(SLOT_HOURS) + si         # 全枠の通し番号
+    cycle, pos = divmod(g, n)               # n枠ごとに全本を消化。サイクル番号で並びが変わる
+    order = _seeded_order(n, cycle + 1)
+    if cycle > 0 and order[0] == _seeded_order(n, cycle)[n - 1]:
+        order[0], order[1] = order[1], order[0]   # サイクル境目で同じ動画が連続しないように
+    return STORIES[order[pos]], si
 
 
 def _slot_key(now, si):

@@ -174,7 +174,7 @@
 <script>
 (function () {
   "use strict";
-  var V = "?v=104";  // メディアのキャッシュ更新用（同名ファイル更新時にブラウザ再取得させる）
+  var V = "?v=105";  // メディアのキャッシュ更新用（同名ファイル更新時にブラウザ再取得させる）
   // 実稼働化の受け皿：GIFUYA_LIVE=true（専用GAS URL 注入済み）になると実データ連携へ切替予定。
   // 現状は未設定＝見本モードで安全表示（実データのレンダリングは実稼働化ステップで有効化）。
   var LIVE = !!window.GIFUYA_LIVE;
@@ -275,8 +275,15 @@
     s.src=GAS+(GAS.indexOf("?")>=0?"&":"?")+q; s.onerror=window[cb]; document.head.appendChild(s); }
   function pad2(n){ return ("0"+n).slice(-2); }
   function slotKey(d,h){ return d.getFullYear()+"-"+pad2(d.getMonth()+1)+"-"+pad2(d.getDate())+"-"+h; }
-  function pickDefault(mid, si){ var days=Math.round((mid-STORY_EPOCH)/864e5);
-    var idx=((days*3+si)%STORY_FILES.length + STORY_FILES.length)%STORY_FILES.length; return STORY_FILES[idx]; }
+  // seedから決まる順列（Fisher-Yates+LCG）。post_gifuya_story.py の _seeded_order と同一式＝結果一致。
+  function seededOrder(n, seed){ var a=[],i,s=(seed>>>0)||1; for(i=0;i<n;i++)a.push(i);
+    for(i=n-1;i>0;i--){ s=(s*1664525+1013904223)>>>0; var j=s%(i+1),t=a[i];a[i]=a[j];a[j]=t; } return a; }
+  // 三条と同じ“ランダム”方式：10本を1サイクルで1回ずつ・順番はサイクルごとにシャッフル（被りなし・毎回入替）。
+  function pickDefault(mid, si){ var N=STORY_FILES.length;
+    var days=Math.round((mid-STORY_EPOCH)/864e5); var g=days*3+si;
+    var cycle=Math.floor(g/N), pos=((g%N)+N)%N; var order=seededOrder(N, cycle+1);
+    if(cycle>0 && order[0]===seededOrder(N, cycle)[N-1]){ var t=order[0];order[0]=order[1];order[1]=t; }
+    return STORY_FILES[order[pos]]; }
   function upcoming(n){ var out=[], now=Date.now(), day=new Date(); day.setHours(0,0,0,0);
     for(var k=0;k<14 && out.length<n;k++){ for(var i=0;i<SLOTS.length;i++){
         var t=new Date(day.getFullYear(),day.getMonth(),day.getDate(),SLOTS[i]);
@@ -357,11 +364,18 @@
       feed.appendChild(c);
     });
   }
+  // 写真もランダム：おすすめは先頭固定、それ以外はその日のseedでシャッフル（日替わりで入替・当日内は安定）。
+  function shuffleFeed(items){
+    var day=Math.floor(Date.now()/864e5);
+    var reco=items.filter(function(x){return x.reco;}), rest=items.filter(function(x){return !x.reco;});
+    var out=reco.slice(); seededOrder(rest.length, day+1).forEach(function(j){ out.push(rest[j]); }); return out;
+  }
   buildFeedCandidates(POSTS);
   // Driveから毎日同期される料理写真（feed.json）があれば候補を差し替え。
   fetch("./gifuya/feed.json"+V, {cache:"no-store"}).then(function(r){ return r.ok?r.json():null; }).then(function(d){
     if(d && d.items && d.items.length){
-      buildFeedCandidates(d.items.map(function(it){ return {img: it.img, cap: it.name, pat: (it.reco?"★ おすすめ":"料理"), when:"", tags:"", reco: !!it.reco}; }));
+      var mapped=d.items.map(function(it){ return {img: it.img, cap: it.name, pat: (it.reco?"★ おすすめ":"料理"), when:"", tags:"", reco: !!it.reco}; });
+      buildFeedCandidates(shuffleFeed(mapped));
     }
   }).catch(function(){});
 
