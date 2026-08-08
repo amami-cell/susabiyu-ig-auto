@@ -14,8 +14,12 @@ except Exception:
     JST = datetime.timezone(datetime.timedelta(hours=9))
 
 IGB = getattr(poster, "IGB", "https://graph.instagram.com/v23.0")
-DAILY_TAB = "インサイト日次"   # 1日1行：日付ごとのアカウント指標
-POST_TAB = "インサイト投稿"    # 1投稿1行：投稿ごとの指標（収集時点のスナップショット）
+# 店舗アカウント。空=三条（挙動不変）。"gifuyatenjin"等を渡すと per-account トークン＋
+# アカウント別タブ（例: インサイト日次_gifuyatenjin）に収集する（三条データと混ざらない）。
+STORE_ACCOUNT = os.environ.get("STORE_ACCOUNT", "").strip()
+_SUF = ("_" + STORE_ACCOUNT) if STORE_ACCOUNT else ""
+DAILY_TAB = "インサイト日次" + _SUF   # 1日1行：日付ごとのアカウント指標
+POST_TAB = "インサイト投稿" + _SUF    # 1投稿1行：投稿ごとの指標（収集時点のスナップショット）
 DAILY_HEADER = ["日付", "フォロワー数", "リーチ", "閲覧数", "プロフィール表示",
                 "リンクタップ", "エンゲージ数", "取得時刻", "raw"]
 POST_HEADER = ["取得日", "media_id", "種別", "投稿日時", "キャプション",
@@ -25,10 +29,15 @@ POST_HEADER = ["取得日", "media_id", "種別", "投稿日時", "キャプシ�
 def _token():
     t = ""
     try:
-        t = poster.fresh_token() or ""
+        # 店舗指定時は AcctTokens の延命済みトークン（token_guard が更新）を使う。
+        t = (poster.fresh_token_for(STORE_ACCOUNT) if STORE_ACCOUNT else poster.fresh_token()) or ""
     except Exception as e:
         print("[TOKEN] fresh_token失敗:", e)
-    return t or getattr(poster, "TOKEN", "") or os.environ.get("IG_ACCESS_TOKEN", "")
+    if t:
+        return t
+    if STORE_ACCOUNT:
+        return os.environ.get("IG_ACCESS_TOKEN_" + STORE_ACCOUNT.upper(), "")
+    return getattr(poster, "TOKEN", "") or os.environ.get("IG_ACCESS_TOKEN", "")
 
 
 def _uid(token):
@@ -655,6 +664,12 @@ def heal():
 
 
 def main():
+    # 店舗指定時は書き込み先シートを切替可能（未指定なら既定＝三条シート＝GASと同じ）。
+    _ssid = os.environ.get("STORE_SHEET_ID", "").strip()
+    if _ssid:
+        poster.SHEET_ID = _ssid
+    if STORE_ACCOUNT:
+        print("[INSIGHTS] account=%s / tabs=%s,%s" % (STORE_ACCOUNT, DAILY_TAB, POST_TAB))
     raw = " ".join(sys.argv[1:]).strip() if len(sys.argv) > 1 else "check"
     parts = [p.strip() for p in raw.split("|")]
     mode = parts[0] or "check"

@@ -385,9 +385,10 @@ function _setPattern_(key, on) {
 }
 
 // インサイト投稿タブから「ベスト投稿」と種別ごとの平均を作る（全員閲覧可）。
-function _apiReportPosts_() {
+function _apiReportPosts_(account) {
   var ss = SpreadsheetApp.openById(SHEET_ID);
-  var sh = ss.getSheetByName("インサイト投稿");
+  var suf = account ? ("_" + String(account).trim()) : "";
+  var sh = ss.getSheetByName("インサイト投稿" + suf);
   if (!sh) return null;
   var data = sh.getDataRange().getValues();
   if (data.length < 2) return null;
@@ -441,10 +442,11 @@ function _apiReportPosts_() {
 }
 
 // インサイト日次タブを集計して、直近30日 vs 前30日 のレポート用データを返す（全員閲覧可）。
-function _apiReport_() {
+function _apiReport_(account) {
   var ss = SpreadsheetApp.openById(SHEET_ID);
-  var sh = ss.getSheetByName("インサイト日次");
-  if (!sh) return { days: 0, cur: null, prev: null, series: [], posts: _apiReportPosts_() };
+  var suf = account ? ("_" + String(account).trim()) : "";
+  var sh = ss.getSheetByName("インサイト日次" + suf);
+  if (!sh) return { days: 0, cur: null, prev: null, series: [], posts: _apiReportPosts_(account) };
   var data = sh.getDataRange().getValues();
   var rows = [];
   for (var i = 1; i < data.length; i++) {
@@ -494,7 +496,7 @@ function _api_(p) {
     if (p.api === "notifprefs") return _jsonp_(cb, { result: _setNotifPrefs_(p.ep, p.prefs) });
     if (p.api === "patterns") return _jsonp_(cb, _apiPatterns_());
     if (p.api === "owner") return _jsonp_(cb, { owner: (!OWNER_KEY || String(p.owner || "") === OWNER_KEY) });
-    if (p.api === "report") return _jsonp_(cb, _apiReport_());
+    if (p.api === "report") return _jsonp_(cb, _apiReport_(p.account || ""));
     if (p.api === "pattern") {
       if (OWNER_KEY && String(p.owner || "") !== OWNER_KEY) return _jsonp_(cb, { error: "owner" });
       return _jsonp_(cb, { result: _setPattern_(p.pattern, p.on) });

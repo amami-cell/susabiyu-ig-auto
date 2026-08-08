@@ -174,7 +174,7 @@
 <script>
 (function () {
   "use strict";
-  var V = "?v=109";  // メディアのキャッシュ更新用（同名ファイル更新時にブラウザ再取得させる）
+  var V = "?v=110";  // メディアのキャッシュ更新用（同名ファイル更新時にブラウザ再取得させる）
   // 実稼働化の受け皿：GIFUYA_LIVE=true（専用GAS URL 注入済み）になると実データ連携へ切替予定。
   // 現状は未設定＝見本モードで安全表示（実データのレンダリングは実稼働化ステップで有効化）。
   var LIVE = !!window.GIFUYA_LIVE;
@@ -462,16 +462,18 @@
   PATTERNS.forEach(function(p){ card(g5,"gimg",true,
     '<img class="gmedia" loading="lazy" src="gifuya/'+p.img+'" alt="">', p.t, p.d, true); });
 
-  // ===== ③ レポート（三条と同じ体裁・サンプル値） =====
+  // ===== ③ レポート（三条と同じ体裁。実データ連携時は自動で本物、無ければ見本） =====
   var rep = document.getElementById("report");
   function kpi(l,v,unit,dcls,dtxt,prev){
     return '<div class="repkpi"><div class="l">'+l+'</div><div class="v">'+v+(unit?' <small>'+unit+'</small>':'')+'</div>'+
       '<span class="d '+dcls+'">'+dtxt+'</span><div class="prev">'+prev+'</div></div>';
   }
-  var bars=""; var vals=[42,55,48,63,70,58,66,80,74,88,95,82,90,104,98,112];
-  vals.forEach(function(v,i){ bars+='<i class="'+(i>=vals.length-3?'hot':'')+'" style="height:'+v+'%"></i>'; });
-  rep.innerHTML =
-    '<div class="rephint">Instagram インサイト（見本のサンプル値です。実データは連携後に自動表示されます）</div>'+
+  function fmtN(n){ return (Number(n)||0).toLocaleString('ja-JP'); }
+  function barsHtml(vals){ var mx=Math.max.apply(null,vals.concat([1]));
+    return vals.map(function(v,i){ return '<i class="'+(i>=vals.length-3?'hot':'')+'" style="height:'+Math.max(6,Math.round((v/mx)*100))+'%"></i>'; }).join(''); }
+  function sampleReport(){
+    var bars=barsHtml([42,55,48,63,70,58,66,80,74,88,95,82,90,104,98,112]);
+    return '<div class="rephint">Instagram インサイト（見本のサンプル値です。実データは連携後に自動表示されます）</div>'+
     '<div class="repdoc">'+
       '<div class="rephd"><div class="t">Instagram インサイトレポート</div><div class="s">ぎふや 福岡天神店</div>'+
         '<div class="p">@gifuya_fukuokatenjin<small>集計期間：直近30日（見本）</small></div></div>'+
@@ -488,16 +490,45 @@
           '<div class="rc">名物、元祖どぶ漬けどてかつ🍢</div><div class="rr"><b>2,140</b><small>リーチ</small><b>186</b><small>いいね</small></div></div></div>'+
         '<div class="reppost"><img class="rt" src="gifuya/feed_06.jpg"><div class="ri"><div class="rl"><span class="rb feed">フィード</span><span class="rd">6日前</span></div>'+
           '<div class="rc">福岡名物、炊き餃子。</div><div class="rr"><b>1,880</b><small>リーチ</small><b>152</b><small>いいね</small></div></div></div>'+
-        '<div class="reppost"><img class="rt" src="gifuya/story_01.jpg"><div class="ri"><div class="rl"><span class="rb story">ストーリー</span><span class="rd">2日前</span></div>'+
-          '<div class="rc">安くて、旨い。まずは一杯。</div><div class="rr"><b>980</b><small>閲覧</small><b>64</b><small>反応</small></div></div></div>'+
       '</div></div>'+
       '<div class="repsec"><h3>分析とアドバイス</h3><div class="repanal">'+
-        '<div class="repcard good"><h4>好調なポイント</h4><ul><li>名物系（<b>どてかつ・炊き餃子</b>）の反応が高い。看板メニュー押しが効いています。</li><li>リーチが前期比 <b>+18%</b> と伸長。投稿頻度が安定してきました。</li></ul></div>'+
-        '<div class="repcard warn"><h4>改善の余地</h4><ul><li>プロフィール表示に対し保存率がやや低め。<b>価格・営業時間</b>をキャプション冒頭に。</li></ul></div>'+
-        '<div class="repcard act"><h4>次の一手</h4><ul><li>反応の良い名物投稿を<b>ストーリー（動く見本）</b>にも展開。</li><li>週末の <b>18:00台</b> 投稿が伸びやすい傾向。</li></ul></div>'+
+        '<div class="repcard good"><h4>好調なポイント</h4><ul><li>名物系（<b>どてかつ・炊き餃子</b>）の反応が高い。看板メニュー押しが効いています。</li></ul></div>'+
+        '<div class="repcard act"><h4>次の一手</h4><ul><li>週末の <b>18:00台</b> 投稿が伸びやすい傾向。</li></ul></div>'+
       '</div></div>'+
       '<div class="repfoot">※本レポートは見本のサンプルです。@gifuya_fukuokatenjin の実データ連携後、自動で更新されます。</div>'+
     '</div>';
+  }
+  function realReport(d){
+    var c=d.cur||{}, p=d.prev;
+    function dp(cur,prev){ if(!p||prev==null){ return {cls:'',txt:'—',prev:'—'}; } var diff=(cur||0)-(prev||0), pct=prev?Math.round(diff/prev*100):0;
+      return {cls:diff>=0?'up':'down', txt:(diff>=0?'▲ ':'▼ ')+Math.abs(pct)+'%', prev:'前期 '+fmtN(prev)}; }
+    var kR=dp(c.reach,p&&p.reach), kV=dp(c.views,p&&p.views), kP=dp(c.pviews,p&&p.pviews);
+    var fEnd=c.followersEnd||0, fStart=(p&&p.followersEnd)||c.followersStart||fEnd, fd=fEnd-fStart;
+    var series=(d.series||[]).map(function(s){return s.reach;}); if(!series.length) series=[0];
+    var top=(d.posts&&d.posts.top)||[];
+    var ph=top.slice(0,3).map(function(pp){ var st=pp.kind==='story', th=pp.thumb||pp.full||'';
+      return '<div class="reppost">'+(th?'<img class="rt" src="'+th+'">':'<div class="rt" style="background:#e6ebf2"></div>')+
+        '<div class="ri"><div class="rl"><span class="rb '+(st?'story':'feed')+'">'+(st?'ストーリー':'フィード')+'</span><span class="rd">'+(pp.date||'')+'</span></div>'+
+        '<div class="rc">'+String(pp.caption||'').slice(0,40)+'</div><div class="rr"><b>'+fmtN(pp.reach)+'</b><small>'+(st?'閲覧':'リーチ')+'</small><b>'+fmtN(st?pp.navigation:pp.likes)+'</b><small>'+(st?'遷移':'いいね')+'</small></div></div></div>';
+    }).join('') || '<div class="rephint">まだ投稿データがありません。</div>';
+    return '<div class="rephint">Instagram インサイト（@gifuya_fukuokatenjin・実データ）</div>'+
+    '<div class="repdoc">'+
+      '<div class="rephd"><div class="t">Instagram インサイトレポート</div><div class="s">ぎふや 福岡天神店</div>'+
+        '<div class="p">@gifuya_fukuokatenjin<small>集計期間：直近'+(d.days||0)+'日'+(d.latestDate?'（〜'+d.latestDate+'）':'')+'</small></div></div>'+
+      '<div class="repsec"><h3>主要指標</h3><div class="repkpis">'+
+        kpi("リーチ",fmtN(c.reach),"",kR.cls,kR.txt,kR.prev)+
+        kpi("閲覧数",fmtN(c.views),"",kV.cls,kV.txt,kV.prev)+
+        kpi("プロフィール表示",fmtN(c.pviews),"",kP.cls,kP.txt,kP.prev)+
+        kpi("フォロワー",fmtN(fEnd),"",(fd>=0?'up':'down'),(fd>=0?'▲ ':'▼ ')+Math.abs(fd),"前期 "+fmtN(fStart))+
+      '</div></div>'+
+      '<div class="repsec"><h3>リーチの推移</h3><div class="repbars">'+barsHtml(series)+'</div>'+
+        '<div class="repax"><span>'+(d.days||30)+'日前</span><span>今日</span></div></div>'+
+      '<div class="repsec"><h3>人気の投稿</h3><div class="repposts">'+ph+'</div></div>'+
+    '</div>';
+  }
+  function renderReport(d){ rep.innerHTML = (d && d.days>0 && d.cur) ? realReport(d) : sampleReport(); }
+  renderReport(null);
+  if(LIVE){ gasGet({api:"report"}, function(res){ if(res && !res.error) renderReport(res); }); }
 
   // ===== タブ切替 =====
   var tabs = {tabFeed:feed, tabGallery:gal, tabReport:rep};
