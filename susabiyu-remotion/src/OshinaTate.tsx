@@ -27,7 +27,7 @@ const TOTAL = INTRO + N * STEP + HOLD;
 const KAN = ["一", "二", "三", "四", "五", "六", "七", "八", "九", "十"];
 const clamp = { extrapolateLeft: "clamp" as const, extrapolateRight: "clamp" as const };
 
-export const OshinaTate: React.FC<{ storeName?: string; handle?: string }> = ({ storeName = "すさび湯 河原町三条店", handle = "@susabiyu_sanjyo" }) => {
+export const OshinaTate: React.FC<{ storeName?: string; handle?: string; region?: string }> = ({ storeName = "すさび湯 河原町三条店", handle = "@susabiyu_sanjyo", region = "京都・河原町三条" }) => {
   const f = useCurrentFrame();
   const titleO = interpolate(f, [4, 20], [0, 1], clamp);
   const ruleW = interpolate(f, [12, 32], [0, 1], { ...clamp, easing: Easing.out(Easing.ease) });
@@ -73,7 +73,7 @@ export const OshinaTate: React.FC<{ storeName?: string; handle?: string }> = ({ 
       {/* 屋号 */}
       <div style={{ position: "absolute", bottom: 96, left: 0, width: "100%", textAlign: "center", opacity: footO }}>
         <div style={{ color: INK, fontFamily: mincho, fontSize: 32, letterSpacing: 6, marginBottom: 8 }}>{storeName}</div>
-        <div style={{ color: SUB, fontFamily: mincho, fontSize: 24, letterSpacing: 4 }}>京都・河原町三条　{handle}</div>
+        <div style={{ color: SUB, fontFamily: mincho, fontSize: 24, letterSpacing: 4 }}>{region}　{handle}</div>
       </div>
     </AbsoluteFill>
   );
