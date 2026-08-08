@@ -174,7 +174,7 @@
 <script>
 (function () {
   "use strict";
-  var V = "?v=105";  // メディアのキャッシュ更新用（同名ファイル更新時にブラウザ再取得させる）
+  var V = "?v=106";  // メディアのキャッシュ更新用（同名ファイル更新時にブラウザ再取得させる）
   // 実稼働化の受け皿：GIFUYA_LIVE=true（専用GAS URL 注入済み）になると実データ連携へ切替予定。
   // 現状は未設定＝見本モードで安全表示（実データのレンダリングは実稼働化ステップで有効化）。
   var LIVE = !!window.GIFUYA_LIVE;
@@ -267,12 +267,20 @@
   var PLAN = loadPlan();
   // 軽量JSONP：共有GASへ「やめる/差し替え/OK」を反映（自動投稿の判断に使用）。失敗しても端末表示は保持。
   var _jc=0;
+  function _gkey(){ try{ return localStorage.getItem("gf_key")||"8888"; }catch(e){ return "8888"; } }
   function gas(params){ if(!LIVE || !GAS || GAS.indexOf("PASTE_")===0) return;
     var cb="__gs"+(++_jc)+"_"+Date.now(), s=document.createElement("script");
-    params.account=ACCT; params.cb=cb;
+    params.account=ACCT; params.cb=cb; if(!params.key) params.key=_gkey();   // GASのAPP_KEY(確認コード)必須
     window[cb]=function(){ try{ delete window[cb]; }catch(e){} if(s.parentNode) s.parentNode.removeChild(s); };
     var q=Object.keys(params).map(function(k){ return k+"="+encodeURIComponent(params[k]); }).join("&");
     s.src=GAS+(GAS.indexOf("?")>=0?"&":"?")+q; s.onerror=window[cb]; document.head.appendChild(s); }
+  // 読み取り用JSONP（応答をonDataで受け取る）。
+  function gasGet(params, onData){ if(!LIVE || !GAS || GAS.indexOf("PASTE_")===0) return;
+    var cb="__gg"+(++_jc)+"_"+Date.now(), s=document.createElement("script");
+    params.account=ACCT; params.cb=cb; if(!params.key) params.key=_gkey();
+    window[cb]=function(res){ try{ delete window[cb]; }catch(e){} if(s.parentNode) s.parentNode.removeChild(s); try{ onData&&onData(res); }catch(e){} };
+    var q=Object.keys(params).map(function(k){ return k+"="+encodeURIComponent(params[k]); }).join("&");
+    s.src=GAS+(GAS.indexOf("?")>=0?"&":"?")+q; s.onerror=function(){ try{ window[cb](); }catch(e){} }; document.head.appendChild(s); }
   function pad2(n){ return ("0"+n).slice(-2); }
   function slotKey(d,h){ return d.getFullYear()+"-"+pad2(d.getMonth()+1)+"-"+pad2(d.getDate())+"-"+h; }
   // seedから決まる順列（Fisher-Yates+LCG）。post_gifuya_story.py の _seeded_order と同一式＝結果一致。
@@ -307,6 +315,7 @@
 
   // --- ストーリー（自動投稿の予定・三条と同じカード） ---
   seclabel2("🎬 ストーリー（自動投稿の予定）");
+  var storyBuilders=[], localTs={};   // 全カードの再描画用 / ローカル操作の時刻（サーバ同期の猶予判定）
   upcoming(6).forEach(function(slot){
     var key=slotKey(slot.when, slot.hour);
     var c=document.createElement("div"); c.className="card";
@@ -323,14 +332,30 @@
       if(st==="ok"){ sl.innerHTML='<div class="banner okb">✓ 承認済み（'+slot.hour+':00に投稿されます）<small>タップで取り消し</small></div>';
         sl.querySelector(".banner").onclick=function(){ delete PLAN[key]; savePlan(); gas({api:"storyset",slot:key,action:"clear"}); build(); toast("取り消しました"); }; return; }
       sl.innerHTML='<div class="btns"><button class="ok">投稿OK</button><button class="rd">作り直す</button><button class="ng">やめる</button></div>';
-      sl.querySelector(".ok").onclick=function(){ PLAN[key]="ok"; savePlan(); gas({api:"storyset",slot:key,action:"ok"}); build(); toast(LIVE?"承認しました":"承認しました（見本）"); };
+      sl.querySelector(".ok").onclick=function(){ PLAN[key]="ok"; localTs[key]=Date.now(); savePlan(); gas({api:"storyset",slot:key,action:"ok"}); build(); toast(LIVE?"承認しました":"承認しました（見本）"); };
       sl.querySelector(".rd").onclick=function(){ var cur=effFile(key,slot.mid,slot.si); var ni=(STORY_FILES.indexOf(cur)+1)%STORY_FILES.length;
-        PLAN[key]=STORY_FILES[ni]; savePlan(); gas({api:"storyset",slot:key,action:"set",file:STORY_FILES[ni]}); build(); toast("別の動画に差し替えました"); };
-      sl.querySelector(".ng").onclick=function(){ PLAN[key]="skip"; savePlan(); gas({api:"storyset",slot:key,action:"skip"}); build(); toast(LIVE?"この回はやめました":"やめました（見本）"); };
+        PLAN[key]=STORY_FILES[ni]; localTs[key]=Date.now(); savePlan(); gas({api:"storyset",slot:key,action:"set",file:STORY_FILES[ni]}); build(); toast("別の動画に差し替えました"); };
+      sl.querySelector(".ng").onclick=function(){ PLAN[key]="skip"; localTs[key]=Date.now(); savePlan(); gas({api:"storyset",slot:key,action:"skip"}); build(); toast(LIVE?"この回はやめました":"やめました（見本）"); };
     }
-    build();
+    build(); storyBuilders.push(build);
     feed.appendChild(c);
   });
+
+  // --- 確認状態をサーバ(StoryPlan)からlive取得：他端末の「やめる/差し替え」も反映（三条と同じサーバ真実） ---
+  function applyServerPlan(plan){
+    var changed=false;
+    Object.keys(PLAN).forEach(function(k){                    // サーバに無いskip/setは消す（他端末でOK/戻された分）。okはローカルのみ保持
+      if(PLAN[k]==="ok") return;
+      if(!plan[k]){ if(Date.now()-(localTs[k]||0)<20000) return; delete PLAN[k]; changed=true; }
+    });
+    Object.keys(plan).forEach(function(k){
+      var a=plan[k].action, f=plan[k].file, nv = a==="skip" ? "skip" : (a==="set"&&f ? f : null);
+      if(nv && PLAN[k]!==nv){ PLAN[k]=nv; changed=true; }
+    });
+    if(changed){ savePlan(); storyBuilders.forEach(function(b){ b(); }); }
+  }
+  function loadStoryPlan(){ gasGet({api:"storyplan"}, function(res){ if(res && res.ok && res.plan) applyServerPlan(res.plan); }); }
+  if(LIVE){ loadStoryPlan(); setInterval(loadStoryPlan, 8000); }
 
   // --- フィード投稿の候補（Driveから毎日同期。feed.json があればそれを、無ければ内蔵見本を表示） ---
   function buildFeedCandidates(list){
