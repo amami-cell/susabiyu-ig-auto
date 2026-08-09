@@ -31,6 +31,16 @@ jobs:
           python-version: '3.12'
       - name: Install node deps (Remotion)
         run: npm ci
+      - name: Install Python deps (Drive)
+        run: pip install google-api-python-client google-auth Pillow
+      - name: Fetch BGM from Drive (音楽フォルダ→動画ごとにランダム割当)
+        env:
+          GOOGLE_CREDS_B64: ${{ secrets.GOOGLE_CREDS_B64 }}
+          GIFUYA_MUSIC_FOLDER_ID: ${{ vars.GIFUYA_MUSIC_FOLDER_ID }}
+        run: |
+          echo "$GOOGLE_CREDS_B64" | base64 -d > creds.json
+          python gifuya_photos.py music || echo "音楽取得スキップ（bgm.mp3で続行）"
+          rm -f creds.json
       - name: Re-render gifuya story videos
         run: python gifuya_render_stories.py ${{ github.event.inputs.only }}
       - name: Commit changed videos + deploy

@@ -14,12 +14,20 @@
 import os
 import sys
 import json
+import glob
 import shutil
 import subprocess
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 GDIR = os.path.join(HERE, "..", "pwa", "gifuya")
 FEED = os.path.join(GDIR, "feed.json")
+MUSIC_DIR = os.path.join(HERE, "public", "music", "uptempo")   # gifuya_photos.py music が Drive から入れる
+
+
+def _tracks():
+    """利用可能なBGM（public/music/uptempo/*.mp3）。無ければ bgm.mp3 の1本にフォールバック。"""
+    t = sorted(os.path.basename(x) for x in glob.glob(os.path.join(MUSIC_DIR, "*.mp3")))
+    return ["music/uptempo/" + n for n in t] if t else ["bgm.mp3"]
 
 PROPS = json.dumps({
     "storeName": "ぎふや 福岡天神店",
@@ -59,7 +67,7 @@ def _map():
     return {it["name"]: it["img"] for it in json.load(open(FEED, encoding="utf-8"))["items"]}
 
 
-def _build_typo(dishes, m):
+def _build_typo(dishes, m, music="bgm.mp3"):
     d = os.path.join(HERE, "public", "typo")
     if os.path.isdir(d):
         shutil.rmtree(d)
@@ -73,8 +81,8 @@ def _build_typo(dishes, m):
         L.append('  { src: "typo/%d.jpg", caption: "%s" },' % (i, name))
     L += ["];",
           'export const typoHeadline = "本日のおしながき";',
-          'export const typoMusic = "bgm.mp3";',
-          'export const typoUptempo = "bgm.mp3";']
+          'export const typoMusic = "%s";' % music,
+          'export const typoUptempo = "%s";' % music]
     open(os.path.join(HERE, "src", "typoData.ts"), "w", encoding="utf-8").write("\n".join(L) + "\n")
 
 
@@ -106,13 +114,16 @@ def _render(comp, out):
 def main():
     only = [a.replace(".mp4", "") for a in sys.argv[1:] if a.strip()]
     m = _map()
+    tracks = _tracks()   # Driveから取得したBGM群（無ければbgm.mp3）。動画ごとに別の曲を割当（三条と同じくランダム音楽）。
+    print("[MUSIC] %d曲: %s" % (len(tracks), ", ".join(tracks)))
     done, failed = [], []
     try:
-        for s in SPECS:
+        for idx, s in enumerate(SPECS):
             if only and s["out"].replace(".mp4", "") not in only:
                 continue
+            music = tracks[idx % len(tracks)]
             if s["data"] == "typo":
-                _build_typo(s["dishes"], m)
+                _build_typo(s["dishes"], m, music)
             else:
                 _build_simple(s["dishes"], m)
             try:

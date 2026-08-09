@@ -210,6 +210,47 @@ def _select(drive, root):
     return sorted(seen.values(), key=lambda d: (not d["reco"], d["name"]))
 
 
+MUSIC_HINT = ["音楽", "BGM", "bgm", "music", "ミュージック", "サウンド"]
+
+
+def _find_music_folder(drive, root):
+    """root配下（深さ2まで）から音楽フォルダを探す。GIFUYA_MUSIC_FOLDER_ID があればそれを優先。"""
+    env = os.environ.get("GIFUYA_MUSIC_FOLDER_ID", "").strip()
+    if env:
+        return env
+    for f in _children(drive, root):
+        if f["mimeType"] == "application/vnd.google-apps.folder" and any(h in f["name"] for h in MUSIC_HINT):
+            return f["id"]
+    for f in _children(drive, root):
+        if f["mimeType"] == "application/vnd.google-apps.folder":
+            for g in _children(drive, f["id"]):
+                if g["mimeType"] == "application/vnd.google-apps.folder" and any(h in g["name"] for h in MUSIC_HINT):
+                    return g["id"]
+    return None
+
+
+def music(root=None):
+    """Driveの音楽フォルダのmp3を susabiyu-remotion/public/music/uptempo/ へ取得（三条と同じくランダム選曲の素材）。"""
+    drive = _drive()
+    fid = _find_music_folder(drive, root or IMG_ROOT_DEFAULT)
+    out_dir = os.path.join(HERE, "public", "music", "uptempo")
+    os.makedirs(out_dir, exist_ok=True)
+    if not fid:
+        print("[MUSIC] 音楽フォルダが見つかりません（bgm.mp3 の1曲で続行）。")
+        return
+    n = 0
+    for f in _children(drive, fid):
+        nm = f.get("name", "")
+        if f["mimeType"].startswith("audio/") or nm.lower().endswith((".mp3", ".m4a", ".wav")):
+            base = os.path.splitext(nm)[0]
+            safe = "".join(c for c in base if c.isalnum() or c in "-_") or ("bgm%d" % n)
+            with open(os.path.join(out_dir, safe + ".mp3"), "wb") as fp:
+                fp.write(_download(drive, f["id"]).read())
+            n += 1
+            print("MUSIC|%s" % nm)
+    print("[MUSIC] %d曲を取得しました。" % n)
+
+
 def plan(root=None):
     """同期対象を一覧表示（DLもコミットもしない・確認用）。"""
     ordered = _select(_drive(), root)
@@ -253,6 +294,8 @@ if __name__ == "__main__":
         plan(sys.argv[2] if len(sys.argv) > 2 else None)
     elif mode == "sync":
         sync(sys.argv[2] if len(sys.argv) > 2 else None)
+    elif mode == "music":
+        music(sys.argv[2] if len(sys.argv) > 2 else None)
     else:
         print("unknown mode:", mode)
         raise SystemExit(2)
