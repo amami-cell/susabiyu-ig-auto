@@ -174,7 +174,7 @@
 <script>
 (function () {
   "use strict";
-  var V = "?v=110";  // メディアのキャッシュ更新用（同名ファイル更新時にブラウザ再取得させる）
+  var V = "?v=111";  // メディアのキャッシュ更新用（同名ファイル更新時にブラウザ再取得させる）
   // 実稼働化の受け皿：GIFUYA_LIVE=true（専用GAS URL 注入済み）になると実データ連携へ切替予定。
   // 現状は未設定＝見本モードで安全表示（実データのレンダリングは実稼働化ステップで有効化）。
   var LIVE = !!window.GIFUYA_LIVE;
@@ -539,7 +539,29 @@
   document.getElementById("tabFeed").onclick = function(){ show("tabFeed"); };
   document.getElementById("tabGallery").onclick = function(){ show("tabGallery"); };
   document.getElementById("tabReport").onclick = function(){ show("tabReport"); };
-  document.getElementById("pushBtn").onclick = function(){ toast("見本モードのため通知は連携後に有効化されます"); };
+  // ===== Web Push（三条と同じVAPIDを再利用。投稿完了などを端末に通知） =====
+  var pushBtn = document.getElementById("pushBtn");
+  function urlB64ToU8(s){ var pad="=".repeat((4-s.length%4)%4), b=(s+pad).replace(/-/g,"+").replace(/_/g,"/"), raw=atob(b), a=new Uint8Array(raw.length);
+    for(var i=0;i<raw.length;i++) a[i]=raw.charCodeAt(i); return a; }
+  function enablePush(){
+    var vp=((CFG2.VAPID_PUBLIC)||"").trim();
+    if(!("serviceWorker" in navigator) || !("PushManager" in window)){ toast("この端末は通知に対応していません"); return; }
+    if(!LIVE || !vp){ toast("通知は準備中です（連携後に有効化）"); return; }
+    Notification.requestPermission().then(function(perm){
+      if(perm!=="granted"){ toast("通知が許可されませんでした"); return; }
+      navigator.serviceWorker.ready.then(function(reg){
+        return reg.pushManager.getSubscription().then(function(ex){
+          return ex || reg.pushManager.subscribe({userVisibleOnly:true, applicationServerKey:urlB64ToU8(vp)}); });
+      }).then(function(sub){
+        gas({api:"subscribe", sub:JSON.stringify(sub), ep:sub.endpoint, prefs:"ig"});
+        pushBtn.textContent="🔔 通知ON"; toast("通知をオンにしました");
+      }).catch(function(){ toast("通知の設定に失敗しました"); });
+    });
+  }
+  navigator.serviceWorker && navigator.serviceWorker.ready.then(function(reg){
+    reg.pushManager.getSubscription().then(function(s){ if(s) pushBtn.textContent="🔔 通知ON"; }).catch(function(){});
+  });
+  pushBtn.onclick = enablePush;
 })();
 </script>
 

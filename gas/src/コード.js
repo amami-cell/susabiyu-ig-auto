@@ -282,19 +282,23 @@ function _apiList_() {
   });
   return { sig: getSig(), items: items };
 }
-function _saveSub_(subB64, prefs, ep) {
+function _saveSub_(subB64, prefs, ep, account) {
   if (!subB64) return "no-sub";
   var json;
-  try { json = Utilities.newBlob(Utilities.base64Decode(subB64)).getDataAsString("UTF-8"); }
-  catch (e) { return "decode-error"; }
+  // \u7aef\u672b\u304b\u3089\u306f JSON\u6587\u5b57\u5217 or base64 \u306e\u3069\u3061\u3089\u3067\u3082\u53d7\u3051\u308b\uff08\u304e\u3075\u3084\u30a2\u30d7\u30ea\u306fJSON\u6587\u5b57\u5217\u3067\u9001\u308b\uff09\u3002
+  try {
+    if (subB64.charAt(0) === "{") json = subB64;
+    else json = Utilities.newBlob(Utilities.base64Decode(subB64)).getDataAsString("UTF-8");
+  } catch (e) { return "decode-error"; }
   var endpoint = ep || "";
   try { endpoint = (JSON.parse(json).endpoint) || endpoint; } catch (e) {}
   if (!endpoint) return "bad-sub";
   var pf = _normPrefs_(prefs);
   if (pf === null) pf = "";
+  var tab = PUSH_TAB + (account ? ("_" + String(account).trim()) : "");
   var ss = SpreadsheetApp.openById(SHEET_ID);
-  var sh = ss.getSheetByName(PUSH_TAB);
-  if (!sh) { sh = ss.insertSheet(PUSH_TAB); sh.appendRow(["endpoint", "subscription", "\u767b\u9332\u6642\u523b", "\u901a\u77e5\u8a2d\u5b9a"]); }
+  var sh = ss.getSheetByName(tab);
+  if (!sh) { sh = ss.insertSheet(tab); sh.appendRow(["endpoint", "subscription", "\u767b\u9332\u6642\u523b", "\u901a\u77e5\u8a2d\u5b9a"]); }
   var data = sh.getDataRange().getValues();
   for (var i = 1; i < data.length; i++) {
     if (String(data[i][0]) === endpoint) {
@@ -309,12 +313,12 @@ function _saveSub_(subB64, prefs, ep) {
 }
 
 // notif prefs (subscription tab col D). prefs = JSON {ig,confirm,redo}
-function _setNotifPrefs_(ep, prefs) {
+function _setNotifPrefs_(ep, prefs, account) {
   if (!ep) return "no-ep";
   var pf = _normPrefs_(prefs);
   if (!pf) return "bad-prefs";
   var ss = SpreadsheetApp.openById(SHEET_ID);
-  var sh = ss.getSheetByName(PUSH_TAB);
+  var sh = ss.getSheetByName(PUSH_TAB + (account ? ("_" + String(account).trim()) : ""));
   if (!sh) return "no-tab";
   var data = sh.getDataRange().getValues();
   for (var i = 1; i < data.length; i++) {
@@ -492,8 +496,8 @@ function _api_(p) {
       if (String(p.action) === "unapprove" && OWNER_KEY && String(p.owner || "") !== OWNER_KEY) return _jsonp_(cb, { error: "owner" });
       return _jsonp_(cb, { result: setStatus(p.token, p.action) });
     }
-    if (p.api === "subscribe") return _jsonp_(cb, { result: _saveSub_(p.sub, p.prefs, p.ep) });
-    if (p.api === "notifprefs") return _jsonp_(cb, { result: _setNotifPrefs_(p.ep, p.prefs) });
+    if (p.api === "subscribe") return _jsonp_(cb, { result: _saveSub_(p.sub, p.prefs, p.ep, p.account || "") });
+    if (p.api === "notifprefs") return _jsonp_(cb, { result: _setNotifPrefs_(p.ep, p.prefs, p.account || "") });
     if (p.api === "patterns") return _jsonp_(cb, _apiPatterns_());
     if (p.api === "owner") return _jsonp_(cb, { owner: (!OWNER_KEY || String(p.owner || "") === OWNER_KEY) });
     if (p.api === "report") return _jsonp_(cb, _apiReport_(p.account || ""));

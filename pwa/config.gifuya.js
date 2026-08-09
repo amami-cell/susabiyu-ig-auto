@@ -17,7 +17,7 @@ window.GIFUYA = {
   ACCOUNT: "gifuyatenjin",                     // 予約投稿タブ J列/AcctTokens と一致させる内部ID
   POLL_MS: 4000,
   // Web Push 公開鍵。ぎふや専用の鍵を用意したらここへ（未設定なら三条と同じ鍵で可・通知は連携後）
-  VAPID_PUBLIC: ""
+  VAPID_PUBLIC: "BFDIPEHslhSqZlE4QooHXikxgv-25YJEDmESsYVxLXFnrmPWLO8aQGoVFYTUWO5nn_QpkUAiCtb1QZprcMCNIuc"
 };
 // 実データ連携が有効か（GAS_URL が実物URLに置換済みか）を判定するフラグ。
 // 画面側はこのフラグが false の間は見本モードのまま安全に表示する。

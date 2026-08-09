@@ -163,6 +163,15 @@ def main():
         if pid:
             print("投稿完了:", pid)
             _line("[ぎふや自動投稿] ストーリーを投稿しました（%d:00 / %s）" % (SLOT_HOURS[si], story))
+            try:  # アプリ購読者へWeb Push（三条と同じ仕組み・購読_gifuyatenjin を読む）。失敗しても投稿は成立。
+                import prepare
+                prepare.SHEET_ID = poster.SHEET_ID
+                pwa = os.environ.get("PWA_URL") or "https://amami-cell.github.io/susabiyu-media/app/gifuyatenjin.html"
+                prepare.send_push(poster._sheets(), "Instagram投稿完了",
+                                  "%d:00 ストーリーを投稿しました" % SLOT_HOURS[si], pwa,
+                                  category="ig", account=ACCOUNT)
+            except Exception as e:
+                print("[PUSH] 送信スキップ(継続):", e)
             return
         last = story
         print("[POST] 試行%d 失敗" % attempt)
