@@ -56,6 +56,86 @@ function epCleanStore_(s) {
   return String(s || "").replace(/^(?:\s*【[^】]*】\s*)+/, "").trim();
 }
 
+// 店舗名の照合用キー（空白・中黒を除去して小文字化）。応募データと打ち出しデータの突き合わせに使う。
+function epNormStore_(s) {
+  return epCleanStore_(String(s || "")).replace(/[\s　・･]/g, "").toLowerCase();
+}
+
+// 日付セル（Date or 文字列 "2026/05/25" 等）→ Date（時刻切り捨て）。読めなければ null。
+function epDate_(v) {
+  if (Object.prototype.toString.call(v) === "[object Date]") return isNaN(v.getTime()) ? null : v;
+  var m = String(v || "").trim().match(/(\d{4})\D+(\d{1,2})\D+(\d{1,2})/);
+  if (!m) return null;
+  var d = new Date(+m[1], +m[2] - 1, +m[3]); d.setHours(0, 0, 0, 0); return d;
+}
+
+// ========================= 求人打ち出し履歴（Notion由来の別スプレッドシート）=========================
+
+var NOTION_POSTINGS_SHEET_ID = "1Oh1mxj5Jjn5wB5fTtW4GJrepA6cFDwQRhE9mK2QbxFw";
+var POSTING_KEEP_DAYS = 365;   // 掲載終了からこの日数を過ぎた打ち出しは取り込まない（古い分は自動で捨てる）
+
+var POST_HEADER = ["店舗名", "媒体", "商品名", "求人費", "掲載開始", "掲載終了",
+  "応募総数", "採用人数", "採用単価", "採用率", "退職人数", "退職率", "状態", "備考"];
+
+// 打ち出しシートの見出し → 論理名（候補複数可。実データの見出しに合わせてある）
+var POST_COLMAP = {
+  store: ["店舗名"], media: ["求人媒体", "媒体"], plan: ["商品名", "プラン名", "プラン"],
+  cost: ["求人費(税込)", "求人費（税込）", "求人費", "費用"],
+  start: ["連載開始", "掲載開始", "募集開始", "開始"], end: ["連載終了", "掲載終了", "募集終了", "終了"],
+  apps: ["応募総数", "応募数", "応募者数"], hired: ["採用人数", "採用数"],
+  unit: ["採用単価", "単価"], hireRate: ["採用率"], quit: ["退職人数", "退職者数"], quitRate: ["退職率"],
+  note: ["退職理由等、備考", "退職理由等", "備考", "退職理由"]
+};
+
+function epImportPostings_(ss) {
+  var ext;
+  try { ext = SpreadsheetApp.openById(NOTION_POSTINGS_SHEET_ID); }
+  catch (e) { Logger.log("  求人打ち出しシートを開けず(権限/ID?): " + e); return; }
+
+  // 「店舗名」見出しを含むタブを探す
+  var sheets = ext.getSheets(), src = null, hdr = null;
+  for (var s = 0; s < sheets.length; s++) {
+    var vv; try { vv = sheets[s].getDataRange().getValues(); } catch (e) { continue; }
+    if (!vv.length) continue;
+    var head = vv[0].map(function (x) { return String(x || "").replace(/　/g, "").trim(); });
+    if (head.indexOf("店舗名") >= 0) { src = vv; hdr = head; break; }
+  }
+  if (!src) { Logger.log("  求人打ち出し: 『店舗名』見出しのタブが見つからず"); return; }
+
+  var hidx = {};
+  for (var key in POST_COLMAP) {
+    for (var j = 0; j < POST_COLMAP[key].length; j++) {
+      var p = hdr.indexOf(POST_COLMAP[key][j]); if (p >= 0) { hidx[key] = p; break; }
+    }
+  }
+  var g = function (row, k) { var p = hidx[k]; return (p == null || p >= row.length) ? "" : row[p]; };
+  var today = new Date(); today.setHours(0, 0, 0, 0); var tt = today.getTime();
+  var cutoff = tt - POSTING_KEEP_DAYS * 86400000;
+
+  var out = [];
+  for (var i = 1; i < src.length; i++) {
+    var row = src[i];
+    var store = epCleanStore_(String(g(row, "store") || "").replace(/\s+/g, " ").trim());
+    if (!store) continue;
+    var st = epDate_(g(row, "start")), en = epDate_(g(row, "end"));
+    if (en && en.getTime() < cutoff) continue;                          // 古すぎ→捨てる
+    var active = st && st.getTime() <= tt && (!en || tt <= en.getTime()); // 期間内=募集中
+    out.push([store, String(g(row, "media") || ""), String(g(row, "plan") || ""),
+      g(row, "cost"),
+      st ? Utilities.formatDate(st, "Asia/Tokyo", "yyyy-MM-dd") : "",
+      en ? Utilities.formatDate(en, "Asia/Tokyo", "yyyy-MM-dd") : "",
+      g(row, "apps"), g(row, "hired"), g(row, "unit"), g(row, "hireRate"),
+      g(row, "quit"), g(row, "quitRate"), active ? "募集中" : "終了", String(g(row, "note") || "")]);
+  }
+  out.sort(function (a, b) { return String(b[4]) < String(a[4]) ? -1 : 1; });  // 掲載開始の新しい順
+
+  var sh = epSheet_(ss, "求人打ち出し", POST_HEADER);
+  sh.getRange(1, 1, 1, POST_HEADER.length).setValues([POST_HEADER]);
+  if (sh.getLastRow() > 1) sh.getRange(2, 1, sh.getLastRow() - 1, POST_HEADER.length).clearContent();
+  if (out.length) sh.getRange(2, 1, out.length, POST_HEADER.length).setValues(out);
+  Logger.log("  ✓ 求人打ち出し取り込み " + out.length + "件");
+}
+
 // ========================= エントリポイント =========================
 
 function epSetup() {
@@ -239,6 +319,9 @@ function epWriteSheets_(parsed) {
   var dash = epSheet_(ss, "dashboard_cache", ["key", "value"]);
   epWriteDashboard_(dash, rows, funnel);
 
+  // 求人打ち出し履歴（Notion由来の別スプレッドシート）を取り込む（実データで募集中/終了を判定）
+  try { epImportPostings_(ss); } catch (e) { Logger.log("求人打ち出し取り込みスキップ: " + e); }
+
   // 表示用の完成データを作って保存（アプリを開く時はこれを読むだけ＝ほぼ一瞬）
   try { dashStoreCache_(); } catch (e) { Logger.log("app_cache生成スキップ: " + e); }
 
@@ -339,10 +422,17 @@ function epUpsertRaw_(sh, rows, today) {
   return { added: added, changed: changed };  // 差分サマリ（ログ用）
 }
 
+var SNAPSHOT_KEEP_DAYS = 92;   // 日次スナップショットは直近この日数だけ残す（古い分は自動削除で軽量化）
+
 function epUpsertSnapshot_(sh, rows, funnel, today) {
   var vals = sh.getDataRange().getValues();
+  var cut = new Date(); cut.setDate(cut.getDate() - SNAPSHOT_KEEP_DAYS);
+  var cutStr = Utilities.formatDate(cut, "Asia/Tokyo", "yyyy-MM-dd");
   var keep = [];
-  for (var i = 1; i < vals.length; i++) if (vals[i][0] !== "" && String(vals[i][0]) !== today) keep.push(vals[i].slice(0, 8));
+  for (var i = 1; i < vals.length; i++) {
+    var d = String(vals[i][0]);
+    if (vals[i][0] !== "" && d !== today && d >= cutStr) keep.push(vals[i].slice(0, 8));
+  }
   var add = rows.map(function (r) { return [today, r.code, r.name, r.statusCode, r.statusName, r.storeId, funnel[r.statusCode] || "", r.dup ? "重複" : ""]; });
   var all = keep.concat(add);
   if (sh.getLastRow() > 1) sh.getRange(2, 1, sh.getLastRow() - 1, 8).clearContent();

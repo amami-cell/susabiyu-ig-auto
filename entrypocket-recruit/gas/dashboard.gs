@@ -99,11 +99,42 @@ function dashBuild_() {
     }
   }
 
+  // 求人打ち出し履歴（実データ）→ 店舗ごとの募集状況＆履歴一覧
+  var storePosting = {}, postings = [];
+  var pp = ss.getSheetByName('求人打ち出し');
+  if (pp) {
+    var pv = pp.getDataRange().getValues(), ph = pv[0], pc = {};
+    ph.forEach(function (x, i) { pc[x] = i; });
+    var gp = function (row, name) { var i = pc[name]; return i == null ? '' : row[i]; };
+    for (var i = 1; i < pv.length; i++) {
+      var prow = pv[i];
+      var pstore = epCleanStore_(String(gp(prow, '店舗名') || '').trim());
+      if (!pstore) continue;
+      var startS = String(gp(prow, '掲載開始') || ''), endS = String(gp(prow, '掲載終了') || '');
+      var active = String(gp(prow, '状態') || '') === '募集中';
+      var key = epNormStore_(pstore);
+      var rec = storePosting[key] || { name: pstore, active: false, lastEnd: '', latestStart: '', latestEnd: '', media: '', apps: 0, hires: 0, count: 0 };
+      if (active) rec.active = true;
+      if (endS > rec.lastEnd) rec.lastEnd = endS;
+      if (startS >= rec.latestStart) { rec.latestStart = startS; rec.latestEnd = endS; rec.media = String(gp(prow, '媒体') || ''); }
+      rec.apps += (+gp(prow, '応募総数') || 0);
+      rec.hires += (+gp(prow, '採用人数') || 0);
+      rec.count++;
+      storePosting[key] = rec;
+      postings.push({
+        store: pstore, media: String(gp(prow, '媒体') || ''), plan: String(gp(prow, '商品名') || ''),
+        cost: gp(prow, '求人費'), start: startS, end: endS, apps: gp(prow, '応募総数'),
+        hires: gp(prow, '採用人数'), hireRate: String(gp(prow, '採用率') || ''),
+        state: String(gp(prow, '状態') || ''), note: String(gp(prow, '備考') || '')
+      });
+    }
+  }
+
   // 最終実行
   var last = null, run = ss.getSheetByName('_実行ログ');
   if (run && run.getLastRow() > 1) { var lr = run.getRange(run.getLastRow(), 1, 1, 6).getValues()[0]; last = { at: String(lr[0]), result: String(lr[2]), n: lr[3] }; }
 
-  return { dash: dash, apps: apps, last: last, storeManual: storeManual };
+  return { dash: dash, apps: apps, last: last, storeManual: storeManual, storePosting: storePosting, postings: postings };
 }
 
 /**
