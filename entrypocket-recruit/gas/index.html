@@ -92,7 +92,7 @@
   <div class="toast" id="toast"></div>
   <script>
     var STAGES = ['応募','接触','面接','内定','入社','終了'];
-    var apps = [], activeFunnel = null, storeManual = {};
+    var apps = [], activeFunnel = null, storeManual = {}, appByCode = {}, shown = 80;
     function toast(m){ var t=document.getElementById('toast'); t.textContent=m; t.classList.add('show'); setTimeout(function(){t.classList.remove('show');},2600); }
     function esc(s){ return String(s==null?'':s).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];}); }
     function load(){ google.script.run.withSuccessHandler(render).withFailureHandler(function(e){document.getElementById('updated').textContent='取得失敗: '+e.message;}).dashData(); }
@@ -110,7 +110,8 @@
       renderBD('bdGender', dash.by_gender);
       renderBD('bdAge', dash.by_age, 'num');
       storeManual=d.storeManual||{};
-      apps=d.apps||[]; renderStores(); renderList();
+      apps=d.apps||[]; appByCode={}; apps.forEach(function(a){ appByCode[a.code]=a; });
+      shown=80; renderStores(); renderList();
     }
     function renderBD(id, obj, order){
       obj=obj||{}; var el=document.getElementById(id); if(!el) return;
@@ -153,7 +154,21 @@
       if(!ents.length) return '<div class="cinfo" style="color:var(--muted)">記録なし</div>';
       return ents.map(function(e){ return '<div class="ent"><div class="ed">'+esc(e.date||'―')+'</div><div class="eb">'+esc(e.body||'')+'</div></div>'; }).join('');
     }
-    function toggle(id){ var el=document.getElementById('d_'+id); if(el) el.style.display = (el.style.display==='none'?'block':'none'); }
+    // 詳細は開いた瞬間に、すでに読み込んだデータから組み立てる（サーバー通信なし）
+    function buildDetail(a){
+      if(!a) return '';
+      var histEnts=summarize(a.history), memoEnts=summarize(a.memo);
+      return '<div class="dl">ステータス変更履歴</div>'+entriesHtml(histEnts)+
+        (memoEnts.length?('<div class="dl">メモ</div>'+entriesHtml(memoEnts)):'')+
+        '<div class="dl">連絡先</div><div class="cinfo">☎ '+esc(a.telRaw||a.tel||'なし')+'　✉ '+esc(a.email||'なし')+'</div>';
+    }
+    function toggle(code){
+      var el=document.getElementById('d_'+code); if(!el) return;
+      if(el.style.display==='none'){
+        if(!el.getAttribute('data-built')){ el.innerHTML=buildDetail(appByCode[code]); el.setAttribute('data-built','1'); }
+        el.style.display='block';
+      } else el.style.display='none';
+    }
 
     function renderList(){
       var fl=document.getElementById('filters');
@@ -162,7 +177,8 @@
       fl.innerHTML=c;
       var rows=apps.filter(function(a){return activeFunnel===null||a.funnel===activeFunnel;});
       if(!rows.length){ document.getElementById('list').innerHTML='<div class="empty">該当なし</div>'; return; }
-      var h=''; rows.slice(0,500).forEach(function(a){
+      // 表示は shown 件ずつ。詳細パネルは空のまま置き、開いた時に中身を作る（初期描画を軽く）。
+      var h=''; rows.slice(0, shown).forEach(function(a){
         var id=esc(a.code);
         var age=(a.age!==''&&a.age!=null)?(a.age+'歳'):'';
         var metaBits=[age, a.gender].filter(Boolean).join('・');
@@ -171,13 +187,7 @@
         var occ=a.occupation?('💼 '+esc(a.occupation)):'';
         var line2=[occ, '🏪 '+esc(a.store||'不明')].filter(Boolean).join('　');
         var stBtn='<button class="pill st" onclick="toggle(\''+id+'\')">◆ '+esc(a.status||'状況不明')+' ▾</button>';
-        var memoEnts=summarize(a.memo), memoBtn = memoEnts.length?('<button class="pill memo" onclick="toggle(\''+id+'\')">📝 メモ'+memoEnts.length+' ▾</button>'):'';
-        var histEnts=summarize(a.history);
-        var detail='<div class="detail" id="d_'+id+'" style="display:none">'+
-          '<div class="dl">ステータス変更履歴</div>'+entriesHtml(histEnts)+
-          (memoEnts.length?('<div class="dl">メモ</div>'+entriesHtml(memoEnts)):'')+
-          '<div class="dl">連絡先</div><div class="cinfo">☎ '+esc(a.telRaw||a.tel||'なし')+'　✉ '+esc(a.email||'なし')+'</div>'+
-          '</div>';
+        var memoN=summarize(a.memo).length, memoBtn = memoN?('<button class="pill memo" onclick="toggle(\''+id+'\')">📝 メモ'+memoN+' ▾</button>'):'';
         var sms=smsHref(a), mail=mailHref(a);
         var acts='<div class="acts">'+
           (a.telLink?'<a class="btn call" href="'+esc(a.telLink)+'">発信</a>':'<span class="btn off">TELなし</span>')+
@@ -187,11 +197,13 @@
         h+='<div class="app"><div class="nm">'+esc(a.name)+meta+dup+'</div>'+
            '<div class="sub">'+line2+'</div>'+
            '<div class="sub">🕒 '+esc(a.appliedAt||'')+(a.media?('　/　'+esc(a.media)):'')+'</div>'+
-           '<div class="pills">'+stBtn+memoBtn+'</div>'+detail+acts+'</div>';
+           '<div class="pills">'+stBtn+memoBtn+'</div>'+
+           '<div class="detail" id="d_'+id+'" style="display:none"></div>'+acts+'</div>';
       });
-      if(rows.length>500) h+='<div class="empty">ほか '+(rows.length-500)+' 件（多いので省略）</div>';
+      if(rows.length>shown) h+='<div style="text-align:center;padding:8px"><button class="chip" onclick="showMore()">さらに表示（残り '+(rows.length-shown)+' 件）</button></div>';
       document.getElementById('list').innerHTML=h;
     }
+    function showMore(){ shown+=120; renderList(); }
     // 応募店舗別：直近30日に応募があれば「募集中」、途絶えていれば「募集終了」とみなす。
     // master_店舗 F列「募集手動」に 募集中/終了 と書けば、その店だけ手動で上書きできる。
     var RECENT_DAYS = 30;
@@ -245,7 +257,7 @@
         '</div>';
       }).join('');
     }
-    function setF(s){ activeFunnel=s; renderList(); }
+    function setF(s){ activeFunnel=s; shown=80; renderList(); }
     function doRefresh(){
       var b=document.getElementById('refreshBtn'); b.disabled=true; b.textContent='取得中…'; toast('最新データを取得中です（15秒ほど）');
       google.script.run.withSuccessHandler(function(r){

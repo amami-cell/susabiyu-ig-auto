@@ -62,10 +62,16 @@ function dashData() {
       if (String(cv(row, '消失')) === 'TRUE') continue;
       var sc = String(cv(row, 'ステータスコード'));
       var sid = String(cv(row, '店舗ID'));
+      // 店舗名の決定：CSVの店舗名(W列)を最優先。master表示名は名前が入っている時だけ使う。
+      //   （表示名が空 or 数字だけ＝店舗IDのまま、なら使わず番号表示を防ぐ）
+      var rawName = epCleanStore_(cv(row, '店舗名'));
+      var mName = stores[sid];
+      var store = rawName || (mName && !/^\d+$/.test(String(mName)) ? mName : '') || String(mName || '') || sid || '不明';
+      // 1回で必要な分をまとめて渡す（タップのたびに取りに行かない）。
       apps.push({
         code: String(cv(row, '応募者コード')), name: cv(row, '氏名'), status: cv(row, 'ステータス'),
         statusCode: sc, funnel: funnel[sc] || '',
-        store: stores[sid] || epCleanStore_(cv(row, '店舗名')) || sid || '',
+        store: store,
         tel: String(cv(row, '電話番号_数字') || ''), telLink: cv(row, 'tel_link'),
         telRaw: String(cv(row, '電話番号') || ''), email: String(cv(row, 'メール') || ''),
         media: cv(row, '媒体'), appliedAt: String(cv(row, '応募日時') || ''),

@@ -254,8 +254,19 @@ function epSyncStatusMaster_(sh, rows, today) {
 function epSyncStoreMaster_(sh, rows, today) {
   // 既存シートにも「募集手動」見出しを補う（手で書き足せる列）
   if (String(sh.getRange(1, 6).getValue() || "").trim() === "") sh.getRange(1, 6).setValue("募集手動");
-  var vals = sh.getDataRange().getValues(), known = {};
-  for (var i = 1; i < vals.length; i++) if (vals[i][0] !== "") known[vals[i][0]] = 1;
+  // 店舗ID→実際の店舗名（今回データから）
+  var nameById = {};
+  rows.forEach(function (r) { if (r.storeId && r.storeName && !nameById[r.storeId]) nameById[r.storeId] = r.storeName; });
+
+  var vals = sh.getDataRange().getValues(), known = {}, fixes = [];
+  for (var i = 1; i < vals.length; i++) {
+    var id = vals[i][0]; if (id === "") continue; known[id] = 1;
+    // 表示名が空 or 数字だけ（＝店舗IDのまま）で、実名が分かるなら直す
+    var disp = String(vals[i][1] || "").trim();
+    if ((disp === "" || /^\d+$/.test(disp)) && nameById[id]) fixes.push([i + 1, nameById[id]]);
+  }
+  fixes.forEach(function (f) { sh.getRange(f[0], 2).setValue(f[1]); });
+
   var add = [], seen = {};
   rows.forEach(function (r) {
     if (r.storeId && !known[r.storeId] && !seen[r.storeId]) { seen[r.storeId] = 1; add.push([r.storeId, r.storeName, "", "", today, ""]); }
