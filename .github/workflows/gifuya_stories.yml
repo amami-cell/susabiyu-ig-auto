@@ -2,6 +2,10 @@ name: gifuya-stories
 # ぎふやのストーリー動画を、同期済みのDrive写真(pwa/gifuya/f_*.jpg)から再生成する。
 # 焼き込み写真が古くなった時に手動で回す（造り盛り等のズレを一括修正）。
 on:
+  schedule:
+    # 毎週月曜 05:00 JST（＝日曜20:00 UTC）。gifuya_sync(毎日04:30)でDrive写真を取り込んだ後に回す。
+    # レンダリングは決定的なので、写真が変わっていない週はバイト同一＝コミットなしで安全に終わる。
+    - cron: '0 20 * * 0'
   workflow_dispatch:
     inputs:
       only:
