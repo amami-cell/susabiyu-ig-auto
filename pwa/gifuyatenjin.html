@@ -176,7 +176,7 @@
 <script>
 (function () {
   "use strict";
-  var V = "?v=114";  // メディアのキャッシュ更新用（同名ファイル更新時にブラウザ再取得させる）
+  var V = "?v=115";  // メディアのキャッシュ更新用（同名ファイル更新時にブラウザ再取得させる）
   // 実稼働化の受け皿：GIFUYA_LIVE=true（専用GAS URL 注入済み）になると実データ連携へ切替予定。
   // 現状は未設定＝見本モードで安全表示（実データのレンダリングは実稼働化ステップで有効化）。
   var LIVE = !!window.GIFUYA_LIVE;
@@ -255,18 +255,12 @@
     {img:"pattern_bigname.jpg", t:"H 巨大縦書き", d:"料理名を大きく縦書き。名物1品押しに（元祖どてかつ・名物どて焼き）。"}
   ];
 
-  // ===== ① 確認（三条と同じ：ストーリー中心のライブ確認） =====
-  // ストーリーは毎日 11:00 / 17:00 / 20:00 に自動投稿。post_gifuya_story.py と同じローテーション式で
-  // 「次に投稿される内容」を表示し、やめない限りそのまま自動投稿（三条と同じオプトアウト方式）。
+  // ===== ① 確認（三条と同じ：承認待ちキューのライブ確認） =====
+  // gifuya-prepare が2日先の各枠を「その日の写真から新規レンダリング」し、承認待ち_gifuyatenjin に
+  // pending 登録する。ここでオーナーが 投稿OK / 作り直す / やめる を操作（三条 index.html と同じ
+  // list/act 方式）。やめない限り予定時刻に自動投稿（オプトアウト）。
   var CFG2 = window.GIFUYA || {};
   var GAS = (CFG2.GAS_URL||"").trim(), ACCT = (CFG2.ACCOUNT||"gifuyatenjin");
-  var STORY_FILES = DYNVIDS.map(function(v){ return "dv_"+v.n+".mp4"; }); // 採用中10本＝ローテーション対象
-  var STORY_TITLE = {}; DYNVIDS.forEach(function(v){ STORY_TITLE["dv_"+v.n+".mp4"] = v.t; });
-  var SLOTS = [11,17,20], STORY_EPOCH = new Date(2026,0,1);              // 基準日は poster と一致
-  var PLAN_LS = "gf_story_plan";
-  function loadPlan(){ try{ return JSON.parse(localStorage.getItem(PLAN_LS)||"{}") || {}; }catch(e){ return {}; } }
-  function savePlan(){ try{ localStorage.setItem(PLAN_LS, JSON.stringify(PLAN)); }catch(e){} }
-  var PLAN = loadPlan();
   // 軽量JSONP：共有GASへ「やめる/差し替え/OK」を反映（自動投稿の判断に使用）。失敗しても端末表示は保持。
   var _jc=0;
   function _gkey(){ try{ return localStorage.getItem("gf_key")||"8888"; }catch(e){ return "8888"; } }
@@ -283,84 +277,74 @@
     window[cb]=function(res){ try{ delete window[cb]; }catch(e){} if(s.parentNode) s.parentNode.removeChild(s); try{ onData&&onData(res); }catch(e){} };
     var q=Object.keys(params).map(function(k){ return k+"="+encodeURIComponent(params[k]); }).join("&");
     s.src=GAS+(GAS.indexOf("?")>=0?"&":"?")+q; s.onerror=function(){ try{ window[cb](); }catch(e){} }; document.head.appendChild(s); }
-  function pad2(n){ return ("0"+n).slice(-2); }
-  function slotKey(d,h){ return d.getFullYear()+"-"+pad2(d.getMonth()+1)+"-"+pad2(d.getDate())+"-"+h; }
-  // seedから決まる順列（Fisher-Yates+LCG）。post_gifuya_story.py の _seeded_order と同一式＝結果一致。
+  function esc(s){ return String(s==null?"":s).replace(/[&<>"]/g,function(m){return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[m];}); }
+  // seedから決まる順列（Fisher-Yates+LCG）。フィード候補の日替わりシャッフルで使用。
   function seededOrder(n, seed){ var a=[],i,s=(seed>>>0)||1; for(i=0;i<n;i++)a.push(i);
     for(i=n-1;i>0;i--){ s=(s*1664525+1013904223)>>>0; var j=s%(i+1),t=a[i];a[i]=a[j];a[j]=t; } return a; }
-  // 三条と同じ“ランダム”方式：10本を1サイクルで1回ずつ・順番はサイクルごとにシャッフル（被りなし・毎回入替）。
-  function pickDefault(mid, si){ var N=STORY_FILES.length;
-    var days=Math.round((mid-STORY_EPOCH)/864e5); var g=days*3+si;
-    var cycle=Math.floor(g/N), pos=((g%N)+N)%N; var order=seededOrder(N, cycle+1);
-    if(cycle>0 && order[0]===seededOrder(N, cycle)[N-1]){ var t=order[0];order[0]=order[1];order[1]=t; }
-    return STORY_FILES[order[pos]]; }
-  function upcoming(n){ var out=[], now=Date.now(), day=new Date(); day.setHours(0,0,0,0);
-    for(var k=0;k<14 && out.length<n;k++){ for(var i=0;i<SLOTS.length;i++){
-        var t=new Date(day.getFullYear(),day.getMonth(),day.getDate(),SLOTS[i]);
-        if(t.getTime()>now){ out.push({when:t, si:i, hour:SLOTS[i], mid:new Date(day.getFullYear(),day.getMonth(),day.getDate())}); if(out.length>=n) break; }
-      } day.setDate(day.getDate()+1); } return out; }
-  function whenLabel(t){ var now=new Date(); var d;
-    if(t.toDateString()===now.toDateString()) d="本日";
-    else { var tm=new Date(now.getFullYear(),now.getMonth(),now.getDate()+1); d=(t.toDateString()===tm.toDateString())?"明日":((t.getMonth()+1)+"/"+t.getDate()); }
-    return d+" "+pad2(t.getHours())+":"+pad2(t.getMinutes()); }
-  function remainText(t){ var ms=t.getTime()-Date.now(); if(ms<=0) return "まもなく";
-    var m=Math.floor(ms/60000), h=Math.floor(m/60), mn=m%60; return h>0?("あと"+h+"時間"+mn+"分"):("あと"+mn+"分"); }
-  function effFile(key, mid, si){ var v=PLAN[key]; if(v && v!=="skip" && v!=="ok") return v; return pickDefault(mid,si); }
+  function _bg(blur){ return blur ? ' style="background:#000 url(\''+blur+'\') center center / cover no-repeat"' : ' style="background:#000"'; }
+  function isVideo(it){ var u=(it.url||"").toLowerCase(); return it.kind==="video" || u.indexOf(".mp4")>=0 || u.indexOf(".mov")>=0; }
+  function mediaHtml(it){
+    if(isVideo(it)){ var p=it.poster?(' poster="'+it.poster+'"'):'';
+      return '<div class="mediaWrap story"><video class="media"'+_bg(it.blur)+' src="'+it.url+'"'+p+' controls playsinline preload="none" webkit-playsinline></video></div>'; }
+    return '<div class="mediaWrap story"><img class="media"'+_bg(it.blur)+' src="'+(it.url||it.poster||"")+'" alt=""></div>';
+  }
 
   var feed = document.getElementById("feed");
   var note = document.createElement("div"); note.className="note";
-  note.innerHTML = "<b>投稿の確認</b>（三条と同じ確認画面）。ストーリーは毎日 <b>11:00・17:00・20:00</b> に自動投稿されます。下は<b>次に投稿される内容</b>です。<b>やめない限り、そのまま自動で投稿</b>されます。<br>各回を見て <b>投稿OK / 作り直す（別の動画へ差し替え）/ やめる（この回は投稿しない）</b>。"+(LIVE?"":"（現在は見本モードのため、操作は端末内のみ保存）");
+  note.innerHTML = "<b>投稿の確認</b>（三条と同じ確認画面）。毎日その日の写真で作った動画を、投稿の2日前から確認できます。ストーリーは <b>11:00・17:00・20:00</b> に自動投稿。<b>やめない限り、そのまま自動で投稿</b>されます。<br>各回を見て <b>投稿OK / 作り直す（新しく作り直す）/ やめる（この回は投稿しない）</b>。"+(LIVE?"":"（現在は見本モードのため、操作は反映されません）");
   feed.appendChild(note);
 
   function seclabel2(txt){ var s=document.createElement("div"); s.textContent=txt;
     s.style.cssText="font-weight:800;margin:18px 4px 8px;color:#e7ecf3;font-size:15px"; feed.appendChild(s); }
 
-  // --- ストーリー（自動投稿の予定・三条と同じカード） ---
-  seclabel2("🎬 ストーリー（自動投稿の予定）");
-  var storyBuilders=[], localTs={};   // 全カードの再描画用 / ローカル操作の時刻（サーバ同期の猶予判定）
-  upcoming(6).forEach(function(slot){
-    var key=slotKey(slot.when, slot.hour);
-    var c=document.createElement("div"); c.className="card";
-    function build(){
-      var file=effFile(key, slot.mid, slot.si), title=STORY_TITLE[file]||file;
-      c.innerHTML=
-        '<div class="head"><span class="time">'+whenLabel(slot.when)+'</span><span class="pat">'+title+'</span><span class="remain">'+remainText(slot.when)+'</span></div>'+
-        '<div class="mediaWrap story"><video class="media" src="gifuya/'+file+V+'" controls playsinline preload="metadata" webkit-playsinline></video></div>'+
-        '<div class="slot"></div>';
-      var sl=c.querySelector(".slot"), st=PLAN[key];
-      c.classList.remove("done");
-      if(st==="skip"){ sl.innerHTML='<div class="banner ngb">— 取りやめました（この回は投稿しません）<small>タップで戻す</small></div>'; c.classList.add("done");
-        sl.querySelector(".banner").onclick=function(){ delete PLAN[key]; savePlan(); gas({api:"storyset",slot:key,action:"clear"}); build(); toast("戻しました"); }; return; }
-      if(st==="ok"){ sl.innerHTML='<div class="banner okb">✓ 承認済み（'+slot.hour+':00に投稿されます）<small>タップで取り消し</small></div>';
-        sl.querySelector(".banner").onclick=function(){ delete PLAN[key]; savePlan(); gas({api:"storyset",slot:key,action:"clear"}); build(); toast("取り消しました"); }; return; }
-      sl.innerHTML='<div class="btns"><button class="ok">投稿OK</button><button class="rd">作り直す</button><button class="ng">やめる</button></div>';
-      sl.querySelector(".ok").onclick=function(){ PLAN[key]="ok"; localTs[key]=Date.now(); savePlan(); gas({api:"storyset",slot:key,action:"ok"}); build(); toast(LIVE?"承認しました":"承認しました（見本）"); };
-      sl.querySelector(".rd").onclick=function(){ var cur=effFile(key,slot.mid,slot.si); var ni=(STORY_FILES.indexOf(cur)+1)%STORY_FILES.length;
-        PLAN[key]=STORY_FILES[ni]; localTs[key]=Date.now(); savePlan(); gas({api:"storyset",slot:key,action:"set",file:STORY_FILES[ni]}); build(); toast("別の動画に差し替えました"); };
-      sl.querySelector(".ng").onclick=function(){ PLAN[key]="skip"; localTs[key]=Date.now(); savePlan(); gas({api:"storyset",slot:key,action:"skip"}); build(); toast(LIVE?"この回はやめました":"やめました（見本）"); };
-    }
-    build(); storyBuilders.push(build);
-    feed.appendChild(c);
-  });
+  // --- ストーリー（承認待ちキュー・三条 index.html と同じ list/act 方式） ---
+  seclabel2("🎬 ストーリー（承認待ち）");
+  var qWrap=document.createElement("div"); feed.appendChild(qWrap);
+  var _acting={};   // 二重押下防止（token単位）
 
-  // --- 確認状態をサーバ(StoryPlan)からlive取得：他端末の「やめる/差し替え」も反映（三条と同じサーバ真実） ---
-  function applyServerPlan(plan){
-    var changed=false;
-    Object.keys(PLAN).forEach(function(k){                    // サーバに無いskip/setは消す（他端末でOK/戻された分）。okはローカルのみ保持
-      if(PLAN[k]==="ok") return;
-      if(!plan[k]){ if(Date.now()-(localTs[k]||0)<20000) return; delete PLAN[k]; changed=true; }
+  function renderQueue(items){
+    qWrap.innerHTML="";
+    if(!items || !items.length){
+      var e=document.createElement("div"); e.className="note"; e.style.cssText="margin:8px 4px";
+      e.textContent = LIVE ? "確認待ちの投稿はありません。（毎日 05:10 JST に2日先ぶんを自動生成します）"
+                           : "見本モードです。実データ連携すると承認待ちが表示されます。";
+      qWrap.appendChild(e); return;
+    }
+    items.forEach(function(it){
+      var c=document.createElement("div"); c.className="card";
+      var head='<div class="head"><span class="time">'+esc(it.when)+'</span><span class="pat">'+esc(it.patternJa||it.pattern||"")+'</span><span class="remain">'+esc(it.remain||"")+'</span></div>';
+      var cap = it.caption ? ('<div class="cap">'+esc(it.caption)+'</div>') : '';
+      if(it.status==="redo"){
+        c.innerHTML=head+mediaHtml(it)+'<div class="slot"><div class="redoing"><span class="spin"></span>作り直し中…（数分で新しい動画に更新されます）</div></div>';
+      } else if(it.status==="approved"){
+        c.innerHTML=head+mediaHtml(it)+cap+'<div class="slot"><div class="banner okb">✓ 承認済み（予定時刻に投稿されます）</div></div>';
+      } else {
+        c.innerHTML=head+mediaHtml(it)+cap+'<div class="slot"><div class="btns"><button class="ok">投稿OK</button><button class="rd">作り直す</button><button class="ng">やめる</button></div></div>';
+        var sl=c.querySelector(".slot");
+        sl.querySelector(".ok").onclick=function(){ act(it.token,"ok","承認しました"); };
+        sl.querySelector(".rd").onclick=function(){ act(it.token,"redo","作り直します（数分お待ちください）"); };
+        sl.querySelector(".ng").onclick=function(){ act(it.token,"cancel","この回はやめました"); };
+      }
+      qWrap.appendChild(c);
     });
-    Object.keys(plan).forEach(function(k){
-      var a=plan[k].action, f=plan[k].file, nv = a==="skip" ? "skip" : (a==="set"&&f ? f : null);
-      if(nv && PLAN[k]!==nv){ PLAN[k]=nv; changed=true; }
-    });
-    if(changed){ savePlan(); storyBuilders.forEach(function(b){ b(); }); }
   }
+
+  function act(token, action, msg){
+    if(!LIVE){ toast("見本モードのため操作できません"); return; }
+    if(_acting[token]) return; _acting[token]=1;
+    gas({api:"act", token:token, action:action});     // サーバへ反映（JSONP・投げっぱなし）
+    toast(msg);
+    setTimeout(function(){ _acting[token]=0; loadQueue(); }, 800);  // キャッシュbust後に真実を再取得
+  }
+
   function _hhmmss(){ var d=new Date(), z=function(n){return(n<10?"0":"")+n;}; return z(d.getHours())+":"+z(d.getMinutes())+":"+z(d.getSeconds()); }
   function markLive(){ var m=document.getElementById("modeTxt"); if(m) m.textContent="実データ連携・最新 "+_hhmmss();
     var d=document.querySelector(".dot i"); if(d){ d.classList.remove("beat"); void d.offsetWidth; d.classList.add("beat"); } }
-  function loadStoryPlan(){ gasGet({api:"storyplan"}, function(res){ if(res && res.ok){ markLive(); if(res.plan) applyServerPlan(res.plan); } }); }
-  if(LIVE){ loadStoryPlan(); setInterval(loadStoryPlan, 8000); }
+  var _lastSig=null;
+  function loadQueue(){ gasGet({api:"list"}, function(res){ if(res && res.items){ markLive();
+    if(res.sig!==_lastSig){ _lastSig=res.sig; renderQueue(res.items); } } }); }
+  if(LIVE){ loadQueue(); setInterval(loadQueue, 8000); }
+  else { renderQueue(null); }
 
   // --- フィード投稿の候補（Driveから毎日同期。feed.json があればそれを、無ければ内蔵見本を表示） ---
   function buildFeedCandidates(list){
