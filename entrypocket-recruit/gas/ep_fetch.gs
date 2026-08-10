@@ -9,8 +9,12 @@
  *     EP_USER = ログインID / EP_PASS = パスワード
  *
  * 使い方:
- *   epSetup … 1回だけ実行。取得を試し、成功したら毎朝8時の自動取得を設置する。
+ *   epSetup … 1回だけ実行。取得を試し、成功したら1日4回の自動取得を設置する。
  *   epRun   … 毎回の取得本体（トリガーから自動で呼ばれる）。手動でも実行可。
+ *
+ * 自動取得の時刻（日本時間）: 10:00 / 15:00 / 17:00 / 23:00
+ *   過去に溜めた分はそのまま。毎回は「新規応募・ステータス変更」を見て、
+ *   変化があった時だけ更新としてログに残す（無ければ「変更なし」）。
  */
 
 var EP_LOGIN_URL = "https://manage.entrypocket.jp/web/-/login";
@@ -58,7 +62,7 @@ function epSetup() {
   var ok = epRun();
   if (ok) {
     epInstallTrigger_();
-    Logger.log("★★ 完成しました。毎朝8時に自動で取得します。もう触らなくてOKです。");
+    Logger.log("★★ 完成しました。1日4回（10/15/17/23時）自動で取得します。もう触らなくてOKです。");
   } else {
     Logger.log("★ 取得できませんでした。上のログ（✓✗の行）をそのまま送ってください。");
   }
@@ -89,8 +93,9 @@ function epRun() {
     Logger.log("   全ヘッダ: " + parsed.headers.join(","));
     if (!n) { throw new Error("CSVから応募者を読めず（列名マッピング要確認）"); }
 
-    epWriteSheets_(parsed);
-    Logger.log("✓ ④ スプレッドシートへ蓄積完了");
+    var chg = epWriteSheets_(parsed) || { added: 0, changed: 0 };
+    note = (chg.added || chg.changed) ? ("新規" + chg.added + "件 / ステータス変更" + chg.changed + "件") : "変更なし";
+    Logger.log("✓ ④ スプレッドシートへ蓄積完了（" + note + "）");
   } catch (e) {
     result = "fail"; note = String(e);
     Logger.log("✗ " + note);
@@ -224,7 +229,7 @@ function epWriteSheets_(parsed) {
 
   // raw_応募者（全書き換え。今回消えた応募者は消失フラグで残す）
   var raw = epSheet_(ss, "raw_応募者", RAW_HEADER);
-  epUpsertRaw_(raw, rows, today);
+  var chg = epUpsertRaw_(raw, rows, today);
 
   // snapshot_日次（当日分を入れ替え）
   var snap = epSheet_(ss, "snapshot_日次", ["日付", "応募者コード", "氏名", "ステータスコード", "ステータス", "店舗ID", "ファネル段階", "重複"]);
@@ -236,6 +241,8 @@ function epWriteSheets_(parsed) {
 
   // 表示用の完成データを作って保存（アプリを開く時はこれを読むだけ＝ほぼ一瞬）
   try { dashStoreCache_(); } catch (e) { Logger.log("app_cache生成スキップ: " + e); }
+
+  return chg;  // { added, changed } 差分サマリ
 }
 
 function epSyncStatusMaster_(sh, rows, today) {
@@ -288,17 +295,23 @@ function epUpsertRaw_(sh, rows, today) {
   var vals = sh.getDataRange().getValues();
   var oldHdr = vals.length ? vals[0] : [];
   var fsCol = oldHdr.indexOf("初回取得日"); // 旧スキーマ(20列)でも名前で位置を特定
+  var scCol = oldHdr.indexOf("ステータス"); // 前回のステータス名（差分検知用）
   // 旧行を「見出し名」で引くヘルパ（新旧スキーマ混在に強い）
   function pick(row, name, alt) {
     var i = oldHdr.indexOf(name); if (i < 0 && alt) i = oldHdr.indexOf(alt);
     return i >= 0 ? row[i] : "";
   }
-  var firstSeen = {};
-  for (var i = 1; i < vals.length; i++) if (vals[i][0] !== "") firstSeen[vals[i][0]] = (fsCol >= 0 ? vals[i][fsCol] : "") || today;
+  var firstSeen = {}, prevStatus = {};
+  for (var i = 1; i < vals.length; i++) if (vals[i][0] !== "") {
+    firstSeen[vals[i][0]] = (fsCol >= 0 ? vals[i][fsCol] : "") || today;
+    prevStatus[vals[i][0]] = scCol >= 0 ? String(vals[i][scCol] || "") : "";
+  }
 
-  var incoming = {};
+  var incoming = {}, added = 0, changed = 0;
   var out = rows.map(function (r) {
     incoming[r.code] = 1;
+    if (!(r.code in prevStatus)) added++;                                  // 新規応募
+    else if (String(prevStatus[r.code]) !== String(r.statusName)) changed++; // ステータス変更
     return [r.code, r.name, r.kana, r.statusCode, r.statusName, r.storeId, r.storeName,
       r.telRaw, r.tel, r.tel ? "tel:" + r.tel : "", r.email, r.media, r.appliedAt,
       r.interviewAt, r.hiredAt, r.dup ? "重複" : "", r.history, r.memo,
@@ -323,6 +336,7 @@ function epUpsertRaw_(sh, rows, today) {
   var clearW = Math.max(W, oldHdr.length);
   if (sh.getLastRow() > 1) sh.getRange(2, 1, sh.getLastRow() - 1, clearW).clearContent();
   if (out.length) sh.getRange(2, 1, out.length, W).setValues(out);
+  return { added: added, changed: changed };  // 差分サマリ（ログ用）
 }
 
 function epUpsertSnapshot_(sh, rows, funnel, today) {
@@ -372,7 +386,10 @@ function epLog_(started, result, n, note) {
 
 function epInstallTrigger_() {
   ScriptApp.getProjectTriggers().forEach(function (t) { if (t.getHandlerFunction() === "epRun") ScriptApp.deleteTrigger(t); });
-  ScriptApp.newTrigger("epRun").timeBased().atHour(8).everyDays(1).inTimezone("Asia/Tokyo").create();
+  // 1日4回（日本時間 10 / 15 / 17 / 23 時）
+  [10, 15, 17, 23].forEach(function (h) {
+    ScriptApp.newTrigger("epRun").timeBased().atHour(h).everyDays(1).inTimezone("Asia/Tokyo").create();
+  });
 }
 
 function epSheet_(ss, name, header) {
