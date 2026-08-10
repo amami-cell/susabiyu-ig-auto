@@ -300,12 +300,40 @@
     if(LIVE){
       slot.innerHTML='<div class="banner okb">送信中…</div>';
       gJsonp({api:"schedule", kind:(kind==="feed"?"feed":"reel"), name:name, when:when, media:media, caption:caption, hashtags:tags}).then(function(res){
-        if(res&&(res.ok||res.result==="ok")){ slot.innerHTML='<div class="banner okb">✓ '+label+'<br><small style="font-weight:600;color:#6fb595">予定時刻に自動投稿されます</small></div>'; toast(label); }
+        if(res&&(res.ok||res.result==="ok")){ slot.innerHTML='<div class="banner okb">✓ '+label+'<br><small style="font-weight:600;color:#6fb595">予定時刻に自動投稿されます</small></div>'; toast(label); loadSched(); }
         else { slot.innerHTML='<div class="banner ngb">送信できませんでした</div>'; toast("失敗しました。再度お試しください"); }
       }).catch(function(){ slot.innerHTML='<div class="banner ngb">通信エラー</div>'; toast("通信エラー"); });
     } else {
       slot.innerHTML='<div class="banner okb">✓ '+label+'（見本）<br><small style="font-weight:600;color:#6fb595">実データ連携後に本当に投稿されます</small></div>'; toast(label+"（見本）");
     }
+  }
+
+  /* ---------- 予約済み一覧（三条と同じ：schedlist取得＋取消） ---------- */
+  var schedBox=null;
+  function loadSched(){
+    if(!schedBox) return;
+    if(!LIVE){ schedBox.innerHTML=""; return; }
+    gJsonp({api:"schedlist"}).then(function(res){
+      var items=(res&&res.items)||[];
+      if(!items.length){ schedBox.innerHTML=""; return; }
+      var h='<div class="seclabel">🕒 予約済み <span class="cnt">'+items.length+'件</span></div>';
+      items.forEach(function(it){
+        h+='<div class="card" style="padding:11px">'+
+           '<div style="display:flex;align-items:center;gap:8px">'+
+             '<span class="kind'+(it.kind==="reel"?" reel":"")+'">'+(it.kind==="reel"?"リール":"フィード")+'</span>'+
+             '<b style="font-size:13px;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+esc(it.name||"")+'</b>'+
+             '<span class="cno">'+esc(String(it.when||"").slice(5,16))+'</span>'+
+           '</div>'+
+           '<button class="tagedit sc-cancel" data-tok="'+esc(it.token)+'" style="margin-top:8px;color:#e6a4a4;border-color:#5a3a3a">予約を取り消す</button>'+
+         '</div>';
+      });
+      schedBox.innerHTML=h;
+      schedBox.querySelectorAll(".sc-cancel").forEach(function(b){
+        b.onclick=function(){ var tok=b.getAttribute("data-tok"); b.disabled=true; b.textContent="取消中…";
+          gJsonp({api:"schedcancel", token:tok}).then(function(r){ toast(r&&r.ok?"予約を取り消しました":"取り消せませんでした"); loadSched(); })
+            .catch(function(){ toast("通信エラー"); b.disabled=false; b.textContent="予約を取り消す"; }); };
+      });
+    }).catch(function(){});
   }
 
   var wrap = document.getElementById("wrap");
@@ -317,6 +345,7 @@
       : "候補のリール（動画）です。<b>今すぐ投稿</b> または <b>日時を決めて予約</b>できます。")
       + "<br>※ぎふや福岡天神（@gifuya_fukuokatenjin）" + (LIVE?"：実データ連携中。":"：現在は見本モードです。") + "ストーリーは毎日11時・17時・20時に自動投稿中（確認はトップ画面）。";
     wrap.appendChild(hint);
+    schedBox=document.createElement("div"); wrap.appendChild(schedBox); loadSched();   // 予約済み一覧（あれば表示）
     var lab=document.createElement("div"); lab.className="seclabel";
     var list = kind==="feed"?FEED:REEL;
     lab.innerHTML = (kind==="feed"?"📸 フィード投稿の候補":"🎬 リール投稿の候補")+' <span class="cnt">'+list.length+'件</span>';
