@@ -14,8 +14,24 @@ function doGet() {
     .addMetaTag('viewport', 'width=device-width, initial-scale=1, maximum-scale=1');
 }
 
-/** ダッシュボードに出す一式（集計＋応募者一覧＋最終実行）を返す。 */
+/**
+ * ダッシュボードに出す一式を返す。
+ * ★高速化：取得時に作っておいた完成データ(app_cache)があれば、それをそのまま返す（毎回組み立てない）。
+ *   無ければその場で組み立てる（初回や旧データ用のフォールバック）。
+ */
 function dashData() {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var sh = ss.getSheetByName('app_cache');
+  if (sh && sh.getLastRow() > 0) {
+    var parts = sh.getRange(1, 1, sh.getLastRow(), 1).getValues();
+    var json = parts.map(function (r) { return r[0]; }).join('');
+    try { var o = JSON.parse(json); if (o && o.apps) return o; } catch (e) { }
+  }
+  return dashBuild_();  // キャッシュが無い/壊れている時だけ、その場で作る
+}
+
+/** 表示用データを実際に組み立てる本体。取得時(epRun)にも呼ばれ、結果は app_cache に保存される。 */
+function dashBuild_() {
   var ss = SpreadsheetApp.getActiveSpreadsheet();
 
   // 集計（dashboard_cache の json 行）
@@ -88,6 +104,24 @@ function dashData() {
   if (run && run.getLastRow() > 1) { var lr = run.getRange(run.getLastRow(), 1, 1, 6).getValues()[0]; last = { at: String(lr[0]), result: String(lr[2]), n: lr[3] }; }
 
   return { dash: dash, apps: apps, last: last, storeManual: storeManual };
+}
+
+/**
+ * 表示用データを1個作って app_cache シートへ保存する（取得直後に呼ぶ）。
+ * これにより「アプリを開く」は保存済みデータを読むだけになり、ほぼ一瞬になる。
+ * 長いJSONはセル上限を避けて分割保存する。
+ */
+function dashStoreCache_() {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var json = JSON.stringify(dashBuild_());
+  var sh = ss.getSheetByName('app_cache');
+  if (!sh) { sh = ss.insertSheet('app_cache'); }
+  sh.clearContents();
+  var CH = 45000, rows = [];
+  for (var i = 0; i < json.length; i += CH) rows.push([json.substr(i, CH)]);
+  if (!rows.length) rows = [['{}']];
+  sh.getRange(1, 1, rows.length, 1).setValues(rows);
+  try { sh.hideSheet(); } catch (e) { }
 }
 
 /** 更新ボタン: その場で取得を実行して結果を返す。 */

@@ -233,6 +233,9 @@ function epWriteSheets_(parsed) {
   // dashboard_cache（集計）
   var dash = epSheet_(ss, "dashboard_cache", ["key", "value"]);
   epWriteDashboard_(dash, rows, funnel);
+
+  // 表示用の完成データを作って保存（アプリを開く時はこれを読むだけ＝ほぼ一瞬）
+  try { dashStoreCache_(); } catch (e) { Logger.log("app_cache生成スキップ: " + e); }
 }
 
 function epSyncStatusMaster_(sh, rows, today) {
