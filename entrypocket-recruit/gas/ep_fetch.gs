@@ -9,10 +9,10 @@
  *     EP_USER = ログインID / EP_PASS = パスワード
  *
  * 使い方:
- *   epSetup … 1回だけ実行。取得を試し、成功したら1日4回の自動取得を設置する。
+ *   epSetup … 1回だけ実行。取得を試し、成功したら1日5回の自動取得を設置する。
  *   epRun   … 毎回の取得本体（トリガーから自動で呼ばれる）。手動でも実行可。
  *
- * 自動取得の時刻（日本時間）: 10:00 / 15:00 / 17:00 / 23:00
+ * 自動取得の時刻（日本時間）: 5:00 / 10:00 / 15:00 / 17:00 / 23:00
  *   過去に溜めた分はそのまま。毎回は「新規応募・ステータス変更」を見て、
  *   変化があった時だけ更新としてログに残す（無ければ「変更なし」）。
  */
@@ -62,7 +62,7 @@ function epSetup() {
   var ok = epRun();
   if (ok) {
     epInstallTrigger_();
-    Logger.log("★★ 完成しました。1日4回（10/15/17/23時）自動で取得します。もう触らなくてOKです。");
+    Logger.log("★★ 完成しました。1日5回（5/10/15/17/23時）自動で取得します。もう触らなくてOKです。");
   } else {
     Logger.log("★ 取得できませんでした。上のログ（✓✗の行）をそのまま送ってください。");
   }
@@ -386,8 +386,8 @@ function epLog_(started, result, n, note) {
 
 function epInstallTrigger_() {
   ScriptApp.getProjectTriggers().forEach(function (t) { if (t.getHandlerFunction() === "epRun") ScriptApp.deleteTrigger(t); });
-  // 1日4回（日本時間 10 / 15 / 17 / 23 時）
-  [10, 15, 17, 23].forEach(function (h) {
+  // 1日5回（日本時間 5 / 10 / 15 / 17 / 23 時）
+  [5, 10, 15, 17, 23].forEach(function (h) {
     ScriptApp.newTrigger("epRun").timeBased().atHour(h).everyDays(1).inTimezone("Asia/Tokyo").create();
   });
 }
