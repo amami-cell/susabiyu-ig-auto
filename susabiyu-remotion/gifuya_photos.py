@@ -29,6 +29,8 @@ TARGET_W, TARGET_H = 1080, 1350   # Instagram フィード 4:5
 
 # ぎふや福岡天神「画像」フォルダ（この配下の料理写真をフィード候補に全同期）。
 IMG_ROOT_DEFAULT = "1HUtrzFFJiCuazZOhHBW88RVVdrvyh1Ox"
+# ぎふや福岡天神「音楽」フォルダ（管理シート 入力用 R29C10）。ストーリー動画のBGM素材。
+MUSIC_FOLDER_DEFAULT = "1pk6Lq_TKK4MRWLYRowOjjRRFUfBbyYh_"
 # 料理以外のサブフォルダは同期対象から除外（名前に含めば除外）。
 FOLDER_EXCLUDE = ["ロゴ", "外観", "内観", "ドリンク", "飲み", "音楽", "集合"]
 # 料理写真ではないファイル（寄せ集め/ロゴ等）を除外。
@@ -287,7 +289,7 @@ def _search_music(drive, fid, depth=0):
 
 def _find_music_folder(drive, root):
     """GIFUYA_MUSIC_FOLDER_ID > root自身がmp3を持つ > ぎふやルート（画像の親）から広く探索。"""
-    env = os.environ.get("GIFUYA_MUSIC_FOLDER_ID", "").strip()
+    env = os.environ.get("GIFUYA_MUSIC_FOLDER_ID", "").strip() or MUSIC_FOLDER_DEFAULT
     if env:
         return env
     if _folder_has_audio(drive, root):
