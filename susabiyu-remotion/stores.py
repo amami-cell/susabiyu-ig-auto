@@ -28,6 +28,22 @@ REGION_FREE_PATTERNS = [
     "oshinatate", "taishutanzaku",   # この2つは region prop 対応済み
 ]
 
+# 【重要】region-free でも fetch_tempo/photostory/simple を使う comp は SAKE/内観/イベントの
+# Drive フォルダも読む。新店がそれらのフォルダIDを登録していないと、その分だけ三条フォルダに
+# フォールバックして写真が混入する。そこで「fetch_typo（食材フォルダのみ）＋実写真が食材だけ」で
+# 完結し、かつ地域prop対応 or 地域無し、の安全な集合を用意（他店フォルダ混入ゼロ）。
+# さらに安全側：ぎふや既存ストーリー動画(gifuya_render_stories.py)で --props レンダリングが
+# 実証済み＝ロゴ/レイアウトもぎふやで破綻しない、と分かっている comp のみ。
+# （osusume/season 等は fetch_typo で食材のみだが、ロゴ表示を実機確認してから追加する）
+FOOD_ONLY_PATTERNS = [
+    "taishuhito",    # TaishuHitosara（本日の一皿）
+    "taishushun",    # TaishuShun（季節の旬）
+    "taishunoren",   # TaishuAkanoren（暖簾）
+    "taishutanzaku", # TaishuTanzaku（壁の短冊・region prop対応）
+    "oshinatate",    # OshinaTate（お品書き縦・region prop対応）
+    "noren",         # NorenStory（暖簾くぐり）
+]
+
 STORES = {
     # ── 三条（リファレンス）。account 未指定＝このエントリ＝従来どおり全パターン＋既定Drive ──
     "": {
@@ -58,7 +74,7 @@ STORES = {
             "music_uptempo": "1pk6Lq_TKK4MRWLYRowOjjRRFUfBbyYh_",  # ぎふや BGM
             "music_normal": "1pk6Lq_TKK4MRWLYRowOjjRRFUfBbyYh_",
         },
-        "patterns": REGION_FREE_PATTERNS,
+        "patterns": FOOD_ONLY_PATTERNS,   # 食材フォルダのみで完結＝三条フォルダ混入ゼロ
         "phrases_file": "phrases_gifuyatenjin.json",
         "fallback_phrase": "福岡・天神の夜は、ぎふやで。",
         "pwa_url": "https://amami-cell.github.io/susabiyu-media/app/gifuyatenjin.html",
