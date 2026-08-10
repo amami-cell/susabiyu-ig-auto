@@ -122,9 +122,13 @@ function dashBuild_() {
       rec.count++;
       storePosting[key] = rec;
       postings.push({
-        store: pstore, media: String(gp(prow, '媒体') || ''), plan: String(gp(prow, '商品名') || ''),
+        store: pstore, reporter: String(gp(prow, '報告者') || ''), media: String(gp(prow, '媒体') || ''),
+        plan: String(gp(prow, '商品名') || ''),
+        area1: String(gp(prow, 'エリア1') || ''), area2: String(gp(prow, 'エリア2') || ''),
+        line1: String(gp(prow, '路線1') || ''), line2: String(gp(prow, '路線2') || ''),
         cost: gp(prow, '求人費'), start: startS, end: endS, apps: gp(prow, '応募総数'),
-        hires: gp(prow, '採用人数'), hireRate: String(gp(prow, '採用率') || ''),
+        hires: gp(prow, '採用人数'), unit: gp(prow, '採用単価'), hireRate: String(gp(prow, '採用率') || ''),
+        quit: gp(prow, '退職人数'), quitRate: String(gp(prow, '退職率') || ''),
         state: String(gp(prow, '状態') || ''), note: String(gp(prow, '備考') || '')
       });
     }

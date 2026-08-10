@@ -74,12 +74,19 @@ function epDate_(v) {
 var NOTION_POSTINGS_SHEET_ID = "1Oh1mxj5Jjn5wB5fTtW4GJrepA6cFDwQRhE9mK2QbxFw";
 var POSTING_KEEP_DAYS = 365;   // 掲載終了からこの日数を過ぎた打ち出しは取り込まない（古い分は自動で捨てる）
 
-var POST_HEADER = ["店舗名", "媒体", "商品名", "求人費", "掲載開始", "掲載終了",
-  "応募総数", "採用人数", "採用単価", "採用率", "退職人数", "退職率", "状態", "備考"];
+// シートの全項目を蓄積する（この順で「求人打ち出し」シートに書く）
+var POST_HEADER = ["店舗名", "報告者", "媒体", "商品名",
+  "エリア1", "エリア2", "路線1", "路線2", "求人費",
+  "掲載開始", "掲載終了", "応募総数", "採用人数", "採用単価", "採用率",
+  "退職人数", "退職率", "状態", "備考"];
 
 // 打ち出しシートの見出し → 論理名（候補複数可。実データの見出しに合わせてある）
 var POST_COLMAP = {
-  store: ["店舗名"], media: ["求人媒体", "媒体"], plan: ["商品名", "プラン名", "プラン"],
+  store: ["店舗名"], reporter: ["報告者"], media: ["求人媒体", "媒体"], plan: ["商品名", "プラン名", "プラン"],
+  area1: ["エリアリスティング1週目", "エリアリスティング1", "エリア1"],
+  area2: ["エリアリスティング2週目", "エリアリスティング2", "エリア2"],
+  line1: ["路線リスティング1週目", "路線リスティング1", "路線1"],
+  line2: ["路線リスティング2週目", "路線リスティング2", "路線2"],
   cost: ["求人費(税込)", "求人費（税込）", "求人費", "費用"],
   start: ["連載開始", "掲載開始", "募集開始", "開始"], end: ["連載終了", "掲載終了", "募集終了", "終了"],
   apps: ["応募総数", "応募数", "応募者数"], hired: ["採用人数", "採用数"],
@@ -120,14 +127,15 @@ function epImportPostings_(ss) {
     var st = epDate_(g(row, "start")), en = epDate_(g(row, "end"));
     if (en && en.getTime() < cutoff) continue;                          // 古すぎ→捨てる
     var active = st && st.getTime() <= tt && (!en || tt <= en.getTime()); // 期間内=募集中
-    out.push([store, String(g(row, "media") || ""), String(g(row, "plan") || ""),
+    out.push([store, String(g(row, "reporter") || ""), String(g(row, "media") || ""), String(g(row, "plan") || ""),
+      String(g(row, "area1") || ""), String(g(row, "area2") || ""), String(g(row, "line1") || ""), String(g(row, "line2") || ""),
       g(row, "cost"),
       st ? Utilities.formatDate(st, "Asia/Tokyo", "yyyy-MM-dd") : "",
       en ? Utilities.formatDate(en, "Asia/Tokyo", "yyyy-MM-dd") : "",
       g(row, "apps"), g(row, "hired"), g(row, "unit"), g(row, "hireRate"),
       g(row, "quit"), g(row, "quitRate"), active ? "募集中" : "終了", String(g(row, "note") || "")]);
   }
-  out.sort(function (a, b) { return String(b[4]) < String(a[4]) ? -1 : 1; });  // 掲載開始の新しい順
+  out.sort(function (a, b) { return String(b[9]) < String(a[9]) ? -1 : 1; });  // 掲載開始(列10)の新しい順
 
   var sh = epSheet_(ss, "求人打ち出し", POST_HEADER);
   sh.getRange(1, 1, 1, POST_HEADER.length).setValues([POST_HEADER]);
