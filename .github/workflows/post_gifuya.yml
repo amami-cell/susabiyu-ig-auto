@@ -1,16 +1,9 @@
-name: gifuya-post
-# ぎふや福岡天神店 ストーリー自動投稿（1日3回：11:00 / 17:00 / 20:00 JST）
-# 自己完結版：採用中のぎふやストーリー動画（CDN公開済み）をローテーション投稿する。
-# Googleスプレッドシート/GAS/生成パイプラインは不要。
-#
-# ★必要なのは Secret「IG_ACCESS_TOKEN_GIFUYATENJIN」だけ。
-#   未設定なら gate ジョブで即スキップ（何も投稿しない＝安全）。
-#   登録した瞬間から、次の 11/17/20 の枠で自動投稿が始まる。
+name: gifuya-post-legacy（固定ローテ・停止中）
+# 【停止】旧・固定ローテのストーリー投稿。三条方式の生成パイプライン
+#   （gifuya-prepare → 承認待ち_gifuyatenjin → gifuya-post が承認済みを投稿）へ移行したため、
+#   二重ストーリー投稿を防ぐ目的でスケジュールを撤去（手動 workflow_dispatch のみ残す）。
+#   ※ 新方式が安定運用に入ったら、このファイル自体を削除して良い。
 on:
-  schedule:
-    - cron: '0 2 * * *'    # 11:00 JST
-    - cron: '0 8 * * *'    # 17:00 JST
-    - cron: '0 11 * * *'   # 20:00 JST
   workflow_dispatch:
     inputs:
       datetime:
