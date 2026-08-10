@@ -29,6 +29,8 @@
     font-size:12px;font-weight:700;padding:6px 11px;border-radius:999px}
   .bar .dot{font-size:12px;color:var(--sub);display:flex;align-items:center;gap:6px;margin-left:10px}
   .bar .dot i{width:8px;height:8px;border-radius:50%;background:#c79a3a;display:inline-block}
+  .bar .dot i.beat{background:#37c66a;animation:dotbeat .9s ease-out}
+  @keyframes dotbeat{0%{box-shadow:0 0 0 0 rgba(55,198,106,.6)}100%{box-shadow:0 0 0 7px rgba(55,198,106,0)}}
   .tabs{display:flex;gap:6px;padding:0 16px 10px}
   button,.tab,.seg button,.gfilter button{touch-action:manipulation}
   .tab{border:1px solid var(--line);background:#181c23;color:var(--sub);font-size:13px;font-weight:800;
@@ -174,7 +176,7 @@
 <script>
 (function () {
   "use strict";
-  var V = "?v=113";  // メディアのキャッシュ更新用（同名ファイル更新時にブラウザ再取得させる）
+  var V = "?v=114";  // メディアのキャッシュ更新用（同名ファイル更新時にブラウザ再取得させる）
   // 実稼働化の受け皿：GIFUYA_LIVE=true（専用GAS URL 注入済み）になると実データ連携へ切替予定。
   // 現状は未設定＝見本モードで安全表示（実データのレンダリングは実稼働化ステップで有効化）。
   var LIVE = !!window.GIFUYA_LIVE;
@@ -354,7 +356,10 @@
     });
     if(changed){ savePlan(); storyBuilders.forEach(function(b){ b(); }); }
   }
-  function loadStoryPlan(){ gasGet({api:"storyplan"}, function(res){ if(res && res.ok && res.plan) applyServerPlan(res.plan); }); }
+  function _hhmmss(){ var d=new Date(), z=function(n){return(n<10?"0":"")+n;}; return z(d.getHours())+":"+z(d.getMinutes())+":"+z(d.getSeconds()); }
+  function markLive(){ var m=document.getElementById("modeTxt"); if(m) m.textContent="実データ連携・最新 "+_hhmmss();
+    var d=document.querySelector(".dot i"); if(d){ d.classList.remove("beat"); void d.offsetWidth; d.classList.add("beat"); } }
+  function loadStoryPlan(){ gasGet({api:"storyplan"}, function(res){ if(res && res.ok){ markLive(); if(res.plan) applyServerPlan(res.plan); } }); }
   if(LIVE){ loadStoryPlan(); setInterval(loadStoryPlan, 8000); }
 
   // --- フィード投稿の候補（Driveから毎日同期。feed.json があればそれを、無ければ内蔵見本を表示） ---
