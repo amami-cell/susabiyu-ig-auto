@@ -40,6 +40,7 @@ STORES = {
         "folders": {},          # 空＝fetch_*.py の既定（三条）をそのまま使う（環境を書き換えない）
         "patterns": None,       # None＝全パターン＋decide をそのまま（三条は制限しない）
         "phrases_file": "phrases.json",
+        "fallback_phrase": "京都の夜は、すさびで。",
         "pwa_url": "https://amami-cell.github.io/susabiyu-media/app/",
         "slots_holiday": [11, 18, 20],
         "slots_weekday": [16, 18, 20],
@@ -59,6 +60,7 @@ STORES = {
         },
         "patterns": REGION_FREE_PATTERNS,
         "phrases_file": "phrases_gifuyatenjin.json",
+        "fallback_phrase": "福岡・天神の夜は、ぎふやで。",
         "pwa_url": "https://amami-cell.github.io/susabiyu-media/app/gifuyatenjin.html",
         "slots_holiday": [11, 17, 20],
         "slots_weekday": [11, 17, 20],
@@ -91,13 +93,20 @@ def get_store(account=""):
 
 
 def apply_fetch_env(store):
-    """店舗の Drive フォルダを fetch_*.py 用の GENRE_*_ID 環境変数に反映。
-    folders が空（三条）なら何も書き換えない＝従来動作を保証。"""
+    """店舗の Drive フォルダ＋文言ファイルを fetch_*.py / captions.py 用の環境変数に反映。
+    account="" の三条では何も書き換えない＝従来動作を保証。"""
     folders = store.get("folders") or {}
     for key, env_name in _FOLDER_ENV.items():
         val = folders.get(key)
         if val:
             os.environ[env_name] = val
+    # 店舗（非空account）だけキャプション文言を差し替える。三条は既定 phrases.json のまま。
+    if store.get("account"):
+        pf = store.get("phrases_file")
+        if pf and os.path.exists(pf):
+            os.environ["PHRASES_FILE"] = pf
+        if store.get("fallback_phrase"):
+            os.environ["STORE_FALLBACK_PHRASE"] = store["fallback_phrase"]
 
 
 def render_props(store):

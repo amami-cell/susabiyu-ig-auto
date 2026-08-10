@@ -15,10 +15,15 @@ _SUSHI_KEYS = ("寿司", "鮨", "握り", "にぎり", "刺身", "鮮魚", "海�
 def load():
     """phrases.json を {"generic":[...], "sushi":[...], "atmosphere":[...]} で返す。
     旧形式（ただのリスト）の場合は全件“汎用”として安全側で扱う。"""
+    # 店舗別の文言ファイル（PHRASES_FILE）があればそれを使う。未設定＝phrases.json（三条・従来）。
+    _pf = os.environ.get("PHRASES_FILE") or "phrases.json"
     try:
-        d = json.load(open("phrases.json", encoding="utf-8"))
+        d = json.load(open(_pf, encoding="utf-8"))
     except Exception:
-        return {"generic": [], "sushi": [], "atmosphere": []}
+        try:
+            d = json.load(open("phrases.json", encoding="utf-8"))
+        except Exception:
+            return {"generic": [], "sushi": [], "atmosphere": []}
     if isinstance(d, list):
         return {"generic": list(d), "sushi": [], "atmosphere": []}
     return {"generic": list(d.get("generic", [])),
@@ -60,4 +65,4 @@ def pick_atmosphere():
     if not pool:
         _food = ("肴", "旬", "ひと皿", "一皿", "握", "寿司", "鮨", "おすすめ揃")
         pool = [s for s in ph.get("generic", []) if not any(k in s for k in _food)]
-    return random.choice(pool) if pool else "京都の夜は、すさびで。"
+    return random.choice(pool) if pool else (os.environ.get("STORE_FALLBACK_PHRASE") or "京都の夜は、すさびで。")
