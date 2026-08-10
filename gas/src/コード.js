@@ -26,11 +26,14 @@ const GH_REPO  = 'susabiyu-ig-auto';
 const GH_WORKFLOW = 'redo.yml';
 const GH_REF   = 'main';
 
-function _sheet_() {
+// 承認待ちタブ名（account 空＝三条＝「承認待ち」、店舗別＝「承認待ち_<account>」）。
+function _tabName_(account) { return TAB + (account ? '_' + account : ''); }
+function _sheet_(account) {
   const ss = SpreadsheetApp.openById(SHEET_ID);
-  let sh = ss.getSheetByName(TAB);
+  const name = _tabName_(account || '');
+  let sh = ss.getSheetByName(name);
   if (!sh) {
-    sh = ss.insertSheet(TAB);
+    sh = ss.insertSheet(name);
     sh.appendRow(['token','日時','スロット','パターン','プレビュー','キャプション','種別','ステータス','更新時刻','picked','redo']);
   }
   return sh;
@@ -44,8 +47,8 @@ function _parseJst_(s) {
   return new Date(Date.UTC(+m[1], +m[2]-1, +m[3], +m[4]-9, +m[5], 0));
 }
 
-function getPending_() {
-  const sh = _sheet_();
+function getPending_(account) {
+  const sh = _sheet_(account || '');
   const data = sh.getDataRange().getValues();
   const now = new Date();
   const out = [];
@@ -83,7 +86,8 @@ function getPending_() {
 }
 
 // ===== 楽観ロック付き setStatus =====
-function setStatus(token, action) {
+function setStatus(token, action, account) {
+  account = account || '';
   const map = { ok: 'approved', redo: 'redo', cancel: 'rejected' };
   const st = map[action] || 'rejected';
   const lock = LockService.getScriptLock();
@@ -93,7 +97,7 @@ function setStatus(token, action) {
     return 'busy';
   }
   try {
-    const sh = _sheet_();
+    const sh = _sheet_(account);
     const data = sh.getDataRange().getValues();
     for (let i = 1; i < data.length; i++) {
       if (String(data[i][0]) === String(token)) {
@@ -102,7 +106,7 @@ function setStatus(token, action) {
           if (cur !== 'approved') return 'locked:' + cur;  // 承認済みのときだけ取消可
           sh.getRange(i + 1, 8).setValue('pending');        // 未承認に戻す（やめない限り自動投稿は継続）
           sh.getRange(i + 1, 9).setValue(new Date());
-          _cacheBust_();
+          _cacheBust_(account);
           return 'pending';
         }
         if (cur !== 'pending' && cur !== 'redo') {
@@ -114,9 +118,9 @@ function setStatus(token, action) {
         const when = String(data[i][1]);
         sh.getRange(i + 1, 8).setValue(st);
         sh.getRange(i + 1, 9).setValue(new Date());
-        _cacheBust_();
+        _cacheBust_(account);
         if (action === 'redo' && when) {
-          try { _dispatchRedo_(when); } catch (e) {}
+          try { _dispatchRedo_(when, account); } catch (e) {}
         }
         return st;
       }
@@ -131,8 +135,8 @@ function setStatus(token, action) {
 const _CACHE_KEY_ = 'susabiyu_states_v6';
 const _CACHE_SEC_  = 25;
 
-function _buildSnapshot_() {
-  const sh = _sheet_();
+function _buildSnapshot_(account) {
+  const sh = _sheet_(account || '');
   const data = sh.getDataRange().getValues();
   const states = {};
   let sig = '';
@@ -155,31 +159,34 @@ function _buildSnapshot_() {
   return { sig: sig, states: states };
 }
 
-function _snapshot_() {
+function _cacheKey_(account) { return _CACHE_KEY_ + (account ? '_' + account : ''); }
+function _snapshot_(account) {
+  account = account || '';
+  const key = _cacheKey_(account);
   const cache = CacheService.getScriptCache();
-  const hit = cache.get(_CACHE_KEY_);
+  const hit = cache.get(key);
   if (hit) {
     try { return JSON.parse(hit); } catch (e) {}
   }
-  const snap = _buildSnapshot_();
-  try { cache.put(_CACHE_KEY_, JSON.stringify(snap), _CACHE_SEC_); } catch (e) {}
+  const snap = _buildSnapshot_(account);
+  try { cache.put(key, JSON.stringify(snap), _CACHE_SEC_); } catch (e) {}
   return snap;
 }
 
-function _cacheBust_() {
-  try { CacheService.getScriptCache().remove(_CACHE_KEY_); } catch (e) {}
+function _cacheBust_(account) {
+  try { CacheService.getScriptCache().remove(_cacheKey_(account || '')); } catch (e) {}
 }
 
-function getSig() {
-  return _snapshot_().sig;
+function getSig(account) {
+  return _snapshot_(account || '').sig;
 }
 
-function getStates(tokensJson) {
+function getStates(tokensJson, account) {
   let tokens;
   try { tokens = JSON.parse(tokensJson); } catch (e) { tokens = []; }
   const want = {};
   tokens.forEach(function(t){ want[String(t)] = true; });
-  const snap = _snapshot_();
+  const snap = _snapshot_(account || '');
   const res = {};
   for (const tk in snap.states) {
     if (want[tk]) res[tk] = snap.states[tk];
@@ -187,10 +194,15 @@ function getStates(tokensJson) {
   return JSON.stringify({ sig: snap.sig, states: res });
 }
 
-function _dispatchRedo_(datetimeStr) {
+// 作り直しdispatch。account 空＝三条 redo.yml。店舗別は該当ワークフローへ（ぎふや=gifuya_post.yml、
+// datetime を渡すと post_approved が redo枠を再生成する）。未登録店舗は redo_scan の定期処理に委ねる。
+const _REDO_WORKFLOW_BY_ACCOUNT = { 'gifuyatenjin': 'gifuya_post.yml' };
+function _dispatchRedo_(datetimeStr, account) {
   if (!GH_TOKEN || GH_TOKEN === 'ここにPATを貼る') return;
+  const wf = account ? (_REDO_WORKFLOW_BY_ACCOUNT[account] || '') : GH_WORKFLOW;
+  if (!wf) return;   // 店舗にdispatch先が無ければ定期 redo_scan に任せる
   const url = 'https://api.github.com/repos/' + GH_OWNER + '/' + GH_REPO +
-              '/actions/workflows/' + GH_WORKFLOW + '/dispatches';
+              '/actions/workflows/' + wf + '/dispatches';
   const payload = JSON.stringify({ ref: GH_REF, inputs: { datetime: datetimeStr } });
   UrlFetchApp.fetch(url, {
     method: 'post',
@@ -269,8 +281,8 @@ function _jsonp_(cb, obj) {
   return ContentService.createTextOutput(body)
     .setMimeType(ContentService.MimeType.JAVASCRIPT);
 }
-function _apiList_() {
-  var items = getPending_().map(function (it) {
+function _apiList_(account) {
+  var items = getPending_(account || '').map(function (it) {
     return {
       token: it.token, when: it.timeRaw,
       pattern: it.pattern, patternJa: _patJa_(it.pattern),
@@ -280,7 +292,7 @@ function _apiList_() {
       remain: _remain_(it.dt)
     };
   });
-  return { sig: getSig(), items: items };
+  return { sig: getSig(account || ''), items: items };
 }
 function _saveSub_(subB64, prefs, ep, account) {
   if (!subB64) return "no-sub";
@@ -491,11 +503,13 @@ function _api_(p) {
   var cb = p.cb || p.callback || "";
   try {
     if (APP_KEY && String(p.key || "") !== APP_KEY) return _jsonp_(cb, { error: "auth" });
-    if (p.api === "list") return _jsonp_(cb, _apiList_());
+    if (p.api === "list") return _jsonp_(cb, _apiList_(p.account || ""));
     if (p.api === "act") {
       if (String(p.action) === "unapprove" && OWNER_KEY && String(p.owner || "") !== OWNER_KEY) return _jsonp_(cb, { error: "owner" });
-      return _jsonp_(cb, { result: setStatus(p.token, p.action) });
+      return _jsonp_(cb, { result: setStatus(p.token, p.action, p.account || "") });
     }
+    if (p.api === "sig") return _jsonp_(cb, { sig: getSig(p.account || "") });
+    if (p.api === "states") return _jsonp_(cb, JSON.parse(getStates(p.tokens || "[]", p.account || "")));
     if (p.api === "subscribe") return _jsonp_(cb, { result: _saveSub_(p.sub, p.prefs, p.ep, p.account || "") });
     if (p.api === "notifprefs") return _jsonp_(cb, { result: _setNotifPrefs_(p.ep, p.prefs, p.account || "") });
     if (p.api === "patterns") return _jsonp_(cb, _apiPatterns_());
