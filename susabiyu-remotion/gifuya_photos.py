@@ -22,7 +22,7 @@ from googleapiclient.discovery import build
 from googleapiclient.http import MediaIoBaseDownload
 from PIL import Image, ImageOps
 
-SCOPES = ["https://www.googleapis.com/auth/drive"]
+SCOPES = ["https://www.googleapis.com/auth/drive", "https://www.googleapis.com/auth/spreadsheets.readonly"]
 HERE = os.path.dirname(os.path.abspath(__file__))
 OUT_DIR = os.path.join(HERE, "..", "pwa", "gifuya")
 TARGET_W, TARGET_H = 1080, 1350   # Instagram フィード 4:5
@@ -37,12 +37,50 @@ FILE_EXCLUDE = ["料理集合", "集合写真", "GFY", "logo", "ロゴ"]
 RECO_HINT = ["おすすめ", "オススメ", "お勧め", "★"]
 
 
-def _drive():
+def _creds():
     path = "creds.json"
     if not os.path.exists(path) and os.environ.get("GOOGLE_CREDS_B64"):
         open(path, "wb").write(base64.b64decode(os.environ["GOOGLE_CREDS_B64"]))
-    cr = Credentials.from_service_account_file(path, scopes=SCOPES)
-    return build("drive", "v3", credentials=cr)
+    return Credentials.from_service_account_file(path, scopes=SCOPES)
+
+
+def _drive():
+    return build("drive", "v3", credentials=_creds())
+
+
+def _sheets():
+    return build("sheets", "v4", credentials=_creds()).spreadsheets()
+
+
+def readsheet(sid):
+    """管理スプレッドシートの全タブ・全セルを出力（DriveフォルダID/音楽の在り処を特定するため）。"""
+    sh = _sheets()
+    try:
+        meta = sh.get(spreadsheetId=sid).execute()
+    except Exception as e:
+        print("NG: スプレッドシートを開けません（サービスアカウントに共有されていない可能性）:", str(e)[:200])
+        raise SystemExit(1)
+    print("[SHEET] %s / タブ: %s" % (meta.get("properties", {}).get("title", ""),
+                                    ", ".join(s["properties"]["title"] for s in meta.get("sheets", []))))
+    import re as _re
+    for s in meta.get("sheets", []):
+        title = s["properties"]["title"]
+        try:
+            vals = sh.values().get(spreadsheetId=sid, range=title).execute().get("values", [])
+        except Exception as e:
+            print("  (読取失敗 %s: %s)" % (title, str(e)[:80])); continue
+        print("=== TAB: %s (%d行) ===" % (title, len(vals)))
+        for ri, row in enumerate(vals):
+            for ci, cell in enumerate(row):
+                v = str(cell).strip()
+                if not v:
+                    continue
+                mark = ""
+                if _re.search(r"[A-Za-z0-9_-]{25,}", v):
+                    mark = "  <<ID/URLらしき値"
+                if any(h in v for h in MUSIC_HINT):
+                    mark += "  <<音楽"
+                print("  [%s R%dC%d] %s%s" % (title, ri + 1, ci + 1, v[:150], mark))
 
 
 def _children(drive, fid):
@@ -325,6 +363,8 @@ if __name__ == "__main__":
         sync(sys.argv[2] if len(sys.argv) > 2 else None)
     elif mode == "music":
         music(sys.argv[2] if len(sys.argv) > 2 else None)
+    elif mode == "readsheet":
+        readsheet(sys.argv[2])
     else:
         print("unknown mode:", mode)
         raise SystemExit(2)

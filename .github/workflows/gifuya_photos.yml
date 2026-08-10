@@ -12,7 +12,7 @@ on:
         required: true
         default: "discover"
         type: choice
-        options: [discover, listfolder, fetch, plan, sync]
+        options: [discover, listfolder, fetch, plan, sync, music, readsheet]
       keyword:
         description: "discover用キーワード（既定: ぎふや）"
         required: false
@@ -67,6 +67,11 @@ jobs:
         if: github.event.inputs.mode == 'plan'
         working-directory: susabiyu-remotion
         run: python gifuya_photos.py plan "${{ github.event.inputs.folder_id }}"
+
+      - name: Read sheet (folder_id=スプレッドシートID)
+        if: github.event.inputs.mode == 'readsheet'
+        working-directory: susabiyu-remotion
+        run: python gifuya_photos.py readsheet "${{ github.event.inputs.folder_id }}"
 
       - name: Sync all food photos
         if: github.event.inputs.mode == 'sync'
