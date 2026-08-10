@@ -2,13 +2,25 @@
 import os, sys, json, base64, datetime
 import poster
 import prepare
+import stores
 
 JST = datetime.timezone(datetime.timedelta(hours=9))
 # 既定＝三条シート。STORE_SHEET_ID を渡した店舗（ぎふや等）はそのシートを使う（未設定なら三条＝挙動不変）。
 SHEET_ID = os.environ.get("STORE_SHEET_ID") or "13zKaUblOwmgZ-lgCfxylCLlW2Fqutqct5h5TvMRWv30"
 # 投稿アカウント。空＝三条（fresh_token・挙動不変）。"gifuyatenjin" 等でIG_ACCESS_TOKEN_<ACCOUNT>/AcctTokensを使用。
 STORE_ACCOUNT = os.environ.get("STORE_ACCOUNT", "").strip()
-APP_TAB = prepare.APP_TAB  # 承認待
+STORE = stores.get_store(STORE_ACCOUNT)
+APP_TAB = stores.app_tab(STORE)   # 三条＝「承認待ち」、店舗別＝「承認待ち_<account>」
+PROPS_ARG = ""                    # 店舗ブランドprops（三条は空＝従来動作）
+if STORE_ACCOUNT:
+    os.makedirs("out", exist_ok=True)
+    open("out/_props.json", "w", encoding="utf-8").write(json.dumps(stores.render_props(STORE), ensure_ascii=False))
+    PROPS_ARG = " --props=out/_props.json"
+    stores.apply_fetch_env(STORE)
+# prepare から借用する関数（thumb_data_uri 等）が店舗の props/シート/タブを使うよう同期
+prepare.SHEET_ID = SHEET_ID
+prepare.APP_TAB = APP_TAB
+prepare.PROPS_ARG = PROPS_ARG
 DRY = os.environ.get("DRY") == "1"
 MAX_REDO = 5
 
@@ -80,17 +92,20 @@ def regenerate(creds, dt):
         os.environ.pop(k, None)
     dec = decide(dt)
     pattern = dec["pattern"]
+    allowed = STORE.get("patterns")
+    if allowed and pattern not in allowed:
+        pattern = allowed[dt.toordinal() % len(allowed)]   # 店舗は region-free のみ
     fetch, comp, is_video = REG[pattern]
     cf = ' "' + creds + '"' if creds else ""
     run("python " + fetch + cf)
     if is_video:
-        run("npx remotion render " + comp + " out/post.mp4 --crf 18 --timeout 120000 --concurrency 1")
+        run("npx remotion render " + comp + " out/post.mp4 --crf 18 --timeout 120000 --concurrency 1" + PROPS_ARG)
         try:
             prepare._faststart("out/post.mp4")  # 確認用プレビューの即再生（画質そのまま）
         except Exception:
             pass
     else:
-        run("npx remotion still " + comp + " out/post.png")
+        run("npx remotion still " + comp + " out/post.png" + PROPS_ARG)
     picked_json = ""
     try:
         picked_json = open(os.path.join("out", "picked.json"), encoding="utf-8").read()
@@ -390,9 +405,9 @@ def main():
             if not posted:
                 run("python " + fetch + cf)
                 if is_video:
-                    run("npx remotion render " + comp + " out/post.mp4 --crf 18 --timeout 120000 --concurrency 1")
+                    run("npx remotion render " + comp + " out/post.mp4 --crf 18 --timeout 120000 --concurrency 1" + PROPS_ARG)
                 else:
-                    run("npx remotion still " + comp + " out/post.png")
+                    run("npx remotion still " + comp + " out/post.png" + PROPS_ARG)
                 if DRY:
                     print("[DRY] \u751f\u6210\u5b8c\u4e86:", media, "\uff08\u6295\u7a3f\u306f\u3057\u307e\u305b\u3093\uff09"); return
                 # \u4e8c\u91cd\u6295\u7a3f\u9632\u6b62: \u6295\u7a3f\u76f4\u524d\u306b\u6700\u65b0\u30b9\u30c6\u30fc\u30bf\u30b9\u3092\u518d\u78ba\u8a8d\u3002\u4ed6\u30c8\u30ea\u30ac\u304c\u6295\u7a3f\u6e08\u307f\u306a\u3089\u30b9\u30ad\u30c3\u30d7

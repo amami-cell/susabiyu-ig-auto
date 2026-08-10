@@ -1,6 +1,6 @@
 import os, io, glob, json, sys, random
 
-FOOD_FOLDER = "14oKNgdXee2NrI7Dkmbrlbid4f0_VZ5Cv"
+FOOD_FOLDER = os.environ.get("GENRE_FOOD_ID") or "14oKNgdXee2NrI7Dkmbrlbid4f0_VZ5Cv"
 N_PHOTOS = 8
 MIN_SIDE = 800
 OUT_DIR = os.path.join("public", "kaiten")

@@ -3,7 +3,7 @@
 # 出力は fetch_typo.py と同じ typoData.ts / public/typo（お品書きは typoPhotos を読む）。
 import os, io, glob, json, sys, random
 
-FOOD_FOLDER = "14oKNgdXee2NrI7Dkmbrlbid4f0_VZ5Cv"
+FOOD_FOLDER = os.environ.get("GENRE_FOOD_ID") or "14oKNgdXee2NrI7Dkmbrlbid4f0_VZ5Cv"
 N_SUSHI = 2
 N_OTHER = 2
 MIN_SIDE = 800

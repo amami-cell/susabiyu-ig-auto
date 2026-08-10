@@ -2,9 +2,11 @@
 import sys, os, re, subprocess, datetime, base64, io
 from decide_post import decide, JST, day_kind
 import poster
+import stores
 
 SHEET_ID = "13zKaUblOwmgZ-lgCfxylCLlW2Fqutqct5h5TvMRWv30"
 APP_TAB = "承認待ち"
+PROPS_ARG = ""   # 店舗ブランドprops（storeName/handle/region）のrenderフラグ。三条は空＝従来動作。
 PAT_JA = {"sushi":"王道","tempo":"賑やか","typo":"雑誌風","photo":"全画面","simple":"額装","caption":"写真キャプション", "oshina":"お品書き","oshinatate":"お品書き(縦書き)","kaiten":"回転レーン","osusume":"店主おすすめ","gridzoom":"グリッド→ズーム","noren":"暖簾くぐり","season":"季節の旬","taishufuda":"大衆・値札チラシ","taishukaiten":"大衆・回転レーン","sanjokaiten":"回転レーン(烏丸ベース)","taishuoshi":"大衆・イチオシ","taishuodo":"大衆・王道","taishuzen":"大衆・全画面","taishushinbun":"大衆・見出し新聞","taishugrid":"大衆・グリッドズーム","taishutanzaku":"大衆・壁の短冊","taishunoren":"大衆・暖簾くぐり","taishutempo":"大衆・賑やかテンポ","taishushun":"大衆・季節の旬","taishuhito":"大衆・本日の一皿","taishuoshina":"大衆・お品書き","taishugaku":"大衆・額装（画像）","taishucap":"大衆・写真一言（画像）","taishuimga":"画像案A・提灯(寿司酒場)","taishuimga2":"画像案A2・提灯(大衆酒場)","taishuimgb":"画像案B・チラシ","taishuimgd":"画像案D・紺のれん","taishuimgf":"画像案F・白抜き文字","taishuimge":"画像案E・黄ポップ"}
 REG = {
   "sushi":   ("fetch_drive_photos.py","SushiStory",True),
@@ -102,9 +104,9 @@ def thumb_data_uri(comp, is_video):
     if os.path.exists(png):
         os.remove(png)
     if is_video:
-        run("npx remotion still " + comp + " " + png + " --frame 45 --scale 1.0 --timeout 120000")
+        run("npx remotion still " + comp + " " + png + " --frame 45 --scale 1.0 --timeout 120000" + PROPS_ARG)
     else:
-        run("npx remotion still " + comp + " " + png + " --scale 1.0 --timeout 120000")
+        run("npx remotion still " + comp + " " + png + " --scale 1.0 --timeout 120000" + PROPS_ARG)
     blur = _blur_uri(png)  # 先に即時表示用のぼかしを作る
     # 画像をアップロードしてURLを返す（セル50k上限回避・鮮明）
     try:
@@ -308,7 +310,7 @@ def revive_dead(sh):
         try:
             run('python ' + fetch + ' "' + creds + '"')
             if is_video:
-                run("npx remotion render " + comp + " out/post.mp4 --crf 26 --timeout 120000 --concurrency 1")
+                run("npx remotion render " + comp + " out/post.mp4 --crf 26 --timeout 120000 --concurrency 1" + PROPS_ARG)
                 _faststart("out/post.mp4")
                 try: poster_uri, blur = thumb_data_uri(comp, True)
                 except Exception: poster_uri, blur = "", ""
@@ -354,6 +356,23 @@ def main():
     if not os.path.exists(creds):
         raise SystemExit("認証JSONが見つかりません。")
 
+    # ── 店舗解決（account 未指定＝三条＝従来動作。新店は stores.py の1エントリで載る）──
+    global SHEET_ID, APP_TAB, PROPS_ARG
+    account = os.environ.get("STORE_ACCOUNT", "").strip()
+    store = stores.get_store(account)
+    SHEET_ID = os.environ.get("STORE_SHEET_ID") or store["sheet_id"]
+    APP_TAB = stores.app_tab(store)                 # 三条＝「承認待ち」、店舗別＝「承認待ち_<account>」
+    stores.apply_fetch_env(store)                   # 店舗のDriveフォルダを GENRE_*_ID env に反映（三条は無変更）
+    os.makedirs("out", exist_ok=True)
+    if account:
+        import json as _pj
+        open("out/_props.json", "w", encoding="utf-8").write(
+            _pj.dumps(stores.render_props(store), ensure_ascii=False))
+        PROPS_ARG = " --props=out/_props.json"       # storeName/handle/region を各compへ注入
+        print("[STORE] account=%s tab=%s region=%s" % (account, APP_TAB, store["region"]))
+    else:
+        PROPS_ARG = ""
+
     os.environ["SHEET_ID"] = SHEET_ID
     poster.SHEET_ID = SHEET_ID
 
@@ -366,8 +385,7 @@ def main():
         except Exception:
             print("日付形式が不正のため実行日+2日を使用:", args[0])
     hol, kind = day_kind(target)
-    open_hour = 11 if hol else 16
-    slots = [open_hour, 18, 20]
+    slots = store["slots_holiday"] if hol else store["slots_weekday"]
 
     sh = poster._sheets()
     if sh is None:
@@ -408,6 +426,12 @@ def main():
             continue
         dec = decide(dt)
         pattern = dec["pattern"]
+        allowed = store.get("patterns")
+        if allowed and pattern not in allowed:
+            # 店舗が使えるのは region-free comp のみ。decide の選択が範囲外なら日時で決定的に選ぶ。
+            pattern = allowed[(target.toordinal() * 3 + slots.index(hour)) % len(allowed)]
+            dec = dict(dec, pattern=pattern)
+            print("[STORE] pattern を region-free に置換 →", pattern)
         fetch, comp, is_video = REG[pattern]
         run('python ' + fetch + ' "' + creds + '"')
         picked_json = ""
@@ -418,7 +442,7 @@ def main():
         poster_uri = ""
         blur = ""
         if is_video:
-            run("npx remotion render " + comp + " out/post.mp4 --crf 26 --timeout 120000 --concurrency 1")
+            run("npx remotion render " + comp + " out/post.mp4 --crf 26 --timeout 120000 --concurrency 1" + PROPS_ARG)
             _faststart("out/post.mp4")
             # ポスター静止画＋ぼかしを同じフレームから生成（先出し用）
             try:
@@ -458,8 +482,9 @@ def main():
               "※各投稿の10分前まで操作可。無反応なら予定どおり自動投稿します。"]
     poster.line_notify("\n".join(lines))
     try:
-        pwa_url = os.environ.get("PWA_URL") or "https://amami-cell.github.io/susabiyu-media/app/"
-        send_push(sh, "すさび湯 確認", "%d/%d の投稿 %d件が確認待ちです" % (target.month, target.day, len(made)), pwa_url, first_token, category="confirm")
+        pwa_url = os.environ.get("PWA_URL") or store.get("pwa_url") or "https://amami-cell.github.io/susabiyu-media/app/"
+        push_title = (store["store_name"] + " 確認") if account else "すさび湯 確認"
+        send_push(sh, push_title, "%d/%d の投稿 %d件が確認待ちです" % (target.month, target.day, len(made)), pwa_url, first_token, category="confirm", account=account)
     except Exception as e:
         print("[PUSH] 失敗(継続):", e)
     print("完了: %s ぶん %d枠を承認待ちに登録しました。" % (target, len(made)))

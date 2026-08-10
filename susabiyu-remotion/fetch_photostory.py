@@ -1,6 +1,6 @@
 ﻿import os, io, glob, json, sys, random
 
-FOOD_FOLDER = "14oKNgdXee2NrI7Dkmbrlbid4f0_VZ5Cv"
+FOOD_FOLDER = os.environ.get("GENRE_FOOD_ID") or "14oKNgdXee2NrI7Dkmbrlbid4f0_VZ5Cv"
 # 1枚見せの全画面動画には「外観/内観・コース」も織り交ぜる（画面に商品名＝ファイル名は出ず雰囲気フレーズのみ）。
 INTERIOR_FOLDER = os.environ.get("GENRE_INTERIOR_ID") or "17h9qNWIEisEaEqNUuH-6XA39eVxgfHQW"  # 外観・内観
 EVENT_FOLDER    = os.environ.get("GENRE_EVENT_ID") or "1J4NMPxNW3T3IVLmj470-urEhTEicwW5w"  # コース
