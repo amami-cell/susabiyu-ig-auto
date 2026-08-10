@@ -42,8 +42,15 @@ var COLMAP = {
   change_history: ["変更履歴1", "変更履歴", "対応履歴"],
   gender: ["性別"],
   birth: ["生年月日", "生年月日（西暦）", "誕生日"],
-  age_col: ["年齢"]
+  age_col: ["年齢"],
+  occupation: ["現在の職業", "職業", "現職", "ご職業"],
+  memo: ["メモ", "メモ1", "対応メモ", "備考", "対応履歴メモ"]
 };
+
+// 店舗マスタ名の先頭にある【アルバイト】等の【…】を除去して店舗名だけにする
+function epCleanStore_(s) {
+  return String(s || "").replace(/^(?:\s*【[^】]*】\s*)+/, "").trim();
+}
 
 // ========================= エントリポイント =========================
 
@@ -186,11 +193,12 @@ function epParseCsv_(text) {
     rows.push({
       code: code, name: get("name"), kana: get("name_kana"),
       statusCode: get("status_code"), statusName: get("status_name"),
-      storeId: get("store_id"), storeName: get("store_name"),
+      storeId: get("store_id"), storeName: epCleanStore_(get("store_name")),
       telRaw: telRaw, tel: telRaw.replace(/\D/g, ""), email: get("email"),
       media: get("media"), appliedAt: get("applied_at"),
       interviewAt: get("interview_at"), hiredAt: get("hired_at"),
       dup: epBool_(get("is_duplicate")), history: get("change_history"),
+      memo: get("memo"), occupation: get("occupation"),
       gender: get("gender"), birth: birth, age: (age == null || age < 0 || age > 120) ? null : age
     });
   }
@@ -215,9 +223,7 @@ function epWriteSheets_(parsed) {
   epSyncStoreMaster_(mstore, rows, today);
 
   // raw_応募者（全書き換え。今回消えた応募者は消失フラグで残す）
-  var raw = epSheet_(ss, "raw_応募者", ["応募者コード", "氏名", "フリガナ", "ステータスコード", "ステータス",
-    "店舗ID", "店舗名", "電話番号", "電話番号_数字", "tel_link", "メール", "媒体", "応募日時",
-    "面接日時", "入社日", "重複", "変更履歴1", "初回取得日", "最終更新日", "消失"]);
+  var raw = epSheet_(ss, "raw_応募者", RAW_HEADER);
   epUpsertRaw_(raw, rows, today);
 
   // snapshot_日次（当日分を入れ替え）
@@ -257,27 +263,52 @@ function epSyncStoreMaster_(sh, rows, today) {
   if (add.length) sh.getRange(sh.getLastRow() + 1, 1, add.length, 6).setValues(add);
 }
 
+// raw_応募者の列定義（24列）。列を増やしたらここだけ直せばよい。
+var RAW_HEADER = ["応募者コード", "氏名", "フリガナ", "ステータスコード", "ステータス",
+  "店舗ID", "店舗名", "電話番号", "電話番号_数字", "tel_link", "メール", "媒体", "応募日時",
+  "面接日時", "入社日", "重複", "変更履歴", "メモ", "年齢", "性別", "現在の職業",
+  "初回取得日", "最終更新日", "消失"];
+
 function epUpsertRaw_(sh, rows, today) {
+  var W = RAW_HEADER.length;                 // 24
   var vals = sh.getDataRange().getValues();
+  var oldHdr = vals.length ? vals[0] : [];
+  var fsCol = oldHdr.indexOf("初回取得日"); // 旧スキーマ(20列)でも名前で位置を特定
+  // 旧行を「見出し名」で引くヘルパ（新旧スキーマ混在に強い）
+  function pick(row, name, alt) {
+    var i = oldHdr.indexOf(name); if (i < 0 && alt) i = oldHdr.indexOf(alt);
+    return i >= 0 ? row[i] : "";
+  }
   var firstSeen = {};
-  for (var i = 1; i < vals.length; i++) if (vals[i][0] !== "") firstSeen[vals[i][0]] = vals[i][17] || today;
+  for (var i = 1; i < vals.length; i++) if (vals[i][0] !== "") firstSeen[vals[i][0]] = (fsCol >= 0 ? vals[i][fsCol] : "") || today;
+
   var incoming = {};
   var out = rows.map(function (r) {
     incoming[r.code] = 1;
     return [r.code, r.name, r.kana, r.statusCode, r.statusName, r.storeId, r.storeName,
       r.telRaw, r.tel, r.tel ? "tel:" + r.tel : "", r.email, r.media, r.appliedAt,
-      r.interviewAt, r.hiredAt, r.dup ? "重複" : "", r.history,
+      r.interviewAt, r.hiredAt, r.dup ? "重複" : "", r.history, r.memo,
+      (r.age == null ? "" : r.age), r.gender, r.occupation,
       firstSeen[r.code] || today, today, ""];
   });
-  // 今回消えた応募者は履歴として残す
+  // 今回消えた応募者は履歴として残す（旧行も新スキーマ幅に整形）
   for (var k = 1; k < vals.length; k++) {
     var row = vals[k]; if (row[0] === "" || incoming[row[0]]) continue;
-    row = row.slice(0, 20); while (row.length < 20) row.push("");
-    row[18] = today; row[19] = "TRUE"; out.push(row);
+    out.push([pick(row, "応募者コード"), pick(row, "氏名"), pick(row, "フリガナ"),
+      pick(row, "ステータスコード"), pick(row, "ステータス"), pick(row, "店舗ID"),
+      epCleanStore_(pick(row, "店舗名")), pick(row, "電話番号"), pick(row, "電話番号_数字"),
+      pick(row, "tel_link"), pick(row, "メール"), pick(row, "媒体"), pick(row, "応募日時"),
+      pick(row, "面接日時"), pick(row, "入社日"), pick(row, "重複"),
+      pick(row, "変更履歴", "変更履歴1"), pick(row, "メモ"), pick(row, "年齢"),
+      pick(row, "性別"), pick(row, "現在の職業"),
+      pick(row, "初回取得日") || today, today, "TRUE"]);
   }
   out.sort(function (a, b) { return String(a[0]) < String(b[0]) ? -1 : 1; });
-  if (sh.getLastRow() > 1) sh.getRange(2, 1, sh.getLastRow() - 1, 20).clearContent();
-  if (out.length) sh.getRange(2, 1, out.length, 20).setValues(out);
+  // 見出しを新スキーマへ強制更新（旧20列シートからの移行対応）
+  sh.getRange(1, 1, 1, W).setValues([RAW_HEADER]);
+  var clearW = Math.max(W, oldHdr.length);
+  if (sh.getLastRow() > 1) sh.getRange(2, 1, sh.getLastRow() - 1, clearW).clearContent();
+  if (out.length) sh.getRange(2, 1, out.length, W).setValues(out);
 }
 
 function epUpsertSnapshot_(sh, rows, funnel, today) {

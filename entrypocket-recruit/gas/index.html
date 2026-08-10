@@ -43,12 +43,28 @@
     .filters { display:flex; gap:8px; flex-wrap:wrap; margin-bottom:10px; }
     .chip { border:1px solid var(--line); background:transparent; color:var(--muted); border-radius:999px; padding:6px 12px; font-size:12px; }
     .chip.on { background:var(--accent); color:#fff; border-color:var(--accent); }
-    .app { border-top:1px solid var(--line); padding:10px 2px; display:flex; align-items:center; gap:10px; } .app:first-child{border-top:0;}
-    .app .info { flex:1; min-width:0; } .app .nm { font-weight:600; } .app .sub { font-size:12px; color:var(--muted); margin-top:2px; }
+    .app { border-top:1px solid var(--line); padding:11px 2px; } .app:first-child{border-top:0;}
+    .app .nm { font-weight:600; font-size:15px; }
+    .app .meta { font-size:12px; color:var(--muted); font-weight:400; margin-left:6px; }
+    .app .sub { font-size:12px; color:var(--muted); margin-top:3px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
     .tag { font-size:10px; padding:2px 6px; border-radius:4px; margin-left:6px; }
-    .tag.dup { background:#4a2c2c; color:#ffb454; } .tag.st { background:#22303f; color:var(--accent); }
-    .call { background:var(--f2); color:#fff; border-radius:8px; padding:8px 12px; text-decoration:none; font-size:13px; white-space:nowrap; }
-    .call.off { background:var(--line); color:var(--muted); pointer-events:none; }
+    .tag.dup { background:#4a2c2c; color:#ffb454; }
+    .pills { display:flex; gap:6px; flex-wrap:wrap; margin-top:7px; }
+    .pill { border:1px solid var(--line); background:#22303f; color:var(--fg); border-radius:6px; padding:5px 9px; font-size:12px; }
+    .pill.st { color:var(--accent); border-color:#2c4a68; }
+    .pill.memo { color:var(--f3); border-color:#4a4326; }
+    .acts { display:flex; gap:8px; margin-top:9px; }
+    .btn { flex:1; text-align:center; border-radius:8px; padding:9px 6px; text-decoration:none; font-size:13px; font-weight:600; white-space:nowrap; }
+    .btn.call { background:var(--f2); color:#fff; }
+    .btn.sms { background:var(--f1); color:#fff; }
+    .btn.mail { background:var(--f4); color:#fff; }
+    .btn.off { background:var(--line); color:var(--muted); pointer-events:none; }
+    .detail { margin-top:9px; padding:10px; background:#141b23; border:1px solid var(--line); border-radius:8px; }
+    .detail .dl { font-size:11px; color:var(--muted); margin:8px 0 4px; font-weight:600; } .detail .dl:first-child{margin-top:0;}
+    .ent { display:flex; gap:8px; font-size:12px; margin:3px 0; }
+    .ent .ed { color:var(--muted); white-space:nowrap; min-width:78px; font-variant-numeric:tabular-nums; }
+    .ent .eb { flex:1; white-space:pre-wrap; word-break:break-word; }
+    .cinfo { font-size:12px; color:var(--fg); }
     .empty { color:var(--muted); font-size:13px; text-align:center; padding:20px; }
     .toast { position:fixed; bottom:20px; left:50%; transform:translateX(-50%); background:var(--card); border:1px solid var(--line); padding:10px 16px; border-radius:8px; font-size:13px; opacity:0; transition:opacity .3s; }
     .toast.show { opacity:1; }
@@ -71,7 +87,7 @@
     <div class="card"><h2>年齢層</h2><div id="bdAgeGroup"></div></div>
     <div class="card"><h2>性別</h2><div id="bdGender"></div></div>
     <div class="card"><h2>年齢（単年）</h2><div id="bdAge"></div></div>
-    <div class="card"><h2>応募者一覧</h2><div class="filters" id="filters"></div><div id="list"><div class="empty">読み込み中…</div></div></div>
+    <div class="card"><h2>スタッフ一覧（◆ステータス／📝メモ をタップで履歴。発信・SMS・メールはテンプレ付き）</h2><div class="filters" id="filters"></div><div id="list"><div class="empty">読み込み中…</div></div></div>
   </main>
   <div class="toast" id="toast"></div>
   <script>
@@ -107,6 +123,38 @@
       el.innerHTML=keys.map(function(k){var v=obj[k],w=Math.round(v/max*100);
         return '<div class="bd"><div class="bl">'+esc(order==='num'?k+'歳':k)+'</div><div class="bb"><div class="bf" style="width:'+w+'%"></div></div><div class="bn">'+v+'</div></div>';}).join('');
     }
+    // ===== 連絡テンプレート（ここを書き換えれば文面を変えられます。{name}=氏名 {store}=店舗名）=====
+    var TPL_SMS = '{name}様\nこの度は【{store}】へご応募ありがとうございます。採用担当です。\n面接日程のご相談をさせていただきたくご連絡しました。ご都合のよい日時をご返信ください。';
+    var TPL_MAIL_SUBJECT = '【{store}】ご応募ありがとうございます';
+    var TPL_MAIL_BODY = '{name} 様\n\nこの度は【{store}】の求人へご応募いただき、誠にありがとうございます。採用担当です。\n\n面接日程についてご相談させていただきたく、ご連絡いたしました。下記より、ご都合のよい日時をお知らせください。\n\n・第1希望：\n・第2希望：\n・第3希望：\n\nご不明点がございましたら本メールへご返信ください。何卒よろしくお願いいたします。';
+    function fillTpl(t,a){ return String(t).replace(/{name}/g, a.name||'').replace(/{store}/g, a.store||''); }
+    function smsHref(a){ var num=String(a.telRaw||a.tel||'').replace(/[^\d+]/g,''); return num?('sms:'+num+'?body='+encodeURIComponent(fillTpl(TPL_SMS,a))):null; }
+    function mailHref(a){ return a.email?('mailto:'+a.email+'?subject='+encodeURIComponent(fillTpl(TPL_MAIL_SUBJECT,a))+'&body='+encodeURIComponent(fillTpl(TPL_MAIL_BODY,a))):null; }
+
+    // 変更履歴・メモ文字列を「日時＋内容」の配列へ要約
+    function splitEntries(s){
+      s=String(s||'').trim(); if(!s) return [];
+      var p=s.split(/\r?\n/).map(function(x){return x.trim();}).filter(Boolean);
+      if(p.length<=1) p=s.split(/(?=\d{4}[\/年.\-]\d{1,2}[\/月.\-]\d{1,2})/).map(function(x){return x.trim();}).filter(Boolean);
+      return p;
+    }
+    function parseEntry(e){
+      var m=e.match(/^\D*(\d{4})[\/年.\-](\d{1,2})[\/月.\-](\d{1,2})日?(?:[ 　T]*(\d{1,2})[:：](\d{2}))?[\)\]　 、\-]*(.*)$/);
+      if(m){ var d=m[1]+'/'+('0'+m[2]).slice(-2)+'/'+('0'+m[3]).slice(-2)+(m[4]?(' '+('0'+m[4]).slice(-2)+':'+m[5]):'');
+        return { date:d, body:(m[6]||'').trim(), ts:new Date(+m[1],+m[2]-1,+m[3],+(m[4]||0),+(m[5]||0)).getTime() }; }
+      return { date:'', body:e, ts:NaN };
+    }
+    function summarize(s){
+      var ents=splitEntries(s).map(parseEntry);
+      if(ents.length && ents.every(function(e){return !isNaN(e.ts);})) ents.sort(function(a,b){return b.ts-a.ts;}); // 新しい順
+      return ents;
+    }
+    function entriesHtml(ents){
+      if(!ents.length) return '<div class="cinfo" style="color:var(--muted)">記録なし</div>';
+      return ents.map(function(e){ return '<div class="ent"><div class="ed">'+esc(e.date||'―')+'</div><div class="eb">'+esc(e.body||'')+'</div></div>'; }).join('');
+    }
+    function toggle(id){ var el=document.getElementById('d_'+id); if(el) el.style.display = (el.style.display==='none'?'block':'none'); }
+
     function renderList(){
       var fl=document.getElementById('filters');
       var c='<button class="chip '+(activeFunnel===null?'on':'')+'" onclick="setF(null)">すべて('+apps.length+')</button>';
@@ -115,9 +163,31 @@
       var rows=apps.filter(function(a){return activeFunnel===null||a.funnel===activeFunnel;});
       if(!rows.length){ document.getElementById('list').innerHTML='<div class="empty">該当なし</div>'; return; }
       var h=''; rows.slice(0,500).forEach(function(a){
-        var dup=a.dup?'<span class="tag dup">重複</span>':''; var st=a.status?'<span class="tag st">'+esc(a.status)+'</span>':'';
-        var call=a.telLink?'<a class="call" href="'+esc(a.telLink)+'">発信</a>':'<span class="call off">TELなし</span>';
-        h+='<div class="app"><div class="info"><div class="nm">'+esc(a.name)+dup+st+'</div><div class="sub">'+esc(a.store)+' ・ '+esc(a.media||'')+' ・ '+esc(a.appliedAt||'')+'</div></div>'+call+'</div>';
+        var id=esc(a.code);
+        var age=(a.age!==''&&a.age!=null)?(a.age+'歳'):'';
+        var metaBits=[age, a.gender].filter(Boolean).join('・');
+        var meta=metaBits?'<span class="meta">'+esc(metaBits)+'</span>':'';
+        var dup=a.dup?'<span class="tag dup">重複</span>':'';
+        var occ=a.occupation?('💼 '+esc(a.occupation)):'';
+        var line2=[occ, '🏪 '+esc(a.store||'不明')].filter(Boolean).join('　');
+        var stBtn='<button class="pill st" onclick="toggle(\''+id+'\')">◆ '+esc(a.status||'状況不明')+' ▾</button>';
+        var memoEnts=summarize(a.memo), memoBtn = memoEnts.length?('<button class="pill memo" onclick="toggle(\''+id+'\')">📝 メモ'+memoEnts.length+' ▾</button>'):'';
+        var histEnts=summarize(a.history);
+        var detail='<div class="detail" id="d_'+id+'" style="display:none">'+
+          '<div class="dl">ステータス変更履歴</div>'+entriesHtml(histEnts)+
+          (memoEnts.length?('<div class="dl">メモ</div>'+entriesHtml(memoEnts)):'')+
+          '<div class="dl">連絡先</div><div class="cinfo">☎ '+esc(a.telRaw||a.tel||'なし')+'　✉ '+esc(a.email||'なし')+'</div>'+
+          '</div>';
+        var sms=smsHref(a), mail=mailHref(a);
+        var acts='<div class="acts">'+
+          (a.telLink?'<a class="btn call" href="'+esc(a.telLink)+'">発信</a>':'<span class="btn off">TELなし</span>')+
+          (sms?'<a class="btn sms" href="'+esc(sms)+'">SMS</a>':'<span class="btn off">SMS不可</span>')+
+          (mail?'<a class="btn mail" href="'+esc(mail)+'">メール</a>':'<span class="btn off">メール無</span>')+
+          '</div>';
+        h+='<div class="app"><div class="nm">'+esc(a.name)+meta+dup+'</div>'+
+           '<div class="sub">'+line2+'</div>'+
+           '<div class="sub">🕒 '+esc(a.appliedAt||'')+(a.media?('　/　'+esc(a.media)):'')+'</div>'+
+           '<div class="pills">'+stBtn+memoBtn+'</div>'+detail+acts+'</div>';
       });
       if(rows.length>500) h+='<div class="empty">ほか '+(rows.length-500)+' 件（多いので省略）</div>';
       document.getElementById('list').innerHTML=h;

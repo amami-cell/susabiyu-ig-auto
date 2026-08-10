@@ -27,13 +27,14 @@ function dashData() {
   }
 
   // 店舗ID→表示名 ＆ 表示名→募集手動フラグ（F列。募集中/終了 と書けば自動判定を上書き）
+  // 表示名は【アルバイト】等の【…】を外してから使う。
   var stores = {}, storeManual = {};
   var ms = ss.getSheetByName('master_店舗');
   if (ms) {
     var sv = ms.getDataRange().getValues();
     for (var i = 1; i < sv.length; i++) {
       if (sv[i][0] === '') continue;
-      var disp = sv[i][1] || String(sv[i][0]);
+      var disp = epCleanStore_(sv[i][1] || String(sv[i][0]));
       stores[String(sv[i][0])] = disp;
       var man = sv[i].length > 5 ? String(sv[i][5] || '').trim() : '';
       if (man) storeManual[disp] = man;
@@ -51,16 +52,27 @@ function dashData() {
   if (raw) {
     var rv = raw.getDataRange().getValues(), h = rv[0], col = {};
     h.forEach(function (x, i) { col[x] = i; });
+    var cv = function (row, name, alt) {
+      var i = col[name]; if (i == null && alt) i = col[alt];
+      return i == null ? '' : row[i];
+    };
     for (var r = 1; r < rv.length; r++) {
       var row = rv[r];
-      if (!row[col['応募者コード']]) continue;
-      if (String(row[col['消失']]) === 'TRUE') continue;
-      var sc = String(row[col['ステータスコード']]);
+      if (!cv(row, '応募者コード')) continue;
+      if (String(cv(row, '消失')) === 'TRUE') continue;
+      var sc = String(cv(row, 'ステータスコード'));
+      var sid = String(cv(row, '店舗ID'));
       apps.push({
-        code: String(row[col['応募者コード']]), name: row[col['氏名']], status: row[col['ステータス']],
-        statusCode: sc, funnel: funnel[sc] || '', store: stores[String(row[col['店舗ID']])] || row[col['店舗ID']] || '',
-        tel: String(row[col['電話番号_数字']] || ''), telLink: row[col['tel_link']], media: row[col['媒体']],
-        appliedAt: String(row[col['応募日時']] || ''), dup: String(row[col['重複']]) === '重複'
+        code: String(cv(row, '応募者コード')), name: cv(row, '氏名'), status: cv(row, 'ステータス'),
+        statusCode: sc, funnel: funnel[sc] || '',
+        store: stores[sid] || epCleanStore_(cv(row, '店舗名')) || sid || '',
+        tel: String(cv(row, '電話番号_数字') || ''), telLink: cv(row, 'tel_link'),
+        telRaw: String(cv(row, '電話番号') || ''), email: String(cv(row, 'メール') || ''),
+        media: cv(row, '媒体'), appliedAt: String(cv(row, '応募日時') || ''),
+        age: cv(row, '年齢'), gender: String(cv(row, '性別') || ''),
+        occupation: String(cv(row, '現在の職業') || ''),
+        history: String(cv(row, '変更履歴', '変更履歴1') || ''), memo: String(cv(row, 'メモ') || ''),
+        dup: String(cv(row, '重複')) === '重複'
       });
     }
   }
