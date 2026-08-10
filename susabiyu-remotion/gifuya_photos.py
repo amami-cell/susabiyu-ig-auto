@@ -213,20 +213,49 @@ def _select(drive, root):
 MUSIC_HINT = ["音楽", "BGM", "bgm", "music", "ミュージック", "サウンド"]
 
 
+def _is_audio(f):
+    nm = f.get("name", "")
+    return f.get("mimeType", "").startswith("audio/") or nm.lower().endswith((".mp3", ".m4a", ".wav", ".aac"))
+
+
+def _folder_has_audio(drive, fid):
+    return any(_is_audio(f) for f in _children(drive, fid))
+
+
+def _parent_of(drive, fid):
+    try:
+        ps = drive.files().get(fileId=fid, fields="parents", supportsAllDrives=True).execute().get("parents", [])
+        return ps[0] if ps else None
+    except Exception:
+        return None
+
+
+def _search_music(drive, fid, depth=0):
+    """名前が音楽っぽい or mp3を含むフォルダを探す（深さ3まで）。"""
+    subs = [f for f in _children(drive, fid) if f["mimeType"] == "application/vnd.google-apps.folder"]
+    for f in subs:                                   # 名前一致を最優先
+        if any(h in f["name"] for h in MUSIC_HINT):
+            return f["id"]
+    for f in subs:                                   # 直下にmp3を持つフォルダ
+        if _folder_has_audio(drive, f["id"]):
+            return f["id"]
+    if depth < 3:
+        for f in subs:
+            r = _search_music(drive, f["id"], depth + 1)
+            if r:
+                return r
+    return None
+
+
 def _find_music_folder(drive, root):
-    """root配下（深さ2まで）から音楽フォルダを探す。GIFUYA_MUSIC_FOLDER_ID があればそれを優先。"""
+    """GIFUYA_MUSIC_FOLDER_ID > root自身がmp3を持つ > ぎふやルート（画像の親）から広く探索。"""
     env = os.environ.get("GIFUYA_MUSIC_FOLDER_ID", "").strip()
     if env:
         return env
-    for f in _children(drive, root):
-        if f["mimeType"] == "application/vnd.google-apps.folder" and any(h in f["name"] for h in MUSIC_HINT):
-            return f["id"]
-    for f in _children(drive, root):
-        if f["mimeType"] == "application/vnd.google-apps.folder":
-            for g in _children(drive, f["id"]):
-                if g["mimeType"] == "application/vnd.google-apps.folder" and any(h in g["name"] for h in MUSIC_HINT):
-                    return g["id"]
-    return None
+    if _folder_has_audio(drive, root):
+        return root
+    start = _parent_of(drive, root) or root          # 画像の親＝ぎふや直下から探す（音楽フォルダは画像の外にある想定）
+    return _search_music(drive, start)
 
 
 def music(root=None):
