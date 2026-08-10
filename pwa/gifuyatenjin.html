@@ -176,7 +176,7 @@
 <script>
 (function () {
   "use strict";
-  var V = "?v=115";  // メディアのキャッシュ更新用（同名ファイル更新時にブラウザ再取得させる）
+  var V = "?v=116";  // メディアのキャッシュ更新用（同名ファイル更新時にブラウザ再取得させる）
   // 実稼働化の受け皿：GIFUYA_LIVE=true（専用GAS URL 注入済み）になると実データ連携へ切替予定。
   // 現状は未設定＝見本モードで安全表示（実データのレンダリングは実稼働化ステップで有効化）。
   var LIVE = !!window.GIFUYA_LIVE;
@@ -363,16 +363,10 @@
       c.querySelector(".cap").textContent = p.cap;
       c.querySelector(".tags").textContent = (p.tags?p.tags+" ":"") + COMMON;
       var slot = c.querySelector(".slot");
-      function setButtons(){
-        slot.innerHTML = '<div class="btns"><button class="ok">投稿OK</button><button class="rd">作り直す</button><button class="ng">やめる</button></div>';
-        slot.querySelector(".ok").onclick = function(){ slot.innerHTML='<div class="banner okb">✓ 承認済み（予定時刻に投稿されます）<small>タップで取り消し</small></div>';
-          slot.querySelector(".banner").onclick=function(){ setButtons(); }; c.classList.remove("done"); toast("承認しました（見本）"); };
-        slot.querySelector(".rd").onclick = function(){ slot.innerHTML='<div class="redoing"><span class="spin"></span>作り直しています…</div>';
-          setTimeout(function(){ setButtons(); toast("別案を作成しました（見本）"); }, 1500); };
-        slot.querySelector(".ng").onclick = function(){ slot.innerHTML='<div class="banner ngb">— 取りやめました</div>'; c.classList.add("done"); };
-      }
-      setButtons();
-      var cb = c.querySelector(".copybtn");
+      // フィード投稿の予約は三条と同じくリールタブ（gifuya_reels）で行う。ここは当日の候補一覧＋
+      // キャプションのコピー用（偽の投稿ボタンは置かない＝実際に投稿されない誤解を避ける）。
+      slot.innerHTML = '<a class="copybtn reelbtn" style="text-decoration:none" href="./gifuya_reels.html">🎬 この写真をフィード投稿する（リールタブへ）</a>';
+      var cb = c.querySelector("button.copybtn");
       cb.onclick = function(){ copy(full, function(){ cb.textContent="✓ コピーしました"; cb.classList.add("done"); toast("キャプションをコピーしました");
         setTimeout(function(){ cb.textContent="📋 キャプションをコピー"; cb.classList.remove("done"); },2200); }); };
       feed.appendChild(c);
