@@ -1,6 +1,6 @@
 {
  "store": "gifuyatenjin",
- "count": 67,
+ "count": 62,
  "items": [
   {
    "img": "f_28c9e483fe.jpg",
@@ -83,11 +83,6 @@
    "reco": false
   },
   {
-   "img": "f_d3c4537887.jpg",
-   "name": "サーモンチーズ巻",
-   "reco": false
-  },
-  {
    "img": "f_907a42e100.jpg",
    "name": "シャキシャキ長芋の短冊",
    "reco": false
@@ -108,11 +103,6 @@
    "reco": false
   },
   {
-   "img": "f_d4223353fb.jpg",
-   "name": "トロタク巻き",
-   "reco": false
-  },
-  {
    "img": "f_7790a46e2e.jpg",
    "name": "ホタルイカ沖漬け",
    "reco": false
@@ -120,11 +110,6 @@
   {
    "img": "f_bcee731089.jpg",
    "name": "串かつ_うずら卵",
-   "reco": false
-  },
-  {
-   "img": "f_6a1808cd07.jpg",
-   "name": "串かつ_からしれんこん",
    "reco": false
   },
   {
@@ -248,11 +233,6 @@
    "reco": false
   },
   {
-   "img": "f_873b065f8d.jpg",
-   "name": "天かす巻き",
-   "reco": false
-  },
-  {
    "img": "f_72633f06fc.jpg",
    "name": "安定の冷やしトマト",
    "reco": false
@@ -325,11 +305,6 @@
   {
    "img": "f_b6668d9c62.jpg",
    "name": "赤鶏レバー刺し",
-   "reco": false
-  },
-  {
-   "img": "f_f59926f46f.jpg",
-   "name": "鉄火巻",
    "reco": false
   },
   {
