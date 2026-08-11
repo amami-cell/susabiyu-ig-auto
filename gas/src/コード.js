@@ -751,8 +751,11 @@ function schedCreate_(p) {
   var token = "R" + Utilities.formatDate(new Date(), "Asia/Tokyo", "yyyyMMddHHmmss") + "_" + Math.floor(Math.random() * 1000);
   var kind = (p.kind === "reel") ? "reel" : "feed";
   var account = String(p.account || "").trim();   // J列: 空=三条 / "gifuyatenjin"=ぎふや（post_reservations が振り分け）
+  // K/L列: リールの切取位置(秒)。投稿エンジンが ffmpeg で切り出す。空=切らずにそのまま。
+  var ts = (p.trimStart === undefined || p.trimStart === "") ? "" : Number(p.trimStart);
+  var te = (p.trimEnd === undefined || p.trimEnd === "") ? "" : Number(p.trimEnd);
   sh.appendRow([token, String(p.when || "").slice(0, 16), kind, p.media || "", p.caption || "", p.hashtags || "",
-    "scheduled", Utilities.formatDate(new Date(), "Asia/Tokyo", "yyyy-MM-dd HH:mm"), "", account]);
+    "scheduled", Utilities.formatDate(new Date(), "Asia/Tokyo", "yyyy-MM-dd HH:mm"), "", account, ts, te]);
   return { ok: true, token: token };
 }
 function schedList_(account) {

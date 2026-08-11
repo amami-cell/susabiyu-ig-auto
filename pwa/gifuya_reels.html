@@ -158,7 +158,7 @@
 <script>
 (function(){
   "use strict";
-  var V = "?v=119";  // メディアのキャッシュ更新用
+  var V = "?v=120";  // メディアのキャッシュ更新用
   var CFG = window.GIFUYA || {};
   var LIVE = !!window.GIFUYA_LIVE;               // 専用GAS注入済みなら実データ連携
   var GAS = (CFG.GAS_URL||"").trim();
@@ -348,6 +348,7 @@
       sel.style.left=ts.value+"%"; sel.style.width=(te.value-ts.value)+"%";
       lenEl.textContent=fmt(e-s); allEl.textContent=fmt(total);
       stEl.textContent="開始 "+fmt(s); enEl.textContent="終了 "+fmt(e);
+      card._trim={start:Math.round(s*10)/10, end:Math.round(e*10)/10};   // 予約時に切取位置を渡す
       try{ v.currentTime=s; }catch(x){}
     }
     function initRange(){
@@ -370,9 +371,15 @@
     var name=it.t||"";
     var caption=fullCaption(it.cap);
     var media=absUrl("gifuya/"+(kind==="feed"?it.img:it.vid));
+    var params={api:"schedule", kind:(kind==="feed"?"feed":"reel"), name:name, when:when, media:media, caption:caption, hashtags:tags};
+    // リールは切取位置(秒)を渡す。投稿エンジンが ffmpeg で切り出してから投稿する。
+    var card=(slot&&slot.closest)?slot.closest(".card"):null;
+    if(kind==="reel" && card && card._trim && (card._trim.end-card._trim.start)>=1){
+      params.trimStart=card._trim.start; params.trimEnd=card._trim.end;
+    }
     if(LIVE){
       slot.innerHTML='<div class="banner okb">送信中…</div>';
-      gJsonp({api:"schedule", kind:(kind==="feed"?"feed":"reel"), name:name, when:when, media:media, caption:caption, hashtags:tags}).then(function(res){
+      gJsonp(params).then(function(res){
         if(res&&(res.ok||res.result==="ok")){ slot.innerHTML='<div class="banner okb">✓ '+label+'<br><small style="font-weight:600;color:#6fb595">予定時刻に自動投稿されます</small></div>'; toast(label); loadSched(); }
         else { slot.innerHTML='<div class="banner ngb">送信できませんでした</div>'; toast("失敗しました。再度お試しください"); }
       }).catch(function(){ slot.innerHTML='<div class="banner ngb">通信エラー</div>'; toast("通信エラー"); });

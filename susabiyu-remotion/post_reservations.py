@@ -83,8 +83,39 @@ def resolve_media(media, kind):
 
 # ---- シート入出力 ----
 def _read_rows(sh):
-    r = sh.values().get(spreadsheetId=poster.SHEET_ID, range=RESV_TAB + "!A2:J").execute()
+    r = sh.values().get(spreadsheetId=poster.SHEET_ID, range=RESV_TAB + "!A2:L").execute()
     return r.get("values", [])
+
+
+def trim_reel(url, start, end):
+    """リール動画を [start,end] 秒で切り出してCDNへ再アップロードし、新URLを返す。
+       ffmpeg 不在・失敗時は元URLをそのまま返す（切らずに投稿）。"""
+    try:
+        s = float(start); e = float(end)
+    except Exception:
+        return url
+    if not (e - s >= 1):
+        return url
+    try:
+        import tempfile, subprocess
+        src = tempfile.NamedTemporaryFile(suffix=".mp4", delete=False)
+        r = poster.req.get(url, timeout=90)
+        if r.status_code != 200 or not r.content:
+            print("  [TRIM] 元動画DL失敗→切らずに投稿"); return url
+        src.write(r.content); src.close()
+        out = src.name[:-4] + "_cut.mp4"
+        # 再エンコード（-ss/-to）で正確に切り出し。ストリームコピーだとキーフレームずれで頭が乱れるため。
+        cmd = ["ffmpeg", "-y", "-ss", "%.2f" % s, "-to", "%.2f" % e, "-i", src.name,
+               "-c:v", "libx264", "-preset", "veryfast", "-crf", "20", "-c:a", "aac", "-movflags", "+faststart", out]
+        rc = subprocess.run(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL).returncode
+        if rc != 0 or not os.path.exists(out) or os.path.getsize(out) == 0:
+            print("  [TRIM] ffmpeg失敗(rc=%s)→切らずに投稿" % rc); return url
+        newu = poster.up(out, cdn=True) or poster.up(out)
+        if newu:
+            print("  [TRIM] 切り出しOK %.1f〜%.1f秒 → %s" % (s, e, newu[:60])); return newu
+        print("  [TRIM] 再アップロード失敗→元動画で投稿"); return url
+    except Exception as ex:
+        print("  [TRIM] 例外→切らずに投稿:", ex); return url
 
 def _set(sh, row_idx, col, value):
     """1-based row_idx（データ行、ヘッダー=1なので実シート行= idx+1）。col='G'等。"""
@@ -119,8 +150,8 @@ def run(live):
 
     posted = 0
     for i, row in enumerate(rows):   # i は0-based（データ行）
-        row = (row + [""] * 10)[:10]
-        token_id, when_s, kind, media, caption, tags, status, created, note, account = row
+        row = (row + [""] * 12)[:12]
+        token_id, when_s, kind, media, caption, tags, status, created, note, account, trim_s, trim_e = row
         status = (status or "scheduled").strip()
         if status != "scheduled":
             continue
@@ -156,6 +187,9 @@ def run(live):
         if not url:
             _set(sh, i + 1, "G", "failed"); _set(sh, i + 1, "I", "メディアURL取得失敗")
             print("  [FAIL] media URL なし token=%s" % token_id); continue
+        # リールで切取位置(K/L列)があれば ffmpeg で切り出してから投稿。
+        if kind == "reel" and str(trim_s).strip() != "" and str(trim_e).strip() != "":
+            url = trim_reel(url, trim_s, trim_e)
         try:
             pid = poster.ig_post_media(atoken, url, kind, cap)
         except Exception as e:
