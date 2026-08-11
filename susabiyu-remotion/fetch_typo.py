@@ -101,6 +101,19 @@ def _is_drink_cat(name):
 
 cats = {k: v for k, v in cats.items() if not _is_drink_cat(k)}
 
+# 店舗別の非料理カテゴリ除外（例: ロゴ/外観/内観/ランチ/集合/音楽）。GENRE_EXCLUDE_CATS で部分一致指定。
+# 未設定なら無効＝三条は従来どおり。ぎふやは stores.py が設定する。
+_EXCL = [s.strip() for s in os.environ.get("GENRE_EXCLUDE_CATS", "").split(",") if s.strip()]
+if _EXCL:
+    def _is_excluded_cat(name):
+        n = str(name or "")
+        return any(x in n for x in _EXCL)
+    _before = list(cats.keys())
+    cats = {k: v for k, v in cats.items() if not _is_excluded_cat(k)}
+    _removed = [k for k in _before if k not in cats]
+    if _removed:
+        print("[EXCLUDE] 非料理カテゴリを除外:", _removed)
+
 if not cats:
     print("NG: 条件を満たす画像が見つかりません。")
     raise SystemExit

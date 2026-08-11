@@ -32,7 +32,7 @@ IMG_ROOT_DEFAULT = "1HUtrzFFJiCuazZOhHBW88RVVdrvyh1Ox"
 # ぎふや福岡天神「音楽」フォルダ（管理シート 入力用 R29C10）。ストーリー動画のBGM素材。
 MUSIC_FOLDER_DEFAULT = "1pk6Lq_TKK4MRWLYRowOjjRRFUfBbyYh_"
 # 料理以外のサブフォルダは同期対象から除外（名前に含めば除外）。
-FOLDER_EXCLUDE = ["ロゴ", "外観", "内観", "ドリンク", "飲み", "音楽", "集合"]
+FOLDER_EXCLUDE = ["ロゴ", "外観", "内観", "ドリンク", "飲み", "音楽", "集合", "ランチ"]
 # 料理写真ではないファイル（寄せ集め/ロゴ等）を除外。
 FILE_EXCLUDE = ["料理集合", "集合写真", "GFY", "logo", "ロゴ"]
 # 「おすすめ」の目印（専用フォルダ名 or ファイル名の接頭辞）。

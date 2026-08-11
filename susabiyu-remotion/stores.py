@@ -75,6 +75,9 @@ STORES = {
             "music_normal": "1pk6Lq_TKK4MRWLYRowOjjRRFUfBbyYh_",
         },
         "patterns": FOOD_ONLY_PATTERNS,   # 食材フォルダのみで完結＝三条フォルダ混入ゼロ
+        # 「画像」フォルダ配下の非料理サブフォルダは料理として使わない（ロゴ/ランチ/外観など）。
+        # ランチは未営業のため除外。ドリンクは fetch 側が自動除外。
+        "exclude_cats": ["ロゴ", "ランチ", "外観", "内観", "音楽", "集合", "ドリンク", "飲み"],
         "phrases_file": "phrases_gifuyatenjin.json",
         "fallback_phrase": "福岡・天神の夜は、ぎふやで。",
         "pwa_url": "https://amami-cell.github.io/susabiyu-media/app/gifuyatenjin.html",
@@ -116,13 +119,16 @@ def apply_fetch_env(store):
         val = folders.get(key)
         if val:
             os.environ[env_name] = val
-    # 店舗（非空account）だけキャプション文言を差し替える。三条は既定 phrases.json のまま。
+    # 店舗（非空account）だけキャプション文言・非料理カテゴリ除外を設定。三条は従来のまま。
     if store.get("account"):
         pf = store.get("phrases_file")
         if pf and os.path.exists(pf):
             os.environ["PHRASES_FILE"] = pf
         if store.get("fallback_phrase"):
             os.environ["STORE_FALLBACK_PHRASE"] = store["fallback_phrase"]
+        excl = store.get("exclude_cats")
+        if excl:
+            os.environ["GENRE_EXCLUDE_CATS"] = ",".join(excl)
 
 
 def render_props(store):
