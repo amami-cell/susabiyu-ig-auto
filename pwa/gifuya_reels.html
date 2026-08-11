@@ -158,7 +158,7 @@
 <script>
 (function(){
   "use strict";
-  var V = "?v=120";  // メディアのキャッシュ更新用
+  var V = "?v=121";  // メディアのキャッシュ更新用
   var CFG = window.GIFUYA || {};
   var LIVE = !!window.GIFUYA_LIVE;               // 専用GAS注入済みなら実データ連携
   var GAS = (CFG.GAS_URL||"").trim();
@@ -494,14 +494,9 @@
   function shuffleFeed(items){ var day=Math.floor(Date.now()/864e5);
     var reco=items.filter(function(x){return x.reco;}), rest=items.filter(function(x){return !x.reco;});
     var out=reco.slice(); seededOrder(rest.length, day+1).forEach(function(j){ out.push(rest[j]); }); return out; }
-  // Driveから毎日同期される料理写真（feed.json）があれば候補を差し替え（無ければ内蔵の見本のまま）。
-  (function loadFeedJson(){
-    fetch("./gifuya/feed.json"+V, {cache:"no-store"}).then(function(r){ return r.ok?r.json():null; }).then(function(d){
-      if(!d || !d.items || !d.items.length) return;
-      FEED = shuffleFeed(d.items.map(function(it){ return {img: it.img, t: it.name, cap: it.name, tags:"", reco: !!it.reco}; }));
-      if(tF.classList.contains("on")) render("feed");
-    }).catch(function(){});
-  })();
+  // フィード投稿は用意したキャプション（FEED）をそのまま使う。
+  // ※以前は feed.json の料理名でキャプションを上書きしていたが、「文面が料理名だけになる」ため廃止。
+  //   料理を追加したい場合は FEED 配列に写真＋キャプションを足す（＝ちゃんとした文面で投稿される）。
 })();
 </script>
 <script>

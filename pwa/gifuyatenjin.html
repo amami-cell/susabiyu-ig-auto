@@ -216,7 +216,7 @@
 <script>
 (function () {
   "use strict";
-  var V = "?v=120";  // メディアのキャッシュ更新用（同名ファイル更新時にブラウザ再取得させる）
+  var V = "?v=121";  // メディアのキャッシュ更新用（同名ファイル更新時にブラウザ再取得させる）
   // 実稼働化の受け皿：GIFUYA_LIVE=true（専用GAS URL 注入済み）になると実データ連携へ切替予定。
   // 現状は未設定＝見本モードで安全表示（実データのレンダリングは実稼働化ステップで有効化）。
   var LIVE = !!window.GIFUYA_LIVE;
@@ -386,46 +386,10 @@
   if(LIVE){ loadQueue(); setInterval(loadQueue, 8000); }
   else { renderQueue(null); }
 
-  // --- フィード投稿の候補（Driveから毎日同期。feed.json があればそれを、無ければ内蔵見本を表示） ---
-  function buildFeedCandidates(list){
-    feed.querySelectorAll(".fc").forEach(function(el){ el.remove(); });   // 既存候補を消して作り直し
-    var lab=document.createElement("div"); lab.className="fc"; lab.textContent="📸 フィード投稿の候補（"+list.length+"品）";
-    lab.style.cssText="font-weight:800;margin:18px 4px 8px;color:#e7ecf3;font-size:15px"; feed.appendChild(lab);
-    list.forEach(function(p,i){
-      var full = p.cap + "\n\n" + (p.tags?p.tags+" ":"") + COMMON;
-      var c = document.createElement("div"); c.className="card fc";
-      c.innerHTML =
-        '<div class="head"><span class="pat">'+(p.pat||(p.reco?"★ おすすめ":"料理"))+'</span><span class="time">'+(p.when||"")+'</span><span class="remain">フィード</span></div>'+
-        '<div class="mediaWrap"><img class="media" loading="lazy" src="gifuya/'+p.img+V+'" alt=""></div>'+
-        '<div class="cap"></div><div class="tags"></div>'+
-        '<div class="slot"></div>'+
-        '<button class="copybtn">📋 キャプションをコピー</button>';
-      c.querySelector(".cap").textContent = p.cap;
-      c.querySelector(".tags").textContent = (p.tags?p.tags+" ":"") + COMMON;
-      var slot = c.querySelector(".slot");
-      // フィード投稿の予約は三条と同じくリールタブ（gifuya_reels）で行う。ここは当日の候補一覧＋
-      // キャプションのコピー用（偽の投稿ボタンは置かない＝実際に投稿されない誤解を避ける）。
-      slot.innerHTML = '<a class="copybtn reelbtn" style="text-decoration:none" href="./gifuya_reels.html">🎬 この写真をフィード投稿する（リールタブへ）</a>';
-      var cb = c.querySelector("button.copybtn");
-      cb.onclick = function(){ copy(full, function(){ cb.textContent="✓ コピーしました"; cb.classList.add("done"); toast("キャプションをコピーしました");
-        setTimeout(function(){ cb.textContent="📋 キャプションをコピー"; cb.classList.remove("done"); },2200); }); };
-      feed.appendChild(c);
-    });
-  }
-  // 写真もランダム：おすすめは先頭固定、それ以外はその日のseedでシャッフル（日替わりで入替・当日内は安定）。
-  function shuffleFeed(items){
-    var day=Math.floor(Date.now()/864e5);
-    var reco=items.filter(function(x){return x.reco;}), rest=items.filter(function(x){return !x.reco;});
-    var out=reco.slice(); seededOrder(rest.length, day+1).forEach(function(j){ out.push(rest[j]); }); return out;
-  }
-  buildFeedCandidates(POSTS);
-  // Driveから毎日同期される料理写真（feed.json）があれば候補を差し替え。
-  fetch("./gifuya/feed.json"+V, {cache:"no-store"}).then(function(r){ return r.ok?r.json():null; }).then(function(d){
-    if(d && d.items && d.items.length){
-      var mapped=d.items.map(function(it){ return {img: it.img, cap: it.name, pat: (it.reco?"★ おすすめ":"料理"), when:"", tags:"", reco: !!it.reco}; });
-      buildFeedCandidates(shuffleFeed(mapped));
-    }
-  }).catch(function(){});
+  // この確認タブは「ストーリーの承認」専用。フィード／リールの投稿・予約は「🎬 リール」タブで行う（三条と同じ分離）。
+  var fnote=document.createElement("div"); fnote.className="note"; fnote.style.cssText="margin:20px 4px 0";
+  fnote.innerHTML='📸 <b>フィード・リールの投稿</b>はこの画面ではなく <a href="./gifuya_reels.html" style="color:var(--accent);font-weight:800;text-decoration:none">🎬 リールタブ</a> から行います（写真の選択・キャプション・予約はそちら）。';
+  feed.appendChild(fnote);
 
   // ===== ② 見本（ギャラリー・動画/画像フィルタ付き） =====
   var gal = document.getElementById("gallery");
