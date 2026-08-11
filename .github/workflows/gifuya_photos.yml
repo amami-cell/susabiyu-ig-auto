@@ -73,6 +73,13 @@ jobs:
         working-directory: susabiyu-remotion
         run: python gifuya_photos.py readsheet "${{ github.event.inputs.folder_id }}"
 
+      - name: Music (音楽フォルダの曲数を確認・取得)
+        if: github.event.inputs.mode == 'music'
+        working-directory: susabiyu-remotion
+        env:
+          GIFUYA_MUSIC_FOLDER_ID: ${{ vars.GIFUYA_MUSIC_FOLDER_ID }}
+        run: python gifuya_photos.py music "${{ github.event.inputs.folder_id }}"
+
       - name: Sync all food photos
         if: github.event.inputs.mode == 'sync'
         working-directory: susabiyu-remotion
