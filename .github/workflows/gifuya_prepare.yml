@@ -66,7 +66,19 @@ jobs:
           VAPID_SUBJECT: ${{ secrets.VAPID_SUBJECT }}
           # PWA_URL は未設定＝stores.py の gifuyatenjin pwa_url を使う（確認アプリへの導線）
           QUIET_NOTIFY: ${{ github.event.inputs.quiet }}
-        run: python prepare.py creds.json "${{ github.event.inputs.date }}"
+          INDATE: ${{ github.event.inputs.date }}
+        run: |
+          # カンマ区切りなら複数日を1回で生成（例 2026-08-11,2026-08-12,2026-08-13）。
+          if printf '%s' "$INDATE" | grep -q ','; then
+            IFS=',' read -ra ARR <<< "$INDATE"
+            for d in "${ARR[@]}"; do
+              d="$(printf '%s' "$d" | xargs)"
+              echo "=========== 生成: $d ==========="
+              python prepare.py creds.json "$d"
+            done
+          else
+            python prepare.py creds.json "$INDATE"
+          fi
       - name: 失敗をLINE通知
         if: failure()
         env:
