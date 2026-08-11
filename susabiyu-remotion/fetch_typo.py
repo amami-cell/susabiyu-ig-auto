@@ -39,31 +39,38 @@ drive = build("drive", "v3", credentials=creds)
 
 import io as _io_ms
 from googleapiclient.http import MediaIoBaseDownload as _MIBD_ms
+def _dl_music(f, local_dir):
+    name = f.get("name", "")
+    dest = os.path.join(local_dir, name)
+    if os.path.exists(dest):
+        return
+    req = drive.files().get_media(fileId=f["id"])
+    buf = _io_ms.FileIO(dest, "wb")
+    dl = _MIBD_ms(buf, req)
+    done = False
+    while not done:
+        _, done = dl.next_chunk()
+    buf.close()
+    print("[MUSIC DL]", name)
+
+
 def sync_music_from_drive(folder_id, local_dir, _depth=0):
-    """フォルダ配下のmp3を local_dir へ取得。曲がサブフォルダにある店舗でも拾えるよう再帰（深さ3）。"""
+    """フォルダ配下のmp3を local_dir へ取得。
+    直下にmp3があればそれを使う（＝三条は従来どおり非再帰・挙動不変）。直下に無い時だけ
+    サブフォルダを再帰（深さ3）で探す（曲がサブフォルダにある店舗＝ぎふや等を救済）。"""
     if not folder_id:
         return
     try:
         os.makedirs(local_dir, exist_ok=True)
-        for f in list_children(folder_id):
-            name = f.get("name", "")
-            if f.get("mimeType", "") == "application/vnd.google-apps.folder":
-                if _depth < 3:
+        children = list_children(folder_id)
+        audio = [f for f in children if f.get("name", "").lower().endswith((".mp3", ".m4a", ".wav"))]
+        if audio:
+            for f in audio:
+                _dl_music(f, local_dir)          # 直下にある＝それを使う（三条の従来動作）
+        elif _depth < 3:
+            for f in children:                   # 直下に無い時だけサブフォルダを探索（ぎふや救済）
+                if f.get("mimeType", "") == "application/vnd.google-apps.folder":
                     sync_music_from_drive(f["id"], local_dir, _depth + 1)
-                continue
-            if not name.lower().endswith((".mp3", ".m4a", ".wav")):
-                continue
-            dest = os.path.join(local_dir, name)
-            if os.path.exists(dest):
-                continue
-            req = drive.files().get_media(fileId=f["id"])
-            buf = _io_ms.FileIO(dest, "wb")
-            dl = _MIBD_ms(buf, req)
-            done = False
-            while not done:
-                _, done = dl.next_chunk()
-            buf.close()
-            print("[MUSIC DL]", name)
     except Exception as e:
         print("[MUSIC] sync skip:", e)
 
