@@ -188,7 +188,7 @@
   function loadGsel(){ try{ var o=JSON.parse(localStorage.getItem(GSEL_LS)||"null"); if(o&&typeof o==="object"&&Object.keys(o).length) return o; }catch(e){} return null; }
   function saveGsel(){ try{ localStorage.setItem(GSEL_LS, JSON.stringify(GSEL)); }catch(e){} }
   function selTags(){ return Object.keys(GSEL).map(function(x){return "#"+x;}).join(" "); }
-  function fullCaption(cap){ return (cap||"") + "\n\n" + selTags() + " " + COMMON + "\n\n" + TEMPLATE; }
+  function fullCaption(cap, dishTags){ return (cap||"") + "\n\n" + (dishTags?dishTags+" ":"") + selTags() + " " + COMMON + "\n\n" + TEMPLATE; }
   var refreshers=[];  // 全カードのタグ表示を一括更新するための登録先
   function refreshAll(){ for(var i=0;i<refreshers.length;i++){ try{ refreshers[i](); }catch(e){} } }
   var toastEl=document.getElementById("toast"),toastT=null;
@@ -369,7 +369,7 @@
   function doSchedule(kind,it,when,slot,label){
     var tags=selTags();
     var name=it.t||"";
-    var caption=fullCaption(it.cap);
+    var caption=fullCaption(it.cap, it.tags);
     var media=absUrl("gifuya/"+(kind==="feed"?it.img:it.vid));
     var params={api:"schedule", kind:(kind==="feed"?"feed":"reel"), name:name, when:when, media:media, caption:caption, hashtags:tags};
     // リールは切取位置(秒)を渡す。投稿エンジンが ffmpeg で切り出してから投稿する。
@@ -475,7 +475,7 @@
         doSchedule(kind,p,dd+" "+tt,slot,"予約しました");
       };
       var cb=c.querySelector(".copybtn");
-      cb.onclick=function(){ var f = fullCaption(p.cap);
+      cb.onclick=function(){ var f = fullCaption(p.cap, p.tags);
         copy(f,function(){ cb.textContent="✓ コピーしました"; cb.classList.add("done"); toast("キャプションをコピーしました");
         setTimeout(function(){ cb.textContent="📋 キャプションをコピー"; cb.classList.remove("done"); },2200); }); };
       wrap.appendChild(c);
@@ -494,9 +494,56 @@
   function shuffleFeed(items){ var day=Math.floor(Date.now()/864e5);
     var reco=items.filter(function(x){return x.reco;}), rest=items.filter(function(x){return !x.reco;});
     var out=reco.slice(); seededOrder(rest.length, day+1).forEach(function(j){ out.push(rest[j]); }); return out; }
-  // フィード投稿は用意したキャプション（FEED）をそのまま使う。
-  // ※以前は feed.json の料理名でキャプションを上書きしていたが、「文面が料理名だけになる」ため廃止。
-  //   料理を追加したい場合は FEED 配列に写真＋キャプションを足す（＝ちゃんとした文面で投稿される）。
+  // ===== フィード候補のキャプション生成 =====
+  //  A) 看板料理は専用の文面（FEED_HERO）。B) 毎日同期の全料理(feed.json)も、料理名から
+  //     カテゴリを判定して自然な文面を生成（"料理名だけ"にならないよう しっかり作り込み）。
+  function cleanDish(name){ return String(name||"").replace(/[_＿]/g,"　").replace(/\s+/g," ").trim(); }
+  // 看板料理：キーワードにヒットしたら専用の文面・タグを使う（部分一致）。
+  var FEED_HERO=[
+    {k:["どぶ漬け","どてかつ"], cap:"名物、元祖どぶ漬けどてかつ🍢\n秘伝の自家製どて味噌にどっぷり漬け込んだ一本。安くて旨い、まずは一杯。", tags:"#どてかつ #串かつ #どて焼き #天神串かつ"},
+    {k:["どて焼き","どて煮"], cap:"じっくり煮込んだ、名物どて焼き。\nとろけるやわらかさで、日本酒もビールもすすみます。", tags:"#どて焼き #もつ煮込み #天神グルメ"},
+    {k:["炊き餃子"], cap:"福岡名物、炊き餃子。\nコラーゲンたっぷりの白湯スープで炊き上げる、体にしみる一品。", tags:"#炊き餃子 #餃子 #福岡名物 #天神グルメ"},
+    {k:["明太出汁巻","明太だし巻","出汁巻","だし巻"], cap:"ふわとろ、明太出汁巻き。\n福岡ならではの明太子を、あつあつの出汁巻きで包みました。", tags:"#明太子 #出汁巻き卵 #福岡明太子 #天神ディナー"},
+    {k:["刺身盛"], cap:"本日の鮮度自慢、刺身盛り合わせ。\nその日仕入れた旬の魚を、贅沢にひと皿で。", tags:"#刺身 #刺身盛り合わせ #海鮮 #天神グルメ"},
+    {k:["ごまさば","胡麻さば","ごまサバ"], cap:"福岡の定番、特製ごまさば。\n新鮮なさばを甘辛のごまダレで。日本酒とどうぞ。", tags:"#ごまさば #福岡グルメ #日本酒 #天神"},
+    {k:["馬刺し"], cap:"とろける旨さ、馬刺し。\nこだわりのひと皿を、薬味と一緒に。", tags:"#馬刺し #逸品 #天神グルメ"},
+    {k:["からしれんこん","辛子れんこん","からしレンコン","辛子レンコン"], cap:"ピリッと、からしれんこんの串かつ🍢\nシャキシャキ食感と辛子の香りがクセになる。", tags:"#からしれんこん #串かつ #天神グルメ"},
+    {k:["とん平"], cap:"鉄板あつあつ、ぎふやのとん平焼き。\n甘めのソースとマヨで、ビールが止まらない🍺", tags:"#とん平焼き #鉄板焼き #天神居酒屋"},
+    {k:["漬け丼","漬丼","漁師"], cap:"シメにどうぞ、漁師の漬け丼。\n漬けにした鮮魚をごはんにたっぷり。", tags:"#漬け丼 #海鮮丼 #シメ #天神グルメ"}
+  ];
+  // カテゴリ別テンプレ：dは整形後の料理名。順番＝優先度（特定→一般）。
+  var FEED_CATS=[
+    {k:["刺身","造り","たたき","ユッケ","カルパッチョ","エイヒレ","レバー刺","鮮魚","海鮮"], f:function(d){return "本日の鮮度自慢、"+d+"。\nいきいきとした旬の味わいを。";}, tags:"#刺身 #海鮮 #天神グルメ"},
+    {k:["巻","鉄火"], f:function(d){return "ぎふやの"+d+"。\n日本酒と一緒に、ちびちびと。";}, tags:"#巻き #日本酒 #天神"},
+    {k:["唐揚","から揚","フライ","天","バター","ポテト","コロッケ","揚げ"], f:function(d){return "あつあつ、"+d+"。\nビールが止まらない一品です🍺";}, tags:"#揚げ物 #おつまみ #天神居酒屋"},
+    {k:["サラダ","トマト","枝豆","なす","茄子","ピーマン","長芋","胡瓜","わさび","一本漬"], f:function(d){return "箸休めに、"+d+"。\nさっぱり、箸がすすみます。";}, tags:"#野菜 #さっぱり #天神ディナー"},
+    {k:["せせり","レバー","マルシン","和牛","逸品","希少部位"], f:function(d){return "こだわりのひと皿、"+d+"。\nお酒がすすみます。";}, tags:"#逸品 #天神グルメ"},
+    {k:["もつ","酢もつ","ホルモン"], f:function(d){return "コリコリ旨い、"+d+"。\n一杯のお供にどうぞ。";}, tags:"#もつ #おつまみ #天神居酒屋"},
+    {k:["ライス","ラーメン","焼きそば","丼","〆"], f:function(d){return "シメはこれ。"+d+"。\nぎふやの締めくくりに。";}, tags:"#シメ #天神グルメ"},
+    {k:["餃子","焼き","炒め"], f:function(d){return "ぎふやの"+d+"。\nお酒に合う、間違いない一品。";}, tags:"#福岡グルメ #天神居酒屋"}
+  ];
+  function dishCaption(name){
+    var raw=String(name||""), d=cleanDish(raw);
+    for(var i=0;i<FEED_HERO.length;i++){ if(FEED_HERO[i].k.some(function(x){return raw.indexOf(x)>=0;})) return {t:d, cap:FEED_HERO[i].cap, tags:FEED_HERO[i].tags}; }
+    if(raw.indexOf("串か")>=0){                                  // 串かつ_X →「Xの串かつ」に整形
+      if(/盛/.test(raw)) return {t:d, cap:"迷ったらこれ、"+d+"🍢\n人気の串をまとめて。シェアにもぴったり。", tags:"#串かつ #串カツ #天神串かつ"};
+      var m=raw.split(/[_＿ ]/); var top=(m.length>1?m.slice(1).join(" "):d);
+      return {t:d, cap:"サクッと軽い衣で、"+top+"の串かつ🍢\nソースにくぐらせて、まずは一杯。", tags:"#串かつ #串カツ #天神串かつ"};
+    }
+    for(var j=0;j<FEED_CATS.length;j++){ if(FEED_CATS[j].k.some(function(x){return raw.indexOf(x)>=0;})) return {t:d, cap:FEED_CATS[j].f(d), tags:FEED_CATS[j].tags}; }
+    return {t:d, cap:"本日のおすすめ、"+d+"。\nできたてをどうぞ。", tags:"#ぎふや #天神グルメ #大衆酒場"};
+  }
+  // 毎日同期の全料理(feed.json)を、看板料理と重複しないものだけ文面生成して追加。
+  var HERO_KEYS=["どぶ漬け","どてかつ","炊き餃子","明太出汁巻","出汁巻","刺身盛"];
+  (function loadFeedJson(){
+    fetch("./gifuya/feed.json"+V, {cache:"no-store"}).then(function(r){ return r.ok?r.json():null; }).then(function(d){
+      if(!d || !d.items || !d.items.length) return;
+      var extras=d.items.filter(function(it){ var n=String(it.name||""); return !HERO_KEYS.some(function(k){return n.indexOf(k)>=0;}); })
+        .map(function(it){ var g=dishCaption(it.name); return {img: it.img, t: g.t, cap: g.cap, tags: g.tags, reco: !!it.reco}; });
+      FEED = shuffleFeed(FEED.concat(extras));   // 厳選(reco先頭)＋全料理を、日替わり順で
+      if(tF.classList.contains("on")) render("feed");
+    }).catch(function(){});
+  })();
 })();
 </script>
 <script>
