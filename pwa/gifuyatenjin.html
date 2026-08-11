@@ -143,6 +143,46 @@
   .reppost .rr b{font-size:15px;color:#1b2433;font-weight:800}
   .reppost .rr small{font-size:11.5px;color:#6c7689}
   .repfoot{color:#9aa3b2;font-size:11px;text-align:center;padding:14px 16px 18px;line-height:1.6}
+  /* レポート操作バー（更新／PDF） */
+  .repbar{display:flex;gap:8px;justify-content:center;margin:0 4px 14px}
+  .repbar button{border:1px solid var(--line);background:#181c23;color:var(--sub);font-size:13px;font-weight:800;padding:9px 16px;border-radius:999px}
+  .repbar button.pdf{background:#10301f;color:var(--accent);border-color:#1f4d33}
+  .repbar button:active{transform:scale(.96)}
+  .repbar button[disabled]{opacity:.5}
+  /* グラフ操作（なぞって日付＋数値） */
+  .repchart{position:relative;touch-action:none}
+  .repbars i{transition:background .08s}
+  .reptip{position:absolute;top:-6px;transform:translateX(-50%);background:#1b2433;color:#fff;font-size:12px;padding:5px 11px;border-radius:9px;display:none;white-space:nowrap;pointer-events:none;z-index:6;box-shadow:0 4px 14px rgba(0,0,0,.3)}
+  .reptip b{font-size:14.5px;margin-right:7px}.reptip span{opacity:.82}
+  .repnote{font-size:11px;color:#9aa3b2;margin:8px 2px 2px;line-height:1.5}
+  /* タップで指標切替できるKPI */
+  .repkpi.tap{cursor:pointer;transition:box-shadow .12s,transform .08s}
+  .repkpi.tap:active{transform:scale(.98)}
+  .repkpi.tap.on{box-shadow:0 0 0 2px #e0a93b inset}
+  /* A4 出力モード（PDF生成時にクローンへ付与） */
+  .repdoc.a4{width:794px;border-radius:0}
+  .repdoc.a4 .repsec{padding:11px 26px 3px}.repdoc.a4 .repsec h3{margin:0 0 8px}
+  .repdoc.a4 .rephd{padding:20px 26px}
+  .repdoc.a4 .repkpis{grid-template-columns:1fr 1fr 1fr 1fr;margin-bottom:4px}
+  .repdoc.a4 .repkpi{padding:11px 13px}.repdoc.a4 .repkpi .v{font-size:23px}
+  .repdoc.a4 .repbars{height:96px}
+  .repdoc.a4 .repposts{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+  .repdoc.a4 .reppost{padding:7px 10px}.repdoc.a4 .reppost .rt{width:52px;height:52px}
+  .repdoc.a4 .repnote{margin:1px 2px 3px}
+  .repdoc.a4 .repbreak{break-before:page;page-break-before:always;padding-top:22px}
+  .repdoc.a4 .repkpi.tap.on{box-shadow:none;background:#fbf3df;border:1px solid #efe1bb}
+  .repdoc.a4.a4tight{font-size:12px}
+  .repdoc.a4.a4tight .rephd{padding:13px 22px}.repdoc.a4.a4tight .repsec{padding:7px 22px 2px}
+  .repdoc.a4.a4tight .repsec h3{font-size:13px;margin:0 0 5px}
+  .repdoc.a4.a4tight .repkpi{padding:7px 10px}.repdoc.a4.a4tight .repkpi .v{font-size:18px}
+  .repdoc.a4.a4tight .repbars{height:72px}
+  .repdoc.a4.a4tight .reppost{padding:4px 8px}.repdoc.a4.a4tight .reppost .rt{width:42px;height:42px}
+  .repdoc.a4.a4tight .repnote{font-size:10px;margin:0 2px 2px}.repdoc.a4.a4tight .repbreak{padding-top:14px}
+  .repdoc.a4.a4tight2{font-size:11px}
+  .repdoc.a4.a4tight2 .repcard{padding:8px 10px}.repdoc.a4.a4tight2 .repcard h4{font-size:12px;margin:0 0 4px}
+  .repdoc.a4.a4tight2 .repcard li{margin:2px 0}.repdoc.a4.a4tight2 .repkpi .v{font-size:16px}
+  .repdoc.a4.a4tight2 .repbars{height:58px}.repdoc.a4.a4tight2 .reppost .rt{width:36px;height:36px}
+  .repdoc.a4.a4tight2 .repsec{padding:5px 20px 2px}
   #toast{position:fixed;left:50%;bottom:calc(env(safe-area-inset-bottom) + 22px);transform:translateX(-50%);
     background:#000;color:#fff;padding:11px 18px;border-radius:24px;font-size:14px;opacity:0;transition:.2s;pointer-events:none;z-index:30;max-width:90%;text-align:center}
   #toast.show{opacity:.96}
@@ -176,7 +216,7 @@
 <script>
 (function () {
   "use strict";
-  var V = "?v=116";  // メディアのキャッシュ更新用（同名ファイル更新時にブラウザ再取得させる）
+  var V = "?v=117";  // メディアのキャッシュ更新用（同名ファイル更新時にブラウザ再取得させる）
   // 実稼働化の受け皿：GIFUYA_LIVE=true（専用GAS URL 注入済み）になると実データ連携へ切替予定。
   // 現状は未設定＝見本モードで安全表示（実データのレンダリングは実稼働化ステップで有効化）。
   var LIVE = !!window.GIFUYA_LIVE;
@@ -447,71 +487,185 @@
 
   // ===== ③ レポート（三条と同じ体裁。実データ連携時は自動で本物、無ければ見本） =====
   var rep = document.getElementById("report");
-  function kpi(l,v,unit,dcls,dtxt,prev){
-    return '<div class="repkpi"><div class="l">'+l+'</div><div class="v">'+v+(unit?' <small>'+unit+'</small>':'')+'</div>'+
+  var reportData=null, repMetric="reach";
+  var REP_METRICS={reach:"リーチ",views:"閲覧数",pviews:"プロフィール表示",followers:"フォロワー"};
+  function haptic(ms){ try{ if(navigator.vibrate) navigator.vibrate(ms||12); }catch(e){} }
+  function fmtN(n){ return (Number(n)||0).toLocaleString('ja-JP'); }
+  // metric を渡すとタップで指標切替できるKPIになる（実データ＋日別データがある時のみ）。
+  function kpi(l,v,dcls,dtxt,prev,metric){
+    var cls="repkpi"+(metric?(" tap"+(metric===repMetric?" on":"")):"");
+    var dm=metric?(' data-metric="'+metric+'"'):"";
+    return '<div class="'+cls+'"'+dm+'><div class="l">'+l+'</div><div class="v">'+v+'</div>'+
       '<span class="d '+dcls+'">'+dtxt+'</span><div class="prev">'+prev+'</div></div>';
   }
-  function fmtN(n){ return (Number(n)||0).toLocaleString('ja-JP'); }
-  function barsHtml(vals){ var mx=Math.max.apply(null,vals.concat([1]));
-    return vals.map(function(v,i){ return '<i class="'+(i>=vals.length-3?'hot':'')+'" style="height:'+Math.max(6,Math.round((v/mx)*100))+'%"></i>'; }).join(''); }
+  // series=[{date,val}] → data-v/data-d 付きバー（なぞって数値表示できる）。
+  function barsFrom(series){ var vals=series.map(function(s){return Number(s.val)||0;});
+    var mx=Math.max.apply(null,vals.concat([1]));
+    return series.map(function(s){ var v=Number(s.val)||0;
+      return '<i style="height:'+Math.max(2,Math.round(v/mx*100))+'%" data-d="'+esc(String(s.date||''))+'" data-v="'+v+'"></i>'; }).join(''); }
+  function chartHtml(series, trendLbl, firstD, lastD, tappable){
+    return '<div class="repsec"><h3>'+esc(trendLbl)+'</h3><div class="repchart"><div class="repbars">'+barsFrom(series)+'</div><div class="reptip"></div></div>'+
+      '<div class="repax"><span>'+esc(firstD)+'</span><span>'+esc(lastD)+'</span></div>'+
+      (tappable?'<div class="repnote">KPIをタップで指標を切替／グラフを指でなぞると日付と数値が出ます。</div>':'')+'</div>';
+  }
+  function wireChartScrub(){
+    var chart=rep.querySelector(".repchart"); if(!chart) return;
+    var barsEl=chart.querySelector(".repbars"), tip=chart.querySelector(".reptip"), last=-1;
+    function showAt(x){ var bs=barsEl.querySelectorAll("i"); if(!bs.length) return;
+      var r=barsEl.getBoundingClientRect(), idx=Math.floor((x-r.left)/r.width*bs.length);
+      idx=Math.max(0,Math.min(bs.length-1,idx));
+      if(idx!==last){ haptic(6); last=idx; }
+      for(var i=0;i<bs.length;i++){ bs[i].classList.toggle("hot",i===idx); }
+      var b=bs[idx], br=b.getBoundingClientRect();
+      tip.innerHTML='<b>'+fmtN(Number(b.getAttribute("data-v")))+'</b><span>'+esc(b.getAttribute("data-d"))+'</span>';
+      tip.style.display="block";
+      var cx=br.left+br.width/2-r.left; tip.style.left=Math.max(34,Math.min(r.width-34,cx))+"px"; }
+    function hide(){ tip.style.display="none"; last=-1; var h=barsEl.querySelectorAll("i.hot"); for(var i=0;i<h.length;i++) h[i].classList.remove("hot"); }
+    chart.addEventListener("touchstart",function(e){ e.preventDefault(); showAt(e.touches[0].clientX); },{passive:false});
+    chart.addEventListener("touchmove",function(e){ e.preventDefault(); showAt(e.touches[0].clientX); },{passive:false});
+    chart.addEventListener("touchend",hide); chart.addEventListener("touchcancel",hide);
+    chart.addEventListener("mousedown",function(e){ showAt(e.clientX); });
+    chart.addEventListener("mousemove",function(e){ if(e.buttons) showAt(e.clientX); });
+    chart.addEventListener("mouseup",hide); chart.addEventListener("mouseleave",hide);
+  }
   function sampleReport(){
-    var bars=barsHtml([42,55,48,63,70,58,66,80,74,88,95,82,90,104,98,112]);
+    var ss=[42,55,48,63,70,58,66,80,74,88,95,82,90,104,98,112].map(function(v,i){return {date:"D"+(i+1),val:v};});
     return '<div class="rephint">Instagram インサイト（見本のサンプル値です。実データは連携後に自動表示されます）</div>'+
     '<div class="repdoc">'+
       '<div class="rephd"><div class="t">Instagram インサイトレポート</div><div class="s">ぎふや 福岡天神店</div>'+
         '<div class="p">@gifuya_fukuokatenjin<small>集計期間：直近30日（見本）</small></div></div>'+
       '<div class="repsec"><h3>主要指標</h3><div class="repkpis">'+
-        kpi("リーチ","12,480","","up","▲ 18%","前期 10,580")+
-        kpi("閲覧数","31,200","","up","▲ 24%","前期 25,100")+
-        kpi("プロフィール表示","1,340","","up","▲ 12%","前期 1,196")+
-        kpi("フォロワー","842","","up","▲ 46","前期 796")+
+        kpi("リーチ","12,480","up","▲ 18%","前期 10,580")+
+        kpi("閲覧数","31,200","up","▲ 24%","前期 25,100")+
+        kpi("プロフィール表示","1,340","up","▲ 12%","前期 1,196")+
+        kpi("フォロワー","842","up","▲ 46","前期 796")+
       '</div></div>'+
-      '<div class="repsec"><h3>リーチの推移</h3><div class="repbars">'+bars+'</div>'+
-        '<div class="repax"><span>30日前</span><span>今日</span></div></div>'+
+      chartHtml(ss,"リーチの推移","30日前","今日",false)+
       '<div class="repsec"><h3>人気の投稿</h3><div class="repposts">'+
         '<div class="reppost"><img class="rt" src="gifuya/feed_01.jpg"><div class="ri"><div class="rl"><span class="rb feed">フィード</span><span class="rd">3日前</span></div>'+
           '<div class="rc">名物、元祖どぶ漬けどてかつ🍢</div><div class="rr"><b>2,140</b><small>リーチ</small><b>186</b><small>いいね</small></div></div></div>'+
-        '<div class="reppost"><img class="rt" src="gifuya/feed_06.jpg"><div class="ri"><div class="rl"><span class="rb feed">フィード</span><span class="rd">6日前</span></div>'+
-          '<div class="rc">福岡名物、炊き餃子。</div><div class="rr"><b>1,880</b><small>リーチ</small><b>152</b><small>いいね</small></div></div></div>'+
       '</div></div>'+
-      '<div class="repsec"><h3>分析とアドバイス</h3><div class="repanal">'+
-        '<div class="repcard good"><h4>好調なポイント</h4><ul><li>名物系（<b>どてかつ・炊き餃子</b>）の反応が高い。看板メニュー押しが効いています。</li></ul></div>'+
-        '<div class="repcard act"><h4>次の一手</h4><ul><li>週末の <b>18:00台</b> 投稿が伸びやすい傾向。</li></ul></div>'+
+      '<div class="repsec repbreak"><h3>分析・まとめ（見本）</h3><div class="repanal">'+
+        '<div class="repcard good"><h4>強み・良かった点</h4><ul><li>名物系（<b>どてかつ・炊き餃子</b>）の反応が高い。</li></ul></div>'+
+        '<div class="repcard act"><h4>今後の施策</h4><ul><li>週末の <b>18:00台</b> 投稿が伸びやすい傾向。</li></ul></div>'+
       '</div></div>'+
       '<div class="repfoot">※本レポートは見本のサンプルです。@gifuya_fukuokatenjin の実データ連携後、自動で更新されます。</div>'+
     '</div>';
   }
   function realReport(d){
     var c=d.cur||{}, p=d.prev;
-    function dp(cur,prev){ if(!p||prev==null){ return {cls:'',txt:'—',prev:'—'}; } var diff=(cur||0)-(prev||0), pct=prev?Math.round(diff/prev*100):0;
-      return {cls:diff>=0?'up':'down', txt:(diff>=0?'▲ ':'▼ ')+Math.abs(pct)+'%', prev:'前期 '+fmtN(prev)}; }
+    function pctOf(cur,prev){ return (prev==null||prev===0)?null:Math.round((cur-prev)/prev*1000)/10; }
+    function dp(cur,prev){ var pc=pctOf(cur,p&&prev); if(pc==null){ return {cls:'flat',txt:'—',prev:'—'}; }
+      return {cls:pc>=0?'up':'down', txt:(pc>=0?'▲ ':'▼ ')+Math.abs(pc)+'%', prev:'前期 '+fmtN(p&&prev)}; }
     var kR=dp(c.reach,p&&p.reach), kV=dp(c.views,p&&p.views), kP=dp(c.pviews,p&&p.pviews);
     var fEnd=c.followersEnd||0, fStart=(p&&p.followersEnd)||c.followersStart||fEnd, fd=fEnd-fStart;
-    var series=(d.series||[]).map(function(s){return s.reach;}); if(!series.length) series=[0];
+    // 日別データがあれば指標切替、無ければリーチ推移のみ。
+    var hasDaily=!!(d.daily && d.daily.length);
+    var series = hasDaily ? d.daily.map(function(r){ return {date:String(r.date), val:Number(r[repMetric])||0}; })
+                          : (d.series||[]).map(function(s){ return {date:String(s.date||''), val:Number(s.reach)||0}; });
+    if(!series.length) series=[{date:'',val:0}];
+    var trendLbl=(hasDaily?(REP_METRICS[repMetric]||"リーチ"):"リーチ")+"の推移（日別）";
+    var firstD=(d.days||30)+"日前", lastD="今日";
     var top=(d.posts&&d.posts.top)||[];
     var ph=top.slice(0,3).map(function(pp){ var st=pp.kind==='story', th=pp.thumb||pp.full||'';
       return '<div class="reppost">'+(th?'<img class="rt" src="'+th+'">':'<div class="rt" style="background:#e6ebf2"></div>')+
-        '<div class="ri"><div class="rl"><span class="rb '+(st?'story':'feed')+'">'+(st?'ストーリー':'フィード')+'</span><span class="rd">'+(pp.date||'')+'</span></div>'+
-        '<div class="rc">'+String(pp.caption||'').slice(0,40)+'</div><div class="rr"><b>'+fmtN(pp.reach)+'</b><small>'+(st?'閲覧':'リーチ')+'</small><b>'+fmtN(st?pp.navigation:pp.likes)+'</b><small>'+(st?'遷移':'いいね')+'</small></div></div></div>';
+        '<div class="ri"><div class="rl"><span class="rb '+(st?'story':'feed')+'">'+(st?'ストーリー':'フィード')+'</span><span class="rd">'+esc(pp.date||'')+'</span></div>'+
+        '<div class="rc">'+esc(String(pp.caption||'').slice(0,40))+'</div><div class="rr"><b>'+fmtN(pp.reach)+'</b><small>'+(st?'閲覧':'リーチ')+'</small><b>'+fmtN(st?pp.navigation:pp.likes)+'</b><small>'+(st?'遷移':'いいね')+'</small></div></div></div>';
     }).join('') || '<div class="rephint">まだ投稿データがありません。</div>';
+    // ---- 分析・まとめ（実数値で具体化。データが無い項目は自動で省略）----
+    var good=[],warn=[],act=[], cmp="前期比";
+    var reachPct=pctOf(c.reach,p&&p.reach), pvPct=pctOf(c.pviews,p&&p.pviews);
+    var linkRate=c.pviews?Math.round((c.links||0)/c.pviews*1000)/10:null;
+    var bestDay="",bestV=-1; series.forEach(function(s){ if((Number(s.val)||0)>bestV){bestV=Number(s.val)||0;bestDay=s.date;} });
+    if(reachPct!=null){ if(reachPct>0) good.push("リーチは <b>"+fmtN(c.reach)+"</b>（"+cmp+" <b>+"+reachPct+"%</b>）。露出が伸びています。");
+      else if(reachPct<0) warn.push("リーチは <b>"+fmtN(c.reach)+"</b>（"+cmp+" <b>"+reachPct+"%</b>）。投稿の時間帯・内容を見直し。");
+      else good.push("リーチは <b>"+fmtN(c.reach)+"</b>（"+cmp+" 横ばい）。"); }
+    else good.push("リーチは <b>"+fmtN(c.reach)+"</b>。比較は前期のデータが揃うと表示されます。");
+    if(bestDay) good.push("最も伸びた日は <b>"+esc(String(bestDay).slice(5))+"</b>（"+fmtN(bestV)+"）。この日の内容・時間を再現したい。");
+    if(c.reach){ var vr=Math.round(c.views/c.reach*10)/10; if(vr>=1.5) good.push("1人あたり約 <b>"+vr+"回</b>見られています（リピート視聴が良好）。"); }
+    if(pvPct!=null && pvPct<0) warn.push("プロフィール表示が "+cmp+" <b>"+pvPct+"%</b>。1枚目の訴求と固定リンクを強化。");
+    if(linkRate!=null){ if(linkRate<4) warn.push("誘導率（リンク÷プロフ表示）が <b>"+linkRate+"%</b> と低め。予約リンクを毎回明示。");
+      else good.push("誘導率 <b>"+linkRate+"%</b>。プロフィールから行動につながっています。"); }
+    if(fd>0) good.push("フォロワー <b>+"+fd+"</b>（計 "+fmtN(fEnd)+"）。");
+    else if(p&&p.followersEnd!=null) warn.push("フォロワー純増 <b>"+fd+"</b>。投稿頻度・導線を確認。");
+    var sa=(d.posts&&d.posts.storyAvg)||null, sN=(d.posts&&d.posts.storyN)||0;
+    if(sa&&sa.reach){ var tap=Math.round((sa.navigation||0)/sa.reach*100);
+      good.push("ストーリーズ平均リーチ <b>"+fmtN(sa.reach)+"</b>／タップ率 <b>"+tap+"%</b>（"+sN+"本）。");
+      if(tap<30){ warn.push("ストーリーズのタップ率が <b>"+tap+"%</b> と低め。1枚目を強い引き＋リンク明確に。");
+        act.push("ストーリーズ1枚目を<b>結論ファースト</b>にしてタップ率UP。"); } }
+    if(linkRate!=null&&linkRate<4) act.push("各投稿に<b>予約リンク</b>を必ず明示し、誘導率の底上げを狙う。");
+    if(reachPct!=null&&reachPct<0) act.push("反応が落ちた期間。<b>投稿時間</b>を反応の良い曜日・時間に寄せる。");
+    if(bestDay) act.push("伸びた <b>"+esc(String(bestDay).slice(5))+"</b> の型（内容・時間帯）を<b>再現</b>する。");
+    if(fd<=0 && p&&p.followersEnd!=null) act.push("保存・シェアされやすい<b>保存版（まとめ）投稿</b>を増やしてフォロー転換を狙う。");
+    if(!act.length) act.push("好調を維持。伸びた投稿の型を<b>横展開</b>し、頻度を保つ。");
+    if(!good.length) good.push("データを蓄積中。日数が増えるほど精度が上がります。");
+    if(!warn.length) warn.push("大きな課題は見当たりません。継続して様子を見ましょう。");
+    function lis(a){ return a.map(function(x){ return "<li>"+x+"</li>"; }).join(""); }
     return '<div class="rephint">Instagram インサイト（@gifuya_fukuokatenjin・実データ）</div>'+
     '<div class="repdoc">'+
       '<div class="rephd"><div class="t">Instagram インサイトレポート</div><div class="s">ぎふや 福岡天神店</div>'+
-        '<div class="p">@gifuya_fukuokatenjin<small>集計期間：直近'+(d.days||0)+'日'+(d.latestDate?'（〜'+d.latestDate+'）':'')+'</small></div></div>'+
+        '<div class="p">@gifuya_fukuokatenjin<small>集計期間：直近'+(d.days||0)+'日'+(d.latestDate?'（〜'+esc(d.latestDate)+'）':'')+'</small></div></div>'+
       '<div class="repsec"><h3>主要指標</h3><div class="repkpis">'+
-        kpi("リーチ",fmtN(c.reach),"",kR.cls,kR.txt,kR.prev)+
-        kpi("閲覧数",fmtN(c.views),"",kV.cls,kV.txt,kV.prev)+
-        kpi("プロフィール表示",fmtN(c.pviews),"",kP.cls,kP.txt,kP.prev)+
-        kpi("フォロワー",fmtN(fEnd),"",(fd>=0?'up':'down'),(fd>=0?'▲ ':'▼ ')+Math.abs(fd),"前期 "+fmtN(fStart))+
+        kpi("リーチ",fmtN(c.reach),kR.cls,kR.txt,kR.prev,hasDaily?"reach":"")+
+        kpi("閲覧数",fmtN(c.views),kV.cls,kV.txt,kV.prev,hasDaily?"views":"")+
+        kpi("プロフィール表示",fmtN(c.pviews),kP.cls,kP.txt,kP.prev,hasDaily?"pviews":"")+
+        kpi("フォロワー",fmtN(fEnd),(fd>=0?'up':'down'),(fd>=0?'▲ ':'▼ ')+Math.abs(fd),"前期 "+fmtN(fStart),hasDaily?"followers":"")+
       '</div></div>'+
-      '<div class="repsec"><h3>リーチの推移</h3><div class="repbars">'+barsHtml(series)+'</div>'+
-        '<div class="repax"><span>'+(d.days||30)+'日前</span><span>今日</span></div></div>'+
+      chartHtml(series,trendLbl,firstD,lastD,true)+
       '<div class="repsec"><h3>人気の投稿</h3><div class="repposts">'+ph+'</div></div>'+
+      '<div class="repsec repbreak"><h3>分析・まとめ</h3><div class="repanal">'+
+        '<div class="repcard good"><h4>強み・良かった点</h4><ul>'+lis(good)+'</ul></div>'+
+        '<div class="repcard warn"><h4>反省点・課題</h4><ul>'+lis(warn)+'</ul></div>'+
+        '<div class="repcard act"><h4>今後の施策</h4><ul>'+lis(act)+'</ul></div>'+
+      '</div></div>'+
     '</div>';
   }
-  function renderReport(d){ rep.innerHTML = (d && d.days>0 && d.cur) ? realReport(d) : sampleReport(); }
+  // ===== PDF出力（A4 2ページ・html2pdfをCDNから遅延読込。オンライン時のみ）=====
+  var PDF_LIB="https://cdn.jsdelivr.net/npm/html2pdf.js@0.10.3/dist/html2pdf.bundle.min.js";
+  function loadScriptOnce(src,cb,onerr){ var s=document.createElement("script"); s.src=src; s.onload=cb; s.onerror=onerr||function(){toast("PDF部品の読込に失敗");}; document.head.appendChild(s); }
+  function preloadPdfLib(){ if(window.html2pdf||window.__pdfPre) return; window.__pdfPre=1; loadScriptOnce(PDF_LIB,function(){},function(){window.__pdfPre=0;}); }
+  function downloadReportPdf(){
+    var src=rep.querySelector(".repdoc"); if(!src){ toast("レポートがありません"); return; }
+    var btn=document.getElementById("repPdf"); if(btn&&btn.disabled) return; if(btn) btn.disabled=true; haptic(12);
+    toast("PDF出力を準備中…"); var done=false;
+    function finish(msg){ done=true; if(btn) btn.disabled=false; if(msg) toast(msg); }
+    var watchdog=setTimeout(function(){ if(!done&&!window.html2pdf){ window.__pdfPre=0; finish("PDF部品を読み込めませんでした。電波の良い場所で再度お試しください"); } },15000);
+    function go(){ if(done) return; clearTimeout(watchdog); if(!window.html2pdf){ finish("PDF生成に失敗"); return; }
+      toast("PDFを出力中…（数秒かかります）");
+      var holder=document.createElement("div"); holder.style.cssText="position:fixed;left:-99999px;top:0;width:794px;background:#fff";
+      var clone=src.cloneNode(true); clone.classList.add("a4"); holder.appendChild(clone); document.body.appendChild(holder);
+      (function fitA4(){ var P1=1040,P2=1050, br=clone.querySelector(".repbreak"); if(!br) return; var steps=0;
+        while(br.offsetTop>P1 && steps<14){ if(steps===0) clone.classList.add("a4tight"); else if(steps===1) clone.classList.add("a4tight2");
+          else { var ps=clone.querySelectorAll(".reppost"); if(ps.length>2) ps[ps.length-1].parentNode.removeChild(ps[ps.length-1]); else break; } steps++; }
+        var guard=0; while((clone.scrollHeight-br.offsetTop)>P2 && guard<14){ if(guard===0) clone.classList.add("a4tight"); else if(guard===1) clone.classList.add("a4tight2");
+          else { var longest=null,max=0,cards=clone.querySelectorAll(".repcard"); for(var ci=0;ci<cards.length;ci++){ var n=cards[ci].querySelectorAll("li").length; if(n>max){max=n;longest=cards[ci];} }
+            if(longest&&max>2){ var ls=longest.querySelectorAll("li"); ls[ls.length-1].parentNode.removeChild(ls[ls.length-1]); } else break; } guard++; }
+      })();
+      window.html2pdf().set({ margin:[6,0,6,0],
+        filename:"gifuya_insight_"+((reportData&&reportData.latestDate)||"report")+".pdf",
+        image:{type:"jpeg",quality:0.95},
+        html2canvas:{scale:2,backgroundColor:"#ffffff",useCORS:true,width:794,windowWidth:794,x:0,scrollX:0},
+        jsPDF:{unit:"mm",format:"a4",orientation:"portrait"},
+        pagebreak:{mode:["css","legacy"],before:".repbreak",avoid:[".repsec",".reppost",".repkpi",".repcard"]}
+      }).from(clone).save().then(function(){ holder.remove(); finish("✓ PDF出力が完了しました（2ページ）"); })
+        .catch(function(){ holder.remove(); finish("PDF作成に失敗しました。もう一度お試しください"); });
+    }
+    if(window.html2pdf){ setTimeout(go,60); } else loadScriptOnce(PDF_LIB,go,function(){ finish("PDF部品の読込に失敗。通信環境をご確認ください"); });
+  }
+  function wireReport(){
+    var pb=document.getElementById("repPdf"); if(pb) pb.onclick=downloadReportPdf;
+    var kps=rep.querySelectorAll(".repkpi.tap");
+    for(var i=0;i<kps.length;i++){ kps[i].onclick=function(){ var mt=this.getAttribute("data-metric");
+      if(mt&&mt!==repMetric){ repMetric=mt; haptic(10); if(reportData) renderReport(reportData); } }; }
+    wireChartScrub();
+  }
+  function renderReport(d){
+    var bar='<div class="repbar"><button id="repPdf" class="pdf">📄 PDF出力（A4）</button></div>';
+    rep.innerHTML = bar + ((d && d.days>0 && d.cur) ? realReport(d) : sampleReport());
+    wireReport();
+  }
   renderReport(null);
-  if(LIVE){ gasGet({api:"report"}, function(res){ if(res && !res.error) renderReport(res); }); }
+  if(LIVE){ gasGet({api:"report"}, function(res){ if(res && !res.error){ reportData=res; renderReport(res); } }); }
 
   // ===== タブ切替 =====
   var tabs = {tabFeed:feed, tabGallery:gal, tabReport:rep};
@@ -521,7 +675,7 @@
   }
   document.getElementById("tabFeed").onclick = function(){ show("tabFeed"); };
   document.getElementById("tabGallery").onclick = function(){ show("tabGallery"); };
-  document.getElementById("tabReport").onclick = function(){ show("tabReport"); };
+  document.getElementById("tabReport").onclick = function(){ show("tabReport"); preloadPdfLib(); };
   // ===== Web Push（三条と同じVAPIDを再利用。投稿完了などを端末に通知） =====
   var pushBtn = document.getElementById("pushBtn");
   function urlB64ToU8(s){ var pad="=".repeat((4-s.length%4)%4), b=(s+pad).replace(/-/g,"+").replace(/_/g,"/"), raw=atob(b), a=new Uint8Array(raw.length);
