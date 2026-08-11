@@ -158,7 +158,7 @@
 <script>
 (function(){
   "use strict";
-  var V = "?v=123";  // メディアのキャッシュ更新用
+  var V = "?v=124";  // メディアのキャッシュ更新用
   var CFG = window.GIFUYA || {};
   var LIVE = !!window.GIFUYA_LIVE;               // 専用GAS注入済みなら実データ連携
   var GAS = (CFG.GAS_URL||"").trim();
@@ -247,19 +247,44 @@
   function loadRegional(){ regLoadLocal(); gJsonp({api:"regionaltags", region:REGION_NAME, peek:1}).then(function(res){ if(regApply(res,Date.now())) regSaveLocal(); }).catch(function(){}); }
 
   /* ---------- 候補データ（実データ接続時は cands で差し替え可能） ---------- */
+  // フィード候補は全て「加工済みの投稿画像(feed_01〜12)」＝ロゴ＋見出しデザイン入り。生写真は出さない。
   var FEED = [
     {img:"feed_01.jpg", t:"元祖どぶ漬けどてかつ", reco:true,
      cap:"名物、元祖どぶ漬けどてかつ🍢\n秘伝の自家製どて味噌にどっぷり漬け込んだ一本。安くて旨い、まずは一杯。",
      tags:"#どてかつ #串かつ #どて焼き #天神串かつ"},
-    {img:"feed_06.jpg", t:"ぎふやの炊き餃子",
-     cap:"福岡名物、炊き餃子。\nコラーゲンたっぷりの白湯スープで炊き上げる、体にしみる一品。",
-     tags:"#炊き餃子 #餃子 #福岡名物 #天神グルメ"},
     {img:"feed_02.jpg", t:"ぎふや厳選 串かつ10種盛り",
      cap:"迷ったらこれ。ぎふや厳選 串かつ10種盛り🍢\n定番から変わり種まで、一度に楽しめる欲張りな盛り合わせ。",
      tags:"#串かつ #串カツ #串かつ食べ放題 #天神グルメ"},
+    {img:"feed_03.jpg", t:"名物どて焼き",
+     cap:"大正5年から受け継ぐ看板の味、名物どて焼き。\nとろとろに煮込んだ自家製どて味噌が、酒を呼ぶ。",
+     tags:"#どて焼き #もつ煮込み #天神居酒屋 #福岡飲み"},
     {img:"feed_04.jpg", t:"ぎふやの明太出汁巻き",
      cap:"ふわとろ、明太出汁巻き。\n福岡ならではの明太子を、あつあつの出汁巻きで包みました。",
-     tags:"#明太子 #出汁巻き卵 #福岡明太子 #天神ディナー"}
+     tags:"#明太子 #出汁巻き卵 #福岡明太子 #天神ディナー"},
+    {img:"feed_05.jpg", t:"刺身盛り合わせ",
+     cap:"福岡の鮮度、そのままに。刺身盛り合わせ🐟\nその日の良いものを、良い状態で。日本酒との相性も抜群。",
+     tags:"#刺身 #海鮮 #福岡海鮮 #天神ディナー"},
+    {img:"feed_06.jpg", t:"ぎふやの炊き餃子",
+     cap:"福岡名物、炊き餃子。\nコラーゲンたっぷりの白湯スープで炊き上げる、体にしみる一品。",
+     tags:"#炊き餃子 #餃子 #福岡名物 #天神グルメ"},
+    {img:"feed_07.jpg", t:"本家 牛串かつ",
+     cap:"肉の旨みを、串で。本家 牛串かつ🍢\nサクッと衣、ジューシーな牛肉。ビールが止まらない。",
+     tags:"#牛串 #串かつ #肉串 #天神肉バル"},
+    {img:"feed_08.jpg", t:"自家製 鶏唐揚げ",
+     cap:"揚げたて、ジューシー。自家製鶏唐揚げ🍗\n下味しっかり、外はカリッと中はジュワッと。レモンをキュッと。",
+     tags:"#唐揚げ #からあげ #福岡唐揚げ #天神グルメ"},
+    {img:"feed_09.jpg", t:"馬刺し",
+     cap:"酒が進む、馬刺し🐴\nとろける赤身とコクのある旨み。九州の酒場の定番をぎふやで。",
+     tags:"#馬刺し #馬肉 #九州グルメ #福岡飲み"},
+    {img:"feed_10.jpg", t:"和牛マルシンのたたき",
+     cap:"希少部位を、贅沢に。和牛マルシンのたたき。\n一頭からわずかしか取れない部位を、香ばしく炙って。",
+     tags:"#和牛 #希少部位 #肉好きと繋がりたい #天神ディナー"},
+    {img:"feed_11.jpg", t:"〆のラーメン",
+     cap:"〆はやっぱり、ラーメン🍜\n飲んだ後のシメに、ぎふやの一杯。福岡の夜はこれで完成。",
+     tags:"#ラーメン #〆ラーメン #福岡ラーメン #天神ラーメン"},
+    {img:"feed_12.jpg", t:"生ハムポテト",
+     cap:"一杯目の相棒、生ハムポテト🍟\nあつあつポテトに生ハムをのせて。ついつい頼んでしまう名脇役。",
+     tags:"#ポテト #生ハム #おつまみ #天神居酒屋"}
   ];
   var REEL = [
     {vid:"dv_01.mp4", t:"回転（コンベア）", reco:true,
@@ -433,9 +458,10 @@
 
     list.forEach(function(p,i){
       var c=document.createElement("div"); c.className="card"+(p.reco?" reco":"");
+      var _pv = (p.vid||"").replace(/\.mp4$/,"_poster.jpg");
       var media = kind==="feed"
-        ? '<div class="mediaWrap feed"><img loading="lazy" src="gifuya/'+p.img+'" alt=""></div>'
-        : '<div class="mediaWrap reel"><video src="gifuya/'+p.vid+V+'" controls playsinline preload="metadata" webkit-playsinline></video></div>';
+        ? '<div class="mediaWrap feed"><img loading="lazy" src="gifuya/'+p.img+V+'" alt=""></div>'
+        : '<div class="mediaWrap reel"><video poster="gifuya/'+_pv+V+'" src="gifuya/'+p.vid+V+'" controls playsinline preload="auto" webkit-playsinline></video></div>';
       var trim = kind==="reel"
         ? '<div class="trim"><div class="trimhd"><span>切り取り（リール用）</span><span><b class="tlen">--</b> / 元<span class="tall">--</span></span></div>'+
           '<div class="rangewrap"><div class="track"></div><div class="sel"></div>'+
@@ -447,6 +473,7 @@
         '<div class="chead"><span class="kind'+(kind==="reel"?" reel":"")+'">'+(kind==="feed"?"フィード":"リール")+'</span>'+
           '<span class="cno">'+(i+1)+' / '+list.length+' ・ '+esc(p.t)+'</span></div>'+
         media+trim+
+        '<div class="caplbl" style="font-size:11.5px;font-weight:800;color:#8b93a2;margin:11px 2px 4px">▼ そのまま投稿される文面（お店情報テンプレ・ハッシュタグ込み）</div>'+
         '<div class="cap"></div>'+
         '<div class="tagttl">ハッシュタグ <span class="tcnt"></span></div>'+
         '<div class="tagsel"></div><button class="tagedit">✏️ ハッシュタグを編集</button>'+
@@ -454,8 +481,9 @@
         '<div class="resvbox"><label>予約日時</label><input type="date" class="rdate"><input type="time" class="rtime" value="18:00"><button class="go">この日時で予約</button></div>'+
         '<div class="slot"></div>'+
         '<button class="copybtn">📋 キャプションをコピー</button>';
-      c.querySelector(".cap").textContent = p.cap;
       function refreshSel(){
+        // プレビュー＝実際に投稿される全文（料理文面＋タグ＋お店情報テンプレ）。タグ変更で即時反映。
+        c.querySelector(".cap").textContent = fullCaption(p.cap, p.tags);
         var w=c.querySelector(".tagsel"); w.innerHTML="";
         var keys=Object.keys(GSEL);
         if(!keys.length){ w.innerHTML='<span style="color:#7c8698;font-size:12.5px">（未選択）</span>'; }
@@ -494,55 +522,8 @@
   function shuffleFeed(items){ var day=Math.floor(Date.now()/864e5);
     var reco=items.filter(function(x){return x.reco;}), rest=items.filter(function(x){return !x.reco;});
     var out=reco.slice(); seededOrder(rest.length, day+1).forEach(function(j){ out.push(rest[j]); }); return out; }
-  // ===== フィード候補のキャプション生成 =====
-  //  A) 看板料理は専用の文面（FEED_HERO）。B) 毎日同期の全料理(feed.json)も、料理名から
-  //     カテゴリを判定して自然な文面を生成（"料理名だけ"にならないよう しっかり作り込み）。
-  function cleanDish(name){ return String(name||"").replace(/[_＿]/g,"　").replace(/\s+/g," ").trim(); }
-  // 看板料理：キーワードにヒットしたら専用の文面・タグを使う（部分一致）。
-  var FEED_HERO=[
-    {k:["どぶ漬け","どてかつ"], cap:"名物、元祖どぶ漬けどてかつ🍢\n秘伝の自家製どて味噌にどっぷり漬け込んだ一本。安くて旨い、まずは一杯。", tags:"#どてかつ #串かつ #どて焼き #天神串かつ"},
-    {k:["どて焼き","どて煮"], cap:"じっくり煮込んだ、名物どて焼き。\nとろけるやわらかさで、日本酒もビールもすすみます。", tags:"#どて焼き #もつ煮込み #天神グルメ"},
-    {k:["炊き餃子"], cap:"福岡名物、炊き餃子。\nコラーゲンたっぷりの白湯スープで炊き上げる、体にしみる一品。", tags:"#炊き餃子 #餃子 #福岡名物 #天神グルメ"},
-    {k:["明太出汁巻","明太だし巻","出汁巻","だし巻"], cap:"ふわとろ、明太出汁巻き。\n福岡ならではの明太子を、あつあつの出汁巻きで包みました。", tags:"#明太子 #出汁巻き卵 #福岡明太子 #天神ディナー"},
-    {k:["刺身盛"], cap:"本日の鮮度自慢、刺身盛り合わせ。\nその日仕入れた旬の魚を、贅沢にひと皿で。", tags:"#刺身 #刺身盛り合わせ #海鮮 #天神グルメ"},
-    {k:["ごまさば","胡麻さば","ごまサバ"], cap:"福岡の定番、特製ごまさば。\n新鮮なさばを甘辛のごまダレで。日本酒とどうぞ。", tags:"#ごまさば #福岡グルメ #日本酒 #天神"},
-    {k:["馬刺し"], cap:"とろける旨さ、馬刺し。\nこだわりのひと皿を、薬味と一緒に。", tags:"#馬刺し #逸品 #天神グルメ"},
-    {k:["とん平"], cap:"鉄板あつあつ、ぎふやのとん平焼き。\n甘めのソースとマヨで、ビールが止まらない🍺", tags:"#とん平焼き #鉄板焼き #天神居酒屋"},
-    {k:["漬け丼","漬丼","漁師"], cap:"シメにどうぞ、漁師の漬け丼。\n漬けにした鮮魚をごはんにたっぷり。", tags:"#漬け丼 #海鮮丼 #シメ #天神グルメ"}
-  ];
-  // カテゴリ別テンプレ：dは整形後の料理名。順番＝優先度（特定→一般）。
-  var FEED_CATS=[
-    {k:["刺身","造り","たたき","ユッケ","カルパッチョ","エイヒレ","レバー刺","鮮魚","海鮮"], f:function(d){return "本日の鮮度自慢、"+d+"。\nいきいきとした旬の味わいを。";}, tags:"#刺身 #海鮮 #天神グルメ"},
-    {k:["巻","鉄火"], f:function(d){return "ぎふやの"+d+"。\n日本酒と一緒に、ちびちびと。";}, tags:"#巻き #日本酒 #天神"},
-    {k:["唐揚","から揚","フライ","天","バター","ポテト","コロッケ","揚げ"], f:function(d){return "あつあつ、"+d+"。\nビールが止まらない一品です🍺";}, tags:"#揚げ物 #おつまみ #天神居酒屋"},
-    {k:["サラダ","トマト","枝豆","なす","茄子","ピーマン","長芋","胡瓜","わさび","一本漬"], f:function(d){return "箸休めに、"+d+"。\nさっぱり、箸がすすみます。";}, tags:"#野菜 #さっぱり #天神ディナー"},
-    {k:["せせり","レバー","マルシン","和牛","逸品","希少部位"], f:function(d){return "こだわりのひと皿、"+d+"。\nお酒がすすみます。";}, tags:"#逸品 #天神グルメ"},
-    {k:["もつ","酢もつ","ホルモン"], f:function(d){return "コリコリ旨い、"+d+"。\n一杯のお供にどうぞ。";}, tags:"#もつ #おつまみ #天神居酒屋"},
-    {k:["ライス","ラーメン","焼きそば","丼","〆"], f:function(d){return "シメはこれ。"+d+"。\nぎふやの締めくくりに。";}, tags:"#シメ #天神グルメ"},
-    {k:["餃子","焼き","炒め"], f:function(d){return "ぎふやの"+d+"。\nお酒に合う、間違いない一品。";}, tags:"#福岡グルメ #天神居酒屋"}
-  ];
-  function dishCaption(name){
-    var raw=String(name||""), d=cleanDish(raw);
-    for(var i=0;i<FEED_HERO.length;i++){ if(FEED_HERO[i].k.some(function(x){return raw.indexOf(x)>=0;})) return {t:d, cap:FEED_HERO[i].cap, tags:FEED_HERO[i].tags}; }
-    if(raw.indexOf("串か")>=0){                                  // 串かつ_X →「Xの串かつ」に整形
-      if(/盛/.test(raw)) return {t:d, cap:"迷ったらこれ、"+d+"🍢\n人気の串をまとめて。シェアにもぴったり。", tags:"#串かつ #串カツ #天神串かつ"};
-      var m=raw.split(/[_＿ ]/); var top=(m.length>1?m.slice(1).join(" "):d);
-      return {t:d, cap:"サクッと軽い衣で、"+top+"の串かつ🍢\nソースにくぐらせて、まずは一杯。", tags:"#串かつ #串カツ #天神串かつ"};
-    }
-    for(var j=0;j<FEED_CATS.length;j++){ if(FEED_CATS[j].k.some(function(x){return raw.indexOf(x)>=0;})) return {t:d, cap:FEED_CATS[j].f(d), tags:FEED_CATS[j].tags}; }
-    return {t:d, cap:"本日のおすすめ、"+d+"。\nできたてをどうぞ。", tags:"#ぎふや #天神グルメ #大衆酒場"};
-  }
-  // 毎日同期の全料理(feed.json)を、看板料理と重複しないものだけ文面生成して追加。
-  var HERO_KEYS=["どぶ漬け","どてかつ","炊き餃子","明太出汁巻","出汁巻","刺身盛"];
-  (function loadFeedJson(){
-    fetch("./gifuya/feed.json"+V, {cache:"no-store"}).then(function(r){ return r.ok?r.json():null; }).then(function(d){
-      if(!d || !d.items || !d.items.length) return;
-      var extras=d.items.filter(function(it){ var n=String(it.name||""); return !HERO_KEYS.some(function(k){return n.indexOf(k)>=0;}); })
-        .map(function(it){ var g=dishCaption(it.name); return {img: it.img, t: g.t, cap: g.cap, tags: g.tags, reco: !!it.reco}; });
-      FEED = shuffleFeed(FEED.concat(extras));   // 厳選(reco先頭)＋全料理を、日替わり順で
-      if(tF.classList.contains("on")) render("feed");
-    }).catch(function(){});
-  })();
+  // フィード候補は加工済みの投稿画像(feed_01〜12)のみ。おすすめ先頭固定＋その日のseedで日替わり順に。
+  FEED = shuffleFeed(FEED);
 })();
 </script>
 <script>

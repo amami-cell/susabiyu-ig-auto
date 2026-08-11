@@ -216,7 +216,7 @@
 <script>
 (function () {
   "use strict";
-  var V = "?v=123";  // メディアのキャッシュ更新用（同名ファイル更新時にブラウザ再取得させる）
+  var V = "?v=124";  // メディアのキャッシュ更新用（同名ファイル更新時にブラウザ再取得させる）
   // 実稼働化の受け皿：GIFUYA_LIVE=true（専用GAS URL 注入済み）になると実データ連携へ切替予定。
   // 現状は未設定＝見本モードで安全表示（実データのレンダリングは実稼働化ステップで有効化）。
   var LIVE = !!window.GIFUYA_LIVE;
@@ -325,7 +325,9 @@
   function isVideo(it){ var u=(it.url||"").toLowerCase(); return it.kind==="video" || u.indexOf(".mp4")>=0 || u.indexOf(".mov")>=0; }
   function mediaHtml(it){
     if(isVideo(it)){ var p=it.poster?(' poster="'+it.poster+'"'):'';
-      return '<div class="mediaWrap story"><video class="media"'+_bg(it.blur)+' src="'+it.url+'"'+p+' controls playsinline preload="none" webkit-playsinline></video></div>'; }
+      // ポスターが無い時は #t=0.1 で先頭フレームを表示（黒箱防止）。preload=autoで再生を即時化。
+      var src=it.poster?it.url:(it.url+((it.url||"").indexOf("#")>=0?"":"#t=0.1"));
+      return '<div class="mediaWrap story"><video class="media"'+_bg(it.blur)+' src="'+src+'"'+p+' controls playsinline preload="auto" webkit-playsinline></video></div>'; }
     return '<div class="mediaWrap story"><img class="media"'+_bg(it.blur)+' src="'+(it.url||it.poster||"")+'" alt=""></div>';
   }
 
@@ -426,18 +428,18 @@
   sub("動きのあるストーリー（10本）★おすすめ","vidonly");
   var g1=list();
   DYNVIDS.forEach(function(v){ card(g1,"gvid",false,
-    '<video class="gmedia" src="gifuya/dv_'+v.n+'.mp4'+V+'" controls playsinline preload="metadata" webkit-playsinline></video>',
+    '<video class="gmedia" poster="gifuya/dv_'+v.n+'_poster.jpg'+V+'" src="gifuya/dv_'+v.n+'.mp4'+V+'" controls playsinline preload="auto" webkit-playsinline></video>',
     "D"+(+v.n)+" "+v.t, v.d, true); });
   // 動画：静止ベースのストーリー（既定=無し＝代替案）
   sub("ストーリー・デザインパターン（静止ベース・5本）","vidonly");
   var g2=list();
   STORYVIDS.forEach(function(v){ card(g2,"gvid",false,
-    '<video class="gmedia" src="gifuya/sv_'+v.n+'.mp4'+V+'" controls playsinline preload="metadata" webkit-playsinline></video>',
+    '<video class="gmedia" poster="gifuya/sv_'+v.n+'_poster.jpg'+V+'" src="gifuya/sv_'+v.n+'.mp4'+V+'" controls playsinline preload="auto" webkit-playsinline></video>',
     "S"+(+v.n)+" "+v.t, "", false); });
   // 動画：フェード
   sub("フェード動画（リール見本）","vidonly");
   var g3=list();
-  card(g3,"gvid",false,'<video class="gmedia" src="gifuya/fade.mp4'+V+'" controls playsinline preload="metadata" webkit-playsinline></video>',"フェード見本","",true);
+  card(g3,"gvid",false,'<video class="gmedia" poster="gifuya/fade_poster.jpg'+V+'" src="gifuya/fade.mp4'+V+'" controls playsinline preload="auto" webkit-playsinline></video>',"フェード見本","",true);
   // 画像：投稿（フィード）見本
   sub("投稿（フィード）見本・12本","imgonly");
   var g4=list();
