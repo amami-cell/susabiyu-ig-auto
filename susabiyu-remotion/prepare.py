@@ -391,6 +391,22 @@ def main():
     if sh is None:
         raise SystemExit("シート接続に失敗（creds.json を確認）。")
     poster._ensure_tab(sh, APP_TAB)
+    # reset：承認待ちタブの未投稿行を全消去して作り直せるようにする（posted は残す）。
+    if bool(args) and args[0].strip().lower() == "reset":
+        try:
+            _d = sh.values().get(spreadsheetId=SHEET_ID, range=APP_TAB + "!A:M").execute().get("values", [])
+            _keep = [_d[0]] if _d else [["token","日時","スロット","パターン","プレビュー","キャプション","種別","status","更新","picked","redo","poster","blur"]]
+            for _r in _d[1:]:
+                if len(_r) > 7 and str(_r[7]).strip() == "posted":
+                    _keep.append(_r)   # 投稿済みは履歴として残す
+            sh.values().clear(spreadsheetId=SHEET_ID, range=APP_TAB + "!A2:M").execute()
+            if len(_keep) > 1:
+                sh.values().update(spreadsheetId=SHEET_ID, range=APP_TAB + "!A2",
+                                   valueInputOption="RAW", body={"values": _keep[1:]}).execute()
+            print("[RESET] %s の未投稿行を消去（posted %d件は保持）" % (APP_TAB, len(_keep) - 1))
+        except Exception as e:
+            print("[RESET] 失敗:", e)
+        return
     # 既存の一時URL(litterbox等)を生きているうちに恒久化（確認画面から消えない仕組み）
     repair_only = bool(args) and args[0].strip().lower() == "repair"
     try:

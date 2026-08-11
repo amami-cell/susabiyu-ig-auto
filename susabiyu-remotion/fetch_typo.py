@@ -82,13 +82,12 @@ def short_side(f):
     m = f.get("imageMediaMetadata") or {}
     return min(m.get("width", 0) or 0, m.get("height", 0) or 0)
 
-cats = {}
-for f in list_children(FOOD_FOLDER):
-    if f["mimeType"] == "application/vnd.google-apps.folder":
-        imgs = [g for g in list_children(f["id"])
-                if g["mimeType"].startswith("image/") and short_side(g) >= MIN_SIDE]
-        if imgs:
-            cats[f["name"]] = imgs
+# 店舗別の非料理カテゴリ/ファイル除外（例: ロゴ/外観/内観/ランチ/集合/音楽）。GENRE_EXCLUDE_CATS で部分一致指定。
+# 未設定なら無効＝三条は従来どおり。ぎふやは stores.py が設定する。
+_EXCL = [s.strip() for s in os.environ.get("GENRE_EXCLUDE_CATS", "").split(",") if s.strip()]
+# フラット構造フラグ：写真がフォルダ直下にバラ置き＋一部サブフォルダ、という店舗（ぎふや等）向け。
+# 再帰的に画像を集め、除外フォルダ/ファイルを飛ばす（gifuya_photos と同じ考え方）。
+_FLAT = os.environ.get("GENRE_FOOD_FLAT") == "1"
 
 
 def _is_drink_cat(name):
@@ -99,20 +98,51 @@ def _is_drink_cat(name):
             return True
     return False
 
-cats = {k: v for k, v in cats.items() if not _is_drink_cat(k)}
 
-# 店舗別の非料理カテゴリ除外（例: ロゴ/外観/内観/ランチ/集合/音楽）。GENRE_EXCLUDE_CATS で部分一致指定。
-# 未設定なら無効＝三条は従来どおり。ぎふやは stores.py が設定する。
-_EXCL = [s.strip() for s in os.environ.get("GENRE_EXCLUDE_CATS", "").split(",") if s.strip()]
-if _EXCL:
-    def _is_excluded_cat(name):
-        n = str(name or "")
-        return any(x in n for x in _EXCL)
-    _before = list(cats.keys())
-    cats = {k: v for k, v in cats.items() if not _is_excluded_cat(k)}
-    _removed = [k for k in _before if k not in cats]
-    if _removed:
-        print("[EXCLUDE] 非料理カテゴリを除外:", _removed)
+def _excluded(name):
+    return bool(_EXCL) and any(x in str(name or "") for x in _EXCL)
+
+
+def _walk_images(fid, folder_name="", depth=0):
+    """(画像, 直上フォルダ名) を再帰収集。除外フォルダは辿らない。"""
+    out = []
+    for f in list_children(fid):
+        nm = f.get("name", "")
+        if f["mimeType"] == "application/vnd.google-apps.folder":
+            if _excluded(nm) or _is_drink_cat(nm):
+                continue
+            if depth < 3:
+                out += _walk_images(f["id"], nm, depth + 1)
+        elif f["mimeType"].startswith("image/") and short_side(f) >= MIN_SIDE:
+            out.append((f, folder_name))
+    return out
+
+
+cats = {}
+if _FLAT:
+    # 再帰収集：直下バラ置き＝「料理」、サブフォルダはその名前をカテゴリに。ファイル名の除外語も飛ばす。
+    for f, folder in _walk_images(FOOD_FOLDER):
+        if _excluded(f.get("name", "")):
+            continue
+        cat = folder or "料理"
+        if _is_drink_cat(cat):
+            continue
+        cats.setdefault(cat, []).append(f)
+    print("[FLAT] 再帰収集 カテゴリ:", {k: len(v) for k, v in cats.items()})
+else:
+    for f in list_children(FOOD_FOLDER):
+        if f["mimeType"] == "application/vnd.google-apps.folder":
+            imgs = [g for g in list_children(f["id"])
+                    if g["mimeType"].startswith("image/") and short_side(g) >= MIN_SIDE]
+            if imgs:
+                cats[f["name"]] = imgs
+    cats = {k: v for k, v in cats.items() if not _is_drink_cat(k)}
+    if _EXCL:
+        _before = list(cats.keys())
+        cats = {k: v for k, v in cats.items() if not _excluded(k)}
+        _removed = [k for k in _before if k not in cats]
+        if _removed:
+            print("[EXCLUDE] 非料理カテゴリを除外:", _removed)
 
 if not cats:
     print("NG: 条件を満たす画像が見つかりません。")

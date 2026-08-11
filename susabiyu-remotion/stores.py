@@ -78,6 +78,8 @@ STORES = {
         # 「画像」フォルダ配下の非料理サブフォルダは料理として使わない（ロゴ/ランチ/外観など）。
         # ランチは未営業のため除外。ドリンクは fetch 側が自動除外。
         "exclude_cats": ["ロゴ", "ランチ", "外観", "内観", "音楽", "集合", "ドリンク", "飲み"],
+        # ぎふやの「画像」は写真が直下バラ置き＋一部サブフォルダ。fetch_typo を再帰収集モードに。
+        "food_flat": True,
         "phrases_file": "phrases_gifuyatenjin.json",
         "fallback_phrase": "福岡・天神の夜は、ぎふやで。",
         "pwa_url": "https://amami-cell.github.io/susabiyu-media/app/gifuyatenjin.html",
@@ -129,6 +131,8 @@ def apply_fetch_env(store):
         excl = store.get("exclude_cats")
         if excl:
             os.environ["GENRE_EXCLUDE_CATS"] = ",".join(excl)
+        if store.get("food_flat"):
+            os.environ["GENRE_FOOD_FLAT"] = "1"
 
 
 def render_props(store):
