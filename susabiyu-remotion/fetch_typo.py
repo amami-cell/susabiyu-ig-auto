@@ -39,13 +39,18 @@ drive = build("drive", "v3", credentials=creds)
 
 import io as _io_ms
 from googleapiclient.http import MediaIoBaseDownload as _MIBD_ms
-def sync_music_from_drive(folder_id, local_dir):
+def sync_music_from_drive(folder_id, local_dir, _depth=0):
+    """フォルダ配下のmp3を local_dir へ取得。曲がサブフォルダにある店舗でも拾えるよう再帰（深さ3）。"""
     if not folder_id:
         return
     try:
         os.makedirs(local_dir, exist_ok=True)
         for f in list_children(folder_id):
             name = f.get("name", "")
+            if f.get("mimeType", "") == "application/vnd.google-apps.folder":
+                if _depth < 3:
+                    sync_music_from_drive(f["id"], local_dir, _depth + 1)
+                continue
             if not name.lower().endswith((".mp3", ".m4a", ".wav")):
                 continue
             dest = os.path.join(local_dir, name)
