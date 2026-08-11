@@ -41,6 +41,28 @@
   .mediaWrap{position:relative;border-radius:13px;overflow:hidden;background:#000;width:100%}
   .mediaWrap.feed{aspect-ratio:4/5}
   .mediaWrap.reel{aspect-ratio:9/16}
+  /* トリミング（リール用・三条と同じ） */
+  .trim{margin:10px 2px 2px}
+  .trimhd{display:flex;justify-content:space-between;font-size:12px;color:var(--sub);font-weight:800;margin-bottom:6px}
+  .trimhd b{color:#e2d3ff}
+  .rangewrap{position:relative;height:34px}
+  .rangewrap input[type=range]{position:absolute;left:0;top:0;width:100%;margin:0;-webkit-appearance:none;background:transparent;pointer-events:none}
+  .rangewrap input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;pointer-events:auto;width:20px;height:20px;border-radius:50%;background:var(--reel);border:2px solid #fff;margin-top:-8px}
+  .rangewrap .track{position:absolute;left:0;right:0;top:15px;height:5px;border-radius:3px;background:#2a3140}
+  .rangewrap .sel{position:absolute;top:15px;height:5px;border-radius:3px;background:var(--reel)}
+  /* 最新タグ取得のパスコード・ゲート（三条と同じ） */
+  .gate{position:fixed;inset:0;background:#0f1115;display:none;flex-direction:column;justify-content:center;
+    align-items:center;gap:18px;padding:30px;z-index:200}
+  .gate.on{display:flex}
+  .gate h1{font-size:20px;letter-spacing:2px}
+  .gate p{color:#9aa3b2;font-size:13px;text-align:center;line-height:1.7}
+  .gate input{width:min(320px,80vw);padding:14px 16px;font-size:20px;text-align:center;letter-spacing:6px;
+    border-radius:12px;border:1px solid #2a3542;background:#141b23;color:#fff;outline:none}
+  .gate button{width:min(320px,80vw);padding:14px;font-size:16px;font-weight:700;border:0;border-radius:12px;
+    background:#c8a24a;color:#1a1206}
+  .gate .err{color:#ff8080;font-size:13px;min-height:18px}
+  .gate a{color:#9aa3b2;font-size:13px;text-decoration:none;cursor:pointer}
+  .gate p small{color:#7c8698;font-size:11.5px}
   .mediaWrap img,.mediaWrap video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;background:#000}
   .mediaWrap.feed img{object-fit:contain}
   .cap{font-size:13.5px;line-height:1.6;margin:11px 2px 4px;white-space:pre-wrap;color:#dfe5ee}
@@ -110,6 +132,15 @@
 
 <div id="wrap"></div>
 
+<div class="gate" id="pcgate">
+  <h1>🔑 最新タグの取得</h1>
+  <p>地域の最新ハッシュタグを取得します。<br>取得コードを入力してください。<br><small>※取得すると全員に共有され、7日間は再取得できません。</small></p>
+  <input id="pcpass" type="password" inputmode="numeric" autocomplete="off" placeholder="●●●●">
+  <button id="pcgo">取得する</button>
+  <div class="err" id="pcerr"></div>
+  <a id="pccancel">キャンセル</a>
+</div>
+
 <!-- ハッシュタグ編集モーダル（三条と同じ） -->
 <div class="modal" id="tagmodal">
   <div class="sheet">
@@ -127,7 +158,7 @@
 <script>
 (function(){
   "use strict";
-  var V = "?v=118";  // メディアのキャッシュ更新用
+  var V = "?v=119";  // メディアのキャッシュ更新用
   var CFG = window.GIFUYA || {};
   var LIVE = !!window.GIFUYA_LIVE;               // 専用GAS注入済みなら実データ連携
   var GAS = (CFG.GAS_URL||"").trim();
@@ -271,9 +302,26 @@
     body.querySelectorAll(".chip").forEach(function(ch){ ch.onclick=function(){ var t=ch.getAttribute("data-t"); if(sel[t]){delete sel[t];ch.classList.remove("on");}else{sel[t]=1;ch.classList.add("on");} body.querySelector(".tesel").textContent=Object.keys(sel).length; }; });
     document.getElementById("fetchreg").onclick=fetchRegional;
   }
+  // 最新タグ取得のパスコード（8888）。確認画面自体はコード不要・取得の時だけ確認する（三条と同じ）。
+  var PC_HASH="2926a2731f4b312c08982cacf8061eb14bf65c1a87cc5d70e864e079c6220731"; // sha256("8888")
+  function sha256(str){ return crypto.subtle.digest("SHA-256",new TextEncoder().encode(str)).then(function(h){ var a=new Uint8Array(h),s=""; for(var i=0;i<a.length;i++)s+=("0"+a[i].toString(16)).slice(-2); return s; }); }
+  function requireFetchPass(cb){
+    var g=document.getElementById("pcgate"), inp=document.getElementById("pcpass"), err=document.getElementById("pcerr");
+    inp.value=""; err.textContent=""; g.classList.add("on"); setTimeout(function(){ try{inp.focus();}catch(e){} },60);
+    function close(){ g.classList.remove("on"); }
+    function submit(){ var v=(inp.value||"").trim(); if(!v) return;
+      sha256(v).then(function(h){ if(h===PC_HASH){ close(); cb(); } else { err.textContent="コードが違います"; inp.value=""; } }); }
+    document.getElementById("pcgo").onclick=submit;
+    document.getElementById("pccancel").onclick=close;
+    inp.onkeydown=function(e){ if(e.key==="Enter") submit(); };
+  }
   function fetchRegional(){
     var now=Date.now();
     if(REG_NEXT&&now<REG_NEXT){ toast("すでに取得済みです（次回取得可能 "+fmtDate(REG_NEXT)+"）"); renderTagEditor(); return; }
+    requireFetchPass(doFetchRegional);   // 取得の時だけコード確認（8888）
+  }
+  function doFetchRegional(){
+    var now=Date.now();
     var btn=document.getElementById("fetchreg"); if(btn){ btn.disabled=true; btn.textContent="🔎 "+REGION_NAME+"の人気タグを調べています…"; }
     gJsonp({api:"regionaltags", region:REGION_NAME}).then(function(res){
       var ok=regApply(res,now);
@@ -285,6 +333,31 @@
       regSaveLocal(); renderTagEditor();
       toast(LIVE?"取得できませんでした。地域おすすめを表示":"地域のおすすめタグを表示（見本）");
     });
+  }
+  // リール用トリミングUI（三条と同じ。頭0.5秒スキップから30秒を初期選択・プレビューで確認）。
+  function fmt(t){ t=Math.max(0,Math.round(t)); var m=Math.floor(t/60),s=t%60; return m+":"+(s<10?"0":"")+s; }
+  function setupTrim(card,it){
+    var v=card.querySelector("video"), ts=card.querySelector(".ts"), te=card.querySelector(".te"),
+        sel=card.querySelector(".sel"), lenEl=card.querySelector(".tlen"), allEl=card.querySelector(".tall"),
+        stEl=card.querySelector(".tstart"), enEl=card.querySelector(".tend");
+    if(!v||!ts||!te) return;
+    var TARGET=30, dur=it.dur||30;
+    function apply(){
+      var total=dur, s=ts.value/100*total, e=te.value/100*total;
+      if(e-s<3){ if(te===document.activeElement){ ts.value=Math.max(0,(e-3)/total*100); } else { te.value=Math.min(100,(s+3)/total*100); } s=ts.value/100*total; e=te.value/100*total; }
+      sel.style.left=ts.value+"%"; sel.style.width=(te.value-ts.value)+"%";
+      lenEl.textContent=fmt(e-s); allEl.textContent=fmt(total);
+      stEl.textContent="開始 "+fmt(s); enEl.textContent="終了 "+fmt(e);
+      try{ v.currentTime=s; }catch(x){}
+    }
+    function initRange(){
+      dur=(v.duration&&isFinite(v.duration))?v.duration:dur;
+      var start=Math.min(0.5,dur*0.02), end=Math.min(dur,start+TARGET);
+      ts.value=start/dur*100; te.value=end/dur*100; apply();
+    }
+    ts.oninput=apply; te.oninput=apply;
+    if(v.readyState>=1){ initRange(); } else { v.addEventListener("loadedmetadata",initRange); }
+    apply();
   }
   function openTagEditor(card){ activeCard=card; renderTagEditor(); document.getElementById("tagmodal").classList.add("open"); }
   function closeTagEditor(){ document.getElementById("tagmodal").classList.remove("open"); saveGsel(); refreshAll(); toast("ハッシュタグを保存しました（以降の投稿にも反映）"); }
@@ -356,11 +429,17 @@
       var media = kind==="feed"
         ? '<div class="mediaWrap feed"><img loading="lazy" src="gifuya/'+p.img+'" alt=""></div>'
         : '<div class="mediaWrap reel"><video src="gifuya/'+p.vid+V+'" controls playsinline preload="metadata" webkit-playsinline></video></div>';
+      var trim = kind==="reel"
+        ? '<div class="trim"><div class="trimhd"><span>切り取り（リール用）</span><span><b class="tlen">--</b> / 元<span class="tall">--</span></span></div>'+
+          '<div class="rangewrap"><div class="track"></div><div class="sel"></div>'+
+          '<input type="range" class="ts" min="0" max="100" value="0"><input type="range" class="te" min="0" max="100" value="60"></div>'+
+          '<div class="trimhd" style="margin-top:4px"><span class="tstart">開始 0:00</span><span class="tend">終了 0:30</span></div></div>'
+        : '';
       c.innerHTML =
         (p.reco?'<div class="reco-badge">★ おすすめ</div>':'')+
         '<div class="chead"><span class="kind'+(kind==="reel"?" reel":"")+'">'+(kind==="feed"?"フィード":"リール")+'</span>'+
           '<span class="cno">'+(i+1)+' / '+list.length+' ・ '+esc(p.t)+'</span></div>'+
-        media+
+        media+trim+
         '<div class="cap"></div>'+
         '<div class="tagttl">ハッシュタグ <span class="tcnt"></span></div>'+
         '<div class="tagsel"></div><button class="tagedit">✏️ ハッシュタグを編集</button>'+
@@ -377,6 +456,7 @@
         c.querySelector(".tcnt").textContent=keys.length+"個";
       }
       c._refresh=refreshSel; refreshers.push(refreshSel); refreshSel();
+      if(kind==="reel"){ setupTrim(c,p); }
       c.querySelector(".tagedit").onclick=function(){ openTagEditor(c); };
       var slot=c.querySelector(".slot"), rbox=c.querySelector(".resvbox");
       c.querySelector(".now").onclick=function(){ var d=new Date(); var when=d.getFullYear()+"-"+("0"+(d.getMonth()+1)).slice(-2)+"-"+("0"+d.getDate()).slice(-2)+" "+("0"+d.getHours()).slice(-2)+":"+("0"+d.getMinutes()).slice(-2); doSchedule(kind,p,when,slot,"投稿しました"); };
