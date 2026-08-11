@@ -307,16 +307,24 @@ def music(root=None):
     if not fid:
         print("[MUSIC] 音楽フォルダが見つかりません（bgm.mp3 の1曲で続行）。")
         return
+    def _walk_audio(f_id, depth=0):
+        out = []
+        for f in _children(drive, f_id):
+            if f["mimeType"] == "application/vnd.google-apps.folder":
+                if depth < 3:
+                    out += _walk_audio(f["id"], depth + 1)
+            elif f["mimeType"].startswith("audio/") or f.get("name", "").lower().endswith((".mp3", ".m4a", ".wav")):
+                out.append(f)
+        return out
     n = 0
-    for f in _children(drive, fid):
+    for f in _walk_audio(fid):          # サブフォルダに曲があっても拾えるよう再帰
         nm = f.get("name", "")
-        if f["mimeType"].startswith("audio/") or nm.lower().endswith((".mp3", ".m4a", ".wav")):
-            base = os.path.splitext(nm)[0]
-            safe = "".join(c for c in base if c.isalnum() or c in "-_") or ("bgm%d" % n)
-            with open(os.path.join(out_dir, safe + ".mp3"), "wb") as fp:
-                fp.write(_download(drive, f["id"]).read())
-            n += 1
-            print("MUSIC|%s" % nm)
+        base = os.path.splitext(nm)[0]
+        safe = "".join(c for c in base if c.isalnum() or c in "-_") or ("bgm%d" % n)
+        with open(os.path.join(out_dir, safe + ".mp3"), "wb") as fp:
+            fp.write(_download(drive, f["id"]).read())
+        n += 1
+        print("MUSIC|%s" % nm)
     print("[MUSIC] %d曲を取得しました。" % n)
 
 
