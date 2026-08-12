@@ -48,7 +48,8 @@ var COLMAP = {
   birth: ["生年月日", "生年月日（西暦）", "誕生日"],
   age_col: ["年齢"],
   occupation: ["現在の職業", "職業", "現職", "ご職業"],
-  memo: ["メモ", "メモ1", "対応メモ", "備考", "対応履歴メモ"]
+  memo: ["メモ(新規)", "メモ（新規）", "メモ", "メモ1", "対応メモ", "対応履歴メモ"],
+  memo_old: ["メモ(過去)", "メモ（過去）"]
 };
 
 // 店舗マスタ名の先頭にある【アルバイト】等の【…】を除去して店舗名だけにする
@@ -369,6 +370,8 @@ function epParseCsv_(text) {
     var birth = get("birth");
     var ageCol = get("age_col");                          // 「年齢」列があればそれを使う
     var age = (ageCol && /^\d{1,3}$/.test(ageCol)) ? +ageCol : epAge_(birth);
+    var memoNew = get("memo"), memoOld = get("memo_old"); // メモ(新規)＋メモ(過去)をまとめる
+    var memoAll = [memoNew, memoOld ? ("【過去メモ】\n" + memoOld) : ""].filter(Boolean).join("\n\n");
     rows.push({
       code: code, name: get("name"), kana: get("name_kana"),
       statusCode: get("status_code"), statusName: get("status_name"),
@@ -377,7 +380,7 @@ function epParseCsv_(text) {
       media: get("media"), appliedAt: get("applied_at"),
       interviewAt: get("interview_at"), hiredAt: get("hired_at"),
       dup: epBool_(get("is_duplicate")), history: get("change_history"),
-      memo: get("memo"), occupation: get("occupation"),
+      memo: memoAll, occupation: get("occupation"),
       gender: get("gender"), birth: birth, age: (age == null || age < 0 || age > 120) ? null : age
     });
   }
