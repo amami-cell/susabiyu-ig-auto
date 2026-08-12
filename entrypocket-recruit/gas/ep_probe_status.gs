@@ -62,3 +62,20 @@ function epProbeMainJs() {
   dumpKw_(html, "onchange");
   Logger.log("★ このログを丸ごと送ってください（データは変更していません）。");
 }
+
+// changeStatusPc / changeStatusSp の本体をピンポイントで抜き出す（変更リクエストの決定版）
+function epProbeChangeFn() {
+  var jar = epLogin_(); if (!jar) { Logger.log("★ ログイン失敗"); return; }
+  var ref = { "Referer": EP_APPLICANT_URL };
+  var big = function (t, kw, n) { var i = t.indexOf(kw), c = 0; n = n || 2;
+    while (i >= 0 && c < n) { Logger.log("[" + kw + " #" + (c + 1) + "] " + t.substr(Math.max(0, i - 60), 1500).replace(/\s+/g, " ")); c++; i = t.indexOf(kw, i + 1); }
+    if (!c) Logger.log("[" + kw + "] 無し"); };
+
+  var js = epFetch_("https://manage.entrypocket.jp/MYN-ApplyControl-portlet/js/main.js", { method: "get", headers: ref }, jar).getContentText();
+  Logger.log("main.js len=" + js.length);
+  big(js, "changeStatusPc"); big(js, "changeStatusSp"); big(js, "existsCheck");
+
+  var html = epFetch_(EP_APPLICANT_URL, { method: "get", followRedirects: true }, jar).getContentText();
+  big(html, "changeStatusPc"); big(html, "changeStatusSp"); big(html, "function changeStatus");
+  Logger.log("★ このログを丸ごと送ってください（データは変更していません）。");
+}
