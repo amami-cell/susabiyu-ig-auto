@@ -121,6 +121,15 @@
     .pr-more{ margin-top:9px; padding-top:9px; border-top:1px dashed var(--line2); font-size:12px; color:var(--fg2); }
     .pr-more .k{ color:var(--muted); }
     .pr-more div{ margin:4px 0; overflow-wrap:anywhere; white-space:pre-wrap; }
+    .resform{ background:#0f151d; border:1px solid var(--line2); border-radius:10px; padding:11px; margin-bottom:9px; }
+    .rf-grid{ display:grid; grid-template-columns:1fr 1fr 1fr; gap:8px; }
+    .rf-f label{ font-size:10.5px; color:var(--muted); display:block; margin-bottom:4px; }
+    .rf-f input, .rf-ta{ width:100%; background:#0a0f16; border:1px solid var(--line2); color:var(--fg); border-radius:8px; padding:9px; font-size:15px; }
+    .rf-l{ font-size:10.5px; color:var(--muted); display:block; margin:9px 0 4px; }
+    .rf-ta{ min-height:58px; resize:vertical; white-space:pre-wrap; }
+    .rf-save{ margin-top:10px; width:100%; background:var(--green); color:#06210f; border:0; border-radius:9px; padding:12px; font-size:13.5px; font-weight:800; }
+    .rf-save:active{ transform:scale(.99); }
+    .rf-hint{ font-size:10.5px; color:var(--muted); margin-top:6px; }
     /* applicant */
     .ap{ border:1px solid var(--line); border-radius:11px; padding:12px 13px; margin-bottom:9px; background:var(--card2); }
     .ap-nm{ font-weight:800; font-size:15px; }
@@ -170,7 +179,7 @@
     function ageGroup(a){ var n=parseInt(String(a==null?'':a).replace(/[^\d]/g,''),10);
       if(!(n>=10&&n<=99)) return '不明'; if(n<20)return'〜19歳'; if(n<30)return'20代'; if(n<40)return'30代'; if(n<50)return'40代'; if(n<60)return'50代'; return'60代〜'; }
     var apps=[], storeManual={}, storePosting={}, postings=[], appByCode={}, RECS=[];
-    var postByStore={}, appByStore={}, reportUrl='';
+    var postByStore={}, appByStore={}, reportUrl='', postById={};
     var DASH={}, LAST=null, statYear='all';
     var statusMap={}, statusOrder=[], writeEnabled=false;
     function sameCode(a,b){ return parseInt(String(a),10)===parseInt(String(b),10); }
@@ -214,7 +223,7 @@
     function render(d){
       var dash=d.dash||{};
       apps=d.apps||[]; storeManual=d.storeManual||{}; storePosting=d.storePosting||{}; postings=d.postings||[]; reportUrl=d.reportUrl||'';
-      appByCode={}; apps.forEach(function(a){ appByCode[a.code]=a; });
+      appByCode={}; postById={}; apps.forEach(function(a){ appByCode[a.code]=a; });
       postByStore={}; postings.forEach(function(p){ var k=normStore(p.store); (postByStore[k]=postByStore[k]||[]).push(p); });
       appByStore={}; apps.forEach(function(a){ var k=normStore(a.store); (appByStore[k]=appByStore[k]||[]).push(a); });
 
@@ -231,13 +240,9 @@
     function unsubmittedPostings(){ return postings.filter(isUnsubmitted); }
     function alertHtml(){
       var u=unsubmittedPostings(); if(!u.length) return '';
-      var rows=u.slice(0,50).map(function(p){
-        return '<div class="al-row"><div class="al-nm"><b>'+esc(p.store)+'</b>'+
-          '<span class="pd"> '+fmtD(p.start)+'〜'+fmtD(p.end)+' 終了</span></div>'+
-          (reportUrl?'<a class="btn-in" href="'+esc(reportUrl)+'" target="_top">結果を入力 ▸</a>':'')+'</div>';
-      }).join('');
       return '<div class="alert"><div class="al-h">⚠️ 結果報告 未提出 '+u.length+'件</div>'+
-        '<div class="al-note">掲載が終わったのに応募・採用の結果が未入力です。「結果を入力」で報告スプレッドシートを開きます。</div>'+rows+'</div>';
+        '<div class="al-note">掲載終了なのに結果が未入力です。行をタップして入力（採用率・単価は自動計算）。</div>'+
+        u.map(postingRow).join('')+'</div>';
     }
 
     /* ===== 募集中タブ（掲載中の求人だけ）===== */
@@ -340,10 +345,10 @@
     }
     function postingRow(p){
       var id='pr'+(postingRow._i=(postingRow._i||0)+1);
+      postById[id]=p;
       var unsub=isUnsubmitted(p);
       var badge = p.state==='募集中' ? '<span class="badge on">●募集中</span>'
                 : (unsub ? '<span class="badge warn">結果未提出</span>' : '<span class="badge end">終了</span>');
-      var inBtn = unsub&&reportUrl ? '<a class="btn-in sm" href="'+esc(reportUrl)+'" target="_top" onclick="event.stopPropagation()">結果を入力 ▸</a>' : '';
       var line=[esc(p.media||''), esc(p.plan||''), esc(fmtCost(p.cost))].filter(Boolean).join('　/　');
       var stat=[ (has(p.apps)?('応募<b>'+esc(p.apps)+'</b>'):''),
                  (has(p.hires)?('採用<b>'+esc(p.hires)+'</b>'):''),
@@ -353,23 +358,45 @@
                ].filter(Boolean).map(function(x){return '<span>'+x+'</span>';}).join('');
       var area=[esc(p.area1||''),esc(p.area2||'')].filter(Boolean).join(' / ');
       var line2=[esc(p.line1||''),esc(p.line2||'')].filter(Boolean).join(' / ');
-      var more='';
-      if(area||line2||p.reporter||p.note){
-        more='<div class="pr-more" id="'+id+'" hidden>'+
-          (area?'<div><span class="k">エリア：</span>'+area+'</div>':'')+
-          (line2?'<div><span class="k">路線：</span>'+line2+'</div>':'')+
-          (p.reporter?'<div><span class="k">報告者：</span>'+esc(p.reporter)+'</div>':'')+
-          (p.note?'<div><span class="k">備考・退職理由：</span>\n'+esc(p.note)+'</div>':'')+
-        '</div>';
-      }
+      var canForm = unsub && writeEnabled && has(p.srcRow);
+      var moreInner =
+        (canForm?resultForm(id,p):'')+
+        (area?'<div><span class="k">エリア：</span>'+area+'</div>':'')+
+        (line2?'<div><span class="k">路線：</span>'+line2+'</div>':'')+
+        (p.reporter?'<div><span class="k">報告者：</span>'+esc(p.reporter)+'</div>':'')+
+        (p.note?'<div><span class="k">備考・退職理由：</span>\n'+esc(p.note)+'</div>':'');
+      var more = moreInner ? '<div class="pr-more" id="'+id+'" hidden>'+moreInner+'</div>' : '';
+      var hint = (unsub&&writeEnabled&&has(p.srcRow)) ? '<span class="pd" style="color:var(--amber)">タップで入力 ▾</span>'
+               : (unsub&&reportUrl ? '<a class="btn-in sm" href="'+esc(reportUrl)+'" target="_top" onclick="event.stopPropagation()">スプシで入力 ▸</a>' : '');
       return '<div class="pr'+(unsub?' unsub':'')+'" onclick="prtoggle(\''+id+'\')">'+
-        '<div class="pr-h"><b>'+esc(p.store)+'</b>'+badge+'<span class="pd">'+fmtD(p.start)+'〜'+(p.end?fmtD(p.end):'継続')+'</span>'+inBtn+'</div>'+
+        '<div class="pr-h"><b>'+esc(p.store)+'</b>'+badge+'<span class="pd">'+fmtD(p.start)+'〜'+(p.end?fmtD(p.end):'継続')+'</span>'+hint+'</div>'+
         (line?'<div class="pr-sub">'+line+'</div>':'')+
         (stat?'<div class="pr-stat">'+stat+'</div>':'')+
         more+
       '</div>';
     }
     function prtoggle(id){ var el=document.getElementById(id); if(el) el.hidden=!el.hidden; }
+    // 結果入力フォーム（応募/採用/退職/備考。率・単価はスプシ数式で自動計算）
+    function resultForm(id,p){
+      var f=function(lb,fid,val){ return '<div class="rf-f"><label>'+lb+'</label><input id="'+fid+'" type="number" inputmode="numeric" value="'+esc(has(val)?val:'')+'"></div>'; };
+      return '<div class="resform" onclick="event.stopPropagation()">'+
+        '<div class="rf-grid">'+f('応募総数','rf_apps_'+id,p.apps)+f('採用人数','rf_hires_'+id,p.hires)+f('退職人数','rf_quit_'+id,p.quit)+'</div>'+
+        '<label class="rf-l">備考・退職理由</label><textarea class="rf-ta" id="rf_note_'+id+'">'+esc(p.note||'')+'</textarea>'+
+        '<button class="rf-save" onclick="event.stopPropagation();saveResult(\''+id+'\')">スプシに保存</button>'+
+        '<div class="rf-hint">保存後、元スプシの「プロジェクト実行」でNotionへ反映されます</div>'+
+      '</div>';
+    }
+    function saveResult(id){
+      var p=postById[id]; if(!p) return;
+      var gv=function(k){ var el=document.getElementById(k+id); return el?el.value:''; };
+      var apps=gv('rf_apps_'), hires=gv('rf_hires_'), quit=gv('rf_quit_'), note=gv('rf_note_');
+      if(!confirm(p.store+' の結果を保存します。\n応募 '+(apps||'-')+' / 採用 '+(hires||'-')+' / 退職 '+(quit||'-')+'\nよろしいですか？')) return;
+      toast('保存中…');
+      google.script.run.withSuccessHandler(function(r){
+        if(r&&r.ok){ p.apps=apps; p.hires=hires; p.quit=quit; p.note=note; p.state='終了'; toast('保存しました（Notionは元スプシの「プロジェクト実行」で反映）'); renderRecruit(); renderHistory(); renderStats(); }
+        else toast('保存失敗: '+((r&&r.error)||''));
+      }).withFailureHandler(function(e){ toast('通信エラー: '+(e&&e.message||'')); }).epSaveResult({ srcSheet:p.srcSheet, srcRow:p.srcRow, store:p.store, start:p.start, apps:apps, hires:hires, quit:quit, note:note });
+    }
 
     /* ===== 応募者カード（店舗ドリルダウン内） ===== */
     var TPL_SMS='{name}様\nこの度は【{store}】へご応募ありがとうございます。採用担当です。\n面接日程のご相談をさせていただきたくご連絡しました。ご都合のよい日時をご返信ください。';

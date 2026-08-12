@@ -129,7 +129,8 @@ function dashBuild_() {
         cost: gp(prow, '求人費'), start: startS, end: endS, apps: gp(prow, '応募総数'),
         hires: gp(prow, '採用人数'), unit: gp(prow, '採用単価'), hireRate: String(gp(prow, '採用率') || ''),
         quit: gp(prow, '退職人数'), quitRate: String(gp(prow, '退職率') || ''),
-        state: String(gp(prow, '状態') || ''), note: String(gp(prow, '備考') || '')
+        state: String(gp(prow, '状態') || ''), note: String(gp(prow, '備考') || ''),
+        srcSheet: String(gp(prow, '元シート') || ''), srcRow: gp(prow, '元行')
       });
     }
   }

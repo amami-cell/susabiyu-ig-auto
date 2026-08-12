@@ -78,10 +78,11 @@ var NOTION_POSTINGS_SHEET_ID = "1Oh1mxj5Jjn5wB5fTtW4GJrepA6cFDwQRhE9mK2QbxFw";
 var POSTING_KEEP_DAYS = 365;   // 掲載終了からこの日数を過ぎた打ち出しは取り込まない（古い分は自動で捨てる）
 
 // シートの全項目を蓄積する（この順で「求人打ち出し」シートに書く）
+// 末尾の「元シート」「元行」は、アプリからの結果書き戻し先を特定するための控え。
 var POST_HEADER = ["店舗名", "報告者", "媒体", "商品名",
   "エリア1", "エリア2", "路線1", "路線2", "求人費",
   "掲載開始", "掲載終了", "応募総数", "採用人数", "採用単価", "採用率",
-  "退職人数", "退職率", "状態", "備考"];
+  "退職人数", "退職率", "状態", "備考", "元シート", "元行"];
 
 // 打ち出しシートの見出し → 論理名（候補複数可。実データの見出しに合わせてある）
 var POST_COLMAP = {
@@ -178,12 +179,12 @@ function epFetchPostingSheetRows_() {
   var ext;
   try { ext = SpreadsheetApp.openById(NOTION_POSTINGS_SHEET_ID); }
   catch (e) { Logger.log("  打ち出しシートを開けず(権限/ID?): " + e); return null; }
-  var sheets = ext.getSheets(), src = null, hdr = null;
+  var sheets = ext.getSheets(), src = null, hdr = null, srcSheetName = "";
   for (var s = 0; s < sheets.length; s++) {
     var vv; try { vv = sheets[s].getDataRange().getValues(); } catch (e) { continue; }
     if (!vv.length) continue;
     var head = vv[0].map(function (x) { return String(x || "").replace(/　/g, "").trim(); });
-    if (head.indexOf("店舗名") >= 0) { src = vv; hdr = head; break; }
+    if (head.indexOf("店舗名") >= 0) { src = vv; hdr = head; srcSheetName = sheets[s].getName(); break; }
   }
   if (!src) return null;
   var hidx = {};
@@ -198,7 +199,8 @@ function epFetchPostingSheetRows_() {
       store: g(row, "store"), reporter: g(row, "reporter"), media: g(row, "media"), plan: g(row, "plan"),
       area1: g(row, "area1"), area2: g(row, "area2"), line1: g(row, "line1"), line2: g(row, "line2"),
       cost: g(row, "cost"), start: g(row, "start"), end: g(row, "end"), apps: g(row, "apps"), hired: g(row, "hired"),
-      unit: g(row, "unit"), hireRate: g(row, "hireRate"), quit: g(row, "quit"), quitRate: g(row, "quitRate"), note: g(row, "note")
+      unit: g(row, "unit"), hireRate: g(row, "hireRate"), quit: g(row, "quit"), quitRate: g(row, "quitRate"), note: g(row, "note"),
+      srcSheet: srcSheetName, srcRow: (i + 1)   // 元スプシの実際の行番号（1始まり）
     });
   }
   return rows;
@@ -220,7 +222,8 @@ function epWritePostings_(ss, rows, srcName) {
       r.cost,
       st ? Utilities.formatDate(st, "Asia/Tokyo", "yyyy-MM-dd") : "",
       en ? Utilities.formatDate(en, "Asia/Tokyo", "yyyy-MM-dd") : "",
-      r.apps, r.hired, r.unit, r.hireRate, r.quit, r.quitRate, active ? "募集中" : "終了", String(r.note || "")]);
+      r.apps, r.hired, r.unit, r.hireRate, r.quit, r.quitRate, active ? "募集中" : "終了", String(r.note || ""),
+      String(r.srcSheet || ""), (r.srcRow || "")]);
   });
   out.sort(function (a, b) { return String(b[9]) < String(a[9]) ? -1 : 1; });  // 掲載開始(列10)の新しい順
 
