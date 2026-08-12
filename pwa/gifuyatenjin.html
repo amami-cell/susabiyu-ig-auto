@@ -7,97 +7,186 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="ぎふや 福岡天神">
+<link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+<link rel="dns-prefetch" href="https://cdn.jsdelivr.net">
 <link rel="manifest" href="./manifest.webmanifest">
 <link rel="apple-touch-icon" href="./icons/icon-192.png">
 <link rel="icon" href="./icons/icon-192.png">
 <title>ぎふや 福岡天神 ・ 投稿確認</title>
 <style>
-  /* 三条アプリ(index.html)と同一の土台デザイン。ぎふや福岡天神の見本用に自己完結で実装。 */
   *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
   :root{--bg:#0f1115;--card:#181c23;--line:#262c36;--fg:#eaeef2;--sub:#9aa3b2;
         --ok:#1f9d55;--rd:#3b6fd6;--ng:#444b57;--accent:#7fd1a0}
   html,body{margin:0;background:var(--bg);color:var(--fg);overscroll-behavior-y:contain;
     font-family:-apple-system,BlinkMacSystemFont,"Hiragino Kaku Gothic ProN","Noto Sans JP",sans-serif}
   body{padding:0 0 env(safe-area-inset-bottom)}
+  /* 引っ張って更新（pull-to-refresh）のインジケーター */
+  #ptr{position:fixed;top:calc(env(safe-area-inset-top) + 6px);left:50%;margin-left:-19px;width:38px;height:38px;
+    border-radius:50%;background:#181c23;border:1px solid var(--line);display:flex;align-items:center;justify-content:center;
+    z-index:60;opacity:0;transform:translateY(-54px);box-shadow:0 6px 18px rgba(0,0,0,.45);pointer-events:none}
+  #ptr i{display:block;width:18px;height:18px;border-radius:50%;border:2px solid rgba(127,209,160,.3);border-top-color:var(--accent)}
+  #ptr.spin i{animation:sp .6s linear infinite}
   .topbar{position:sticky;top:0;z-index:10;background:rgba(15,17,21,.86);
     backdrop-filter:saturate(180%) blur(12px);border-bottom:1px solid var(--line)}
-  .bar{display:flex;align-items:center;gap:10px;padding:calc(env(safe-area-inset-top) + 12px) 16px 8px}
+  .bar{display:flex;align-items:center;gap:10px;
+    padding:calc(env(safe-area-inset-top) + 12px) 16px 8px}
   .bar .logo{height:32px;width:auto;max-width:96px;border-radius:6px;display:block;flex:0 0 auto;object-fit:contain}
   .bar h1{font-size:16px;margin:0;font-weight:700;letter-spacing:.2px;flex:1;
     min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-  .bar .push{border:1px solid var(--line);background:#222835;color:var(--fg);
-    font-size:12px;font-weight:700;padding:6px 11px;border-radius:999px}
-  .bar .dot{font-size:12px;color:var(--sub);display:flex;align-items:center;gap:6px;margin-left:10px}
-  .bar .dot i{width:8px;height:8px;border-radius:50%;background:#c79a3a;display:inline-block}
-  .bar .dot i.beat{background:#37c66a;animation:dotbeat .9s ease-out}
-  @keyframes dotbeat{0%{box-shadow:0 0 0 0 rgba(55,198,106,.6)}100%{box-shadow:0 0 0 7px rgba(55,198,106,0)}}
   .tabs{display:flex;gap:6px;padding:0 16px 10px}
-  button,.tab,.seg button,.gfilter button{touch-action:manipulation}
+  /* タップ遅延・ダブルタップ拡大判定を無効化＝ボタンの反応を即時に */
+  button,.tab,.seg button,.rm,.alink,.gfilter button,.npbar button,.repkpi.tap,.reppost.tap{touch-action:manipulation}
   .tab{border:1px solid var(--line);background:#181c23;color:var(--sub);font-size:13px;font-weight:800;
     padding:7px 16px;border-radius:999px;transition:.12s}
   .tab.on{background:#10301f;color:var(--accent);border-color:#1f4d33}
   .tab:active{transform:scale(.92)}
+  /* タップした瞬間の“押せた感”（弾むアニメ＋リング） */
+  .tab.tapped{animation:tabtap .45s cubic-bezier(.2,.7,.3,1)}
+  @keyframes tabtap{0%{transform:scale(.88);box-shadow:0 0 0 0 rgba(127,209,160,.6)}45%{transform:scale(1.06)}100%{transform:scale(1);box-shadow:0 0 0 10px rgba(127,209,160,0)}}
+  #app{will-change:transform}
+  /* トーストの更新中スピナー */
+  .tspin{display:inline-block;width:13px;height:13px;margin-right:8px;vertical-align:-2px;
+    border:2px solid rgba(255,255,255,.35);border-top-color:#fff;border-radius:50%;animation:sp .6s linear infinite}
+  #gallery{padding:14px 14px 28px;max-width:560px;margin:0 auto}
+  .ghint{color:var(--sub);font-size:13px;line-height:1.7;text-align:center;margin:10px 2px 16px}
+  .gstate{font-size:13px;font-weight:800;padding:3px 11px;border-radius:999px;margin-left:auto}
+  .gstate.on{color:var(--accent);background:#10301f}
+  .gstate.off{color:#aeb6c2;background:#23262d}
+  .seg{display:flex;gap:8px;margin-top:10px}
+  .seg button{flex:1;border:2px solid var(--line);background:transparent;color:var(--sub);
+    border-radius:13px;padding:13px 0;font-size:15px;font-weight:800;transition:.15s}
+  .seg button:active{transform:scale(.97)}
+  .seg .seg-on.sel{background:var(--ok);border-color:var(--ok);color:#fff;box-shadow:0 4px 14px rgba(31,157,85,.35)}
+  .seg .seg-off.sel{background:#c0473a;border-color:#c0473a;color:#fff;box-shadow:0 4px 14px rgba(192,71,58,.35)}
+  .ghintline{text-align:center;color:var(--sub);font-size:12px;margin-top:8px}
+  .gnote{text-align:center;color:var(--sub);font-size:12px;margin-top:10px}
+  /* 見本の「動画／画像」切替（ヘッダー下に固定・スクロールしても消えない） */
+  .gfilter{position:sticky;top:100px;/* 実際の値はJSがヘッダー高さから設定 */
+    z-index:9;width:max-content;margin:0 auto 14px;display:flex;gap:4px;
+    background:rgba(15,17,21,.94);backdrop-filter:saturate(180%) blur(12px);
+    border:1px solid var(--line);border-radius:999px;padding:5px;box-shadow:0 10px 30px rgba(0,0,0,.55)}
+  .gfilter button{border:none;background:transparent;color:var(--sub);font-size:14px;font-weight:800;
+    padding:11px 24px;border-radius:999px;transition:.12s;white-space:nowrap}
+  .gfilter button.sel{background:#10301f;color:var(--accent)}
+  .gfilter button:active{transform:scale(.95)}
+  /* 切替に応じてカードを出し分け（.cv=動画 .ci=画像 .cu=生成中は両方に表示） */
+  #gallery.fvid .card.ci{display:none}
+  #gallery.fimg .card.cv{display:none}
+  /* 再生中ミニバー：動画再生中に別画面へ移った時だけ画面下に出る */
+  .npbar{position:fixed;left:12px;right:12px;bottom:calc(env(safe-area-inset-bottom) + 14px);z-index:46;
+    display:flex;align-items:center;gap:10px;background:rgba(15,17,21,.96);border:1px solid var(--line);
+    border-radius:14px;padding:10px 12px;box-shadow:0 10px 30px rgba(0,0,0,.55);backdrop-filter:saturate(180%) blur(12px)}
+  .npbar .npdot{width:10px;height:10px;border-radius:50%;background:#e0483a;flex:0 0 auto;
+    box-shadow:0 0 0 0 rgba(224,72,58,.5);animation:pulse 1.6s infinite}
+  .npbar .nptxt{flex:1;font-size:13px;font-weight:700;color:var(--fg);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .npbar button{border:1px solid var(--line);background:#222835;color:var(--fg);font-size:13px;font-weight:800;
+    padding:8px 14px;border-radius:999px;flex:0 0 auto}
+  .npbar .npstop{background:#3a1d1a;border-color:#5a2b26;color:#ff9d92}
+  .npbar button:active{transform:scale(.95)}
+  /* 採用ボタン/注意書きの出し分けはクラス切替だけ（再描画なし＝カクつかない） */
+  #gallery:not(.admin) .card .seg,
+  #gallery:not(.admin) .card .ghintline{display:none}
+  #gallery.admin .card .gnote{display:none}
   .tabs .reeltab{margin-left:auto;border:1px solid var(--line);background:#181c23;color:var(--sub);
-    font-size:12px;font-weight:800;padding:7px 13px;border-radius:999px;flex:0 0 auto;text-decoration:none;display:flex;align-items:center}
+    font-size:12px;font-weight:800;padding:7px 13px;border-radius:999px;flex:0 0 auto}
   .tabs .reeltab:active{transform:scale(.94)}
-  .note{margin:14px 14px 0;padding:12px 15px;background:#15120d;border:1px solid #2a241a;border-radius:12px;color:#b3aa9b;font-size:12.5px;line-height:1.7;max-width:560px}
-  @media(min-width:592px){.note{margin-left:auto;margin-right:auto}}
-  /* ===== 確認（投稿カード） ===== */
+  .bar .push{border:1px solid var(--line);background:#222835;color:var(--fg);
+    font-size:12px;font-weight:700;padding:6px 11px;border-radius:999px;display:none}
+  .bar .push.on{background:#10301f;color:var(--accent);border-color:#1f4d33}
+  .bar .dot{font-size:12px;color:var(--sub);display:flex;align-items:center;gap:6px;margin-left:10px}
+  .bar .dot i{width:8px;height:8px;border-radius:50%;background:#3a3f4a;display:inline-block}
+  .bar .dot.live i{background:var(--accent);box-shadow:0 0 0 0 rgba(127,209,160,.5);animation:pulse 2s infinite}
+  @keyframes pulse{0%{box-shadow:0 0 0 0 rgba(127,209,160,.5)}70%{box-shadow:0 0 0 7px rgba(127,209,160,0)}100%{box-shadow:0 0 0 0 rgba(127,209,160,0)}}
   #feed{padding:14px 14px 28px;max-width:560px;margin:0 auto}
   .card{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:12px;margin-bottom:14px;
-    transition:opacity .25s ease,transform .25s ease}
+    transition:opacity .25s ease,transform .25s ease;scroll-margin-top:116px}
   .card.done{opacity:.55}
+  .card.flash{animation:flash 1.1s ease 2}
+  @keyframes flash{0%,100%{box-shadow:0 0 0 0 rgba(127,209,160,0)}50%{box-shadow:0 0 0 3px rgba(127,209,160,.7)}}
   .head{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:9px}
   .time{font-size:13px;color:var(--sub)}
   .pat{font-size:14px;font-weight:700;color:#fff;background:#222835;padding:2px 9px;border-radius:999px}
   .remain{margin-left:auto;font-size:12px;font-weight:700;color:var(--accent);background:#10301f;padding:3px 9px;border-radius:999px}
-  .mediaWrap{position:relative;border-radius:13px;overflow:hidden;background:#000;width:100%;aspect-ratio:4/5}
-  .mediaWrap.story{aspect-ratio:9/16}
-  .media{position:absolute;inset:0;width:100%;height:100%;display:block;object-fit:cover;background:#000}
-  .cap{font-size:14px;line-height:1.55;margin:10px 2px 2px;white-space:pre-wrap}
-  .tags{font-size:11.5px;color:#8f97c0;word-break:break-all;margin:6px 2px 0}
+  /* 枠を“正確に9:16”で先に確保。実メディア(1080x1920=9:16)とピクセル一致するので
+     動画再生時に合わせ直し（カクッ）が起きない。高さ制限は付けない。 */
+  .mediaWrap{position:relative;border-radius:13px;overflow:hidden;background:#000;
+    width:100%;aspect-ratio:9/16}
+  .media{position:absolute;inset:0;width:100%;height:100%;display:block;object-fit:cover;
+    background:#000 center/cover no-repeat}
+  .badge{position:absolute;left:10px;bottom:10px;font-size:12px;color:#fff;background:rgba(0,0,0,.55);
+    padding:5px 10px;border-radius:999px;pointer-events:none}
+  .mediaWrap.mediaerr::after{content:"⟳ タップで再読み込み";position:absolute;inset:0;display:flex;
+    align-items:center;justify-content:center;background:rgba(10,12,16,.82);color:#ffcf66;font-size:14px;
+    font-weight:800;pointer-events:none}
+  .cap{font-size:14px;line-height:1.5;margin:10px 2px 2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .slot{margin-top:10px}
   .btns{display:flex;gap:8px}
-  .btns button{flex:1;border:0;border-radius:13px;padding:13px 0;font-size:15px;font-weight:800;color:#fff;transition:transform .06s,opacity .15s}
+  .btns button{flex:1;border:0;border-radius:13px;padding:13px 0;font-size:15px;font-weight:800;color:#fff;
+    transition:transform .06s,opacity .15s}
   .ok{background:var(--ok)}.rd{background:var(--rd)}.ng{background:var(--ng)}
   .btns button:active{transform:scale(.96);opacity:.92}
-  .copybtn{margin-top:8px;width:100%;border:1px solid var(--line);border-radius:12px;background:#12161d;color:var(--accent);font-weight:800;font-size:13.5px;padding:11px;display:flex;align-items:center;justify-content:center;gap:7px}
-  .copybtn.done{background:#10301f;border-color:#1f4d33}
+  .btns button:disabled{opacity:.4;filter:grayscale(.4)}
   .banner{text-align:center;font-size:15px;font-weight:800;padding:13px 0;border-radius:13px}
   .banner.okb{background:#10301f;color:var(--accent)}
-  .banner.okb small{display:block;font-size:11px;font-weight:600;color:#6fb595;margin-top:4px}
   .banner.ngb{background:#23262d;color:#aeb6c2}
-  .redoing{display:flex;align-items:center;justify-content:center;gap:10px;font-size:14px;color:#ffcf66;background:#241d10;padding:14px 0;border-radius:13px}
+  .redoing{display:flex;align-items:center;justify-content:center;gap:10px;font-size:14px;color:#ffcf66;
+    background:#241d10;padding:14px 0;border-radius:13px}
+  .banner.okb[data-unapprove]{cursor:pointer}
+  .banner.okb small{display:block;font-size:11px;font-weight:600;color:#6fb595;margin-top:4px}
+  .redoslow{text-align:center;font-size:12px;color:#c79a3a;margin-top:10px}
+  .redoslow .mlink{border:0;background:transparent;color:#7fd1a0;font-weight:800;font-size:12px;padding:2px 4px;text-decoration:underline}
   .spin{width:16px;height:16px;border:3px solid #ffcf66;border-top-color:transparent;border-radius:50%;animation:sp .8s linear infinite}
   @keyframes sp{to{transform:rotate(360deg)}}
-  /* ===== 見本ギャラリー ===== */
-  #gallery{padding:14px 14px 28px;max-width:560px;margin:0 auto}
-  .gfilter{position:sticky;top:104px;z-index:9;width:max-content;margin:0 auto 14px;display:flex;gap:4px;
-    background:rgba(15,17,21,.94);backdrop-filter:saturate(180%) blur(12px);
-    border:1px solid var(--line);border-radius:999px;padding:5px;box-shadow:0 10px 30px rgba(0,0,0,.55)}
-  .gfilter button{border:none;background:transparent;color:var(--sub);font-size:14px;font-weight:800;padding:11px 24px;border-radius:999px;transition:.12s;white-space:nowrap}
-  .gfilter button.sel{background:#10301f;color:var(--accent)}
-  .gsub{font-size:13px;font-weight:800;color:var(--accent);margin:6px 2px 10px;border-left:3px solid #1f4d33;padding-left:9px}
-  .glist{display:flex;flex-direction:column;gap:14px;margin-bottom:8px}
-  #gallery.fvid .gimg{display:none}
-  #gallery.fimg .gvid{display:none}
-  #gallery.fvid .gsub.imgonly,#gallery.fimg .gsub.vidonly{display:none}
-  .gcard{background:#14110c;border:1px solid #241f16;border-radius:16px;overflow:hidden;padding-bottom:12px}
-  .gcard .gmedia{width:100%;aspect-ratio:9/16;max-height:62vh;object-fit:cover;display:block;background:#000}
-  .gcard.feed .gmedia{aspect-ratio:4/5;max-height:none}
-  .gchead{display:flex;align-items:center;gap:8px;padding:10px 12px 0}
-  .gcard .gt{font-size:14px;font-weight:800;color:#e8e0d0;flex:1;min-width:0}
-  .gstate{font-size:12px;font-weight:800;padding:3px 11px;border-radius:999px;flex:0 0 auto}
-  .gstate.on{color:var(--accent);background:#10301f}
-  .gstate.off{color:#aeb6c2;background:#23262d}
-  .gcard .gd{padding:2px 12px 0;font-size:12px;color:#9a917f}
-  .seg{display:flex;gap:8px;margin:11px 12px 0}
-  .seg button{flex:1;border:2px solid var(--line);background:transparent;color:var(--sub);border-radius:13px;padding:12px 0;font-size:14px;font-weight:800;transition:.15s}
-  .seg button:active{transform:scale(.97)}
-  .seg .seg-on.sel{background:var(--ok);border-color:var(--ok);color:#fff;box-shadow:0 4px 14px rgba(31,157,85,.35)}
-  .seg .seg-off.sel{background:#c0473a;border-color:#c0473a;color:#fff;box-shadow:0 4px 14px rgba(192,71,58,.35)}
-  /* ===== レポート ===== */
+  .empty{text-align:center;color:var(--sub);margin-top:64px;font-size:15px;line-height:1.7}
+  .sk{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:12px;margin-bottom:14px}
+  .sk .b{background:linear-gradient(90deg,#1d222b 25%,#262c37 37%,#1d222b 63%);background-size:400% 100%;
+    animation:shim 1.3s infinite;border-radius:8px}
+  .sk .l1{height:14px;width:42%;margin-bottom:10px}.sk .img{height:230px;border-radius:13px;margin-bottom:10px}
+  .sk .l2{height:13px;width:70%}
+  @keyframes shim{0%{background-position:100% 0}100%{background-position:-100% 0}}
+  #toast{position:fixed;left:50%;bottom:calc(env(safe-area-inset-bottom) + 22px);transform:translateX(-50%);
+    background:#000;color:#fff;padding:11px 18px;border-radius:24px;font-size:14px;opacity:0;transition:.2s;
+    pointer-events:none;z-index:30;max-width:90%;text-align:center}
+  #toast.show{opacity:.96}
+  #ios{display:none;position:fixed;left:12px;right:12px;bottom:calc(env(safe-area-inset-bottom) + 14px);z-index:25;
+    background:#1b2029;border:1px solid var(--line);border-radius:14px;padding:12px 14px;font-size:13px;line-height:1.6;color:var(--fg)}
+  #ios b{color:var(--accent)}#ios .x{float:right;color:var(--sub);font-weight:800;padding:0 4px}
+  /* 管理者バー（見本ギャラリー） */
+  .adminbar{display:flex;align-items:center;justify-content:center;gap:10px;margin:0 2px 16px}
+  .adminbar .abadge{font-size:13px;font-weight:800;color:var(--accent);background:#10301f;padding:6px 13px;border-radius:999px}
+  .adminbar .alink{border:1px solid var(--line);background:#181c23;color:var(--sub);font-size:13px;font-weight:700;
+    padding:8px 15px;border-radius:999px}
+  .adminbar .alink:active{transform:scale(.97)}
+  /* モーダル（通知の個別設定など） */
+  .modalOv{position:fixed;inset:0;z-index:40;background:rgba(0,0,0,.5);display:flex;align-items:flex-end;
+    justify-content:center;opacity:0;transition:opacity .2s;pointer-events:none}
+  .modalOv.show{opacity:1;pointer-events:auto}
+  .modal{width:100%;max-width:560px;background:var(--card);border:1px solid var(--line);border-bottom:0;
+    border-radius:18px 18px 0 0;padding:4px 16px calc(env(safe-area-inset-bottom) + 18px);
+    transform:translateY(24px);transition:transform .2s}
+  .modalOv.show .modal{transform:none}
+  .mhead{display:flex;align-items:center;justify-content:space-between;padding:14px 2px 8px;font-size:16px;font-weight:800}
+  .mhead .mx{border:0;background:transparent;color:var(--sub);font-size:18px;font-weight:800;padding:4px 8px}
+  .mbody{display:flex;flex-direction:column}
+  .mlead{color:var(--sub);font-size:13px;line-height:1.6;margin:0 2px 6px}
+  .swrow{display:flex;align-items:center;gap:12px;padding:14px 4px;border-top:1px solid var(--line)}
+  .swtxt{flex:1}.swtxt b{font-size:15px;font-weight:700}.swtxt small{display:block;color:var(--sub);font-size:12px;margin-top:3px}
+  .sw{position:relative;width:50px;height:30px;flex:0 0 auto}
+  .sw input{position:absolute;inset:0;opacity:0;margin:0;z-index:2}
+  .sw i{position:absolute;inset:0;background:#3a3f4a;border-radius:999px;transition:.18s}
+  .sw i::after{content:"";position:absolute;top:3px;left:3px;width:24px;height:24px;background:#fff;border-radius:50%;transition:.18s}
+  .sw input:checked + i{background:var(--ok)}
+  .sw input:checked + i::after{transform:translateX(20px)}
+  .mbtn{margin-top:16px;border:0;border-radius:13px;padding:13px 0;font-size:15px;font-weight:800}
+  .mbtn.off{background:#23262d;color:#e2675c}
+  .mbtn:active{transform:scale(.98)}
+  /* ===== レポート（画面=モバイル最適化 / PDF=A4資料） ===== */
   #report{padding:14px 12px 36px;max-width:560px;margin:0 auto}
+  .repbar{display:flex;gap:8px;margin:2px 2px 14px}
+  .repbar button{flex:1;border:1px solid var(--line);background:#181c23;color:var(--fg);font-size:14px;font-weight:800;
+    padding:11px 0;border-radius:12px}
+  .repbar button.pdf{background:#10301f;color:var(--accent);border-color:#1f4d33}
+  .repbar button:active{transform:scale(.98)}
   .rephint{color:var(--sub);font-size:12px;text-align:center;margin:0 4px 14px;line-height:1.6}
   .repdoc{background:#fff;color:#1b2433;border-radius:14px;overflow:hidden}
   .rephd{background:linear-gradient(135deg,#1b2433,#2e3c52);color:#fff;padding:22px 22px}
@@ -116,9 +205,13 @@
   .repkpi .d{display:inline-block;margin-top:8px;font-size:12px;font-weight:800;padding:3px 9px;border-radius:999px}
   .repkpi .prev{font-size:11px;color:#9aa3b2;margin-top:6px}
   .up{color:#127a40;background:#e3f5ea}.down{color:#b23b3b;background:#fbe7e7}.flat{color:#6c7689;background:#eceff3}
+  .repchart{position:relative;touch-action:none}
   .repbars{display:flex;align-items:flex-end;gap:3px;height:120px;background:#f4f6f9;border-radius:12px;padding:12px 12px 8px}
-  .repbars i{flex:1;background:#33507f;border-radius:3px 3px 0 0;min-height:2px;opacity:.9}
+  .repbars i{flex:1;background:#33507f;border-radius:3px 3px 0 0;min-height:2px;opacity:.9;transition:background .08s}
   .repbars i.hot{background:#e0a93b;opacity:1}
+  .reptip{position:absolute;top:-6px;transform:translateX(-50%);background:#1b2433;color:#fff;font-size:12px;padding:5px 11px;border-radius:9px;display:none;white-space:nowrap;pointer-events:none;z-index:6;box-shadow:0 4px 14px rgba(0,0,0,.3)}
+  .reptip b{font-size:14.5px;margin-right:7px}
+  .reptip span{opacity:.82}
   .repax{display:flex;justify-content:space-between;font-size:11px;color:#9aa3b2;margin:6px 4px 0}
   .repanal{display:flex;flex-direction:column;gap:10px}
   .repcard{background:#fff;border:1px solid #eef1f5;border-left:6px solid #ccc;border-radius:12px;padding:14px 16px}
@@ -130,9 +223,21 @@
   .repcard li::before{content:"";position:absolute;left:2px;top:12px;width:7px;height:7px;border-radius:50%;background:#c4ccd8}
   .repcard.good li::before{background:#2bb673}.repcard.warn li::before{background:#e0a93b}.repcard.act li::before{background:#3b6fd6}
   .repcard li b{color:#1b2433;font-weight:800}
+  .repfoot{color:#9aa3b2;font-size:11px;text-align:center;padding:14px 16px 18px;line-height:1.6}
+  .repnote{font-size:11.5px;color:#8a94a6;margin:2px 2px 6px}
+  .rchips{display:flex;flex-wrap:wrap;gap:8px}
+  .rchip{font-size:13px;font-weight:800;color:#384153;background:#f4f6f9;border:1px solid #eef1f5;border-radius:999px;padding:7px 13px}
+  .rchip.good{color:#127a40;background:#e3f5ea;border-color:#bfe8cd}
+  .rchip.warn{color:#a9781a;background:#fbf2dd;border-color:#f0dcae}
+  /* 比較期間セレクタ */
+  .repmode{display:flex;gap:6px;padding:0 16px 4px;max-width:560px;margin:0 auto}
+  .repmode .rm{flex:1;border:1px solid var(--line);background:#181c23;color:var(--sub);font-size:13px;font-weight:800;padding:8px 0;border-radius:10px}
+  .repmode .rm.on{background:#10301f;color:var(--accent);border-color:#1f4d33}
+  .repmode .rm:active{transform:scale(.96)}
   .repposts{display:flex;flex-direction:column;gap:8px}
   .reppost{background:#f4f6f9;border-radius:12px;padding:9px 11px;display:flex;gap:11px;align-items:center}
   .reppost .rt{width:62px;height:62px;border-radius:10px;object-fit:cover;flex:0 0 auto;background:#e7ebf1}
+  .reppost .rt.none{display:flex;align-items:center;justify-content:center;font-size:24px;color:#aeb6c2}
   .reppost .ri{flex:1;min-width:0}
   .reppost .rl{display:flex;align-items:center;gap:8px;margin-bottom:5px}
   .reppost .rb{font-size:10.5px;font-weight:800;color:#fff;background:#8a94a6;border-radius:999px;padding:2px 9px}
@@ -142,538 +247,123 @@
   .reppost .rr{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}
   .reppost .rr b{font-size:15px;color:#1b2433;font-weight:800}
   .reppost .rr small{font-size:11.5px;color:#6c7689}
-  .repfoot{color:#9aa3b2;font-size:11px;text-align:center;padding:14px 16px 18px;line-height:1.6}
-  /* レポート操作バー（更新／PDF） */
-  .repbar{display:flex;gap:8px;justify-content:center;margin:0 4px 14px}
-  .repbar button{border:1px solid var(--line);background:#181c23;color:var(--sub);font-size:13px;font-weight:800;padding:9px 16px;border-radius:999px}
-  .repbar button.pdf{background:#10301f;color:var(--accent);border-color:#1f4d33}
-  .repbar button:active{transform:scale(.96)}
-  .repbar button[disabled]{opacity:.5}
-  /* グラフ操作（なぞって日付＋数値） */
-  .repchart{position:relative;touch-action:none}
-  .repbars i{transition:background .08s}
-  .reptip{position:absolute;top:-6px;transform:translateX(-50%);background:#1b2433;color:#fff;font-size:12px;padding:5px 11px;border-radius:9px;display:none;white-space:nowrap;pointer-events:none;z-index:6;box-shadow:0 4px 14px rgba(0,0,0,.3)}
-  .reptip b{font-size:14.5px;margin-right:7px}.reptip span{opacity:.82}
-  .repnote{font-size:11px;color:#9aa3b2;margin:8px 2px 2px;line-height:1.5}
-  /* タップで指標切替できるKPI */
-  .repkpi.tap{cursor:pointer;transition:box-shadow .12s,transform .08s}
-  .repkpi.tap:active{transform:scale(.98)}
-  .repkpi.tap.on{box-shadow:0 0 0 2px #e0a93b inset}
-  /* A4 出力モード（PDF生成時にクローンへ付与） */
+  /* A4 出力モード（PDF生成時にクローンへ付与）：1枚目にダッシュボードが収まるよう余白を圧縮 */
   .repdoc.a4{width:794px;border-radius:0}
-  .repdoc.a4 .repsec{padding:11px 26px 3px}.repdoc.a4 .repsec h3{margin:0 0 8px}
+  .repdoc.a4 .repsec{padding:11px 26px 3px}
+  .repdoc.a4 .repsec h3{margin:0 0 8px}
   .repdoc.a4 .rephd{padding:20px 26px}
   .repdoc.a4 .repkpis{grid-template-columns:1fr 1fr 1fr 1fr;margin-bottom:4px}
-  .repdoc.a4 .repkpi{padding:11px 13px}.repdoc.a4 .repkpi .v{font-size:23px}
+  .repdoc.a4 .repkpi{padding:11px 13px}
+  .repdoc.a4 .repkpi .v{font-size:23px}
   .repdoc.a4 .repbars{height:96px}
   .repdoc.a4 .repposts{display:grid;grid-template-columns:1fr 1fr;gap:8px}
-  .repdoc.a4 .reppost{padding:7px 10px}.repdoc.a4 .reppost .rt{width:52px;height:52px}
+  .repdoc.a4 .reppost{padding:7px 10px}
+  .repdoc.a4 .reppost .rt{width:52px;height:52px}
   .repdoc.a4 .repnote{margin:1px 2px 3px}
+  /* 分析・まとめは必ず2枚目から（ダッシュボードと分けて綺麗に1枚へ） */
   .repdoc.a4 .repbreak{break-before:page;page-break-before:always;padding-top:22px}
-  .repdoc.a4 .repkpi.tap.on{box-shadow:none;background:#fbf3df;border:1px solid #efe1bb}
+  /* PDFが2ページに収まらない時に自動で適用される圧縮モード */
   .repdoc.a4.a4tight{font-size:12px}
-  .repdoc.a4.a4tight .rephd{padding:13px 22px}.repdoc.a4.a4tight .repsec{padding:7px 22px 2px}
+  .repdoc.a4.a4tight .rephd{padding:13px 22px}
+  .repdoc.a4.a4tight .repsec{padding:7px 22px 2px}
   .repdoc.a4.a4tight .repsec h3{font-size:13px;margin:0 0 5px}
-  .repdoc.a4.a4tight .repkpi{padding:7px 10px}.repdoc.a4.a4tight .repkpi .v{font-size:18px}
+  .repdoc.a4.a4tight .repkpi{padding:7px 10px}
+  .repdoc.a4.a4tight .repkpi .v{font-size:18px}
   .repdoc.a4.a4tight .repbars{height:72px}
-  .repdoc.a4.a4tight .reppost{padding:4px 8px}.repdoc.a4.a4tight .reppost .rt{width:42px;height:42px}
-  .repdoc.a4.a4tight .repnote{font-size:10px;margin:0 2px 2px}.repdoc.a4.a4tight .repbreak{padding-top:14px}
+  .repdoc.a4.a4tight .reppost{padding:4px 8px}
+  .repdoc.a4.a4tight .reppost .rt{width:42px;height:42px}
+  .repdoc.a4.a4tight .repnote{font-size:10px;margin:0 2px 2px}
+  .repdoc.a4.a4tight .repbreak{padding-top:14px}
+  /* さらに収まらない時の第2段階圧縮 */
   .repdoc.a4.a4tight2{font-size:11px}
-  .repdoc.a4.a4tight2 .repcard{padding:8px 10px}.repdoc.a4.a4tight2 .repcard h4{font-size:12px;margin:0 0 4px}
-  .repdoc.a4.a4tight2 .repcard li{margin:2px 0}.repdoc.a4.a4tight2 .repkpi .v{font-size:16px}
-  .repdoc.a4.a4tight2 .repbars{height:58px}.repdoc.a4.a4tight2 .reppost .rt{width:36px;height:36px}
+  .repdoc.a4.a4tight2 .repcard{padding:8px 10px}
+  .repdoc.a4.a4tight2 .repcard h4{font-size:12px;margin:0 0 4px}
+  .repdoc.a4.a4tight2 .repcard li{margin:2px 0}
+  .repdoc.a4.a4tight2 .repkpi .v{font-size:16px}
+  .repdoc.a4.a4tight2 .repbars{height:58px}
+  .repdoc.a4.a4tight2 .reppost .rt{width:36px;height:36px}
   .repdoc.a4.a4tight2 .repsec{padding:5px 20px 2px}
-  #toast{position:fixed;left:50%;bottom:calc(env(safe-area-inset-bottom) + 22px);transform:translateX(-50%);
-    background:#000;color:#fff;padding:11px 18px;border-radius:24px;font-size:14px;opacity:0;transition:.2s;pointer-events:none;z-index:30;max-width:90%;text-align:center}
-  #toast.show{opacity:.96}
-  .foot{color:#6f685d;font-size:10px;text-align:center;padding:20px 0 calc(env(safe-area-inset-bottom) + 16px)}
+  /* 上部固定の前日/週間/月間バー（ヘッダー内＝スクロールしても見える） */
+  .rmbar{display:flex;gap:6px;padding:0 16px 10px;max-width:560px;margin:0 auto}
+  .rmbar .rm{flex:1;border:1px solid var(--line);background:#181c23;color:var(--sub);font-size:13px;font-weight:800;padding:7px 0;border-radius:999px}
+  .rmbar .rm.on{background:#10301f;color:var(--accent);border-color:#1f4d33}
+  .rmbar .rm:active{transform:scale(.96)}
+  .repkpi.tap{cursor:pointer;-webkit-tap-highlight-color:transparent;transition:box-shadow .12s,transform .08s}
+  .repkpi.tap:active{transform:scale(.98)}
+  .repkpi.tap.on{box-shadow:0 0 0 2px #e0a93b inset}
+  /* PDF(A4)では選択枠の太い縁をやめ、淡い色味だけで示す＝違和感を解消（選択中の指標はグラフ見出しで分かる） */
+  .repdoc.a4 .repkpi.tap.on{box-shadow:none;background:#fbf3df;border:1px solid #efe1bb}
+  .reppost.tap{cursor:pointer}
+  .reppost.tap:active{transform:scale(.99)}
+  .rtwrap{position:relative;flex:0 0 auto;line-height:0}
+  .rtplay{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:24px;height:24px;border-radius:50%;background:rgba(0,0,0,.55);color:#fff;font-size:11px;display:flex;align-items:center;justify-content:center}
+  /* 拡大表示（ライトボックス） */
+  .lbov{position:fixed;inset:0;z-index:50;background:rgba(0,0,0,.86);display:flex;align-items:center;justify-content:center;padding:18px;opacity:0;transition:opacity .2s}
+  .lbov.show{opacity:1}
+  .lbbox{position:relative;max-width:560px;width:100%;display:flex;flex-direction:column;align-items:center}
+  .lbm{max-width:100%;max-height:74vh;border-radius:12px;background:#000;object-fit:contain}
+  .lbx{position:absolute;top:-6px;right:-6px;width:36px;height:36px;border-radius:50%;border:none;background:#fff;color:#1b2433;font-size:17px;font-weight:800}
+  .lbmeta{color:#fff;font-size:13px;margin-top:12px;text-align:center}.lbmeta b{font-size:15px}
+  .lblink{color:#7fd1a0;font-size:13px;margin-top:10px;text-decoration:none;font-weight:800}
+  .lbnone{color:#fff;padding:40px;font-size:14px}
 </style>
 </head>
 <body>
-<header class="topbar">
-  <div class="bar">
-    <img class="logo" src="./icons/store_gifuyatenjin.png" alt="ぎふや 福岡天神店">
-    <h1 id="storeName">ぎふや 福岡天神店</h1>
-    <button class="push" id="pushBtn">🔔 通知</button>
-    <div class="dot"><i></i><span id="modeTxt">見本モード</span></div>
+  <div id="ptr"><i></i></div>
+  <div id="app">
+  <header class="topbar">
+    <div class="bar">
+      <img class="logo" src="./icons/store_gifuyatenjin.png" alt="ぎふや 福岡天神店">
+      <h1 id="storeName">ぎふや 福岡天神店</h1>
+      <button class="push" id="pushBtn">🔔 通知ON</button>
+      <div class="dot" id="live"><i></i><span id="liveTxt">接続中…</span></div>
+    </div>
+    <div class="tabs">
+      <button class="tab on" id="tabFeed">確認</button>
+      <button class="tab" id="tabGallery">見本</button>
+      <button class="tab" id="tabReport">レポート</button>
+      <button class="reeltab" onclick="location.href='./gifuya_reels.html'">🎬 リール</button>
+    </div>
+    <div class="rmbar" id="repmodeBar" style="display:none">
+      <button class="rm" data-m="week">週間</button>
+      <button class="rm" data-m="biweek">14日間</button>
+      <button class="rm on" data-m="month">月間</button>
+    </div>
+  </header>
+  <div id="feed">
+    <div class="sk"><div class="b l1"></div><div class="b img"></div><div class="b l2"></div></div>
+    <div class="sk"><div class="b l1"></div><div class="b img"></div><div class="b l2"></div></div>
   </div>
-  <div class="tabs">
-    <button class="tab on" id="tabFeed">確認</button>
-    <button class="tab" id="tabGallery">見本</button>
-    <button class="tab" id="tabReport">レポート</button>
-    <a class="reeltab" href="./gifuya_reels.html">🎬 リール</a>
+  <div id="gallery" style="display:none"></div>
+  <div id="report" style="display:none"></div>
+  </div><!-- /#app -->
+  <div id="toast"></div>
+  <div id="ios">
+    <span class="x" onclick="document.getElementById('ios').style.display='none'">✕</span>
+    📲 ホーム画面に追加すると<b>一瞬で起動</b>＆<b>通知</b>が使えます。<br>
+    共有ボタン <b>⬆️</b> →「ホーム画面に追加」
   </div>
-</header>
-
-<div id="feed"></div>
-<div id="gallery" style="display:none"></div>
-<div id="report" style="display:none"></div>
-
-<div id="toast"></div>
-<div class="foot">すさび湯グループ 投稿管理 ・ ぎふや 福岡天神店</div>
-
-<script src="./config.gifuya.js"></script>
-<script>
-(function () {
-  "use strict";
-  var V = "?v=126";  // メディアのキャッシュ更新用（同名ファイル更新時にブラウザ再取得させる）
-  // 実稼働化の受け皿：GIFUYA_LIVE=true（専用GAS URL 注入済み）になると実データ連携へ切替予定。
-  // 現状は未設定＝見本モードで安全表示（実データのレンダリングは実稼働化ステップで有効化）。
-  var LIVE = !!window.GIFUYA_LIVE;
-  var mt = document.getElementById("modeTxt"); if (mt) mt.textContent = LIVE ? "実データ連携" : "見本モード";
-  var COMMON = "#ぎふや #ぎふや福岡天神店 #大衆酒場 #天神グルメ #福岡グルメ #天神居酒屋 #福岡居酒屋 #天神 #福岡 #天神飲み #福岡グルメ好きと繋がりたい #大正5年創業 #fukuoka #tenjin #fukuokafood";
-  var toastEl = document.getElementById("toast"), toastT = null;
-  function toast(m){ toastEl.textContent=m; toastEl.classList.add("show"); clearTimeout(toastT);
-    toastT=setTimeout(function(){toastEl.classList.remove("show");},1900); }
-  function copy(text, cb){
-    if (navigator.clipboard && navigator.clipboard.writeText){ navigator.clipboard.writeText(text).then(cb, fallback); }
-    else fallback();
-    function fallback(){ var ta=document.createElement("textarea"); ta.value=text; document.body.appendChild(ta); ta.select();
-      try{ document.execCommand("copy"); cb(); }catch(e){ toast("コピーできませんでした"); } document.body.removeChild(ta); }
-  }
-
-  // ===== データ =====
-  var POSTS = [
-    {img:"feed_01.jpg", t:"元祖どぶ漬けどてかつ", pat:"短冊", when:"本日 18:00 予定",
-     cap:"名物、元祖どぶ漬けどてかつ🍢\n秘伝の自家製どて味噌にどっぷり漬け込んだ一本。安くて旨い、まずは一杯。",
-     tags:"#どてかつ #串かつ #どて焼き #天神串かつ"},
-    {img:"feed_02.jpg", t:"ぎふや厳選 串かつ10種盛り", pat:"短冊", when:"明日 12:00 予定",
-     cap:"迷ったらこれ。ぎふや厳選 串かつ10種盛り🍢\n定番から変わり種まで、一度に楽しめる欲張りな盛り合わせ。",
-     tags:"#串かつ #串カツ #串かつ食べ放題 #天神グルメ"},
-    {img:"feed_03.jpg", t:"名物どて焼き", pat:"H 巨大縦書き", when:"明日 18:00 予定",
-     cap:"大正5年から受け継ぐ看板の味、名物どて焼き。\nとろとろに煮込んだ自家製どて味噌が、酒を呼ぶ。",
-     tags:"#どて焼き #もつ煮込み #天神居酒屋 #福岡飲み"},
-    {img:"feed_04.jpg", t:"ぎふやの明太出汁巻き", pat:"短冊", when:"明後日 12:00 予定",
-     cap:"ふわとろ、明太出汁巻き。\n福岡ならではの明太子を、あつあつの出汁巻きで包みました。",
-     tags:"#明太子 #出汁巻き卵 #福岡明太子 #天神ディナー"},
-    {img:"feed_05.jpg", t:"刺身盛り合わせ", pat:"短冊", when:"明後日 18:00 予定",
-     cap:"福岡の鮮度、そのままに。刺身盛り合わせ🐟\nその日の良いものを、良い状態で。日本酒との相性も抜群。",
-     tags:"#刺身 #海鮮 #福岡海鮮 #天神ディナー"},
-    {img:"feed_06.jpg", t:"ぎふやの炊き餃子", pat:"短冊", when:"3日後 12:00 予定",
-     cap:"福岡名物、炊き餃子。\nコラーゲンたっぷりの白湯スープで炊き上げる、体にしみる一品。",
-     tags:"#炊き餃子 #餃子 #福岡名物 #天神グルメ"},
-    {img:"feed_07.jpg", t:"本家 牛串かつ", pat:"短冊", when:"3日後 18:00 予定",
-     cap:"肉の旨みを、串で。本家 牛串かつ🍢\nサクッと衣、ジューシーな牛肉。ビールが止まらない。",
-     tags:"#牛串 #串かつ #肉串 #天神肉バル"},
-    {img:"feed_08.jpg", t:"自家製 鶏唐揚げ", pat:"短冊", when:"4日後 12:00 予定",
-     cap:"揚げたて、ジューシー。自家製鶏唐揚げ🍗\n下味しっかり、外はカリッと中はジュワッと。レモンをキュッと。",
-     tags:"#唐揚げ #からあげ #福岡唐揚げ #天神グルメ"},
-    {img:"feed_09.jpg", t:"馬刺し", pat:"短冊", when:"4日後 18:00 予定",
-     cap:"酒が進む、馬刺し🐴\nとろける赤身とコクのある旨み。九州の酒場の定番をぎふやで。",
-     tags:"#馬刺し #馬肉 #九州グルメ #福岡飲み"},
-    {img:"feed_10.jpg", t:"和牛マルシンのたたき", pat:"短冊", when:"5日後 12:00 予定",
-     cap:"希少部位を、贅沢に。和牛マルシンのたたき。\n一頭からわずかしか取れない部位を、香ばしく炙って。",
-     tags:"#和牛 #希少部位 #肉好きと繋がりたい #天神ディナー"},
-    {img:"feed_11.jpg", t:"〆のラーメン", pat:"短冊", when:"5日後 18:00 予定",
-     cap:"〆はやっぱり、ラーメン🍜\n飲んだ後のシメに、ぎふやの一杯。福岡の夜はこれで完成。",
-     tags:"#ラーメン #〆ラーメン #福岡ラーメン #天神ラーメン"},
-    {img:"feed_12.jpg", t:"生ハムポテト", pat:"短冊", when:"6日後 12:00 予定",
-     cap:"一杯目の相棒、生ハムポテト🍟\nあつあつポテトに生ハムをのせて。ついつい頼んでしまう名脇役。",
-     tags:"#ポテト #生ハム #おつまみ #天神居酒屋"}
-  ];
-  var DYNVIDS = [
-    {n:"01", t:"本日の一皿",         d:"料理を一皿ずつ大きく紹介"},
-    {n:"03", t:"旬のおすすめ",       d:"旬の一品を華やかに紹介"},
-    {n:"04", t:"赤暖簾くぐり",       d:"朱赤の大衆暖簾から料理へ"},
-    {n:"05", t:"短冊・お品書き",     d:"木札に写真を貼り上げていく"},
-    {n:"07", t:"暖簾くぐり",         d:"紺暖簾が上がって奥の料理へ"},
-    {n:"08", t:"シンプル紹介",       d:"写真1枚をシンプルに見せる"},
-    {n:"09", t:"本日の一皿",         d:"料理を一皿ずつ大きく紹介"},
-    {n:"12", t:"旬のおすすめ",       d:"旬の一品を華やかに紹介"},
-    {n:"14", t:"暖簾くぐり",         d:"紺暖簾が上がって奥の料理へ"},
-    {n:"15", t:"お品書き（縦）",      d:"和紙×明朝・縦書きで一覧完成"}
-  ];
-  var STORYVIDS = [
-    {n:"01", t:"統一"},
-    {n:"02", t:"巨大縦書き"},
-    {n:"04", t:"にぎやか価格"},
-    {n:"11", t:"雑誌風"},
-    {n:"12", t:"本日のおすすめ"}
-  ];
-  var PATTERNS = [
-    {img:"pattern_tanzaku.jpg", t:"短冊（メイン）", d:"福岡天神店の赤短冊＋見出し。安さ・名物訴求に強い。フィードの主役。"},
-    {img:"pattern_bigname.jpg", t:"H 巨大縦書き", d:"料理名を大きく縦書き。名物1品押しに（元祖どてかつ・名物どて焼き）。"}
-  ];
-
-  // ===== ① 確認（三条と同じ：承認待ちキューのライブ確認） =====
-  // gifuya-prepare が2日先の各枠を「その日の写真から新規レンダリング」し、承認待ち_gifuyatenjin に
-  // pending 登録する。ここでオーナーが 投稿OK / 作り直す / やめる を操作（三条 index.html と同じ
-  // list/act 方式）。やめない限り予定時刻に自動投稿（オプトアウト）。
-  var CFG2 = window.GIFUYA || {};
-  var GAS = (CFG2.GAS_URL||"").trim(), ACCT = (CFG2.ACCOUNT||"gifuyatenjin");
-  // 軽量JSONP：共有GASへ「やめる/差し替え/OK」を反映（自動投稿の判断に使用）。失敗しても端末表示は保持。
-  var _jc=0;
-  function _gkey(){ try{ return localStorage.getItem("gf_key")||"8888"; }catch(e){ return "8888"; } }
-  function gas(params){ if(!LIVE || !GAS || GAS.indexOf("PASTE_")===0) return;
-    var cb="__gs"+(++_jc)+"_"+Date.now(), s=document.createElement("script");
-    params.account=ACCT; params.cb=cb; if(!params.key) params.key=_gkey();   // GASのAPP_KEY(確認コード)必須
-    window[cb]=function(){ try{ delete window[cb]; }catch(e){} if(s.parentNode) s.parentNode.removeChild(s); };
-    var q=Object.keys(params).map(function(k){ return k+"="+encodeURIComponent(params[k]); }).join("&");
-    s.src=GAS+(GAS.indexOf("?")>=0?"&":"?")+q; s.onerror=window[cb]; document.head.appendChild(s); }
-  // 読み取り用JSONP（応答をonDataで受け取る）。
-  function gasGet(params, onData){ if(!LIVE || !GAS || GAS.indexOf("PASTE_")===0) return;
-    var cb="__gg"+(++_jc)+"_"+Date.now(), s=document.createElement("script");
-    params.account=ACCT; params.cb=cb; if(!params.key) params.key=_gkey();
-    window[cb]=function(res){ try{ delete window[cb]; }catch(e){} if(s.parentNode) s.parentNode.removeChild(s); try{ onData&&onData(res); }catch(e){} };
-    var q=Object.keys(params).map(function(k){ return k+"="+encodeURIComponent(params[k]); }).join("&");
-    s.src=GAS+(GAS.indexOf("?")>=0?"&":"?")+q; s.onerror=function(){ try{ window[cb](); }catch(e){} }; document.head.appendChild(s); }
-  function esc(s){ return String(s==null?"":s).replace(/[&<>"]/g,function(m){return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[m];}); }
-  // seedから決まる順列（Fisher-Yates+LCG）。フィード候補の日替わりシャッフルで使用。
-  function seededOrder(n, seed){ var a=[],i,s=(seed>>>0)||1; for(i=0;i<n;i++)a.push(i);
-    for(i=n-1;i>0;i--){ s=(s*1664525+1013904223)>>>0; var j=s%(i+1),t=a[i];a[i]=a[j];a[j]=t; } return a; }
-  function _bg(blur){ return blur ? ' style="background:#000 url(\''+blur+'\') center center / cover no-repeat"' : ' style="background:#000"'; }
-  function isVideo(it){ var u=(it.url||"").toLowerCase(); return it.kind==="video" || u.indexOf(".mp4")>=0 || u.indexOf(".mov")>=0; }
-  function mediaHtml(it){
-    if(isVideo(it)){ var p=it.poster?(' poster="'+it.poster+'"'):'';
-      // ポスターが無い時は #t=0.1 で先頭フレームを表示（黒箱防止）。preload=autoで再生を即時化。
-      var src=it.poster?it.url:(it.url+((it.url||"").indexOf("#")>=0?"":"#t=0.1"));
-      return '<div class="mediaWrap story"><video class="media"'+_bg(it.blur)+' src="'+src+'"'+p+' controls playsinline preload="auto" webkit-playsinline></video></div>'; }
-    return '<div class="mediaWrap story"><img class="media"'+_bg(it.blur)+' src="'+(it.url||it.poster||"")+'" alt=""></div>';
-  }
-
-  var feed = document.getElementById("feed");
-  var note = document.createElement("div"); note.className="note";
-  note.innerHTML = "<b>投稿の確認</b>（三条と同じ確認画面）。毎日その日の写真で作った動画を、投稿の2日前から確認できます。ストーリーは <b>11:00・17:00・20:00</b> に自動投稿。<b>やめない限り、そのまま自動で投稿</b>されます。<br>各回を見て <b>投稿OK / 作り直す（新しく作り直す）/ やめる（この回は投稿しない）</b>。"+(LIVE?"":"（現在は見本モードのため、操作は反映されません）");
-  feed.appendChild(note);
-
-  function seclabel2(txt){ var s=document.createElement("div"); s.textContent=txt;
-    s.style.cssText="font-weight:800;margin:18px 4px 8px;color:#e7ecf3;font-size:15px"; feed.appendChild(s); }
-
-  // --- ストーリー（承認待ちキュー・三条 index.html と同じ list/act 方式） ---
-  seclabel2("🎬 ストーリー（承認待ち）");
-  var qWrap=document.createElement("div"); feed.appendChild(qWrap);
-  var _acting={};   // 二重押下防止（token単位）
-
-  function renderQueue(items){
-    qWrap.innerHTML="";
-    if(!items || !items.length){
-      var e=document.createElement("div"); e.className="note"; e.style.cssText="margin:8px 4px";
-      e.textContent = LIVE ? "確認待ちの投稿はありません。（毎日 05:10 JST に2日先ぶんを自動生成します）"
-                           : "見本モードです。実データ連携すると承認待ちが表示されます。";
-      qWrap.appendChild(e); return;
+  <script src="./config.gifuya.js"></script>
+  <script src="./app.js"></script>
+  <script>
+    if ("serviceWorker" in navigator) {
+      var __hadCtrl = !!navigator.serviceWorker.controller;
+      var __refreshing = false;
+      // 新しいバージョンが有効化されたら一度だけ自動リロード（初回インストールは除外＝ループ防止）
+      navigator.serviceWorker.addEventListener("controllerchange", function () {
+        if (__refreshing || !__hadCtrl) return;
+        __refreshing = true; location.reload();
+      });
+      window.addEventListener("load", function () {
+        navigator.serviceWorker.register("./sw.js").then(function (reg) {
+          if (reg) { try { reg.update(); } catch (e) {} }
+          // アプリに戻ってきた時にも更新を確認（最新を取りに行く）
+          document.addEventListener("visibilitychange", function () {
+            if (document.visibilityState === "visible" && reg) { try { reg.update(); } catch (e) {} }
+          });
+        }).catch(function () {});
+      });
     }
-    items.forEach(function(it){
-      var c=document.createElement("div"); c.className="card";
-      var head='<div class="head"><span class="time">'+esc(it.when)+'</span><span class="pat">'+esc(it.patternJa||it.pattern||"")+'</span><span class="remain">'+esc(it.remain||"")+'</span></div>';
-      var cap = it.caption ? ('<div class="cap">'+esc(it.caption)+'</div>') : '';
-      if(it.status==="redo"){
-        c.innerHTML=head+mediaHtml(it)+'<div class="slot"><div class="redoing"><span class="spin"></span>作り直し中…（数分で新しい動画に更新されます）</div></div>';
-      } else if(it.status==="approved"){
-        c.innerHTML=head+mediaHtml(it)+cap+'<div class="slot"><div class="banner okb">✓ 承認済み（予定時刻に投稿されます）</div></div>';
-      } else {
-        c.innerHTML=head+mediaHtml(it)+cap+'<div class="slot"><div class="btns"><button class="ok">投稿OK</button><button class="rd">作り直す</button><button class="ng">やめる</button></div></div>';
-        var sl=c.querySelector(".slot");
-        sl.querySelector(".ok").onclick=function(){ act(it.token,"ok","承認しました"); };
-        sl.querySelector(".rd").onclick=function(){ act(it.token,"redo","作り直します（数分お待ちください）"); };
-        sl.querySelector(".ng").onclick=function(){ act(it.token,"cancel","この回はやめました"); };
-      }
-      qWrap.appendChild(c);
-    });
-  }
-
-  function act(token, action, msg){
-    if(!LIVE){ toast("見本モードのため操作できません"); return; }
-    if(_acting[token]) return; _acting[token]=1;
-    gas({api:"act", token:token, action:action});     // サーバへ反映（JSONP・投げっぱなし）
-    toast(msg);
-    setTimeout(function(){ _acting[token]=0; loadQueue(); }, 800);  // キャッシュbust後に真実を再取得
-  }
-
-  function _hhmmss(){ var d=new Date(), z=function(n){return(n<10?"0":"")+n;}; return z(d.getHours())+":"+z(d.getMinutes())+":"+z(d.getSeconds()); }
-  function markLive(){ var m=document.getElementById("modeTxt"); if(m) m.textContent="実データ連携・最新 "+_hhmmss();
-    var d=document.querySelector(".dot i"); if(d){ d.classList.remove("beat"); void d.offsetWidth; d.classList.add("beat"); } }
-  var _lastSig=null;
-  function loadQueue(){ gasGet({api:"list"}, function(res){ if(res && res.items){ markLive();
-    if(res.sig!==_lastSig){ _lastSig=res.sig; renderQueue(res.items); } } }); }
-  if(LIVE){ loadQueue(); setInterval(loadQueue, 8000); }
-  else { renderQueue(null); }
-
-  // この確認タブは「ストーリーの承認」専用。フィード／リールの投稿・予約は「🎬 リール」タブで行う（三条と同じ分離）。
-  var fnote=document.createElement("div"); fnote.className="note"; fnote.style.cssText="margin:20px 4px 0";
-  fnote.innerHTML='📸 <b>フィード・リールの投稿</b>はこの画面ではなく <a href="./gifuya_reels.html" style="color:var(--accent);font-weight:800;text-decoration:none">🎬 リールタブ</a> から行います（写真の選択・キャプション・予約はそちら）。';
-  feed.appendChild(fnote);
-
-  // ===== ② 見本（ギャラリー・動画/画像フィルタ付き） =====
-  var gal = document.getElementById("gallery");
-  gal.className = "fvid";
-  var filt = document.createElement("div"); filt.className="gfilter";
-  filt.innerHTML = '<button data-f="fvid" class="sel">動画</button><button data-f="fimg">画像</button>';
-  gal.appendChild(filt);
-  filt.querySelectorAll("button").forEach(function(b){ b.onclick=function(){
-    gal.className=b.dataset.f; filt.querySelectorAll("button").forEach(function(x){x.classList.remove("sel");}); b.classList.add("sel");
-    window.scrollTo({top:0,behavior:"smooth"}); }; });
-
-  var gnote = document.createElement("div"); gnote.className="note";
-  gnote.innerHTML = "三条と同じ<b>見本ギャラリー</b>です。各見本を <b>採用する / 無しにする</b> で選ぶと、投稿ローテーションに入れる／外すを指定できます（見本モードのため選択状態のみ保存）。上の <b>動画／画像</b> で絞り込めます。";
-  gal.appendChild(gnote);
-  function sub(txt, cls){ var s=document.createElement("div"); s.className="gsub"+(cls?" "+cls:""); s.textContent=txt; gal.appendChild(s); }
-  function list(){ var g=document.createElement("div"); g.className="glist"; gal.appendChild(g); return g; }
-  // 1枚のカード（メディア＋採用する/無しにする）。三条の見本カードと同じ操作。
-  function card(container, kind, feed, mediaHtml, title, desc, on){
-    var c=document.createElement("div"); c.className="gcard "+kind+(feed?" feed":"");
-    c.innerHTML =
-      mediaHtml+
-      '<div class="gchead"><span class="gt">'+title+'</span><span class="gstate '+(on?"on":"off")+'">'+(on?"採用中":"無し")+'</span></div>'+
-      (desc?'<div class="gd">'+desc+'</div>':'')+
-      '<div class="seg"><button class="seg-on'+(on?" sel":"")+'">採用する</button><button class="seg-off'+(on?"":" sel")+'">無しにする</button></div>';
-    var st=c.querySelector(".gstate"), bon=c.querySelector(".seg-on"), boff=c.querySelector(".seg-off");
-    function set(v){ st.className="gstate "+(v?"on":"off"); st.textContent=v?"採用中":"無し";
-      bon.classList.toggle("sel",v); boff.classList.toggle("sel",!v); }
-    bon.onclick=function(){ set(true); toast("採用にしました（見本）"); };
-    boff.onclick=function(){ set(false); toast("無しにしました（見本）"); };
-    container.appendChild(c);
-  }
-
-  // 動画：動きのあるストーリー（既定=採用中）
-  sub("動きのあるストーリー（10本）★おすすめ","vidonly");
-  var g1=list();
-  DYNVIDS.forEach(function(v){ card(g1,"gvid",false,
-    '<video class="gmedia" poster="gifuya/dv_'+v.n+'_poster.jpg'+V+'" src="gifuya/dv_'+v.n+'.mp4'+V+'" controls playsinline preload="auto" webkit-playsinline></video>',
-    "D"+(+v.n)+" "+v.t, v.d, true); });
-  // 動画：静止ベースのストーリー（既定=無し＝代替案）
-  sub("ストーリー・デザインパターン（静止ベース・5本）","vidonly");
-  var g2=list();
-  STORYVIDS.forEach(function(v){ card(g2,"gvid",false,
-    '<video class="gmedia" poster="gifuya/sv_'+v.n+'_poster.jpg'+V+'" src="gifuya/sv_'+v.n+'.mp4'+V+'" controls playsinline preload="auto" webkit-playsinline></video>',
-    "S"+(+v.n)+" "+v.t, "", false); });
-  // 動画：フェード
-  sub("フェード動画（リール見本）","vidonly");
-  var g3=list();
-  card(g3,"gvid",false,'<video class="gmedia" poster="gifuya/fade_poster.jpg'+V+'" src="gifuya/fade.mp4'+V+'" controls playsinline preload="auto" webkit-playsinline></video>',"フェード見本","",true);
-  // 画像：投稿（フィード）見本
-  sub("投稿（フィード）見本・12本","imgonly");
-  var g4=list();
-  POSTS.forEach(function(p,i){ card(g4,"gimg",true,
-    '<img class="gmedia" loading="lazy" src="gifuya/'+p.img+'" alt="">', (i+1)+" "+p.t, "", true); });
-  // 画像：デザインの型
-  sub("パターン見本・デザインの型","imgonly");
-  var g5=list();
-  PATTERNS.forEach(function(p){ card(g5,"gimg",true,
-    '<img class="gmedia" loading="lazy" src="gifuya/'+p.img+'" alt="">', p.t, p.d, true); });
-
-  // ===== ③ レポート（三条と同じ体裁。実データ連携時は自動で本物、無ければ見本） =====
-  var rep = document.getElementById("report");
-  var reportData=null, repMetric="reach";
-  var REP_METRICS={reach:"リーチ",views:"閲覧数",pviews:"プロフィール表示",followers:"フォロワー"};
-  function haptic(ms){ try{ if(navigator.vibrate) navigator.vibrate(ms||12); }catch(e){} }
-  function fmtN(n){ return (Number(n)||0).toLocaleString('ja-JP'); }
-  // metric を渡すとタップで指標切替できるKPIになる（実データ＋日別データがある時のみ）。
-  function kpi(l,v,dcls,dtxt,prev,metric){
-    var cls="repkpi"+(metric?(" tap"+(metric===repMetric?" on":"")):"");
-    var dm=metric?(' data-metric="'+metric+'"'):"";
-    return '<div class="'+cls+'"'+dm+'><div class="l">'+l+'</div><div class="v">'+v+'</div>'+
-      '<span class="d '+dcls+'">'+dtxt+'</span><div class="prev">'+prev+'</div></div>';
-  }
-  // series=[{date,val}] → data-v/data-d 付きバー（なぞって数値表示できる）。
-  function barsFrom(series){ var vals=series.map(function(s){return Number(s.val)||0;});
-    var mx=Math.max.apply(null,vals.concat([1]));
-    return series.map(function(s){ var v=Number(s.val)||0;
-      return '<i style="height:'+Math.max(2,Math.round(v/mx*100))+'%" data-d="'+esc(String(s.date||''))+'" data-v="'+v+'"></i>'; }).join(''); }
-  function chartHtml(series, trendLbl, firstD, lastD, tappable){
-    return '<div class="repsec"><h3>'+esc(trendLbl)+'</h3><div class="repchart"><div class="repbars">'+barsFrom(series)+'</div><div class="reptip"></div></div>'+
-      '<div class="repax"><span>'+esc(firstD)+'</span><span>'+esc(lastD)+'</span></div>'+
-      (tappable?'<div class="repnote">KPIをタップで指標を切替／グラフを指でなぞると日付と数値が出ます。</div>':'')+'</div>';
-  }
-  function wireChartScrub(){
-    var chart=rep.querySelector(".repchart"); if(!chart) return;
-    var barsEl=chart.querySelector(".repbars"), tip=chart.querySelector(".reptip"), last=-1;
-    function showAt(x){ var bs=barsEl.querySelectorAll("i"); if(!bs.length) return;
-      var r=barsEl.getBoundingClientRect(), idx=Math.floor((x-r.left)/r.width*bs.length);
-      idx=Math.max(0,Math.min(bs.length-1,idx));
-      if(idx!==last){ haptic(6); last=idx; }
-      for(var i=0;i<bs.length;i++){ bs[i].classList.toggle("hot",i===idx); }
-      var b=bs[idx], br=b.getBoundingClientRect();
-      tip.innerHTML='<b>'+fmtN(Number(b.getAttribute("data-v")))+'</b><span>'+esc(b.getAttribute("data-d"))+'</span>';
-      tip.style.display="block";
-      var cx=br.left+br.width/2-r.left; tip.style.left=Math.max(34,Math.min(r.width-34,cx))+"px"; }
-    function hide(){ tip.style.display="none"; last=-1; var h=barsEl.querySelectorAll("i.hot"); for(var i=0;i<h.length;i++) h[i].classList.remove("hot"); }
-    chart.addEventListener("touchstart",function(e){ e.preventDefault(); showAt(e.touches[0].clientX); },{passive:false});
-    chart.addEventListener("touchmove",function(e){ e.preventDefault(); showAt(e.touches[0].clientX); },{passive:false});
-    chart.addEventListener("touchend",hide); chart.addEventListener("touchcancel",hide);
-    chart.addEventListener("mousedown",function(e){ showAt(e.clientX); });
-    chart.addEventListener("mousemove",function(e){ if(e.buttons) showAt(e.clientX); });
-    chart.addEventListener("mouseup",hide); chart.addEventListener("mouseleave",hide);
-  }
-  function sampleReport(){
-    var ss=[42,55,48,63,70,58,66,80,74,88,95,82,90,104,98,112].map(function(v,i){return {date:"D"+(i+1),val:v};});
-    return '<div class="rephint">Instagram インサイト（見本のサンプル値です。実データは連携後に自動表示されます）</div>'+
-    '<div class="repdoc">'+
-      '<div class="rephd"><div class="t">Instagram インサイトレポート</div><div class="s">ぎふや 福岡天神店</div>'+
-        '<div class="p">@gifuya_fukuokatenjin<small>集計期間：直近30日（見本）</small></div></div>'+
-      '<div class="repsec"><h3>主要指標</h3><div class="repkpis">'+
-        kpi("リーチ","12,480","up","▲ 18%","前期 10,580")+
-        kpi("閲覧数","31,200","up","▲ 24%","前期 25,100")+
-        kpi("プロフィール表示","1,340","up","▲ 12%","前期 1,196")+
-        kpi("フォロワー","842","up","▲ 46","前期 796")+
-      '</div></div>'+
-      chartHtml(ss,"リーチの推移","30日前","今日",false)+
-      '<div class="repsec"><h3>人気の投稿</h3><div class="repposts">'+
-        '<div class="reppost"><img class="rt" src="gifuya/feed_01.jpg"><div class="ri"><div class="rl"><span class="rb feed">フィード</span><span class="rd">3日前</span></div>'+
-          '<div class="rc">名物、元祖どぶ漬けどてかつ🍢</div><div class="rr"><b>2,140</b><small>リーチ</small><b>186</b><small>いいね</small></div></div></div>'+
-      '</div></div>'+
-      '<div class="repsec repbreak"><h3>分析・まとめ（見本）</h3><div class="repanal">'+
-        '<div class="repcard good"><h4>強み・良かった点</h4><ul><li>名物系（<b>どてかつ・炊き餃子</b>）の反応が高い。</li></ul></div>'+
-        '<div class="repcard act"><h4>今後の施策</h4><ul><li>週末の <b>18:00台</b> 投稿が伸びやすい傾向。</li></ul></div>'+
-      '</div></div>'+
-      '<div class="repfoot">※本レポートは見本のサンプルです。@gifuya_fukuokatenjin の実データ連携後、自動で更新されます。</div>'+
-    '</div>';
-  }
-  function realReport(d){
-    var c=d.cur||{}, p=d.prev;
-    function pctOf(cur,prev){ return (prev==null||prev===0)?null:Math.round((cur-prev)/prev*1000)/10; }
-    function dp(cur,prev){ var pc=pctOf(cur,p&&prev); if(pc==null){ return {cls:'flat',txt:'—',prev:'—'}; }
-      return {cls:pc>=0?'up':'down', txt:(pc>=0?'▲ ':'▼ ')+Math.abs(pc)+'%', prev:'前期 '+fmtN(p&&prev)}; }
-    var kR=dp(c.reach,p&&p.reach), kV=dp(c.views,p&&p.views), kP=dp(c.pviews,p&&p.pviews);
-    var fEnd=c.followersEnd||0, fStart=(p&&p.followersEnd)||c.followersStart||fEnd, fd=fEnd-fStart;
-    // 日別データがあれば指標切替、無ければリーチ推移のみ。
-    var hasDaily=!!(d.daily && d.daily.length);
-    var series = hasDaily ? d.daily.map(function(r){ return {date:String(r.date), val:Number(r[repMetric])||0}; })
-                          : (d.series||[]).map(function(s){ return {date:String(s.date||''), val:Number(s.reach)||0}; });
-    if(!series.length) series=[{date:'',val:0}];
-    var trendLbl=(hasDaily?(REP_METRICS[repMetric]||"リーチ"):"リーチ")+"の推移（日別）";
-    var firstD=(d.days||30)+"日前", lastD="今日";
-    var top=(d.posts&&d.posts.top)||[];
-    var ph=top.slice(0,3).map(function(pp){ var st=pp.kind==='story', th=pp.thumb||pp.full||'';
-      return '<div class="reppost">'+(th?'<img class="rt" src="'+th+'">':'<div class="rt" style="background:#e6ebf2"></div>')+
-        '<div class="ri"><div class="rl"><span class="rb '+(st?'story':'feed')+'">'+(st?'ストーリー':'フィード')+'</span><span class="rd">'+esc(pp.date||'')+'</span></div>'+
-        '<div class="rc">'+esc(String(pp.caption||'').slice(0,40))+'</div><div class="rr"><b>'+fmtN(pp.reach)+'</b><small>'+(st?'閲覧':'リーチ')+'</small><b>'+fmtN(st?pp.navigation:pp.likes)+'</b><small>'+(st?'遷移':'いいね')+'</small></div></div></div>';
-    }).join('') || '<div class="rephint">まだ投稿データがありません。</div>';
-    // ---- 分析・まとめ（実数値で具体化。データが無い項目は自動で省略）----
-    var good=[],warn=[],act=[], cmp="前期比";
-    var reachPct=pctOf(c.reach,p&&p.reach), pvPct=pctOf(c.pviews,p&&p.pviews);
-    var linkRate=c.pviews?Math.round((c.links||0)/c.pviews*1000)/10:null;
-    var bestDay="",bestV=-1; series.forEach(function(s){ if((Number(s.val)||0)>bestV){bestV=Number(s.val)||0;bestDay=s.date;} });
-    if(reachPct!=null){ if(reachPct>0) good.push("リーチは <b>"+fmtN(c.reach)+"</b>（"+cmp+" <b>+"+reachPct+"%</b>）。露出が伸びています。");
-      else if(reachPct<0) warn.push("リーチは <b>"+fmtN(c.reach)+"</b>（"+cmp+" <b>"+reachPct+"%</b>）。投稿の時間帯・内容を見直し。");
-      else good.push("リーチは <b>"+fmtN(c.reach)+"</b>（"+cmp+" 横ばい）。"); }
-    else good.push("リーチは <b>"+fmtN(c.reach)+"</b>。比較は前期のデータが揃うと表示されます。");
-    if(bestDay) good.push("最も伸びた日は <b>"+esc(String(bestDay).slice(5))+"</b>（"+fmtN(bestV)+"）。この日の内容・時間を再現したい。");
-    if(c.reach){ var vr=Math.round(c.views/c.reach*10)/10; if(vr>=1.5) good.push("1人あたり約 <b>"+vr+"回</b>見られています（リピート視聴が良好）。"); }
-    if(pvPct!=null && pvPct<0) warn.push("プロフィール表示が "+cmp+" <b>"+pvPct+"%</b>。1枚目の訴求と固定リンクを強化。");
-    if(linkRate!=null){ if(linkRate<4) warn.push("誘導率（リンク÷プロフ表示）が <b>"+linkRate+"%</b> と低め。予約リンクを毎回明示。");
-      else good.push("誘導率 <b>"+linkRate+"%</b>。プロフィールから行動につながっています。"); }
-    if(fd>0) good.push("フォロワー <b>+"+fd+"</b>（計 "+fmtN(fEnd)+"）。");
-    else if(p&&p.followersEnd!=null) warn.push("フォロワー純増 <b>"+fd+"</b>。投稿頻度・導線を確認。");
-    var sa=(d.posts&&d.posts.storyAvg)||null, sN=(d.posts&&d.posts.storyN)||0;
-    if(sa&&sa.reach){ var tap=Math.round((sa.navigation||0)/sa.reach*100);
-      good.push("ストーリーズ平均リーチ <b>"+fmtN(sa.reach)+"</b>／タップ率 <b>"+tap+"%</b>（"+sN+"本）。");
-      if(tap<30){ warn.push("ストーリーズのタップ率が <b>"+tap+"%</b> と低め。1枚目を強い引き＋リンク明確に。");
-        act.push("ストーリーズ1枚目を<b>結論ファースト</b>にしてタップ率UP。"); } }
-    if(linkRate!=null&&linkRate<4) act.push("各投稿に<b>予約リンク</b>を必ず明示し、誘導率の底上げを狙う。");
-    if(reachPct!=null&&reachPct<0) act.push("反応が落ちた期間。<b>投稿時間</b>を反応の良い曜日・時間に寄せる。");
-    if(bestDay) act.push("伸びた <b>"+esc(String(bestDay).slice(5))+"</b> の型（内容・時間帯）を<b>再現</b>する。");
-    if(fd<=0 && p&&p.followersEnd!=null) act.push("保存・シェアされやすい<b>保存版（まとめ）投稿</b>を増やしてフォロー転換を狙う。");
-    if(!act.length) act.push("好調を維持。伸びた投稿の型を<b>横展開</b>し、頻度を保つ。");
-    if(!good.length) good.push("データを蓄積中。日数が増えるほど精度が上がります。");
-    if(!warn.length) warn.push("大きな課題は見当たりません。継続して様子を見ましょう。");
-    function lis(a){ return a.map(function(x){ return "<li>"+x+"</li>"; }).join(""); }
-    return '<div class="rephint">Instagram インサイト（@gifuya_fukuokatenjin・実データ）</div>'+
-    '<div class="repdoc">'+
-      '<div class="rephd"><div class="t">Instagram インサイトレポート</div><div class="s">ぎふや 福岡天神店</div>'+
-        '<div class="p">@gifuya_fukuokatenjin<small>集計期間：直近'+(d.days||0)+'日'+(d.latestDate?'（〜'+esc(d.latestDate)+'）':'')+'</small></div></div>'+
-      '<div class="repsec"><h3>主要指標</h3><div class="repkpis">'+
-        kpi("リーチ",fmtN(c.reach),kR.cls,kR.txt,kR.prev,hasDaily?"reach":"")+
-        kpi("閲覧数",fmtN(c.views),kV.cls,kV.txt,kV.prev,hasDaily?"views":"")+
-        kpi("プロフィール表示",fmtN(c.pviews),kP.cls,kP.txt,kP.prev,hasDaily?"pviews":"")+
-        kpi("フォロワー",fmtN(fEnd),(fd>=0?'up':'down'),(fd>=0?'▲ ':'▼ ')+Math.abs(fd),"前期 "+fmtN(fStart),hasDaily?"followers":"")+
-      '</div></div>'+
-      chartHtml(series,trendLbl,firstD,lastD,true)+
-      '<div class="repsec"><h3>人気の投稿</h3><div class="repposts">'+ph+'</div></div>'+
-      '<div class="repsec repbreak"><h3>分析・まとめ</h3><div class="repanal">'+
-        '<div class="repcard good"><h4>強み・良かった点</h4><ul>'+lis(good)+'</ul></div>'+
-        '<div class="repcard warn"><h4>反省点・課題</h4><ul>'+lis(warn)+'</ul></div>'+
-        '<div class="repcard act"><h4>今後の施策</h4><ul>'+lis(act)+'</ul></div>'+
-      '</div></div>'+
-    '</div>';
-  }
-  // ===== PDF出力（A4 2ページ・html2pdfをCDNから遅延読込。オンライン時のみ）=====
-  var PDF_LIB="https://cdn.jsdelivr.net/npm/html2pdf.js@0.10.3/dist/html2pdf.bundle.min.js";
-  function loadScriptOnce(src,cb,onerr){ var s=document.createElement("script"); s.src=src; s.onload=cb; s.onerror=onerr||function(){toast("PDF部品の読込に失敗");}; document.head.appendChild(s); }
-  function preloadPdfLib(){ if(window.html2pdf||window.__pdfPre) return; window.__pdfPre=1; loadScriptOnce(PDF_LIB,function(){},function(){window.__pdfPre=0;}); }
-  function downloadReportPdf(){
-    var src=rep.querySelector(".repdoc"); if(!src){ toast("レポートがありません"); return; }
-    var btn=document.getElementById("repPdf"); if(btn&&btn.disabled) return; if(btn) btn.disabled=true; haptic(12);
-    toast("PDF出力を準備中…"); var done=false;
-    function finish(msg){ done=true; if(btn) btn.disabled=false; if(msg) toast(msg); }
-    var watchdog=setTimeout(function(){ if(!done&&!window.html2pdf){ window.__pdfPre=0; finish("PDF部品を読み込めませんでした。電波の良い場所で再度お試しください"); } },15000);
-    function go(){ if(done) return; clearTimeout(watchdog); if(!window.html2pdf){ finish("PDF生成に失敗"); return; }
-      toast("PDFを出力中…（数秒かかります）");
-      var holder=document.createElement("div"); holder.style.cssText="position:fixed;left:-99999px;top:0;width:794px;background:#fff";
-      var clone=src.cloneNode(true); clone.classList.add("a4"); holder.appendChild(clone); document.body.appendChild(holder);
-      (function fitA4(){ var P1=1040,P2=1050, br=clone.querySelector(".repbreak"); if(!br) return; var steps=0;
-        while(br.offsetTop>P1 && steps<14){ if(steps===0) clone.classList.add("a4tight"); else if(steps===1) clone.classList.add("a4tight2");
-          else { var ps=clone.querySelectorAll(".reppost"); if(ps.length>2) ps[ps.length-1].parentNode.removeChild(ps[ps.length-1]); else break; } steps++; }
-        var guard=0; while((clone.scrollHeight-br.offsetTop)>P2 && guard<14){ if(guard===0) clone.classList.add("a4tight"); else if(guard===1) clone.classList.add("a4tight2");
-          else { var longest=null,max=0,cards=clone.querySelectorAll(".repcard"); for(var ci=0;ci<cards.length;ci++){ var n=cards[ci].querySelectorAll("li").length; if(n>max){max=n;longest=cards[ci];} }
-            if(longest&&max>2){ var ls=longest.querySelectorAll("li"); ls[ls.length-1].parentNode.removeChild(ls[ls.length-1]); } else break; } guard++; }
-      })();
-      window.html2pdf().set({ margin:[6,0,6,0],
-        filename:"gifuya_insight_"+((reportData&&reportData.latestDate)||"report")+".pdf",
-        image:{type:"jpeg",quality:0.95},
-        html2canvas:{scale:2,backgroundColor:"#ffffff",useCORS:true,width:794,windowWidth:794,x:0,scrollX:0},
-        jsPDF:{unit:"mm",format:"a4",orientation:"portrait"},
-        pagebreak:{mode:["css","legacy"],before:".repbreak",avoid:[".repsec",".reppost",".repkpi",".repcard"]}
-      }).from(clone).save().then(function(){ holder.remove(); finish("✓ PDF出力が完了しました（2ページ）"); })
-        .catch(function(){ holder.remove(); finish("PDF作成に失敗しました。もう一度お試しください"); });
-    }
-    if(window.html2pdf){ setTimeout(go,60); } else loadScriptOnce(PDF_LIB,go,function(){ finish("PDF部品の読込に失敗。通信環境をご確認ください"); });
-  }
-  function wireReport(){
-    var pb=document.getElementById("repPdf"); if(pb) pb.onclick=downloadReportPdf;
-    var kps=rep.querySelectorAll(".repkpi.tap");
-    for(var i=0;i<kps.length;i++){ kps[i].onclick=function(){ var mt=this.getAttribute("data-metric");
-      if(mt&&mt!==repMetric){ repMetric=mt; haptic(10); if(reportData) renderReport(reportData); } }; }
-    wireChartScrub();
-  }
-  function renderReport(d){
-    var bar='<div class="repbar"><button id="repPdf" class="pdf">📄 PDF出力（A4）</button></div>';
-    rep.innerHTML = bar + ((d && d.days>0 && d.cur) ? realReport(d) : sampleReport());
-    wireReport();
-  }
-  renderReport(null);
-  if(LIVE){ gasGet({api:"report"}, function(res){ if(res && !res.error){ reportData=res; renderReport(res); } }); }
-
-  // ===== タブ切替 =====
-  var tabs = {tabFeed:feed, tabGallery:gal, tabReport:rep};
-  function show(id){
-    for (var k in tabs){ tabs[k].style.display = (k===id)?"":"none"; document.getElementById(k).classList.toggle("on", k===id); }
-    window.scrollTo({top:0});
-  }
-  document.getElementById("tabFeed").onclick = function(){ show("tabFeed"); };
-  document.getElementById("tabGallery").onclick = function(){ show("tabGallery"); };
-  document.getElementById("tabReport").onclick = function(){ show("tabReport"); preloadPdfLib(); };
-  // ===== Web Push（三条と同じVAPIDを再利用。投稿完了などを端末に通知） =====
-  var pushBtn = document.getElementById("pushBtn");
-  function urlB64ToU8(s){ var pad="=".repeat((4-s.length%4)%4), b=(s+pad).replace(/-/g,"+").replace(/_/g,"/"), raw=atob(b), a=new Uint8Array(raw.length);
-    for(var i=0;i<raw.length;i++) a[i]=raw.charCodeAt(i); return a; }
-  function enablePush(){
-    var vp=((CFG2.VAPID_PUBLIC)||"").trim();
-    if(!("serviceWorker" in navigator) || !("PushManager" in window)){ toast("この端末は通知に対応していません"); return; }
-    if(!LIVE || !vp){ toast("通知は準備中です（連携後に有効化）"); return; }
-    Notification.requestPermission().then(function(perm){
-      if(perm!=="granted"){ toast("通知が許可されませんでした"); return; }
-      navigator.serviceWorker.ready.then(function(reg){
-        return reg.pushManager.getSubscription().then(function(ex){
-          return ex || reg.pushManager.subscribe({userVisibleOnly:true, applicationServerKey:urlB64ToU8(vp)}); });
-      }).then(function(sub){
-        gas({api:"subscribe", sub:JSON.stringify(sub), ep:sub.endpoint, prefs:"ig"});
-        pushBtn.textContent="🔔 通知ON"; toast("通知をオンにしました");
-      }).catch(function(){ toast("通知の設定に失敗しました"); });
-    });
-  }
-  navigator.serviceWorker && navigator.serviceWorker.ready.then(function(reg){
-    reg.pushManager.getSubscription().then(function(s){ if(s) pushBtn.textContent="🔔 通知ON"; }).catch(function(){});
-  });
-  pushBtn.onclick = enablePush;
-})();
-</script>
-
-<script>
-  if ("serviceWorker" in navigator) {
-    window.addEventListener("load", function () {
-      navigator.serviceWorker.register("./sw.js").catch(function () {});
-    });
-  }
-</script>
+  </script>
 </body>
 </html>

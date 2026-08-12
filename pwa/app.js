@@ -2,7 +2,7 @@
    データ/操作は GAS を JSONP で呼ぶ（CORS回避）。メディアは jsDelivr CDN。 */
 (function () {
   "use strict";
-  var CFG = window.SUSABIYU || {};
+  var CFG = window.SUSABIYU || window.GIFUYA || {};   // 三条=SUSABIYU / ぎふや=GIFUYA（同一エンジンを店舗設定で駆動）
   var GAS = (CFG.GAS_URL || "").trim();
   var POLL = CFG.POLL_MS || 4000;
   var KEY = localStorage.getItem("sb_key") || "";
@@ -68,6 +68,7 @@
       window[cb] = function (data) { cleanup(); if (data && typeof data === "object") { try { data._gen = genAtSend; } catch (e) {} } resolve(data); };
       if (KEY) params.key = KEY;
       if (ADMIN && params.owner === undefined) params.owner = ADMIN;
+      if (CFG.ACCOUNT && params.account === undefined) params.account = CFG.ACCOUNT;   // 共有GASの店舗振り分け（三条=未設定）
       var q = Object.keys(params).map(function (k) { return k + "=" + encodeURIComponent(params[k]); }).join("&");
       s.src = GAS + (GAS.indexOf("?") >= 0 ? "&" : "?") + q + "&cb=" + cb;
       s.onerror = function () { cleanup(); reject(new Error("network")); };
@@ -623,6 +624,7 @@
   }
   function setPattern(card, key, on) {
     paintToggle(card, on);  // 楽観反映
+    if (CFG.SAMPLES) { toast(on ? "採用にしました（見本）" : "無しにしました（見本）"); return; }  // 静的見本は端末内のみ（GAS不要）
     pendingPat[key] = on ? "1" : "0";  // ポーリングで戻されないよう保持
     toast(on ? "採用にしました" : "無しにしました");
     jsonp({ api: "pattern", pattern: key, on: on ? 1 : 0 }).then(function (res) {
@@ -631,11 +633,13 @@
     }).catch(function () { toast("通信エラー。元に戻します"); delete pendingPat[key]; paintToggle(card, !on); });
   }
   function applyAdminClass() {
-    if (galleryEl) galleryEl.classList.toggle("admin", !!ADMIN && !KAR);
+    // 静的見本（ぎふや等）は採用/無しを常時表示（端末内保存）。管理者ロック概念は使わない。
+    if (galleryEl) galleryEl.classList.toggle("admin", CFG.SAMPLES ? true : (!!ADMIN && !KAR));
     refreshAdminBar();
   }
   function refreshAdminBar() {
     var bar = document.getElementById("adminBar"); if (!bar) return;
+    if (CFG.SAMPLES) { bar.innerHTML = ""; return; }   // 静的見本では管理者バーを出さない
     if (ADMIN) {
       bar.innerHTML = '<span class="abadge">🔓 管理者モード</span><button class="alink" id="adminLock">解除する</button>';
       var lk = bar.querySelector("#adminLock"); if (lk) lk.onclick = lockAdmin;
@@ -804,6 +808,8 @@
     applyGalleryFilter();
   }
   function loadPatterns() {
+    // 店舗が静的見本（CFG.SAMPLES）を持つ場合はGASを叩かず、その見本をそのまま表示（ぎふや等）。
+    if (CFG.SAMPLES) { renderGallery(CFG.SAMPLES); return Promise.resolve(); }
     var cached = patternsCacheGet();
     if (cached && !hasCards()) renderGallery(cached);                 // 前回内容を即表示（待たせない）
     else if (!cached && !hasCards()) galleryEl.innerHTML = '<div class="ghint">見本を読み込んでいます…</div>';
@@ -818,7 +824,7 @@
   }
   var reportEl = document.getElementById("report");
   var tabReport = document.getElementById("tabReport");
-  function startGalleryPoll() { stopGalleryPoll(); galleryTimer = setInterval(loadPatterns, 5000); }
+  function startGalleryPoll() { if (CFG.SAMPLES) return; stopGalleryPoll(); galleryTimer = setInterval(loadPatterns, 5000); }
   function stopGalleryPoll() { if (galleryTimer) { clearInterval(galleryTimer); galleryTimer = null; } }
   // 見本の動画を再生し始めたら自動更新ごと停止（通信もDOM操作も走らせない）。
   // 止めたり見終わったら再開する。
