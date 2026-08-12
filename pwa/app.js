@@ -624,7 +624,11 @@
   }
   function setPattern(card, key, on) {
     paintToggle(card, on);  // 楽観反映
-    if (CFG.SAMPLES) { toast(on ? "採用にしました（見本）" : "無しにしました（見本）"); return; }  // 静的見本は端末内のみ（GAS不要）
+    if (CFG.SAMPLES) {   // 静的見本：端末内へ即時反映しつつ、共有GASにも account 付きで通知（best-effort）
+      toast(on ? "採用にしました" : "無しにしました");
+      jsonp({ api: "pattern", pattern: key, on: on ? 1 : 0 }).catch(function () {});
+      return;
+    }
     pendingPat[key] = on ? "1" : "0";  // ポーリングで戻されないよう保持
     toast(on ? "採用にしました" : "無しにしました");
     jsonp({ api: "pattern", pattern: key, on: on ? 1 : 0 }).then(function (res) {
