@@ -138,7 +138,10 @@ function dashBuild_() {
   var last = null, run = ss.getSheetByName('_実行ログ');
   if (run && run.getLastRow() > 1) { var lr = run.getRange(run.getLastRow(), 1, 1, 6).getValues()[0]; last = { at: String(lr[0]), result: String(lr[2]), n: lr[3] }; }
 
-  return { dash: dash, apps: apps, last: last, storeManual: storeManual, storePosting: storePosting, postings: postings };
+  // 結果報告を打ち込むスプレッドシートのURL（未提出アラートの飛び先）
+  var reportUrl = 'https://docs.google.com/spreadsheets/d/' + NOTION_POSTINGS_SHEET_ID + '/edit';
+
+  return { dash: dash, apps: apps, last: last, storeManual: storeManual, storePosting: storePosting, postings: postings, reportUrl: reportUrl };
 }
 
 /**

@@ -29,6 +29,15 @@
     .badge.on { color:#0c1b12; background:var(--f2); font-weight:700; }
     .badge.rec { color:var(--f3); border:1px solid #4a4326; }
     .badge.end { color:var(--muted); border:1px solid var(--line); }
+    .badge.warn { color:#ffca7a; background:#4a2c2c; font-weight:700; }
+    .alert { background:#2a1c1c; border:1px solid #6a3d3d; border-radius:12px; padding:12px 13px; margin-bottom:12px; }
+    .al-h { font-size:14px; font-weight:700; color:#ffca7a; }
+    .al-note { font-size:11px; color:#c99; margin:4px 0 8px; }
+    .al-row { display:flex; align-items:center; justify-content:space-between; gap:8px; padding:7px 0; border-top:1px solid #4a3030; }
+    .al-nm { font-size:13px; overflow:hidden; } .al-nm .pd { color:#c99; font-size:11px; }
+    .btn-in { background:#ff8a65; color:#2a1200; border-radius:8px; padding:7px 11px; font-size:12px; font-weight:700; text-decoration:none; white-space:nowrap; }
+    .btn-in.sm { padding:3px 8px; font-size:11px; margin-left:auto; }
+    .pr.unsub { border-color:#6a3d3d; }
     /* KPI */
     .kpis { display:flex; gap:8px; } .kpi { flex:1; text-align:center; }
     .kpi .n { font-size:23px; font-weight:700; } .kpi .l { font-size:11px; color:var(--muted); }
@@ -118,7 +127,7 @@
   <script>
     var STAGES=['応募','接触','面接','内定','入社','終了'], WD=['日','月','火','水','木','金','土'];
     var apps=[], storeManual={}, storePosting={}, postings=[], appByCode={}, RECS=[];
-    var postByStore={}, appByStore={};
+    var postByStore={}, appByStore={}, reportUrl='';
 
     function toast(m){ var t=document.getElementById('toast'); t.textContent=m; t.classList.add('show'); setTimeout(function(){t.classList.remove('show');},2600); }
     function esc(s){ return String(s==null?'':s).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];}); }
@@ -158,7 +167,7 @@
 
     function render(d){
       var dash=d.dash||{};
-      apps=d.apps||[]; storeManual=d.storeManual||{}; storePosting=d.storePosting||{}; postings=d.postings||[];
+      apps=d.apps||[]; storeManual=d.storeManual||{}; storePosting=d.storePosting||{}; postings=d.postings||[]; reportUrl=d.reportUrl||'';
       appByCode={}; apps.forEach(function(a){ appByCode[a.code]=a; });
       postByStore={}; postings.forEach(function(p){ var k=normStore(p.store); (postByStore[k]=postByStore[k]||[]).push(p); });
       appByStore={}; apps.forEach(function(a){ var k=normStore(a.store); (appByStore[k]=appByStore[k]||[]).push(a); });
@@ -169,42 +178,41 @@
       renderStats(dash, d.last);
     }
 
-    /* ===== 募集中タブ ===== */
+    /* ===== 未提出（掲載終了なのに結果が空）===== */
+    function isUnsubmitted(p){ return p.state!=='募集中' && !has(p.apps) && !has(p.hires); }
+    function unsubmittedPostings(){ return postings.filter(isUnsubmitted); }
+    function alertHtml(){
+      var u=unsubmittedPostings(); if(!u.length) return '';
+      var rows=u.slice(0,50).map(function(p){
+        return '<div class="al-row"><div class="al-nm"><b>'+esc(p.store)+'</b>'+
+          '<span class="pd"> '+fmtD(p.start)+'〜'+fmtD(p.end)+' 終了</span></div>'+
+          (reportUrl?'<a class="btn-in" href="'+esc(reportUrl)+'" target="_top">結果を入力 ▸</a>':'')+'</div>';
+      }).join('');
+      return '<div class="alert"><div class="al-h">⚠️ 結果報告 未提出 '+u.length+'件</div>'+
+        '<div class="al-note">掲載が終わったのに応募・採用の結果が未入力です。「結果を入力」で報告スプレッドシートを開きます。</div>'+rows+'</div>';
+    }
+
+    /* ===== 募集中タブ（掲載中の求人だけ）===== */
     function renderRecruit(){
       var el=document.getElementById('recruitList');
-      var now=Date.now(), cutoff=now-30*86400000;
-      var keys={}; Object.keys(postByStore).forEach(function(k){keys[k]=1;}); Object.keys(appByStore).forEach(function(k){keys[k]=1;});
-      RECS=[];
-      Object.keys(keys).forEach(function(k){
-        var sp=storePosting[k];
-        var appsArr=appByStore[k]||[];
+      var keys={};
+      Object.keys(storePosting).forEach(function(k){ if(storePosting[k].active) keys[k]=1; });
+      Object.keys(storeManual).forEach(function(name){ if(manOverride(storeManual[name])==='active') keys[normStore(name)]=1; });
+      RECS=Object.keys(keys).map(function(k){
+        var sp=storePosting[k], appsArr=appByStore[k]||[];
         var name=(sp&&sp.name)||(appsArr[0]&&appsArr[0].store)||k;
-        var recN=0, lastApp=0;
-        appsArr.forEach(function(a){ var t=toDate(a.appliedAt); if(t){ t=t.getTime(); if(t>=cutoff)recN++; if(t>lastApp)lastApp=t; } });
-        var mo=manOverride(storeManual[name]);
-        var postingActive = !!(sp&&sp.active);
-        var active = mo? (mo==='active') : (postingActive || recN>0);
-        if(!active) return;
-        RECS.push({ key:k, name:name, sp:sp||null, appsArr:appsArr, recN:recN, lastApp:lastApp, postingActive:postingActive });
+        return { key:k, name:name, sp:sp||null, appsArr:appsArr };
       });
-      // 掲載中(実データ)を上に、次に直近応募が多い順
-      RECS.sort(function(a,b){
-        if(a.postingActive!==b.postingActive) return a.postingActive?-1:1;
-        if(b.recN!==a.recN) return b.recN-a.recN;
-        return b.appsArr.length-a.appsArr.length;
-      });
-      if(!RECS.length){ el.innerHTML='<div class="empty">現在、募集中の店舗はありません</div>'; return; }
-      var pa=RECS.filter(function(r){return r.postingActive;}), ra=RECS.filter(function(r){return !r.postingActive;});
-      var h='';
-      if(pa.length){ h+='<div class="sec-h">● 掲載中（実データ）'+pa.length+'店</div>'; pa.forEach(function(r){ h+=storeCard(r); }); }
-      if(ra.length){ h+='<div class="sec-h">直近30日に応募あり '+ra.length+'店</div>'; ra.forEach(function(r){ h+=storeCard(r); }); }
+      RECS.sort(function(a,b){ if(!!a.sp!==!!b.sp) return a.sp?-1:1; return b.appsArr.length-a.appsArr.length; });
+      var h=alertHtml();
+      if(!RECS.length){ el.innerHTML=h+'<div class="empty">現在、掲載中の求人はありません</div>'; return; }
+      RECS.forEach(function(r){ h+=storeCard(r); });
       el.innerHTML=h;
     }
     function storeCard(r){
       var i=RECS.indexOf(r);
-      var badge = r.postingActive ? '<span class="badge on">●募集中</span>' : '<span class="badge rec">応募あり</span>';
       var sub = r.sp ? ('掲載 '+fmtD(r.sp.latestStart)+'〜'+(r.sp.latestEnd?fmtD(r.sp.latestEnd):'継続')+(r.sp.media?('　'+esc(r.sp.media)):''))
-                     : ('最新応募 '+(r.lastApp?fmtDT(new Date(r.lastApp)):'—'));
+                     : '掲載中（手動設定）';
       var totApp = r.sp? r.sp.apps : '';
       var totHire= r.sp? r.sp.hires: '';
       var stat = [ (has(totApp)&&totApp!==0?('応募<b>'+esc(totApp)+'</b>'):''),
@@ -212,7 +220,7 @@
                    ('現応募者<b>'+r.appsArr.length+'</b>') ].filter(Boolean).join('');
       return '<div class="sc" id="sc_'+i+'">'+
         '<div class="sc-top" onclick="stoggle('+i+')">'+
-          '<div class="sc-h"><span class="sc-nm">'+esc(r.name)+'</span>'+badge+'</div>'+
+          '<div class="sc-h"><span class="sc-nm">'+esc(r.name)+'</span><span class="badge on">●募集中</span></div>'+
           '<div class="sc-sub">'+sub+'</div>'+
           '<div class="sc-stat">'+stat+'</div>'+
         '</div>'+
@@ -242,7 +250,10 @@
     }
     function postingRow(p){
       var id='pr'+(postingRow._i=(postingRow._i||0)+1);
-      var badge = p.state==='募集中' ? '<span class="badge on">●募集中</span>' : '<span class="badge end">終了</span>';
+      var unsub=isUnsubmitted(p);
+      var badge = p.state==='募集中' ? '<span class="badge on">●募集中</span>'
+                : (unsub ? '<span class="badge warn">結果未提出</span>' : '<span class="badge end">終了</span>');
+      var inBtn = unsub&&reportUrl ? '<a class="btn-in sm" href="'+esc(reportUrl)+'" target="_top" onclick="event.stopPropagation()">結果を入力 ▸</a>' : '';
       var line=[esc(p.media||''), esc(p.plan||''), esc(fmtCost(p.cost))].filter(Boolean).join('　/　');
       var stat=[ (has(p.apps)?('応募<b>'+esc(p.apps)+'</b>'):''),
                  (has(p.hires)?('採用<b>'+esc(p.hires)+'</b>'):''),
@@ -261,8 +272,8 @@
           (p.note?'<div><span class="k">備考・退職理由：</span>\n'+esc(p.note)+'</div>':'')+
         '</div>';
       }
-      return '<div class="pr" onclick="prtoggle(\''+id+'\')">'+
-        '<div class="pr-h"><b>'+esc(p.store)+'</b>'+badge+'<span class="pd">'+fmtD(p.start)+'〜'+(p.end?fmtD(p.end):'継続')+'</span></div>'+
+      return '<div class="pr'+(unsub?' unsub':'')+'" onclick="prtoggle(\''+id+'\')">'+
+        '<div class="pr-h"><b>'+esc(p.store)+'</b>'+badge+'<span class="pd">'+fmtD(p.start)+'〜'+(p.end?fmtD(p.end):'継続')+'</span>'+inBtn+'</div>'+
         (line?'<div class="pr-sub">'+line+'</div>':'')+
         (stat?'<div class="pr-stat">'+stat+'</div>':'')+
         more+
