@@ -31,29 +31,34 @@ function epProbeStatusChange() {
   }
 }
 
-// main.js から changeStatus 等の実装（リクエストの組み立て方）を抜き出す
+function dumpKw_(t, kw) {
+  var i = t.indexOf(kw), c = 0;
+  while (i >= 0 && c < 4) { Logger.log("[" + kw + " #" + (c + 1) + "] " + t.substr(Math.max(0, i - 150), 750).replace(/\s+/g, " ")); c++; i = t.indexOf(kw, i + 1); }
+  if (!c) Logger.log("[" + kw + "] 見つからず");
+}
+
+// main.js（素で取得）とHTMLから、変更処理・リソースURLを抜き出す
 function epProbeMainJs() {
-  var jar = epLogin_();
-  if (!jar) { Logger.log("★ ログイン失敗"); return; }
+  var jar = epLogin_(); if (!jar) { Logger.log("★ ログイン失敗"); return; }
+  var ref = { "Referer": EP_APPLICANT_URL };
+
+  // A) 素の main.js（クエリ無し）を直接取得
+  var url1 = "https://manage.entrypocket.jp/MYN-ApplyControl-portlet/js/main.js";
+  var r1 = epFetch_(url1, { method: "get", headers: ref }, jar);
+  var js = r1.getContentText();
+  Logger.log("A) main.js HTTP=" + r1.getResponseCode() + " / len=" + js.length);
+  if (js.length < 400) Logger.log("A本文: " + js.replace(/\s+/g, " "));
+  dumpKw_(js, "changeStatus");
+  dumpKw_(js, "selectionStatusKb");
+  dumpKw_(js, "part");
+
+  // B) 応募者ページHTMLから 変更処理・リソースURL を探す
   var html = epFetch_(EP_APPLICANT_URL, { method: "get", followRedirects: true }, jar).getContentText();
-
-  var m = html.match(/<script[^>]+src\s*=\s*["']([^"']*ApplyControl-portlet\/js\/main\.js[^"']*)["']/i);
-  if (!m) { Logger.log("★ main.js の src が見つからず"); return; }
-  var src = m[1].replace(/&amp;/g, "&");
-  if (src.indexOf("http") !== 0) src = "https://manage.entrypocket.jp" + (src.charAt(0) === "/" ? "" : "/") + src;
-  Logger.log("main.js: " + src);
-
-  var js = epFetch_(src, { method: "get", followRedirects: true }, jar).getContentText();
-  Logger.log("JS長: " + js.length + " 文字");
-
-  // 主要関数の周辺を抜き出す（changeStatus と、動作確認済みの downloadCSV を比較用に）
-  ["function changeStatus", "changeStatus", "downloadCSV", "part =", "part=", "p_p_lifecycle", "serveResource", "resourceURL"].forEach(function (kw) {
-    var i = js.indexOf(kw), c = 0;
-    while (i >= 0 && c < 3) {
-      Logger.log("---- [" + kw + "] #" + (c + 1) + " ----");
-      Logger.log(js.substr(Math.max(0, i - 120), 900).replace(/\s+/g, " "));
-      c++; i = js.indexOf(kw, i + 1);
-    }
-  });
+  Logger.log("HTML changeStatus 出現数: " + (html.split("changeStatus").length - 1));
+  dumpKw_(html, "changeStatus");
+  dumpKw_(html, "selectionStatusKb");
+  dumpKw_(html, "p_p_lifecycle=2");
+  dumpKw_(html, "serveResource");
+  dumpKw_(html, "onchange");
   Logger.log("★ このログを丸ごと送ってください（データは変更していません）。");
 }
