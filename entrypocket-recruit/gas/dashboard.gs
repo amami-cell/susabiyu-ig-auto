@@ -141,7 +141,13 @@ function dashBuild_() {
   // 結果報告を打ち込むスプレッドシートのURL（未提出アラートの飛び先）
   var reportUrl = 'https://docs.google.com/spreadsheets/d/' + NOTION_POSTINGS_SHEET_ID + '/edit';
 
-  return { dash: dash, apps: apps, last: last, storeManual: storeManual, storePosting: storePosting, postings: postings, reportUrl: reportUrl };
+  // ステータス変更（書き戻し）用の情報
+  var statusMap = (typeof EP_STATUS_MAP !== 'undefined') ? EP_STATUS_MAP : {};
+  var statusOrder = (typeof EP_STATUS_ORDER !== 'undefined') ? EP_STATUS_ORDER : [];
+  var writeEnabled = (typeof epWriteEnabled_ === 'function') ? epWriteEnabled_() : false;
+
+  return { dash: dash, apps: apps, last: last, storeManual: storeManual, storePosting: storePosting, postings: postings, reportUrl: reportUrl,
+    statusMap: statusMap, statusOrder: statusOrder, writeEnabled: writeEnabled };
 }
 
 /**

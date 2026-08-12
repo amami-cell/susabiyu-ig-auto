@@ -91,6 +91,10 @@
     .mb-t{ font-size:11px; color:var(--muted); font-weight:800; margin:12px 0 6px; } .demo .mb-t:first-child{ margin-top:0; }
     .ap.new{ border-left:3px solid var(--amber); }
     .tag.req{ background:#312a13; color:var(--amber); }
+    .stbtns{ display:flex; flex-wrap:wrap; gap:7px; margin-bottom:4px; }
+    .stb{ border:1px solid var(--line2); background:#141b25; color:var(--fg); border-radius:8px; padding:8px 11px; font-size:12.5px; font-weight:700; }
+    .stb:active{ transform:scale(.97); }
+    .stb.cur{ background:var(--green); color:#06210f; border-color:var(--green); opacity:1; }
     /* 件数タイル（店舗詳細） */
     .sgrid{ display:grid; grid-template-columns:repeat(auto-fill,minmax(84px,1fr)); gap:8px; margin:2px 0 4px; }
     .stile{ background:#141b25; border:1px solid var(--line2); border-radius:11px; padding:11px 6px; text-align:center; color:var(--fg); }
@@ -168,6 +172,8 @@
     var apps=[], storeManual={}, storePosting={}, postings=[], appByCode={}, RECS=[];
     var postByStore={}, appByStore={}, reportUrl='';
     var DASH={}, LAST=null, statYear='all';
+    var statusMap={}, statusOrder=[], writeEnabled=false;
+    function sameCode(a,b){ return parseInt(String(a),10)===parseInt(String(b),10); }
 
     function toast(m){ var t=document.getElementById('toast'); t.textContent=m; t.classList.add('show'); setTimeout(function(){t.classList.remove('show');},2600); }
     function esc(s){ return String(s==null?'':s).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];}); }
@@ -213,6 +219,7 @@
       appByStore={}; apps.forEach(function(a){ var k=normStore(a.store); (appByStore[k]=appByStore[k]||[]).push(a); });
 
       DASH=dash; LAST=d.last;
+      statusMap=d.statusMap||{}; statusOrder=d.statusOrder||[]; writeEnabled=!!d.writeEnabled;
       document.getElementById('updated').textContent = d.last?('最終取得 '+esc(d.last.at)):(dash.generated_at||'未取得');
       renderRecruit();
       renderHistory();
@@ -383,9 +390,25 @@
       return e.map(function(x){ return '<div class="ent"><div class="ed">'+esc(x.date||'―')+'</div><div class="eb">'+esc(x.body||'')+'</div></div>'; }).join(''); }
     function appDetail(a){ if(!a) return '';
       var hist=summarize(a.history), memo=summarize(a.memo);
-      return '<div class="dl">ステータス変更履歴</div>'+entriesHtml(hist)+
+      var chg='';
+      if(writeEnabled && statusOrder.length){
+        chg='<div class="dl">ステータスを変更（EntryPocketに反映）</div><div class="stbtns">'+
+          statusOrder.map(function(c){ var cur=sameCode(c,a.statusCode); return '<button class="stb'+(cur?' cur':'')+'" onclick="chgStatus(\''+esc(a.code)+'\',\''+c+'\')"'+(cur?' disabled':'')+'>'+esc(statusMap[c]||c)+'</button>'; }).join('')+'</div>';
+      }
+      return chg+
+        '<div class="dl">ステータス変更履歴</div>'+entriesHtml(hist)+
         (memo.length?('<div class="dl">メモ</div>'+entriesHtml(memo)):'')+
         '<div class="dl">連絡先</div><div class="cinfo">☎ '+esc(a.telRaw||a.tel||'なし')+'　✉ '+esc(a.email||'なし')+'</div>'; }
+    function chgStatus(applyCd, statusKbn){
+      var name=statusMap[statusKbn]||statusKbn, a=appByCode[applyCd];
+      if(a && sameCode(a.statusCode,statusKbn)){ toast('すでに「'+name+'」です'); return; }
+      if(!confirm((a?a.name+' さん':'')+'のステータスを「'+name+'」に変更します。\nEntryPocket本体にも反映されます。よろしいですか？')) return;
+      toast('変更中…');
+      google.script.run.withSuccessHandler(function(r){
+        if(r&&r.ok){ if(a){ a.status=r.name||name; a.statusCode=r.code||statusKbn; } toast('「'+name+'」に変更しました'); renderRecruit(); }
+        else { toast('変更失敗: '+((r&&r.error)||'')); }
+      }).withFailureHandler(function(e){ toast('通信エラー: '+(e&&e.message||'')); }).epSetStatus(applyCd, statusKbn);
+    }
     function atoggle(code){ var el=document.getElementById('ad_'+code); if(!el) return;
       if(el.hidden){ if(!el.getAttribute('data-built')){ el.innerHTML=appDetail(appByCode[code]); el.setAttribute('data-built','1'); } el.hidden=false; } else el.hidden=true; }
     function appCard(a){
