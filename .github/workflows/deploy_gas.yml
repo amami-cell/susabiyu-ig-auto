@@ -1,0 +1,67 @@
+name: deploy-gas
+
+# entrypocket-recruit/gas/ を編集して push すると、GAS（Apps Script）へ自動反映する。
+# 手貼り不要。必要な GitHub Secrets:
+#   CLASPRC_JSON      … clasp login で作られる ~/.clasprc.json の中身（丸ごと）
+#   GAS_SCRIPT_ID     … Apps Script プロジェクトの スクリプトID
+#   GAS_DEPLOYMENT_ID … （任意）本番 /exec の デプロイID。設定すると同じURLを更新する
+on:
+  workflow_dispatch:
+  push:
+    branches: [ main, 'claude/**' ]
+    paths:
+      - 'entrypocket-recruit/gas/**'
+      - '.github/workflows/deploy_gas.yml'
+
+concurrency:
+  group: deploy-gas
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: entrypocket-recruit/gas
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: clasp を導入（v2 で認証情報フォーマットを固定）
+        run: npm i -g @google/clasp@2.4.2
+
+      - name: 認証情報を書き込む（clasp login のトークン）
+        env:
+          CLASPRC_JSON: ${{ secrets.CLASPRC_JSON }}
+        run: |
+          if [ -z "$CLASPRC_JSON" ]; then
+            echo "::error::CLASPRC_JSON secret が未設定です。DEPLOY.md の手順で登録してください。"; exit 1
+          fi
+          printf '%s' "$CLASPRC_JSON" > "$HOME/.clasprc.json"
+
+      - name: .clasp.json を生成（Script ID を注入）
+        env:
+          GAS_SCRIPT_ID: ${{ secrets.GAS_SCRIPT_ID }}
+        run: |
+          if [ -z "$GAS_SCRIPT_ID" ]; then
+            echo "::error::GAS_SCRIPT_ID secret が未設定です。DEPLOY.md の手順で登録してください。"; exit 1
+          fi
+          printf '{"scriptId":"%s","rootDir":"."}' "$GAS_SCRIPT_ID" > .clasp.json
+
+      - name: push（コードを GAS へ反映）
+        run: clasp push -f
+
+      - name: deploy（本番 /exec を更新）
+        env:
+          GAS_DEPLOYMENT_ID: ${{ secrets.GAS_DEPLOYMENT_ID }}
+        run: |
+          if [ -n "$GAS_DEPLOYMENT_ID" ]; then
+            echo "デプロイID指定あり：同じURLを更新します"
+            clasp deploy --deploymentId "$GAS_DEPLOYMENT_ID" --description "auto ${GITHUB_SHA}"
+          else
+            echo "GAS_DEPLOYMENT_ID 未設定：push のみ完了（head /dev URL は最新）。"
+            echo "本番 /exec を使う場合は DEPLOY.md の手順でデプロイIDを登録してください。"
+          fi

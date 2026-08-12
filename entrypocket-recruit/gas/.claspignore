@@ -1,0 +1,5 @@
+# clasp が GAS へ送るファイルを限定する（.gs / .html / appsscript.json のみ）
+**/**
+!appsscript.json
+!*.gs
+!*.html
