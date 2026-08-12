@@ -71,6 +71,8 @@ function epDate_(v) {
 
 // ========================= 求人打ち出し履歴（Notion由来の別スプレッドシート）=========================
 
+// 取得元：スクリプトプロパティに NOTION_TOKEN / NOTION_DB_ID があれば Notion を直読み。
+//   無ければ下のスプレッドシート(Notionのミラー)を読む（フォールバック）。
 var NOTION_POSTINGS_SHEET_ID = "1Oh1mxj5Jjn5wB5fTtW4GJrepA6cFDwQRhE9mK2QbxFw";
 var POSTING_KEEP_DAYS = 365;   // 掲載終了からこの日数を過ぎた打ち出しは取り込まない（古い分は自動で捨てる）
 
@@ -94,12 +96,87 @@ var POST_COLMAP = {
   note: ["退職理由等、備考", "退職理由等", "備考", "退職理由"]
 };
 
+// 取り込み本体：Notion優先→ダメならスプレッドシート。共通の書き出しへ渡す。
 function epImportPostings_(ss) {
+  var rows = epFetchNotionRows_(), srcName = "Notion";
+  if (!rows) { rows = epFetchPostingSheetRows_(); srcName = "スプレッドシート"; }
+  if (!rows) { Logger.log("  求人打ち出し: 取得元なし（NOTION_TOKEN/DB未設定 or シート不可）"); return; }
+  epWritePostings_(ss, rows, srcName);
+}
+
+// Notion API からデータベースの全行を取得（未設定なら null）。行は論理名キーの素データ。
+function epFetchNotionRows_() {
+  var p = PropertiesService.getScriptProperties();
+  var token = p.getProperty("NOTION_TOKEN"), db = p.getProperty("NOTION_DB_ID");
+  if (!token || !db) return null;
+  db = db.replace(/-/g, "");   // ダッシュ有無どちらでも可
+  var rows = [], cursor = null, guard = 0;
+  do {
+    var payload = { page_size: 100 };
+    if (cursor) payload.start_cursor = cursor;
+    var res = UrlFetchApp.fetch("https://api.notion.com/v1/databases/" + db + "/query", {
+      method: "post", contentType: "application/json",
+      headers: { "Authorization": "Bearer " + token, "Notion-Version": "2022-06-28" },
+      payload: JSON.stringify(payload), muteHttpExceptions: true
+    });
+    if (res.getResponseCode() !== 200) {
+      Logger.log("  Notion APIエラー HTTP=" + res.getResponseCode() + " " + res.getContentText().slice(0, 200));
+      return rows.length ? rows : null;
+    }
+    var data = JSON.parse(res.getContentText());
+    (data.results || []).forEach(function (pg) {
+      var props = pg.properties || {};
+      var get = function (key) {
+        for (var j = 0; j < POST_COLMAP[key].length; j++) { var nm = POST_COLMAP[key][j]; if (props[nm] != null) return epNotionValue_(props[nm]); }
+        return "";
+      };
+      rows.push({
+        store: get("store"), reporter: get("reporter"), media: get("media"), plan: get("plan"),
+        area1: get("area1"), area2: get("area2"), line1: get("line1"), line2: get("line2"),
+        cost: get("cost"), start: get("start"), end: get("end"), apps: get("apps"), hired: get("hired"),
+        unit: get("unit"), hireRate: get("hireRate"), quit: get("quit"), quitRate: get("quitRate"), note: get("note")
+      });
+    });
+    cursor = data.has_more ? data.next_cursor : null;
+  } while (cursor && ++guard < 50);
+  Logger.log("  Notion取得 " + rows.length + "件");
+  return rows;
+}
+
+// Notionプロパティ1つ → 素の値（型ごとに取り出す）
+function epNotionValue_(pr) {
+  if (!pr) return "";
+  switch (pr.type) {
+    case "title": return (pr.title || []).map(function (x) { return x.plain_text; }).join("");
+    case "rich_text": return (pr.rich_text || []).map(function (x) { return x.plain_text; }).join("");
+    case "number": return pr.number == null ? "" : pr.number;
+    case "select": return pr.select ? pr.select.name : "";
+    case "status": return pr.status ? pr.status.name : "";
+    case "multi_select": return (pr.multi_select || []).map(function (x) { return x.name; }).join(", ");
+    case "date": return pr.date ? (pr.date.start || "") : "";
+    case "checkbox": return pr.checkbox ? "true" : "";
+    case "url": return pr.url || "";
+    case "email": return pr.email || "";
+    case "phone_number": return pr.phone_number || "";
+    case "people": return (pr.people || []).map(function (x) { return x.name || ""; }).join(", ");
+    case "created_time": return pr.created_time || "";
+    case "last_edited_time": return pr.last_edited_time || "";
+    case "formula": var f = pr.formula || {}; return f.string != null ? f.string : (f.number != null ? f.number : (typeof f.boolean === "boolean" ? (f.boolean ? "true" : "") : (f.date ? (f.date.start || "") : "")));
+    case "rollup":
+      var r = pr.rollup || {};
+      if (r.type === "number") return r.number == null ? "" : r.number;
+      if (r.type === "date") return r.date ? (r.date.start || "") : "";
+      if (r.type === "array") return (r.array || []).map(function (a) { return epNotionValue_(a); }).filter(String).join(", ");
+      return "";
+    default: return "";
+  }
+}
+
+// フォールバック：Notionのミラー・スプレッドシートから全行を取得（論理名キー）。無理なら null。
+function epFetchPostingSheetRows_() {
   var ext;
   try { ext = SpreadsheetApp.openById(NOTION_POSTINGS_SHEET_ID); }
-  catch (e) { Logger.log("  求人打ち出しシートを開けず(権限/ID?): " + e); return; }
-
-  // 「店舗名」見出しを含むタブを探す
+  catch (e) { Logger.log("  打ち出しシートを開けず(権限/ID?): " + e); return null; }
   var sheets = ext.getSheets(), src = null, hdr = null;
   for (var s = 0; s < sheets.length; s++) {
     var vv; try { vv = sheets[s].getDataRange().getValues(); } catch (e) { continue; }
@@ -107,41 +184,50 @@ function epImportPostings_(ss) {
     var head = vv[0].map(function (x) { return String(x || "").replace(/　/g, "").trim(); });
     if (head.indexOf("店舗名") >= 0) { src = vv; hdr = head; break; }
   }
-  if (!src) { Logger.log("  求人打ち出し: 『店舗名』見出しのタブが見つからず"); return; }
-
+  if (!src) return null;
   var hidx = {};
   for (var key in POST_COLMAP) {
-    for (var j = 0; j < POST_COLMAP[key].length; j++) {
-      var p = hdr.indexOf(POST_COLMAP[key][j]); if (p >= 0) { hidx[key] = p; break; }
-    }
+    for (var j = 0; j < POST_COLMAP[key].length; j++) { var p = hdr.indexOf(POST_COLMAP[key][j]); if (p >= 0) { hidx[key] = p; break; } }
   }
   var g = function (row, k) { var p = hidx[k]; return (p == null || p >= row.length) ? "" : row[p]; };
-  var today = new Date(); today.setHours(0, 0, 0, 0); var tt = today.getTime();
-  var cutoff = tt - POSTING_KEEP_DAYS * 86400000;
-
-  var out = [];
+  var rows = [];
   for (var i = 1; i < src.length; i++) {
     var row = src[i];
-    var store = epCleanStore_(String(g(row, "store") || "").replace(/\s+/g, " ").trim());
-    if (!store) continue;
-    var st = epDate_(g(row, "start")), en = epDate_(g(row, "end"));
-    if (en && en.getTime() < cutoff) continue;                          // 古すぎ→捨てる
+    rows.push({
+      store: g(row, "store"), reporter: g(row, "reporter"), media: g(row, "media"), plan: g(row, "plan"),
+      area1: g(row, "area1"), area2: g(row, "area2"), line1: g(row, "line1"), line2: g(row, "line2"),
+      cost: g(row, "cost"), start: g(row, "start"), end: g(row, "end"), apps: g(row, "apps"), hired: g(row, "hired"),
+      unit: g(row, "unit"), hireRate: g(row, "hireRate"), quit: g(row, "quit"), quitRate: g(row, "quitRate"), note: g(row, "note")
+    });
+  }
+  return rows;
+}
+
+// 共通の書き出し：期間で募集中/終了を判定・古い分は捨てる・「求人打ち出し」シートへ全書き換え。
+function epWritePostings_(ss, rows, srcName) {
+  var today = new Date(); today.setHours(0, 0, 0, 0); var tt = today.getTime();
+  var cutoff = tt - POSTING_KEEP_DAYS * 86400000;
+  var out = [];
+  rows.forEach(function (r) {
+    var store = epCleanStore_(String(r.store || "").replace(/\s+/g, " ").trim());
+    if (!store) return;
+    var st = epDate_(r.start), en = epDate_(r.end);
+    if (en && en.getTime() < cutoff) return;                          // 古すぎ→捨てる
     var active = st && st.getTime() <= tt && (!en || tt <= en.getTime()); // 期間内=募集中
-    out.push([store, String(g(row, "reporter") || ""), String(g(row, "media") || ""), String(g(row, "plan") || ""),
-      String(g(row, "area1") || ""), String(g(row, "area2") || ""), String(g(row, "line1") || ""), String(g(row, "line2") || ""),
-      g(row, "cost"),
+    out.push([store, String(r.reporter || ""), String(r.media || ""), String(r.plan || ""),
+      String(r.area1 || ""), String(r.area2 || ""), String(r.line1 || ""), String(r.line2 || ""),
+      r.cost,
       st ? Utilities.formatDate(st, "Asia/Tokyo", "yyyy-MM-dd") : "",
       en ? Utilities.formatDate(en, "Asia/Tokyo", "yyyy-MM-dd") : "",
-      g(row, "apps"), g(row, "hired"), g(row, "unit"), g(row, "hireRate"),
-      g(row, "quit"), g(row, "quitRate"), active ? "募集中" : "終了", String(g(row, "note") || "")]);
-  }
+      r.apps, r.hired, r.unit, r.hireRate, r.quit, r.quitRate, active ? "募集中" : "終了", String(r.note || "")]);
+  });
   out.sort(function (a, b) { return String(b[9]) < String(a[9]) ? -1 : 1; });  // 掲載開始(列10)の新しい順
 
   var sh = epSheet_(ss, "求人打ち出し", POST_HEADER);
   sh.getRange(1, 1, 1, POST_HEADER.length).setValues([POST_HEADER]);
   if (sh.getLastRow() > 1) sh.getRange(2, 1, sh.getLastRow() - 1, POST_HEADER.length).clearContent();
   if (out.length) sh.getRange(2, 1, out.length, POST_HEADER.length).setValues(out);
-  Logger.log("  ✓ 求人打ち出し取り込み " + out.length + "件");
+  Logger.log("  ✓ 求人打ち出し取り込み(" + srcName + ") " + out.length + "件");
 }
 
 // ========================= エントリポイント =========================
