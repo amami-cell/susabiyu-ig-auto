@@ -78,6 +78,19 @@
     .sc-body{ margin-top:13px; border-top:1px solid var(--line2); padding-top:12px; }
     .dl{ font-size:11px; color:var(--muted); font-weight:800; letter-spacing:.03em; margin:15px 0 8px; }
     .dl:first-child{ margin-top:0; }
+    /* 店舗内 ステータス絞り込み */
+    .sfil{ display:flex; flex-wrap:wrap; gap:7px; margin:2px 0 11px; }
+    .sf{ border:1px solid var(--line2); background:#141b25; color:var(--fg2); border-radius:999px; padding:7px 13px; font-size:12.5px; font-weight:700; }
+    .sf:active{ transform:scale(.97); }
+    .sf b{ color:var(--fg); margin-left:3px; }
+    .sf.on{ background:var(--accent); color:#08192e; border-color:var(--accent); } .sf.on b{ color:#08192e; }
+    .sf.warn{ color:var(--amber); border-color:#4a4326; }
+    .sf.warn.on{ background:var(--amber); color:#2a1400; border-color:var(--amber); } .sf.warn.on b{ color:#2a1400; }
+    .warnchip{ color:var(--amber) !important; background:#312a13 !important; }
+    .demo{ margin:2px 0 12px; padding:12px 13px; background:#10161f; border:1px solid var(--line); border-radius:11px; }
+    .mb-t{ font-size:11px; color:var(--muted); font-weight:800; margin:12px 0 6px; } .demo .mb-t:first-child{ margin-top:0; }
+    .ap.new{ border-left:3px solid var(--amber); }
+    .tag.req{ background:#312a13; color:var(--amber); }
     /* posting row */
     .pr{ border:1px solid var(--line); border-radius:11px; padding:11px 13px; margin-bottom:9px; cursor:pointer; background:var(--card2); }
     .pr-h{ display:flex; align-items:center; gap:8px; flex-wrap:wrap; font-size:14px; font-weight:700; }
@@ -144,6 +157,10 @@
   <div class="toast" id="toast"></div>
   <script>
     var STAGES=['応募','接触','面接','内定','入社','終了'], WD=['日','月','火','水','木','金','土'];
+    var STORD=['未対応','新規','応募','連絡中','接触','面接予約済','面接','保留','内定','採用','入社','不採用（辞退）','辞退','不採用','終了'];
+    function isUntreated(s){ return /未対応|新規/.test(String(s||'')); }
+    function ageGroup(a){ var n=parseInt(String(a==null?'':a).replace(/[^\d]/g,''),10);
+      if(!(n>=10&&n<=99)) return '不明'; if(n<20)return'〜19歳'; if(n<30)return'20代'; if(n<40)return'30代'; if(n<50)return'40代'; if(n<60)return'50代'; return'60代〜'; }
     var apps=[], storeManual={}, storePosting={}, postings=[], appByCode={}, RECS=[];
     var postByStore={}, appByStore={}, reportUrl='';
 
@@ -231,11 +248,10 @@
       var i=RECS.indexOf(r);
       var sub = r.sp ? ('掲載 '+fmtD(r.sp.latestStart)+'〜'+(r.sp.latestEnd?fmtD(r.sp.latestEnd):'継続')+(r.sp.media?('　'+esc(r.sp.media)):''))
                      : '掲載中（手動設定）';
-      var totApp = r.sp? r.sp.apps : '';
-      var totHire= r.sp? r.sp.hires: '';
-      var stat = [ (has(totApp)&&totApp!==0?('応募<b>'+esc(totApp)+'</b>'):''),
-                   (has(totHire)&&totHire!==0?('採用<b>'+esc(totHire)+'</b>'):''),
-                   ('現応募者<b>'+r.appsArr.length+'</b>') ].filter(Boolean).map(function(x){return '<span>'+x+'</span>';}).join('');
+      var untreated=r.appsArr.filter(function(a){return isUntreated(a.status);}).length;
+      var chips=[ '<span>現応募者<b>'+r.appsArr.length+'</b></span>' ];
+      if(untreated) chips.unshift('<span class="warnchip">未対応<b>'+untreated+'</b></span>');
+      var stat=chips.join('');
       return '<div class="sc" id="sc_'+i+'">'+
         '<div class="sc-top" onclick="stoggle('+i+')">'+
           '<span class="chev">›</span>'+
@@ -250,15 +266,53 @@
       var body=document.getElementById('sb_'+i), card=document.getElementById('sc_'+i);
       if(!body) return;
       if(body.hidden){
-        if(!body.getAttribute('data-built')){ body.innerHTML=storeBody(RECS[i]); body.setAttribute('data-built','1'); }
+        if(!body.getAttribute('data-built')){ RECS[i].af='all'; body.innerHTML=sbuild(i); body.setAttribute('data-built','1'); }
         body.hidden=false; card.classList.add('tapped');
       } else { body.hidden=true; card.classList.remove('tapped'); }
     }
-    function storeBody(r){
-      var pl=(postByStore[r.key]||[]).map(postingRow).join('') || '<div class="muted">打ち出しデータなし</div>';
+    // ステータス絞り込みチップを押したとき（j<0=募集人数/すべて、それ以外=r.statuses[j]）
+    function sSelect(i,j){ var r=RECS[i]; r.af=(j<0?'all':(r.statuses&&r.statuses[j])||'all'); document.getElementById('sb_'+i).innerHTML=sbuild(i); }
+    // 店舗の中身：ステータス別カウント→絞り込み一覧、募集人数で属性内訳
+    function sbuild(i){
+      var r=RECS[i], af=r.af||'all';
       var arr=r.appsArr.slice().sort(function(a,b){ var ta=toDate(a.appliedAt), tb=toDate(b.appliedAt); return (tb?tb.getTime():0)-(ta?ta.getTime():0); });
-      var al=arr.map(appCard).join('') || '<div class="muted">応募者なし</div>';
-      return '<div class="dl">この店の打ち出し</div>'+pl+'<div class="dl">この店の応募者（'+arr.length+'）</div>'+al;
+      var counts={}; arr.forEach(function(a){ var s=a.status||'不明'; counts[s]=(counts[s]||0)+1; });
+      var order=STORD.slice(); Object.keys(counts).forEach(function(s){ if(order.indexOf(s)<0) order.push(s); });
+      r.statuses=order.filter(function(s){ return counts[s]; });
+      // チップ（募集人数＝属性内訳、各ステータス＝一覧）
+      var chips='<div class="sfil">';
+      chips+='<button class="sf'+(af==='all'?' on':'')+'" onclick="sSelect('+i+',-1)">募集人数<b>'+arr.length+'</b></button>';
+      r.statuses.forEach(function(s,j){
+        var w=isUntreated(s)?' warn':'';
+        chips+='<button class="sf'+w+(af===s?' on':'')+'" onclick="sSelect('+i+','+j+')">'+esc(s)+'<b>'+counts[s]+'</b></button>';
+      });
+      chips+='</div>';
+      var demo = af==='all' ? demoHtml(arr) : '';
+      var list = (af==='all') ? arr : arr.filter(function(a){ return (a.status||'不明')===af; });
+      var lh = list.map(appCard).join('') || '<div class="muted">該当なし</div>';
+      var pl=(postByStore[r.key]||[]).map(postingRow).join('') || '<div class="muted">打ち出しデータなし</div>';
+      return chips+demo+'<div class="slist">'+lh+'</div>'+
+        '<div class="dl">この店の打ち出し</div>'+pl;
+    }
+    // 属性内訳（性別・年齢・職業）
+    function demoHtml(arr){
+      var g={}, ag={}, oc={};
+      arr.forEach(function(a){ g[a.gender||'不明']=(g[a.gender||'不明']||0)+1; var k=ageGroup(a.age); ag[k]=(ag[k]||0)+1; var o=a.occupation||'不明'; oc[o]=(oc[o]||0)+1; });
+      return '<div class="demo">'+
+        miniBars('性別', g, null, 0)+
+        miniBars('年齢', ag, ['〜19歳','20代','30代','40代','50代','60代〜','不明'], 0)+
+        miniBars('職業', oc, null, 6)+
+      '</div>';
+    }
+    function miniBars(title, obj, order, limit){
+      var keys=Object.keys(obj);
+      if(order) keys.sort(function(a,b){ var ia=order.indexOf(a),ib=order.indexOf(b); ia=ia<0?99:ia; ib=ib<0?99:ib; return ia-ib; });
+      else keys.sort(function(a,b){ return obj[b]-obj[a]; });
+      if(limit) keys=keys.slice(0,limit);
+      var max=1; keys.forEach(function(k){ max=Math.max(max,obj[k]); });
+      var rows=keys.map(function(k){ var v=obj[k],w=Math.round(v/max*100);
+        return '<div class="bd"><div class="bl">'+esc(k)+'</div><div class="bb"><div class="bf" style="width:'+w+'%"></div></div><div class="bn">'+v+'</div></div>'; }).join('');
+      return '<div class="mb-t">'+title+'</div>'+rows;
     }
 
     /* ===== 打ち出し履歴タブ ===== */
@@ -329,6 +383,7 @@
       var meta=[ageTxt(a.age), a.gender].filter(Boolean).join('・');
       var metaS=meta?'<span class="ap-meta">'+esc(meta)+'</span>':'';
       var dup=a.dup?'<span class="tag dup">重複</span>':'';
+      var req=isUntreated(a.status)?'<span class="tag req">要対応</span>':'';
       var occ=a.occupation?('💼 '+esc(a.occupation)):'';
       var stBtn='<button class="pill st" onclick="atoggle(\''+id+'\')">◆ '+esc(a.status||'状況不明')+' ▾</button>';
       var memoN=summarize(a.memo).length, memoBtn=memoN?('<button class="pill memo" onclick="atoggle(\''+id+'\')">📝 メモ'+memoN+' ▾</button>'):'';
@@ -337,7 +392,7 @@
         (a.telLink?'<a class="btn call" href="'+esc(a.telLink)+'">発信</a>':'<span class="btn off">TELなし</span>')+
         (sms?'<a class="btn sms" href="'+esc(sms)+'">SMS</a>':'<span class="btn off">SMS不可</span>')+
         (mail?'<a class="btn mail" href="'+esc(mail)+'">メール</a>':'<span class="btn off">メール無</span>')+'</div>';
-      return '<div class="ap"><div class="ap-nm">'+esc(a.name)+metaS+dup+'</div>'+
+      return '<div class="ap'+(isUntreated(a.status)?' new':'')+'"><div class="ap-nm">'+esc(a.name)+metaS+dup+req+'</div>'+
         (occ?'<div class="ap-sub">'+occ+'</div>':'')+
         '<div class="ap-sub">🕒 '+fmtDT(a.appliedAt)+(a.media?('　'+esc(a.media)):'')+'</div>'+
         '<div class="pills">'+stBtn+memoBtn+'</div>'+
