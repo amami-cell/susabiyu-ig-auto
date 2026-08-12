@@ -368,8 +368,8 @@ function epParseCsv_(text) {
     if (!code) continue;
     var telRaw = get("tel");
     var birth = get("birth");
-    var ageCol = get("age_col");                          // 「年齢」列があればそれを使う
-    var age = (ageCol && /^\d{1,3}$/.test(ageCol)) ? +ageCol : epAge_(birth);
+    var ageDigits = String(get("age_col")).replace(/[^\d]/g, "");   // 「年齢」列の数字だけ取り出す
+    var age = (ageDigits && +ageDigits >= 10 && +ageDigits <= 99) ? +ageDigits : epAge_(birth);
     var memoNew = get("memo"), memoOld = get("memo_old"); // メモ(新規)＋メモ(過去)をまとめる
     var memoAll = [memoNew, memoOld ? ("【過去メモ】\n" + memoOld) : ""].filter(Boolean).join("\n\n");
     rows.push({
