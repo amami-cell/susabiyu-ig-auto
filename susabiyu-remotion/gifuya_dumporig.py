@@ -16,6 +16,7 @@ import hashlib
 
 from PIL import Image, ImageOps
 
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import gifuya_photos as gp
 
 MAX_SIDE = 2400  # 原本が巨大な場合の長辺上限（構図確認・再トリミングには十分）
