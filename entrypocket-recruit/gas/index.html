@@ -91,6 +91,21 @@
     .mb-t{ font-size:11px; color:var(--muted); font-weight:800; margin:12px 0 6px; } .demo .mb-t:first-child{ margin-top:0; }
     .ap.new{ border-left:3px solid var(--amber); }
     .tag.req{ background:#312a13; color:var(--amber); }
+    /* 件数タイル（店舗詳細） */
+    .sgrid{ display:grid; grid-template-columns:repeat(auto-fill,minmax(84px,1fr)); gap:8px; margin:2px 0 4px; }
+    .stile{ background:#141b25; border:1px solid var(--line2); border-radius:11px; padding:11px 6px; text-align:center; color:var(--fg); }
+    button.stile:active{ transform:scale(.97); }
+    .stile .sv{ font-size:19px; font-weight:800; font-variant-numeric:tabular-nums; line-height:1.15; }
+    .stile .sl{ font-size:10.5px; color:var(--muted); margin-top:3px; }
+    .stile.on{ border-color:var(--accent); background:#12233a; }
+    .stile.warn .sv{ color:var(--amber); } .stile.warn.on{ border-color:var(--amber); background:#2a2413; }
+    /* 集計タイル（会社全体） */
+    .mgrid{ display:grid; grid-template-columns:1fr 1fr; gap:9px; }
+    .mtile{ background:var(--card2); border:1px solid var(--line); border-radius:12px; padding:12px 13px; }
+    .mtile.big{ grid-column:1 / -1; background:#12233a; border-color:#33506e; }
+    .mtile .mv{ font-size:19px; font-weight:800; font-variant-numeric:tabular-nums; overflow-wrap:anywhere; }
+    .mtile.big .mv{ font-size:24px; color:var(--accent); }
+    .mtile .ml{ font-size:11px; color:var(--muted); margin-top:2px; }
     /* posting row */
     .pr{ border:1px solid var(--line); border-radius:11px; padding:11px 13px; margin-bottom:9px; cursor:pointer; background:var(--card2); }
     .pr-h{ display:flex; align-items:center; gap:8px; flex-wrap:wrap; font-size:14px; font-weight:700; }
@@ -141,18 +156,7 @@
   <main>
     <section id="tab-recruit"><div id="recruitList"><div class="empty">読み込み中…</div></div></section>
     <section id="tab-history" hidden><div id="historyList"><div class="empty">読み込み中…</div></div></section>
-    <section id="tab-stats" hidden>
-      <div class="card"><div class="kpis">
-        <div class="kpi"><div class="n" id="kTotal">–</div><div class="l">応募者(現在)</div></div>
-        <div class="kpi"><div class="n" id="kDup">–</div><div class="l">重複率</div></div>
-        <div class="kpi"><div class="n" id="kNew">–</div><div class="l">最終取得</div></div>
-      </div></div>
-      <div class="card"><h2>ファネル</h2><div id="funnel"></div></div>
-      <div class="card"><h2>ステータス別</h2><div id="bdStatus"></div></div>
-      <div class="card"><h2>年齢層</h2><div id="bdAgeGroup"></div></div>
-      <div class="card"><h2>性別</h2><div id="bdGender"></div></div>
-      <div class="card"><h2>年齢（単年）</h2><div id="bdAge"></div></div>
-    </section>
+    <section id="tab-stats" hidden><div id="statsBody"><div class="empty">読み込み中…</div></div></section>
   </main>
   <div class="toast" id="toast"></div>
   <script>
@@ -163,6 +167,7 @@
       if(!(n>=10&&n<=99)) return '不明'; if(n<20)return'〜19歳'; if(n<30)return'20代'; if(n<40)return'30代'; if(n<50)return'40代'; if(n<60)return'50代'; return'60代〜'; }
     var apps=[], storeManual={}, storePosting={}, postings=[], appByCode={}, RECS=[];
     var postByStore={}, appByStore={}, reportUrl='';
+    var DASH={}, LAST=null, statYear='all';
 
     function toast(m){ var t=document.getElementById('toast'); t.textContent=m; t.classList.add('show'); setTimeout(function(){t.classList.remove('show');},2600); }
     function esc(s){ return String(s==null?'':s).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];}); }
@@ -207,10 +212,11 @@
       postByStore={}; postings.forEach(function(p){ var k=normStore(p.store); (postByStore[k]=postByStore[k]||[]).push(p); });
       appByStore={}; apps.forEach(function(a){ var k=normStore(a.store); (appByStore[k]=appByStore[k]||[]).push(a); });
 
+      DASH=dash; LAST=d.last;
       document.getElementById('updated').textContent = d.last?('最終取得 '+esc(d.last.at)):(dash.generated_at||'未取得');
       renderRecruit();
       renderHistory();
-      renderStats(dash, d.last);
+      renderStats();
     }
 
     /* ===== 未提出（掲載終了なのに結果が空）===== */
@@ -270,29 +276,33 @@
         body.hidden=false; card.classList.add('tapped');
       } else { body.hidden=true; card.classList.remove('tapped'); }
     }
-    // ステータス絞り込みチップを押したとき（j<0=募集人数/すべて、それ以外=r.statuses[j]）
-    function sSelect(i,j){ var r=RECS[i]; r.af=(j<0?'all':(r.statuses&&r.statuses[j])||'all'); document.getElementById('sb_'+i).innerHTML=sbuild(i); }
-    // 店舗の中身：ステータス別カウント→絞り込み一覧、募集人数で属性内訳
+    // タイルを押したとき（j<0=募集人数→属性内訳、それ以外=r.statuses[j]→一覧）。同じものを再度押すと閉じる。
+    function sSelect(i,j){
+      var r=RECS[i], target=(j<0?'all':(r.statuses&&r.statuses[j])||'all');
+      r.af=(r.af===target?'none':target);
+      document.getElementById('sb_'+i).innerHTML=sbuild(i);
+    }
+    // 店舗の中身：件数タイルに集約。タイルを押すと該当一覧／属性内訳を下に開く。
     function sbuild(i){
-      var r=RECS[i], af=r.af||'all';
+      var r=RECS[i], af=r.af||'none';
       var arr=r.appsArr.slice().sort(function(a,b){ var ta=toDate(a.appliedAt), tb=toDate(b.appliedAt); return (tb?tb.getTime():0)-(ta?ta.getTime():0); });
       var counts={}; arr.forEach(function(a){ var s=a.status||'不明'; counts[s]=(counts[s]||0)+1; });
       var order=STORD.slice(); Object.keys(counts).forEach(function(s){ if(order.indexOf(s)<0) order.push(s); });
       r.statuses=order.filter(function(s){ return counts[s]; });
-      // チップ（募集人数＝属性内訳、各ステータス＝一覧）
-      var chips='<div class="sfil">';
-      chips+='<button class="sf'+(af==='all'?' on':'')+'" onclick="sSelect('+i+',-1)">募集人数<b>'+arr.length+'</b></button>';
+      var tiles='<div class="sgrid">';
+      tiles+='<button class="stile'+(af==='all'?' on':'')+'" onclick="sSelect('+i+',-1)"><div class="sv">'+arr.length+'</div><div class="sl">募集人数</div></button>';
       r.statuses.forEach(function(s,j){
         var w=isUntreated(s)?' warn':'';
-        chips+='<button class="sf'+w+(af===s?' on':'')+'" onclick="sSelect('+i+','+j+')">'+esc(s)+'<b>'+counts[s]+'</b></button>';
+        tiles+='<button class="stile'+w+(af===s?' on':'')+'" onclick="sSelect('+i+','+j+')"><div class="sv">'+counts[s]+'</div><div class="sl">'+esc(s)+'</div></button>';
       });
-      chips+='</div>';
-      var demo = af==='all' ? demoHtml(arr) : '';
-      var list = (af==='all') ? arr : arr.filter(function(a){ return (a.status||'不明')===af; });
-      var lh = list.map(appCard).join('') || '<div class="muted">該当なし</div>';
-      var pl=(postByStore[r.key]||[]).map(postingRow).join('') || '<div class="muted">打ち出しデータなし</div>';
-      return chips+demo+'<div class="slist">'+lh+'</div>'+
-        '<div class="dl">この店の打ち出し</div>'+pl;
+      tiles+='</div>';
+      var below='';
+      if(af==='all') below=demoHtml(arr);
+      else if(af!=='none'){
+        var list=arr.filter(function(a){ return (a.status||'不明')===af; });
+        below='<div class="dl">'+esc(af)+'（'+list.length+'）</div>'+(list.map(appCard).join('')||'<div class="muted">該当なし</div>');
+      }
+      return tiles+below;
     }
     // 属性内訳（性別・年齢・職業）
     function demoHtml(arr){
@@ -399,30 +409,56 @@
         '<div class="adetail" id="ad_'+id+'" hidden></div>'+acts+'</div>';
     }
 
-    /* ===== 集計タブ ===== */
-    function renderStats(dash, last){
-      document.getElementById('kTotal').textContent = dash.total!=null?dash.total:'–';
-      document.getElementById('kDup').textContent = dash.duplicate_rate!=null? pct(dash.duplicate_rate) : '–';
-      document.getElementById('kNew').textContent = last?last.n:'–';
-      var f=dash.funnel||{}, max=1; STAGES.forEach(function(s){max=Math.max(max,f[s]||0);});
-      document.getElementById('funnel').innerHTML=STAGES.map(function(s){ var v=f[s]||0,w=Math.round(v/max*100);
-        return '<div class="frow"><div class="nm">'+s+'</div><div class="bar s'+s+'" style="width:'+Math.max(w,v?8:0)+'%">'+(v||'')+'</div></div>'; }).join('');
-      renderBD('bdStatus', dash.by_status);
-      renderBD('bdAgeGroup', dash.by_age_group, ['〜19歳','20代','30代','40代','50代','60代〜','不明']);
-      renderBD('bdGender', dash.by_gender);
-      renderBD('bdAge', dash.by_age, 'num');
+    /* ===== 集計タブ（求人実績の累計・期間選択・店舗別）===== */
+    function parseCost(v){ var n=parseFloat(String(v==null?'':v).replace(/[^\d.]/g,'')); return isNaN(n)?0:n; }
+    function num(v){ var n=parseInt(String(v==null?'':v).replace(/[^\d]/g,''),10); return isNaN(n)?0:n; }
+    function yen(n){ n=Math.round(n||0); var s=String(n); var out=''; while(s.length>3){ out=','+s.slice(-3)+out; s=s.slice(0,-3); } return '¥'+s+out; }
+    function postYear(p){ var d=toDate(p.start)||toDate(p.end); return d?d.getFullYear():null; }
+    function aggPostings(list){ var c=0,a=0,h=0,q=0,rn=0; list.forEach(function(p){ c+=parseCost(p.cost); a+=num(p.apps); h+=num(p.hires); q+=num(p.quit); if(has(p.apps)||has(p.hires)) rn++; }); return {cost:c,apps:a,hires:h,quit:q,n:list.length,result:rn}; }
+    function setYear(y){ statYear=y; renderStats(); }
+    function renderStats(){
+      var host=document.getElementById('statsBody');
+      var years={}; postings.forEach(function(p){ var y=postYear(p); if(y) years[y]=1; });
+      var yl=Object.keys(years).map(Number).sort(function(a,b){return b-a;});
+      var chips='<div class="sfil"><button class="sf'+(statYear==='all'?' on':'')+'" onclick="setYear(\'all\')">全期間</button>'+
+        yl.map(function(y){ return '<button class="sf'+(statYear==y?' on':'')+'" onclick="setYear('+y+')">'+y+'年</button>'; }).join('')+'</div>';
+      var per=postings.filter(function(p){ return statYear==='all' || postYear(p)==statYear; });
+      var A=aggPostings(per);
+      var label=(statYear==='all'?'全期間':statYear+'年');
+      var summary='<div class="card"><h2>会社全体の求人実績（'+label+'）</h2><div class="mgrid">'+
+        mtile('採用単価（1人あたり）', A.hires? yen(A.cost/A.hires):'—', true)+
+        mtile('打ち出し', A.n+'件')+
+        mtile('求人費 合計', yen(A.cost))+
+        mtile('応募 合計', A.apps+'名')+
+        mtile('採用 合計', A.hires+'名')+
+        mtile('採用率', A.apps? (A.hires/A.apps*100).toFixed(2)+'%':'—')+
+        mtile('退職', A.quit+'名'+(A.hires?'（'+(A.quit/A.hires*100).toFixed(1)+'%）':''))+
+      '</div></div>';
+      // 店舗別
+      var byS={}; per.forEach(function(p){ var k=normStore(p.store); (byS[k]=byS[k]||{name:p.store,list:[]}).list.push(p); });
+      var rows=Object.keys(byS).map(function(k){ var o=byS[k]; return {k:k,name:o.name,list:o.list,a:aggPostings(o.list)}; });
+      rows.sort(function(x,y){ return y.a.cost-x.a.cost; });
+      var stores='<div class="card"><h2>店舗別 集計（タップで打ち出し履歴）</h2>'+
+        (rows.length? rows.map(storeAggRow).join('') : '<div class="empty">データなし</div>')+'</div>';
+      // 応募ファネル（会社全体・現在）
+      var f=DASH.funnel||{}, mx=1; STAGES.forEach(function(s){mx=Math.max(mx,f[s]||0);});
+      var funnel='<div class="card"><h2>応募ファネル（現在の全応募者 '+(DASH.total||0)+'名）</h2>'+
+        STAGES.map(function(s){ var v=f[s]||0,w=Math.round(v/mx*100); return '<div class="frow"><div class="nm">'+s+'</div><div class="bar s'+s+'" style="width:'+Math.max(w,v?8:0)+'%">'+(v||'')+'</div></div>'; }).join('')+'</div>';
+      host.innerHTML=chips+summary+stores+funnel;
     }
-    function renderBD(id, obj, order){
-      obj=obj||{}; var el=document.getElementById(id); if(!el) return;
-      var keys=Object.keys(obj);
-      if(order==='num') keys.sort(function(a,b){return (+a)-(+b);});
-      else if(order&&order.length) keys.sort(function(a,b){var ia=order.indexOf(a),ib=order.indexOf(b); ia=ia<0?99:ia; ib=ib<0?99:ib; return ia-ib;});
-      else keys.sort(function(a,b){return obj[b]-obj[a];});
-      if(!keys.length){ el.innerHTML='<div class="empty">データなし</div>'; return; }
-      var max=1; keys.forEach(function(k){max=Math.max(max,obj[k]);});
-      el.innerHTML=keys.map(function(k){ var v=obj[k],w=Math.round(v/max*100);
-        return '<div class="bd"><div class="bl">'+esc(order==='num'?k+'歳':k)+'</div><div class="bb"><div class="bf" style="width:'+w+'%"></div></div><div class="bn">'+v+'</div></div>'; }).join('');
+    function mtile(label,val,big){ return '<div class="mtile'+(big?' big':'')+'"><div class="mv">'+val+'</div><div class="ml">'+esc(label)+'</div></div>'; }
+    function storeAggRow(row){
+      var id='sa'+(storeAggRow._i=(storeAggRow._i||0)+1), a=row.a;
+      var st=[ '打ち出し<b>'+row.list.length+'</b>', '費<b>'+yen(a.cost)+'</b>', '応募<b>'+a.apps+'</b>',
+               '採用<b>'+a.hires+'</b>', '単価<b>'+(a.hires?yen(a.cost/a.hires):'—')+'</b>' ]
+             .map(function(x){return '<span>'+x+'</span>';}).join('');
+      var body=row.list.slice().sort(function(p,q){ var tp=toDate(p.start), tq=toDate(q.start); return (tq?tq.getTime():0)-(tp?tp.getTime():0); }).map(postingRow).join('');
+      return '<div class="sc" id="'+id+'w"><div class="sc-top" onclick="saToggle(\''+id+'\')"><span class="chev">›</span>'+
+        '<div class="sc-h"><span class="sc-nm">'+esc(row.name)+'</span></div>'+
+        '<div class="sc-stat">'+st+'</div></div>'+
+        '<div class="sc-body" id="'+id+'" hidden>'+body+'</div></div>';
     }
+    function saToggle(id){ var b=document.getElementById(id), w=document.getElementById(id+'w'); if(!b) return; b.hidden=!b.hidden; if(w) w.classList.toggle('tapped',!b.hidden); }
 
     load();
   </script>
