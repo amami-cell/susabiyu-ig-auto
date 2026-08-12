@@ -158,7 +158,7 @@
 <script>
 (function(){
   "use strict";
-  var V = "?v=124";  // メディアのキャッシュ更新用
+  var V = "?v=125";  // メディアのキャッシュ更新用
   var CFG = window.GIFUYA || {};
   var LIVE = !!window.GIFUYA_LIVE;               // 専用GAS注入済みなら実データ連携
   var GAS = (CFG.GAS_URL||"").trim();
@@ -514,6 +514,7 @@
   tR.onclick=function(){ tR.classList.add("on"); tF.classList.remove("on"); render("reel"); window.scrollTo({top:0}); };
   GSEL = loadGsel() || defaultSel();
   loadRegional();
+  FEED = shuffleFeed(FEED);   // 厳選12枚（加工済み）を日替わり順に
   render("feed");
   // seedから決まる順列（Fisher-Yates+LCG）。post_gifuya_story.py と同一式。
   function seededOrder(n, seed){ var a=[],i,s=(seed>>>0)||1; for(i=0;i<n;i++)a.push(i);
@@ -522,8 +523,21 @@
   function shuffleFeed(items){ var day=Math.floor(Date.now()/864e5);
     var reco=items.filter(function(x){return x.reco;}), rest=items.filter(function(x){return !x.reco;});
     var out=reco.slice(); seededOrder(rest.length, day+1).forEach(function(j){ out.push(rest[j]); }); return out; }
-  // フィード候補は加工済みの投稿画像(feed_01〜12)のみ。おすすめ先頭固定＋その日のseedで日替わり順に。
-  FEED = shuffleFeed(FEED);
+  // 毎日同期の全料理を追加：feed.json の「加工済み画像(design)＋生成キャプション」を統合。
+  //   ・design付き(=加工済み)だけを候補に入れる（生写真は出さない）。
+  //   ・厳選12枚と重複する看板料理は除外。おすすめ→先頭。
+  var HERO_KEYS=["どぶ漬け","どてかつ","どて焼き","炊き餃子","明太出汁巻","出汁巻","刺身盛",
+    "串かつ10種","牛串","唐揚","馬刺し","マルシン","ラーメン","生ハムポテト"];
+  (function loadFeedJson(){
+    fetch("./gifuya/feed.json"+V, {cache:"no-store"}).then(function(r){ return r.ok?r.json():null; }).then(function(d){
+      if(!d || !d.items || !d.items.length) return;
+      var extras=d.items.filter(function(it){ return it.design && !HERO_KEYS.some(function(k){return String(it.name||"").indexOf(k)>=0;}); })
+        .map(function(it){ return {img: it.design, t: it.title||it.name, cap: it.cap||"", tags: it.tags||"", reco: !!it.reco}; });
+      if(!extras.length) return;
+      FEED = shuffleFeed(FEED.concat(extras));   // 厳選＋加工済み全料理を日替わり順で
+      if(tF.classList.contains("on")) render("feed");
+    }).catch(function(){});
+  })();
 })();
 </script>
 <script>

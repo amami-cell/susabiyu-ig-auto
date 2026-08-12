@@ -12,6 +12,7 @@
 """
 import os
 import io
+import re
 import sys
 import json
 import base64
@@ -339,7 +340,16 @@ def plan(root=None):
 
 
 def sync(root=None):
-    """料理写真を全同期：4:5トリミングして pwa/gifuya/f_*.jpg を更新し feed.json を書き出す。"""
+    """料理写真を全同期：4:5トリミングした生写真(f_*.jpg)に加え、ロゴ＋見出し等を焼き込んだ
+    「加工済み投稿画像(fd_*.jpg)」も生成。キャプション/タグ/サブコピーを付けて feed.json を書き出す。
+    ＝全料理が一発で"加工済み＋文面付き"になる（確認アプリ表示・実投稿の両方でこれを使う）。"""
+    import gifuya_captions as gc
+    try:
+        import gifuya_design as gd
+        _design_ok = True
+    except Exception as e:                       # Pillow等が無い環境でも生写真同期は継続
+        print("[SYNC] 加工レンダラー無効（生写真のみ）:", e)
+        _design_ok = False
     drive = _drive()
     ordered = _select(drive, root)
     if not ordered:
@@ -347,16 +357,29 @@ def sync(root=None):
         raise SystemExit(1)
     manifest = []
     for d in ordered:
-        img = _slug(d["name"])
-        _save_45(_download(drive, d["id"]), os.path.join(OUT_DIR, img))
-        manifest.append({"img": img, "name": d["name"], "reco": bool(d["reco"])})
+        img = _slug(d["name"])                   # 生写真 f_<hash>.jpg
+        raw_path = os.path.join(OUT_DIR, img)
+        _save_45(_download(drive, d["id"]), raw_path)
+        c = gc.caption_for(d["name"])            # 文面・タグ・サブコピー
+        item = {"img": img, "name": d["name"], "title": c["title"],
+                "cap": c["cap"], "tags": c["tags"], "reco": bool(d["reco"])}
+        if _design_ok:                           # 加工済み fd_<hash>.jpg を焼く
+            design = re.sub(r"^f_", "fd_", img) if img.startswith("f_") else ("d_" + img)
+            try:
+                gd.render_post(raw_path, os.path.join(OUT_DIR, design),
+                               c["title"], subcopy=c["sub"], ribbon="福岡天神店")
+                item["design"] = design
+            except Exception as e:
+                print("  WARN 加工失敗 %s: %s" % (d["name"], e))
+        manifest.append(item)
     feed = {"store": "gifuyatenjin", "count": len(manifest), "items": manifest}
     with open(os.path.join(OUT_DIR, "feed.json"), "w", encoding="utf-8") as fp:
         json.dump(feed, fp, ensure_ascii=False, indent=1)
-    print("[SYNC] %d品を同期し feed.json を書き出しました（おすすめ %d）"
-          % (len(manifest), sum(1 for m in manifest if m["reco"])))
+    nd = sum(1 for m in manifest if m.get("design"))
+    print("[SYNC] %d品を同期（加工済み %d／おすすめ %d）→ feed.json"
+          % (len(manifest), nd, sum(1 for m in manifest if m["reco"])))
     for m in manifest:
-        print("SYNCED|%s|reco=%d|%s" % (m["name"], 1 if m["reco"] else 0, m["img"]))
+        print("SYNCED|%s|reco=%d|%s|%s" % (m["name"], 1 if m["reco"] else 0, m["img"], m.get("design", "-")))
 
 
 if __name__ == "__main__":
