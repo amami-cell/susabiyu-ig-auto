@@ -1,58 +1,59 @@
 /**
  * 【調査専用・読み取りのみ】EntryPocketの「ステータス変更」の仕組みを特定する。
+ * データは一切変更しない（GETで応募者ページ・main.jsを読むだけ）。
  *
- * データは一切変更しない（GETで応募者ページを読むだけ）。
- * ここで得たログをもとに、実際の書き込み(ステータス変更)を安全・確実に実装する。
- *
- * 使い方: epProbeStatusChange を実行 → 実行ログを丸ごとコピーして送る。
+ * 使い方: epProbeStatusChange を実行 → ログを送る（ステータスコード確認済み）。
+ *         その後 epProbeMainJs を実行 → ログを送る（変更リクエストの形を特定）。
  */
+
+// ステータス選択肢・名前空間などを洗い出す（実行済み）
 function epProbeStatusChange() {
   var jar = epLogin_();
   if (!jar) { Logger.log("★ ログイン失敗（EP_USER/EP_PASS を確認）"); return; }
-  Logger.log("✓ ログイン成功。応募者ページを取得します（読み取りのみ）。");
-
   var html = epFetch_(EP_APPLICANT_URL, { method: "get", followRedirects: true }, jar).getContentText();
   Logger.log("HTML長: " + html.length + " 文字");
-
-  // 1) 名前空間・認証トークン
   Logger.log("namespace: " + ((html.match(/_applycontrol_WAR_MYNApplyControlportlet_/) || [])[0] || "見つからず"));
-  Logger.log("p_auth: " + ((html.match(/Liferay\.authToken\s*=\s*['"]([^'"]+)['"]/) || [])[1] || "見つからず"));
-
-  // 2) changeStatus を含むJSの周辺（変更処理の本体）
   var found = 0, idx = html.indexOf("changeStatus");
   while (idx >= 0 && found < 6) {
     Logger.log("---- changeStatus 付近#" + (found + 1) + " ----");
     Logger.log(html.substr(Math.max(0, idx - 250), 700).replace(/\s+/g, " "));
     found++; idx = html.indexOf("changeStatus", idx + 1);
   }
-  if (!found) Logger.log("※ HTML内に changeStatus 無し → 外部JSにある可能性（下のJS src参照）");
-
-  // 3) 更新系っぽい part の候補
-  var seen = {}, re = /part["'\s:=,()]+([A-Za-z][A-Za-z]+)/g, m;
-  while ((m = re.exec(html))) { if (!seen[m[1]]) { seen[m[1]] = 1; } }
-  Logger.log("part候補一覧: " + Object.keys(seen).join(", "));
-
-  // 4) ステータスの選択肢（コード→名称）を洗い出す
+  if (!found) Logger.log("※ HTML内に changeStatus 無し → main.js を調べる（epProbeMainJs）");
   var selRe = /<select\b[\s\S]*?<\/select>/gi, s, shown = 0;
   while ((s = selRe.exec(html)) && shown < 8) {
     var block = s[0];
     if (/ステータス|status|選考|状況/i.test(block)) {
-      var name = (block.match(/name\s*=\s*["']([^"']+)["']/) || [])[1] || "?";
-      Logger.log("=== <select name=" + name + "> ===");
-      (block.match(/<option\b[^>]*>[^<]*<\/option>/gi) || []).slice(0, 80)
-        .forEach(function (o) { Logger.log("  " + o.replace(/\s+/g, " ")); });
+      Logger.log("=== <select name=" + ((block.match(/name\s*=\s*["']([^"']+)["']/) || [])[1] || "?") + "> ===");
+      (block.match(/<option\b[^>]*>[^<]*<\/option>/gi) || []).slice(0, 80).forEach(function (o) { Logger.log("  " + o.replace(/\s+/g, " ")); });
       shown++;
     }
   }
-  if (!shown) Logger.log("※ ステータスのselectが見つからず（別UIの可能性）");
+}
 
-  // 5) 外部JS（changeStatusの実装が外部にある場合の手掛かり）
-  (html.match(/<script\b[^>]*\bsrc\s*=\s*["'][^"']+["'][^>]*>/gi) || [])
-    .forEach(function (x) { if (/apply|applicant|control|status/i.test(x)) Logger.log("関連JS src: " + x.replace(/\s+/g, " ")); });
+// main.js から changeStatus 等の実装（リクエストの組み立て方）を抜き出す
+function epProbeMainJs() {
+  var jar = epLogin_();
+  if (!jar) { Logger.log("★ ログイン失敗"); return; }
+  var html = epFetch_(EP_APPLICANT_URL, { method: "get", followRedirects: true }, jar).getContentText();
 
-  // 6) 応募者1件の識別子（チェックボックス等）の付き方
-  var cb = (html.match(/<input\b[^>]*type\s*=\s*["']checkbox["'][^>]*>/i) || [])[0];
-  if (cb) Logger.log("応募者チェックボックス例: " + cb.replace(/\s+/g, " "));
+  var m = html.match(/<script[^>]+src\s*=\s*["']([^"']*ApplyControl-portlet\/js\/main\.js[^"']*)["']/i);
+  if (!m) { Logger.log("★ main.js の src が見つからず"); return; }
+  var src = m[1].replace(/&amp;/g, "&");
+  if (src.indexOf("http") !== 0) src = "https://manage.entrypocket.jp" + (src.charAt(0) === "/" ? "" : "/") + src;
+  Logger.log("main.js: " + src);
 
-  Logger.log("★ ここまでのログを丸ごとコピーして送ってください（データは変更していません）。");
+  var js = epFetch_(src, { method: "get", followRedirects: true }, jar).getContentText();
+  Logger.log("JS長: " + js.length + " 文字");
+
+  // 主要関数の周辺を抜き出す（changeStatus と、動作確認済みの downloadCSV を比較用に）
+  ["function changeStatus", "changeStatus", "downloadCSV", "part =", "part=", "p_p_lifecycle", "serveResource", "resourceURL"].forEach(function (kw) {
+    var i = js.indexOf(kw), c = 0;
+    while (i >= 0 && c < 3) {
+      Logger.log("---- [" + kw + "] #" + (c + 1) + " ----");
+      Logger.log(js.substr(Math.max(0, i - 120), 900).replace(/\s+/g, " "));
+      c++; i = js.indexOf(kw, i + 1);
+    }
+  });
+  Logger.log("★ このログを丸ごと送ってください（データは変更していません）。");
 }
