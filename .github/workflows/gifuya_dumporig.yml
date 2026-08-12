@@ -1,0 +1,53 @@
+name: gifuya-dumporig
+# 指定料理の「原本（未トリミング）」写真をDriveから取得し、作業ブランチにだけ保存する。
+#   4:5中央トリミングで落ちた部分（例: ジャンボ海老の頭）を復元して再構図するための素材取得。
+#   ※ main には触れない・本番再デプロイもしない（実行したブランチへコミットするだけ）。
+on:
+  workflow_dispatch:
+    inputs:
+      keyword:
+        description: "料理名に含む語（カンマ区切り可 / 空=全料理）"
+        required: false
+        default: "ジャンボ海老"
+      folder_id:
+        description: "画像フォルダID（空=既定のぎふや画像フォルダ）"
+        required: false
+        default: ""
+permissions:
+  contents: write
+concurrency:
+  group: gifuya-dumporig
+  cancel-in-progress: false
+jobs:
+  dump:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref_name }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install deps
+        run: pip install google-api-python-client google-auth Pillow
+      - name: Write creds.json
+        working-directory: susabiyu-remotion
+        run: echo "$GOOGLE_CREDS_B64" | base64 -d > creds.json
+        env:
+          GOOGLE_CREDS_B64: ${{ secrets.GOOGLE_CREDS_B64 }}
+      - name: Dump originals
+        working-directory: susabiyu-remotion
+        run: python gifuya_dumporig.py "${{ github.event.inputs.keyword }}" "${{ github.event.inputs.folder_id }}"
+      - name: Commit originals to this branch
+        run: |
+          set -e
+          rm -f susabiyu-remotion/creds.json
+          if [ -z "$(git status --porcelain -- pwa/gifuya/orig)" ]; then
+            echo "原本に変更がありません（コミットなし）。"; exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add pwa/gifuya/orig
+          git commit -m "ぎふや: 見切れ復元用に原本(未トリミング)を取得"
+          git push origin HEAD:${{ github.ref_name }}
