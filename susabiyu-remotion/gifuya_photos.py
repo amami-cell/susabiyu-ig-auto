@@ -38,6 +38,9 @@ FOLDER_EXCLUDE = ["ロゴ", "外観", "内観", "ドリンク", "飲み", "音�
 FILE_EXCLUDE = ["料理集合", "集合写真", "GFY", "logo", "ロゴ"]
 # 「おすすめ」の目印（専用フォルダ名 or ファイル名の接頭辞）。
 RECO_HINT = ["おすすめ", "オススメ", "お勧め", "★"]
+# 写真を固定する料理（Drive側に別カット/新しい重複があっても既存の1枚を差し替えない）。
+# 例：「名物どて焼き」は掲載中のカットで確定。Driveの別カットで上書きされないよう固定。
+PHOTO_LOCK = {"名物どて焼き"}
 
 
 def _creds():
@@ -359,7 +362,11 @@ def sync(root=None):
     for d in ordered:
         img = _slug(d["name"])                   # 生写真 f_<hash>.jpg
         raw_path = os.path.join(OUT_DIR, img)
-        _save_45(_download(drive, d["id"]), raw_path)
+        if d["name"] in PHOTO_LOCK and os.path.exists(raw_path):
+            # 写真固定：Drive側に別カット/新しい重複があっても既存の1枚を維持（差し替えない）
+            print("  LOCK 写真固定（Drive無視）:", d["name"])
+        else:
+            _save_45(_download(drive, d["id"]), raw_path)
         c = gc.caption_for(d["name"])            # 文面・タグ・サブコピー
         item = {"img": img, "name": d["name"], "title": c["title"],
                 "cap": c["cap"], "tags": c["tags"], "reco": bool(d["reco"])}
