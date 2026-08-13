@@ -4,9 +4,10 @@
  * ep_fetch.gs と同じ Apps Script プロジェクトに置く。
  * 取得本体 epRun() をそのまま呼べるので、更新ボタンはGitHub不要でその場実行。
  *
- * デプロイ: デプロイ → 新しいデプロイ → ウェブアプリ
- *   実行ユーザー: 自分 / アクセス: 自分のみ（社外に出さない）
+ * デプロイ: push すると GitHub Actions（deploy-gas）が clasp で自動反映する（手貼り不要）。
+ *   実行ユーザー: デプロイ元 / アクセス: 全員（現行設定を維持）
  */
+// 自動デプロイ疎通テスト: 2026-08-13
 
 function doGet() {
   return HtmlService.createHtmlOutputFromFile('index')
