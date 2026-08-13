@@ -1,10 +1,9 @@
 name: deploy-gas
 
 # entrypocket-recruit/gas/ を編集して push すると、GAS（Apps Script）へ自動反映する。
-# 手貼り不要。必要な GitHub Secrets:
-#   CLASPRC_JSON      … clasp login で作られる ~/.clasprc.json の中身（丸ごと）
-#   GAS_SCRIPT_ID     … Apps Script プロジェクトの スクリプトID
-#   GAS_DEPLOYMENT_ID … （任意）本番 /exec の デプロイID。設定すると同じURLを更新する
+# 手貼り不要。必要な GitHub Secrets は 1件だけ:
+#   CLASPRC_JSON … clasp login で作られる ~/.clasprc.json の中身（丸ごと）＝ログイン情報
+# スクリプトID / デプロイID は秘密ではないので下にベタ書き（必要なら同名Secretで上書き可）。
 on:
   workflow_dispatch:
   push:
@@ -16,6 +15,12 @@ on:
 concurrency:
   group: deploy-gas
   cancel-in-progress: false
+
+env:
+  # 募集システム（求人進捗_エントリーポケット）の Apps Script
+  DEFAULT_SCRIPT_ID: "1OuDuD9HShlXgSR4oyNrnKXOcsy0qOHvkfupAil9mB52PfUOLdhevBWVZ"
+  # 公開Webアプリ（/exec）の既存デプロイ。ここを同じURLのまま更新する
+  DEFAULT_DEPLOYMENT_ID: "AKfycbz6i36c7UjbM3S44kl1kEcsI0CSjYo9jL-W-T4BJUAr9jmBlVXj-vnQTUwQbGoxcHYT"
 
 jobs:
   deploy:
@@ -38,30 +43,23 @@ jobs:
           CLASPRC_JSON: ${{ secrets.CLASPRC_JSON }}
         run: |
           if [ -z "$CLASPRC_JSON" ]; then
-            echo "::error::CLASPRC_JSON secret が未設定です。DEPLOY.md の手順で登録してください。"; exit 1
+            echo "::error::CLASPRC_JSON secret が未設定です。DEPLOY.md の手順で1件だけ登録してください。"; exit 1
           fi
           printf '%s' "$CLASPRC_JSON" > "$HOME/.clasprc.json"
 
-      - name: .clasp.json を生成（Script ID を注入）
+      - name: .clasp.json を生成（Script ID）
         env:
           GAS_SCRIPT_ID: ${{ secrets.GAS_SCRIPT_ID }}
         run: |
-          if [ -z "$GAS_SCRIPT_ID" ]; then
-            echo "::error::GAS_SCRIPT_ID secret が未設定です。DEPLOY.md の手順で登録してください。"; exit 1
-          fi
-          printf '{"scriptId":"%s","rootDir":"."}' "$GAS_SCRIPT_ID" > .clasp.json
+          ID="${GAS_SCRIPT_ID:-$DEFAULT_SCRIPT_ID}"
+          printf '{"scriptId":"%s","rootDir":"."}' "$ID" > .clasp.json
 
       - name: push（コードを GAS へ反映）
         run: clasp push -f
 
-      - name: deploy（本番 /exec を更新）
+      - name: deploy（本番 /exec を同じURLのまま更新）
         env:
           GAS_DEPLOYMENT_ID: ${{ secrets.GAS_DEPLOYMENT_ID }}
         run: |
-          if [ -n "$GAS_DEPLOYMENT_ID" ]; then
-            echo "デプロイID指定あり：同じURLを更新します"
-            clasp deploy --deploymentId "$GAS_DEPLOYMENT_ID" --description "auto ${GITHUB_SHA}"
-          else
-            echo "GAS_DEPLOYMENT_ID 未設定：push のみ完了（head /dev URL は最新）。"
-            echo "本番 /exec を使う場合は DEPLOY.md の手順でデプロイIDを登録してください。"
-          fi
+          DID="${GAS_DEPLOYMENT_ID:-$DEFAULT_DEPLOYMENT_ID}"
+          clasp deploy --deploymentId "$DID" --description "auto ${GITHUB_SHA}"
