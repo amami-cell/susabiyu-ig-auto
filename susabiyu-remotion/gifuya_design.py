@@ -175,13 +175,14 @@ def render_post(src, out, title, subcopy=None, ribbon="福岡天神店", logo=Tr
 #   右に赤の縦リボン短冊「福岡天神店」＋左下に極太の見出し＋赤下線＋料理名サブ。
 #   使い方: render_tanzaku("in.jpg", "out.jpg", "厚揚げわさび", headline="旨い、安い")
 # ─────────────────────────────────────────────────────────────────────────────
-def _text_outline(draw, xy, text, font, fill=(255, 255, 255), outline=(0, 0, 0), ow=6, anchor=None):
-    x, y = xy
-    for dx in range(-ow, ow + 1):
-        for dy in range(-ow, ow + 1):
-            if dx * dx + dy * dy <= ow * ow:
-                draw.text((x + dx, y + dy), text, font=font, fill=outline, anchor=anchor)
-    draw.text((x, y), text, font=font, fill=fill, anchor=anchor)
+def _text_heavy(draw, xy, text, font, fill=(255, 255, 255), edge=(18, 10, 6),
+                weight=7, ow=3, anchor=None):
+    """見本 pattern_tanzaku 相当の極太ゴシック見出し：Noto Sans Bold をストロークで太らせ、
+    さらに細い暗色のフチで写真に載せても抜けて見えるようにする。"""
+    draw.text(xy, text, font=font, fill=edge, anchor=anchor,
+              stroke_width=weight + ow, stroke_fill=edge)
+    draw.text(xy, text, font=font, fill=fill, anchor=anchor,
+              stroke_width=weight, stroke_fill=fill)
 
 
 def _vertical_ribbon(text, font, pad_x=20, pad_y=26, line_gap_ratio=0.12):
@@ -240,8 +241,8 @@ def render_tanzaku(src, out, title, headline=None, ribbon="福岡天神店", log
     block_h = lh * max(1, len(hlines))
     hy = ul_y - 30 - block_h
     for i, ln in enumerate(hlines):
-        _text_outline(draw, (margin, hy + i * lh - hfont.getbbox(ln)[1] + 8),
-                      ln, hfont, fill=(255, 255, 255), outline=(20, 12, 8), ow=7)
+        _text_heavy(draw, (margin, hy + i * lh - hfont.getbbox(ln)[1] + 8),
+                    ln, hfont, fill=(255, 255, 255), edge=(18, 10, 6), weight=7, ow=3)
     # 赤下線バー
     ul_w = 500
     draw.rectangle([margin, ul_y, margin + ul_w, ul_y + 11], fill=RED)
