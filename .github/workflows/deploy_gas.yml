@@ -2,7 +2,8 @@ name: deploy-gas
 
 # entrypocket-recruit/gas/ を編集して push すると、GAS（Apps Script）へ自動反映する。
 # 手貼り不要。必要な GitHub Secrets は 1件だけ:
-#   CLASPRC_JSON … clasp login で作られる ~/.clasprc.json の中身（丸ごと）＝ログイン情報
+#   EP_CLASPRC_JSON … clasp login で作られる ~/.clasprc.json の中身（丸ごと）＝ログイン情報
+#                     （インスタ等の既存 CLASPRC_JSON とは別名。競合しない）
 # スクリプトID / デプロイID は秘密ではないので下にベタ書き（必要なら同名Secretで上書き可）。
 on:
   workflow_dispatch:
@@ -40,12 +41,12 @@ jobs:
 
       - name: 認証情報を書き込む（clasp login のトークン）
         env:
-          CLASPRC_JSON: ${{ secrets.CLASPRC_JSON }}
+          EP_CLASPRC_JSON: ${{ secrets.EP_CLASPRC_JSON }}
         run: |
-          if [ -z "$CLASPRC_JSON" ]; then
-            echo "::error::CLASPRC_JSON secret が未設定です。DEPLOY.md の手順で1件だけ登録してください。"; exit 1
+          if [ -z "$EP_CLASPRC_JSON" ]; then
+            echo "::error::EP_CLASPRC_JSON secret が未設定です。DEPLOY.md の手順で1件だけ登録してください。"; exit 1
           fi
-          printf '%s' "$CLASPRC_JSON" > "$HOME/.clasprc.json"
+          printf '%s' "$EP_CLASPRC_JSON" > "$HOME/.clasprc.json"
 
       - name: .clasp.json を生成（Script ID）
         env:

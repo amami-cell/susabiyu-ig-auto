@@ -9,13 +9,13 @@ GitHub リポジトリ → **Settings → Secrets and variables → Actions → 
 
 | 名前 | 値 |
 |---|---|
-| `CLASPRC_JSON` | `clasp login` で作られる `~/.clasprc.json` の中身（丸ごと）＝ログイン情報 |
+| `EP_CLASPRC_JSON` | `clasp login` で作られる `~/.clasprc.json` の中身（丸ごと）＝ログイン情報 |
 
 - **スクリプトID / デプロイID** は秘密ではないので `.github/workflows/deploy_gas.yml` に直書き済み
   （別プロジェクトに向ける場合のみ、Secret `GAS_SCRIPT_ID` / `GAS_DEPLOYMENT_ID` で上書き可能）。
-- `CLASPRC_JSON` は**パスワード相当**。GitHub Secrets は暗号化保存され、ログにも出ません。
+- `EP_CLASPRC_JSON` は**パスワード相当**。GitHub Secrets は暗号化保存され、ログにも出ません。
 
-## `CLASPRC_JSON` の取り方（すでに取得済みなら不要）
+## `EP_CLASPRC_JSON` の取り方（すでに取得済みなら不要）
 ブラウザで **https://shell.cloud.google.com/** を開き：
 ```bash
 npm i -g @google/clasp@2.4.2
