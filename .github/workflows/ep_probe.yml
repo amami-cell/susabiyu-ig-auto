@@ -1,0 +1,41 @@
+name: ep-probe
+
+# EntryPocket の「メモ保存/面接枠登録」の送信APIを特定する読み取り専用プローブ。
+# 書き込みは一切しない。結果は Actions のログで確認する。
+# probe スクリプトを push すると1回走る（＋手動実行も可）。
+on:
+  workflow_dispatch:
+  push:
+    branches: [ 'claude/**' ]
+    paths:
+      - 'entrypocket-recruit/scripts/probe_ep_actions.py'
+      - '.github/workflows/ep_probe.yml'
+
+concurrency:
+  group: ep-probe
+  cancel-in-progress: true
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: entrypocket-recruit
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: 依存インストール
+        run: |
+          python -m pip install --upgrade pip
+          pip install playwright
+          python -m playwright install --with-deps chromium
+      - name: プローブ実行（読み取りのみ）
+        env:
+          EP_USER: ${{ secrets.EP_USER }}
+          EP_PASS: ${{ secrets.EP_PASS }}
+          EP_LOGIN_URL: ${{ secrets.EP_LOGIN_URL }}
+          EP_APPLICANT_URL: ${{ secrets.EP_APPLICANT_URL }}
+        run: python scripts/probe_ep_actions.py
