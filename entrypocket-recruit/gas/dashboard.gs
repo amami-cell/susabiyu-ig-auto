@@ -7,7 +7,6 @@
  * デプロイ: push すると GitHub Actions（deploy-gas）が clasp で自動反映する（手貼り不要）。
  *   実行ユーザー: デプロイ元 / アクセス: 全員（現行設定を維持）
  */
-// 自動デプロイ疎通テスト: 2026-08-13
 
 function doGet() {
   return HtmlService.createHtmlOutputFromFile('index')

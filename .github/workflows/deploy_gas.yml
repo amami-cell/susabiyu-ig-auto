@@ -5,8 +5,11 @@ name: deploy-gas
 #   EP_CLASPRC_JSON … clasp login で作られる ~/.clasprc.json の中身（丸ごと）＝ログイン情報
 #                     （インスタ等の既存 CLASPRC_JSON とは別名。競合しない）
 #
-# ★重要：Script ID / Deployment ID は「募集システム専用の値」をここに固定する。
-#   汎用名（GAS_SCRIPT_ID 等）のシークレットは一切参照しない＝別プロジェクトへ誤爆しない。
+# ★安全設計：
+#   - Script ID / Deployment ID は「募集システム専用の値」をここに固定。
+#     汎用名（GAS_SCRIPT_ID 等）のシークレットは一切参照しない＝別プロジェクトへ誤爆しない。
+#   - ソース側に「分割版 ep_fetch.gs」が無い場合は push/deploy を安全にスキップ（緑）。
+#     （main 等に旧い単一ファイル版 Code.gs しか無い状態で、ライブの分割版を壊さないため）
 on:
   workflow_dispatch:
   push:
@@ -34,14 +37,27 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: ソース検証（分割版 ep_fetch.gs が無ければ安全にスキップ）
+        id: guard
+        run: |
+          if [ ! -f ep_fetch.gs ]; then
+            echo "::notice::分割版(ep_fetch.gs)がこのフォルダに無いため、push/deploy をスキップします（Code.gs版は対象外・ライブ保護）。"
+            echo "skip=1" >> "$GITHUB_OUTPUT"
+          else
+            echo "skip=0" >> "$GITHUB_OUTPUT"
+          fi
+
       - uses: actions/setup-node@v4
+        if: steps.guard.outputs.skip != '1'
         with:
           node-version: '20'
 
       - name: clasp を導入（v2 で認証情報フォーマットを固定）
+        if: steps.guard.outputs.skip != '1'
         run: npm i -g @google/clasp@2.4.2
 
       - name: 認証情報を書き込む（clasp login のトークン）
+        if: steps.guard.outputs.skip != '1'
         env:
           EP_CLASPRC_JSON: ${{ secrets.EP_CLASPRC_JSON }}
         run: |
@@ -50,7 +66,8 @@ jobs:
           fi
           printf '%s' "$EP_CLASPRC_JSON" > "$HOME/.clasprc.json"
 
-      - name: 安全確認（対象が“募集システム”か、別フォルダで検証してから進む）
+      - name: 対象が“募集システム”か、別フォルダで検証
+        if: steps.guard.outputs.skip != '1'
         run: |
           tmp="$(mktemp -d)"
           printf '{"scriptId":"%s","rootDir":"."}' "$EP_SCRIPT_ID" > "$tmp/.clasp.json"
@@ -62,10 +79,13 @@ jobs:
           fi
 
       - name: .clasp.json を生成（募集システムのScript IDを固定）
+        if: steps.guard.outputs.skip != '1'
         run: printf '{"scriptId":"%s","rootDir":"."}' "$EP_SCRIPT_ID" > .clasp.json
 
       - name: push（コードを募集システムの GAS へ反映）
+        if: steps.guard.outputs.skip != '1'
         run: clasp push -f
 
       - name: deploy（募集システムの /exec を同じURLのまま更新）
+        if: steps.guard.outputs.skip != '1'
         run: clasp deploy --deploymentId "$EP_DEPLOYMENT_ID" --description "auto ${GITHUB_SHA}"
