@@ -3,3 +3,8 @@
 !appsscript.json
 !*.gs
 !*.html
+# 危険なテスト関数（応募者ステータスを実際に書き換える）は本番へ送らない
+ep_probe_status.gs
+# ローカル設定は送らない
+.clasp.json
+.claspignore
