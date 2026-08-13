@@ -1108,7 +1108,7 @@
   }
   function renderReport(d) {
     var store = CFG.STORE_NAME || "すさび湯三条";
-    var head = '<div class="rephd"><div class="t">Instagram インサイトレポート</div><div class="s">' + esc(store) + '　@susabiyu_sanjyo</div>';
+    var head = '<div class="rephd"><div class="t">Instagram インサイトレポート</div><div class="s">' + esc(store) + '　' + esc(CFG.HANDLE || "@susabiyu_sanjyo") + '</div>';
     if (!d || !d.days || !d.cur) {
       reportEl.innerHTML = '<div class="repbar"><button id="repReload">↻ 更新</button></div>' +
         '<div class="repdoc">' + head + '</div></div>' +
@@ -1408,7 +1408,7 @@
         // 左右マージンは0（幅794px=A4 210mmぴったり）。これで右端がページ外に切れない。
         // 上下のみ6mm。左右の余白は .repdoc.a4 のセクションpaddingで内側に確保している。
         margin: [6, 0, 6, 0],
-        filename: "susabiyu_insight_" + ((reportData && reportData.latestDate) || "report") + ".pdf",
+        filename: (CFG.ACCOUNT || "susabiyu") + "_insight_" + ((reportData && reportData.latestDate) || "report") + ".pdf",
         image: { type: "jpeg", quality: 0.95 },
         html2canvas: { scale: 2, backgroundColor: "#ffffff", useCORS: true, width: 794, windowWidth: 794, x: 0, scrollX: 0 },
         jsPDF: { unit: "mm", format: "a4", orientation: "portrait" },

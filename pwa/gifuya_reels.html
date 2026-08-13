@@ -158,7 +158,7 @@
 <script>
 (function(){
   "use strict";
-  var V = "?v=131";  // メディアのキャッシュ更新用
+  var V = "?v=132";  // メディアのキャッシュ更新用
   var CFG = window.GIFUYA || {};
   var LIVE = !!window.GIFUYA_LIVE;               // 専用GAS注入済みなら実データ連携
   var GAS = (CFG.GAS_URL||"").trim();
@@ -168,7 +168,7 @@
   var TEMPLATE = [
     "▪️▪️▪️▪️▪️▪️▪️▪️▪️▪️▪️▪️▪️▪️▪️▪️",
     "⁡",
-    "#ぎふや福岡天神店",
+    "大衆酒場 ぎふや 福岡天神店",
     "⁡",
     "営業時間：11:00～23:00",
     "⁡",
@@ -188,7 +188,16 @@
   function loadGsel(){ try{ var o=JSON.parse(localStorage.getItem(GSEL_LS)||"null"); if(o&&typeof o==="object"&&Object.keys(o).length) return o; }catch(e){} return null; }
   function saveGsel(){ try{ localStorage.setItem(GSEL_LS, JSON.stringify(GSEL)); }catch(e){} }
   function selTags(){ return Object.keys(GSEL).map(function(x){return "#"+x;}).join(" "); }
-  function fullCaption(cap, dishTags){ return (cap||"") + "\n\n" + (dishTags?dishTags+" ":"") + selTags() + " " + COMMON + "\n\n" + TEMPLATE; }
+  // 重複ハッシュタグを除いて先頭から上限本数だけ残す（大文字小文字は同一視）。dishタグ→選択タグ→共通タグの優先順。
+  function dedupeTags(str, limit){
+    var seen={}, out=[], m=(str||"").match(/#[^\s#]+/g)||[];
+    for(var i=0;i<m.length;i++){ var k=m[i].toLowerCase(); if(!seen[k]){ seen[k]=1; out.push(m[i]); } }
+    return (limit?out.slice(0,limit):out).join(" ");
+  }
+  function fullCaption(cap, dishTags){
+    var tags = dedupeTags((dishTags?dishTags+" ":"") + selTags() + " " + COMMON, 13);
+    return (cap||"") + "\n\n" + tags + "\n\n" + TEMPLATE;
+  }
   var refreshers=[];  // 全カードのタグ表示を一括更新するための登録先
   function refreshAll(){ for(var i=0;i<refreshers.length;i++){ try{ refreshers[i](); }catch(e){} } }
   var toastEl=document.getElementById("toast"),toastT=null;
