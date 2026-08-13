@@ -158,6 +158,37 @@
     .cinfo{ font-size:12.5px; color:var(--fg2); overflow-wrap:anywhere; }
     .toast{ position:fixed; bottom:22px; left:50%; transform:translateX(-50%); background:var(--card2); border:1px solid var(--line2); padding:11px 18px; border-radius:11px; font-size:13px; opacity:0; transition:opacity .3s; max-width:90%; box-shadow:0 6px 24px rgba(0,0,0,.4); }
     .toast.show{ opacity:1; }
+    /* ===== 面接予定カレンダー ===== */
+    .mnav{ display:flex; align-items:center; justify-content:center; gap:14px; margin:2px 0 12px; }
+    .mnav button{ background:var(--card2); border:1px solid var(--line2); color:var(--fg); border-radius:9px; padding:6px 14px; font-size:16px; font-weight:800; }
+    .mnav button:active{ transform:scale(.95); }
+    .mnav .mlabel{ font-size:16px; font-weight:800; min-width:120px; text-align:center; }
+    .schchips{ display:flex; flex-wrap:wrap; gap:6px; margin:0 0 12px; }
+    .schchip{ border:1px solid var(--line2); background:#141b25; border-radius:999px; padding:5px 10px; font-size:11.5px; font-weight:700; display:flex; align-items:center; gap:6px; color:var(--fg); }
+    .schchip .dot{ width:11px; height:11px; border-radius:3px; flex:none; }
+    .schchip.off{ opacity:.38; }
+    .schchip:active{ transform:scale(.97); }
+    .cal{ display:grid; grid-template-columns:repeat(7,1fr); gap:3px; }
+    .cal .dow{ text-align:center; font-size:10.5px; color:var(--muted); font-weight:700; padding:2px 0 4px; }
+    .cal .dow.sun{ color:#ff9a9a; } .cal .dow.sat{ color:#9ab8ff; }
+    .cell{ min-height:56px; background:var(--card); border:1px solid var(--line); border-radius:8px; padding:3px 3px 4px; overflow:hidden; }
+    .cell.blank{ background:transparent; border:0; min-height:0; }
+    .cell.today{ border-color:var(--accent); background:#12203a; }
+    .cell .dn{ font-size:10.5px; color:var(--muted); font-weight:800; line-height:1.1; }
+    .cell.today .dn{ color:var(--accent); }
+    .ev{ display:block; width:100%; text-align:left; border:0; border-radius:5px; padding:2px 4px; margin-top:3px; color:#0a1626; }
+    .ev b{ font-size:9.5px; font-weight:800; } .ev .nm{ font-size:10.5px; font-weight:800; display:block; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    .ev .evst{ font-size:9px; font-weight:700; opacity:.85; display:block; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    .ev:active{ transform:scale(.97); }
+    .schempty{ color:var(--muted); font-size:12.5px; text-align:center; padding:20px 10px; }
+    .schnote{ font-size:11px; color:var(--muted); margin:10px 2px 0; text-align:center; }
+    /* モーダル（面接者の詳細）*/
+    .modal{ position:fixed; inset:0; background:rgba(0,0,0,.55); z-index:20; display:flex; align-items:flex-end; justify-content:center; }
+    .modal[hidden]{ display:none; }
+    .modal-in{ background:var(--bg); width:100%; max-width:520px; border-radius:16px 16px 0 0; padding:14px 15px 24px; max-height:86vh; overflow:auto; border-top:1px solid var(--line2); }
+    .modal-h{ display:flex; align-items:center; justify-content:space-between; margin-bottom:6px; }
+    .modal-h b{ font-size:15px; } .modal-x{ background:var(--card2); border:1px solid var(--line2); color:var(--fg); border-radius:8px; padding:6px 12px; font-weight:800; }
+    .modal-when{ font-size:12.5px; color:var(--accent); font-weight:800; margin:0 0 10px; }
   </style>
 </head>
 <body>
@@ -168,14 +199,17 @@
     </div>
     <div class="tabs">
       <button id="tb-recruit" class="on" onclick="showTab('recruit')">募集中</button>
+      <button id="tb-schedule" onclick="showTab('schedule')">面接予定</button>
       <button id="tb-history" onclick="showTab('history')">打ち出し履歴</button>
       <button id="tb-stats" onclick="showTab('stats')">集計</button>
     </div>
   </header>
   <main>
     <section id="tab-recruit"><div id="recruitList"><div class="empty">読み込み中…</div></div></section>
+    <section id="tab-schedule" hidden><div id="scheduleBody"><div class="empty">読み込み中…</div></div></section>
     <section id="tab-history" hidden><div id="historyList"><div class="empty">読み込み中…</div></div></section>
     <section id="tab-stats" hidden><div id="statsBody"><div class="empty">読み込み中…</div></div></section>
+    <div id="modal" class="modal" hidden onclick="if(event.target===this)closeModal()"><div class="modal-in"><div class="modal-h"><b id="modalTitle">面接者</b><button class="modal-x" onclick="closeModal()">閉じる</button></div><div id="modalBody"></div></div></div>
   </main>
   <div class="toast" id="toast"></div>
   <script>
@@ -212,7 +246,7 @@
       if(/^(1|あり)$/i.test(s)) return 'active'; return null; }
 
     function showTab(t){
-      ['recruit','history','stats'].forEach(function(x){
+      ['recruit','schedule','history','stats'].forEach(function(x){
         document.getElementById('tab-'+x).hidden = (x!==t);
         document.getElementById('tb-'+x).classList.toggle('on', x===t);
       });
@@ -237,6 +271,7 @@
       statusMap=d.statusMap||{}; statusOrder=d.statusOrder||[]; writeEnabled=!!d.writeEnabled;
       document.getElementById('updated').textContent = d.last?('最終取得 '+esc(d.last.at)):(dash.generated_at||'未取得');
       renderRecruit();
+      renderSchedule();
       renderHistory();
       renderStats();
     }
@@ -479,6 +514,76 @@
         '<div class="pills">'+stBtn+memoBtn+'</div>'+
         '<div class="adetail" id="ad_'+id+'" hidden></div>'+acts+'</div>';
     }
+
+    /* ===== 面接予定カレンダー ===== */
+    var SCHPAL=['#5aa2ff','#3ec17f','#f6c343','#ff8a5c','#b98be0','#4dd0e1','#ff6f91','#a3c644','#e08b4d','#8aa0ff','#5ec7a8','#e6b800'];
+    var schY=null, schM=null, schSel={}, schStores=[];
+    function schTime(s){ var m=String(s||'').match(/(\d{1,2}):(\d{2})/); return m?(('0'+m[1]).slice(-2)+':'+m[2]):''; }
+    function schColorOf(key){ for(var i=0;i<schStores.length;i++){ if(schStores[i].key===key) return schStores[i].color; } return '#8aa0ff'; }
+    // 打ち出し中の店舗 {key:表示名}
+    function advertisedNames(){
+      var out={};
+      Object.keys(storePosting).forEach(function(k){ var r=storePosting[k]; if(r.active&&r.name) out[normStore(r.name)]=r.name; });
+      Object.keys(storeManual).forEach(function(name){ if(manOverride(storeManual[name])==='active') out[normStore(name)]=name; });
+      return out;
+    }
+    // 面接日時のある応募者を予定に
+    function schedEvents(){
+      var evs=[];
+      apps.forEach(function(a){ var d=toDate(a.interviewAt); if(!d) return;
+        evs.push({ y:d.getFullYear(), mo:d.getMonth(), da:d.getDate(), t:schTime(a.interviewAt),
+          code:String(a.code), name:a.name||'(氏名なし)', store:a.store||'不明', key:normStore(a.store||'不明'), app:a });
+      });
+      return evs;
+    }
+    // 店舗リスト（打ち出し中→その後、面接予定のある店舗）＋色＋既定選択
+    function schBuildStores(){
+      var adv=advertisedNames(), advKeys=Object.keys(adv), names={};
+      advKeys.forEach(function(k){ names[k]=adv[k]; });
+      schedEvents().forEach(function(e){ if(!names[e.key]) names[e.key]=e.store; });
+      var other=Object.keys(names).filter(function(k){ return advKeys.indexOf(k)<0; }).sort(function(a,b){ return names[a]<names[b]?-1:1; });
+      var ordered=advKeys.concat(other);
+      schStores=ordered.map(function(k,i){ return { key:k, name:names[k], color:SCHPAL[i%SCHPAL.length] }; });
+      schStores.forEach(function(s){ if(!(s.key in schSel)) schSel[s.key]=true; });
+    }
+    function renderSchedule(){
+      var el=document.getElementById('scheduleBody'); if(!el) return;
+      if(schY==null){ var n=new Date(); schY=n.getFullYear(); schM=n.getMonth(); }
+      schBuildStores();
+      var nav='<div class="mnav"><button onclick="schMove(-1)">‹</button><span class="mlabel">'+schY+'年 '+(schM+1)+'月</span><button onclick="schMove(1)">›</button></div>';
+      if(!schStores.length){ el.innerHTML=nav+'<div class="schempty">打ち出し中の店舗も、面接予定もありません</div>'; return; }
+      var chips='<div class="schchips">'+schStores.map(function(s){
+        return '<button class="schchip'+(schSel[s.key]?'':' off')+'" onclick="schToggle(\''+s.key.replace(/\\/g,'\\\\').replace(/'/g,"\\'")+'\')"><span class="dot" style="background:'+s.color+'"></span>'+esc(s.name)+'</button>';
+      }).join('')+'</div>';
+      var dows=['日','月','火','水','木','金','土'];
+      var head=dows.map(function(d,i){ return '<div class="dow'+(i===0?' sun':(i===6?' sat':''))+'">'+d+'</div>'; }).join('');
+      var first=new Date(schY,schM,1), lead=first.getDay(), dim=new Date(schY,schM+1,0).getDate();
+      var today=new Date(), thisMonth=(today.getFullYear()===schY&&today.getMonth()===schM);
+      var byDay={}, total=0;
+      schedEvents().forEach(function(e){ if(e.y===schY&&e.mo===schM&&schSel[e.key]){ (byDay[e.da]=byDay[e.da]||[]).push(e); total++; } });
+      Object.keys(byDay).forEach(function(d){ byDay[d].sort(function(a,b){ return (a.t||'99:99')<(b.t||'99:99')?-1:1; }); });
+      var cells='';
+      for(var i=0;i<lead;i++) cells+='<div class="cell blank"></div>';
+      for(var day=1;day<=dim;day++){
+        var list=byDay[day]||[];
+        var evHtml=list.map(function(e){
+          return '<button class="ev" style="background:'+schColorOf(e.key)+'" onclick="schDetail(\''+esc(e.code)+'\')">'+(e.t?'<b>'+e.t+'</b> ':'')+'<span class="nm">'+esc(e.name)+'</span><span class="evst">'+esc(e.store)+'</span></button>';
+        }).join('');
+        cells+='<div class="cell'+(thisMonth&&today.getDate()===day?' today':'')+'"><div class="dn">'+day+'</div>'+evHtml+'</div>';
+      }
+      var body=nav+chips+'<div class="cal">'+head+cells+'</div>';
+      if(total===0) body+='<div class="schnote">この月の面接予定はありません（店舗チップで絞り込み中なら解除して確認）</div>';
+      el.innerHTML=body;
+    }
+    function schMove(delta){ schM+=delta; if(schM<0){ schM=11; schY--; } if(schM>11){ schM=0; schY++; } renderSchedule(); }
+    function schToggle(key){ schSel[key]=!schSel[key]; renderSchedule(); }
+    function schDetail(code){ var a=appByCode[code]; if(!a) return;
+      document.getElementById('modalTitle').textContent=a.name||'面接者';
+      var when=a.interviewAt?('面接 '+fmtDT(a.interviewAt)):'';
+      document.getElementById('modalBody').innerHTML=(when?'<div class="modal-when">'+esc(when)+'</div>':'')+appCard(a);
+      document.getElementById('modal').hidden=false;
+    }
+    function closeModal(){ document.getElementById('modal').hidden=true; }
 
     /* ===== 集計タブ（求人実績の累計・期間選択・店舗別）===== */
     function parseCost(v){ var n=parseFloat(String(v==null?'':v).replace(/[^\d.]/g,'')); return isNaN(n)?0:n; }

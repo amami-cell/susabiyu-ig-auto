@@ -91,6 +91,7 @@ function dashBuild_() {
         tel: String(cv(row, '電話番号_数字') || ''), telLink: cv(row, 'tel_link'),
         telRaw: String(cv(row, '電話番号') || ''), email: String(cv(row, 'メール') || ''),
         media: cv(row, '媒体'), appliedAt: String(cv(row, '応募日時') || ''),
+        interviewAt: String(cv(row, '面接日時') || ''),
         age: cv(row, '年齢'), gender: String(cv(row, '性別') || ''),
         occupation: String(cv(row, '現在の職業') || ''),
         history: String(cv(row, '変更履歴', '変更履歴1') || ''), memo: String(cv(row, 'メモ') || ''),
