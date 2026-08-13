@@ -208,12 +208,12 @@ def render_tanzaku(src, out, title, headline=None, ribbon="福岡天神店", log
     base = _cover(Image.open(src), W, H)
     base = _scrim(base).convert("RGBA")
 
-    # ロゴ（白・左上）
+    # ロゴ（白・左上）※見本 pattern_tanzaku 相当の大きさ
     if logo and os.path.exists(LOGO_WHITE):
         lg = Image.open(LOGO_WHITE).convert("RGBA")
-        lw = 280
+        lw = 388
         lg = lg.resize((lw, int(lg.height * lw / lg.width)), Image.LANCZOS)
-        base.alpha_composite(lg, (34, 30))
+        base.alpha_composite(lg, (40, 34))
 
     # 右上：赤の縦リボン短冊（福岡天神店）
     if ribbon:
@@ -233,16 +233,17 @@ def render_tanzaku(src, out, title, headline=None, ribbon="福岡天神店", log
     # 赤下線
     ul_y = sub_y - 26
 
-    # 極太の見出し（複数行対応・ゴシック）
+    # 見出し（複数行対応・ゴシック）※見本 pattern_tanzaku 相当：クリーンな白＋細い暗フチ
     headline = (headline or "").strip()
     hlines = headline.split("\n") if headline else []
-    hfont = _font(_GOTHIC_PATH, 120)
-    lh = int(120 * 1.16)
+    hsize = 108
+    hfont = _font(_GOTHIC_PATH, hsize)
+    lh = int(hsize * 1.28)
     block_h = lh * max(1, len(hlines))
-    hy = ul_y - 30 - block_h
+    hy = ul_y - 34 - block_h
     for i, ln in enumerate(hlines):
         _text_heavy(draw, (margin, hy + i * lh - hfont.getbbox(ln)[1] + 8),
-                    ln, hfont, fill=(255, 255, 255), edge=(18, 10, 6), weight=7, ow=3)
+                    ln, hfont, fill=(255, 255, 255), edge=(20, 12, 8), weight=2, ow=3)
     # 赤下線バー
     ul_w = 500
     draw.rectangle([margin, ul_y, margin + ul_w, ul_y + 11], fill=RED)
