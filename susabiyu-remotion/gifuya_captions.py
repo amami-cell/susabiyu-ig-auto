@@ -67,8 +67,27 @@ CATS = [
 ]
 
 
+# 料理ごとの「デザイン様式」上書き。毎日のDrive同期でも維持される（sync が参照）。
+#   style="tanzaku"→壁の短冊風（縦書き短冊＋旨ハンコ＋一言看板）。headline=白木看板の一言。
+DESIGN_OVERRIDE = [
+    (["厚揚げわさび", "厚揚げ　わさび", "厚揚げ わさび"], {"style": "tanzaku", "headline": "旨い、安い"}),
+]
+
+
 def caption_for(name):
-    """戻り値 dict: title(整形名) / cap(本文) / tags(料理タグ) / sub(画像に焼くサブコピー)。"""
+    """戻り値 dict: title(整形名) / cap(本文) / tags(料理タグ) / sub(画像に焼くサブコピー)。
+    料理名が DESIGN_OVERRIDE に該当すれば style/headline を上書きして付与する。"""
+    res = _caption_base(name)
+    raw = str(name or "")
+    for keys, ov in DESIGN_OVERRIDE:
+        if any(k in raw for k in keys):
+            res = dict(res)
+            res.update(ov)
+            break
+    return res
+
+
+def _caption_base(name):
     raw = str(name or "")
     d = clean(raw)
     for keys, cap, tags, sub in HERO:

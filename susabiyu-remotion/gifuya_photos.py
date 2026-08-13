@@ -366,8 +366,13 @@ def sync(root=None):
         if _design_ok:                           # 加工済み fd_<hash>.jpg を焼く
             design = re.sub(r"^f_", "fd_", img) if img.startswith("f_") else ("d_" + img)
             try:
-                gd.render_post(raw_path, os.path.join(OUT_DIR, design),
-                               c["title"], subcopy=c["sub"], ribbon="福岡天神店")
+                if c.get("style") == "tanzaku":  # 料理ごとの様式上書き（壁の短冊）
+                    gd.render_tanzaku(raw_path, os.path.join(OUT_DIR, design),
+                                      c["title"], headline=c.get("headline"), ribbon=None)
+                    item["style"] = "tanzaku"
+                else:
+                    gd.render_post(raw_path, os.path.join(OUT_DIR, design),
+                                   c["title"], subcopy=c["sub"], ribbon="福岡天神店")
                 item["design"] = design
             except Exception as e:
                 print("  WARN 加工失敗 %s: %s" % (d["name"], e))

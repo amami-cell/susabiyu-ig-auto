@@ -170,8 +170,95 @@ def render_post(src, out, title, subcopy=None, ribbon="福岡天神店", logo=Tr
     return out
 
 
+# ─────────────────────────────────────────────────────────────────────────────
+# 短冊（メイン）スタイル：見本 pattern_tanzaku.jpg のデザイン言語を踏襲。
+#   右に赤の縦リボン短冊「福岡天神店」＋左下に極太の見出し＋赤下線＋料理名サブ。
+#   使い方: render_tanzaku("in.jpg", "out.jpg", "厚揚げわさび", headline="旨い、安い")
+# ─────────────────────────────────────────────────────────────────────────────
+def _text_outline(draw, xy, text, font, fill=(255, 255, 255), outline=(0, 0, 0), ow=6, anchor=None):
+    x, y = xy
+    for dx in range(-ow, ow + 1):
+        for dy in range(-ow, ow + 1):
+            if dx * dx + dy * dy <= ow * ow:
+                draw.text((x + dx, y + dy), text, font=font, fill=outline, anchor=anchor)
+    draw.text((x, y), text, font=font, fill=fill, anchor=anchor)
+
+
+def _vertical_ribbon(text, font, pad_x=20, pad_y=26, line_gap_ratio=0.12):
+    """赤の縦リボン短冊（白文字・縦積み）をRGBAで返す。pattern_tanzaku の右上の短冊。"""
+    size = font.size
+    line_gap = int(size * (1 + line_gap_ratio))
+    w = size + pad_x * 2
+    h = line_gap * len(text) + pad_y * 2 - (line_gap - size)
+    rib = Image.new("RGBA", (w, h), (0, 0, 0, 0))
+    d = ImageDraw.Draw(rib)
+    d.rounded_rectangle([0, 0, w - 1, h - 1], radius=10, fill=RED + (255,))
+    y = pad_y
+    for ch in text:
+        b = font.getbbox(ch)
+        cw = b[2] - b[0]
+        d.text((pad_x + (size - cw) / 2 - b[0], y - b[1]), ch, font=font, fill=(255, 255, 255, 255))
+        y += line_gap
+    return rib
+
+
+def render_tanzaku(src, out, title, headline=None, ribbon="福岡天神店", logo=True):
+    """見本 pattern_tanzaku.jpg の体裁で焼き込む。headline=極太見出し／title=赤下線下の料理名。"""
+    base = _cover(Image.open(src), W, H)
+    base = _scrim(base).convert("RGBA")
+
+    # ロゴ（白・左上）
+    if logo and os.path.exists(LOGO_WHITE):
+        lg = Image.open(LOGO_WHITE).convert("RGBA")
+        lw = 280
+        lg = lg.resize((lw, int(lg.height * lw / lg.width)), Image.LANCZOS)
+        base.alpha_composite(lg, (34, 30))
+
+    # 右上：赤の縦リボン短冊（福岡天神店）
+    if ribbon:
+        rib = _vertical_ribbon(ribbon, _font(_GOTHIC_PATH, 50))
+        rib = rib.rotate(-5, expand=True, resample=Image.BICUBIC)
+        base.alpha_composite(rib, (W - rib.width - 66, 96))
+
+    draw = ImageDraw.Draw(base)
+    margin = 56
+
+    # 料理名（赤下線の下・明朝）
+    title = (title or "").strip()
+    sfont = _font(_SERIF_PATH, 52)
+    sb = draw.textbbox((0, 0), title, font=sfont)
+    sh = sb[3] - sb[1]
+    sub_y = H - 78 - sh
+    # 赤下線
+    ul_y = sub_y - 26
+
+    # 極太の見出し（複数行対応・ゴシック）
+    headline = (headline or "").strip()
+    hlines = headline.split("\n") if headline else []
+    hfont = _font(_GOTHIC_PATH, 120)
+    lh = int(120 * 1.16)
+    block_h = lh * max(1, len(hlines))
+    hy = ul_y - 30 - block_h
+    for i, ln in enumerate(hlines):
+        _text_outline(draw, (margin, hy + i * lh - hfont.getbbox(ln)[1] + 8),
+                      ln, hfont, fill=(255, 255, 255), outline=(20, 12, 8), ow=7)
+    # 赤下線バー
+    ul_w = 500
+    draw.rectangle([margin, ul_y, margin + ul_w, ul_y + 11], fill=RED)
+    # 料理名を下線の下に
+    _text_shadow(draw, (margin, sub_y - sb[1]), title, sfont, fill=(255, 255, 255))
+
+    base.convert("RGB").save(out, quality=90)
+    return out
+
+
 if __name__ == "__main__":
     import sys
-    render_post(sys.argv[1], sys.argv[2], sys.argv[3],
-                subcopy=(sys.argv[4] if len(sys.argv) > 4 else None))
-    print("designed ->", sys.argv[2])
+    if len(sys.argv) > 1 and sys.argv[1] == "tanzaku":
+        render_tanzaku(sys.argv[2], sys.argv[3], sys.argv[4],
+                       headline=(sys.argv[5] if len(sys.argv) > 5 else None))
+        print("tanzaku ->", sys.argv[3])
+    else:
+        render_post(sys.argv[1], sys.argv[2], sys.argv[3],
+                    subcopy=(sys.argv[4] if len(sys.argv) > 4 else None))
+        print("designed ->", sys.argv[2])
