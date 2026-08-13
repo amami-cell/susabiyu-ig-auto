@@ -1,0 +1,35 @@
+# このリポジトリで作業するAIへの指示
+
+## 最重要：ユーザーにコードを手貼りさせない
+ユーザーは Apps Script エディタへの手動コピペを望んでいません。
+**コードを書いたら、ファイルを編集 → commit → push まで自分で行うこと。**
+「このコードを貼り付けてください」「デプロイしてください」とユーザーに依頼しない。
+
+## 募集システム（エントリーポケット）のGASは自動デプロイ済み
+- 対象コード: `entrypocket-recruit/gas/`（`ep_fetch.gs` / `ep_write.gs` / `ep_result.gs` / `dashboard.gs` / `index.html` / `appsscript.json`）
+- 仕組み: `entrypocket-recruit/gas/**` を push すると GitHub Actions **`deploy-gas`** が
+  `clasp push` → `clasp deploy` を実行し、GAS本体と公開Webアプリ(/exec)を**同じURLのまま自動更新**する。
+- つまり**編集して push するだけで本番反映**される。手貼り不要。
+- 反映確認: GitHub → Actions → `deploy-gas` が緑になればOK（数十秒）。詳細は `entrypocket-recruit/gas/DEPLOY.md`。
+
+### 対象プロジェクトの固定値（他プロジェクトへ誤爆させない）
+- 募集システム Script ID: `1OuDuD9HShlXgSR4oyNrnKXOcsy0qOHvkfupAil9mB52PfUOLdhevBWVZ`
+- 募集システム /exec Deployment ID: `AKfycbz6i36c7UjbM3S44kl1kEcsI0CSjYo9jL-W-T4BJUAr9jmBlVXj-vnQTUwQbGoxcHYT`
+- 認証は GitHub Secret **`EP_CLASPRC_JSON`** の1件のみ（clasp login トークン）。
+- ⚠️ 汎用名シークレット `GAS_SCRIPT_ID` / `GAS_DEPLOYMENT_ID` は**別プロジェクト（インスタ承認アプリ `susabiyu承認`）を指すことがある**。
+  募集システムのデプロイでこれらを参照してはいけない（`deploy_gas.yml` は固定値を使い、参照しない設計）。
+
+### セッション内で直接デプロイしたい場合（任意）
+`clasp` が使える環境なら、`entrypocket-recruit/gas/` を rootDir に上記 Script ID を指定して
+`clasp push -f` → `clasp deploy --deploymentId <上記> ` で即時反映も可能。
+その際も**対象が募集システムか（`epRun` 等の存在）を確認してから** push すること。
+
+## インスタ投稿システム（別系統・GASではない）
+- `susabiyu-remotion/`（Python + Remotion）＋ GitHub Actions（`post.yml` ほか）で動く。
+- 投稿は Instagram Graph API（`IG_ACCESS_TOKEN`）経由。**clasp や `EP_CLASPRC_JSON` とは無関係。**
+- 承認アプリ `susabiyu承認`（GAS, Script ID `1m-uNPhRRwNgzdFsX3J4H5lsvCp_n2gE_MMOMGk4-3EL3Ppz65RYWPnie`）は
+  インスタ運用の一部。募集システムの作業で**絶対に触らない・上書きしない**こと。
+
+## コード提示のしかた
+やむを得ずコードを提示する場合も、原則は「自分で編集・push して自動反映」。
+全文提示は最後の手段。
