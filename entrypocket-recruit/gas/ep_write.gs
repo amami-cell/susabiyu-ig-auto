@@ -7,10 +7,16 @@
  *   _..._statusKbn = ステータスコード
  * 失敗時は本文に value:ERROR が含まれる。
  *
- * 安全策:
- *  - スクリプトプロパティ EP_WRITE_ENABLED=1 のときだけ書き込む（既定はOFF＝誤操作防止）。
+ * 書き込みの有効/無効:
+ *  - 既定で「有効」。複数人がアプリからステータスを変更できる。
+ *  - 完全に止めたい時だけ スクリプトプロパティ EP_WRITE_ENABLED="0" を設定する。
  *  - 変更は毎回 _ステータス変更ログ シートに記録。
- *  - 既存の「ダウンロードのみ」の処理には一切影響しない。
+ *  - 書き込みは「アプリでの明示操作（ステータスボタン/結果保存）」の時だけ発生する。
+ *
+ * 双方向同期:
+ *  - アプリ→EP : このファイルの epSetStatus が EntryPocket にPOST＋手元も即更新。
+ *  - EP→アプリ : 取得(epRun)が毎回CSVから raw_応募者 を作り直し→app_cache 再生成。
+ *               EntryPocket 上で誰が変えても、取得時にアプリへ反映される（EntryPocketが正）。
  */
 
 var EP_STATUS_MAP = {
@@ -19,7 +25,8 @@ var EP_STATUS_MAP = {
 };
 var EP_STATUS_ORDER = ["01", "03", "31", "32", "80", "13", "52", "82", "83"];
 
-function epWriteEnabled_() { return PropertiesService.getScriptProperties().getProperty("EP_WRITE_ENABLED") === "1"; }
+// 既定で有効。誤操作防止で完全に止めたい時だけ EP_WRITE_ENABLED="0" を設定する。
+function epWriteEnabled_() { return PropertiesService.getScriptProperties().getProperty("EP_WRITE_ENABLED") !== "0"; }
 
 /** アプリから呼ばれる：1名のステータスを変更する。 */
 function epSetStatus(applyCd, statusKbn) {
@@ -28,7 +35,7 @@ function epSetStatus(applyCd, statusKbn) {
   if (statusKbn.length === 1) statusKbn = "0" + statusKbn;   // "1"→"01" 揺れ吸収
   if (!applyCd) return { ok: false, error: "応募者コードが空です" };
   if (!EP_STATUS_MAP[statusKbn]) return { ok: false, error: "未知のステータスコード: " + statusKbn };
-  if (!epWriteEnabled_()) return { ok: false, error: "書き込みが無効です（設定 EP_WRITE_ENABLED=1 で有効化）" };
+  if (!epWriteEnabled_()) return { ok: false, error: "書き込みが無効化されています（EP_WRITE_ENABLED=\"0\" を解除してください）" };
 
   var jar = epLogin_();
   if (!jar) { epLogStatusChange_(applyCd, statusKbn, false, "ログイン失敗"); return { ok: false, error: "ログイン失敗" }; }
