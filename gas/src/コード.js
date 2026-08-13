@@ -526,6 +526,8 @@ function _api_(p) {
     if (p.api === "cands")        return _jsonp_(cb, cands_());
     if (p.api === "storyset")     return _jsonp_(cb, storySet_(p.account || "", p.slot || "", p.action || "", p.file || ""));
     if (p.api === "storyplan")    return _jsonp_(cb, storyPlan_(p.account || ""));
+    if (p.api === "mentions")     return _jsonp_(cb, _apiMentions_(p.account || ""));
+    if (p.api === "mentionact")   return _jsonp_(cb, { result: _mentionAct_(p.mid || "", p.action || "", p.text || "", p.account || "") });
     return _jsonp_(cb, { error: "unknown api" });
   } catch (err) {
     return _jsonp_(cb, { error: String(err) });
@@ -534,6 +536,7 @@ function _api_(p) {
 
 function doGet(e) {
   var _p = (e && e.parameter) || {};
+  if (_p['hub.mode']) return _verifyWebhook_(_p);   // Instagram Webhook 検証（GET handshake）
   if (_p.api) return _api_(_p);
   const items = getPending_();
   let cards = '';
@@ -872,4 +875,111 @@ function regionalTags_(region, peek) {
   var tags = scored.map(function (s, n) { var r = live ? (n < 6 ? 3 : n < 13 ? 2 : 1) : s.base; return { t: s.tag.t, r: r, inb: s.tag.inb ? 1 : 0 }; });
   var now = Date.now(), out = { ok: true, tags: tags, updatedAt: now, nextAt: now + COOLDOWN_MS, live: live };
   props.setProperty(SK, JSON.stringify(out)); out.cooldown = false; return out;
+}
+
+/* ===================================================================== */
+/* Instagram ストーリーメンション：Webhook受信 → 確認キュー（シート）      */
+/*   ・doPost で story_mention を受け、タブ「メンション_<account>」へ記録   */
+/*   ・リアクション等は無視（story_mention のみ取り込む）                  */
+/*   ・確認アプリは api=mentions で一覧、api=mentionact で採否＋文面を保存   */
+/*   ・実投稿/DM返信は Python(GitHub Actions) が status を見て実行する      */
+/* ===================================================================== */
+const IG_MENTION_TAB = 'メンション';
+
+function _verifyToken_() {
+  return PropertiesService.getScriptProperties().getProperty('IG_VERIFY_TOKEN') || 'gifuya_ig_2026';
+}
+// 受信先IGユーザーID → 店舗account。スクリプトプロパティ IG_ACCOUNT_MAP({"<igid>":"gifuyatenjin"}) 未設定なら既定。
+function _acctFromIgId_(igid) {
+  try {
+    var m = JSON.parse(PropertiesService.getScriptProperties().getProperty('IG_ACCOUNT_MAP') || '{}');
+    if (m && m[igid]) return m[igid];
+  } catch (e) {}
+  return 'gifuyatenjin';
+}
+function _verifyWebhook_(p) {
+  var ok = String(p['hub.verify_token'] || '') === _verifyToken_();
+  return ContentService.createTextOutput(ok ? (p['hub.challenge'] || '') : 'forbidden');
+}
+function _mentionSheet_(account) {
+  var ss = SpreadsheetApp.openById(SHEET_ID);
+  var name = IG_MENTION_TAB + (account ? '_' + account : '');
+  var sh = ss.getSheetByName(name);
+  if (!sh) { sh = ss.insertSheet(name); sh.appendRow(['mid','日時','account','senderId','senderName','mediaUrl','mediaType','status','文面','更新']); }
+  return sh;
+}
+function doPost(e) {
+  try {
+    var body = JSON.parse((e && e.postData && e.postData.contents) || '{}');
+    var n = _ingestMentions_(body);
+    return ContentService.createTextOutput('EVENT_RECEIVED:' + n);
+  } catch (err) {
+    return ContentService.createTextOutput('ERR:' + err);
+  }
+}
+function _ingestMentions_(body) {
+  var count = 0;
+  var entries = (body && body.entry) || [];
+  for (var i = 0; i < entries.length; i++) {
+    var msgs = entries[i].messaging || [];
+    for (var j = 0; j < msgs.length; j++) {
+      var ev = msgs[j] || {};
+      var atts = (ev.message && ev.message.attachments) || [];
+      for (var k = 0; k < atts.length; k++) {
+        if (String(atts[k].type) !== 'story_mention') continue;   // リアクション等は無視
+        var url = (atts[k].payload && atts[k].payload.url) || '';
+        if (!url) continue;
+        var recip = String((ev.recipient && ev.recipient.id) || '');
+        var account = _acctFromIgId_(recip);
+        var mid = String((ev.message && ev.message.mid) || ((ev.timestamp || Date.now()) + '_' + ((ev.sender && ev.sender.id) || '')));
+        if (_mentionExists_(account, mid)) continue;              // 重複防止
+        _mentionSheet_(account).appendRow([mid, new Date(), account, String((ev.sender && ev.sender.id) || ''), '', url, 'story', 'pending', '', new Date()]);
+        count++;
+      }
+    }
+  }
+  return count;
+}
+function _mentionExists_(account, mid) {
+  var sh = _mentionSheet_(account);
+  var last = sh.getLastRow();
+  if (last < 2) return false;
+  var col = sh.getRange(2, 1, last - 1, 1).getValues();
+  for (var i = 0; i < col.length; i++) { if (String(col[i][0]) === String(mid)) return true; }
+  return false;
+}
+function _apiMentions_(account) {
+  var sh = _mentionSheet_(account);
+  var last = sh.getLastRow();
+  if (last < 2) return { items: [] };
+  var rows = sh.getRange(2, 1, last - 1, 10).getValues();
+  var items = [];
+  for (var i = 0; i < rows.length; i++) {
+    var st = String(rows[i][7] || 'pending');
+    if (st === 'ignored' || st === 'done') continue;             // 済み/無視は出さない
+    items.push({ mid: String(rows[i][0]), dt: rows[i][1], senderId: String(rows[i][3]),
+                 url: String(rows[i][5]), mediaType: String(rows[i][6] || 'story'),
+                 status: st, text: String(rows[i][8] || '') });
+  }
+  items.reverse();   // 新しい順
+  return { items: items };
+}
+function _mentionAct_(mid, action, text, account) {
+  var sh = _mentionSheet_(account);
+  var last = sh.getLastRow();
+  if (last < 2) return 'no-rows';
+  var rng = sh.getRange(2, 1, last - 1, 10);
+  var rows = rng.getValues();
+  for (var i = 0; i < rows.length; i++) {
+    if (String(rows[i][0]) !== String(mid)) continue;
+    if (action === 'ignore')      rows[i][7] = 'ignored';        // 無視
+    else if (action === 'reply')  rows[i][7] = 'reply';          // DM返信のみ（Python送信）
+    else if (action === 'story')  rows[i][7] = 'approved';       // 店ストーリーに追加（Python投稿）
+    else return 'bad-action';
+    if (text) rows[i][8] = String(text);
+    rows[i][9] = new Date();
+    rng.setValues(rows);
+    return 'ok';
+  }
+  return 'not-found';
 }
