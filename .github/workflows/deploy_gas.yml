@@ -1,10 +1,12 @@
 name: deploy-gas
 
-# entrypocket-recruit/gas/ を編集して push すると、GAS（Apps Script）へ自動反映する。
+# entrypocket-recruit/gas/ を編集して push すると、募集システムの GAS へ自動反映する。
 # 手貼り不要。必要な GitHub Secrets は 1件だけ:
 #   EP_CLASPRC_JSON … clasp login で作られる ~/.clasprc.json の中身（丸ごと）＝ログイン情報
 #                     （インスタ等の既存 CLASPRC_JSON とは別名。競合しない）
-# スクリプトID / デプロイID は秘密ではないので下にベタ書き（必要なら同名Secretで上書き可）。
+#
+# ★重要：Script ID / Deployment ID は「募集システム専用の値」をここに固定する。
+#   汎用名（GAS_SCRIPT_ID 等）のシークレットは一切参照しない＝別プロジェクトへ誤爆しない。
 on:
   workflow_dispatch:
   push:
@@ -18,10 +20,10 @@ concurrency:
   cancel-in-progress: false
 
 env:
-  # 募集システム（求人進捗_エントリーポケット）の Apps Script
-  DEFAULT_SCRIPT_ID: "1OuDuD9HShlXgSR4oyNrnKXOcsy0qOHvkfupAil9mB52PfUOLdhevBWVZ"
-  # 公開Webアプリ（/exec）の既存デプロイ。ここを同じURLのまま更新する
-  DEFAULT_DEPLOYMENT_ID: "AKfycbz6i36c7UjbM3S44kl1kEcsI0CSjYo9jL-W-T4BJUAr9jmBlVXj-vnQTUwQbGoxcHYT"
+  # 募集システム（求人進捗_エントリーポケット）の Apps Script ＝ここ以外へは絶対に送らない
+  EP_SCRIPT_ID: "1OuDuD9HShlXgSR4oyNrnKXOcsy0qOHvkfupAil9mB52PfUOLdhevBWVZ"
+  # 募集システムの公開Webアプリ（/exec）デプロイ。同じURLのまま更新する
+  EP_DEPLOYMENT_ID: "AKfycbz6i36c7UjbM3S44kl1kEcsI0CSjYo9jL-W-T4BJUAr9jmBlVXj-vnQTUwQbGoxcHYT"
 
 jobs:
   deploy:
@@ -48,19 +50,22 @@ jobs:
           fi
           printf '%s' "$EP_CLASPRC_JSON" > "$HOME/.clasprc.json"
 
-      - name: .clasp.json を生成（Script ID）
-        env:
-          GAS_SCRIPT_ID: ${{ secrets.GAS_SCRIPT_ID }}
+      - name: 安全確認（対象が“募集システム”か、別フォルダで検証してから進む）
         run: |
-          ID="${GAS_SCRIPT_ID:-$DEFAULT_SCRIPT_ID}"
-          printf '{"scriptId":"%s","rootDir":"."}' "$ID" > .clasp.json
+          tmp="$(mktemp -d)"
+          printf '{"scriptId":"%s","rootDir":"."}' "$EP_SCRIPT_ID" > "$tmp/.clasp.json"
+          ( cd "$tmp" && clasp pull >/dev/null 2>&1 || true )
+          if grep -qrE "epRun|raw_応募者|エントリーポケット" "$tmp" 2>/dev/null; then
+            echo "OK: 対象は募集システム（$EP_SCRIPT_ID）"
+          else
+            echo "::error::対象スクリプトが募集システムではありません。誤爆防止のため中止します。"; exit 1
+          fi
 
-      - name: push（コードを GAS へ反映）
+      - name: .clasp.json を生成（募集システムのScript IDを固定）
+        run: printf '{"scriptId":"%s","rootDir":"."}' "$EP_SCRIPT_ID" > .clasp.json
+
+      - name: push（コードを募集システムの GAS へ反映）
         run: clasp push -f
 
-      - name: deploy（本番 /exec を同じURLのまま更新）
-        env:
-          GAS_DEPLOYMENT_ID: ${{ secrets.GAS_DEPLOYMENT_ID }}
-        run: |
-          DID="${GAS_DEPLOYMENT_ID:-$DEFAULT_DEPLOYMENT_ID}"
-          clasp deploy --deploymentId "$DID" --description "auto ${GITHUB_SHA}"
+      - name: deploy（募集システムの /exec を同じURLのまま更新）
+        run: clasp deploy --deploymentId "$EP_DEPLOYMENT_ID" --description "auto ${GITHUB_SHA}"

@@ -11,8 +11,8 @@ GitHub リポジトリ → **Settings → Secrets and variables → Actions → 
 |---|---|
 | `EP_CLASPRC_JSON` | `clasp login` で作られる `~/.clasprc.json` の中身（丸ごと）＝ログイン情報 |
 
-- **スクリプトID / デプロイID** は秘密ではないので `.github/workflows/deploy_gas.yml` に直書き済み
-  （別プロジェクトに向ける場合のみ、Secret `GAS_SCRIPT_ID` / `GAS_DEPLOYMENT_ID` で上書き可能）。
+- **スクリプトID / デプロイID** は募集システム専用の値を `.github/workflows/deploy_gas.yml` に**固定**済み。
+  汎用名（`GAS_SCRIPT_ID` 等）のシークレットは**一切参照しない**ので、他プロジェクトへ誤爆しません。
 - `EP_CLASPRC_JSON` は**パスワード相当**。GitHub Secrets は暗号化保存され、ログにも出ません。
 
 ## `EP_CLASPRC_JSON` の取り方（すでに取得済みなら不要）
