@@ -20,10 +20,32 @@ import poster  # up / ig_post / fresh_token_for / _sheets / line_notify / IGB / 
 from PIL import Image, ImageDraw, ImageFont, ImageFilter
 
 JST = datetime.timezone(datetime.timedelta(hours=9))
+UTC = datetime.timezone.utc
 ACCOUNT = "gifuyatenjin"
 TAB = "メンション_" + ACCOUNT
 SW, SH = 1080, 1920                      # ストーリー解像度
 DRY = os.environ.get("DRY") == "1"
+HOLD_MIN = float(os.environ.get("IG_AUTO_HOLD_MIN", "10"))   # 保留付き自動：受信からこの分数は投稿を待つ
+
+
+def _age_min(iso):
+    """ISO日時から経過分。解釈できなければ大きな値（＝保留を過ぎたとみなす）。"""
+    try:
+        s = str(iso).replace("Z", "+00:00")
+        dt = datetime.datetime.fromisoformat(s)
+        if dt.tzinfo is None:
+            dt = dt.replace(tzinfo=UTC)
+        return (datetime.datetime.now(UTC) - dt).total_seconds() / 60.0
+    except Exception:
+        return 1e9
+
+
+def _is_image(path):
+    try:
+        Image.open(path).verify()
+        return True
+    except Exception:
+        return False
 
 # フォント/ロゴは既存の加工モジュールから拝借（無ければゴシックにフォールバック）
 try:
@@ -174,10 +196,15 @@ def main():
         row = (row + [""] * 10)[:10]
         mid, _dt, _acct, sender, _sname, murl, mtype, status, comment, _u = row
         status = (status or "").strip()
-        if status not in ("approved", "reply"):
+        if status not in ("approved", "auto", "reply"):
             continue
+        # 保留付き自動：受信からHOLD_MIN未満は投稿を待つ（その間にアプリで取消/編集/即投稿できる）
+        if status == "auto":
+            age = _age_min(_dt)
+            if age < HOLD_MIN:
+                print("[ROW %d] auto保留中（%.1f/%.0f分）→ 次回" % (i, age, HOLD_MIN)); continue
         comment = (comment or "").strip()
-        print("[ROW %d] status=%s type=%s sender=%s" % (i, status, mtype, sender))
+        print("[ROW %d] status=%s sender=%s" % (i, status, sender))
         try:
             if status == "reply":
                 ok = DRY or _send_dm(token, uid, sender, comment or DEFAULT_REPLY)
@@ -188,16 +215,17 @@ def main():
                 done += 1 if ok else 0
                 continue
 
-            # status == approved（店ストーリーに追加＝リポスト＋シェアコメント）
+            # approved / auto(保留経過) ＝ 店ストーリーに追加（リポスト＋シェアコメント）
             if not murl:
                 print("  メディアURLなし→skip"); continue
-            is_video = str(mtype).lower() == "video"
-            tmp_in = "/tmp/mention_%d%s" % (i, ".mp4" if is_video else ".jpg")
+            tmp_in = "/tmp/mention_%d.bin" % i
             _download(murl, tmp_in)
+            is_video = not _is_image(tmp_in)
             if is_video:
                 # 動画は文字焼き未対応→そのままリポスト、シェアコメントはDMで補う
-                post_path = tmp_in
-                pub_url = tmp_in if DRY else poster.up(post_path, cdn=False)
+                post_path = "/tmp/mention_%d.mp4" % i
+                os.replace(tmp_in, post_path)
+                pub_url = post_path if DRY else poster.up(post_path, cdn=False)
             else:
                 post_path = "/tmp/mention_story_%d.jpg" % i
                 render_story(tmp_in, comment, post_path)

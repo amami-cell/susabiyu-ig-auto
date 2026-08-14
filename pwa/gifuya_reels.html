@@ -552,16 +552,19 @@
           ? '<div class="mediaWrap reel"><video src="'+esc(it.url)+'" controls playsinline preload="metadata"></video></div>'
           : '<div class="mediaWrap reel"><img loading="lazy" src="'+esc(it.url)+'" alt=""></div>';
         var chips=MENTION_STORY_TPL.map(function(t,i){ return '<button class="tpl" data-t="'+esc(t)+'">例'+(i+1)+'</button>'; }).join("");
+        var isAuto=String(it.status)==="auto";
+        var _d=it.dt?new Date(it.dt):null, when=(_d&&!isNaN(_d))?(("0"+_d.getHours()).slice(-2)+":"+("0"+_d.getMinutes()).slice(-2)):esc(String(it.dt||""));
+        var note=isAuto?'<div class="banner ngb" style="margin:8px 0 0">🕒 自動投稿の予定です。何もしなければ数分後にリポストします。文面を直して「今すぐ投稿」、やめる場合は「取り消し」。</div>':'';
         c.innerHTML=
-          '<div class="chead"><span class="kind">💬 メンション</span><span class="cno">'+esc(String(it.dt||""))+'</span></div>'+
-          media+
+          '<div class="chead"><span class="kind">💬 メンション</span><span class="cno">'+when+'</span></div>'+
+          media+note+
           '<div style="margin:10px 2px 4px;font-size:12px;color:#9aa3b2">シェアコメント（店ストーリーに焼く文／お礼DMの本文）</div>'+
           '<textarea class="mtext" style="width:100%;min-height:64px;border-radius:12px;border:1px solid #262c36;background:#12161d;color:#eaeef2;padding:10px;font-family:inherit;font-size:13.5px"></textarea>'+
           '<div class="tplrow" style="display:flex;gap:6px;flex-wrap:wrap;margin:8px 0">'+chips+'</div>'+
           '<div class="acts">'+
-            '<button class="now" data-a="story">店ストーリーに追加</button>'+
+            '<button class="now" data-a="story">'+(isAuto?'今すぐ投稿':'店ストーリーに追加')+'</button>'+
             '<button class="resv" data-a="reply">お礼DM</button>'+
-            '<button class="resv" data-a="ignore" style="flex:0 0 auto;background:#2a2330;border:1px solid #3a2a3a">無視</button>'+
+            '<button class="resv" data-a="ignore" style="flex:0 0 auto;background:#2a2330;border:1px solid #3a2a3a">'+(isAuto?'取り消し':'無視')+'</button>'+
           '</div>';
         var ta=c.querySelector(".mtext"); ta.value=it.text||MENTION_STORY_TPL[0];
         c.querySelectorAll(".tpl").forEach(function(b){ b.style.cssText="font-size:12px;color:#cfe0ff;background:#131f30;border:1px solid #274063;border-radius:999px;padding:5px 10px"; b.onclick=function(){ ta.value=b.getAttribute("data-t"); }; });

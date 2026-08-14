@@ -889,6 +889,15 @@ const IG_MENTION_TAB = 'メンション';
 function _verifyToken_() {
   return PropertiesService.getScriptProperties().getProperty('IG_VERIFY_TOKEN') || 'gifuya_ig_2026';
 }
+// 自動リポストの方式：hold=保留付き自動（既定）/ off=確認式（手動）/ full=即自動。
+function _autoMode_() {
+  var m = (PropertiesService.getScriptProperties().getProperty('IG_AUTO_MODE') || 'hold').toLowerCase();
+  return (m === 'off' || m === 'full') ? m : 'hold';
+}
+// 自動時に既定で入れるシェアコメント（アプリで上書き可）。
+function _autoComment_() {
+  return PropertiesService.getScriptProperties().getProperty('IG_AUTO_COMMENT') || 'ご来店ありがとうございます😊 素敵な投稿に感謝です！';
+}
 // 受信先IGユーザーID → 店舗account。スクリプトプロパティ IG_ACCOUNT_MAP({"<igid>":"gifuyatenjin"}) 未設定なら既定。
 function _acctFromIgId_(igid) {
   try {
@@ -933,7 +942,11 @@ function _ingestMentions_(body) {
         var account = _acctFromIgId_(recip);
         var mid = String((ev.message && ev.message.mid) || ((ev.timestamp || Date.now()) + '_' + ((ev.sender && ev.sender.id) || '')));
         if (_mentionExists_(account, mid)) continue;              // 重複防止
-        _mentionSheet_(account).appendRow([mid, new Date(), account, String((ev.sender && ev.sender.id) || ''), '', url, 'story', 'pending', '', new Date()]);
+        var mode = _autoMode_();
+        var status = (mode === 'full') ? 'approved' : (mode === 'off') ? 'pending' : 'auto';  // hold=保留付き自動
+        var comment = (mode === 'off') ? '' : _autoComment_();
+        var nowIso = new Date().toISOString();   // Pythonが保留時間を計算できるようISOで保存
+        _mentionSheet_(account).appendRow([mid, nowIso, account, String((ev.sender && ev.sender.id) || ''), '', url, 'image', status, comment, nowIso]);
         count++;
       }
     }
