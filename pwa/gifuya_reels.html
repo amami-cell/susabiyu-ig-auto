@@ -159,7 +159,7 @@
 <script>
 (function(){
   "use strict";
-  var V = "?v=136";  // メディアのキャッシュ更新用
+  var V = "?v=137";  // メディアのキャッシュ更新用
   var CFG = window.GIFUYA || {};
   var LIVE = !!window.GIFUYA_LIVE;               // 専用GAS注入済みなら実データ連携
   var GAS = (CFG.GAS_URL||"").trim();
@@ -520,9 +520,12 @@
     });
   }
   /* ===== ストーリーメンション（確認→リポスト＋シェアコメント） ===== */
+  var MENTION_DEFAULT="ご来店ありがとうございます\n素敵な投稿に感謝です！\n#ぎふや福岡天神";  // 規定＝1
   var MENTION_STORY_TPL=[
-    "ご来店ありがとうございます\n素敵な投稿に感謝です！\n#ぎふや福岡天神",
-    "ご紹介ありがとうございます\n天神で乾杯、またぜひ！\n#ぎふや福岡天神"
+    "ご紹介ありがとうございます\n天神で乾杯、またぜひ！\n#ぎふや福岡天神",
+    "ご投稿ありがとうございます\n天神・イナチカでお待ちしています\n#ぎふや福岡天神",
+    "素敵な投稿ありがとうございます\n“安くて旨い”をまた福岡天神で\n#ぎふや福岡天神",
+    "ありがとうございます\nまたのご来店お待ちしております\n#ぎふや福岡天神"
   ];
   function mentAct(mid,action,text,btn){
     if(action==="ignore" && !confirm("この投稿を無視（一覧から消す）しますか？")) return;
@@ -565,7 +568,7 @@
             '<button class="resv" data-a="reply">お礼DM</button>'+
             '<button class="resv" data-a="ignore" style="flex:0 0 auto;background:#2a2330;border:1px solid #3a2a3a">'+(isAuto?'取り消し':'無視')+'</button>'+
           '</div>';
-        var ta=c.querySelector(".mtext"); ta.value=it.text||MENTION_STORY_TPL[0];
+        var ta=c.querySelector(".mtext"); ta.value=it.text||MENTION_DEFAULT;
         c.querySelectorAll(".tpl").forEach(function(b){ b.style.cssText="font-size:12px;color:#cfe0ff;background:#131f30;border:1px solid #274063;border-radius:999px;padding:5px 10px"; b.onclick=function(){ ta.value=b.getAttribute("data-t"); }; });
         c.querySelector('[data-a="story"]').onclick=function(){ mentAct(it.mid,"story",ta.value,this); };
         c.querySelector('[data-a="reply"]').onclick=function(){ mentAct(it.mid,"reply",ta.value,this); };
