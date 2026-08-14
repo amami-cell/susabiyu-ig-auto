@@ -901,12 +901,18 @@ function _autoComment_(account) {
   var tag = (account === 'gifuyatenjin') ? '#ぎふや福岡天神' : '#すさび湯三条';
   return 'ご来店ありがとうございます\n素敵な投稿に感謝です！\n' + tag;
 }
-// 受信先IGユーザーID → 店舗account。スクリプトプロパティ IG_ACCOUNT_MAP({"<igid>":"gifuyatenjin"}) 未設定なら既定。
+// 受信先IGユーザーID → 店舗account。既知の2店はコード内に組込み済み（手動設定不要）。
+// 新店を足す時だけ スクリプトプロパティ IG_ACCOUNT_MAP({"<igid>":"<account>"}) で上書き/追加。
+var IG_ACCOUNT_BUILTIN = {
+  '17841415653304968': 'gifuyatenjin',   // @gifuya_fukuokatenjin
+  '17841478601852970': ''                // @susabiyu_sanjyo（三条＝account空）
+};
 function _acctFromIgId_(igid) {
   try {
     var m = JSON.parse(PropertiesService.getScriptProperties().getProperty('IG_ACCOUNT_MAP') || '{}');
-    if (m && Object.prototype.hasOwnProperty.call(m, igid)) return m[igid];   // 値が ""（三条）でも有効
+    if (m && Object.prototype.hasOwnProperty.call(m, igid)) return m[igid];   // プロパティ優先（値 "" も有効）
   } catch (e) {}
+  if (Object.prototype.hasOwnProperty.call(IG_ACCOUNT_BUILTIN, igid)) return IG_ACCOUNT_BUILTIN[igid];
   return 'gifuyatenjin';
 }
 function _verifyWebhook_(p) {
