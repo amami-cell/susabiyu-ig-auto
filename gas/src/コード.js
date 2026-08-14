@@ -896,7 +896,7 @@ function _autoMode_() {
 }
 // 自動時に既定で入れるシェアコメント（アプリで上書き可）。
 function _autoComment_() {
-  return PropertiesService.getScriptProperties().getProperty('IG_AUTO_COMMENT') || 'ご来店ありがとうございます😊 素敵な投稿に感謝です！';
+  return PropertiesService.getScriptProperties().getProperty('IG_AUTO_COMMENT') || 'ご来店ありがとうございます\n素敵な投稿に感謝です！\n#ぎふや福岡天神';
 }
 // 受信先IGユーザーID → 店舗account。スクリプトプロパティ IG_ACCOUNT_MAP({"<igid>":"gifuyatenjin"}) 未設定なら既定。
 function _acctFromIgId_(igid) {

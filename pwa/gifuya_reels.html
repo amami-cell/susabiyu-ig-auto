@@ -159,7 +159,7 @@
 <script>
 (function(){
   "use strict";
-  var V = "?v=135";  // メディアのキャッシュ更新用
+  var V = "?v=136";  // メディアのキャッシュ更新用
   var CFG = window.GIFUYA || {};
   var LIVE = !!window.GIFUYA_LIVE;               // 専用GAS注入済みなら実データ連携
   var GAS = (CFG.GAS_URL||"").trim();
@@ -521,9 +521,8 @@
   }
   /* ===== ストーリーメンション（確認→リポスト＋シェアコメント） ===== */
   var MENTION_STORY_TPL=[
-    "ご来店ありがとうございます😊 素敵な投稿に感謝です！",
-    "素敵な投稿ありがとうございます🍶 #ぎふや福岡天神",
-    "本日もありがとうございます🍢 “安くて旨い”ぎふやでした！"
+    "ご来店ありがとうございます\n素敵な投稿に感謝です！\n#ぎふや福岡天神",
+    "ご紹介ありがとうございます\n天神で乾杯、またぜひ！\n#ぎふや福岡天神"
   ];
   function mentAct(mid,action,text,btn){
     if(action==="ignore" && !confirm("この投稿を無視（一覧から消す）しますか？")) return;
