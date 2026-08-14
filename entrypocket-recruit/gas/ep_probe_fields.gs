@@ -116,6 +116,15 @@ function epProbeJobs() {
     // データ行のIDパターン（原稿コード等）と select/option（媒体・店舗）
     var idpat = (body.match(/id=["']([A-Za-z_]*(?:manuscript|jobOffer|genkou|shop)[A-Za-z0-9_]*)["']/gi) || []).slice(0, 12);
     Logger.log("  id例: " + idpat.join(" | ").slice(0, 400));
+
+    // 掲載中の「行」を丸ごとダンプ（正確なパーサ作成用）
+    var di = body.indexOf('bgcolor_blue">掲載中');
+    if (di < 0) { var ts = body.indexOf('td_status'); di = ts >= 0 ? body.indexOf('掲載中</div>', ts) : -1; }
+    if (di >= 0) {
+      Logger.log("  [掲載中の行HTML①] " + body.slice(Math.max(0, di - 160), di + 2200).replace(/\s+/g, " ").trim());
+      var di2 = body.indexOf('bgcolor_blue">掲載中', di + 10);
+      if (di2 >= 0) Logger.log("  [掲載中の行HTML②] " + body.slice(Math.max(0, di2 - 160), di2 + 1400).replace(/\s+/g, " ").trim());
+    }
   });
 
   Logger.log("=== 調査おわり（読み取りのみ）===");
