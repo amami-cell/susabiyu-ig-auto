@@ -228,7 +228,7 @@
       if(!(n>=10&&n<=99)) return '不明'; if(n<20)return'〜19歳'; if(n<30)return'20代'; if(n<40)return'30代'; if(n<50)return'40代'; if(n<60)return'50代'; return'60代〜'; }
     var apps=[], storeManual={}, storePosting={}, postings=[], appByCode={}, RECS=[];
     var postByStore={}, appByStore={}, reportUrl='', postById={};
-    var DASH={}, LAST=null, statYear='all';
+    var DASH={}, LAST=null, statYear='all', liveShops=[];
     var statusMap={}, statusOrder=[], writeEnabled=false;
     function sameCode(a,b){ return parseInt(String(a),10)===parseInt(String(b),10); }
 
@@ -265,7 +265,7 @@
       var b=document.getElementById('refreshBtn'); b.disabled=true; b.textContent='取得中…'; toast('最新データを取得中（15秒ほど）');
       google.script.run.withSuccessHandler(function(r){ b.disabled=false; b.textContent='更新';
         if(r&&r.ok){
-          toast('取得完了：打ち出し'+(r.postings||0)+'件（募集中'+(r.active||0)+'）/ 応募'+(r.apps||0)+'件');
+          toast('取得完了：掲載中'+(r.live||0)+'店舗 / 応募'+(r.apps||0)+'件 / 打ち出し'+(r.postings||0)+'件');
           if((r.postings||0)===0){ diagPostings(); } else { load(); }
         } else { toast('取得失敗'+(r&&r.error?': '+r.error:'')); }
       }).withFailureHandler(function(e){ b.disabled=false; b.textContent='更新'; toast('エラー: '+(e&&e.message||'')); }).dashRefresh();
@@ -290,7 +290,7 @@
       postByStore={}; postings.forEach(function(p){ var k=normStore(p.store); (postByStore[k]=postByStore[k]||[]).push(p); });
       appByStore={}; apps.forEach(function(a){ var k=normStore(a.store); (appByStore[k]=appByStore[k]||[]).push(a); });
 
-      DASH=dash; LAST=d.last;
+      DASH=dash; LAST=d.last; liveShops=d.liveShops||[];
       statusMap=d.statusMap||{}; statusOrder=d.statusOrder||[]; writeEnabled=!!d.writeEnabled;
       document.getElementById('updated').textContent = d.last?('最終取得 '+esc(d.last.at)):(dash.generated_at||'未取得');
       renderRecruit();
@@ -320,13 +320,16 @@
         var d=toDate(a.appliedAt), t=d?d.getTime():0; if(!latest[k]||t>latest[k]) latest[k]=t; });
       var keys={};
       Object.keys(latest).forEach(function(k){ if(latest[k]>=cut) keys[k]=1; });          // 直近応募あり＝募集中
-      // 手動上書き（master_店舗 F列 募集手動）：終了は外す・募集中は入れる
+      // EntryPocketで掲載中の求人原稿がある店舗（応募が無くても募集中に出す）
+      (liveShops||[]).forEach(function(nm){ var k=normStore(nm); if(!k) return; keys[k]=1; if(nm&&!nameOf[k]) nameOf[k]=nm; });
+      // 手動上書き（master_店舗 F列 募集手動）：終了は外す・募集中は入れる（最後に適用＝終了が優先）
       Object.keys(storeManual).forEach(function(name){ var ov=manOverride(storeManual[name]), k=normStore(name);
         if(ov==='active') keys[k]=1; if(ov==='ended') delete keys[k]; });
+      var liveSet={}; (liveShops||[]).forEach(function(nm){ liveSet[normStore(nm)]=1; });
       RECS=Object.keys(keys).map(function(k){
         var appsArr=appByStore[k]||[], sp=storePosting[k]||null;
         var name=nameOf[k]||(sp&&sp.name)||(appsArr[0]&&appsArr[0].store)||k;
-        return { key:k, name:name, sp:sp, appsArr:appsArr, latest:latest[k]||0 };
+        return { key:k, name:name, sp:sp, appsArr:appsArr, latest:latest[k]||0, live:!!liveSet[k] };
       });
       RECS.sort(function(a,b){ return (b.latest||0)-(a.latest||0); });                     // 最新応募順
       var h=alertHtml();
@@ -336,8 +339,8 @@
     }
     function storeCard(r){
       var i=RECS.indexOf(r);
-      var sub = r.latest ? ('最新応募 '+fmtD(new Date(r.latest))+'　現応募'+r.appsArr.length+'名')
-                         : '募集中（手動設定）';
+      var sub = r.latest ? ((r.live?'掲載中・':'')+'最新応募 '+fmtD(new Date(r.latest))+'　現応募'+r.appsArr.length+'名')
+                         : (r.live ? '掲載中（EntryPocket・応募なし）' : '募集中（手動設定）');
       var untreated=r.appsArr.filter(function(a){return isUntreated(a.status);}).length;
       var chips=[ '<span>現応募者<b>'+r.appsArr.length+'</b></span>' ];
       if(untreated) chips.unshift('<span class="warnchip">未対応<b>'+untreated+'</b></span>');

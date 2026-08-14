@@ -148,8 +148,11 @@ function dashBuild_() {
   var statusOrder = (typeof EP_STATUS_ORDER !== 'undefined') ? EP_STATUS_ORDER : [];
   var writeEnabled = (typeof epWriteEnabled_ === 'function') ? epWriteEnabled_() : false;
 
+  // EntryPocketで「掲載中の求人原稿がある店舗」（募集中タブに出す）
+  var liveShops = (typeof epLiveShops_ === 'function') ? epLiveShops_(ss) : [];
+
   return { dash: dash, apps: apps, last: last, storeManual: storeManual, storePosting: storePosting, postings: postings, reportUrl: reportUrl,
-    statusMap: statusMap, statusOrder: statusOrder, writeEnabled: writeEnabled };
+    statusMap: statusMap, statusOrder: statusOrder, writeEnabled: writeEnabled, liveShops: liveShops };
 }
 
 /**
@@ -184,7 +187,8 @@ function dashRefresh() {
       var v = pp.getDataRange().getValues(), h = v[0], si = h.indexOf('状態');
       if (si >= 0) for (var i = 1; i < v.length; i++) if (String(v[i][si]) === '募集中') active++;
     }
-    return { ok: ok, postings: postings, active: active, apps: apps };
+    var live = (typeof epLiveShops_ === 'function') ? epLiveShops_(ss).length : 0;
+    return { ok: ok, postings: postings, active: active, apps: apps, live: live };
   } catch (e) { return { ok: false, error: String(e) }; }
 }
 

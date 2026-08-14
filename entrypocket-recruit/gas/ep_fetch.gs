@@ -278,6 +278,14 @@ function epRun() {
     var chg = epWriteSheets_(parsed) || { added: 0, changed: 0 };
     note = (chg.added || chg.changed) ? ("新規" + chg.added + "件 / ステータス変更" + chg.changed + "件") : "変更なし";
     Logger.log("✓ ④ スプレッドシートへ蓄積完了（" + note + "）");
+
+    // ⑤ EntryPocketの「掲載中の求人原稿がある店舗」を取得（募集中タブ用）→ キャッシュ再作成
+    try {
+      var ss5 = SpreadsheetApp.getActiveSpreadsheet();
+      var live = epWriteLiveShops_(ss5, jar);
+      Logger.log("✓ ⑤ 掲載中店舗 " + (live < 0 ? "取得失敗(既存維持)" : (live + "件")));
+      dashStoreCache_();
+    } catch (e5) { Logger.log("掲載中店舗の取得スキップ: " + e5); }
   } catch (e) {
     result = "fail"; note = String(e);
     Logger.log("✗ " + note);
