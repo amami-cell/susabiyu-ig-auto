@@ -194,6 +194,9 @@
     .memo-in{ flex:1; background:var(--card2); border:1px solid var(--line2); color:var(--fg); border-radius:9px; padding:9px 11px; font-size:13px; min-width:0; }
     .memo-save{ background:var(--accent); color:#08192e; border:0; border-radius:9px; padding:9px 15px; font-weight:800; font-size:13px; white-space:nowrap; }
     .memo-save:active{ transform:scale(.97); } .memo-save:disabled{ opacity:.5; }
+    /* 募集終了ボタン */
+    .endrec{ display:block; width:100%; background:var(--warnbg); border:1px solid var(--warnbd); color:var(--amber); border-radius:10px; padding:11px; font-weight:800; font-size:13px; margin:0 0 11px; }
+    .endrec:active{ transform:scale(.99); }
   </style>
 </head>
 <body>
@@ -383,7 +386,42 @@
         var list=arr.filter(function(a){ return (a.status||'不明')===af; });
         below='<div class="dl">'+esc(af)+'（'+list.length+'）</div>'+(list.map(appCard).join('')||'<div class="muted">該当なし</div>');
       }
-      return tiles+below;
+      var endBtn = writeEnabled ? '<button class="endrec" onclick="endRecruitOpen('+i+')">■ 募集終了して結果を入力（スプシへ）</button>' : '';
+      return endBtn+tiles+below;
+    }
+    /* ===== 募集終了 → 求人結果報告（スプシ/Notion）へ移行して結果入力 ===== */
+    function fmtYmd(d){ return d.getFullYear()+'-'+('0'+(d.getMonth()+1)).slice(-2)+'-'+('0'+d.getDate()).slice(-2); }
+    function val(id){ var el=document.getElementById(id); return el?el.value:''; }
+    function endRecruitOpen(i){
+      var r=RECS[i]; if(!r) return;
+      var arr=r.appsArr||[];
+      var times=arr.map(function(a){ var d=toDate(a.appliedAt); return d?d.getTime():0; }).filter(Boolean);
+      var start=times.length?fmtYmd(new Date(Math.min.apply(null,times))):'';
+      var end=fmtYmd(new Date());
+      var apps=arr.length;
+      var hires=arr.filter(function(a){ return sameCode(a.statusCode,'80')||a.status==='採用'; }).length;
+      document.getElementById('modalTitle').textContent='募集終了：'+r.name;
+      var f=function(lb,id,v){ return '<div class="rf-f"><label>'+lb+'</label><input id="'+id+'" type="text" inputmode="numeric" value="'+esc(v)+'"></div>'; };
+      var fd=function(lb,id,v){ return '<div class="rf-f"><label>'+lb+'</label><input id="'+id+'" type="text" value="'+esc(v)+'"></div>'; };
+      document.getElementById('modalBody').innerHTML=
+        '<div class="modal-when">この店舗を募集終了し、求人結果報告（スプシ→Notion）に登録します。採用率・単価は元スプシの数式で自動計算されます。</div>'+
+        '<div class="rf-grid">'+fd('掲載開始','er_start',start)+fd('掲載終了','er_end',end)+'</div>'+
+        '<div class="rf-hint" style="margin:6px 0;color:var(--accent)">CSV自動集計 → 応募 '+apps+' / 採用 '+hires+'（必要なら打ち換え可）</div>'+
+        '<div class="rf-grid">'+f('応募総数','er_apps',apps)+f('採用人数','er_hires',hires)+f('退職人数','er_quit','')+'</div>'+
+        '<label class="rf-l">備考・退職理由</label><textarea class="rf-ta" id="er_note"></textarea>'+
+        '<button class="rf-save" onclick="saveEndRecruit('+i+')">募集終了して結果を登録</button>'+
+        '<div class="rf-hint">登録後、元スプシの「プロジェクト実行」でNotionへ反映されます</div>';
+      document.getElementById('modal').hidden=false;
+    }
+    function saveEndRecruit(i){
+      var r=RECS[i]; if(!r) return;
+      var o={ store:r.name, start:val('er_start'), end:val('er_end'), apps:val('er_apps'), hires:val('er_hires'), quit:val('er_quit'), note:val('er_note') };
+      if(!confirm('「'+r.name+'」を募集終了し、求人結果を登録します。よろしいですか？')) return;
+      var btn=document.querySelector('#modalBody .rf-save'); if(btn){ btn.disabled=true; btn.textContent='登録中…'; }
+      google.script.run.withSuccessHandler(function(res){
+        if(res&&res.ok){ toast('募集終了・結果を登録しました'+(res.created?'（新規）':'')); closeModal(); load(); }
+        else { if(btn){ btn.disabled=false; btn.textContent='募集終了して結果を登録'; } toast('登録に失敗'+(res&&res.error?': '+res.error:'')); }
+      }).withFailureHandler(function(e){ if(btn){ btn.disabled=false; btn.textContent='募集終了して結果を登録'; } toast('通信エラー: '+(e&&e.message||'')); }).epEndRecruit(o);
     }
     // 属性内訳（性別・年齢・職業）
     function demoHtml(arr){
