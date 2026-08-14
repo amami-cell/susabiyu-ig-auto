@@ -1,12 +1,6 @@
 /**
- * 【調査用・書き込みなし】EntryPocket の「メモ保存 / 面接枠登録」の送信APIを特定する。
- *
- * 使い方（1回だけ）:
- *   Apps Script で epProbeFields を「実行」→ 実行ログをまるごとコピーして貼る。
- *   メモ追加関数(applicantMemo)や面接遷移(gotoInput/gotoModify)の中身と、全 part= 呼び出しを出す。
- *
- * 応募者ページの HTML を「読むだけ」。保存・送信・クリックは一切しない。
- * epLogin_ / epFetch_ / EP_APPLICANT_URL（ep_fetch.gs）を再利用する。
+ * 【調査用・書き込みなし】メモ保存(popupNote)の開き方URLと保存APIを特定する。
+ * Apps Script で epProbeFields を実行 → ログを貼る。読むだけ・保存はしない。
  */
 function epProbeFields() {
   var jar = epLogin_();
@@ -16,34 +10,70 @@ function epProbeFields() {
   var html = epFetch_(EP_APPLICANT_URL, { method: "get", followRedirects: true }, jar).getContentText();
   Logger.log("応募者ページ len=" + html.length);
 
-  // 1) すべての part= 呼び出しを、前後の文脈つきで出す（どの関数がどの part を投げるか）
-  Logger.log("========== part= 呼び出し（前後文脈つき）==========");
-  var pr = /_applycontrol_WAR_MYNApplyControlportlet_part\s*[:=]\s*["']([A-Za-z0-9_]+)["']/g, m, cnt = 0, seen = {};
-  while ((m = pr.exec(html))) {
-    var s = Math.max(0, m.index - 220), ctx = html.slice(s, m.index + 60).replace(/\s+/g, " ").trim();
-    Logger.log("• part=" + m[1] + "  … " + ctx.slice(-240));
-    if (++cnt >= 40) { Logger.log("…(part= 以降省略)"); break; }
+  // 集める本文：応募者HTML＋読み込まれるJS（ポートレットのJSにpopupNoteがある可能性）
+  var texts = [["applicant.html", html]];
+  var re = /<script[^>]+src=["']([^"']+)["']/g, m, seen = {};
+  while ((m = re.exec(html))) {
+    var u = m[1]; if (seen[u]) continue; seen[u] = 1;
+    if (/googletagmanager|karte|jquery-1|gtag/i.test(u)) continue; // 無関係な巨大JSは除外
+    var abs = (u.indexOf("http") === 0) ? u : epAbsUrl_(u, EP_APPLICANT_URL);
+    try { texts.push(["JS " + u.slice(-46), epFetch_(abs, { method: "get" }, jar).getContentText()]); }
+    catch (e) { Logger.log("JS取得失敗 " + u + ": " + e); }
   }
 
-  // 2) 主要な関数の中身を丸ごと（メモ追加・面接遷移・ステータス変更）
-  var anchors = ["function applicantMemo", "applicantMemo =", "applicantMemo:function",
-    "function changeStatus", "changeStatus =", "changeStatus:function",
-    "function gotoInput", "function gotoModify", "function gotoDetail",
-    "function saveMemo", "function regMemo", "function memoRegist", "function updateMemo",
-    "function reserve", "function interview", "function changeInterview"];
-  Logger.log("========== 主要関数の中身（前700字）==========");
-  anchors.forEach(function (a) {
-    var i = html.indexOf(a);
-    if (i < 0) return;
-    Logger.log("――― " + a + " @" + i + " ―――");
-    Logger.log(html.slice(i, i + 700).replace(/\s+/g, " ").trim());
+  function dumpAround(label, text, kw, win, max) {
+    var i = text.indexOf(kw), n = 0;
+    while (i >= 0 && n < (max || 4)) {
+      var s = Math.max(0, i - 40);
+      Logger.log("[" + label + "] …" + text.slice(s, i + win).replace(/\s+/g, " ").trim());
+      i = text.indexOf(kw, i + 1); n++;
+    }
+  }
+
+  Logger.log("========== popupNote（メモポップアップの開き方）==========");
+  texts.forEach(function (t) { dumpAround(t[0], t[1], "popupNote", 520, 3); });
+
+  Logger.log("========== Liferay.Util.openWindow / pageFlg / dialog ==========");
+  texts.forEach(function (t) {
+    dumpAround(t[0], t[1], "openWindow", 360, 2);
+    dumpAround(t[0], t[1], "pageFlg", 240, 3);
   });
 
-  // 3) メモ入力欄・面接関連のフォーム項目名（value/hidden）を拾う
-  Logger.log("========== メモ/面接の項目名（input/textarea name）==========");
-  var nr = /_applycontrol_WAR_MYNApplyControlportlet_([A-Za-z0-9_]*(?:[Mm]emo|[Ii]nterview|[Nn]ote|reserve|schedule)[A-Za-z0-9_]*)/g, ns = {};
-  while ((m = nr.exec(html))) ns[m[1]] = 1;
-  Logger.log("  " + Object.keys(ns).join(", "));
+  Logger.log("========== メモ保存っぽい part=/関数 ==========");
+  texts.forEach(function (t) {
+    var pr = /part\s*[:=]\s*["']([A-Za-z0-9_]*[Nn]ote[A-Za-z0-9_]*|[A-Za-z0-9_]*[Mm]emo[A-Za-z0-9_]*|reg[A-Za-z0-9_]*|save[A-Za-z0-9_]*|insert[A-Za-z0-9_]*|update[A-Za-z0-9_]*)["']/g, m2, n = 0;
+    while ((m2 = pr.exec(t[1])) && n < 20) {
+      var s = Math.max(0, m2.index - 180);
+      Logger.log("[" + t[0] + "] part=" + m2[1] + " … " + t[1].slice(s, m2.index + 40).replace(/\s+/g, " ").trim().slice(-220));
+      n++;
+    }
+  });
+
+  // popupNote の中からURLを取り出し、その画面を実際に取得して保存フォームを見る
+  Logger.log("========== popupNote から辿ったポップアップ本体 ==========");
+  var joined = texts.map(function (t) { return t[1]; }).join("\n");
+  var pi = joined.indexOf("popupNote");
+  if (pi >= 0) {
+    var seg = joined.slice(pi, pi + 900);
+    var um = seg.match(/https?:\/\/[^\s"']*applicant[^\s"']*/);
+    if (um) {
+      var purl = um[0].replace(/&amp;/g, "&");
+      Logger.log("popup候補URL: " + purl.slice(0, 300));
+      try {
+        var pop = epFetch_(purl, { method: "get" }, jar).getContentText();
+        Logger.log("popup len=" + pop.length);
+        var fr = /part\s*[:=]\s*["']([A-Za-z0-9_]+)["']/g, mm, ns = {};
+        while ((mm = fr.exec(pop))) ns[mm[1]] = 1;
+        Logger.log("  popup内 part=候補: " + Object.keys(ns).join(", "));
+        var tr = /<textarea[^>]*name=["']([^"']+)["']|<input[^>]*name=["']([^"']*[Nn]ote[^"']*|[^"']*[Mm]emo[^"']*)["']/g;
+        var names = {};
+        while ((mm = tr.exec(pop))) { names[mm[1] || mm[2]] = 1; }
+        Logger.log("  popup内 メモ入力欄name: " + Object.keys(names).join(", "));
+      } catch (e) { Logger.log("popup取得失敗: " + e); }
+    } else {
+      Logger.log("popupNote付近にURLを検出できず（下のpopupNoteダンプを見て手掛かりを探す）");
+    }
+  }
 
   Logger.log("=== 調査おわり（書き込みなし）===");
 }
