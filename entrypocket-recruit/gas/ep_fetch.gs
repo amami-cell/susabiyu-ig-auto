@@ -101,8 +101,9 @@ var POST_COLMAP = {
 // 取り込み本体：Notion優先→ダメならスプレッドシート。共通の書き出しへ渡す。
 function epImportPostings_(ss) {
   var rows = epFetchNotionRows_(), srcName = "Notion";
-  if (!rows) { rows = epFetchPostingSheetRows_(); srcName = "スプレッドシート"; }
-  if (!rows) { Logger.log("  求人打ち出し: 取得元なし（NOTION_TOKEN/DB未設定 or シート不可）"); return; }
+  if (!rows || !rows.length) { rows = epFetchPostingSheetRows_(); srcName = "スプレッドシート"; }
+  // ★取得0件のときは既存の「求人打ち出し」を消さない（一時的な取得失敗でデータを飛ばさないため）
+  if (!rows || !rows.length) { Logger.log("  求人打ち出し: 取得0件のため既存データを保持（上書きしない）"); return; }
   epWritePostings_(ss, rows, srcName);
 }
 
@@ -227,10 +228,13 @@ function epWritePostings_(ss, rows, srcName) {
   });
   out.sort(function (a, b) { return String(b[9]) < String(a[9]) ? -1 : 1; });  // 掲載開始(列10)の新しい順
 
+  // ★有効行が0件のときは既存を保持（空で上書きしてデータを飛ばさない）
+  if (!out.length) { Logger.log("  求人打ち出し: 有効0件（" + srcName + " 取得" + rows.length + "件）のため既存を保持・上書きしない"); return; }
+
   var sh = epSheet_(ss, "求人打ち出し", POST_HEADER);
   sh.getRange(1, 1, 1, POST_HEADER.length).setValues([POST_HEADER]);
   if (sh.getLastRow() > 1) sh.getRange(2, 1, sh.getLastRow() - 1, POST_HEADER.length).clearContent();
-  if (out.length) sh.getRange(2, 1, out.length, POST_HEADER.length).setValues(out);
+  sh.getRange(2, 1, out.length, POST_HEADER.length).setValues(out);
   Logger.log("  ✓ 求人打ち出し取り込み(" + srcName + ") " + out.length + "件");
 }
 
