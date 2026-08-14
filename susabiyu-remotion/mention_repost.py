@@ -209,6 +209,7 @@ def _process(store, sh):
     uid, me = _ig_uid(token)
     if not uid:
         print("[%s][SKIP] /me失敗:" % name, me.get("error")); return 0
+    print("[%s] IG uid=%s (@%s)  ← IG_ACCOUNT_MAP用" % (name, uid, me.get("username", "")))
     try:
         rows = _read_rows(sh, tab)
     except Exception as e:
