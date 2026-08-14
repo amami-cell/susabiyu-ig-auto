@@ -20,9 +20,10 @@
 - （既存で足りていれば）コンテンツ公開系は追加申請不要。**申請は実際に録画で見せる権限だけに絞る**（過剰申請は落ちる）。
 
 ## 2. 利用用途の説明（レビュアー向け・英語で提出）
-> Our app is used solely by the restaurant to operate its **own** Instagram professional account.
-> When a customer mentions our business account in their Instagram **Story**, we receive the `story_mention`
-> event via the messaging webhook. Staff review the mention in our internal confirmation web app and then:
+> Our app is used solely by our own small izakaya restaurants — **ぎふや福岡天神 (@gifuya_fukuokatenjin)**
+> and **すさび湯三条 (@susabiyu_sanjyo)** — to operate their **own** Instagram professional accounts.
+> When a customer mentions one of our business accounts in their Instagram **Story**, we receive the
+> `story_mention` event via the messaging webhook. Staff review the mention in our internal confirmation web app and then:
 > (a) re-share it to **our own** Story with a short thank‑you caption, and/or
 > (b) send a brief **thank‑you reply** to the customer within the standard 24‑hour window.
 > We only process mentions **of our own account**, we never initiate messages to users who have not
