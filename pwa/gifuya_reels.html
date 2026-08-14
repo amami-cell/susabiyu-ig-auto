@@ -159,7 +159,7 @@
 <script>
 (function(){
   "use strict";
-  var V = "?v=134";  // メディアのキャッシュ更新用
+  var V = "?v=135";  // メディアのキャッシュ更新用
   var CFG = window.GIFUYA || {};
   var LIVE = !!window.GIFUYA_LIVE;               // 専用GAS注入済みなら実データ連携
   var GAS = (CFG.GAS_URL||"").trim();
@@ -554,7 +554,7 @@
         var chips=MENTION_STORY_TPL.map(function(t,i){ return '<button class="tpl" data-t="'+esc(t)+'">例'+(i+1)+'</button>'; }).join("");
         var isAuto=String(it.status)==="auto";
         var _d=it.dt?new Date(it.dt):null, when=(_d&&!isNaN(_d))?(("0"+_d.getHours()).slice(-2)+":"+("0"+_d.getMinutes()).slice(-2)):esc(String(it.dt||""));
-        var note=isAuto?'<div class="banner ngb" style="margin:8px 0 0">🕒 自動投稿の予定です。何もしなければ数分後にリポストします。文面を直して「今すぐ投稿」、やめる場合は「取り消し」。</div>':'';
+        var note=isAuto?'<div class="banner ngb" style="margin:8px 0 0">🕒 自動投稿の予定です。何もしなければ約5時間後にリポストします。それまでに文面を直して「今すぐ投稿」、やめる場合は「取り消し」。</div>':'';
         c.innerHTML=
           '<div class="chead"><span class="kind">💬 メンション</span><span class="cno">'+when+'</span></div>'+
           media+note+

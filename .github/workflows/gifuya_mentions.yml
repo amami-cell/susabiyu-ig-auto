@@ -37,6 +37,7 @@ jobs:
       - name: Process mention queue
         env:
           DRY: ${{ github.event.inputs.dry }}
+          IG_AUTO_HOLD_MIN: "300"   # 保留付き自動の確認時間＝5時間（この間はアプリで取消/編集/即投稿できる）
           GOOGLE_CREDS_B64: ${{ secrets.GOOGLE_CREDS_B64 }}
           IG_ACCESS_TOKEN_GIFUYATENJIN: ${{ secrets.IG_ACCESS_TOKEN_GIFUYATENJIN }}
           SHEET_ID: ${{ secrets.SHEET_ID }}
