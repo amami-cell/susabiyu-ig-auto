@@ -89,6 +89,17 @@ def _strip_emoji(s):
     return s.strip()
 
 
+def _format_comment(s):
+    """画像に焼く文を整形：絵文字を外し、ハッシュタグは本文と分けて別段落（下）にまとめる。"""
+    s = _strip_emoji(s)
+    tags = re.findall(r"#\S+", s)
+    body = re.sub(r"#\S+", "", s)
+    body = re.sub(r"[ 　]{2,}", " ", body).strip(" 　\n")
+    if tags:
+        return (body + "\n\n" if body else "") + " ".join(tags)
+    return body
+
+
 def _wrap(draw, text, font, maxw):
     lines, cur = [], ""
     for ch in str(text):
@@ -119,11 +130,11 @@ def render_story(src_path, comment, out_path):
     # 白ロゴ（左上）
     if _LOGO and os.path.exists(_LOGO):
         lg = Image.open(_LOGO).convert("RGBA")
-        lw = 260
+        lw = 340
         lg = lg.resize((lw, int(lg.height * lw / lg.width)), Image.LANCZOS)
-        base.alpha_composite(lg, (44, 60))
-    # シェアコメント（下部）※画像には絵文字を焼かない（□対策）
-    comment = _strip_emoji((comment or "").strip())
+        base.alpha_composite(lg, (44, 56))
+    # シェアコメント（下部）※絵文字は焼かない（□対策）＋ハッシュタグは別段落に分ける
+    comment = _format_comment(comment)
     if comment:
         f = _font(_GOTHIC, 60)
         lines = _wrap(draw, comment, f, SW - 130)
