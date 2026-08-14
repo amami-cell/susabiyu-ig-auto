@@ -894,15 +894,18 @@ function _autoMode_() {
   var m = (PropertiesService.getScriptProperties().getProperty('IG_AUTO_MODE') || 'hold').toLowerCase();
   return (m === 'off' || m === 'full') ? m : 'hold';
 }
-// 自動時に既定で入れるシェアコメント（アプリで上書き可）。
-function _autoComment_() {
-  return PropertiesService.getScriptProperties().getProperty('IG_AUTO_COMMENT') || 'ご来店ありがとうございます\n素敵な投稿に感謝です！\n#ぎふや福岡天神';
+// 自動時に既定で入れるシェアコメント（アプリで上書き可）。店舗ごとにハッシュタグを変える。
+function _autoComment_(account) {
+  var ov = PropertiesService.getScriptProperties().getProperty('IG_AUTO_COMMENT');
+  if (ov) return ov;
+  var tag = (account === 'gifuyatenjin') ? '#ぎふや福岡天神' : '#すさび湯三条';
+  return 'ご来店ありがとうございます\n素敵な投稿に感謝です！\n' + tag;
 }
 // 受信先IGユーザーID → 店舗account。スクリプトプロパティ IG_ACCOUNT_MAP({"<igid>":"gifuyatenjin"}) 未設定なら既定。
 function _acctFromIgId_(igid) {
   try {
     var m = JSON.parse(PropertiesService.getScriptProperties().getProperty('IG_ACCOUNT_MAP') || '{}');
-    if (m && m[igid]) return m[igid];
+    if (m && Object.prototype.hasOwnProperty.call(m, igid)) return m[igid];   // 値が ""（三条）でも有効
   } catch (e) {}
   return 'gifuyatenjin';
 }
@@ -944,7 +947,7 @@ function _ingestMentions_(body) {
         if (_mentionExists_(account, mid)) continue;              // 重複防止
         var mode = _autoMode_();
         var status = (mode === 'full') ? 'approved' : (mode === 'off') ? 'pending' : 'auto';  // hold=保留付き自動
-        var comment = (mode === 'off') ? '' : _autoComment_();
+        var comment = (mode === 'off') ? '' : _autoComment_(account);
         var nowIso = new Date().toISOString();   // Pythonが保留時間を計算できるようISOで保存
         _mentionSheet_(account).appendRow([mid, nowIso, account, String((ev.sender && ev.sender.id) || ''), '', url, 'image', status, comment, nowIso]);
         count++;

@@ -145,6 +145,7 @@
     <div class="tabs">
       <div class="tab on" id="tabFeed" onclick="switchTab('feed')">📸 フィード投稿</div>
       <div class="tab reel" id="tabReel" onclick="switchTab('reel')">🎬 リール投稿</div>
+      <div class="tab" id="tabMention" onclick="switchTab('mention')">💬 メンション</div>
     </div>
   </header>
   <div id="wrap">
@@ -214,11 +215,68 @@
   ];
 
   var TAB="feed";
+  /* ===== ストーリーメンション（確認→リポスト＋シェアコメント） ===== */
+  var MENTION_DEFAULT="ご来店ありがとうございます\n素敵な投稿に感謝です！\n#すさび湯三条";
+  var MENTION_STORY_TPL=[
+    "ご紹介ありがとうございます\n三条で乾杯、またぜひ！\n#すさび湯三条",
+    "ご投稿ありがとうございます\n河原町三条でお待ちしています\n#すさび湯三条",
+    "素敵な投稿ありがとうございます\nまた京都・三条で\n#すさび湯三条",
+    "ありがとうございます\nまたのご来店お待ちしております\n#すさび湯三条"
+  ];
+  function mentAct(mid,action,text,btn){
+    if(action==="ignore" && !confirm("この投稿を無視（一覧から消す）しますか？")) return;
+    var card=btn.closest(".card"); card.style.opacity=".5";
+    card.querySelectorAll("button").forEach(function(b){b.disabled=true;});
+    regJsonp({api:"mentionact", mid:mid, action:action, text:text||""}).then(function(r){
+      if(r&&r.result==="ok"){ toast(action==="story"?"店ストーリーに追加します（数分以内に投稿）":action==="reply"?"お礼DMを送ります":"無視しました"); card.remove(); if(!document.querySelector('#cards .card')) renderMentions(); }
+      else { toast("反映できませんでした"); card.style.opacity="1"; card.querySelectorAll("button").forEach(function(b){b.disabled=false;}); }
+    }).catch(function(){ toast("通信エラー"); card.style.opacity="1"; card.querySelectorAll("button").forEach(function(b){b.disabled=false;}); });
+  }
+  function renderMentions(){
+    var box=document.getElementById("cards");
+    box.innerHTML='<div class="hint">ストーリーズでメンションされた投稿です。文面を整えて「店ストーリーに追加」（リポスト）や「お礼DM」ができます。<br>※お客様のメンションを受け取るにはMeta側の設定・審査が必要です。</div>';
+    regJsonp({api:"mentions"}).then(function(res){
+      var items=(res&&res.items)||[]; var cnt=document.querySelector('.seclabel .cnt'); if(cnt) cnt.textContent=items.length+"件";
+      if(!items.length){ box.innerHTML+='<div class="empty">確認待ちのメンションはありません。</div>'; return; }
+      items.forEach(function(it){
+        var c=document.createElement("div"); c.className="card";
+        var media=(String(it.mediaType).toLowerCase()==="video")
+          ? '<div class="mediaWrap reel"><video src="'+esc(it.url)+'" controls playsinline preload="metadata"></video></div>'
+          : '<div class="mediaWrap reel"><img loading="lazy" src="'+esc(it.url)+'" alt=""></div>';
+        var chips=MENTION_STORY_TPL.map(function(t,i){ return '<button class="tpl" data-t="'+esc(t)+'">例'+(i+1)+'</button>'; }).join("");
+        var isAuto=String(it.status)==="auto";
+        var note=isAuto?'<div class="banner ngb" style="margin:8px 0 0">🕒 自動投稿の予定です。何もしなければ約5時間後にリポストします。それまでに文面を直して「今すぐ投稿」、やめる場合は「取り消し」。</div>':'';
+        c.innerHTML='<div class="chead"><span class="kind">💬 メンション</span><span class="cno">'+esc(String(it.dt||""))+'</span></div>'+media+note+
+          '<div style="margin:10px 2px 4px;font-size:12px;color:#9aa3b2">シェアコメント（店ストーリーに焼く文／お礼DMの本文）</div>'+
+          '<textarea class="mtext" style="width:100%;min-height:64px;border-radius:12px;border:1px solid #262c36;background:#12161d;color:#eaeef2;padding:10px;font-family:inherit;font-size:13.5px"></textarea>'+
+          '<div class="tplrow" style="display:flex;gap:6px;flex-wrap:wrap;margin:8px 0">'+chips+'</div>'+
+          '<div class="acts">'+
+            '<button class="now" data-a="story">'+(isAuto?'今すぐ投稿':'店ストーリーに追加')+'</button>'+
+            '<button class="resv" data-a="reply">お礼DM</button>'+
+            '<button class="resv" data-a="ignore" style="flex:0 0 auto">'+(isAuto?'取り消し':'無視')+'</button>'+
+          '</div>';
+        var ta=c.querySelector(".mtext"); ta.value=it.text||MENTION_DEFAULT;
+        c.querySelectorAll(".tpl").forEach(function(b){ b.style.cssText="font-size:12px;color:#cfe0ff;background:#131f30;border:1px solid #274063;border-radius:999px;padding:5px 10px"; b.onclick=function(){ ta.value=b.getAttribute("data-t"); }; });
+        c.querySelector('[data-a="story"]').onclick=function(){ mentAct(it.mid,"story",ta.value,this); };
+        c.querySelector('[data-a="reply"]').onclick=function(){ mentAct(it.mid,"reply",ta.value,this); };
+        c.querySelector('[data-a="ignore"]').onclick=function(){ mentAct(it.mid,"ignore","",this); };
+        box.appendChild(c);
+      });
+    }).catch(function(){ box.innerHTML+='<div class="empty">取得エラー（実データ連携時のみ）</div>'; });
+  }
+
   function switchTab(k){
     TAB=k;
     document.getElementById("tabFeed").classList.toggle("on",k==="feed");
     document.getElementById("tabReel").classList.toggle("on",k==="reel");
+    var tm=document.getElementById("tabMention"); if(tm) tm.classList.toggle("on",k==="mention");
+    var isM=(k==="mention"), wrap=document.getElementById("wrap");
+    wrap.querySelectorAll(".devnote,.hint").forEach(function(e){ e.style.display=isM?"none":""; });
+    var labels=wrap.querySelectorAll(".seclabel"); if(labels[1]) labels[1].style.display=isM?"none":"";
+    var sched=document.getElementById("sched"); if(sched) sched.style.display=isM?"none":"";
+    if(isM){ document.getElementById("secttl").textContent="💬 メンション"; renderMentions(); return; }
     document.getElementById("secttl").textContent=(k==="feed"?"📸 フィード投稿の候補":"🎬 リール投稿の候補");
+    var cnt=document.querySelector('.seclabel .cnt'); if(cnt) cnt.textContent="3案";
     render();
   }
 
