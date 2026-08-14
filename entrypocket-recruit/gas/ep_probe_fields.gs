@@ -62,3 +62,58 @@ function epProbeFields() {
 
   Logger.log("=== 調査おわり（書き込みなし）===");
 }
+
+/**
+ * 【調査用・書き込みなし】EntryPocketの「掲載中の求人原稿一覧」ページを特定する。
+ * メニューのリンクを洗い出し、求人/原稿ぽいページを自動で開いて構造を見る。
+ * Apps Script で epProbeJobs を実行 → ログを貼る。GETのみ・保存しない。
+ */
+function epProbeJobs() {
+  var jar = epLogin_();
+  if (!jar) { Logger.log("✗ ログイン失敗"); return; }
+  Logger.log("✓ ログイン成功");
+  var base = "https://manage.entrypocket.jp";
+
+  var html = epFetch_(EP_APPLICANT_URL, { method: "get", followRedirects: true }, jar).getContentText();
+  Logger.log("応募者ページ len=" + html.length);
+
+  // 1) サイト内メニュー/ページのリンク（/web/8sin-saiyo/*）
+  Logger.log("========== メニュー/ページのリンク ==========");
+  var seen = {}, m;
+  var lr = /<a[^>]+href=["']([^"']*\/web\/8sin-saiyo\/[^"']*)["'][^>]*>([\s\S]*?)<\/a>/gi, cnt = 0;
+  while ((m = lr.exec(html)) && cnt < 80) {
+    var href = m[1].replace(/&amp;/g, "&");
+    var label = m[2].replace(/<[^>]+>/g, "").replace(/\s+/g, " ").trim();
+    var key = href.split("?")[0];
+    if (seen[key]) continue; seen[key] = 1; cnt++;
+    Logger.log("• " + (label || "(無題)") + "  → " + key);
+  }
+
+  // 2) 求人/原稿/掲載ぽいページを自動で開いて中身を確認
+  var cand = [];
+  Object.keys(seen).forEach(function (u) { if (/求人|原稿|掲載|募集|manuscript|joboffer|recruit|job|genkou|kanri|tenpo/i.test(u)) cand.push(u); });
+  ["manuscript", "joboffer", "job-offer", "recruit", "job", "genkou", "kanri", "tenpo", "shop", "apply-manuscript"].forEach(function (seg) { cand.push(base + "/web/8sin-saiyo/" + seg); });
+
+  Logger.log("========== 求人/原稿ページ候補の確認 ==========");
+  var done = {};
+  cand.forEach(function (u) {
+    if (done[u]) return; done[u] = 1;
+    try {
+      var r = epFetch_(u, { method: "get", followRedirects: true }, jar);
+      var body = r.getContentText();
+      var title = (body.match(/<title>([\s\S]*?)<\/title>/i) || [])[1] || "";
+      var looks = /掲載中|掲載期間|求人原稿|募集職種|原稿一覧|募集中|媒体/.test(body);
+      Logger.log("[" + u.replace(base, "").slice(0, 46) + "] HTTP=" + r.getResponseCode() + " title=" + title.replace(/\s+/g, " ").trim().slice(0, 40) + " 求人ぽい=" + looks + " len=" + body.length);
+      if (looks) {
+        var parts = {}, pr = /part\s*[:=]\s*["']([A-Za-z0-9_]+)["']/g, mm;
+        while ((mm = pr.exec(body))) parts[mm[1]] = 1;
+        Logger.log("   part=候補: " + Object.keys(parts).join(", "));
+        ["掲載中", "掲載期間", "掲載開始", "掲載終了", "募集職種", "原稿", "媒体", "店舗名"].forEach(function (kw) {
+          var idx = body.indexOf(kw);
+          if (idx >= 0) Logger.log("   [" + kw + "] " + body.slice(Math.max(0, idx - 30), idx + 170).replace(/\s+/g, " ").trim());
+        });
+      }
+    } catch (e) { Logger.log("[" + u + "] 取得失敗 " + e); }
+  });
+  Logger.log("=== 調査おわり（読み取りのみ）===");
+}
