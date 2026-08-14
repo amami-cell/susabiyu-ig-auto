@@ -261,8 +261,23 @@
     function doRefresh(){
       var b=document.getElementById('refreshBtn'); b.disabled=true; b.textContent='取得中…'; toast('最新データを取得中（15秒ほど）');
       google.script.run.withSuccessHandler(function(r){ b.disabled=false; b.textContent='更新';
-        if(r&&r.ok){ toast('取得完了'); load(); } else { toast('取得失敗'+(r&&r.error?': '+r.error:'')); }
+        if(r&&r.ok){
+          toast('取得完了：打ち出し'+(r.postings||0)+'件（募集中'+(r.active||0)+'）/ 応募'+(r.apps||0)+'件');
+          if((r.postings||0)===0){ diagPostings(); } else { load(); }
+        } else { toast('取得失敗'+(r&&r.error?': '+r.error:'')); }
       }).withFailureHandler(function(e){ b.disabled=false; b.textContent='更新'; toast('エラー: '+(e&&e.message||'')); }).dashRefresh();
+    }
+    // 打ち出しが0件のとき、取り込み元に何件あるかを確認して知らせる（原因切り分け）
+    function diagPostings(){
+      google.script.run.withSuccessHandler(function(d){
+        load();
+        if(!d) return;
+        if(d.error){ alert('取り込み元エラー:\n'+d.error); return; }
+        var ex=(d.sample&&d.sample[0])?JSON.stringify(d.sample[0]):'なし';
+        alert('打ち出しシートは0件でした。\n取り込み元（'+d.source+'）の行数: '+d.rows+'\n例: '+ex+'\n\n'+
+          (d.rows>0 ? '→ 元にはデータがあります。日付や店舗名の取り込みで弾かれている可能性。この内容を担当に伝えてください。'
+                    : '→ 取り込み元にもデータがありません。元スプレッドシート/Notion側に打ち出しが入っているか確認が必要です。'));
+      }).withFailureHandler(function(e){ load(); alert('取り込み元の確認に失敗: '+(e&&e.message||'')); }).dashDiagPostings();
     }
 
     function render(d){

@@ -170,8 +170,31 @@ function dashStoreCache_() {
   try { sh.hideSheet(); } catch (e) { }
 }
 
-/** 更新ボタン: その場で取得を実行して結果を返す。 */
+/** 更新ボタン: その場で取得を実行して結果を返す。診断用に件数も返す。 */
 function dashRefresh() {
-  try { var ok = epRun(); return { ok: ok }; }
-  catch (e) { return { ok: false, error: String(e) }; }
+  try {
+    var ok = epRun();
+    var ss = SpreadsheetApp.getActiveSpreadsheet();
+    var pp = ss.getSheetByName('求人打ち出し'), raw = ss.getSheetByName('raw_応募者');
+    var postings = pp ? Math.max(0, pp.getLastRow() - 1) : 0;
+    var apps = raw ? Math.max(0, raw.getLastRow() - 1) : 0;
+    // 募集中（状態列＝募集中）の件数も数える
+    var active = 0;
+    if (pp && postings > 0) {
+      var v = pp.getDataRange().getValues(), h = v[0], si = h.indexOf('状態');
+      if (si >= 0) for (var i = 1; i < v.length; i++) if (String(v[i][si]) === '募集中') active++;
+    }
+    return { ok: ok, postings: postings, active: active, apps: apps };
+  } catch (e) { return { ok: false, error: String(e) }; }
+}
+
+/** 診断: 取り込み元(求人打ち出しの元スプシ)に何件あるかを返す（更新は走らせない）。 */
+function dashDiagPostings() {
+  try {
+    var rows = (typeof epFetchNotionRows_ === 'function') ? epFetchNotionRows_() : null, src = 'Notion';
+    if (!rows || !rows.length) { rows = (typeof epFetchPostingSheetRows_ === 'function') ? epFetchPostingSheetRows_() : null; src = 'スプレッドシート'; }
+    var n = rows ? rows.length : -1;
+    var sample = (rows && rows.length) ? rows.slice(0, 3).map(function (r) { return { store: r.store, start: r.start, end: r.end, apps: r.apps, hired: r.hired }; }) : [];
+    return { source: src, rows: n, sample: sample };
+  } catch (e) { return { error: String(e) }; }
 }
