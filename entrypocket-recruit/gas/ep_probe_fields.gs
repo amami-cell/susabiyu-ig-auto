@@ -74,46 +74,49 @@ function epProbeJobs() {
   Logger.log("✓ ログイン成功");
   var base = "https://manage.entrypocket.jp";
 
-  var html = epFetch_(EP_APPLICANT_URL, { method: "get", followRedirects: true }, jar).getContentText();
-  Logger.log("応募者ページ len=" + html.length);
+  // 求人原稿管理・面接枠管理ページを絶対URLで取得して構造を見る
+  var targets = [
+    { name: "求人原稿管理", url: base + "/web/8sin-saiyo/job_offer" },
+    { name: "面接枠管理", url: base + "/web/8sin-saiyo/interview" }
+  ];
 
-  // 1) サイト内メニュー/ページのリンク（/web/8sin-saiyo/*）
-  Logger.log("========== メニュー/ページのリンク ==========");
-  var seen = {}, m;
-  var lr = /<a[^>]+href=["']([^"']*\/web\/8sin-saiyo\/[^"']*)["'][^>]*>([\s\S]*?)<\/a>/gi, cnt = 0;
-  while ((m = lr.exec(html)) && cnt < 80) {
-    var href = m[1].replace(/&amp;/g, "&");
-    var label = m[2].replace(/<[^>]+>/g, "").replace(/\s+/g, " ").trim();
-    var key = href.split("?")[0];
-    if (seen[key]) continue; seen[key] = 1; cnt++;
-    Logger.log("• " + (label || "(無題)") + "  → " + key);
-  }
+  targets.forEach(function (t) {
+    Logger.log("\n========== " + t.name + "  " + t.url + " ==========");
+    var body;
+    try { body = epFetch_(t.url, { method: "get", followRedirects: true }, jar).getContentText(); }
+    catch (e) { Logger.log("取得失敗: " + e); return; }
+    Logger.log("len=" + body.length + " title=" + ((body.match(/<title>([\s\S]*?)<\/title>/i) || [])[1] || "").replace(/\s+/g, " ").trim().slice(0, 40));
 
-  // 2) 求人/原稿/掲載ぽいページを自動で開いて中身を確認
-  var cand = [];
-  Object.keys(seen).forEach(function (u) { if (/求人|原稿|掲載|募集|manuscript|joboffer|recruit|job|genkou|kanri|tenpo/i.test(u)) cand.push(u); });
-  ["manuscript", "joboffer", "job-offer", "recruit", "job", "genkou", "kanri", "tenpo", "shop", "apply-manuscript"].forEach(function (seg) { cand.push(base + "/web/8sin-saiyo/" + seg); });
+    // ポートレットの名前空間（_xxx_WAR_yyyportlet_）
+    var nsSet = {}, m, nr = /_([A-Za-z0-9]+_WAR_[A-Za-z0-9]+portlet)_/g;
+    while ((m = nr.exec(body))) nsSet[m[1]] = 1;
+    Logger.log("ポートレット名前空間: " + Object.keys(nsSet).join(", "));
 
-  Logger.log("========== 求人/原稿ページ候補の確認 ==========");
-  var done = {};
-  cand.forEach(function (u) {
-    if (done[u]) return; done[u] = 1;
-    try {
-      var r = epFetch_(u, { method: "get", followRedirects: true }, jar);
-      var body = r.getContentText();
-      var title = (body.match(/<title>([\s\S]*?)<\/title>/i) || [])[1] || "";
-      var looks = /掲載中|掲載期間|求人原稿|募集職種|原稿一覧|募集中|媒体/.test(body);
-      Logger.log("[" + u.replace(base, "").slice(0, 46) + "] HTTP=" + r.getResponseCode() + " title=" + title.replace(/\s+/g, " ").trim().slice(0, 40) + " 求人ぽい=" + looks + " len=" + body.length);
-      if (looks) {
-        var parts = {}, pr = /part\s*[:=]\s*["']([A-Za-z0-9_]+)["']/g, mm;
-        while ((mm = pr.exec(body))) parts[mm[1]] = 1;
-        Logger.log("   part=候補: " + Object.keys(parts).join(", "));
-        ["掲載中", "掲載期間", "掲載開始", "掲載終了", "募集職種", "原稿", "媒体", "店舗名"].forEach(function (kw) {
-          var idx = body.indexOf(kw);
-          if (idx >= 0) Logger.log("   [" + kw + "] " + body.slice(Math.max(0, idx - 30), idx + 170).replace(/\s+/g, " ").trim());
-        });
+    // part= 候補（一覧取得や状態変更のAJAX）
+    var parts = {}, pr = /part\s*[:=]\s*["']([A-Za-z0-9_]+)["']/g;
+    while ((m = pr.exec(body))) parts[m[1]] = 1;
+    Logger.log("part= 候補: " + Object.keys(parts).join(", "));
+
+    // 一覧をAJAXで取りに行く関数（$.ajax の url と data を含む塊）を数個ダンプ
+    var ai = body.indexOf(".ajax"), n = 0;
+    while (ai >= 0 && n < 4) {
+      Logger.log("  [ajax] " + body.slice(ai - 10, ai + 360).replace(/\s+/g, " ").trim());
+      ai = body.indexOf(".ajax", ai + 1); n++;
+    }
+
+    // 掲載/店舗/期間/状態 の周辺を数箇所
+    ["掲載中", "掲載終了", "掲載期間", "掲載開始", "募集職種", "店舗名", "ステータス", "状態", "公開", "停止"].forEach(function (kw) {
+      var idx = body.indexOf(kw), c = 0;
+      while (idx >= 0 && c < 2) {
+        Logger.log("  [" + kw + "] " + body.slice(Math.max(0, idx - 40), idx + 150).replace(/\s+/g, " ").trim());
+        idx = body.indexOf(kw, idx + 1); c++;
       }
-    } catch (e) { Logger.log("[" + u + "] 取得失敗 " + e); }
+    });
+
+    // データ行のIDパターン（原稿コード等）と select/option（媒体・店舗）
+    var idpat = (body.match(/id=["']([A-Za-z_]*(?:manuscript|jobOffer|genkou|shop)[A-Za-z0-9_]*)["']/gi) || []).slice(0, 12);
+    Logger.log("  id例: " + idpat.join(" | ").slice(0, 400));
   });
+
   Logger.log("=== 調査おわり（読み取りのみ）===");
 }
