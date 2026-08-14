@@ -12,6 +12,7 @@ GitHub Actions（gifuya_mentions.yml）から数分おきに実行される想�
 """
 import os
 import io
+import re
 import json
 import datetime
 import urllib.request
@@ -77,6 +78,17 @@ def _cover(im, w, h):
     return im.crop((l, t, l + w, t + h))
 
 
+_EMOJI_RE = re.compile("[\U0001F000-\U0001FAFF\U00002600-\U000027BF\U00002B00-\U00002BFF\U0000FE00-\U0000FE0F\U0000200D]+")
+
+
+def _strip_emoji(s):
+    """画像に焼く文からは絵文字を外す（サーバフォントに絵文字が無く□になるため）。DMでは残す。"""
+    s = _EMOJI_RE.sub("", s or "")
+    s = re.sub(r"[ 　]{2,}", " ", s)
+    s = re.sub(r"\n{2,}", "\n", s)
+    return s.strip()
+
+
 def _wrap(draw, text, font, maxw):
     lines, cur = [], ""
     for ch in str(text):
@@ -110,8 +122,8 @@ def render_story(src_path, comment, out_path):
         lw = 260
         lg = lg.resize((lw, int(lg.height * lw / lg.width)), Image.LANCZOS)
         base.alpha_composite(lg, (44, 60))
-    # シェアコメント（下部）
-    comment = (comment or "").strip()
+    # シェアコメント（下部）※画像には絵文字を焼かない（□対策）
+    comment = _strip_emoji((comment or "").strip())
     if comment:
         f = _font(_GOTHIC, 60)
         lines = _wrap(draw, comment, f, SW - 130)
