@@ -98,27 +98,52 @@ def _char_size(font, ch):
     return (b[2] - b[0], b[3] - b[1])
 
 
+# 縦書きで90°回す文字（長音符・各種ダッシュ・波線）。横棒のまま出ると「ー」が横線に見えて崩れる。
+_VERT_ROTATE = set("ー─―–—-‐ｰ~〜～")
+
+
+def _blit_vert_rot(img, ch, x_cell, y, size, font, fill):
+    """横棒系（ー等）を90°回転して、縦書きのマス(x_cell幅=size, y上端)中央に置く。影付き。"""
+    cvs = size * 2
+    tmp = Image.new("RGBA", (cvs, cvs), (0, 0, 0, 0))
+    td = ImageDraw.Draw(tmp)
+    bb = td.textbbox((0, 0), ch, font=font)
+    cw, chh = bb[2] - bb[0], bb[3] - bb[1]
+    ox = cvs / 2 - cw / 2 - bb[0]
+    oy = cvs / 2 - chh / 2 - bb[1]
+    for dx, dy in ((2, 2), (3, 3)):
+        td.text((ox + dx, oy + dy), ch, font=font, fill=(0, 0, 0, 170))
+    td.text((ox, oy), ch, font=font, fill=fill)
+    tmp = tmp.rotate(90, expand=False, resample=Image.BICUBIC)
+    img.alpha_composite(tmp, (int(x_cell + size / 2 - cvs / 2), int(y + size / 2 - cvs / 2)))
+
+
 def _draw_vertical(img, text, right_x, top_y, font, line_gap=None, col_gap=None,
                    fill=(255, 255, 255)):
-    """縦書き（右→左に段を追加）。長い名前は自動で複数段。戻り値=占有幅。"""
+    """縦書き（右→左に段を追加）。長音「ー」等は90°回転。段が要る時は均等割り。戻り値=占有幅。"""
     draw = ImageDraw.Draw(img)
     size = font.size
     line_gap = size + (line_gap if line_gap is not None else int(size * 0.10))
     col_gap = col_gap if col_gap is not None else int(size * 0.16)
     # 1段に入る最大文字数（縦の余白から）
     max_per_col = max(1, (H - top_y - 120) // line_gap)
-    cols = [text[i:i + max_per_col] for i in range(0, len(text), max_per_col)] or [text]
+    n = len(text)
+    ncols = max(1, -(-n // max_per_col))    # ceil：必要段数
+    per_col = max(1, -(-n // ncols))        # ceil：段を均等割り（末尾1文字だけの"変な2段"を防ぐ）
+    cols = [text[i:i + per_col] for i in range(0, n, per_col)] or [text]
     x = right_x - size
     used_left = right_x
     for col in cols:
         y = top_y
         for ch in col:
-            cw, chh = _char_size(font, ch)
-            # 中央寄せして描画（縦線の中心に）
-            cx = x + (size - cw) / 2 - font.getbbox(ch)[0]
-            for dx, dy in ((2, 2), (3, 3)):
-                draw.text((cx + dx, y + dy), ch, font=font, fill=(0, 0, 0, 170))
-            draw.text((cx, y), ch, font=font, fill=fill)
+            if ch in _VERT_ROTATE:
+                _blit_vert_rot(img, ch, x, y, size, font, fill)
+            else:
+                cw, chh = _char_size(font, ch)
+                cx = x + (size - cw) / 2 - font.getbbox(ch)[0]   # 縦線の中心に寄せる
+                for dx, dy in ((2, 2), (3, 3)):
+                    draw.text((cx + dx, y + dy), ch, font=font, fill=(0, 0, 0, 170))
+                draw.text((cx, y), ch, font=font, fill=fill)
             y += line_gap
         used_left = x
         x -= (size + col_gap)
@@ -154,12 +179,14 @@ def render_post(src, out, title, subcopy=None, ribbon="福岡天神店", logo=Tr
     if ribbon:
         _draw_ribbon(base, ribbon, _font(_GOTHIC_PATH, 40))
 
-    # 巨大縦書きの料理名（右側）。文字数で自動縮小。
+    # 巨大縦書きの料理名（右側）。1段にきれいに収まるよう文字数から自動縮小（上限150・下限64）。
     title = (title or "").strip()
     n = max(1, len(title))
-    vsize = 150 if n <= 5 else (128 if n <= 7 else (108 if n <= 9 else 92))
+    top_y = 250
+    avail = H - top_y - 120                     # 縦に使える高さ
+    vsize = max(64, min(150, int(avail / (1.1 * n))))
     vfont = _font(_SERIF_PATH, vsize)
-    _draw_vertical(base, title, right_x=W - 60, top_y=250, font=vfont)
+    _draw_vertical(base, title, right_x=W - 60, top_y=top_y, font=vfont)
 
     # 下部：赤下線＋サブコピー
     if subcopy:
