@@ -14,6 +14,25 @@ function doGet() {
     .addMetaTag('viewport', 'width=device-width, initial-scale=1, maximum-scale=1');
 }
 
+/** セルの日付値を正しく文字列化する（Date型を "yyyy/MM/dd (HH:mm)" に。文字列はそのまま）。
+ *  Sheetsが日付文字列をDate型に自動変換し、String()すると "Mon May 25 2026 GMT..." になって
+ *  アプリ側の日付解析が誤読するのを防ぐ。 */
+function fmtDateCell_(v, withTime) {
+  if (v instanceof Date) return Utilities.formatDate(v, 'Asia/Tokyo', withTime ? 'yyyy/MM/dd HH:mm' : 'yyyy/MM/dd');
+  return String(v == null ? '' : v);
+}
+
+/** 年齢セルを数値に。日付書式に化けた年齢（シリアル値＝年齢）も復元する。 */
+function ageNum_(v) {
+  if (v == null || v === '') return '';
+  if (v instanceof Date) {
+    var n = Math.round((v.getTime() - new Date(1899, 11, 30).getTime()) / 86400000); // シリアル値＝年齢
+    return (n >= 1 && n <= 120) ? n : '';
+  }
+  var m = parseInt(String(v).replace(/[^\d]/g, ''), 10);
+  return isNaN(m) ? '' : m;
+}
+
 /**
  * ダッシュボードに出す一式を返す。
  * ★高速化：取得時に作っておいた完成データ(app_cache)があれば、それをそのまま返す（毎回組み立てない）。
@@ -90,9 +109,9 @@ function dashBuild_() {
         store: store,
         tel: String(cv(row, '電話番号_数字') || ''), telLink: cv(row, 'tel_link'),
         telRaw: String(cv(row, '電話番号') || ''), email: String(cv(row, 'メール') || ''),
-        media: cv(row, '媒体'), appliedAt: String(cv(row, '応募日時') || ''),
-        interviewAt: String(cv(row, '面接日時') || ''),
-        age: cv(row, '年齢'), gender: String(cv(row, '性別') || ''),
+        media: cv(row, '媒体'), appliedAt: fmtDateCell_(cv(row, '応募日時'), true),
+        interviewAt: fmtDateCell_(cv(row, '面接日時'), true),
+        age: ageNum_(cv(row, '年齢')), gender: String(cv(row, '性別') || ''),
         occupation: String(cv(row, '現在の職業') || ''),
         history: String(cv(row, '変更履歴', '変更履歴1') || ''), memo: String(cv(row, 'メモ') || ''),
         dup: String(cv(row, '重複')) === '重複'
@@ -111,7 +130,7 @@ function dashBuild_() {
       var prow = pv[i];
       var pstore = epCleanStore_(String(gp(prow, '店舗名') || '').trim());
       if (!pstore) continue;
-      var startS = String(gp(prow, '掲載開始') || ''), endS = String(gp(prow, '掲載終了') || '');
+      var startS = fmtDateCell_(gp(prow, '掲載開始'), false), endS = fmtDateCell_(gp(prow, '掲載終了'), false);
       var active = String(gp(prow, '状態') || '') === '募集中';
       var key = epNormStore_(pstore);
       var rec = storePosting[key] || { name: pstore, active: false, lastEnd: '', latestStart: '', latestEnd: '', media: '', apps: 0, hires: 0, count: 0 };

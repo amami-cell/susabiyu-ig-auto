@@ -248,7 +248,7 @@
     function fmtCost(v){ v=String(v==null?'':v).trim(); if(!v) return '';
       var num=v.replace(/[¥￥,\s円]/g,'');
       if(num!=='' && !isNaN(num)) return yen(parseFloat(num));   // 数値は四捨五入・小数点なし・カンマ・¥
-      return /[¥￥]/.test(v)?v:('¥'+v); }
+      return ''; }   // #DIV/0! 等の数値でない値は表示しない
     function has(v){ return v!==''&&v!=null; }
     function manOverride(man){ var s=String(man||'').trim(); if(!s) return null;
       if(/終了|停止|休止|クローズ|close|off|×|✕|ｘ/i.test(s)) return 'ended';
