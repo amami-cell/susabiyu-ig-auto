@@ -1,0 +1,41 @@
+name: recruit-webpush
+# 募集システムの新規応募を「アプリ通知(Webプッシュ)」で送る送信役。
+# 募集GASが取得(epRun)する時刻の少し後に走り、GASキューを取り出して既存PWAへ送信する。
+# GASは取得を JST 5/10/15/17/23時に行うため、その約5分後に実行（UTC換算）。
+on:
+  schedule:
+    - cron: '5 20 * * *'   # JST 05:05
+    - cron: '5 1 * * *'    # JST 10:05
+    - cron: '5 6 * * *'    # JST 15:05
+    - cron: '5 8 * * *'    # JST 17:05
+    - cron: '5 14 * * *'   # JST 23:05
+  workflow_dispatch:        # 手動テスト用
+jobs:
+  push:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: entrypocket-recruit/push
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install Python deps
+        run: pip install pywebpush google-api-python-client google-auth requests cryptography
+      - name: Write creds.json
+        run: echo "$GOOGLE_CREDS_B64" | base64 -d > creds.json
+        env:
+          GOOGLE_CREDS_B64: ${{ secrets.GOOGLE_CREDS_B64 }}
+      - name: Send recruit web push
+        env:
+          # 募集GASの公開URL（未設定なら既定の /exec を使う）
+          RECRUIT_EXEC_URL: ${{ secrets.RECRUIT_EXEC_URL }}
+          EP_PUSH_KEY: ${{ secrets.EP_PUSH_KEY }}
+          SHEET_ID: ${{ secrets.SHEET_ID }}
+          VAPID_PRIVATE_KEY: ${{ secrets.VAPID_PRIVATE_KEY }}
+          VAPID_SUBJECT: ${{ secrets.VAPID_SUBJECT }}
+        run: |
+          export RECRUIT_EXEC_URL="${RECRUIT_EXEC_URL:-https://script.google.com/macros/s/AKfycbz6i36c7UjbM3S44kl1kEcsI0CSjYo9jL-W-T4BJUAr9jmBlVXj-vnQTUwQbGoxcHYT/exec}"
+          python recruit_push.py

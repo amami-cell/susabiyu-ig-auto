@@ -8,7 +8,13 @@
  *   実行ユーザー: デプロイ元 / アクセス: 全員（現行設定を維持）
  */
 
-function doGet() {
+function doGet(e) {
+  // アプリ通知(Webプッシュ)の送信待ち取り出しAPI（GitHub Actions の送信役が叩く）
+  if (e && e.parameter && e.parameter.push) {
+    var out;
+    try { out = epDrainPush_(e.parameter.key); } catch (err) { out = { ok: false, error: String(err) }; }
+    return ContentService.createTextOutput(JSON.stringify(out)).setMimeType(ContentService.MimeType.JSON);
+  }
   return HtmlService.createHtmlOutputFromFile('index')
     .setTitle('求人進捗')
     .addMetaTag('viewport', 'width=device-width, initial-scale=1, maximum-scale=1');

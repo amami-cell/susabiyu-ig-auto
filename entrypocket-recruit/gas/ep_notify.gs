@@ -30,7 +30,62 @@ function epNotifyNewApps_(chg) {
     });
     lines[0] = "🆕 新規応募 " + totalNew + "件";
     epLineSend_(lines.join("\n"));
-  } catch (e) { Logger.log("LINE通知スキップ: " + e); }
+    // アプリ通知(Webプッシュ)用のキューにも積む → GitHub Actions が既存PWAへ送信
+    epEnqueuePush_(lines[0], lines.slice(1).join("\n"), "recruit");
+  } catch (e) { Logger.log("通知スキップ: " + e); }
+}
+
+/* ============================================================
+ *  アプリ通知（Webプッシュ）: GASは送信できないので「送信待ちキュー」に積むだけ。
+ *  実際の送信は GitHub Actions(Python/pywebpush) が /exec?push=drain で取り出して行う。
+ *  既存インスタPWAのVAPID鍵・購読者リストを再利用（category="recruit"）。
+ * ============================================================ */
+var EP_PUSH_SHEET = "_Push送信待ち";
+var EP_PUSH_HDR = ["id", "日時", "title", "body", "category", "status", "送信日時"];
+
+/** 送信待ちに1件積む。 */
+function epEnqueuePush_(title, body, category) {
+  try {
+    var ss = SpreadsheetApp.getActiveSpreadsheet();
+    var sh = epSheet_(ss, EP_PUSH_SHEET, EP_PUSH_HDR);
+    sh.appendRow([Utilities.getUuid(), Utilities.formatDate(new Date(), "Asia/Tokyo", "yyyy-MM-dd HH:mm:ss"),
+      String(title || ""), String(body || ""), String(category || "recruit"), "pending", ""]);
+    epPushCleanup_(sh);
+  } catch (e) { Logger.log("push enqueue skip: " + e); }
+}
+
+/** 送信済みで14日より古い行を掃除（キューを小さく保つ）。 */
+function epPushCleanup_(sh) {
+  try {
+    if (sh.getLastRow() < 2) return;
+    var v = sh.getDataRange().getValues();
+    var cut = new Date(); cut.setDate(cut.getDate() - 14);
+    for (var i = v.length - 1; i >= 1; i--) {
+      if (String(v[i][5]) === "sent") {
+        var d = epDate_(v[i][6] || v[i][1]);
+        if (d && d.getTime() < cut.getTime()) sh.deleteRow(i + 1);
+      }
+    }
+  } catch (e) { }
+}
+
+/** 送信待ちを取り出して sent に更新（送信役=Actionsが呼ぶ）。key未設定なら誰でも可（推奨は設定）。 */
+function epDrainPush_(key) {
+  var props = PropertiesService.getScriptProperties();
+  var need = props.getProperty("EP_PUSH_KEY") || "";
+  if (need && String(key || "") !== need) return { ok: false, error: "forbidden" };
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var sh = ss.getSheetByName(EP_PUSH_SHEET);
+  if (!sh || sh.getLastRow() < 2) return { ok: true, items: [] };
+  var v = sh.getDataRange().getValues(), items = [], mark = [];
+  for (var i = 1; i < v.length && items.length < 50; i++) {
+    if (String(v[i][5]) !== "pending") continue;
+    items.push({ id: String(v[i][0]), title: String(v[i][2]), body: String(v[i][3]), category: String(v[i][4] || "recruit"), ts: String(v[i][1]) });
+    mark.push(i + 1);
+  }
+  var now = Utilities.formatDate(new Date(), "Asia/Tokyo", "yyyy-MM-dd HH:mm:ss");
+  mark.forEach(function (r) { sh.getRange(r, 6).setValue("sent"); sh.getRange(r, 7).setValue(now); });
+  return { ok: true, items: items };
 }
 
 /** LINE Messaging API の broadcast でテキストを送る（トークン未設定なら何もしない）。 */
