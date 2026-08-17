@@ -182,7 +182,7 @@ def _save_45(buf, out_path, contain=False):
     else:
         im = ImageOps.fit(im, (TARGET_W, TARGET_H), method=Image.LANCZOS, centering=(0.5, 0.5))
     os.makedirs(os.path.dirname(out_path), exist_ok=True)
-    im.save(out_path, "JPEG", quality=88, optimize=True, progressive=True)
+    im.save(out_path, "JPEG", quality=93, subsampling=0, optimize=True, progressive=True)
 
 
 def _norm(s):

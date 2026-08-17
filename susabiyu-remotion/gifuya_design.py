@@ -238,7 +238,7 @@ def render_post(src, out, title, subcopy=None, ribbon="福岡天神店", logo=Tr
         draw.line([(60, sy - 18), (60 + 210, sy - 18)], fill=RED, width=7)
         _text_shadow(draw, (60, sy), subcopy, sfont, fill=(255, 255, 255))
 
-    base.convert("RGB").save(out, quality=90)
+    base.convert("RGB").save(out, quality=95, subsampling=0)
     return out
 
 
@@ -285,7 +285,7 @@ def render_tanzaku(src, out, title, headline=None, ribbon="福岡天神店", log
         lg = Image.open(LOGO_WHITE).convert("RGBA")
         lw = 360
         lg = lg.resize((lw, int(lg.height * lw / lg.width)), Image.LANCZOS)
-        base.alpha_composite(lg, (26, 20))
+        base.alpha_composite(lg, (16, 14))
 
     # 右上：赤の縦リボン短冊（福岡天神店）
     if ribbon:
@@ -322,7 +322,7 @@ def render_tanzaku(src, out, title, headline=None, ribbon="福岡天神店", log
     # 料理名を下線の下に
     _text_shadow(draw, (margin, sub_y - sb[1]), title, sfont, fill=(255, 255, 255))
 
-    base.convert("RGB").save(out, quality=90)
+    base.convert("RGB").save(out, quality=95, subsampling=0)
     return out
 
 
@@ -358,7 +358,7 @@ def render_cinema(src, out, en="TAISHO 5  -  FUKUOKA TENJIN",
     d.text(((W - ew) // 2, by + 62), en, font=ef, fill=GOLD)
     jw = d.textlength(jp, font=jf)
     d.text(((W - jw) // 2, by + 112), jp, font=jf, fill=(240, 240, 240))
-    canvas.save(out, quality=90)
+    canvas.save(out, quality=95, subsampling=0)
     return out
 
 
