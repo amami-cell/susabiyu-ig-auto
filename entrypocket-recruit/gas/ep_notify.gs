@@ -10,7 +10,9 @@
  * - トークン未設定なら黙って何もしない（エラーにしない）。
  */
 
-/** 新規応募サマリ chg({newByStore,totalByStore,added}) を受け取り、LINEへ通知する。 */
+/** 新規応募サマリ chg({newByStore,totalByStore,added}) を受け取り、通知キューに積む。
+ *  実際の送信（LINE＋Webプッシュ）は 1日2回の送信役(GitHub Actions)がまとめて行う。
+ *  取得は1日5回だが、都度は送らず溜めることで「通知は1日2回」にする。 */
 function epNotifyNewApps_(chg) {
   try {
     if (!chg) return;
@@ -18,20 +20,18 @@ function epNotifyNewApps_(chg) {
     if (props.getProperty("EP_NOTIFY_ENABLED") === "0") return;      // 通知オフ
     var nb = chg.newByStore || {};
     var stores = Object.keys(nb);
-    if (!stores.length) return;                                       // 新規応募なし → 送らない
+    if (!stores.length) return;                                       // 新規応募なし → 積まない
     var tb = chg.totalByStore || {};
     stores.sort(function (a, b) { return (nb[b] || 0) - (nb[a] || 0); });
-    var lines = ["🆕 新規応募が入りました"];
-    var totalNew = 0;
+    var totalNew = 0, lines = [], dataNew = {}, dataTot = {};
     stores.forEach(function (s) {
-      var n = nb[s] || 0; totalNew += n;
-      var t = tb[s]; var tail = (t != null) ? "（現在" + t + "名）" : "";
-      lines.push("・" + s + "：新規" + n + "件" + tail);
+      var n = nb[s] || 0; totalNew += n; dataNew[s] = n;
+      var t = tb[s]; if (t != null) dataTot[s] = t;
+      lines.push("・" + s + "：新規" + n + "件" + (t != null ? "（現在" + t + "名）" : ""));
     });
-    lines[0] = "🆕 新規応募 " + totalNew + "件";
-    epLineSend_(lines.join("\n"));
-    // アプリ通知(Webプッシュ)用のキューにも積む → GitHub Actions が既存PWAへ送信
-    epEnqueuePush_(lines[0], lines.slice(1).join("\n"), "recruit");
+    var title = "🆕 新規応募 " + totalNew + "件";
+    // キューに積むだけ（送信役が1日2回、溜まった分をまとめてLINE＋Webプッシュ）
+    epEnqueuePush_(title, lines.join("\n"), "recruit", JSON.stringify({ newByStore: dataNew, totalByStore: dataTot }));
   } catch (e) { Logger.log("通知スキップ: " + e); }
 }
 
@@ -41,15 +41,15 @@ function epNotifyNewApps_(chg) {
  *  既存インスタPWAのVAPID鍵・購読者リストを再利用（category="recruit"）。
  * ============================================================ */
 var EP_PUSH_SHEET = "_Push送信待ち";
-var EP_PUSH_HDR = ["id", "日時", "title", "body", "category", "status", "送信日時"];
+var EP_PUSH_HDR = ["id", "日時", "title", "body", "category", "status", "送信日時", "data"];
 
-/** 送信待ちに1件積む。 */
-function epEnqueuePush_(title, body, category) {
+/** 送信待ちに1件積む。data=集計JSON（送信役が複数件をまとめる用）。 */
+function epEnqueuePush_(title, body, category, data) {
   try {
     var ss = SpreadsheetApp.getActiveSpreadsheet();
     var sh = epSheet_(ss, EP_PUSH_SHEET, EP_PUSH_HDR);
     sh.appendRow([Utilities.getUuid(), Utilities.formatDate(new Date(), "Asia/Tokyo", "yyyy-MM-dd HH:mm:ss"),
-      String(title || ""), String(body || ""), String(category || "recruit"), "pending", ""]);
+      String(title || ""), String(body || ""), String(category || "recruit"), "pending", "", String(data || "")]);
     epPushCleanup_(sh);
   } catch (e) { Logger.log("push enqueue skip: " + e); }
 }
@@ -80,7 +80,7 @@ function epDrainPush_(key) {
   var v = sh.getDataRange().getValues(), items = [], mark = [];
   for (var i = 1; i < v.length && items.length < 50; i++) {
     if (String(v[i][5]) !== "pending") continue;
-    items.push({ id: String(v[i][0]), title: String(v[i][2]), body: String(v[i][3]), category: String(v[i][4] || "recruit"), ts: String(v[i][1]) });
+    items.push({ id: String(v[i][0]), title: String(v[i][2]), body: String(v[i][3]), category: String(v[i][4] || "recruit"), ts: String(v[i][1]), data: String(v[i][7] || "") });
     mark.push(i + 1);
   }
   var now = Utilities.formatDate(new Date(), "Asia/Tokyo", "yyyy-MM-dd HH:mm:ss");
