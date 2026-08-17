@@ -647,7 +647,7 @@
   // 毎日同期の全料理を追加：feed.json の「加工済み画像(design)＋生成キャプション」を統合。
   //   ・design付き(=加工済み)だけを候補に入れる（生写真は出さない）。
   //   ・厳選12枚と重複する看板料理は除外。おすすめ→先頭。
-  var HERO_KEYS=["どぶ漬け","どてかつ","どて焼き","炊き餃子","明太出汁巻","出汁巻","刺身盛",
+  var HERO_KEYS=["どぶ漬け","どてかつ","どて焼き","炊き餃子","明太出汁巻","出汁巻",
     "串かつ10種","牛串","唐揚","馬刺し","マルシン","ラーメン","生ハムポテト"];
   (function loadFeedJson(){
     fetch("./gifuya/feed.json"+V, {cache:"no-store"}).then(function(r){ return r.ok?r.json():null; }).then(function(d){

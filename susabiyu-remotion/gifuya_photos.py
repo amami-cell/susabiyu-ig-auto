@@ -417,12 +417,17 @@ def sync(root=None):
     for d in ordered:
         img = _slug(d["name"])                   # 生写真 f_<hash>.jpg
         raw_path = os.path.join(OUT_DIR, img)
+        _contain = any(k in d["name"] for k in FIT_CONTAIN)   # 長い串は全体を収める
+        design_src = raw_path                     # 加工元（既定＝生写真）。原本があれば差し替える。
         if d["name"] in PHOTO_LOCK and os.path.exists(raw_path):
             # 写真固定：Drive側に別カット/新しい重複があっても既存の1枚を維持（差し替えない）
             print("  LOCK 写真固定（Drive無視）:", d["name"])
         else:
-            _contain = any(k in d["name"] for k in FIT_CONTAIN)   # 長い串は全体を収める
-            _save_45(_download(drive, d["id"]), raw_path, contain=_contain)
+            buf = _download(drive, d["id"])
+            _save_45(buf, raw_path, contain=_contain)
+            if not _contain:                      # 加工は"原本から直接"＝中間JPEGを挟まず最高画質
+                buf.seek(0)
+                design_src = ImageOps.exif_transpose(Image.open(buf)).convert("RGB")
         c = gc.caption_for(d["name"])            # 文面・タグ・サブコピー
         item = {"img": img, "name": d["name"], "title": c["title"],
                 "cap": c["cap"], "tags": c["tags"], "reco": bool(d["reco"])}
@@ -430,12 +435,15 @@ def sync(root=None):
             design = re.sub(r"^f_", "fd_", img) if img.startswith("f_") else ("d_" + img)
             try:
                 if c.get("style") == "tanzaku":  # 料理ごとの様式上書き（壁の短冊）
-                    gd.render_tanzaku(raw_path, os.path.join(OUT_DIR, design),
-                                      c["title"], headline=c.get("headline"), ribbon=None)
+                    gd.render_tanzaku(design_src, os.path.join(OUT_DIR, design),
+                                      c["title"], headline=c.get("headline"),
+                                      ribbon=c.get("ribbon"), pullback=c.get("pullback"),
+                                      quality=c.get("quality", 95))
                     item["style"] = "tanzaku"
                 else:
-                    gd.render_post(raw_path, os.path.join(OUT_DIR, design),
-                                   c["title"], subcopy=c["sub"], ribbon="福岡天神店")
+                    gd.render_post(design_src, os.path.join(OUT_DIR, design),
+                                   c["title"], subcopy=c["sub"], ribbon="福岡天神店",
+                                   quality=c.get("quality", 95))
                 item["design"] = design
             except Exception as e:
                 print("  WARN 加工失敗 %s: %s" % (d["name"], e))

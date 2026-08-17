@@ -74,6 +74,9 @@ CATS = [
 #   style="tanzaku"→壁の短冊風（縦書き短冊＋旨ハンコ＋一言看板）。headline=白木看板の一言。
 DESIGN_OVERRIDE = [
     (["厚揚げわさび", "厚揚げ　わさび", "厚揚げ わさび"], {"style": "tanzaku", "headline": "安くて、旨い。\nぎふやで乾杯。"}),
+    # 刺身盛り合わせ：短冊様式・若干引き（皿が収まる）・最大画質・右上リボン付き
+    (["刺身盛り合わせ", "刺身盛"], {"style": "tanzaku", "headline": "福岡の鮮度、\nそのままに。",
+                                 "pullback": 1120, "ribbon": "福岡天神店", "quality": 100}),
 ]
 
 

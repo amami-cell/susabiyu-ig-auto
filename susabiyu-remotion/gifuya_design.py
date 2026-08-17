@@ -197,8 +197,9 @@ def _draw_ribbon(img, text, font):
     img.paste(tmp, (W - tmp.width + 30, -18), tmp)
 
 
-def render_post(src, out, title, subcopy=None, ribbon="福岡天神店", logo=True):
-    base = _cover(Image.open(src), W, H)
+def render_post(src, out, title, subcopy=None, ribbon="福岡天神店", logo=True, quality=95):
+    src_im = src if isinstance(src, Image.Image) else Image.open(src)
+    base = _cover(src_im, W, H)
     base = _scrim(base).convert("RGBA")
 
     # ロゴ（白・左上）
@@ -243,7 +244,7 @@ def render_post(src, out, title, subcopy=None, ribbon="福岡天神店", logo=Tr
         draw.line([(60, sy - 18), (60 + 210, sy - 18)], fill=RED, width=7)
         _text_shadow(draw, (60, sy), subcopy, sfont, fill=(255, 255, 255))
 
-    base.convert("RGB").save(out, quality=95, subsampling=0)
+    base.convert("RGB").save(out, quality=quality, subsampling=0)
     return out
 
 
