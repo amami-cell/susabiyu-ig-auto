@@ -69,8 +69,12 @@ def _even_lighting(im):
     lmap = _np.asarray(Image.fromarray(lum.astype("uint8")).filter(ImageFilter.GaussianBlur(r))).astype(_np.float32)
     target = float(_np.percentile(lmap, 80))                 # 明るめ（上位）に合わせる＝明るい側で統一
     gain = _np.clip(target / _np.clip(lmap, 1.0, None), 1.0, 1.5)   # 暗部のみ持ち上げ・上限1.5
-    out = _np.clip(arr * gain[:, :, None], 0, 255).astype("uint8")
-    return Image.fromarray(out)
+    out = _np.clip(arr * gain[:, :, None], 0, 255)
+    # カード間で明るさを揃える：全体平均を目標へ寄せる（倍率は控えめにクリップ）。
+    cur = float(out.mean())
+    if cur > 1:
+        out = _np.clip(out * _np.clip(172.0 / cur, 0.85, 1.35), 0, 255)
+    return Image.fromarray(out.astype("uint8"))
 
 
 def _cover(im, w, h):

@@ -174,7 +174,7 @@ def _save_45(buf, out_path, contain=False):
         # 背景＝全面カバー(クロップ)を強めにぼかして暗くし、その上に全体を収めた写真を中央配置
         bg = ImageOps.fit(im, (TARGET_W, TARGET_H), method=Image.LANCZOS, centering=(0.5, 0.5))
         bg = bg.filter(ImageFilter.GaussianBlur(34))
-        bg = Image.blend(bg, Image.new("RGB", (TARGET_W, TARGET_H), (0, 0, 0)), 0.28)
+        bg = Image.blend(bg, Image.new("RGB", (TARGET_W, TARGET_H), (0, 0, 0)), 0.06)   # 背景は明るめ（暗い帯を出さない）
         fg = im.copy()
         fg.thumbnail((TARGET_W, TARGET_H), Image.LANCZOS)   # アスペクト維持で全体を収める
         bg.paste(fg, ((TARGET_W - fg.width) // 2, (TARGET_H - fg.height) // 2))
