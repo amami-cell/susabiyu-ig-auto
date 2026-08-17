@@ -57,19 +57,23 @@ def _font(path, size):
 
 
 def _even_lighting(im):
-    """写真の左右・上下の明るさムラを均す（暗い所だけ明るい側へ持ち上げる）。
-    大きくぼかした照明マップの上位パーセンタイルに合わせて、暗部を最大1.5倍まで持ち上げる。
-    均一な写真は倍率≒1で無変化。numpy が無ければそのまま返す。"""
+    """写真の『左右（横方向）』の明るさムラだけを均す。上下は触らない。
+    列ごとの平均明るさをなだらかにして、暗い列は持ち上げ・明るい列は少し抑えて左右を統一。
+    最後にカード間の明るさを目標平均へ寄せる。numpy が無ければそのまま返す。"""
     if _np is None:
         return im
     im = im.convert("RGB")
     arr = _np.asarray(im).astype(_np.float32)
-    lum = arr.mean(axis=2)
-    r = max(24, int(min(im.size) / 6))                       # 照明マップのぼかし半径
-    lmap = _np.asarray(Image.fromarray(lum.astype("uint8")).filter(ImageFilter.GaussianBlur(r))).astype(_np.float32)
-    target = float(_np.percentile(lmap, 80))                 # 明るめ（上位）に合わせる＝明るい側で統一
-    gain = _np.clip(target / _np.clip(lmap, 1.0, None), 1.0, 1.5)   # 暗部のみ持ち上げ・上限1.5
-    out = _np.clip(arr * gain[:, :, None], 0, 255)
+    W = arr.shape[1]
+    col = arr.mean(axis=2).mean(axis=0)                       # 列ごとの明るさ（縦平均）→(W,)
+    # 横方向になだらかにぼかす（食材の細かな明暗ではなく、左右のゆるい照明ムラだけ拾う）
+    colmap = _np.asarray(
+        Image.fromarray(col.reshape(1, W).clip(0, 255).astype("uint8"))
+        .filter(ImageFilter.GaussianBlur(max(20, W // 8)))
+    ).astype(_np.float32).reshape(W)
+    target = float(_np.percentile(colmap, 75))               # 明るめに合わせる
+    gaincol = _np.clip(target / _np.clip(colmap, 1.0, None), 0.85, 1.45)   # 左右を両側から均す
+    out = _np.clip(arr * gaincol[None, :, None], 0, 255)
     # カード間で明るさを揃える：全体平均を目標へ寄せる（倍率は控えめにクリップ）。
     cur = float(out.mean())
     if cur > 1:
@@ -101,11 +105,7 @@ def _scrim(base):
     for y in range(H - 430, H):
         t = (y - (H - 430)) / 430
         d.line([(0, y), (W, y)], fill=int(112 * t))
-    # 右側グラデ（縦書き見出し用）— かなり薄く（暗い割れを防ぐ）
-    for x in range(W - 430, W):
-        t = (x - (W - 430)) / 430
-        col = int(40 * t)
-        d.line([(x, 0), (x, H)], fill=col)
+    # ※右側グラデは廃止（左右の明るさ差の原因になるため）。縦書き文字は自前の影で可読性を確保。
     ov = ov.filter(ImageFilter.GaussianBlur(16))
     black = Image.new("RGB", (W, H), (0, 0, 0))
     return Image.composite(black, base, ov)
