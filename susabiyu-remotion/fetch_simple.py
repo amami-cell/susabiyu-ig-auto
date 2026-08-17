@@ -1,6 +1,6 @@
 ﻿import os, io, glob, json, sys, random
 
-FOOD_FOLDER = "14oKNgdXee2NrI7Dkmbrlbid4f0_VZ5Cv"
+FOOD_FOLDER = os.environ.get("GENRE_FOOD_ID") or "14oKNgdXee2NrI7Dkmbrlbid4f0_VZ5Cv"
 INTERIOR_FOLDER = os.environ.get("GENRE_INTERIOR_ID") or "17h9qNWIEisEaEqNUuH-6XA39eVxgfHQW"
 OUT = os.path.join("public", "simple.jpg")
 MIN_SIDE = 1000

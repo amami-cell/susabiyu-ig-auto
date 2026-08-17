@@ -1,0 +1,668 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0f1115">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>ぎふや 福岡天神 ・ 投稿の確認（フィード / リール）</title>
+<style>
+  /* 三条 reels.html と同一の土台デザイン。ぎふや福岡天神の見本用に自己完結で実装。 */
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;margin:0;padding:0}
+  :root{--bg:#0f1115;--card:#181c23;--line:#262c36;--fg:#eaeef2;--sub:#9aa3b2;
+        --ok:#1f9d55;--rd:#3b6fd6;--ng:#3a414d;--accent:#7fd1a0;--gold:#e0b56e;--reel:#7a4fd6}
+  html,body{background:var(--bg);color:var(--fg);
+    font-family:-apple-system,BlinkMacSystemFont,"Hiragino Kaku Gothic ProN","Noto Sans JP",sans-serif}
+  button{touch-action:manipulation;font-family:inherit}
+  .topbar{position:sticky;top:0;z-index:20;background:rgba(15,17,21,.92);
+    backdrop-filter:saturate(180%) blur(12px);border-bottom:1px solid var(--line)}
+  .bar{display:flex;align-items:center;gap:10px;padding:calc(env(safe-area-inset-top) + 12px) 16px 10px}
+  .bar .back{border:1px solid var(--line);background:#181c23;color:var(--fg);font-size:13px;font-weight:800;padding:7px 13px;border-radius:999px;text-decoration:none}
+  .bar h1{font-size:16px;font-weight:800;flex:1}
+  .bar .mode{font-size:11px;font-weight:800;padding:4px 10px;border-radius:999px}
+  .bar .mode.live{color:var(--accent);background:#10301f}
+  .bar .mode.demo{color:#d9b25a;background:#241d10}
+  .tabs{display:flex;gap:8px;padding:0 14px 12px}
+  .tab{flex:1;text-align:center;padding:11px;border-radius:12px;border:1px solid var(--line);background:#141922;color:var(--sub);font-weight:800;font-size:14px}
+  .tab.on{background:#12263a;border-color:#2f5a8f;color:#cfe4ff}
+  .tab.on.reel{background:#241a33;border-color:#5a3fa0;color:#e2d3ff}
+  #wrap{padding:14px 14px 60px;max-width:520px;margin:0 auto}
+  .hint{color:var(--sub);font-size:12.5px;line-height:1.7;text-align:center;margin:2px 2px 16px}
+  .seclabel{font-size:13px;font-weight:800;color:var(--fg);margin:8px 2px 10px;display:flex;align-items:center;gap:8px}
+  .seclabel .cnt{color:var(--accent);font-size:12px;font-weight:800}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:12px;margin-bottom:16px;position:relative}
+  .card.reco{border-color:var(--gold);box-shadow:0 0 0 1px rgba(224,181,110,.35)}
+  .reco-badge{position:absolute;top:-11px;left:14px;background:linear-gradient(90deg,#e0b56e,#caa14e);color:#241c08;font-size:11.5px;font-weight:900;padding:4px 11px;border-radius:999px}
+  .chead{display:flex;align-items:center;gap:8px;margin-bottom:10px}
+  .kind{font-size:12px;font-weight:800;color:#fff;background:var(--rd);padding:3px 10px;border-radius:999px}
+  .kind.reel{background:var(--reel)}
+  .cno{font-size:12.5px;color:var(--sub);font-weight:800;margin-left:auto}
+  .mediaWrap{position:relative;border-radius:13px;overflow:hidden;background:#000;width:100%}
+  .mediaWrap.feed{aspect-ratio:4/5}
+  .mediaWrap.reel{aspect-ratio:9/16}
+  /* トリミング（リール用・三条と同じ） */
+  .trim{margin:10px 2px 2px}
+  .trimhd{display:flex;justify-content:space-between;font-size:12px;color:var(--sub);font-weight:800;margin-bottom:6px}
+  .trimhd b{color:#e2d3ff}
+  .rangewrap{position:relative;height:34px}
+  .rangewrap input[type=range]{position:absolute;left:0;top:0;width:100%;margin:0;-webkit-appearance:none;background:transparent;pointer-events:none}
+  .rangewrap input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;pointer-events:auto;width:20px;height:20px;border-radius:50%;background:var(--reel);border:2px solid #fff;margin-top:-8px}
+  .rangewrap .track{position:absolute;left:0;right:0;top:15px;height:5px;border-radius:3px;background:#2a3140}
+  .rangewrap .sel{position:absolute;top:15px;height:5px;border-radius:3px;background:var(--reel)}
+  /* 最新タグ取得のパスコード・ゲート（三条と同じ） */
+  .gate{position:fixed;inset:0;background:#0f1115;display:none;flex-direction:column;justify-content:center;
+    align-items:center;gap:18px;padding:30px;z-index:200}
+  .gate.on{display:flex}
+  .gate h1{font-size:20px;letter-spacing:2px}
+  .gate p{color:#9aa3b2;font-size:13px;text-align:center;line-height:1.7}
+  .gate input{width:min(320px,80vw);padding:14px 16px;font-size:20px;text-align:center;letter-spacing:6px;
+    border-radius:12px;border:1px solid #2a3542;background:#141b23;color:#fff;outline:none}
+  .gate button{width:min(320px,80vw);padding:14px;font-size:16px;font-weight:700;border:0;border-radius:12px;
+    background:#c8a24a;color:#1a1206}
+  .gate .err{color:#ff8080;font-size:13px;min-height:18px}
+  .gate a{color:#9aa3b2;font-size:13px;text-decoration:none;cursor:pointer}
+  .gate p small{color:#7c8698;font-size:11.5px}
+  .mediaWrap img,.mediaWrap video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;background:#000}
+  .mediaWrap.feed img{object-fit:contain}
+  .cap{font-size:13.5px;line-height:1.6;margin:11px 2px 4px;white-space:pre-wrap;color:#dfe5ee}
+  /* ハッシュタグ */
+  .tagttl{font-size:12.5px;font-weight:800;color:#cfd6e2;margin:12px 2px 7px;display:flex;align-items:center;gap:7px}
+  .tagttl .tcnt{color:var(--accent);font-size:11.5px}
+  .tagsel{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 8px}
+  .tagsel .t{font-size:12px;color:#bfe0cf;background:#12241a;border:1px solid #21402f;border-radius:999px;padding:4px 9px}
+  .tagsel .t.inb{color:#cfe0ff;background:#131f30;border-color:#274063}
+  .tagedit{width:100%;border:1px dashed var(--line);border-radius:11px;background:#12161d;color:#cfd6e2;font-weight:800;font-size:12.5px;padding:9px}
+  .acts{display:flex;gap:8px;margin-top:11px}
+  .acts button{flex:1;border:0;border-radius:13px;padding:13px 0;font-size:14.5px;font-weight:800;color:#fff}
+  .acts .now{background:var(--ok)}
+  .acts .resv{background:#2a3547;border:1px solid var(--line);color:#dfe5ee}
+  .acts button:active{transform:scale(.97)}
+  .resvbox{display:none;gap:7px;margin-top:9px;align-items:center;flex-wrap:wrap;background:#12161d;border:1px solid var(--line);border-radius:12px;padding:10px}
+  .resvbox.open{display:flex}
+  .resvbox label{font-size:12px;font-weight:800;color:var(--sub);width:100%}
+  .resvbox input{background:#0f1115;border:1px solid var(--line);color:var(--fg);border-radius:9px;padding:9px;font-size:13px;font-family:inherit}
+  .resvbox .go{flex:1;background:var(--rd);border:0;color:#fff;font-weight:800;border-radius:10px;padding:11px;font-size:13.5px}
+  .copybtn{margin-top:8px;width:100%;border:1px solid var(--line);border-radius:12px;background:#12161d;color:var(--accent);font-weight:800;font-size:13.5px;padding:11px;display:flex;align-items:center;justify-content:center;gap:7px}
+  .copybtn.done{background:#10301f;border-color:#1f4d33}
+  .banner{text-align:center;font-size:14.5px;font-weight:800;padding:13px 0;border-radius:13px;margin-top:11px}
+  .banner.okb{background:#10301f;color:var(--accent)}
+  .banner.ngb{background:#23262d;color:#aeb6c2}
+  /* ハッシュタグ編集モーダル */
+  .modal{position:fixed;inset:0;z-index:40;background:rgba(0,0,0,.55);display:none;align-items:flex-end;justify-content:center}
+  .modal.open{display:flex}
+  .sheet{background:#141922;width:100%;max-width:520px;max-height:88vh;overflow:auto;border-radius:20px 20px 0 0;border:1px solid var(--line);padding:16px 16px calc(env(safe-area-inset-bottom) + 20px)}
+  .sheet h3{font-size:15px;font-weight:900;margin-bottom:4px}
+  .sheet .sub{font-size:12px;color:var(--sub);margin-bottom:12px;line-height:1.6}
+  .tebar{font-size:12px;color:var(--sub);margin-bottom:9px}
+  .tebar b{color:var(--accent)}
+  .fetchbtn{width:100%;border:1px solid #2f5a8f;background:#12263a;color:#cfe4ff;font-weight:800;font-size:13px;border-radius:11px;padding:11px;margin-bottom:6px}
+  .fetchbtn.cd{border-color:var(--line);background:#12161d;color:var(--sub)}
+  .fetchnote{font-size:10.5px;color:#6f7684;line-height:1.6;margin-bottom:12px}
+  .reglabel{font-size:12px;font-weight:800;color:#e0b56e;margin:10px 0 7px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:4px}
+  .regmeta{font-size:10.5px;color:#6f7684;font-weight:600}
+  .rankrow{margin:10px 0 4px}
+  .rankttl{font-size:11.5px;font-weight:800;color:#aab2c0;margin-bottom:6px;display:flex;gap:6px;align-items:center}
+  .rankttl .stars{color:#e0b56e}
+  .chips{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:6px}
+  .chip{border:1px solid var(--line);background:#12161d;color:#cfd6e2;border-radius:999px;padding:6px 11px;font-size:12.5px;font-weight:700;display:flex;align-items:center;gap:5px}
+  .chip.inb{border-style:dashed}
+  .chip.on{background:#10301f;border-color:#1f4d33;color:var(--accent)}
+  .chip .s{font-size:9px;color:#e0b56e}
+  .chip.on .s{color:#7fd1a0}
+  .sheetclose{width:100%;margin-top:14px;border:0;border-radius:12px;background:var(--ok);color:#fff;font-weight:800;font-size:14.5px;padding:13px}
+  #toast{position:fixed;left:50%;bottom:calc(env(safe-area-inset-bottom) + 22px);transform:translateX(-50%);
+    background:#000;color:#fff;padding:11px 18px;border-radius:24px;font-size:14px;opacity:0;transition:.2s;pointer-events:none;z-index:60;max-width:90%;text-align:center}
+  #toast.show{opacity:.96}
+  .foot{color:#6f685d;font-size:10px;text-align:center;padding:6px 0 calc(env(safe-area-inset-bottom) + 16px)}
+</style>
+</head>
+<body>
+<header class="topbar">
+  <div class="bar">
+    <a class="back" href="./gifuyatenjin.html">← 戻る</a>
+    <h1>投稿の確認</h1>
+    <span class="mode" id="mode"></span>
+  </div>
+  <div class="tabs">
+    <button class="tab on" id="tFeed">📸 フィード投稿</button>
+    <button class="tab reel" id="tReel">🎬 リール投稿</button>
+    <button class="tab" id="tMention">💬 メンション</button>
+  </div>
+</header>
+
+<div id="wrap"></div>
+
+<div class="gate" id="pcgate">
+  <h1>🔑 最新タグの取得</h1>
+  <p>地域の最新ハッシュタグを取得します。<br>取得コードを入力してください。<br><small>※取得すると全員に共有され、7日間は再取得できません。</small></p>
+  <input id="pcpass" type="password" inputmode="numeric" autocomplete="off" placeholder="●●●●">
+  <button id="pcgo">取得する</button>
+  <div class="err" id="pcerr"></div>
+  <a id="pccancel">キャンセル</a>
+</div>
+
+<!-- ハッシュタグ編集モーダル（三条と同じ） -->
+<div class="modal" id="tagmodal">
+  <div class="sheet">
+    <h3>ハッシュタグを編集</h3>
+    <div class="sub">タップで選択／解除。★＝人気の目安、点線＝インバウンド向け。「今の地域のおすすめ」で天神・福岡の人気タグを取得できます。</div>
+    <div id="tagbody"></div>
+    <button class="sheetclose" id="tagclose">この内容で決定</button>
+  </div>
+</div>
+
+<div id="toast"></div>
+<div class="foot">すさび湯グループ 投稿管理 ・ ぎふや 福岡天神店</div>
+
+<script src="./config.gifuya.js"></script>
+<script>
+(function(){
+  "use strict";
+  var V = "?v=149";  // メディアのキャッシュ更新用
+  var CFG = window.GIFUYA || {};
+  var LIVE = !!window.GIFUYA_LIVE;               // 専用GAS注入済みなら実データ連携
+  var GAS = (CFG.GAS_URL||"").trim();
+  var ACCOUNT = CFG.ACCOUNT || "gifuyatenjin";   // 予約投稿タブ J列 / AcctTokens と一致
+  var COMMON = "#ぎふや #ぎふや福岡天神店 #大衆酒場 #天神グルメ #福岡グルメ #天神居酒屋 #福岡居酒屋 #天神 #福岡 #天神飲み #大正5年創業 #fukuoka #tenjin #fukuokafood";
+  // 店舗情報テンプレ（各投稿のキャプション末尾に自動追加）。空行の見えない文字(U+2061)はInstagramで改行を保持するため。
+  var TEMPLATE = [
+    "▪️▪️▪️▪️▪️▪️▪️▪️▪️▪️▪️▪️▪️▪️▪️▪️",
+    "⁡",
+    "大衆酒場 ぎふや 福岡天神店",
+    "⁡",
+    "営業時間：11:00～23:00",
+    "⁡",
+    "📍福岡県福岡市中央区天神1丁目10番10号",
+    "天神ビジネスセンターⅡ B2F「イナチカ」",
+    "⁡",
+    "🚶地下鉄天神駅から徒歩約3分",
+    "⁡",
+    "▪️▪️▪️▪️▪️▪️▪️▪️▪️▪️▪️▪️▪️▪️▪️▪️",
+    "⁡",
+    "名物の串かつをはじめ、新鮮なお刺身や九州の味覚、お酒に合う逸品料理を豊富にご用意しております🍺"
+  ].join("\n");
+  // 選択ハッシュタグは全カード共有＋端末に保存（更新すると以降の投稿にも反映）。
+  var GSEL_LS = "gf_tags_v1";
+  var GSEL = null;
+  function defaultSel(){ var s={}; for(var i=0;i<DEFAULT.length;i++) s[DEFAULT[i]]=1; return s; }
+  function loadGsel(){ try{ var o=JSON.parse(localStorage.getItem(GSEL_LS)||"null"); if(o&&typeof o==="object"&&Object.keys(o).length) return o; }catch(e){} return null; }
+  function saveGsel(){ try{ localStorage.setItem(GSEL_LS, JSON.stringify(GSEL)); }catch(e){} }
+  function selTags(){ return Object.keys(GSEL).map(function(x){return "#"+x;}).join(" "); }
+  // 重複ハッシュタグを除いて先頭から上限本数だけ残す（大文字小文字は同一視）。dishタグ→選択タグ→共通タグの優先順。
+  function dedupeTags(str, limit){
+    var seen={}, out=[], m=(str||"").match(/#[^\s#]+/g)||[];
+    for(var i=0;i<m.length;i++){ var k=m[i].toLowerCase(); if(!seen[k]){ seen[k]=1; out.push(m[i]); } }
+    return (limit?out.slice(0,limit):out).join(" ");
+  }
+  function fullCaption(cap, dishTags){
+    // ハッシュタグは「選んだ分だけ」。共通タグの大量自動付与はやめ、料理タグ＋選択タグのみ。
+    var tags = dedupeTags((dishTags?dishTags+" ":"") + selTags(), 13);
+    return (cap||"") + (tags?("\n\n" + tags):"") + "\n\n" + TEMPLATE;
+  }
+  var refreshers=[];  // 全カードのタグ表示を一括更新するための登録先
+  function refreshAll(){ for(var i=0;i<refreshers.length;i++){ try{ refreshers[i](); }catch(e){} } }
+  var toastEl=document.getElementById("toast"),toastT=null;
+  function toast(m){ toastEl.textContent=m; toastEl.classList.add("show"); clearTimeout(toastT); toastT=setTimeout(function(){toastEl.classList.remove("show");},1900); }
+  function esc(s){return (s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;").replace(/'/g,"&#39;");}
+  function copy(text,cb){ if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(text).then(cb,fb);}else fb();
+    function fb(){var ta=document.createElement("textarea");ta.value=text;document.body.appendChild(ta);ta.select();try{document.execCommand("copy");cb();}catch(e){toast("コピーできませんでした");}document.body.removeChild(ta);} }
+  var mode=document.getElementById("mode");
+  mode.textContent = LIVE ? "実データ連携" : "見本モード";
+  mode.className = "mode " + (LIVE ? "live" : "demo");
+
+  /* ---------- 専用GAS(JSONP) ---------- */
+  var jc=0;
+  function gJsonp(params){
+    return new Promise(function(resolve,reject){
+      if(!LIVE || !GAS || GAS.indexOf("PASTE_")===0){ reject(new Error("no-backend")); return; }
+      var cb="__gf"+(++jc)+"_"+Date.now(), s=document.createElement("script");
+      var to=setTimeout(function(){cleanup();reject(new Error("timeout"));},14000);
+      function cleanup(){clearTimeout(to);delete window[cb];if(s.parentNode)s.parentNode.removeChild(s);}
+      window[cb]=function(d){cleanup();resolve(d);};
+      if(params.account===undefined) params.account=ACCOUNT;
+      if(!params.key){ try{ params.key=localStorage.getItem("gf_key")||"8888"; }catch(e){ params.key="8888"; } }
+      var q=Object.keys(params).map(function(k){return k+"="+encodeURIComponent(params[k]);}).join("&");
+      s.src=GAS+(GAS.indexOf("?")>=0?"&":"?")+q+"&cb="+cb;
+      s.onerror=function(){cleanup();reject(new Error("network"));};
+      document.head.appendChild(s);
+    });
+  }
+  function absUrl(raw){ if(!raw) return ""; try{ return new URL(raw, location.href).href; }catch(e){ return raw; } }
+
+  /* ---------- ハッシュタグ辞書（福岡・天神／★=人気の目安・点線=インバウンド） ---------- */
+  var HTAGS=[
+    {t:"福岡グルメ",r:3},{t:"天神グルメ",r:3},{t:"飯テロ",r:3},
+    {t:"天神居酒屋",r:2},{t:"福岡居酒屋",r:2},{t:"大衆酒場",r:2},{t:"串かつ",r:2},{t:"明太子",r:2},
+    {t:"ぎふや",r:1},{t:"ぎふや福岡天神店",r:1},{t:"天神飲み",r:1},{t:"福岡飲み",r:1},{t:"大正5年創業",r:1},
+    {t:"fukuoka",r:3,inb:1},{t:"tenjin",r:2,inb:1},{t:"japanfood",r:2,inb:1},{t:"fukuokafood",r:2,inb:1},{t:"japantrip",r:1,inb:1}
+  ];
+  var DEFAULT=["福岡グルメ","天神グルメ","天神居酒屋","串かつ","ぎふや福岡天神店","fukuoka","tenjin"]; // 国内5＋インバウンド2＝7
+  var STAR={3:"★★★",2:"★★",1:"★"}, RANKTTL={3:"人気 大",2:"人気 中",1:"人気 小（上位ねらい）"};
+
+  /* ---------- 地域おすすめタグ（天神・福岡） ---------- */
+  var REGIONAL=[], REG_LIVE=false, REG_UPDATED=0, REG_NEXT=0, REG_COOLDOWN_DAYS=7;
+  var REG_LS={t:"gf_reg_tags",u:"gf_reg_up",n:"gf_reg_nx",l:"gf_reg_live"};
+  var REGION_NAME="天神（福岡）";
+  var REGION_POOL=[
+    {t:"天神ディナー",r:3},{t:"福岡飲み",r:3},{t:"天神ランチ",r:2},{t:"福岡食べ歩き",r:2},
+    {t:"天神居酒屋",r:2},{t:"博多グルメ",r:2},{t:"中洲グルメ",r:1},{t:"大名グルメ",r:1},
+    {t:"今泉グルメ",r:1},{t:"天神晩ごはん",r:1},
+    {t:"fukuokajapan",r:3,inb:1},{t:"fukuokafood",r:3,inb:1},{t:"fukuokagourmet",r:2,inb:1},{t:"tenjinjapan",r:1,inb:1}
+  ];
+  function fmtDT(ms){ if(!ms) return "—"; var d=new Date(ms); return (d.getMonth()+1)+"/"+d.getDate()+" "+d.getHours()+":"+("0"+d.getMinutes()).slice(-2); }
+  function fmtDate(ms){ if(!ms) return "—"; var d=new Date(ms); return (d.getMonth()+1)+"/"+d.getDate(); }
+  function regApply(res,now){ if(res&&res.ok&&res.tags&&res.tags.length){ REGIONAL=res.tags; REG_LIVE=!!res.live; REG_UPDATED=res.updatedAt||now||0; REG_NEXT=res.nextAt||0; return true; } return false; }
+  function regSaveLocal(){ try{ localStorage.setItem(REG_LS.t,JSON.stringify(REGIONAL)); localStorage.setItem(REG_LS.u,String(REG_UPDATED)); localStorage.setItem(REG_LS.n,String(REG_NEXT)); localStorage.setItem(REG_LS.l,REG_LIVE?"1":"0"); }catch(e){} }
+  function regLoadLocal(){ try{ var t=JSON.parse(localStorage.getItem(REG_LS.t)||"null"); if(t&&t.length){ REGIONAL=t; REG_UPDATED=+localStorage.getItem(REG_LS.u)||0; REG_NEXT=+localStorage.getItem(REG_LS.n)||0; REG_LIVE=localStorage.getItem(REG_LS.l)==="1"; } }catch(e){} }
+  function loadRegional(){ regLoadLocal(); gJsonp({api:"regionaltags", region:REGION_NAME, peek:1}).then(function(res){ if(regApply(res,Date.now())) regSaveLocal(); }).catch(function(){}); }
+
+  /* ---------- 候補データ（実データ接続時は cands で差し替え可能） ---------- */
+  // フィード候補は全て「加工済みの投稿画像(feed_01〜12)」＝ロゴ＋見出しデザイン入り。生写真は出さない。
+  var FEED = [
+    {img:"feed_01.jpg", t:"元祖どぶ漬けどてかつ", reco:true,
+     cap:"名物、元祖どぶ漬けどてかつ🍢\n秘伝の自家製どて味噌にどっぷり漬け込んだ一本。安くて旨い、まずは一杯。",
+     tags:"#どてかつ #串かつ #どて焼き #天神串かつ"},
+    {img:"feed_02.jpg", t:"ぎふや厳選 串かつ10種盛り",
+     cap:"迷ったらこれ。ぎふや厳選 串かつ10種盛り🍢\n定番から変わり種まで、一度に楽しめる欲張りな盛り合わせ。",
+     tags:"#串かつ #串カツ #串かつ食べ放題 #天神グルメ"},
+    {img:"feed_03.jpg", t:"名物どて焼き",
+     cap:"大正5年から受け継ぐ看板の味、名物どて焼き。\nとろとろに煮込んだ自家製どて味噌が、酒を呼ぶ。",
+     tags:"#どて焼き #もつ煮込み #天神居酒屋 #福岡飲み"},
+    {img:"feed_04.jpg", t:"ぎふやの明太出汁巻き",
+     cap:"ふわとろ、明太出汁巻き。\n福岡ならではの明太子を、あつあつの出汁巻きで包みました。",
+     tags:"#明太子 #出汁巻き卵 #福岡明太子 #天神ディナー"},
+    {img:"feed_05.jpg", t:"造り盛り合わせ",
+     cap:"福岡の鮮度、そのままに。造り盛り合わせ🐟\nその日の良いものを、良い状態で。日本酒との相性も抜群。",
+     tags:"#造り #お造り #刺身 #福岡海鮮 #天神ディナー"},
+    {img:"feed_06.jpg", t:"ぎふやの炊き餃子",
+     cap:"福岡名物、炊き餃子。\nコラーゲンたっぷりの白湯スープで炊き上げる、体にしみる一品。",
+     tags:"#炊き餃子 #餃子 #福岡名物 #天神グルメ"},
+    {img:"feed_07.jpg", t:"本家 牛串かつ",
+     cap:"肉の旨みを、串で。本家 牛串かつ🍢\nサクッと衣、ジューシーな牛肉。ビールが止まらない。",
+     tags:"#牛串 #串かつ #肉串 #天神肉バル"},
+    {img:"feed_08.jpg", t:"自家製 鶏唐揚げ",
+     cap:"揚げたて、ジューシー。自家製鶏唐揚げ🍗\n下味しっかり、外はカリッと中はジュワッと。レモンをキュッと。",
+     tags:"#唐揚げ #からあげ #福岡唐揚げ #天神グルメ"},
+    {img:"feed_09.jpg", t:"馬刺し",
+     cap:"酒が進む、馬刺し🐴\nとろける赤身とコクのある旨み。九州の酒場の定番をぎふやで。",
+     tags:"#馬刺し #馬肉 #九州グルメ #福岡飲み"},
+    {img:"feed_10.jpg", t:"和牛マルシンのたたき",
+     cap:"希少部位を、贅沢に。和牛マルシンのたたき。\n一頭からわずかしか取れない部位を、香ばしく炙って。",
+     tags:"#和牛 #希少部位 #肉好きと繋がりたい #天神ディナー"},
+    {img:"feed_11.jpg", t:"〆のラーメン",
+     cap:"〆はやっぱり、ラーメン🍜\n飲んだ後のシメに、ぎふやの一杯。福岡の夜はこれで完成。",
+     tags:"#ラーメン #〆ラーメン #福岡ラーメン #天神ラーメン"},
+    {img:"feed_12.jpg", t:"生ハムポテト",
+     cap:"一杯目の相棒、生ハムポテト🍟\nあつあつポテトに生ハムをのせて。ついつい頼んでしまう名脇役。",
+     tags:"#ポテト #生ハム #おつまみ #天神居酒屋"},
+    {img:"pattern_tanzaku.jpg", t:"お品書き（短冊デザイン）",
+     cap:"本日のおすすめ、揃ってます。\nぎふや福岡天神店、安くて旨い。まずは一杯。",
+     tags:"#お品書き #ぎふや福岡天神店 #天神居酒屋 #天神グルメ"},
+    {img:"pattern_bigname.jpg", t:"看板（ぎふや福岡天神）",
+     cap:"天神で乾杯。大衆酒場 ぎふや福岡天神店。\n安くて、旨い。地下鉄天神駅から徒歩約3分。",
+     tags:"#ぎふや福岡天神店 #天神グルメ #大衆酒場 #天神居酒屋"}
+  ];
+  var REEL = [
+    {vid:"dv_01.mp4", t:"回転（コンベア）", reco:true,
+     cap:"安くて、旨い。まずは一杯。🍢\nぎふや福岡天神の名物を、テンポよくご紹介。",
+     tags:"#ぎふや #大衆酒場 #天神グルメ #串かつ"},
+    {vid:"dv_03.mp4", t:"グリッド→ズーム",
+     cap:"迷ったら名物から。ぎふやの人気メニュー。\n天神の夜は、ぎふやで。",
+     tags:"#天神居酒屋 #福岡グルメ #串かつ #どて焼き"},
+    {vid:"dv_04.mp4", t:"新聞・切り抜き",
+     cap:"本日も大にぎわい。ぎふや福岡天神店。\n名物どてかつ・炊き餃子・串かつ。",
+     tags:"#福岡グルメ #天神グルメ #大衆酒場 #ぎふや"},
+    {vid:"fade.mp4", t:"フェード見本",
+     cap:"ぎふや福岡天神店。安くて、旨い。\nまずは一杯、いかがですか。",
+     tags:"#天神飲み #福岡居酒屋 #串かつ #大衆酒場"}
+  ];
+
+  /* ---------- ハッシュタグ編集（別画面・全カード共有） ---------- */
+  var activeCard=null;
+  function chip(h,sel){ return '<button class="chip'+(sel[h.t]?" on":"")+(h.inb?" inb":"")+'" data-t="'+esc(h.t)+'"><span>#'+esc(h.t)+'</span>'+(h.r?'<span class="s">'+STAR[h.r]+'</span>':"")+'</button>'; }
+  function renderTagEditor(){
+    var sel=GSEL, body=document.getElementById("tagbody");
+    var now=Date.now(), cd=(REG_NEXT&&now<REG_NEXT);
+    var btnTxt=cd?("🔒 取得済み（次回取得可能 "+fmtDate(REG_NEXT)+"）"):"🔄 今の天神・福岡のおすすめを取得";
+    var html='<div class="tebar">選択中 <b class="tesel">'+Object.keys(sel).length+'</b> 個 ／ 点線＝インバウンド</div>'+
+      '<button class="fetchbtn'+(cd?" cd":"")+'" id="fetchreg">'+btnTxt+'</button>'+
+      '<div class="fetchnote">※「今の人気（Instagram調べ）」はInstagram Graph APIの制限で、ハッシュタグ検索が7日で30個まで。1人が取得すると全員に共有され、次回取得可能日が出ます。'+(LIVE?"":"（見本モードでは地域おすすめを表示）")+'</div>';
+    if(REGIONAL.length){
+      var rlab=REG_LIVE?"🔥 最新取得（Instagram調べ）":"🕘 最新取得（地域おすすめ）";
+      var nextTxt=cd?('次回取得可能 '+fmtDate(REG_NEXT)):'🔄 今すぐ再取得できます';
+      html+='<div class="reglabel">'+rlab+'<span class="regmeta">更新 '+fmtDT(REG_UPDATED)+' ・ '+nextTxt+'</span></div><div class="chips">';
+      REGIONAL.forEach(function(h){ html+=chip(h,sel); }); html+='</div>';
+    }
+    [3,2,1].forEach(function(r){
+      var items=HTAGS.filter(function(h){return h.r===r;});
+      html+='<div class="rankrow"><div class="rankttl"><span class="stars">'+STAR[r]+'</span>'+RANKTTL[r]+'</div><div class="chips">';
+      items.forEach(function(h){ html+=chip(h,sel); });
+      html+='</div></div>';
+    });
+    body.innerHTML=html;
+    body.querySelectorAll(".chip").forEach(function(ch){ ch.onclick=function(){ var t=ch.getAttribute("data-t"); if(sel[t]){delete sel[t];ch.classList.remove("on");}else{sel[t]=1;ch.classList.add("on");} body.querySelector(".tesel").textContent=Object.keys(sel).length; }; });
+    document.getElementById("fetchreg").onclick=fetchRegional;
+  }
+  // 最新タグ取得のパスコード（8888）。確認画面自体はコード不要・取得の時だけ確認する（三条と同じ）。
+  var PC_HASH="2926a2731f4b312c08982cacf8061eb14bf65c1a87cc5d70e864e079c6220731"; // sha256("8888")
+  function sha256(str){ return crypto.subtle.digest("SHA-256",new TextEncoder().encode(str)).then(function(h){ var a=new Uint8Array(h),s=""; for(var i=0;i<a.length;i++)s+=("0"+a[i].toString(16)).slice(-2); return s; }); }
+  function requireFetchPass(cb){
+    var g=document.getElementById("pcgate"), inp=document.getElementById("pcpass"), err=document.getElementById("pcerr");
+    inp.value=""; err.textContent=""; g.classList.add("on"); setTimeout(function(){ try{inp.focus();}catch(e){} },60);
+    function close(){ g.classList.remove("on"); }
+    function submit(){ var v=(inp.value||"").trim(); if(!v) return;
+      sha256(v).then(function(h){ if(h===PC_HASH){ close(); cb(); } else { err.textContent="コードが違います"; inp.value=""; } }); }
+    document.getElementById("pcgo").onclick=submit;
+    document.getElementById("pccancel").onclick=close;
+    inp.onkeydown=function(e){ if(e.key==="Enter") submit(); };
+  }
+  function fetchRegional(){
+    var now=Date.now();
+    if(REG_NEXT&&now<REG_NEXT){ toast("すでに取得済みです（次回取得可能 "+fmtDate(REG_NEXT)+"）"); renderTagEditor(); return; }
+    requireFetchPass(doFetchRegional);   // 取得の時だけコード確認（8888）
+  }
+  function doFetchRegional(){
+    var now=Date.now();
+    var btn=document.getElementById("fetchreg"); if(btn){ btn.disabled=true; btn.textContent="🔎 "+REGION_NAME+"の人気タグを調べています…"; }
+    gJsonp({api:"regionaltags", region:REGION_NAME}).then(function(res){
+      var ok=regApply(res,now);
+      if(!ok){ REGIONAL=REGION_POOL; REG_LIVE=false; REG_UPDATED=now; REG_NEXT=now+REG_COOLDOWN_DAYS*864e5; }
+      regSaveLocal(); renderTagEditor();
+      toast(REG_LIVE?"最新のおすすめタグを取得・共有しました":"地域のおすすめタグを更新しました");
+    }).catch(function(){
+      REGIONAL=REGION_POOL; REG_LIVE=false; REG_UPDATED=now; REG_NEXT=now+REG_COOLDOWN_DAYS*864e5;
+      regSaveLocal(); renderTagEditor();
+      toast(LIVE?"取得できませんでした。地域おすすめを表示":"地域のおすすめタグを表示（見本）");
+    });
+  }
+  // リール用トリミングUI（三条と同じ。頭0.5秒スキップから30秒を初期選択・プレビューで確認）。
+  function fmt(t){ t=Math.max(0,Math.round(t)); var m=Math.floor(t/60),s=t%60; return m+":"+(s<10?"0":"")+s; }
+  function setupTrim(card,it){
+    var v=card.querySelector("video"), ts=card.querySelector(".ts"), te=card.querySelector(".te"),
+        sel=card.querySelector(".sel"), lenEl=card.querySelector(".tlen"), allEl=card.querySelector(".tall"),
+        stEl=card.querySelector(".tstart"), enEl=card.querySelector(".tend");
+    if(!v||!ts||!te) return;
+    var TARGET=30, dur=it.dur||30;
+    function apply(){
+      var total=dur, s=ts.value/100*total, e=te.value/100*total;
+      if(e-s<3){ if(te===document.activeElement){ ts.value=Math.max(0,(e-3)/total*100); } else { te.value=Math.min(100,(s+3)/total*100); } s=ts.value/100*total; e=te.value/100*total; }
+      sel.style.left=ts.value+"%"; sel.style.width=(te.value-ts.value)+"%";
+      lenEl.textContent=fmt(e-s); allEl.textContent=fmt(total);
+      stEl.textContent="開始 "+fmt(s); enEl.textContent="終了 "+fmt(e);
+      card._trim={start:Math.round(s*10)/10, end:Math.round(e*10)/10};   // 予約時に切取位置を渡す
+      try{ v.currentTime=s; }catch(x){}
+    }
+    function initRange(){
+      dur=(v.duration&&isFinite(v.duration))?v.duration:dur;
+      var start=Math.min(0.5,dur*0.02), end=Math.min(dur,start+TARGET);
+      ts.value=start/dur*100; te.value=end/dur*100; apply();
+    }
+    ts.oninput=apply; te.oninput=apply;
+    if(v.readyState>=1){ initRange(); } else { v.addEventListener("loadedmetadata",initRange); }
+    apply();
+  }
+  function openTagEditor(card){ activeCard=card; renderTagEditor(); document.getElementById("tagmodal").classList.add("open"); }
+  function closeTagEditor(){ document.getElementById("tagmodal").classList.remove("open"); saveGsel(); refreshAll(); toast("ハッシュタグを保存しました（以降の投稿にも反映）"); }
+  document.getElementById("tagclose").onclick=closeTagEditor;
+  document.getElementById("tagmodal").addEventListener("click",function(e){ if(e.target===this){ closeTagEditor(); } });
+
+  /* ---------- 実投稿/予約（実データ接続時はGASへ、未接続は見本） ---------- */
+  function doSchedule(kind,it,when,slot,label){
+    var tags=selTags();
+    var name=it.t||"";
+    var caption=fullCaption(it.cap, it.tags);
+    var media=absUrl("gifuya/"+(kind==="feed"?it.img:it.vid));
+    var params={api:"schedule", kind:(kind==="feed"?"feed":"reel"), name:name, when:when, media:media, caption:caption, hashtags:tags};
+    // リールは切取位置(秒)を渡す。投稿エンジンが ffmpeg で切り出してから投稿する。
+    var card=(slot&&slot.closest)?slot.closest(".card"):null;
+    if(kind==="reel" && card && card._trim && (card._trim.end-card._trim.start)>=1){
+      params.trimStart=card._trim.start; params.trimEnd=card._trim.end;
+    }
+    if(LIVE){
+      slot.innerHTML='<div class="banner okb">送信中…</div>';
+      gJsonp(params).then(function(res){
+        if(res&&(res.ok||res.result==="ok")){ slot.innerHTML='<div class="banner okb">✓ '+label+'<br><small style="font-weight:600;color:#6fb595">予定時刻に自動投稿されます</small></div>'; toast(label); loadSched(); }
+        else { slot.innerHTML='<div class="banner ngb">送信できませんでした</div>'; toast("失敗しました。再度お試しください"); }
+      }).catch(function(){ slot.innerHTML='<div class="banner ngb">通信エラー</div>'; toast("通信エラー"); });
+    } else {
+      slot.innerHTML='<div class="banner okb">✓ '+label+'（見本）<br><small style="font-weight:600;color:#6fb595">実データ連携後に本当に投稿されます</small></div>'; toast(label+"（見本）");
+    }
+  }
+
+  /* ---------- 予約済み一覧（三条と同じ：schedlist取得＋取消） ---------- */
+  var schedBox=null;
+  function loadSched(){
+    if(!schedBox) return;
+    if(!LIVE){ schedBox.innerHTML=""; return; }
+    gJsonp({api:"schedlist"}).then(function(res){
+      var items=(res&&res.items)||[];
+      if(!items.length){ schedBox.innerHTML=""; return; }
+      var h='<div class="seclabel">🕒 予約済み <span class="cnt">'+items.length+'件</span></div>';
+      items.forEach(function(it){
+        h+='<div class="card" style="padding:11px">'+
+           '<div style="display:flex;align-items:center;gap:8px">'+
+             '<span class="kind'+(it.kind==="reel"?" reel":"")+'">'+(it.kind==="reel"?"リール":"フィード")+'</span>'+
+             '<b style="font-size:13px;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+esc(it.name||"")+'</b>'+
+             '<span class="cno">'+esc(String(it.when||"").slice(5,16))+'</span>'+
+           '</div>'+
+           '<button class="tagedit sc-cancel" data-tok="'+esc(it.token)+'" style="margin-top:8px;color:#e6a4a4;border-color:#5a3a3a">予約を取り消す</button>'+
+         '</div>';
+      });
+      schedBox.innerHTML=h;
+      schedBox.querySelectorAll(".sc-cancel").forEach(function(b){
+        b.onclick=function(){ var tok=b.getAttribute("data-tok"); b.disabled=true; b.textContent="取消中…";
+          gJsonp({api:"schedcancel", token:tok}).then(function(r){ toast(r&&r.ok?"予約を取り消しました":"取り消せませんでした"); loadSched(); })
+            .catch(function(){ toast("通信エラー"); b.disabled=false; b.textContent="予約を取り消す"; }); };
+      });
+    }).catch(function(){});
+  }
+
+  var wrap = document.getElementById("wrap");
+  function render(kind){
+    wrap.innerHTML=""; refreshers=[];
+    var hint=document.createElement("div"); hint.className="hint";
+    hint.innerHTML = (kind==="feed"
+      ? "候補のフィード投稿です。ハッシュタグを整えて <b>今すぐ投稿</b> または <b>日時を決めて予約</b>できます。"
+      : "候補のリール（動画）です。<b>今すぐ投稿</b> または <b>日時を決めて予約</b>できます。")
+      + "<br>※ぎふや福岡天神（@gifuya_fukuokatenjin）" + (LIVE?"：実データ連携中。":"：現在は見本モードです。") + "ストーリーは毎日11時・17時・20時に自動投稿中（確認はトップ画面）。";
+    wrap.appendChild(hint);
+    schedBox=document.createElement("div"); wrap.appendChild(schedBox); loadSched();   // 予約済み一覧（あれば表示）
+    var lab=document.createElement("div"); lab.className="seclabel";
+    var list = kind==="feed"?FEED:REEL;
+    lab.innerHTML = (kind==="feed"?"📸 フィード投稿の候補":"🎬 リール投稿の候補")+' <span class="cnt">'+list.length+'件</span>';
+    wrap.appendChild(lab);
+
+    list.forEach(function(p,i){
+      var c=document.createElement("div"); c.className="card"+(p.reco?" reco":"");
+      var _pv = (p.vid||"").replace(/\.mp4$/,"_poster.jpg");
+      var media = kind==="feed"
+        ? '<div class="mediaWrap feed"><img loading="lazy" decoding="async" src="gifuya/'+p.img+V+'" alt=""></div>'
+        : '<div class="mediaWrap reel"><video poster="gifuya/'+_pv+V+'" src="gifuya/'+p.vid+V+'" controls playsinline preload="none" webkit-playsinline></video></div>';
+      var trim = kind==="reel"
+        ? '<div class="trim"><div class="trimhd"><span>切り取り（リール用）</span><span><b class="tlen">--</b> / 元<span class="tall">--</span></span></div>'+
+          '<div class="rangewrap"><div class="track"></div><div class="sel"></div>'+
+          '<input type="range" class="ts" min="0" max="100" value="0"><input type="range" class="te" min="0" max="100" value="60"></div>'+
+          '<div class="trimhd" style="margin-top:4px"><span class="tstart">開始 0:00</span><span class="tend">終了 0:30</span></div></div>'
+        : '';
+      c.innerHTML =
+        (p.reco?'<div class="reco-badge">★ おすすめ</div>':'')+
+        '<div class="chead"><span class="kind'+(kind==="reel"?" reel":"")+'">'+(kind==="feed"?"フィード":"リール")+'</span>'+
+          '<span class="cno">'+(i+1)+' / '+list.length+' ・ '+esc(p.t)+'</span></div>'+
+        media+trim+
+        '<div class="caplbl" style="font-size:11.5px;font-weight:800;color:#8b93a2;margin:11px 2px 4px">▼ そのまま投稿される文面（お店情報テンプレ・選んだハッシュタグのみ）</div>'+
+        '<div class="cap"></div>'+
+        '<div class="tagttl">ハッシュタグ <span class="tcnt"></span></div>'+
+        '<div class="tagsel"></div><button class="tagedit">✏️ ハッシュタグを編集</button>'+
+        '<div class="acts"><button class="now">今すぐ投稿</button><button class="resv">日時を決めて予約</button></div>'+
+        '<div class="resvbox"><label>予約日時</label><input type="date" class="rdate"><input type="time" class="rtime" value="18:00"><button class="go">この日時で予約</button></div>'+
+        '<div class="slot"></div>'+
+        '<button class="copybtn">📋 キャプションをコピー</button>';
+      function refreshSel(){
+        // プレビュー＝実際に投稿される全文（料理文面＋タグ＋お店情報テンプレ）。タグ変更で即時反映。
+        c.querySelector(".cap").textContent = fullCaption(p.cap, p.tags);
+        var w=c.querySelector(".tagsel"); w.innerHTML="";
+        var keys=Object.keys(GSEL);
+        if(!keys.length){ w.innerHTML='<span style="color:#7c8698;font-size:12.5px">（未選択）</span>'; }
+        keys.forEach(function(t){ var inb=HTAGS.concat(REGION_POOL,REGIONAL).some(function(h){return h.t===t&&h.inb;}); var sp=document.createElement("span"); sp.className="t"+(inb?" inb":""); sp.textContent="#"+t; w.appendChild(sp); });
+        c.querySelector(".tcnt").textContent=keys.length+"個";
+      }
+      c._refresh=refreshSel; refreshers.push(refreshSel); refreshSel();
+      if(kind==="reel"){ setupTrim(c,p); }
+      c.querySelector(".tagedit").onclick=function(){ openTagEditor(c); };
+      var slot=c.querySelector(".slot"), rbox=c.querySelector(".resvbox");
+      c.querySelector(".now").onclick=function(){ var d=new Date(); var when=d.getFullYear()+"-"+("0"+(d.getMonth()+1)).slice(-2)+"-"+("0"+d.getDate()).slice(-2)+" "+("0"+d.getHours()).slice(-2)+":"+("0"+d.getMinutes()).slice(-2); doSchedule(kind,p,when,slot,"投稿しました"); };
+      c.querySelector(".resv").onclick=function(){ rbox.classList.toggle("open"); };
+      c.querySelector(".go").onclick=function(){
+        var dd=c.querySelector(".rdate").value, tt=c.querySelector(".rtime").value||"18:00";
+        if(!dd){ toast("予約日を選んでください"); return; }
+        rbox.classList.remove("open");
+        doSchedule(kind,p,dd+" "+tt,slot,"予約しました");
+      };
+      var cb=c.querySelector(".copybtn");
+      cb.onclick=function(){ var f = fullCaption(p.cap, p.tags);
+        copy(f,function(){ cb.textContent="✓ コピーしました"; cb.classList.add("done"); toast("キャプションをコピーしました");
+        setTimeout(function(){ cb.textContent="📋 キャプションをコピー"; cb.classList.remove("done"); },2200); }); };
+      wrap.appendChild(c);
+    });
+  }
+  /* ===== ストーリーメンション（確認→リポスト＋シェアコメント） ===== */
+  var MENTION_DEFAULT="ご来店ありがとうございます\n素敵な投稿に感謝です！\n#ぎふや福岡天神";  // 規定＝1
+  var MENTION_STORY_TPL=[
+    "ご紹介ありがとうございます\n天神で乾杯、またぜひ！\n#ぎふや福岡天神",
+    "ご投稿ありがとうございます\n天神イナチカでお待ちしています\n#ぎふや福岡天神",
+    "素敵な投稿ありがとうございます\n“安くて旨い”をまた福岡天神で\n#ぎふや福岡天神",
+    "ありがとうございます\nまたのご来店お待ちしております\n#ぎふや福岡天神"
+  ];
+  // お礼DMは「投稿に焼く文」とは別。ハッシュタグ無しの会話文を既定に。
+  var MENTION_DM_DEFAULT="メンションありがとうございます！ご投稿とても嬉しいです😊 またのお越しをお待ちしています🍶";
+  var MENTION_DM_TPL=[
+    "メンションありがとうございます！ご投稿とても嬉しいです😊 またのお越しをお待ちしています🍶",
+    "ご紹介ありがとうございます！天神でのご来店、心よりお待ちしております🍶",
+    "投稿していただきありがとうございます😊 スタッフ一同、またのご来店をお待ちしています！"
+  ];
+  function mentAct(mid,action,text,btn){
+    if(action==="ignore" && !confirm("この投稿を無視（一覧から消す）しますか？")) return;
+    var card=btn.closest(".card"); card.style.opacity=".5";
+    card.querySelectorAll("button,textarea").forEach(function(b){b.disabled=true;});
+    gJsonp({api:"mentionact", mid:mid, action:action, text:text||""}).then(function(r){
+      if(r&&r.result==="ok"){
+        var done = action==="story" ? {t:"✓ 店ストーリーに投稿済み（数分以内に反映）", bg:"#12261a", bd:"#2a5a3a", fg:"#8fe0a8"}
+                 : action==="reply" ? {t:"✓ お礼DM 送信済み",                     bg:"#101f2e", bd:"#274063", fg:"#a9cbff"}
+                 :                     {t:"— 無視しました（一覧から除外）",         bg:"#241c24", bd:"#3a2a3a", fg:"#c9a9c9"};
+        toast(action==="story"?"店ストーリーに追加します（数分以内に投稿）":action==="reply"?"お礼DMを送ります":"無視しました");
+        // カードは消さず「投稿済み」バッジを付けて残し、下（済み欄）へ移動して区分する。
+        card.classList.add("mdone"); card.style.opacity=".72";
+        card.querySelectorAll(".acts,.tplrow").forEach(function(x){ x.style.display="none"; });
+        var badge=document.createElement("div");
+        badge.style.cssText="margin:8px 0 2px;padding:9px 11px;border-radius:10px;font-weight:800;font-size:13px;background:"+done.bg+";border:1px solid "+done.bd+";color:"+done.fg;
+        badge.textContent=done.t;
+        card.insertBefore(badge, card.firstChild);
+        ensureDoneLabel(); wrap.appendChild(card);   // 済みは末尾へ寄せる
+      } else { toast("反映できませんでした"); card.style.opacity="1"; card.querySelectorAll("button,textarea").forEach(function(b){b.disabled=false;}); }
+    }).catch(function(){ toast("通信エラー"); card.style.opacity="1"; card.querySelectorAll("button,textarea").forEach(function(b){b.disabled=false;}); });
+  }
+  function ensureDoneLabel(){
+    if(document.getElementById("mdoneLbl")) return;
+    var lab=document.createElement("div"); lab.id="mdoneLbl"; lab.className="seclabel";
+    lab.style.cssText="margin-top:18px"; lab.innerHTML='✅ 対応済み';
+    wrap.appendChild(lab);
+  }
+  function renderMentions(){
+    wrap.innerHTML=""; refreshers=[];
+    var hint=document.createElement("div"); hint.className="hint";
+    hint.innerHTML="ストーリーズでメンションされた投稿です。文面を整えて <b>店ストーリーに追加</b>（リポスト）や <b>お礼DM</b> ができます。<br>※お客様のメンションを受け取るにはMeta側の設定・審査が必要です（それまでは自分のテスターからのみ届きます）。";
+    wrap.appendChild(hint);
+    var lab=document.createElement("div"); lab.className="seclabel"; lab.innerHTML='💬 メンション <span class="cnt">読み込み中…</span>'; wrap.appendChild(lab);
+    gJsonp({api:"mentions"}).then(function(res){
+      var items=(res&&res.items)||[];
+      lab.innerHTML='💬 メンション <span class="cnt">'+items.length+'件</span>';
+      if(!items.length){ var e=document.createElement("div"); e.className="hint"; e.textContent="確認待ちのメンションはありません。"; wrap.appendChild(e); return; }
+      items.forEach(function(it){
+        var c=document.createElement("div"); c.className="card";
+        var media=(String(it.mediaType).toLowerCase()==="video")
+          ? '<div class="mediaWrap reel"><video src="'+esc(it.url)+'" controls playsinline preload="metadata"></video></div>'
+          : '<div class="mediaWrap reel"><img loading="lazy" decoding="async" src="'+esc(it.url)+'" alt=""></div>';
+        var taStyle="width:100%;min-height:64px;border-radius:12px;border:1px solid #262c36;background:#12161d;color:#eaeef2;padding:10px;font-family:inherit;font-size:13.5px";
+        var storyChips=MENTION_STORY_TPL.map(function(t,i){ return '<button class="tpl" data-t="'+esc(t)+'">例'+(i+1)+'</button>'; }).join("")
+          + '<button class="tpl" data-reset="story">↩ 規定に戻す</button>';
+        var dmChips=MENTION_DM_TPL.map(function(t,i){ return '<button class="tpl" data-d="'+esc(t)+'">DM例'+(i+1)+'</button>'; }).join("")
+          + '<button class="tpl" data-reset="dm">↩ 規定に戻す</button>';
+        var isAuto=String(it.status)==="auto";
+        var _d=it.dt?new Date(it.dt):null, when=(_d&&!isNaN(_d))?(("0"+_d.getHours()).slice(-2)+":"+("0"+_d.getMinutes()).slice(-2)):esc(String(it.dt||""));
+        var note=isAuto?'<div class="banner ngb" style="margin:8px 0 0">🕒 自動投稿の予定です。何もしなければ約5時間後にリポストします。それまでに文面を直して「今すぐ投稿」、やめる場合は「取り消し」。</div>':'';
+        c.innerHTML=
+          '<div class="chead"><span class="kind">💬 メンション</span><span class="cno">'+when+'</span></div>'+
+          media+note+
+          '<div style="margin:10px 2px 4px;font-size:12px;color:#9aa3b2">① シェアコメント（店ストーリーに焼く文）</div>'+
+          '<textarea class="mtext" style="'+taStyle+'"></textarea>'+
+          '<div class="tplrow" style="display:flex;gap:6px;flex-wrap:wrap;margin:8px 0">'+storyChips+'</div>'+
+          '<div style="margin:12px 2px 4px;font-size:12px;color:#9aa3b2">② お礼DM本文（お客様へ送るメッセージ・投稿文とは別）</div>'+
+          '<textarea class="mdm" style="'+taStyle+';min-height:52px"></textarea>'+
+          '<div class="tplrow" style="display:flex;gap:6px;flex-wrap:wrap;margin:8px 0">'+dmChips+'</div>'+
+          '<div class="acts">'+
+            '<button class="now" data-a="story">'+(isAuto?'今すぐ投稿（①で店ストーリー）':'店ストーリーに追加（①）')+'</button>'+
+            '<button class="resv" data-a="reply">お礼DM（②）</button>'+
+            '<button class="resv" data-a="ignore" style="flex:0 0 auto;background:#2a2330;border:1px solid #3a2a3a">'+(isAuto?'取り消し':'無視')+'</button>'+
+          '</div>';
+        var ta=c.querySelector(".mtext"); ta.value=it.text||MENTION_DEFAULT;
+        var dm=c.querySelector(".mdm"); dm.value=MENTION_DM_DEFAULT;
+        c.querySelectorAll(".tpl").forEach(function(b){
+          var isReset=b.getAttribute("data-reset");
+          b.style.cssText = isReset
+            ? "font-size:12px;color:#c9d2e0;background:#20242c;border:1px dashed #3a424e;border-radius:999px;padding:5px 10px"
+            : "font-size:12px;color:#cfe0ff;background:#131f30;border:1px solid #274063;border-radius:999px;padding:5px 10px";
+          b.onclick=function(){
+            var t=b.getAttribute("data-t"), d=b.getAttribute("data-d"), r=b.getAttribute("data-reset");
+            if(r==="story") ta.value=MENTION_DEFAULT;
+            else if(r==="dm") dm.value=MENTION_DM_DEFAULT;
+            else if(t!=null) ta.value=t;
+            else if(d!=null) dm.value=d;
+          };
+        });
+        c.querySelector('[data-a="story"]').onclick=function(){ mentAct(it.mid,"story",ta.value,this); };
+        c.querySelector('[data-a="reply"]').onclick=function(){ mentAct(it.mid,"reply",dm.value,this); };
+        c.querySelector('[data-a="ignore"]').onclick=function(){ mentAct(it.mid,"ignore","",this); };
+        wrap.appendChild(c);
+      });
+    }).catch(function(){ lab.innerHTML='💬 メンション <span class="cnt">取得エラー（実データ連携時のみ）</span>'; });
+  }
+
+  var tF=document.getElementById("tFeed"), tR=document.getElementById("tReel"), tM=document.getElementById("tMention");
+  function _seltab(el){ [tF,tR,tM].forEach(function(x){ x.classList.remove("on"); }); el.classList.add("on"); window.scrollTo({top:0}); }
+  tF.onclick=function(){ _seltab(tF); render("feed"); };
+  tR.onclick=function(){ _seltab(tR); render("reel"); };
+  tM.onclick=function(){ _seltab(tM); renderMentions(); };
+  GSEL = loadGsel() || defaultSel();
+  loadRegional();
+  FEED = shuffleFeed(FEED);   // 厳選12枚（加工済み）を日替わり順に
+  render("feed");
+  // seedから決まる順列（Fisher-Yates+LCG）。post_gifuya_story.py と同一式。
+  function seededOrder(n, seed){ var a=[],i,s=(seed>>>0)||1; for(i=0;i<n;i++)a.push(i);
+    for(i=n-1;i>0;i--){ s=(s*1664525+1013904223)>>>0; var j=s%(i+1),t=a[i];a[i]=a[j];a[j]=t; } return a; }
+  // 写真もランダム：おすすめ先頭固定、それ以外はその日のseedでシャッフル（日替わり・当日内は安定）。
+  function shuffleFeed(items){ var day=Math.floor(Date.now()/864e5);
+    var reco=items.filter(function(x){return x.reco;}), rest=items.filter(function(x){return !x.reco;});
+    var out=reco.slice(); seededOrder(rest.length, day+1).forEach(function(j){ out.push(rest[j]); }); return out; }
+  // 毎日同期の全料理を追加：feed.json の「加工済み画像(design)＋生成キャプション」を統合。
+  //   ・design付き(=加工済み)だけを候補に入れる（生写真は出さない）。
+  //   ・厳選12枚と重複する看板料理は除外。おすすめ→先頭。
+  var HERO_KEYS=["どぶ漬け","どてかつ","どて焼き","炊き餃子","明太出汁巻","出汁巻","刺身盛",
+    "串かつ10種","牛串","唐揚","馬刺し","マルシン","ラーメン","生ハムポテト"];
+  (function loadFeedJson(){
+    fetch("./gifuya/feed.json"+V, {cache:"no-store"}).then(function(r){ return r.ok?r.json():null; }).then(function(d){
+      if(!d || !d.items || !d.items.length) return;
+      var extras=d.items.filter(function(it){ return it.design && !HERO_KEYS.some(function(k){return String(it.name||"").indexOf(k)>=0;}); })
+        .map(function(it){ return {img: it.design, t: it.title||it.name, cap: it.cap||"", tags: it.tags||"", reco: !!it.reco}; });
+      if(!extras.length) return;
+      FEED = shuffleFeed(FEED.concat(extras));   // 厳選＋加工済み全料理を日替わり順で
+      if(tF.classList.contains("on")) render("feed");
+    }).catch(function(){});
+  })();
+})();
+</script>
+<script>
+  if ("serviceWorker" in navigator) { window.addEventListener("load", function(){ navigator.serviceWorker.register("./sw.js").catch(function(){}); }); }
+</script>
+</body>
+</html>

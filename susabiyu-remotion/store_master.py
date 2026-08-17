@@ -1084,6 +1084,54 @@ def drivefind(query=None):
     print("[FIND] 完了")
 
 
+def foldersearch(query=None):
+    """フォルダ名にキーワードを含むフォルダを検索し、その直下(サブフォルダ名+画像枚数)も出力。
+    店の画像フォルダを特定する用。arg=キーワード（例: ぎふや / 天神）。"""
+    kw = (query or "ぎふや").strip().replace("'", "")
+    cr = _creds(); drive = _drive(cr)
+    def nm(fid):
+        try:
+            return drive.files().get(fileId=fid, fields="name", supportsAllDrives=True).execute().get("name", "")
+        except Exception:
+            return ""
+    q = "name contains '%s' and mimeType='application/vnd.google-apps.folder' and trashed=false" % kw
+    fol = []; page = None
+    try:
+        while True:
+            res = drive.files().list(q=q, fields="nextPageToken,files(id,name,parents)", pageSize=100,
+                pageToken=page, supportsAllDrives=True, includeItemsFromAllDrives=True).execute()
+            fol += res.get("files", []); page = res.get("nextPageToken")
+            if not page:
+                break
+    except Exception as e:
+        print("[FOLDER] 検索失敗:", e); return
+    print("[FOLDER] 「%s」で %d フォルダ" % (kw, len(fol)))
+    for f in fol:
+        par = (f.get("parents") or [""])[0]
+        print("DIR|%s|parent=%s|id=%s" % (f.get("name"), nm(par), f.get("id")))
+        try:
+            kids = drive.files().list(q="'%s' in parents and trashed=false" % f["id"],
+                fields="files(id,name,mimeType)", pageSize=300,
+                supportsAllDrives=True, includeItemsFromAllDrives=True).execute().get("files", [])
+            imgs = [k for k in kids if k["mimeType"].startswith("image/")]
+            for sd in [k for k in kids if k["mimeType"] == "application/vnd.google-apps.folder"]:
+                print("   SUB|%s|id=%s" % (sd["name"], sd["id"]))
+            print("   IMAGES|%d枚" % len(imgs))
+        except Exception as e:
+            print("   (子取得失敗)", e)
+    print("[FOLDER] 完了")
+
+def masterdump():
+    """店舗マスターの各行: store_id / 表示名 / ルートURL(J) / 食事URL(K) を出力（フォルダID取得用・読取専用）。"""
+    cr = _creds(); sh = _sheets(cr)
+    rows = sh.values().get(spreadsheetId=SHEET_ID, range=MASTER_TAB + "!A:S").execute().get("values", [])
+    for i in range(1, len(rows)):
+        r = rows[i]; g = lambda n: (r[n] if len(r) > n else "").strip()
+        if not g(0):
+            continue
+        print("M|%s|%s|root=%s|food=%s" % (g(0), g(2), g(9), g(10)))
+    print("[MASTER] %d rows" % (len(rows) - 1))
+
 def storesdump():
     """『提出チェック』タブA〜C列（店舗名/表示名/アイコン短縮名）を一覧出力。
     アプリの店舗アイコンホーム(stores.js)へ流し込むための読み取り専用ダンプ。"""
@@ -1472,6 +1520,18 @@ def tokencheck():
     if not sheet_ok and sheet_tok:
         print(">> sheet をrefresh試行"); nt = try_refresh("sheet", sheet_tok)
         if nt: check("sheet-refreshed", nt)
+    # 店舗別アカウント（IG_ACCESS_TOKEN_<ACCOUNT>）の生存確認
+    acct_keys = sorted(k for k in os.environ if k.startswith("IG_ACCESS_TOKEN_") and os.environ.get(k))
+    if acct_keys:
+        print("=== 店舗別アカウント ===")
+        for k in acct_keys:
+            acc = k[len("IG_ACCESS_TOKEN_"):]
+            ok = check(acc, os.environ.get(k, ""))
+            if not ok:
+                nt = try_refresh(acc, os.environ.get(k, ""))
+                if nt: check(acc + "-refreshed", nt)
+    else:
+        print("=== 店舗別アカウント: 未設定（IG_ACCESS_TOKEN_<ACCOUNT> 無し） ===")
     print("[TOK] 完了")
 
 
@@ -1654,6 +1714,10 @@ if __name__ == "__main__":
         names()
     elif mode == "storesdump":
         storesdump()
+    elif mode == "masterdump":
+        masterdump()
+    elif mode == "foldersearch":
+        foldersearch(arg)
     elif mode == "pending":
         pending()
     elif mode == "saemail":

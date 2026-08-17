@@ -1,0 +1,68 @@
+name: susabiyu-reservations
+# 確認画面(PWA)で予約した投稿を、その時刻になったら自動で本投稿する。
+# 専用タブ「予約投稿」だけを見るので、既存の自動スロット投稿(post.yml)には影響しない。
+# 実投稿は Variables の RESV_LIVE=1 のときだけ。未設定＝DRY-RUN（ログのみ・投稿しない）。
+on:
+  schedule:
+    - cron: "*/15 * * * *"   # 15分ごと。予約時刻から最大15分以内に投稿
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: "live=実投稿 / dry=ログのみ（既定dry）"
+        required: false
+        default: "dry"
+        type: choice
+        options: [dry, live]
+permissions:
+  contents: read
+concurrency:
+  group: susabiyu-reservations   # 多重起動での二重投稿を防ぐ
+  cancel-in-progress: false
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: susabiyu-remotion
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install deps
+        run: pip install google-api-python-client google-auth requests
+      - name: Install ffmpeg (リール切り出し用)
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg
+      - name: Write creds.json
+        run: echo "$GOOGLE_CREDS_B64" | base64 -d > creds.json
+        env:
+          GOOGLE_CREDS_B64: ${{ secrets.GOOGLE_CREDS_B64 }}
+      - name: Run reservation poster
+        env:
+          SHEET_ID: ${{ secrets.SHEET_ID }}
+          IG_ACCESS_TOKEN: ${{ secrets.IG_ACCESS_TOKEN }}
+          # 店舗別の投稿先アカウント用トークン（未登録でも既定=三条は動作。予約行のJ列account=gifuyatenjinで使用）
+          IG_ACCESS_TOKEN_GIFUYATENJIN: ${{ secrets.IG_ACCESS_TOKEN_GIFUYATENJIN }}
+          GH_MEDIA_TOKEN: ${{ secrets.GH_MEDIA_TOKEN }}
+          GH_MEDIA_REPO: ${{ secrets.GH_MEDIA_REPO }}
+          R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          R2_BUCKET: ${{ secrets.R2_BUCKET }}
+          R2_PUBLIC_BASE: ${{ secrets.R2_PUBLIC_BASE }}
+          LINE_CHANNEL_TOKEN: ${{ secrets.LINE_CHANNEL_TOKEN }}
+          # 既定で実投稿ON（全自動運用）。手動dispatchで mode=dry の時だけ投稿しない。
+          RESV_LIVE: ${{ github.event.inputs.mode == 'dry' && '0' || '1' }}
+        run: |
+          python post_reservations.py creds.json
+      - name: 失敗をLINE通知
+        if: failure()
+        env:
+          LINE_CHANNEL_TOKEN: ${{ secrets.LINE_CHANNEL_TOKEN }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          [ -z "$LINE_CHANNEL_TOKEN" ] && exit 0
+          curl -s -X POST https://api.line.me/v2/bot/message/broadcast \
+            -H "Authorization: Bearer $LINE_CHANNEL_TOKEN" -H "Content-Type: application/json" \
+            -d "{\"messages\":[{\"type\":\"text\",\"text\":\"⚠️ 予約投稿(susabiyu-reservations)が失敗しました。\n確認: $RUN_URL\"}]}" >/dev/null || true

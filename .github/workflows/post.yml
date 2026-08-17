@@ -59,3 +59,13 @@ jobs:
           GH_MEDIA_REPO: ${{ secrets.GH_MEDIA_REPO }}
           DRY: ${{ github.event.inputs.dry }}
         run: python post_approved.py creds.json "${{ github.event.inputs.datetime }}"
+      - name: 失敗をLINE通知
+        if: failure()
+        env:
+          LINE_CHANNEL_TOKEN: ${{ secrets.LINE_CHANNEL_TOKEN }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          [ -z "$LINE_CHANNEL_TOKEN" ] && exit 0
+          curl -s -X POST https://api.line.me/v2/bot/message/broadcast \
+            -H "Authorization: Bearer $LINE_CHANNEL_TOKEN" -H "Content-Type: application/json" \
+            -d "{\"messages\":[{\"type\":\"text\",\"text\":\"⚠️ 自動投稿(susabiyu-post)が失敗しました。\n確認: $RUN_URL\"}]}" >/dev/null || true

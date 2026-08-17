@@ -1,0 +1,183 @@
+# -*- coding: utf-8 -*-
+"""ぎふや福岡天神 ストーリー自動投稿（Googleスプレッドシート/GAS 不要の自己完結版）。
+
+採用中のぎふやストーリー動画（既にCDN公開済み）を、三条と同じ“ランダム”方式
+（決定的シャッフル＝被りなしで毎回入れ替え）で1日3回（11:00 / 17:00 / 20:00 JST）
+Instagramストーリーに自動投稿する。
+
+必要な外部要素は **IG_ACCESS_TOKEN_GIFUYATENJIN（Metaで発行するアクセストークン）だけ**。
+未設定なら何もしない（安全）。トークンを登録した瞬間から 11/17/20 の投稿が始まる。
+"""
+import os
+import sys
+import json
+import datetime
+import urllib.request
+import urllib.parse
+import poster
+
+JST = datetime.timezone(datetime.timedelta(hours=9))
+
+# 確認アプリ（トップ画面）の「やめる/差し替え/OK」を反映するための共有GAS。
+# 未設定でも既定ローテーションで安全に投稿する（取得失敗は無視）。
+GAS_EXEC_URL = (os.environ.get("GAS_EXEC_URL") or os.environ.get("GIFUYA_GAS_URL") or
+                "https://script.google.com/macros/s/AKfycbxKn_MUfPgJ0nA8LJPp6YGb2Jehp9G8CpckV5bOAhe3M53eBC3Kle3O3Bf7mFzUJ2TMQw/exec").rstrip("/")
+GAS_APP_KEY = os.environ.get("GAS_APP_KEY", "8888")
+
+# CDN上のぎふやメディア置き場（deploy_pwa で susabiyu-media/app/gifuya へ配信済み）。
+# jsDelivr はIGサーバが確実に取得できる公開CDN。
+MEDIA_BASE = (os.environ.get("GIFUYA_MEDIA_BASE") or
+              "https://cdn.jsdelivr.net/gh/amami-cell/susabiyu-media@main/app/gifuya").rstrip("/")
+
+# ローテーション対象＝採用中のぎふやストーリー動画（見本ギャラリーで残した10本）。
+STORIES = [
+    "dv_01.mp4", "dv_03.mp4", "dv_04.mp4", "dv_05.mp4", "dv_07.mp4",
+    "dv_08.mp4", "dv_09.mp4", "dv_12.mp4", "dv_14.mp4", "dv_15.mp4",
+]
+SLOT_HOURS = [11, 17, 20]           # 1日3回の枠（JST）
+EPOCH = datetime.date(2026, 1, 1)   # ローテーション基準日
+ACCOUNT = "gifuyatenjin"            # AcctTokens / IG_ACCESS_TOKEN_<ACCOUNT> と一致
+
+
+def _token():
+    """三条と同じ自動延命：スプレッドシートの AcctTokens に保存された“延命済み”トークンを使う。
+       Secret（IG_ACCESS_TOKEN_GIFUYATENJIN）は種。7日ごとに fresh_token_for が自動更新して保存するので
+       60日で切れず投稿し続けられる（token_guard も毎日延命）。
+       シート未接続（SHEET_ID/creds なし）の時だけ Secret を直接使う。"""
+    poster.SHEET_ID = os.environ.get("SHEET_ID", poster.SHEET_ID)
+    has_sheet = bool(getattr(poster, "SHEET_ID", "") and
+                     (os.path.exists("creds.json") or os.environ.get("GOOGLE_CREDS_B64")))
+    if has_sheet:
+        try:
+            t = (poster.fresh_token_for(ACCOUNT) or "").strip()
+            if t:
+                return t
+            print("[TOKEN] AcctTokens/Secret のトークンが無効（token_guard が別途通知）。")
+            return ""
+        except Exception as e:
+            print("[TOKEN] fresh_token_for 失敗 -> Secret にフォールバック:", e)
+    return (os.environ.get("IG_ACCESS_TOKEN_GIFUYATENJIN") or "").strip()
+
+
+def _slot_index(now):
+    """その時刻がどの枠か（最も近いSLOT_HOURSの番号）。"""
+    return min(range(len(SLOT_HOURS)), key=lambda i: abs(SLOT_HOURS[i] - now.hour))
+
+
+def _seeded_order(n, seed):
+    """seed から決まる順列（Fisher-Yates + LCG）。アプリJSと同一式なので両者の結果が必ず一致する。"""
+    a = list(range(n))
+    s = (seed & 0xFFFFFFFF) or 1
+    for i in range(n - 1, 0, -1):
+        s = (s * 1664525 + 1013904223) & 0xFFFFFFFF
+        j = s % (i + 1)
+        a[i], a[j] = a[j], a[i]
+    return a
+
+
+def _pick_story(now):
+    """三条と同じ“ランダム”方式：10本を1サイクルで1回ずつ・順番はサイクルごとにシャッフル。
+       日付から決まる決定的シャッフルなので、確認アプリのプレビューと実投稿は必ず一致する。"""
+    days = (now.date() - EPOCH).days
+    si = _slot_index(now)
+    n = len(STORIES)
+    g = days * len(SLOT_HOURS) + si         # 全枠の通し番号
+    cycle, pos = divmod(g, n)               # n枠ごとに全本を消化。サイクル番号で並びが変わる
+    order = _seeded_order(n, cycle + 1)
+    if cycle > 0 and order[0] == _seeded_order(n, cycle)[n - 1]:
+        order[0], order[1] = order[1], order[0]   # サイクル境目で同じ動画が連続しないように
+    return STORIES[order[pos]], si
+
+
+def _slot_key(now, si):
+    """確認アプリと同じ枠キー（例 2026-08-04-17）。"""
+    return "%s-%d" % (now.date().isoformat(), SLOT_HOURS[si])
+
+
+def _fetch_plan():
+    """共有GASから account=gifuyatenjin の回ごとの指示を取得。失敗時は空dict（＝既定ローテーション）。"""
+    if not GAS_EXEC_URL or "PASTE_" in GAS_EXEC_URL:
+        return {}
+    try:
+        q = urllib.parse.urlencode({"api": "storyplan", "account": ACCOUNT, "key": GAS_APP_KEY})
+        req = urllib.request.Request(GAS_EXEC_URL + "?" + q, headers={"User-Agent": "gifuya-story/1.0"})
+        with urllib.request.urlopen(req, timeout=15) as r:
+            data = json.loads(r.read().decode("utf-8"))
+        return data.get("plan", {}) if isinstance(data, dict) else {}
+    except Exception as e:
+        print("[PLAN] 取得できませんでした（既定ローテーションで続行）:", e)
+        return {}
+
+
+def _line(msg):
+    try:
+        poster.line_notify(msg)
+    except Exception:
+        pass
+
+
+def main():
+    dry = os.environ.get("DRY") == "1"
+    tk = _token()
+    if not tk:
+        print("スキップ：IG_ACCESS_TOKEN_GIFUYATENJIN 未設定。"
+              "トークンを登録すると 11:00/17:00/20:00 の自動投稿が始まります（安全のため今は何もしません）。")
+        return
+
+    arg = " ".join(a for a in sys.argv[1:] if a.strip())
+    if arg:
+        now = datetime.datetime.fromisoformat(arg)
+        if now.tzinfo is None:
+            now = now.replace(tzinfo=JST)
+    else:
+        now = datetime.datetime.now(JST)
+
+    story, si = _pick_story(now)
+
+    # 確認アプリの指示（やめる/差し替え）を反映。オプトアウト方式＝指示が無ければ既定どおり投稿。
+    key = _slot_key(now, si)
+    entry = _fetch_plan().get(key)
+    if entry:
+        action = str(entry.get("action", "")).strip()
+        if action == "skip":
+            print("この枠は確認画面で「やめる」が選択されています（%s）。スキップします。" % key)
+            _line("[ぎふや自動投稿] %d:00の回は「やめる」指定のため投稿をスキップしました。" % SLOT_HOURS[si])
+            return
+        if action == "set":
+            f = str(entry.get("file", "")).strip()
+            if f in STORIES:
+                print("確認画面の指定により差し替え: %s -> %s" % (story, f))
+                story = f
+
+    url = MEDIA_BASE + "/" + story
+    print("ぎふやストーリー投稿: 枠%d（%d:00 JST） -> %s" % (si + 1, SLOT_HOURS[si], url))
+
+    if dry:
+        print("[DRY] 生成URL確認のみ。実投稿はしません。")
+        return
+
+    # 最大2回試行（一時的なネット/IG障害で落ちないように）
+    last = ""
+    for attempt in (1, 2):
+        pid = poster.ig_post(tk, url, True)
+        if pid:
+            print("投稿完了:", pid)
+            _line("[ぎふや自動投稿] ストーリーを投稿しました（%d:00 / %s）" % (SLOT_HOURS[si], story))
+            try:  # アプリ購読者へWeb Push（三条と同じ仕組み・購読_gifuyatenjin を読む）。失敗しても投稿は成立。
+                import prepare
+                prepare.SHEET_ID = poster.SHEET_ID
+                pwa = os.environ.get("PWA_URL") or "https://amami-cell.github.io/susabiyu-media/app/gifuyatenjin.html"
+                prepare.send_push(poster._sheets(), "Instagram投稿完了",
+                                  "%d:00 ストーリーを投稿しました" % SLOT_HOURS[si], pwa,
+                                  category="ig", account=ACCOUNT)
+            except Exception as e:
+                print("[PUSH] 送信スキップ(継続):", e)
+            return
+        last = story
+        print("[POST] 試行%d 失敗" % attempt)
+    _line("⚠️【ぎふや】ストーリー自動投稿に失敗しました（%s）。次の枠で再試行されます。" % last)
+    raise SystemExit("ぎふやストーリー投稿に失敗: " + last)
+
+
+if __name__ == "__main__":
+    main()

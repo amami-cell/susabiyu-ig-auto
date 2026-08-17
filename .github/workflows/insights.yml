@@ -8,7 +8,7 @@ on:
         default: "check"
   schedule:
     - cron: '30 14 * * *'   # 毎日 23:30 JST に日次収集＋heal
-    - cron: '15 * * * *'    # 毎時 heal（一時保存を消える前に永続へ昇格）
+    - cron: '15 * * * *'    # 毎時 heal（一時保存を永続へ昇格）
     - cron: '0 0 * * 1'     # 毎週月曜 09:00 JST に先週のまとめを通知
 jobs:
   insights:

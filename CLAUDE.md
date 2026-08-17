@@ -12,6 +12,11 @@
 - つまり**編集して push するだけで本番反映**される。手貼り不要。
 - 反映確認: GitHub → Actions → `deploy-gas` が緑になればOK（数十秒）。詳細は `entrypocket-recruit/gas/DEPLOY.md`。
 
+> ⚠️ 注意（バージョンの食い違い）：`main` の `entrypocket-recruit/gas/` には旧い単一ファイル版
+> `Code.gs` が残っていることがあります。**ライブで動作しているのは上記の分割ファイル版**
+> （`ep_fetch.gs` ほか、Script ID `1OuDuD9…`）です。触るときは**分割ファイル版を正**とし、
+> `Code.gs` は統合対象として扱うこと（分割版を push で上書き反映するのが安全）。
+
 ### 対象プロジェクトの固定値（他プロジェクトへ誤爆させない）
 - 募集システム Script ID: `1OuDuD9HShlXgSR4oyNrnKXOcsy0qOHvkfupAil9mB52PfUOLdhevBWVZ`
 - 募集システム /exec Deployment ID: `AKfycbz6i36c7UjbM3S44kl1kEcsI0CSjYo9jL-W-T4BJUAr9jmBlVXj-vnQTUwQbGoxcHYT`

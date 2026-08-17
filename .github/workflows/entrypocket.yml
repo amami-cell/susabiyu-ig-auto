@@ -26,6 +26,29 @@ jobs:
           python-version: "3.11"
           cache: pip
 
+      - name: 診断（IPブロックかパス別かを切り分け）
+        if: always()
+        continue-on-error: true
+        run: |
+          echo "===== このランナーのIP / 国 ====="
+          curl -sS --max-time 20 https://ipinfo.io/json || true
+          echo
+          UA="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36"
+          echo "===== 複数URLのHTTPステータス（ブラウザUA） ====="
+          for u in \
+            "https://manage.entrypocket.jp/" \
+            "https://manage.entrypocket.jp/login" \
+            "https://manage.entrypocket.jp/web/-/login" \
+            "https://manage.entrypocket.jp/c/portal/login" ; do
+            code=$(curl -sS -o /dev/null -w "%{http_code}" -L --max-time 30 \
+              -A "$UA" -H "Accept-Language: ja-JP,ja;q=0.9" "$u" 2>/dev/null || echo "ERR")
+            echo "  [$code] $u"
+          done
+          echo "===== /login の本文先頭400字 ====="
+          curl -sS -L --max-time 30 -A "$UA" -H "Accept-Language: ja-JP,ja;q=0.9" \
+            "https://manage.entrypocket.jp/login" 2>/dev/null | head -c 400 || true
+          echo
+
       - name: 依存インストール
         run: |
           python -m pip install --upgrade pip

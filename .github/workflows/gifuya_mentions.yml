@@ -1,0 +1,62 @@
+name: mentions-repost
+# 多店舗：確認アプリで承認したストーリーメンションを「リポスト＋シェアコメント」で投稿し、
+# お礼DMを送る。GASの受信キュー（シート「メンション」/「メンション_<account>」）を数分おきに処理する。
+# 対象＝ぎふや(gifuyatenjin)＋すさび湯三条(account="")。STORE_ACCOUNT を渡すとその店舗だけ。
+#   status=approved → 店ストーリーに追加（画像はシェアコメントを焼いてR2/CDN→IG投稿）
+#   status=reply    → お礼DMのみ
+# トークン未設定なら何もしない（安全）。DRY=1 で投稿せず動作確認。
+on:
+  schedule:
+    - cron: '*/15 * * * *'   # 15分おきにキューを処理（承認済みだけ投稿・無ければ即終了）
+  workflow_dispatch:
+    inputs:
+      dry:
+        description: "DRY=1 で投稿せず確認だけ"
+        required: false
+        default: ""
+      store:
+        description: "対象店舗を限定（gifuyatenjin など。空=全店）"
+        required: false
+        default: ""
+permissions:
+  contents: read
+concurrency:
+  group: gifuya-mentions
+  cancel-in-progress: false
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: susabiyu-remotion
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install deps
+        run: pip install google-api-python-client google-auth requests Pillow boto3
+      - name: Install 日本語フォント
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq fonts-noto-cjk
+      - name: Process mention queue
+        env:
+          DRY: ${{ github.event.inputs.dry }}
+          IG_AUTO_HOLD_MIN: "300"   # 保留付き自動の確認時間＝5時間（この間はアプリで取消/編集/即投稿できる）
+          STORE_ACCOUNT: ${{ github.event.inputs.store }}
+          GOOGLE_CREDS_B64: ${{ secrets.GOOGLE_CREDS_B64 }}
+          IG_ACCESS_TOKEN: ${{ secrets.IG_ACCESS_TOKEN }}                       # 三条（account=""）
+          IG_ACCESS_TOKEN_GIFUYATENJIN: ${{ secrets.IG_ACCESS_TOKEN_GIFUYATENJIN }}
+          SHEET_ID: ${{ secrets.SHEET_ID }}
+          LINE_CHANNEL_TOKEN: ${{ secrets.LINE_CHANNEL_TOKEN }}
+          R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          R2_BUCKET: ${{ secrets.R2_BUCKET }}
+          R2_PUBLIC_BASE: ${{ secrets.R2_PUBLIC_BASE }}
+          GH_MEDIA_TOKEN: ${{ secrets.GH_MEDIA_TOKEN }}
+          GH_MEDIA_REPO: ${{ secrets.GH_MEDIA_REPO }}
+        run: |
+          echo "$GOOGLE_CREDS_B64" | base64 -d > creds.json || true
+          python mention_repost.py
+          rm -f creds.json

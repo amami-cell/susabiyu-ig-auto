@@ -32,6 +32,17 @@ def main():
         print("[GUARD] トークン異常:", me.get("error"))
         poster.alert_token_dead(str(me.get("error"))[:150])
 
+    # 店舗別アカウント（IG_ACCESS_TOKEN_<ACCOUNT>）も毎日点検＆延命
+    accts = sorted(k[len("IG_ACCESS_TOKEN_"):].lower()
+                   for k in os.environ if k.startswith("IG_ACCESS_TOKEN_") and os.environ.get(k))
+    for acc in accts:
+        try:
+            aok = poster.guard_account(acc)
+            if not aok:
+                poster.line_notify("⚠️【要対応】%s のInstagram投稿トークンが無効になりました。再発行が必要です。" % acc)
+        except Exception as e:
+            print("[GUARD] アカウント '%s' 点検で例外: %s" % (acc, e))
+
 
 if __name__ == "__main__":
     main()

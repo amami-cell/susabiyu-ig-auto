@@ -66,3 +66,13 @@ jobs:
           PWA_URL: ${{ secrets.PWA_URL }}
           QUIET_NOTIFY: ${{ github.event.inputs.quiet }}
         run: python prepare.py creds.json "${{ github.event.inputs.date }}"
+      - name: 失敗をLINE通知
+        if: failure()
+        env:
+          LINE_CHANNEL_TOKEN: ${{ secrets.LINE_CHANNEL_TOKEN }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          [ -z "$LINE_CHANNEL_TOKEN" ] && exit 0
+          curl -s -X POST https://api.line.me/v2/bot/message/broadcast \
+            -H "Authorization: Bearer $LINE_CHANNEL_TOKEN" -H "Content-Type: application/json" \
+            -d "{\"messages\":[{\"type\":\"text\",\"text\":\"⚠️ 動画準備(susabiyu-prepare)が失敗しました。\n確認: $RUN_URL\"}]}" >/dev/null || true

@@ -1,0 +1,61 @@
+name: gifuya-sync
+# ぎふや福岡天神の料理写真を毎日Googleドライブから全同期。
+#   ・「画像」フォルダ配下の料理写真を4:5に整えて pwa/gifuya/f_*.jpg を更新
+#   ・「おすすめ」を含むフォルダ/ファイル名は reco=true（アプリ先頭に表示）
+#   ・変更があればキャッシュ版数を上げてコミット → deploy_pwa を発火
+on:
+  schedule:
+    - cron: '30 19 * * *'   # 毎日 04:30 JST
+  workflow_dispatch:
+    inputs:
+      folder_id:
+        description: "画像フォルダID（空=既定のぎふや画像フォルダ）"
+        required: false
+        default: ""
+permissions:
+  contents: write
+  actions: write
+concurrency:
+  group: gifuya-sync
+  cancel-in-progress: false
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install deps
+        run: pip install google-api-python-client google-auth Pillow
+      - name: Install 日本語フォント（加工の見出し=明朝/ゴシック）
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq fonts-noto-cjk fonts-ipafont-mincho fonts-ipafont-gothic
+      - name: Sync food photos from Drive
+        working-directory: susabiyu-remotion
+        env:
+          GOOGLE_CREDS_B64: ${{ secrets.GOOGLE_CREDS_B64 }}
+        run: |
+          echo "$GOOGLE_CREDS_B64" | base64 -d > creds.json
+          python gifuya_photos.py sync "${{ github.event.inputs.folder_id }}"
+          rm -f creds.json
+      - name: Commit changes + deploy
+        run: |
+          set -e
+          if [ -z "$(git status --porcelain -- pwa/gifuya)" ]; then
+            echo "変更なし（Drive未更新）。コミットしません。"; exit 0
+          fi
+          cur=$(grep -oE 'susabiyu-v[0-9]+' pwa/sw.js | grep -oE '[0-9]+' | head -1)
+          nxt=$((cur + 1))
+          sed -i "s/susabiyu-v$cur/susabiyu-v$nxt/" pwa/sw.js
+          sed -i "s/?v=$cur/?v=$nxt/" pwa/gifuyatenjin.html pwa/gifuya_reels.html
+          echo "cache v$cur -> v$nxt"
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add pwa/gifuya pwa/sw.js pwa/gifuyatenjin.html pwa/gifuya_reels.html
+          git commit -m "ぎふや: 料理写真をDriveから毎日同期＋キャッシュv$nxt"
+          git push origin HEAD:main
+          curl -sS -X POST -H "Authorization: Bearer ${{ github.token }}" \
+            -H "Accept: application/vnd.github+json" \
+            "${{ github.api_url }}/repos/${{ github.repository }}/actions/workflows/deploy_pwa.yml/dispatches" \
+            -d '{"ref":"main"}' && echo "deploy_pwa をトリガーしました。"

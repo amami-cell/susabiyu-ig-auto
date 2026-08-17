@@ -13,6 +13,7 @@ jobs:
         env:
           GAS_EXEC_URL: ${{ secrets.GAS_EXEC_URL }}
           R2_PUBLIC_BASE: ${{ secrets.R2_PUBLIC_BASE }}
+          GIFUYA_GAS_EXEC_URL: ${{ secrets.GIFUYA_GAS_EXEC_URL }}
         run: |
           if [ -n "$GAS_EXEC_URL" ]; then
             sed -i "s#PASTE_YOUR_GAS_EXEC_URL_HERE#${GAS_EXEC_URL}#" pwa/config.js
@@ -23,6 +24,16 @@ jobs:
           if [ -n "$R2_PUBLIC_BASE" ]; then
             sed -i "s#PASTE_MEDIA_BASE_HERE#${R2_PUBLIC_BASE%/}#" pwa/config.js
             echo "MEDIA_BASE injected."
+          fi
+          # ぎふや福岡天神：専用GASのURLが設定されていれば注入（未設定なら見本モードのまま）
+          if [ -n "$GIFUYA_GAS_EXEC_URL" ]; then
+            sed -i "s#PASTE_GIFUYA_GAS_EXEC_URL_HERE#${GIFUYA_GAS_EXEC_URL}#" pwa/config.gifuya.js
+            echo "GIFUYA GAS URL injected (live)."
+          else
+            echo "INFO: GIFUYA_GAS_EXEC_URL not set; gifuya stays in 見本(demo) mode."
+          fi
+          if [ -n "$R2_PUBLIC_BASE" ]; then
+            sed -i "s#PASTE_MEDIA_BASE_HERE#${R2_PUBLIC_BASE%/}#" pwa/config.gifuya.js
           fi
       - name: 公開フロントを難読化（コメント除去＋本格minify＝作り方を読み取られにくく）
         run: |

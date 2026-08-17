@@ -1,0 +1,150 @@
+name: gifuya-photos
+# ぎふや福岡天神の料理写真をGoogleドライブから拾い直す（手動実行）。
+#   mode=discover   … 「ぎふや/天神」フォルダとファイル名を一覧（folderID把握・読取専用）
+#   mode=listfolder … folder_id 配下の画像を新しい順に一覧（読取専用）
+#   mode=fetch      … folder_id から料理名にマッチする最新写真をDL→4:5トリミング→
+#                     pwa/gifuya/feed_XX.jpg を更新し、キャッシュ版数を上げてコミット
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: "discover / listfolder / fetch / plan / sync"
+        required: true
+        default: "discover"
+        type: choice
+        options: [discover, listfolder, fetch, plan, sync, music, readsheet, cinemaprev, tanzakuprev]
+      keyword:
+        description: "discover用キーワード（既定: ぎふや）"
+        required: false
+        default: "ぎふや"
+      folder_id:
+        description: "listfolder/fetch用 DriveフォルダID"
+        required: false
+        default: ""
+      map:
+        description: 'fetch用 マップJSON 例 {"feed_05":["刺身","盛り"],"feed_03":["どて焼き","どて"]}'
+        required: false
+        default: ""
+permissions:
+  contents: write
+  actions: write
+concurrency:
+  group: gifuya-photos
+  cancel-in-progress: false
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install deps
+        run: pip install google-api-python-client google-auth Pillow numpy
+      - name: Install 日本語フォント（加工の見出し=明朝/ゴシック）
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq fonts-noto-cjk fonts-ipafont-mincho fonts-ipafont-gothic
+      - name: Write creds.json
+        working-directory: susabiyu-remotion
+        run: echo "$GOOGLE_CREDS_B64" | base64 -d > creds.json
+        env:
+          GOOGLE_CREDS_B64: ${{ secrets.GOOGLE_CREDS_B64 }}
+
+      - name: Discover
+        if: github.event.inputs.mode == 'discover'
+        working-directory: susabiyu-remotion
+        run: python gifuya_photos.py discover "${{ github.event.inputs.keyword }}"
+
+      - name: List folder
+        if: github.event.inputs.mode == 'listfolder'
+        working-directory: susabiyu-remotion
+        run: python gifuya_photos.py listfolder "${{ github.event.inputs.folder_id }}"
+
+      - name: Fetch & crop
+        if: github.event.inputs.mode == 'fetch'
+        working-directory: susabiyu-remotion
+        run: python gifuya_photos.py fetch "${{ github.event.inputs.folder_id }}" '${{ github.event.inputs.map }}'
+
+      - name: Plan (dry)
+        if: github.event.inputs.mode == 'plan'
+        working-directory: susabiyu-remotion
+        run: python gifuya_photos.py plan "${{ github.event.inputs.folder_id }}"
+
+      - name: Read sheet (folder_id=スプレッドシートID)
+        if: github.event.inputs.mode == 'readsheet'
+        working-directory: susabiyu-remotion
+        run: python gifuya_photos.py readsheet "${{ github.event.inputs.folder_id }}"
+
+      - name: Music (音楽フォルダの曲数を確認・取得)
+        if: github.event.inputs.mode == 'music'
+        working-directory: susabiyu-remotion
+        env:
+          GIFUYA_MUSIC_FOLDER_ID: ${{ vars.GIFUYA_MUSIC_FOLDER_ID }}
+        run: python gifuya_photos.py music "${{ github.event.inputs.folder_id }}"
+
+      - name: Sync all food photos
+        if: github.event.inputs.mode == 'sync'
+        working-directory: susabiyu-remotion
+        run: python gifuya_photos.py sync "${{ github.event.inputs.folder_id }}"
+
+      - name: Cinema preview (元写真=横長からシネマ加工)
+        if: github.event.inputs.mode == 'cinemaprev'
+        working-directory: susabiyu-remotion
+        run: python gifuya_photos.py cinemaprev "${{ github.event.inputs.keyword }}"
+
+      - name: Commit cinema preview (キャッシュ版数は上げない=作業ファイル)
+        if: github.event.inputs.mode == 'cinemaprev'
+        run: |
+          set -e
+          rm -f susabiyu-remotion/creds.json
+          if [ -z "$(git status --porcelain -- pwa/gifuya)" ]; then
+            echo "変更なし（コミットなし）。"; exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add pwa/gifuya/orig_preview.jpg pwa/gifuya/prev_cinema.jpg
+          git commit -m "ぎふや: シネマ様式プレビュー生成（元横長写真から）"
+          git push origin HEAD:main
+
+      - name: Tanzaku preview (最大画質=原本から直接)
+        if: github.event.inputs.mode == 'tanzakuprev'
+        working-directory: susabiyu-remotion
+        run: python gifuya_photos.py tanzakuprev "${{ github.event.inputs.keyword }}"
+
+      - name: Commit tanzaku preview (キャッシュ版数は上げない=作業ファイル)
+        if: github.event.inputs.mode == 'tanzakuprev'
+        run: |
+          set -e
+          rm -f susabiyu-remotion/creds.json
+          if [ -z "$(git status --porcelain -- pwa/gifuya)" ]; then
+            echo "変更なし（コミットなし）。"; exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add pwa/gifuya/prev_tanzaku.jpg
+          git commit -m "ぎふや: 短冊様式プレビュー生成（最大画質・原本から直接）"
+          git push origin HEAD:main
+
+      - name: Bump cache version + commit
+        if: github.event.inputs.mode == 'fetch' || github.event.inputs.mode == 'sync'
+        run: |
+          set -e
+          rm -f susabiyu-remotion/creds.json
+          if [ -z "$(git status --porcelain -- pwa/gifuya)" ]; then
+            echo "画像に変更がありません（コミットなし）。"; exit 0
+          fi
+          cur=$(grep -oE 'susabiyu-v[0-9]+' pwa/sw.js | grep -oE '[0-9]+' | head -1)
+          nxt=$((cur + 1))
+          sed -i "s/susabiyu-v$cur/susabiyu-v$nxt/" pwa/sw.js
+          sed -i "s/?v=$cur/?v=$nxt/" pwa/gifuyatenjin.html pwa/gifuya_reels.html
+          echo "cache v$cur -> v$nxt"
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add pwa/gifuya pwa/sw.js pwa/gifuyatenjin.html pwa/gifuya_reels.html
+          git commit -m "ぎふや: 料理写真をドライブから拾い直し＋キャッシュv$nxt"
+          git push origin HEAD:main
+          # GITHUB_TOKEN のpushは他ワークフローを起動しないため、deploy_pwa を明示的に発火する
+          curl -sS -X POST -H "Authorization: Bearer ${{ github.token }}" \
+            -H "Accept: application/vnd.github+json" \
+            "${{ github.api_url }}/repos/${{ github.repository }}/actions/workflows/deploy_pwa.yml/dispatches" \
+            -d '{"ref":"main"}' && echo "deploy_pwa をトリガーしました。"

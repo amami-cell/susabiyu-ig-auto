@@ -14,8 +14,14 @@ except Exception:
     JST = datetime.timezone(datetime.timedelta(hours=9))
 
 IGB = getattr(poster, "IGB", "https://graph.instagram.com/v23.0")
-DAILY_TAB = "インサイト日次"   # 1日1行：日付ごとのアカウント指標
-POST_TAB = "インサイト投稿"    # 1投稿1行：投稿ごとの指標（収集時点のスナップショット）
+# 店舗アカウント。空=三条（挙動不変）。"gifuyatenjin"等を渡すと per-account トークン＋
+# アカウント別タブ（例: インサイト日次_gifuyatenjin）に収集する（三条データと混ざらない）。
+STORE_ACCOUNT = os.environ.get("STORE_ACCOUNT", "").strip()
+_SUF = ("_" + STORE_ACCOUNT) if STORE_ACCOUNT else ""
+# 週次まとめのLINE/Push見出しに付ける店名（空=三条）。通知先を取り違えないため。
+STORE_LABEL = {"gifuyatenjin": "ぎふや福岡天神"}.get(STORE_ACCOUNT, "")
+DAILY_TAB = "インサイト日次" + _SUF   # 1日1行：日付ごとのアカウント指標
+POST_TAB = "インサイト投稿" + _SUF    # 1投稿1行：投稿ごとの指標（収集時点のスナップショット）
 DAILY_HEADER = ["日付", "フォロワー数", "リーチ", "閲覧数", "プロフィール表示",
                 "リンクタップ", "エンゲージ数", "取得時刻", "raw"]
 POST_HEADER = ["取得日", "media_id", "種別", "投稿日時", "キャプション",
@@ -25,10 +31,15 @@ POST_HEADER = ["取得日", "media_id", "種別", "投稿日時", "キャプシ�
 def _token():
     t = ""
     try:
-        t = poster.fresh_token() or ""
+        # 店舗指定時は AcctTokens の延命済みトークン（token_guard が更新）を使う。
+        t = (poster.fresh_token_for(STORE_ACCOUNT) if STORE_ACCOUNT else poster.fresh_token()) or ""
     except Exception as e:
         print("[TOKEN] fresh_token失敗:", e)
-    return t or getattr(poster, "TOKEN", "") or os.environ.get("IG_ACCESS_TOKEN", "")
+    if t:
+        return t
+    if STORE_ACCOUNT:
+        return os.environ.get("IG_ACCESS_TOKEN_" + STORE_ACCOUNT.upper(), "")
+    return getattr(poster, "TOKEN", "") or os.environ.get("IG_ACCESS_TOKEN", "")
 
 
 def _uid(token):
@@ -523,7 +534,7 @@ def weekly():
         if best is None or rc > best[0]:
             best = (rc, str(r[2]), d)
 
-    L = ["【先週のInstagramまとめ】"]
+    L = ["【" + (STORE_LABEL + " " if STORE_LABEL else "") + "先週のInstagramまとめ】"]
     L.append("リーチ %d%s ／ 閲覧 %d" % (reach, ("（前週比 %+g%%）" % pct) if pct is not None else "", views))
     if folNow is not None:
         L.append("フォロワー 計%d" % folNow)
@@ -540,7 +551,8 @@ def weekly():
     try:
         import prepare
         prepare.SHEET_ID = poster.SHEET_ID
-        prepare.send_push(sh, "先週のInstagramまとめ", L[1], pwa, "", category="weekly")
+        prepare.send_push(sh, (STORE_LABEL + " " if STORE_LABEL else "") + "先週のInstagramまとめ",
+                          L[1], pwa, "", category="weekly", account=STORE_ACCOUNT)
     except Exception as e:
         print("[WEEKLY] Push失敗:", e)
     print("[WEEKLY] 送信内容:", text.replace("\n", " / "))
@@ -552,7 +564,7 @@ def diag():
     sh = poster._sheets()
     if sh is None:
         raise SystemExit("シート接続失敗")
-    tab = "承認待ち"
+    tab = "承認待ち" + _SUF   # 店舗別（三条=無印）。他店のキューを二重処理しないため。
     data = sh.values().get(spreadsheetId=poster.SHEET_ID, range=tab + "!A:M").execute().get("values", [])
     print("[DIAG] 行数:", len(data))
     for i, r in enumerate(data):
@@ -584,7 +596,7 @@ def setredo(whens):
     sh = poster._sheets()
     if sh is None:
         raise SystemExit("シート接続失敗")
-    tab = "承認待ち"
+    tab = "承認待ち" + _SUF   # 店舗別（三条=無印）。他店のキューを二重処理しないため。
     data = sh.values().get(spreadsheetId=poster.SHEET_ID, range=tab + "!A:M").execute().get("values", [])
     now = datetime.datetime.now(JST).strftime("%Y-%m-%d %H:%M")
     for w in whens:
@@ -611,7 +623,7 @@ def heal():
     sh = poster._sheets()
     if sh is None:
         raise SystemExit("シート接続失敗")
-    tab = "承認待ち"
+    tab = "承認待ち" + _SUF   # 店舗別（三条=無印）。他店のキューを二重処理しないため。
     data = sh.values().get(spreadsheetId=poster.SHEET_ID, range=tab + "!A:M").execute().get("values", [])
     TEMP = ("litter.catbox.moe", "tmpfiles.org", "0x0.st", "//catbox.moe", "files.catbox.moe")
     r2base = (os.environ.get("R2_PUBLIC_BASE") or "").rstrip("/")
@@ -655,6 +667,12 @@ def heal():
 
 
 def main():
+    # 店舗指定時は書き込み先シートを切替可能（未指定なら既定＝三条シート＝GASと同じ）。
+    _ssid = os.environ.get("STORE_SHEET_ID", "").strip()
+    if _ssid:
+        poster.SHEET_ID = _ssid
+    if STORE_ACCOUNT:
+        print("[INSIGHTS] account=%s / tabs=%s,%s" % (STORE_ACCOUNT, DAILY_TAB, POST_TAB))
     raw = " ".join(sys.argv[1:]).strip() if len(sys.argv) > 1 else "check"
     parts = [p.strip() for p in raw.split("|")]
     mode = parts[0] or "check"

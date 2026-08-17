@@ -1,6 +1,6 @@
 import os, io, glob, json, sys, random
 
-FOOD_FOLDER = "14oKNgdXee2NrI7Dkmbrlbid4f0_VZ5Cv"
+FOOD_FOLDER = os.environ.get("GENRE_FOOD_ID") or "14oKNgdXee2NrI7Dkmbrlbid4f0_VZ5Cv"
 # 複数枚動画には「ドリンク」を少数派で混ぜる（全体枚数より比率少なめ）。
 SAKE_FOLDER = os.environ.get("GENRE_SAKE_ID") or "1vIAC9frejCyGhQAizT1Wsgmlaj8ULhTb"
 N_PHOTOS = 6

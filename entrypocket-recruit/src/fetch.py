@@ -5,6 +5,7 @@
 """
 from __future__ import annotations
 
+import os
 from pathlib import Path
 
 from .config import Settings
@@ -34,7 +35,11 @@ CSV_BTN_CANDIDATES = [
 def _first_visible(page, configured: str, candidates: list[str]):
     """設定値が空でなければそれを優先、無ければ候補から最初に見えるものを返す。"""
     if configured:
-        return page.locator(configured).first
+        loc = page.locator(configured).first
+        try:
+            return loc if loc.count() > 0 else None
+        except Exception:
+            return None
     for sel in candidates:
         loc = page.locator(sel).first
         try:
@@ -43,6 +48,35 @@ def _first_visible(page, configured: str, candidates: list[str]):
         except Exception:
             continue
     return None
+
+
+def _auto_username_field(page):
+    """候補で当たらない時の保険：パスワード欄の直前にある見えるテキスト入力欄を返す。
+
+    ログイン画面はほぼ必ず「ID欄→パスワード欄」の順に並ぶので、パスワード欄を
+    基準に、その手前で一番近い入力欄をID欄とみなす。これで多くのサイトに当たる。
+    """
+    try:
+        handle = page.evaluate_handle(
+            """() => {
+                const isVis = el => !!(el.offsetParent || el.getClientRects().length);
+                const skip = ['password','hidden','checkbox','radio','submit','button','file','image','reset'];
+                const inputs = [...document.querySelectorAll('input, textarea')].filter(el => {
+                    const t = (el.getAttribute('type') || 'text').toLowerCase();
+                    return isVis(el) && !skip.includes(t);
+                });
+                const pw = document.querySelector('input[type="password"]');
+                if (pw) {
+                    const before = inputs.filter(el =>
+                        el.compareDocumentPosition(pw) & Node.DOCUMENT_POSITION_FOLLOWING);
+                    if (before.length) return before[before.length - 1];
+                }
+                return inputs[0] || null;
+            }"""
+        )
+        return handle.as_element()
+    except Exception:
+        return None
 
 
 def _shot(page, artifacts_dir: Path, name: str) -> None:
@@ -69,6 +103,110 @@ def _run_pre_export_actions(page, actions: list[dict]) -> None:
             page.wait_for_timeout(int(val or 1000))
 
 
+def _dump_login_diagnostics(page) -> None:
+    """ログインフォームが見つからない時、実行ログに手掛かりを出す。
+
+    アーティファクト画像を開けなくても、ログだけで原因（ボット判定・リダイレクト・
+    iframe内フォーム等）を切り分けられるようにする。値は出さず、構造だけ出力する。
+    """
+    try:
+        print(f"[diag] final_url = {page.url}")
+        print(f"[diag] title     = {page.title()!r}")
+    except Exception:
+        pass
+    frames = getattr(page, "frames", [page.main_frame])
+    print(f"[diag] frames = {len(frames)}")
+    for i, fr in enumerate(frames):
+        try:
+            info = fr.evaluate(
+                """() => {
+                    const inputs = [...document.querySelectorAll('input, textarea')].map(el => ({
+                        type: (el.getAttribute('type') || 'text'),
+                        name: el.getAttribute('name') || '',
+                        id: el.id || '',
+                        ph: el.getAttribute('placeholder') || ''
+                    }));
+                    const buttons = [...document.querySelectorAll('button, input[type=submit], a')]
+                        .map(el => (el.value || el.textContent || '').trim())
+                        .filter(t => t && t.length <= 24).slice(0, 12);
+                    return {
+                        url: location.href,
+                        hasPassword: !!document.querySelector('input[type=password]'),
+                        inputs, buttons,
+                        bodySnippet: (document.body ? document.body.innerText : '').slice(0, 200)
+                    };
+                }"""
+            )
+            print(f"[diag] frame#{i} url={info.get('url')}")
+            print(f"[diag] frame#{i} hasPassword={info.get('hasPassword')}")
+            for inp in info.get("inputs", [])[:15]:
+                print(f"[diag] frame#{i} input type={inp['type']!r} "
+                      f"name={inp['name']!r} id={inp['id']!r} ph={inp['ph']!r}")
+            if info.get("buttons"):
+                print(f"[diag] frame#{i} buttons={info['buttons']}")
+            snip = (info.get("bodySnippet") or "").replace("\n", " ")
+            print(f"[diag] frame#{i} body[:200]={snip!r}")
+        except Exception as e:  # noqa: BLE001
+            print(f"[diag] frame#{i} inspect失敗: {e}")
+
+
+def _find_login_across_frames(page, sel):
+    """全フレーム（iframe含む）を走査して (frame, user要素, pw要素) を返す。
+
+    パスワード欄を含むフレームを見つけ、その中でID欄も探す。config指定を最優先。
+    """
+    frames = getattr(page, "frames", [page.main_frame])
+    for fr in frames:
+        try:
+            pw = None
+            if sel.get("login_pass"):
+                pw = fr.query_selector(sel["login_pass"])
+            if not pw:
+                pw = fr.query_selector("input[type='password']")
+            if not pw:
+                continue
+
+            user = None
+            if sel.get("login_user"):
+                user = fr.query_selector(sel["login_user"])
+            if not user:
+                for cand in USER_CANDIDATES:
+                    try:
+                        el = fr.query_selector(cand)
+                    except Exception:
+                        el = None
+                    if el:
+                        user = el
+                        break
+            if not user:
+                # パスワード欄の直前にある入力欄をIDとみなす（フレーム内）
+                try:
+                    handle = fr.evaluate_handle(
+                        """() => {
+                            const isVis = el => !!(el.offsetParent || el.getClientRects().length);
+                            const skip = ['password','hidden','checkbox','radio','submit','button','file','image','reset'];
+                            const inputs = [...document.querySelectorAll('input, textarea')].filter(el => {
+                                const t = (el.getAttribute('type') || 'text').toLowerCase();
+                                return isVis(el) && !skip.includes(t);
+                            });
+                            const pw = document.querySelector('input[type="password"]');
+                            if (pw) {
+                                const before = inputs.filter(el =>
+                                    el.compareDocumentPosition(pw) & Node.DOCUMENT_POSITION_FOLLOWING);
+                                if (before.length) return before[before.length - 1];
+                            }
+                            return inputs[0] || null;
+                        }"""
+                    )
+                    user = handle.as_element()
+                except Exception:
+                    user = None
+            return fr, user, pw
+        except Exception:
+            continue
+    return None, None, None
+
+
 def fetch_csv(settings: Settings) -> bytes:
     """ログイン→応募者一覧→CSV出力 を行い、CSVのバイト列を返す。"""
     from playwright.sync_api import sync_playwright
@@ -78,26 +216,75 @@ def fetch_csv(settings: Settings) -> bytes:
     sel = settings.selectors
 
     with sync_playwright() as p:
-        browser = p.chromium.launch(headless=settings.headless)
-        context = browser.new_context(accept_downloads=True)
+        # 自動化ブラウザだと弾くサイト対策：自動化フラグを消し、実ブラウザに寄せる
+        browser = p.chromium.launch(
+            headless=settings.headless,
+            args=[
+                "--disable-blink-features=AutomationControlled",
+                "--no-sandbox",
+            ],
+        )
+        default_ua = (
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
+            "(KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36"
+        )
+        context = browser.new_context(
+            accept_downloads=True,
+            locale="ja-JP",
+            timezone_id="Asia/Tokyo",
+            user_agent=os.environ.get("EP_USER_AGENT", default_ua),
+            extra_http_headers={
+                "Accept-Language": "ja-JP,ja;q=0.9,en-US;q=0.8,en;q=0.7",
+            },
+        )
+        # navigator.webdriver を隠す（自動化検知よけ）
+        try:
+            context.add_init_script(
+                "Object.defineProperty(navigator, 'webdriver', {get: () => undefined});"
+            )
+        except Exception:
+            pass
         page = context.new_page()
         try:
             # --- ログイン画面 ---
             page.goto(settings.ep_login_url, wait_until="domcontentloaded", timeout=60000)
-            page.wait_for_timeout(1000)
+            # SPA等でフォームが遅れて描画される場合に備え、パスワード欄の出現を待つ
+            try:
+                page.wait_for_selector(
+                    "input[type='password']", timeout=15000, state="visible"
+                )
+            except Exception:
+                pass
+            page.wait_for_timeout(800)
             _shot(page, artifacts, "01_login")
 
-            user = _first_visible(page, sel.get("login_user", ""), USER_CANDIDATES)
-            pw = _first_visible(page, sel.get("login_pass", ""), PASS_CANDIDATES)
+            # iframe内フォームにも対応して、パスワード欄を含むフレームを探す
+            login_frame, user, pw = _find_login_across_frames(page, sel)
             if not user or not pw:
                 _shot(page, artifacts, "01_login_fields_not_found")
+                _dump_login_diagnostics(page)
+                try:
+                    (artifacts / "01_login.html").write_text(
+                        page.content(), encoding="utf-8"
+                    )
+                except Exception:
+                    pass
                 raise RuntimeError(
                     "ログインフォームが見つかりません。config/selectors.json を設定してください。"
                 )
             user.fill(settings.ep_user)
             pw.fill(settings.ep_pass)
 
-            btn = _first_visible(page, sel.get("login_button", ""), LOGIN_BTN_CANDIDATES)
+            # ログインボタンは同じフレーム内から探す
+            btn = login_frame.query_selector(sel["login_button"]) if sel.get("login_button") else None
+            if not btn:
+                for cand in LOGIN_BTN_CANDIDATES:
+                    try:
+                        btn = login_frame.query_selector(cand)
+                    except Exception:
+                        btn = None
+                    if btn:
+                        break
             if btn:
                 btn.click()
             else:

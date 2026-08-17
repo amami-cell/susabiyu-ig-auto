@@ -35,6 +35,10 @@ def load_env():
     for k in ("IG_ACCESS_TOKEN", "SHEET_ID", "LINE_CHANNEL_TOKEN"):
         if os.environ.get(k):
             env[k] = os.environ[k]
+    # 店舗別トークン（IG_ACCESS_TOKEN_<ACCOUNT>）も環境変数から取り込む＝多店舗の投稿先に対応
+    for k, v in os.environ.items():
+        if k.startswith("IG_ACCESS_TOKEN_") and v:
+            env[k] = v
     return env
 
 ENV = load_env()
@@ -276,9 +280,114 @@ def fresh_token(validate=True):
     print("[TOKEN] 全トークン失効。再発行が必要。")
     return cur
 
-def token_alive():
-    """今使うトークンが実際にIG投稿に使えるかを返す（必要ならこの中で更新も行う）。"""
-    return _me_ok(fresh_token())[0]
+def account_base_token(account=""):
+    """アカウント別のベース(Secret)トークン。account指定時は IG_ACCESS_TOKEN_<ACCOUNT> を優先。
+       無ければ既定 IG_ACCESS_TOKEN。account が空なら従来どおり既定トークン。"""
+    if account:
+        safe = "".join(c for c in account.upper() if c.isalnum() or c == "_")
+        key = "IG_ACCESS_TOKEN_" + safe
+        t = ENV.get(key) or os.environ.get(key) or ""
+        if t:
+            return t
+    return TOKEN
+
+ACCT_TAB = "AcctTokens"   # 店舗別トークンの保存先（account / token / expires_in / last_refresh）
+
+def _age_days(datestr):
+    try:
+        d = datetime.datetime.strptime((datestr or "").strip(), "%Y-%m-%d").date()
+        return (datetime.date.today() - d).days
+    except Exception:
+        return None
+
+def _acct_row(sh, account):
+    """AcctTokens から account の行を探す。戻り: (rowidx1based or None, token, exp, last)。"""
+    try:
+        r = sh.values().get(spreadsheetId=SHEET_ID, range=ACCT_TAB + "!A2:D").execute()
+        for i, row in enumerate(r.get("values", [])):
+            row = (row + ["", "", "", ""])[:4]
+            if (row[0] or "").strip().lower() == account.strip().lower():
+                return i + 2, row[1].strip(), row[2].strip(), row[3].strip()
+    except Exception:
+        pass
+    return None, "", "", ""
+
+def _acct_save(sh, account, token, exp):
+    """AcctTokens に account 行を upsert（更新日を今日で記録）。"""
+    try:
+        _ensure_tab(sh, ACCT_TAB)
+        today = datetime.date.today().strftime("%Y-%m-%d")
+        idx, _, _, _ = _acct_row(sh, account)
+        vals = [[account, token, exp, today]]
+        if idx:
+            sh.values().update(spreadsheetId=SHEET_ID, range="%s!A%d:D%d" % (ACCT_TAB, idx, idx),
+                               valueInputOption="RAW", body={"values": vals}).execute()
+        else:
+            sh.values().append(spreadsheetId=SHEET_ID, range=ACCT_TAB + "!A:D",
+                               valueInputOption="RAW", insertDataOption="INSERT_ROWS",
+                               body={"values": vals}).execute()
+        print("[TOKEN] アカウント '%s' を保存/延命（exp=%s）" % (account, exp))
+    except Exception as e:
+        print("[TOKEN] アカウント '%s' 保存失敗: %s" % (account, e))
+
+def fresh_token_for(account="", validate=True):
+    """アカウント別の実効トークンを返す。
+       ・account 未指定（既定＝三条）は従来の fresh_token()（挙動不変）。
+       ・名前付きは AcctTokens の保存トークンを優先し、7日毎/失効時にリフレッシュして保存＝60日で切れず延命。
+         保存が無ければ Secret(IG_ACCESS_TOKEN_<ACCOUNT>) を基底に使う。全滅時は空を返す。"""
+    if not account:
+        return fresh_token(validate=validate)
+    base = account_base_token(account)
+    if not (HAS_G and SHEET_ID):
+        # シート未接続：Secretを検証のみ
+        if not base:
+            print("[TOKEN] アカウント '%s' 未設定（Secret IG_ACCESS_TOKEN_%s）" % (account, account.upper())); return ""
+        if not validate or _me_ok(base)[0]:
+            return base
+        nt, _ = _try_refresh(base); return nt if (nt and _me_ok(nt)[0]) else ""
+    sh = _sheets()
+    if not sh:
+        return base
+    idx, stored, exp, last = _acct_row(sh, account)
+    cur = stored or base
+    if not cur:
+        print("[TOKEN] アカウント '%s' 未設定（Secret IG_ACCESS_TOKEN_%s を登録）" % (account, account.upper())); return ""
+    if not validate:
+        return cur
+    age = _age_days(last)
+    need = (age is None) or (age >= REFRESH_EVERY_DAYS)
+    if not need and not _me_ok(cur)[0]:
+        need = True
+    if not need:
+        return cur
+    # リフレッシュ：現行→ダメなら基底(Secret)
+    new, e2 = _try_refresh(cur)
+    if not new and base and base != cur:
+        new, e2 = _try_refresh(base)
+        if not new and _me_ok(base)[0]:
+            _acct_save(sh, account, base, ""); return base
+    if new and _me_ok(new)[0]:
+        _acct_save(sh, account, new, e2); return new
+    if _me_ok(cur)[0]:
+        return cur   # 更新はできないが現行は生存
+    print("[TOKEN] アカウント '%s' のトークンが無効。再発行が必要です。" % account)
+    return ""
+
+def guard_account(account):
+    """店舗別トークンの点検＆延命（token_guard から呼ぶ）。生存はTrue。"""
+    t = fresh_token_for(account)
+    ok, me = _me_ok(t) if t else (False, {})
+    if ok:
+        print("[GUARD] アカウント '%s' 正常 @%s" % (account, me.get("username")))
+    else:
+        print("[GUARD] アカウント '%s' 異常: %s" % (account, me.get("error")))
+    return ok
+
+def token_alive(account=""):
+    """今使うトークンが実際にIG投稿に使えるかを返す（必要ならこの中で更新も行う）。
+       account 未指定は従来どおり三条トークンを判定（挙動不変）。"""
+    t = fresh_token_for(account) if account else fresh_token()
+    return _me_ok(t)[0] if t else False
 
 def token_reset():
     """保存済みトークンをクリアし、基底(Secret)トークンで再取得し直す（再発行後の復旧用）。"""
@@ -348,6 +457,42 @@ def ig_post(token, url, is_video):
     pid = p.get("id", "")
     print("[POST] done!", pid); return pid
 
+def ig_post_media(token, url, kind, caption=""):
+    """フィード画像 / リール動画を本投稿する（ストーリー用 ig_post とは別系統）。
+       kind: 'feed'=画像フィード投稿 / 'reel'=リール動画投稿。成功でメディアIDを返す。"""
+    B = IGB
+    me = req.get(f"{B}/me", params={"fields": "user_id,username", "access_token": token}).json()
+    if me.get("error"):
+        print("[POST] /me ERROR（トークン失効の可能性・要再発行）:", me["error"]); return ""
+    uid = me.get("user_id") or me.get("id")
+    if not uid:
+        print("[POST] uid取得失敗 me=", me); return ""
+    print("[POST] @%s (uid=%s) kind=%s" % (me.get("username"), uid, kind))
+    if kind == "reel":
+        data = {"media_type": "REELS", "video_url": url, "access_token": token}
+    else:
+        data = {"image_url": url, "access_token": token}   # 画像フィード（media_type省略＝IMAGE）
+    if caption:
+        data["caption"] = caption
+    c = req.post(f"{B}/{uid}/media", data=data).json()
+    if "error" in c:
+        print("[POST] media作成ERROR:", c["error"], "| url=", url); return ""
+    cid = c["id"]
+    # 動画は処理待ち（数十秒）がある。画像は基本すぐ FINISHED。
+    for _ in range(60):
+        s = req.get(f"{B}/{cid}", params={"fields": "status_code", "access_token": token}).json()
+        sc = s.get("status_code")
+        if sc == "FINISHED":
+            break
+        if sc == "ERROR":
+            print("[POST] status error", s); return ""
+        time.sleep(5)
+    p = req.post(f"{B}/{uid}/media_publish", data={"creation_id": cid, "access_token": token}).json()
+    if "error" in p:
+        print("[POST] publish ERROR:", p["error"]); return ""
+    pid = p.get("id", "")
+    print("[POST] done!", pid); return pid
+
 def line_notify(text):
     if not LINE_TOKEN:
         return
@@ -359,10 +504,12 @@ def line_notify(text):
     except Exception as e:
         print("[LINE]", e)
 
-def post(media, is_video, phrase="", slot="", pattern=""):
-    token = fresh_token()
+def post(media, is_video, phrase="", slot="", pattern="", account=""):
+    # account 未指定（既定＝三条）は従来どおり fresh_token()（挙動不変）。
+    # account 指定時は店舗別トークン（IG_ACCESS_TOKEN_<ACCOUNT> / AcctTokens）で投稿。
+    token = fresh_token_for(account) if account else fresh_token()
     if not token:
-        print("NG: IG_ACCESS_TOKEN が見つかりません（../.env を確認）"); return False
+        print("NG: IG_ACCESS_TOKEN が見つかりません（account=%r / ../.env を確認）" % account); return False
     # 投稿画像はIGサーバが確実に取得できる永続CDN(jsDelivr→R2)を優先。
     # litterbox等の一時ホストはIGが取得に失敗し code1「unknown error」になることがあるため、
     # 永続CDNが全滅した時だけ一時ホストにフォールバックする。

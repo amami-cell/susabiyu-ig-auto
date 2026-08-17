@@ -1,8 +1,8 @@
 import os, io, glob, json, sys, random
 from collections import defaultdict
 
-FOOD_FOLDER = "14oKNgdXee2NrI7Dkmbrlbid4f0_VZ5Cv"
-LOGO_FOLDER = "1wAXPa6v3F-YC7dj6-j243xEkxra8RKOf"
+FOOD_FOLDER = os.environ.get("GENRE_FOOD_ID") or "14oKNgdXee2NrI7Dkmbrlbid4f0_VZ5Cv"
+LOGO_FOLDER = os.environ.get("GENRE_LOGO_ID") or "1wAXPa6v3F-YC7dj6-j243xEkxra8RKOf"
 # 複数枚動画には「ドリンク」を少数派で混ぜる（全体枚数より比率少なめ）。
 SAKE_FOLDER = os.environ.get("GENRE_SAKE_ID") or "1vIAC9frejCyGhQAizT1Wsgmlaj8ULhTb"
 N = 5

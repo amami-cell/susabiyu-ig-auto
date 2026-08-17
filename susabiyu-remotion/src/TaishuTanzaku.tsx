@@ -35,7 +35,7 @@ const KabeBg: React.FC = () => (
   </AbsoluteFill>
 );
 
-export const TaishuTanzaku: React.FC<{ storeName?: string; handle?: string }> = ({ storeName = "すさび湯三条", handle = "@susabiyu_sanjyo" }) => {
+export const TaishuTanzaku: React.FC<{ storeName?: string; handle?: string; region?: string }> = ({ storeName = "すさび湯三条", handle = "@susabiyu_sanjyo", region = "京都・河原町三条" }) => {
   const f = useCurrentFrame();
   const titleO = interpolate(f, [4, 18], [0, 1], clamp);
   const titleS = interpolate(f, [4, 14], [1.7, 1], { ...clamp, easing: Easing.out(Easing.cubic) });
@@ -95,7 +95,7 @@ export const TaishuTanzaku: React.FC<{ storeName?: string; handle?: string }> = 
       {/* 屋号 */}
       <div style={{ position: "absolute", bottom: 78, left: 0, width: "100%", textAlign: "center", opacity: footO }}>
         <div style={{ color: SHIRO, fontFamily: fude, fontSize: 40, letterSpacing: 4, marginBottom: 10, ...fuchi(KURO, 5) }}>{storeName}</div>
-        <div style={{ color: SHIRO, fontFamily: goshi, fontSize: 26, letterSpacing: 2, ...fuchi(KURO, 4) }}>京都・河原町三条　{handle}</div>
+        <div style={{ color: SHIRO, fontFamily: goshi, fontSize: 26, letterSpacing: 2, ...fuchi(KURO, 4) }}>{region}　{handle}</div>
       </div>
     </AbsoluteFill>
   );
