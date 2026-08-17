@@ -10,6 +10,10 @@
 import os
 
 from PIL import Image, ImageDraw, ImageFont, ImageFilter
+try:
+    import numpy as _np
+except Exception:                       # numpy が無い環境では照明補正をスキップ
+    _np = None
 
 W, H = 1080, 1350
 RED = (196, 30, 32)
@@ -52,15 +56,32 @@ def _font(path, size):
     return ImageFont.truetype(path, size)
 
 
+def _even_lighting(im):
+    """写真の左右・上下の明るさムラを均す（暗い所だけ明るい側へ持ち上げる）。
+    大きくぼかした照明マップの上位パーセンタイルに合わせて、暗部を最大1.5倍まで持ち上げる。
+    均一な写真は倍率≒1で無変化。numpy が無ければそのまま返す。"""
+    if _np is None:
+        return im
+    im = im.convert("RGB")
+    arr = _np.asarray(im).astype(_np.float32)
+    lum = arr.mean(axis=2)
+    r = max(24, int(min(im.size) / 6))                       # 照明マップのぼかし半径
+    lmap = _np.asarray(Image.fromarray(lum.astype("uint8")).filter(ImageFilter.GaussianBlur(r))).astype(_np.float32)
+    target = float(_np.percentile(lmap, 80))                 # 明るめ（上位）に合わせる＝明るい側で統一
+    gain = _np.clip(target / _np.clip(lmap, 1.0, None), 1.0, 1.5)   # 暗部のみ持ち上げ・上限1.5
+    out = _np.clip(arr * gain[:, :, None], 0, 255).astype("uint8")
+    return Image.fromarray(out)
+
+
 def _cover(im, w, h):
-    """アスペクトを保って w×h を覆うようにリサイズ＋センタークロップ。"""
+    """アスペクトを保って w×h を覆うようにリサイズ＋センタークロップ→照明ムラ補正。"""
     im = im.convert("RGB")
     iw, ih = im.size
     scale = max(w / iw, h / ih)
     nw, nh = int(iw * scale + 0.5), int(ih * scale + 0.5)
     im = im.resize((nw, nh), Image.LANCZOS)
     left, top = (nw - w) // 2, (nh - h) // 2
-    return im.crop((left, top, left + w, top + h))
+    return _even_lighting(im.crop((left, top, left + w, top + h)))
 
 
 def _scrim(base):
@@ -179,14 +200,27 @@ def render_post(src, out, title, subcopy=None, ribbon="福岡天神店", logo=Tr
     if ribbon:
         _draw_ribbon(base, ribbon, _font(_GOTHIC_PATH, 40))
 
-    # 巨大縦書きの料理名（右側）。1段にきれいに収まるよう文字数から自動縮小（上限150・下限64）。
+    # 料理名。「ー」等の横棒を含む名前は縦書きだと崩れるので、横書き（下・大ゴシック＋赤下線）にする。
     title = (title or "").strip()
-    n = max(1, len(title))
-    top_y = 250
-    avail = H - top_y - 120                     # 縦に使える高さ
-    vsize = max(64, min(150, int(avail / (1.1 * n))))
-    vfont = _font(_SERIF_PATH, vsize)
-    _draw_vertical(base, title, right_x=W - 60, top_y=top_y, font=vfont)
+    if any(c in _VERT_ROTATE for c in title):
+        margin = 56
+        hsize = 120
+        hfont = _font(_GOTHIC_PATH, hsize)
+        while hsize > 44 and draw.textlength(title, font=hfont) > W - 2 * margin:
+            hsize -= 4
+            hfont = _font(_GOTHIC_PATH, hsize)
+        ty = H - 258
+        draw.line([(margin, ty - 22), (margin + 230, ty - 22)], fill=RED, width=9)   # 赤下線
+        _text_heavy(draw, (margin, ty - hfont.getbbox(title)[1]),
+                    title, hfont, fill=(255, 255, 255), edge=(20, 12, 8), weight=2, ow=3)
+    else:
+        # 巨大縦書きの料理名（右側）。1段にきれいに収まるよう文字数から自動縮小（上限150・下限64）。
+        n = max(1, len(title))
+        top_y = 250
+        avail = H - top_y - 120                 # 縦に使える高さ
+        vsize = max(64, min(150, int(avail / (1.1 * n))))
+        vfont = _font(_SERIF_PATH, vsize)
+        _draw_vertical(base, title, right_x=W - 60, top_y=top_y, font=vfont)
 
     # 下部：赤下線＋サブコピー
     if subcopy:

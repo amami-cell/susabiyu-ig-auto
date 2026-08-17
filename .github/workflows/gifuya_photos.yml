@@ -41,7 +41,7 @@ jobs:
         with:
           python-version: '3.12'
       - name: Install deps
-        run: pip install google-api-python-client google-auth Pillow
+        run: pip install google-api-python-client google-auth Pillow numpy
       - name: Install 日本語フォント（加工の見出し=明朝/ゴシック）
         run: sudo apt-get update -qq && sudo apt-get install -y -qq fonts-noto-cjk fonts-ipafont-mincho fonts-ipafont-gothic
       - name: Write creds.json
