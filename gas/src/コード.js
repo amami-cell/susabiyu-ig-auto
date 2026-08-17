@@ -495,7 +495,7 @@ function _apiReport_(account) {
     cur: agg(cur), prev: agg(prev),
     series: cur.map(function (d) { return { date: d.date, reach: d.reach }; }),
     daily: rows,
-    posts: _apiReportPosts_()
+    posts: _apiReportPosts_(account)
   };
 }
 
