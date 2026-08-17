@@ -71,19 +71,22 @@ def _even_lighting(im):
         Image.fromarray(col.reshape(1, W).clip(0, 255).astype("uint8"))
         .filter(ImageFilter.GaussianBlur(max(20, W // 8)))
     ).astype(_np.float32).reshape(W)
-    target = float(_np.percentile(colmap, 55))               # 中央寄り＝持ち上げ控えめ（明るくしすぎない）
+    target = float(_np.percentile(colmap, 55))               # 中央寄り＝持ち上げ控えめ
     gaincol = _np.clip(target / _np.clip(colmap, 1.0, None), 0.88, 1.18)   # 左右を穏やかに均す
     out = _np.clip(arr * gaincol[None, :, None], 0, 255)
-    # カード間で明るさを揃える：目標平均を低め(150)に。持ち上げは弱く・下げは効かせる＝全体トーンを落とす。
+    # カード間で明るさを揃える：目標平均を 160（やや明るめ）。持ち上げ側も少し効かせる。
     cur = float(out.mean())
     if cur > 1:
-        out = out * _np.clip(150.0 / cur, 0.80, 1.06)
-    # ハイライト・ロールオフ：明るい所だけ圧縮して白飛びを戻す（暗部・中間は不変）。
-    knee = 200.0
+        out = out * _np.clip(160.0 / cur, 0.85, 1.14)
+    # ハイライト・ロールオフ：白飛びだけ軽く抑える（明るさは残す）。
+    knee = 214.0
     hi = out > knee
-    out[hi] = knee + (out[hi] - knee) * 0.55
+    out[hi] = knee + (out[hi] - knee) * 0.66
     out = _np.clip(out, 0, 255)
-    return Image.fromarray(out.astype("uint8"))
+    im2 = Image.fromarray(out.astype("uint8"))
+    # くっきり：アンシャープマスクで料理の輪郭・質感を立たせる（テキストは後段で別描画なので影響なし）。
+    im2 = im2.filter(ImageFilter.UnsharpMask(radius=2.4, percent=120, threshold=2))
+    return im2
 
 
 def _cover(im, w, h):
