@@ -159,7 +159,7 @@
 <script>
 (function(){
   "use strict";
-  var V = "?v=139";  // メディアのキャッシュ更新用
+  var V = "?v=142";  // メディアのキャッシュ更新用
   var CFG = window.GIFUYA || {};
   var LIVE = !!window.GIFUYA_LIVE;               // 専用GAS注入済みなら実データ連携
   var GAS = (CFG.GAS_URL||"").trim();
@@ -295,7 +295,13 @@
      tags:"#ラーメン #〆ラーメン #福岡ラーメン #天神ラーメン"},
     {img:"feed_12.jpg", t:"生ハムポテト",
      cap:"一杯目の相棒、生ハムポテト🍟\nあつあつポテトに生ハムをのせて。ついつい頼んでしまう名脇役。",
-     tags:"#ポテト #生ハム #おつまみ #天神居酒屋"}
+     tags:"#ポテト #生ハム #おつまみ #天神居酒屋"},
+    {img:"pattern_tanzaku.jpg", t:"お品書き（短冊デザイン）",
+     cap:"本日のおすすめ、揃ってます。\nぎふや福岡天神店、安くて旨い。まずは一杯。",
+     tags:"#お品書き #ぎふや福岡天神店 #天神居酒屋 #天神グルメ"},
+    {img:"pattern_bigname.jpg", t:"看板（ぎふや福岡天神）",
+     cap:"天神で乾杯。大衆酒場 ぎふや福岡天神店。\n安くて、旨い。地下鉄天神駅から徒歩約3分。",
+     tags:"#ぎふや福岡天神店 #天神グルメ #大衆酒場 #天神居酒屋"}
   ];
   var REEL = [
     {vid:"dv_01.mp4", t:"回転（コンベア）", reco:true,
@@ -471,8 +477,8 @@
       var c=document.createElement("div"); c.className="card"+(p.reco?" reco":"");
       var _pv = (p.vid||"").replace(/\.mp4$/,"_poster.jpg");
       var media = kind==="feed"
-        ? '<div class="mediaWrap feed"><img loading="lazy" src="gifuya/'+p.img+V+'" alt=""></div>'
-        : '<div class="mediaWrap reel"><video poster="gifuya/'+_pv+V+'" src="gifuya/'+p.vid+V+'" controls playsinline preload="auto" webkit-playsinline></video></div>';
+        ? '<div class="mediaWrap feed"><img loading="lazy" decoding="async" src="gifuya/'+p.img+V+'" alt=""></div>'
+        : '<div class="mediaWrap reel"><video poster="gifuya/'+_pv+V+'" src="gifuya/'+p.vid+V+'" controls playsinline preload="none" webkit-playsinline></video></div>';
       var trim = kind==="reel"
         ? '<div class="trim"><div class="trimhd"><span>切り取り（リール用）</span><span><b class="tlen">--</b> / 元<span class="tall">--</span></span></div>'+
           '<div class="rangewrap"><div class="track"></div><div class="sel"></div>'+
@@ -576,7 +582,7 @@
         var c=document.createElement("div"); c.className="card";
         var media=(String(it.mediaType).toLowerCase()==="video")
           ? '<div class="mediaWrap reel"><video src="'+esc(it.url)+'" controls playsinline preload="metadata"></video></div>'
-          : '<div class="mediaWrap reel"><img loading="lazy" src="'+esc(it.url)+'" alt=""></div>';
+          : '<div class="mediaWrap reel"><img loading="lazy" decoding="async" src="'+esc(it.url)+'" alt=""></div>';
         var taStyle="width:100%;min-height:64px;border-radius:12px;border:1px solid #262c36;background:#12161d;color:#eaeef2;padding:10px;font-family:inherit;font-size:13.5px";
         var storyChips=MENTION_STORY_TPL.map(function(t,i){ return '<button class="tpl" data-t="'+esc(t)+'">例'+(i+1)+'</button>'; }).join("")
           + '<button class="tpl" data-reset="story">↩ 規定に戻す</button>';
