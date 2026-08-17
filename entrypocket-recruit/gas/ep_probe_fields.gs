@@ -129,3 +129,47 @@ function epProbeJobs() {
 
   Logger.log("=== 調査おわり（読み取りのみ）===");
 }
+
+/**
+ * 【診断・書き込みなし】年齢不明/期間ズレ/応募日時の原因を一度に特定する。
+ * raw_応募者・求人打ち出し・元スプシ のヘッダとサンプル値をログに出す。
+ */
+function epDiagData() {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var raw = ss.getSheetByName("raw_応募者");
+  if (raw) {
+    var v = raw.getDataRange().getValues(), h = v[0], ci = {};
+    h.forEach(function (x, i) { ci[x] = i; });
+    Logger.log("■ raw_応募者 ヘッダ: " + h.join(" | "));
+    for (var r = 1; r < Math.min(v.length, 7); r++) {
+      Logger.log("  応募例: 氏名=" + v[r][ci["氏名"]] + " / 応募日時=" + v[r][ci["応募日時"]] +
+        " / 年齢=" + v[r][ci["年齢"]] + " / 生年月日=" + v[r][ci["生年月日"]] + " / 面接日時=" + v[r][ci["面接日時"]]);
+    }
+  } else Logger.log("raw_応募者 なし");
+
+  var pp = ss.getSheetByName("求人打ち出し");
+  if (pp) {
+    var pv = pp.getDataRange().getValues(), ph = pv[0], pi = {};
+    ph.forEach(function (x, i) { pi[x] = i; });
+    Logger.log("■ 求人打ち出し ヘッダ: " + ph.join(" | "));
+    for (var r2 = 1; r2 < Math.min(pv.length, 6); r2++) {
+      Logger.log("  打ち出し例: 店舗=" + pv[r2][pi["店舗名"]] + " / 掲載開始=" + pv[r2][pi["掲載開始"]] +
+        " / 掲載終了=" + pv[r2][pi["掲載終了"]] + " / 採用単価=" + pv[r2][pi["採用単価"]]);
+    }
+  } else Logger.log("求人打ち出し なし");
+
+  try {
+    var ext = SpreadsheetApp.openById(NOTION_POSTINGS_SHEET_ID), shs = ext.getSheets();
+    for (var s = 0; s < shs.length; s++) {
+      var w = Math.min(40, shs[s].getLastColumn() || 1);
+      var head = shs[s].getRange(1, 1, 1, w).getValues()[0].map(function (x) { return String(x || "").replace(/　/g, "").trim(); });
+      if (head.indexOf("店舗名") >= 0) {
+        Logger.log("■ 元スプシ[" + shs[s].getName() + "] ヘッダ: " + head.join(" | "));
+        var last = Math.min(shs[s].getLastRow(), 4);
+        for (var d = 2; d <= last; d++) Logger.log("  元例" + d + ": " + shs[s].getRange(d, 1, 1, w).getValues()[0].join(" | "));
+        break;
+      }
+    }
+  } catch (e) { Logger.log("元スプシ確認失敗: " + e); }
+  Logger.log("=== 診断おわり ===");
+}
