@@ -4,8 +4,8 @@ name: recruit-webpush
 # GASキュー(_Push送信待ち)を取り出し、複数件を1通に集約して送信する。
 on:
   schedule:
-    - cron: '5 1 * * *'    # JST 10:05（午前まとめ）
-    - cron: '5 8 * * *'    # JST 17:05（夕方まとめ）
+    - cron: '0 2 * * *'    # JST 11:00（午前まとめ）
+    - cron: '0 8 * * *'    # JST 17:00（夕方まとめ）
   workflow_dispatch:        # 手動テスト用
 jobs:
   push:
