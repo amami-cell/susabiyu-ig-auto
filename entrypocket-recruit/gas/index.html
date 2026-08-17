@@ -3,210 +3,746 @@
 <head>
   <meta charset="utf-8">
   <base target="_top">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
   <style>
     :root {
-      --bg: #0f1419; --card: #1a222c; --line: #2a3644;
-      --fg: #e6edf3; --muted: #8b98a5; --accent: #4a9eff; --warn: #ffb454;
-      --f1: #4a9eff; --f2: #38c172; --f3: #f6c343; --f4: #ff8a65; --f5: #ba68c8; --f6: #78909c;
+      --bg:#0d1117; --card:#161d27; --card2:#1b2430; --line:#28323f; --line2:#33414f;
+      --fg:#eef3f8; --fg2:#c3ccd6; --muted:#8593a1; --accent:#5aa2ff;
+      --green:#3ec17f; --amber:#f6c343; --orange:#ff8a5c; --red:#ff6b6b; --purple:#b98be0;
+      --warnbg:#2c1f18; --warnbd:#6b4a34;
     }
-    * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
-    body {
-      margin: 0; background: var(--bg); color: var(--fg);
-      font-family: -apple-system, "Hiragino Kaku Gothic ProN", "Noto Sans JP", sans-serif;
-      font-size: 15px; padding-bottom: 40px;
-    }
-    header {
-      position: sticky; top: 0; z-index: 5; background: var(--bg);
-      padding: 14px 16px; border-bottom: 1px solid var(--line);
-      display: flex; align-items: center; justify-content: space-between;
-    }
-    header h1 { font-size: 17px; margin: 0; }
-    .updated { font-size: 11px; color: var(--muted); }
-    button.refresh {
-      background: var(--accent); color: #fff; border: 0; border-radius: 8px;
-      padding: 9px 14px; font-size: 14px; font-weight: 600;
-    }
-    button.refresh:disabled { opacity: .5; }
-    main { padding: 12px 16px; max-width: 720px; margin: 0 auto; }
-    .card { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 14px; margin-bottom: 14px; }
-    .card h2 { font-size: 13px; color: var(--muted); margin: 0 0 12px; font-weight: 600; }
-    .kpis { display: flex; gap: 10px; }
-    .kpi { flex: 1; text-align: center; }
-    .kpi .n { font-size: 26px; font-weight: 700; }
-    .kpi .l { font-size: 11px; color: var(--muted); }
-    .funnel-row { display: flex; align-items: center; margin: 6px 0; gap: 10px; }
-    .funnel-row .name { width: 44px; font-size: 13px; color: var(--muted); }
-    .bar { height: 26px; border-radius: 6px; min-width: 2px; display: flex; align-items: center; padding: 0 8px; color: #fff; font-size: 13px; font-weight: 600; }
-    .stage-応募 { background: var(--f1); } .stage-接触 { background: var(--f2); }
-    .stage-面接 { background: var(--f3); color:#222; } .stage-内定 { background: var(--f4); }
-    .stage-入社 { background: var(--f5); } .stage-終了 { background: var(--f6); }
-    .filters { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 10px; }
-    .chip { border: 1px solid var(--line); background: transparent; color: var(--muted); border-radius: 999px; padding: 6px 12px; font-size: 12px; }
-    .chip.on { background: var(--accent); color: #fff; border-color: var(--accent); }
-    .app { border-top: 1px solid var(--line); padding: 10px 2px; display: flex; align-items: center; gap: 10px; }
-    .app:first-child { border-top: 0; }
-    .app .info { flex: 1; min-width: 0; }
-    .app .nm { font-weight: 600; }
-    .app .sub { font-size: 12px; color: var(--muted); margin-top: 2px; }
-    .tag { font-size: 10px; padding: 2px 6px; border-radius: 4px; margin-left: 6px; }
-    .tag.dup { background: #4a2c2c; color: var(--warn); }
-    .tag.st { background: #22303f; color: var(--accent); }
-    .call { background: var(--f2); color: #fff; border-radius: 8px; padding: 8px 12px; text-decoration: none; font-size: 13px; white-space: nowrap; }
-    .call.off { background: var(--line); color: var(--muted); pointer-events: none; }
-    .empty { color: var(--muted); font-size: 13px; text-align: center; padding: 20px; }
-    .toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: var(--card); border: 1px solid var(--line); padding: 10px 16px; border-radius: 8px; font-size: 13px; opacity: 0; transition: opacity .3s; }
-    .toast.show { opacity: 1; }
-    .heatnote { font-size: 12px; color: var(--muted); }
+    * { box-sizing:border-box; min-width:0; -webkit-tap-highlight-color:transparent; }
+    html,body { max-width:100%; overflow-x:hidden; }
+    body { margin:0; background:var(--bg); color:var(--fg); line-height:1.5;
+      font-family:-apple-system,BlinkMacSystemFont,"Hiragino Kaku Gothic ProN","Noto Sans JP",sans-serif;
+      font-size:15px; padding-bottom:40px; -webkit-font-smoothing:antialiased; }
+    img { max-width:100%; }
+    b { font-weight:700; }
+    header { position:sticky; top:0; z-index:6; background:rgba(13,17,23,.92); backdrop-filter:blur(8px); padding:12px 15px 0; border-bottom:1px solid var(--line); }
+    .htop { display:flex; align-items:center; justify-content:space-between; gap:8px; }
+    header h1 { font-size:17px; margin:0; letter-spacing:.02em; }
+    .updated { font-size:11px; color:var(--muted); margin-top:2px; }
+    button.refresh { background:var(--accent); color:#08192e; border:0; border-radius:9px; padding:9px 15px; font-size:13px; font-weight:700; white-space:nowrap; }
+    button.refresh:active { transform:scale(.96); } button.refresh:disabled { opacity:.5; }
+    .tabs { display:flex; gap:2px; margin-top:12px; }
+    .tabs button { flex:1; background:transparent; border:0; border-bottom:2.5px solid transparent; color:var(--muted); font-size:13.5px; font-weight:700; padding:10px 4px; transition:color .15s; }
+    .tabs button.on { color:var(--fg); border-bottom-color:var(--accent); }
+    main { padding:14px 15px; max-width:720px; margin:0 auto; width:100%; overflow-x:hidden; }
+    .card { background:var(--card); border:1px solid var(--line); border-radius:14px; padding:15px; margin-bottom:13px; }
+    .card h2 { font-size:12px; color:var(--muted); margin:0 0 12px; font-weight:700; letter-spacing:.03em; }
+    .muted { color:var(--muted); font-size:12px; }
+    .empty { color:var(--muted); font-size:13px; text-align:center; padding:34px 12px; }
+    .sec-h { font-size:11.5px; color:var(--muted); font-weight:700; letter-spacing:.03em; margin:16px 3px 9px; text-transform:none; }
+    .sec-h:first-child { margin-top:2px; }
+    .badge { font-size:10.5px; padding:2px 9px; border-radius:999px; white-space:nowrap; font-weight:700; line-height:1.7; }
+    .badge.on { color:#06210f; background:var(--green); }
+    .badge.rec { color:var(--amber); background:#312a13; }
+    .badge.end { color:var(--muted); background:#222c38; }
+    .badge.warn { color:#2a1400; background:var(--amber); }
+    /* 未提出アラート */
+    .alert { background:var(--warnbg); border:1px solid var(--warnbd); border-radius:14px; padding:14px 15px; margin-bottom:14px; }
+    .al-h { font-size:15px; font-weight:800; color:var(--amber); display:flex; align-items:center; gap:6px; }
+    .al-note { font-size:11.5px; color:#cbb08f; margin:5px 0 10px; }
+    .al-row { display:flex; align-items:center; justify-content:space-between; gap:10px; padding:9px 0; border-top:1px solid var(--warnbd); }
+    .al-nm { font-size:13.5px; overflow:hidden; } .al-nm b { color:var(--fg); } .al-nm .pd { color:#cbb08f; font-size:11px; display:block; margin-top:1px; }
+    .btn-in { background:var(--orange); color:#2a1200; border-radius:9px; padding:9px 13px; font-size:12.5px; font-weight:800; text-decoration:none; white-space:nowrap; }
+    .btn-in:active { transform:scale(.97); }
+    .btn-in.sm { padding:5px 10px; font-size:11px; margin-left:auto; }
+    .pr.unsub { border-color:var(--warnbd); background:#1c1712; }
+    /* KPI */
+    .kpis { display:flex; gap:9px; } .kpi { flex:1; text-align:center; background:var(--card2); border-radius:11px; padding:11px 4px; }
+    .kpi .n { font-size:24px; font-weight:800; letter-spacing:-.01em; } .kpi .l { font-size:10.5px; color:var(--muted); margin-top:2px; }
+    /* funnel & bars */
+    .frow { display:flex; align-items:center; margin:7px 0; gap:10px; }
+    .frow .nm { width:38px; font-size:12px; color:var(--muted); font-weight:600; }
+    .bar { height:26px; border-radius:7px; min-width:2px; display:flex; align-items:center; padding:0 9px; color:#08131f; font-size:12px; font-weight:800; }
+    .s応募{background:var(--accent);} .s接触{background:var(--green);} .s面接{background:var(--amber);} .s内定{background:var(--orange);} .s入社{background:var(--purple);color:#180a24;} .s終了{background:#6b7886;}
+    .bd{display:flex;align-items:center;gap:10px;margin:8px 0;font-size:13px;}
+    .bd .bl{width:82px;color:var(--fg2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-weight:600;}
+    .bd .bb{flex:1;height:20px;background:#1c2530;border-radius:6px;overflow:hidden;position:relative;}
+    .bd .bf{height:100%;background:linear-gradient(90deg,var(--accent),#7bb6ff);border-radius:6px;min-width:3px;}
+    .bd .bn{width:58px;text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap;}
+    .bd .bn b{font-weight:800;font-size:14px;} .bd .bn i{font-style:normal;color:var(--muted);font-size:11px;margin-left:4px;}
+    /* store card */
+    .sc{ background:var(--card); border:1px solid var(--line); border-radius:14px; padding:14px 15px; margin-bottom:11px; }
+    .sc.tapped{ border-color:#3a628f; background:var(--card2); }
+    .sc-top{ cursor:pointer; position:relative; padding-right:22px; }
+    .chev{ position:absolute; right:0; top:2px; color:var(--muted); font-size:18px; transition:transform .2s; line-height:1; }
+    .sc.tapped .chev{ transform:rotate(90deg); color:var(--accent); }
+    .sc-h{ display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+    .sc-nm{ font-weight:800; font-size:16px; overflow-wrap:anywhere; letter-spacing:.01em; }
+    .sc-sub{ font-size:12px; color:var(--muted); margin-top:5px; overflow-wrap:anywhere; }
+    .sc-stat{ font-size:12.5px; color:var(--muted); margin-top:9px; display:flex; flex-wrap:wrap; gap:8px; }
+    .sc-stat span{ background:var(--card2); border:1px solid var(--line); border-radius:8px; padding:4px 9px; }
+    .sc.tapped .sc-stat span{ background:#141b25; }
+    .sc-stat b{ color:var(--fg); font-weight:800; }
+    .sc-body{ margin-top:13px; border-top:1px solid var(--line2); padding-top:12px; }
+    .dl{ font-size:11px; color:var(--muted); font-weight:800; letter-spacing:.03em; margin:15px 0 8px; }
+    .dl:first-child{ margin-top:0; }
+    /* 店舗内 ステータス絞り込み */
+    .sfil{ display:flex; flex-wrap:wrap; gap:7px; margin:2px 0 11px; }
+    .sf{ border:1px solid var(--line2); background:#141b25; color:var(--fg2); border-radius:999px; padding:7px 13px; font-size:12.5px; font-weight:700; }
+    .sf:active{ transform:scale(.97); }
+    .sf b{ color:var(--fg); margin-left:3px; }
+    .sf.on{ background:var(--accent); color:#08192e; border-color:var(--accent); } .sf.on b{ color:#08192e; }
+    .sf.warn{ color:var(--amber); border-color:#4a4326; }
+    .sf.warn.on{ background:var(--amber); color:#2a1400; border-color:var(--amber); } .sf.warn.on b{ color:#2a1400; }
+    .warnchip{ color:var(--amber) !important; background:#312a13 !important; }
+    .demo{ margin:4px 0 8px; }
+    .mb{ padding:11px 13px 9px; background:#10161f; border:1px solid var(--line); border-radius:11px; margin-bottom:9px; }
+    .mb-t{ font-size:12.5px; color:var(--fg); font-weight:800; margin:0 0 9px; display:flex; align-items:center; gap:7px; }
+    .mb-t::before{ content:''; width:9px; height:9px; border-radius:3px; background:var(--accent); flex:none; }
+    .mb-t em{ font-style:normal; color:var(--muted); font-weight:700; font-size:11px; margin-left:auto; }
+    .mb.g .mb-t::before{ background:var(--green); } .mb.g .bf{ background:linear-gradient(90deg,var(--green),#7ee0aa); }
+    .mb.o .mb-t::before{ background:var(--purple); } .mb.o .bf{ background:linear-gradient(90deg,var(--purple),#d3b0ef); }
+    .ap.new{ border-left:3px solid var(--amber); }
+    .tag.req{ background:#312a13; color:var(--amber); }
+    .stbtns{ display:flex; flex-wrap:wrap; gap:7px; margin-bottom:4px; }
+    .stb{ border:1px solid var(--line2); background:#141b25; color:var(--fg); border-radius:8px; padding:8px 11px; font-size:12.5px; font-weight:700; }
+    .stb:active{ transform:scale(.97); }
+    .stb.cur{ background:var(--green); color:#06210f; border-color:var(--green); opacity:1; }
+    /* 件数タイル（店舗詳細） */
+    .sgrid{ display:grid; grid-template-columns:repeat(auto-fill,minmax(84px,1fr)); gap:8px; margin:2px 0 4px; }
+    .stile{ background:#141b25; border:1px solid var(--line2); border-radius:11px; padding:11px 6px; text-align:center; color:var(--fg); }
+    button.stile:active{ transform:scale(.97); }
+    .stile .sv{ font-size:19px; font-weight:800; font-variant-numeric:tabular-nums; line-height:1.15; }
+    .stile .sl{ font-size:10.5px; color:var(--muted); margin-top:3px; }
+    .stile.on{ border-color:var(--accent); background:#12233a; }
+    .stile.warn .sv{ color:var(--amber); } .stile.warn.on{ border-color:var(--amber); background:#2a2413; }
+    /* 集計タイル（会社全体） */
+    .mgrid{ display:grid; grid-template-columns:1fr 1fr; gap:9px; }
+    .mtile{ background:var(--card2); border:1px solid var(--line); border-radius:12px; padding:12px 13px; }
+    .mtile.big{ grid-column:1 / -1; background:#12233a; border-color:#33506e; }
+    .mtile .mv{ font-size:19px; font-weight:800; font-variant-numeric:tabular-nums; overflow-wrap:anywhere; }
+    .mtile.big .mv{ font-size:24px; color:var(--accent); }
+    .mtile .ml{ font-size:11px; color:var(--muted); margin-top:2px; }
+    /* posting row */
+    .pr{ border:1px solid var(--line); border-radius:11px; padding:11px 13px; margin-bottom:9px; cursor:pointer; background:var(--card2); }
+    .pr-h{ display:flex; align-items:center; gap:8px; flex-wrap:wrap; font-size:14px; font-weight:700; }
+    .pr-h .pd{ color:var(--muted); font-size:11.5px; font-weight:500; }
+    .pr-sub{ font-size:12px; color:var(--fg2); margin-top:6px; overflow-wrap:anywhere; }
+    .pr-stat{ font-size:12.5px; color:var(--muted); margin-top:8px; display:flex; flex-wrap:wrap; gap:7px; }
+    .pr-stat span{ background:#141b25; border:1px solid var(--line); border-radius:7px; padding:3px 8px; }
+    .pr-stat b{ color:var(--fg); font-weight:800; font-variant-numeric:tabular-nums; }
+    .pr-more{ margin-top:9px; padding-top:9px; border-top:1px dashed var(--line2); font-size:12px; color:var(--fg2); }
+    .pr-more .k{ color:var(--muted); }
+    .pr-more div{ margin:4px 0; overflow-wrap:anywhere; white-space:pre-wrap; }
+    .resform{ background:#0f151d; border:1px solid var(--line2); border-radius:10px; padding:11px; margin-bottom:9px; }
+    .rf-grid{ display:grid; grid-template-columns:1fr 1fr 1fr; gap:8px; }
+    .rf-f label{ font-size:10.5px; color:var(--muted); display:block; margin-bottom:4px; }
+    .rf-f input, .rf-ta{ width:100%; background:#0a0f16; border:1px solid var(--line2); color:var(--fg); border-radius:8px; padding:9px; font-size:15px; }
+    .rf-l{ font-size:10.5px; color:var(--muted); display:block; margin:9px 0 4px; }
+    .rf-ta{ min-height:58px; resize:vertical; white-space:pre-wrap; }
+    .rf-save{ margin-top:10px; width:100%; background:var(--green); color:#06210f; border:0; border-radius:9px; padding:12px; font-size:13.5px; font-weight:800; }
+    .rf-save:active{ transform:scale(.99); }
+    .rf-hint{ font-size:10.5px; color:var(--muted); margin-top:6px; }
+    /* applicant */
+    .ap{ border:1px solid var(--line); border-radius:11px; padding:12px 13px; margin-bottom:9px; background:var(--card2); }
+    .ap-nm{ font-weight:800; font-size:15px; }
+    .ap-meta{ font-size:12.5px; color:var(--muted); font-weight:500; margin-left:7px; }
+    .ap-sub{ font-size:12px; color:var(--fg2); margin-top:4px; overflow-wrap:anywhere; }
+    .tag{ font-size:10px; padding:2px 7px; border-radius:5px; margin-left:6px; font-weight:700; } .tag.dup{ background:#4a2c2c; color:#ffb454; }
+    .pills{ display:flex; gap:7px; flex-wrap:wrap; margin-top:9px; }
+    .pill{ border:1px solid var(--line2); background:#141b25; color:var(--fg); border-radius:8px; padding:7px 11px; font-size:12.5px; font-weight:600; }
+    .pill:active{ transform:scale(.97); }
+    .pill.st{ color:var(--accent); border-color:#33506e; } .pill.memo{ color:var(--amber); border-color:#4a4326; }
+    .acts{ display:flex; gap:8px; margin-top:11px; }
+    .btn{ flex:1; text-align:center; border-radius:10px; padding:11px 5px; text-decoration:none; font-size:13.5px; font-weight:800; white-space:nowrap; }
+    .btn:active{ transform:scale(.97); }
+    .btn.call{ background:var(--green); color:#06210f; } .btn.sms{ background:var(--accent); color:#08192e; } .btn.mail{ background:var(--orange); color:#2a1200; }
+    .btn.off{ background:#222c38; color:var(--muted); pointer-events:none; }
+    .adetail{ margin-top:11px; padding:11px 12px; background:#10161f; border:1px solid var(--line); border-radius:10px; }
+    .ent{ display:flex; gap:10px; font-size:12px; margin:5px 0; }
+    .ent .ed{ color:var(--accent); white-space:nowrap; min-width:78px; font-weight:600; }
+    .ent .eb{ flex:1; color:var(--fg2); overflow-wrap:anywhere; white-space:pre-wrap; }
+    .cinfo{ font-size:12.5px; color:var(--fg2); overflow-wrap:anywhere; }
+    .toast{ position:fixed; bottom:22px; left:50%; transform:translateX(-50%); background:var(--card2); border:1px solid var(--line2); padding:11px 18px; border-radius:11px; font-size:13px; opacity:0; transition:opacity .3s; max-width:90%; box-shadow:0 6px 24px rgba(0,0,0,.4); }
+    .toast.show{ opacity:1; }
+    /* ===== 面接予定カレンダー ===== */
+    .mnav{ display:flex; align-items:center; justify-content:center; gap:14px; margin:2px 0 12px; }
+    .mnav button{ background:var(--card2); border:1px solid var(--line2); color:var(--fg); border-radius:9px; padding:6px 14px; font-size:16px; font-weight:800; }
+    .mnav button:active{ transform:scale(.95); }
+    .mnav .mlabel{ font-size:16px; font-weight:800; min-width:120px; text-align:center; }
+    .schchips{ display:flex; flex-wrap:wrap; gap:6px; margin:0 0 12px; }
+    .schchip{ border:1px solid var(--line2); background:#141b25; border-radius:999px; padding:5px 10px; font-size:11.5px; font-weight:700; display:flex; align-items:center; gap:6px; color:var(--fg); }
+    .schchip .dot{ width:11px; height:11px; border-radius:3px; flex:none; }
+    .schchip.off{ opacity:.38; }
+    .schchip:active{ transform:scale(.97); }
+    .cal{ display:grid; grid-template-columns:repeat(7,1fr); gap:3px; }
+    .cal .dow{ text-align:center; font-size:10.5px; color:var(--muted); font-weight:700; padding:2px 0 4px; }
+    .cal .dow.sun{ color:#ff9a9a; } .cal .dow.sat{ color:#9ab8ff; }
+    .cell{ min-height:56px; background:var(--card); border:1px solid var(--line); border-radius:8px; padding:3px 3px 4px; overflow:hidden; }
+    .cell.blank{ background:transparent; border:0; min-height:0; }
+    .cell.today{ border-color:var(--accent); background:#12203a; }
+    .cell .dn{ font-size:10.5px; color:var(--muted); font-weight:800; line-height:1.1; }
+    .cell.today .dn{ color:var(--accent); }
+    .ev{ display:block; width:100%; text-align:left; border:0; border-radius:5px; padding:2px 4px; margin-top:3px; color:#0a1626; }
+    .ev b{ font-size:9.5px; font-weight:800; } .ev .nm{ font-size:10.5px; font-weight:800; display:block; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    .ev .evst{ font-size:9px; font-weight:700; opacity:.85; display:block; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    .ev:active{ transform:scale(.97); }
+    .schempty{ color:var(--muted); font-size:12.5px; text-align:center; padding:20px 10px; }
+    .schnote{ font-size:11px; color:var(--muted); margin:10px 2px 0; text-align:center; }
+    /* モーダル（面接者の詳細）*/
+    .modal{ position:fixed; inset:0; background:rgba(0,0,0,.55); z-index:20; display:flex; align-items:flex-end; justify-content:center; }
+    .modal[hidden]{ display:none; }
+    .modal-in{ background:var(--bg); width:100%; max-width:520px; border-radius:16px 16px 0 0; padding:14px 15px 24px; max-height:86vh; overflow:auto; border-top:1px solid var(--line2); }
+    .modal-h{ display:flex; align-items:center; justify-content:space-between; margin-bottom:6px; }
+    .modal-h b{ font-size:15px; } .modal-x{ background:var(--card2); border:1px solid var(--line2); color:var(--fg); border-radius:8px; padding:6px 12px; font-weight:800; }
+    .modal-when{ font-size:12.5px; color:var(--accent); font-weight:800; margin:0 0 10px; }
+    /* メモ書き戻し */
+    .memoedit{ display:flex; gap:7px; margin-top:10px; }
+    .memo-in{ flex:1; background:var(--card2); border:1px solid var(--line2); color:var(--fg); border-radius:9px; padding:9px 11px; font-size:13px; min-width:0; }
+    .memo-save{ background:var(--accent); color:#08192e; border:0; border-radius:9px; padding:9px 15px; font-weight:800; font-size:13px; white-space:nowrap; }
+    .memo-save:active{ transform:scale(.97); } .memo-save:disabled{ opacity:.5; }
+    /* 募集終了ボタン */
+    .endrec{ display:block; width:100%; background:var(--warnbg); border:1px solid var(--warnbd); color:var(--amber); border-radius:10px; padding:11px; font-weight:800; font-size:13px; margin:0 0 11px; }
+    .endrec:active{ transform:scale(.99); }
   </style>
 </head>
 <body>
   <header>
-    <div>
-      <h1>求人進捗</h1>
-      <div class="updated" id="updated">読み込み中…</div>
+    <div class="htop">
+      <div><h1>求人進捗</h1><div class="updated" id="updated">読み込み中…</div></div>
+      <button class="refresh" id="refreshBtn" onclick="doRefresh()">更新</button>
     </div>
-    <button class="refresh" id="refreshBtn" onclick="doRefresh()">更新</button>
+    <div class="tabs">
+      <button id="tb-recruit" class="on" onclick="showTab('recruit')">募集中</button>
+      <button id="tb-schedule" onclick="showTab('schedule')">面接予定</button>
+      <button id="tb-history" onclick="showTab('history')">打ち出し履歴</button>
+      <button id="tb-stats" onclick="showTab('stats')">集計</button>
+    </div>
   </header>
-
   <main>
-    <div class="card">
-      <div class="kpis">
-        <div class="kpi"><div class="n" id="kpiTotal">–</div><div class="l">応募者(現在)</div></div>
-        <div class="kpi"><div class="n" id="kpiDup">–</div><div class="l">重複率</div></div>
-        <div class="kpi"><div class="n" id="kpiChg">–</div><div class="l">前回変更検知</div></div>
-      </div>
-    </div>
-
-    <div class="card">
-      <h2>ファネル</h2>
-      <div id="funnel"></div>
-    </div>
-
-    <div class="card">
-      <h2>応募者一覧</h2>
-      <div class="filters" id="filters"></div>
-      <div id="list"><div class="empty">読み込み中…</div></div>
-    </div>
-
-    <div class="card">
-      <h2>勤務可能 曜日×時間帯 ヒートマップ</h2>
-      <div class="heatnote">サンプルCSVでは全件0のため空。バイトル以外の媒体・求人でこの項目が入り始めると表示される。</div>
-    </div>
+    <section id="tab-recruit"><div id="recruitList"><div class="empty">読み込み中…</div></div></section>
+    <section id="tab-schedule" hidden><div id="scheduleBody"><div class="empty">読み込み中…</div></div></section>
+    <section id="tab-history" hidden><div id="historyList"><div class="empty">読み込み中…</div></div></section>
+    <section id="tab-stats" hidden><div id="statsBody"><div class="empty">読み込み中…</div></div></section>
+    <div id="modal" class="modal" hidden onclick="if(event.target===this)closeModal()"><div class="modal-in"><div class="modal-h"><b id="modalTitle">面接者</b><button class="modal-x" onclick="closeModal()">閉じる</button></div><div id="modalBody"></div></div></div>
   </main>
-
   <div class="toast" id="toast"></div>
-
   <script>
-    var STAGES = ['応募', '接触', '面接', '内定', '入社', '終了'];
-    var applicants = [];
-    var stores = {};
-    var activeFunnel = null;
+    var STAGES=['応募','接触','面接','内定','入社','終了'], WD=['日','月','火','水','木','金','土'];
+    var STORD=['未対応','新規','応募','連絡中','接触','面接予約済','面接','保留','内定','採用','入社','不採用（辞退）','辞退','不採用','終了'];
+    function isUntreated(s){ return /未対応|新規/.test(String(s||'')); }
+    function ageGroup(a){ var n=parseInt(String(a==null?'':a).replace(/[^\d]/g,''),10);
+      if(!(n>=10&&n<=99)) return '不明'; if(n<20)return'〜19歳'; if(n<30)return'20代'; if(n<40)return'30代'; if(n<50)return'40代'; if(n<60)return'50代'; return'60代〜'; }
+    var apps=[], storeManual={}, storePosting={}, postings=[], appByCode={}, RECS=[];
+    var postByStore={}, appByStore={}, reportUrl='', postById={};
+    var DASH={}, LAST=null, statYear='all', liveShops=[];
+    var statusMap={}, statusOrder=[], writeEnabled=false;
+    function sameCode(a,b){ return parseInt(String(a),10)===parseInt(String(b),10); }
 
-    function toast(msg) {
-      var t = document.getElementById('toast');
-      t.textContent = msg; t.classList.add('show');
-      setTimeout(function () { t.classList.remove('show'); }, 2600);
-    }
+    function toast(m){ var t=document.getElementById('toast'); t.textContent=m; t.classList.add('show'); setTimeout(function(){t.classList.remove('show');},2600); }
+    function esc(s){ return String(s==null?'':s).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];}); }
+    function normStore(s){ return String(s||'').replace(/^(?:【[^】]*】)+/,'').replace(/[\s　・･]/g,'').toLowerCase(); }
+    function toDate(s){ if(s==null||s==='') return null; if(typeof s==='object'&&s.getTime) return isNaN(s.getTime())?null:s;
+      var m=String(s).match(/(\d{4})\D(\d{1,2})\D(\d{1,2})(?:\D+(\d{1,2}):(\d{2}))?/); if(!m) return null;
+      return new Date(+m[1],+m[2]-1,+m[3],+(m[4]||0),+(m[5]||0)); }
+    function fmtD(s){ var d=toDate(s); if(!d) return s?esc(s):''; return d.getFullYear()+'/'+(d.getMonth()+1)+'/'+d.getDate()+'('+WD[d.getDay()]+')'; }
+    function fmtDT(s){ var d=toDate(s); if(!d) return s?esc(s):''; var hm=(String(s).match(/(\d{1,2}:\d{2})/)||['',''])[1];
+      return (d.getMonth()+1)+'/'+d.getDate()+'('+WD[d.getDay()]+')'+(hm?(' '+hm):''); }
+    function pct(v){ if(v==null||v==='') return ''; var s=String(v).trim();
+      var hasP=/%/.test(s); var n=parseFloat(s.replace(/[^\d.\-]/g,'')); if(isNaN(n)) return '';
+      if(!hasP && n<=1) n=n*100; return n.toFixed(2)+'%'; }
+    function ageTxt(a){ var n=parseInt(String(a==null?'':a).replace(/[^\d]/g,''),10); return (n>=10&&n<=99)?(n+'歳'):''; }
+    function fmtCost(v){ v=String(v==null?'':v).trim(); if(!v) return '';
+      var num=v.replace(/[¥￥,\s円]/g,'');
+      if(num!=='' && !isNaN(num)) return yen(parseFloat(num));   // 数値は四捨五入・小数点なし・カンマ・¥
+      return ''; }   // #DIV/0! 等の数値でない値は表示しない
+    function has(v){ return v!==''&&v!=null; }
+    function manOverride(man){ var s=String(man||'').trim(); if(!s) return null;
+      if(/終了|停止|休止|クローズ|close|off|×|✕|ｘ/i.test(s)) return 'ended';
+      if(/^(0|なし)$/i.test(s)) return 'ended';
+      if(/中|継続|再開|募集|active|on|○|◯|〇/i.test(s)) return 'active';
+      if(/^(1|あり)$/i.test(s)) return 'active'; return null; }
 
-    function loadDashboard() {
-      google.script.run.withSuccessHandler(renderDashboard).withFailureHandler(function (e) {
-        document.getElementById('updated').textContent = '取得失敗: ' + e.message;
-      }).getDashboard();
-      google.script.run.withSuccessHandler(function (r) {
-        if (r) document.getElementById('kpiChg').textContent = r.changes != null ? r.changes : '–';
-      }).getLatestRun();
-      google.script.run.withSuccessHandler(function (rows) {
-        applicants = rows || []; renderList();
-      }).getApplicants();
-    }
-
-    function renderDashboard(d) {
-      stores = d.stores || {};
-      document.getElementById('kpiTotal').textContent = d.total != null ? d.total : '–';
-      document.getElementById('kpiDup').textContent = d.duplicate_rate != null ? Math.round(d.duplicate_rate * 100) + '%' : '–';
-      document.getElementById('updated').textContent = d.generated_at ? ('最終更新 ' + d.generated_at) : '未取得';
-
-      var funnel = d.funnel || {};
-      var max = 1;
-      STAGES.forEach(function (s) { max = Math.max(max, funnel[s] || 0); });
-      var html = '';
-      STAGES.forEach(function (s) {
-        var v = funnel[s] || 0;
-        var w = Math.round((v / max) * 100);
-        html += '<div class="funnel-row"><div class="name">' + s + '</div>' +
-          '<div class="bar stage-' + s + '" style="width:' + Math.max(w, v ? 8 : 0) + '%">' + (v || '') + '</div></div>';
+    function showTab(t){
+      ['recruit','schedule','history','stats'].forEach(function(x){
+        document.getElementById('tab-'+x).hidden = (x!==t);
+        document.getElementById('tb-'+x).classList.toggle('on', x===t);
       });
-      document.getElementById('funnel').innerHTML = html;
+      window.scrollTo(0,0);
+    }
+    function load(){ google.script.run.withSuccessHandler(render).withFailureHandler(function(e){document.getElementById('updated').textContent='取得失敗: '+(e&&e.message||'');}).dashData(); }
+    function doRefresh(){
+      var b=document.getElementById('refreshBtn'); b.disabled=true; b.textContent='取得中…'; toast('最新データを取得中（15秒ほど）');
+      google.script.run.withSuccessHandler(function(r){ b.disabled=false; b.textContent='更新';
+        if(r&&r.ok){
+          toast('取得完了：掲載中'+(r.live||0)+'店舗 / 応募'+(r.apps||0)+'件 / 打ち出し'+(r.postings||0)+'件');
+          if((r.postings||0)===0){ diagPostings(); } else { load(); }
+        } else { toast('取得失敗'+(r&&r.error?': '+r.error:'')); }
+      }).withFailureHandler(function(e){ b.disabled=false; b.textContent='更新'; toast('エラー: '+(e&&e.message||'')); }).dashRefresh();
+    }
+    // 打ち出しが0件のとき、取り込み元に何件あるかを確認して知らせる（原因切り分け）
+    function diagPostings(){
+      google.script.run.withSuccessHandler(function(d){
+        load();
+        if(!d) return;
+        if(d.error){ alert('取り込み元エラー:\n'+d.error); return; }
+        var ex=(d.sample&&d.sample[0])?JSON.stringify(d.sample[0]):'なし';
+        alert('打ち出しシートは0件でした。\n取り込み元（'+d.source+'）の行数: '+d.rows+'\n例: '+ex+'\n\n'+
+          (d.rows>0 ? '→ 元にはデータがあります。日付や店舗名の取り込みで弾かれている可能性。この内容を担当に伝えてください。'
+                    : '→ 取り込み元にもデータがありません。元スプレッドシート/Notion側に打ち出しが入っているか確認が必要です。'));
+      }).withFailureHandler(function(e){ load(); alert('取り込み元の確認に失敗: '+(e&&e.message||'')); }).dashDiagPostings();
     }
 
-    function renderList() {
-      var filt = document.getElementById('filters');
-      var chips = '<button class="chip ' + (activeFunnel === null ? 'on' : '') + '" onclick="setFilter(null)">すべて</button>';
-      STAGES.forEach(function (s) {
-        chips += '<button class="chip ' + (activeFunnel === s ? 'on' : '') + '" onclick="setFilter(\'' + s + '\')">' + s + '</button>';
-      });
-      filt.innerHTML = chips;
+    function render(d){
+      var dash=d.dash||{};
+      apps=d.apps||[]; storeManual=d.storeManual||{}; storePosting=d.storePosting||{}; postings=d.postings||[]; reportUrl=d.reportUrl||'';
+      appByCode={}; postById={}; apps.forEach(function(a){ appByCode[a.code]=a; });
+      postByStore={}; postings.forEach(function(p){ var k=normStore(p.store); (postByStore[k]=postByStore[k]||[]).push(p); });
+      appByStore={}; apps.forEach(function(a){ var k=normStore(a.store); (appByStore[k]=appByStore[k]||[]).push(a); });
 
-      var rows = applicants.filter(function (a) { return activeFunnel === null || a.funnel === activeFunnel; });
-      if (!rows.length) {
-        document.getElementById('list').innerHTML = '<div class="empty">該当なし</div>';
-        return;
+      DASH=dash; LAST=d.last; liveShops=d.liveShops||[];
+      statusMap=d.statusMap||{}; statusOrder=d.statusOrder||[]; writeEnabled=!!d.writeEnabled;
+      document.getElementById('updated').textContent = d.last?('最終取得 '+esc(d.last.at)):(dash.generated_at||'未取得');
+      renderRecruit();
+      renderSchedule();
+      renderHistory();
+      renderStats();
+    }
+
+    /* ===== 未提出（掲載終了なのに結果が空）===== */
+    function isUnsubmitted(p){ return p.state!=='募集中' && !has(p.apps) && !has(p.hires); }
+    function unsubmittedPostings(){ return postings.filter(isUnsubmitted); }
+    function alertHtml(){
+      var u=unsubmittedPostings(); if(!u.length) return '';
+      return '<div class="alert"><div class="al-h">⚠️ 結果報告 未提出 '+u.length+'件</div>'+
+        '<div class="al-note">掲載終了なのに結果が未入力です。行をタップして入力（採用率・単価は自動計算）。</div>'+
+        u.map(postingRow).join('')+'</div>';
+    }
+
+    /* ===== 募集中タブ（EntryPocket由来：直近に応募がある店舗＝募集中）===== */
+    var RECRUIT_RECENT_DAYS=45;   // 直近この日数に応募がある店舗を「募集中」とみなす
+    function renderRecruit(){
+      var el=document.getElementById('recruitList');
+      var now=Date.now(), cut=now-RECRUIT_RECENT_DAYS*86400000;
+      // EntryPocketの応募データから、店舗ごとの最新応募日時を出す
+      var latest={}, nameOf={};
+      apps.forEach(function(a){ var k=normStore(a.store); if(!k) return; if(a.store) nameOf[k]=a.store;
+        var d=toDate(a.appliedAt), t=d?d.getTime():0; if(!latest[k]||t>latest[k]) latest[k]=t; });
+      var keys={};
+      Object.keys(latest).forEach(function(k){ if(latest[k]>=cut) keys[k]=1; });          // 直近応募あり＝募集中
+      // EntryPocketで掲載中の求人原稿がある店舗（応募が無くても募集中に出す）
+      (liveShops||[]).forEach(function(nm){ var k=normStore(nm); if(!k) return; keys[k]=1; if(nm&&!nameOf[k]) nameOf[k]=nm; });
+      // 手動上書き（master_店舗 F列 募集手動）：終了は外す・募集中は入れる（最後に適用＝終了が優先）
+      Object.keys(storeManual).forEach(function(name){ var ov=manOverride(storeManual[name]), k=normStore(name);
+        if(ov==='active') keys[k]=1; if(ov==='ended') delete keys[k]; });
+      var liveSet={}; (liveShops||[]).forEach(function(nm){ liveSet[normStore(nm)]=1; });
+      RECS=Object.keys(keys).map(function(k){
+        var appsArr=appByStore[k]||[], sp=storePosting[k]||null;
+        var name=nameOf[k]||(sp&&sp.name)||(appsArr[0]&&appsArr[0].store)||k;
+        return { key:k, name:name, sp:sp, appsArr:appsArr, latest:latest[k]||0, live:!!liveSet[k] };
+      });
+      RECS.sort(function(a,b){ return (b.latest||0)-(a.latest||0); });                     // 最新応募順
+      var autoHint='<div class="muted" style="font-size:11px;margin:2px 2px 8px;line-height:1.5">掲載終了から14日で自動的に結果報告へ移ります。すぐ確定したい店舗は「募集終了」ボタンを押してください。</div>';
+      var h=autoHint+alertHtml();
+      if(!RECS.length){ el.innerHTML=h+'<div class="empty">現在、募集中の店舗はありません（直近'+RECRUIT_RECENT_DAYS+'日に応募なし）</div>'; return; }
+      RECS.forEach(function(r){ h+=storeCard(r); });
+      el.innerHTML=h;
+    }
+    function storeCard(r){
+      var i=RECS.indexOf(r);
+      var sub = r.latest ? ((r.live?'掲載中・':'')+'最新応募 '+fmtD(new Date(r.latest))+'　現応募'+r.appsArr.length+'名')
+                         : (r.live ? '掲載中（EntryPocket・応募なし）' : '募集中（手動設定）');
+      var untreated=r.appsArr.filter(function(a){return isUntreated(a.status);}).length;
+      var chips=[ '<span>現応募者<b>'+r.appsArr.length+'</b></span>' ];
+      if(untreated) chips.unshift('<span class="warnchip">未対応<b>'+untreated+'</b></span>');
+      var stat=chips.join('');
+      return '<div class="sc" id="sc_'+i+'">'+
+        '<div class="sc-top" onclick="stoggle('+i+')">'+
+          '<span class="chev">›</span>'+
+          '<div class="sc-h"><span class="sc-nm">'+esc(r.name)+'</span><span class="badge on">●募集中</span></div>'+
+          '<div class="sc-sub">'+sub+'</div>'+
+          '<div class="sc-stat">'+stat+'</div>'+
+        '</div>'+
+        '<div class="sc-body" id="sb_'+i+'" hidden></div>'+
+      '</div>';
+    }
+    function stoggle(i){
+      var body=document.getElementById('sb_'+i), card=document.getElementById('sc_'+i);
+      if(!body) return;
+      if(body.hidden){
+        if(!body.getAttribute('data-built')){ RECS[i].af='all'; body.innerHTML=sbuild(i); body.setAttribute('data-built','1'); }
+        body.hidden=false; card.classList.add('tapped');
+      } else { body.hidden=true; card.classList.remove('tapped'); }
+    }
+    // タイルを押したとき（j<0=募集人数→属性内訳、それ以外=r.statuses[j]→一覧）。同じものを再度押すと閉じる。
+    function sSelect(i,j){
+      var r=RECS[i], target=(j<0?'all':(r.statuses&&r.statuses[j])||'all');
+      r.af=(r.af===target?'none':target);
+      document.getElementById('sb_'+i).innerHTML=sbuild(i);
+    }
+    // 店舗の中身：件数タイルに集約。タイルを押すと該当一覧／属性内訳を下に開く。
+    function sbuild(i){
+      var r=RECS[i], af=r.af||'none';
+      var arr=r.appsArr.slice().sort(function(a,b){ var ta=toDate(a.appliedAt), tb=toDate(b.appliedAt); return (tb?tb.getTime():0)-(ta?ta.getTime():0); });
+      var counts={}; arr.forEach(function(a){ var s=a.status||'不明'; counts[s]=(counts[s]||0)+1; });
+      var order=STORD.slice(); Object.keys(counts).forEach(function(s){ if(order.indexOf(s)<0) order.push(s); });
+      r.statuses=order.filter(function(s){ return counts[s]; });
+      var tiles='<div class="sgrid">';
+      tiles+='<button class="stile'+(af==='all'?' on':'')+'" onclick="sSelect('+i+',-1)"><div class="sv">'+arr.length+'</div><div class="sl">募集人数</div></button>';
+      r.statuses.forEach(function(s,j){
+        var w=isUntreated(s)?' warn':'';
+        tiles+='<button class="stile'+w+(af===s?' on':'')+'" onclick="sSelect('+i+','+j+')"><div class="sv">'+counts[s]+'</div><div class="sl">'+esc(s)+'</div></button>';
+      });
+      tiles+='</div>';
+      var below='';
+      if(af==='all') below=demoHtml(arr)+'<div class="dl">応募者一覧（'+arr.length+'）</div>'+(arr.map(appCard).join('')||'<div class="muted">該当なし</div>');
+      else if(af!=='none'){
+        var list=arr.filter(function(a){ return (a.status||'不明')===af; });
+        below='<div class="dl">'+esc(af)+'（'+list.length+'）</div>'+(list.map(appCard).join('')||'<div class="muted">該当なし</div>');
       }
-      var html = '';
-      rows.forEach(function (a) {
-        var storeName = stores[a.storeId] || a.storeId || '';
-        var dup = a.duplicate ? '<span class="tag dup">重複</span>' : '';
-        var st = a.status ? '<span class="tag st">' + a.status + '</span>' : '';
-        var call = a.telLink
-          ? '<a class="call" href="' + a.telLink + '">発信</a>'
-          : '<span class="call off">TELなし</span>';
-        html += '<div class="app"><div class="info"><div class="nm">' + esc(a.name) + dup + st + '</div>' +
-          '<div class="sub">' + esc(storeName) + ' ・ ' + esc(a.media || '') + ' ・ ' + esc(a.appliedAt || '') + '</div></div>' +
-          call + '</div>';
+      var endBtn = writeEnabled ? '<button class="endrec" onclick="endRecruitOpen('+i+')">■ 募集終了して結果を入力（スプシへ）</button>' : '';
+      return endBtn+tiles+below;
+    }
+    /* ===== 募集終了 → 求人結果報告（スプシ/Notion）へ移行して結果入力 ===== */
+    function fmtYmd(d){ return d.getFullYear()+'-'+('0'+(d.getMonth()+1)).slice(-2)+'-'+('0'+d.getDate()).slice(-2); }
+    // 文字列日付（"2026/05/25" 等）→ 入力欄用 yyyy-MM-dd。解釈できなければ元の文字列。
+    function fmtYmd0(s){ var d=toDate(s); return d?fmtYmd(d):String(s||''); }
+    function val(id){ var el=document.getElementById(id); return el?el.value:''; }
+    // 既存の打ち出し行を狙う：未提出（結果未入力）を最優先、無ければ最新の行。重複を作らない。
+    function existingPosting(r){
+      var list=(postByStore[r.key]||[]).slice();
+      if(!list.length) return null;
+      var un=list.filter(isUnsubmitted);
+      var pool=un.length?un:list;
+      pool.sort(function(a,b){ var da=toDate(a.start),db=toDate(b.start); return (db?db.getTime():0)-(da?da.getTime():0); });
+      return pool[0];
+    }
+    function endRecruitOpen(i){
+      var r=RECS[i]; if(!r) return;
+      var arr=r.appsArr||[];
+      var ex=existingPosting(r);   // スプシに既にある同店舗の行（あれば上書き対象）
+      r._srcSheet = ex ? ex.srcSheet : ''; r._srcRow = ex ? ex.srcRow : '';
+      var times=arr.map(function(a){ var d=toDate(a.appliedAt); return d?d.getTime():0; }).filter(Boolean);
+      // 既存行があれば期間はそれに合わせる（＝重複防止）。無ければ応募日から推定。
+      var start=(ex&&ex.start)?fmtYmd0(ex.start):(times.length?fmtYmd(new Date(Math.min.apply(null,times))):'');
+      var end=(ex&&ex.end)?fmtYmd0(ex.end):fmtYmd(new Date());
+      var apps=arr.length;
+      var hires=arr.filter(function(a){ return sameCode(a.statusCode,'80')||a.status==='採用'; }).length;
+      document.getElementById('modalTitle').textContent='募集終了：'+r.name;
+      var f=function(lb,id,v){ return '<div class="rf-f"><label>'+lb+'</label><input id="'+id+'" type="text" inputmode="numeric" value="'+esc(v)+'"></div>'; };
+      var fd=function(lb,id,v){ return '<div class="rf-f"><label>'+lb+'</label><input id="'+id+'" type="text" value="'+esc(v)+'"></div>'; };
+      var dupNote = ex
+        ? '<div class="rf-hint" style="margin:6px 0;color:var(--accent)">既にスプシにある「'+esc(r.name)+'」の行を上書きします（重複は作りません）。</div>'
+        : '<div class="rf-hint" style="margin:6px 0;color:var(--accent)">スプシに新しい結果行を追加します。</div>';
+      document.getElementById('modalBody').innerHTML=
+        '<div class="modal-when">この店舗を募集終了し、求人結果報告（スプシ→Notion）に登録します。採用率・単価は元スプシの数式で自動計算されます。</div>'+
+        dupNote+
+        '<div class="rf-grid">'+fd('掲載開始','er_start',start)+fd('掲載終了','er_end',end)+'</div>'+
+        '<div class="rf-hint" style="margin:6px 0;color:var(--accent)">CSV自動集計 → 応募 '+apps+' / 採用 '+hires+'（必要なら打ち換え可）</div>'+
+        '<div class="rf-grid">'+f('応募総数','er_apps',apps)+f('採用人数','er_hires',hires)+f('退職人数','er_quit','')+'</div>'+
+        '<label class="rf-l">備考・退職理由</label><textarea class="rf-ta" id="er_note"></textarea>'+
+        '<button class="rf-save" onclick="saveEndRecruit('+i+')">募集終了して結果を登録</button>'+
+        '<div class="rf-hint">登録後、元スプシの「プロジェクト実行」でNotionへ反映されます</div>';
+      document.getElementById('modal').hidden=false;
+    }
+    function saveEndRecruit(i){
+      var r=RECS[i]; if(!r) return;
+      var o={ store:r.name, start:val('er_start'), end:val('er_end'), apps:val('er_apps'), hires:val('er_hires'), quit:val('er_quit'), note:val('er_note'), srcSheet:r._srcSheet||'', srcRow:r._srcRow||'' };
+      if(!confirm('「'+r.name+'」を募集終了し、求人結果を登録します。よろしいですか？')) return;
+      var btn=document.querySelector('#modalBody .rf-save'); if(btn){ btn.disabled=true; btn.textContent='登録中…'; }
+      google.script.run.withSuccessHandler(function(res){
+        if(res&&res.ok){ toast('募集終了・結果を登録しました'+(res.created?'（新規）':'')); closeModal(); load(); }
+        else { if(btn){ btn.disabled=false; btn.textContent='募集終了して結果を登録'; } toast('登録に失敗'+(res&&res.error?': '+res.error:'')); }
+      }).withFailureHandler(function(e){ if(btn){ btn.disabled=false; btn.textContent='募集終了して結果を登録'; } toast('通信エラー: '+(e&&e.message||'')); }).epEndRecruit(o);
+    }
+    // 属性内訳（性別・年齢・職業）
+    function demoHtml(arr){
+      var g={}, ag={}, oc={};
+      arr.forEach(function(a){ g[a.gender||'不明']=(g[a.gender||'不明']||0)+1; var k=ageGroup(a.age); ag[k]=(ag[k]||0)+1; var o=a.occupation||'不明'; oc[o]=(oc[o]||0)+1; });
+      return '<div class="demo">'+
+        miniBars('性別', g, null, 0, '')+
+        miniBars('年齢', ag, ['〜19歳','20代','30代','40代','50代','60代〜','不明'], 0, 'g')+
+        miniBars('職業', oc, null, 6, 'o')+
+      '</div>';
+    }
+    function miniBars(title, obj, order, limit, cls){
+      var keys=Object.keys(obj);
+      if(order) keys.sort(function(a,b){ var ia=order.indexOf(a),ib=order.indexOf(b); ia=ia<0?99:ia; ib=ib<0?99:ib; return ia-ib; });
+      else keys.sort(function(a,b){ return obj[b]-obj[a]; });
+      if(limit) keys=keys.slice(0,limit);
+      var total=0,max=1; keys.forEach(function(k){ total+=obj[k]; max=Math.max(max,obj[k]); });
+      var rows=keys.map(function(k){ var v=obj[k], w=Math.round(v/max*100), p=total?Math.round(v/total*100):0;
+        return '<div class="bd"><div class="bl">'+esc(k)+'</div><div class="bb"><div class="bf" style="width:'+w+'%"></div></div><div class="bn"><b>'+v+'</b><i>'+p+'%</i></div></div>'; }).join('');
+      return '<div class="mb'+(cls?' '+cls:'')+'"><div class="mb-t">'+esc(title)+'<em>計'+total+'</em></div>'+rows+'</div>';
+    }
+
+    /* ===== 打ち出し履歴タブ ===== */
+    function renderHistory(){
+      var el=document.getElementById('historyList');
+      if(!postings.length){ el.innerHTML='<div class="empty">打ち出しデータがありません（次の取得で反映）</div>'; return; }
+      el.innerHTML='<div class="card">'+postings.slice(0,300).map(postingRow).join('')+'</div>';
+    }
+    function postingRow(p){
+      var id='pr'+(postingRow._i=(postingRow._i||0)+1);
+      postById[id]=p;
+      var unsub=isUnsubmitted(p);
+      var badge = p.state==='募集中' ? '<span class="badge on">●募集中</span>'
+                : (unsub ? '<span class="badge warn">結果未提出</span>' : '<span class="badge end">終了</span>');
+      var line=[esc(p.media||''), esc(p.plan||''), esc(fmtCost(p.cost))].filter(Boolean).join('　/　');
+      var stat=[ (has(p.apps)?('応募<b>'+esc(p.apps)+'</b>'):''),
+                 (has(p.hires)?('採用<b>'+esc(p.hires)+'</b>'):''),
+                 (p.unit?('単価<b>'+esc(fmtCost(p.unit))+'</b>'):''),
+                 (pct(p.hireRate)?('採用率<b>'+pct(p.hireRate)+'</b>'):''),
+                 (has(p.quit)&&String(p.quit).replace(/[^\d]/g,'')!=='0'&&String(p.quit).replace(/[^\d]/g,'')!==''?('退職<b>'+esc(p.quit)+'</b>'+(pct(p.quitRate)?('/'+pct(p.quitRate)):'')):'')
+               ].filter(Boolean).map(function(x){return '<span>'+x+'</span>';}).join('');
+      var area=[esc(p.area1||''),esc(p.area2||'')].filter(Boolean).join(' / ');
+      var line2=[esc(p.line1||''),esc(p.line2||'')].filter(Boolean).join(' / ');
+      var canForm = unsub && writeEnabled && has(p.srcRow);
+      var moreInner =
+        (canForm?resultForm(id,p):'')+
+        (area?'<div><span class="k">エリア：</span>'+area+'</div>':'')+
+        (line2?'<div><span class="k">路線：</span>'+line2+'</div>':'')+
+        (p.reporter?'<div><span class="k">報告者：</span>'+esc(p.reporter)+'</div>':'')+
+        (p.note?'<div><span class="k">備考・退職理由：</span>\n'+esc(p.note)+'</div>':'');
+      var more = moreInner ? '<div class="pr-more" id="'+id+'" hidden>'+moreInner+'</div>' : '';
+      var hint = (unsub&&writeEnabled&&has(p.srcRow)) ? '<span class="pd" style="color:var(--amber)">タップで入力 ▾</span>'
+               : (unsub&&reportUrl ? '<a class="btn-in sm" href="'+esc(reportUrl)+'" target="_top" onclick="event.stopPropagation()">スプシで入力 ▸</a>' : '');
+      return '<div class="pr'+(unsub?' unsub':'')+'" onclick="prtoggle(\''+id+'\')">'+
+        '<div class="pr-h"><b>'+esc(p.store)+'</b>'+badge+'<span class="pd">'+fmtD(p.start)+'〜'+(p.end?fmtD(p.end):'継続')+'</span>'+hint+'</div>'+
+        (line?'<div class="pr-sub">'+line+'</div>':'')+
+        (stat?'<div class="pr-stat">'+stat+'</div>':'')+
+        more+
+      '</div>';
+    }
+    function prtoggle(id){ var el=document.getElementById(id); if(el) el.hidden=!el.hidden; }
+    // CSV(応募者)から、その打ち出しの応募総数・採用人数を自動集計（掲載期間内の応募＋採用）
+    function autoCounts(p){
+      var arr=appByStore[normStore(p.store)]||[];
+      var st=toDate(p.start), en=toDate(p.end), endEx=en?new Date(en.getTime()+86400000):null;
+      var a=0,h=0;
+      arr.forEach(function(x){
+        var d=toDate(x.appliedAt); if(!d) return;
+        if(st && d<st) return; if(endEx && d>=endEx) return;
+        a++; if(sameCode(x.statusCode,'80') || x.status==='採用') h++;
       });
-      document.getElementById('list').innerHTML = html;
+      return {apps:a, hires:h};
+    }
+    // 結果入力フォーム（応募/採用はCSV自動集計を初期値に、率・単価はスプシ数式で自動計算）
+    function resultForm(id,p){
+      var au=autoCounts(p);
+      var appsV=has(p.apps)?p.apps:au.apps, hiresV=has(p.hires)?p.hires:au.hires;
+      var f=function(lb,fid,val){ return '<div class="rf-f"><label>'+lb+'</label><input id="'+fid+'" type="number" inputmode="numeric" value="'+esc(has(val)?val:'')+'"></div>'; };
+      return '<div class="resform" onclick="event.stopPropagation()">'+
+        '<div class="rf-hint" style="margin:0 0 9px;color:var(--accent)">CSV自動集計 → 応募 '+au.apps+' / 採用 '+au.hires+'（必要なら打ち換え可）</div>'+
+        '<div class="rf-grid">'+f('応募総数','rf_apps_'+id,appsV)+f('採用人数','rf_hires_'+id,hiresV)+f('退職人数','rf_quit_'+id,p.quit)+'</div>'+
+        '<label class="rf-l">備考・退職理由</label><textarea class="rf-ta" id="rf_note_'+id+'">'+esc(p.note||'')+'</textarea>'+
+        '<button class="rf-save" onclick="event.stopPropagation();saveResult(\''+id+'\')">保存</button>'+
+        '<div class="rf-hint">保存後、元スプシの「プロジェクト実行」でNotionへ反映されます</div>'+
+      '</div>';
+    }
+    function saveResult(id){
+      var p=postById[id]; if(!p) return;
+      var gv=function(k){ var el=document.getElementById(k+id); return el?el.value:''; };
+      var apps=gv('rf_apps_'), hires=gv('rf_hires_'), quit=gv('rf_quit_'), note=gv('rf_note_');
+      if(!confirm(p.store+' の結果を保存します。\n応募 '+(apps||'-')+' / 採用 '+(hires||'-')+' / 退職 '+(quit||'-')+'\nよろしいですか？')) return;
+      toast('保存中…');
+      google.script.run.withSuccessHandler(function(r){
+        if(r&&r.ok){ p.apps=apps; p.hires=hires; p.quit=quit; p.note=note; p.state='終了'; toast('保存しました（Notionは元スプシの「プロジェクト実行」で反映）'); renderRecruit(); renderHistory(); renderStats(); }
+        else toast('保存失敗: '+((r&&r.error)||''));
+      }).withFailureHandler(function(e){ toast('通信エラー: '+(e&&e.message||'')); }).epSaveResult({ srcSheet:p.srcSheet, srcRow:p.srcRow, store:p.store, start:p.start, apps:apps, hires:hires, quit:quit, note:note });
     }
 
-    function setFilter(s) { activeFunnel = s; renderList(); }
+    /* ===== 応募者カード（店舗ドリルダウン内） ===== */
+    var TPL_SMS='{name}様\nこの度は【{store}】へご応募ありがとうございます。採用担当です。\n面接日程のご相談をさせていただきたくご連絡しました。ご都合のよい日時をご返信ください。';
+    var TPL_MAIL_SUBJECT='【{store}】ご応募ありがとうございます';
+    var TPL_MAIL_BODY='{name} 様\n\nこの度は【{store}】の求人へご応募いただき、誠にありがとうございます。採用担当です。\n\n面接日程についてご相談させていただきたく、ご連絡いたしました。下記より、ご都合のよい日時をお知らせください。\n\n・第1希望：\n・第2希望：\n・第3希望：\n\nご不明点がございましたら本メールへご返信ください。何卒よろしくお願いいたします。';
+    function fillTpl(t,a){ return String(t).replace(/{name}/g,a.name||'').replace(/{store}/g,a.store||''); }
+    function smsHref(a){ var num=String(a.telRaw||a.tel||'').replace(/[^\d+]/g,''); return num?('sms:'+num+'?body='+encodeURIComponent(fillTpl(TPL_SMS,a))):null; }
+    function mailHref(a){ return a.email?('mailto:'+a.email+'?subject='+encodeURIComponent(fillTpl(TPL_MAIL_SUBJECT,a))+'&body='+encodeURIComponent(fillTpl(TPL_MAIL_BODY,a))):null; }
+    function splitEntries(s){ s=String(s||'').trim(); if(!s) return [];
+      var p=s.split(/\r?\n/).map(function(x){return x.trim();}).filter(Boolean);
+      if(p.length<=1) p=s.split(/(?=\d{4}[\/年.\-]\d{1,2}[\/月.\-]\d{1,2})/).map(function(x){return x.trim();}).filter(Boolean); return p; }
+    function parseEntry(e){ var m=e.match(/^\D*(\d{4})[\/年.\-](\d{1,2})[\/月.\-](\d{1,2})日?(?:[ 　T]*(\d{1,2})[:：](\d{2}))?[\)\]　 、\-]*(.*)$/);
+      if(m){ var d=(+m[2])+'/'+(+m[3])+'('+WD[new Date(+m[1],+m[2]-1,+m[3]).getDay()]+')'+(m[4]?(' '+('0'+m[4]).slice(-2)+':'+m[5]):'');
+        return {date:d, body:(m[6]||'').trim(), ts:new Date(+m[1],+m[2]-1,+m[3],+(m[4]||0),+(m[5]||0)).getTime()}; }
+      return {date:'', body:e, ts:NaN}; }
+    function summarize(s){ var e=splitEntries(s).map(parseEntry); if(e.length&&e.every(function(x){return !isNaN(x.ts);})) e.sort(function(a,b){return b.ts-a.ts;}); return e; }
+    function entriesHtml(e){ if(!e.length) return '<div class="cinfo muted">記録なし</div>';
+      return e.map(function(x){ return '<div class="ent"><div class="ed">'+esc(x.date||'―')+'</div><div class="eb">'+esc(x.body||'')+'</div></div>'; }).join(''); }
+    function appDetail(a){ if(!a) return '';
+      var hist=summarize(a.history), memo=summarize(a.memo);
+      var chg='';
+      if(writeEnabled && statusOrder.length){
+        chg='<div class="dl">ステータスを変更（EntryPocketに反映）</div><div class="stbtns">'+
+          statusOrder.map(function(c){ var cur=sameCode(c,a.statusCode); return '<button class="stb'+(cur?' cur':'')+'" onclick="chgStatus(\''+esc(a.code)+'\',\''+c+'\')"'+(cur?' disabled':'')+'>'+esc(statusMap[c]||c)+'</button>'; }).join('')+'</div>';
+      }
+      return chg+
+        '<div class="dl">ステータス変更履歴</div>'+entriesHtml(hist)+
+        (memo.length?('<div class="dl">メモ</div>'+entriesHtml(memo)):'')+
+        '<div class="dl">連絡先</div><div class="cinfo">☎ '+esc(a.telRaw||a.tel||'なし')+'　✉ '+esc(a.email||'なし')+'</div>'; }
+    function chgStatus(applyCd, statusKbn){
+      var name=statusMap[statusKbn]||statusKbn, a=appByCode[applyCd];
+      if(a && sameCode(a.statusCode,statusKbn)){ toast('すでに「'+name+'」です'); return; }
+      if(!confirm((a?a.name+' さん':'')+'のステータスを「'+name+'」に変更します。\nEntryPocket本体にも反映されます。よろしいですか？')) return;
+      toast('変更中…');
+      google.script.run.withSuccessHandler(function(r){
+        if(r&&r.ok){ if(a){ a.status=r.name||name; a.statusCode=r.code||statusKbn; } toast('「'+name+'」に変更しました'); renderRecruit(); }
+        else { toast('変更失敗: '+((r&&r.error)||'')); }
+      }).withFailureHandler(function(e){ toast('通信エラー: '+(e&&e.message||'')); }).epSetStatus(applyCd, statusKbn);
+    }
+    function atoggle(code){ var el=document.getElementById('ad_'+code); if(!el) return;
+      if(el.hidden){ if(!el.getAttribute('data-built')){ el.innerHTML=appDetail(appByCode[code]); el.setAttribute('data-built','1'); } el.hidden=false; } else el.hidden=true; }
+    function appCard(a){
+      var id=esc(a.code);
+      var meta=[ageTxt(a.age), a.gender].filter(Boolean).join('・');
+      var metaS=meta?'<span class="ap-meta">'+esc(meta)+'</span>':'';
+      var dup=a.dup?'<span class="tag dup">重複</span>':'';
+      var req=isUntreated(a.status)?'<span class="tag req">要対応</span>':'';
+      var occ=a.occupation?('💼 '+esc(a.occupation)):'';
+      var stBtn='<button class="pill st" onclick="atoggle(\''+id+'\')">◆ '+esc(a.status||'状況不明')+' ▾</button>';
+      var memoN=summarize(a.memo).length, memoBtn=memoN?('<button class="pill memo" onclick="atoggle(\''+id+'\')">📝 メモ'+memoN+' ▾</button>'):'';
+      var sms=smsHref(a), mail=mailHref(a);
+      var acts='<div class="acts">'+
+        (a.telLink?'<a class="btn call" href="'+esc(a.telLink)+'">発信</a>':'<span class="btn off">TELなし</span>')+
+        (sms?'<a class="btn sms" href="'+esc(sms)+'">SMS</a>':'<span class="btn off">SMS不可</span>')+
+        (mail?'<a class="btn mail" href="'+esc(mail)+'">メール</a>':'<span class="btn off">メール無</span>')+'</div>';
+      var memoEdit = writeEnabled ? ('<div class="memoedit" onclick="event.stopPropagation()">'+
+        '<input id="memoin_'+id+'" class="memo-in" type="text" maxlength="100" placeholder="メモ（100字以内・EntryPocketへ登録）" value="'+esc(memoNew(a))+'">'+
+        '<button class="memo-save" onclick="saveMemo(\''+id+'\')">登録</button></div>') : '';
+      return '<div class="ap'+(isUntreated(a.status)?' new':'')+'"><div class="ap-nm">'+esc(a.name)+metaS+dup+req+'</div>'+
+        (occ?'<div class="ap-sub">'+occ+'</div>':'')+
+        '<div class="ap-sub">🕒 '+fmtDT(a.appliedAt)+(a.media?('　'+esc(a.media)):'')+'</div>'+
+        '<div class="pills">'+stBtn+memoBtn+'</div>'+
+        '<div class="adetail" id="ad_'+id+'" hidden></div>'+acts+memoEdit+'</div>';
+    }
+    function memoNew(a){ return String(a.memo||'').split('【過去メモ】')[0].replace(/\s+/g,' ').trim(); }
+    function saveMemo(code){
+      var el=document.getElementById('memoin_'+code); if(!el) return;
+      var v=el.value;
+      if(!confirm('EntryPocketにメモを登録します。よろしいですか？\n\n'+(v||'(空欄)'))) return;
+      var btn=el.parentNode.querySelector('.memo-save'); if(btn){ btn.disabled=true; btn.textContent='登録中'; }
+      google.script.run.withSuccessHandler(function(r){
+        if(btn){ btn.disabled=false; btn.textContent='登録'; }
+        if(r&&r.ok){ toast('メモを登録しました'); var a=appByCode[code]; if(a) a.memo=v; }
+        else toast('メモ登録に失敗'+(r&&r.error?': '+r.error:''));
+      }).withFailureHandler(function(e){ if(btn){ btn.disabled=false; btn.textContent='登録'; } toast('通信エラー: '+(e&&e.message||'')); }).epSetMemo(code, v);
+    }
 
-    function esc(s) {
-      return String(s == null ? '' : s).replace(/[&<>"]/g, function (c) {
-        return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c];
+    /* ===== 面接予定カレンダー ===== */
+    var SCHPAL=['#5aa2ff','#3ec17f','#f6c343','#ff8a5c','#b98be0','#4dd0e1','#ff6f91','#a3c644','#e08b4d','#8aa0ff','#5ec7a8','#e6b800'];
+    var schY=null, schM=null, schSel={}, schStores=[];
+    function schTime(s){ var m=String(s||'').match(/(\d{1,2}):(\d{2})/); return m?(('0'+m[1]).slice(-2)+':'+m[2]):''; }
+    function schColorOf(key){ for(var i=0;i<schStores.length;i++){ if(schStores[i].key===key) return schStores[i].color; } return '#8aa0ff'; }
+    // 打ち出し中の店舗 {key:表示名}
+    function advertisedNames(){
+      var out={};
+      Object.keys(storePosting).forEach(function(k){ var r=storePosting[k]; if(r.active&&r.name) out[normStore(r.name)]=r.name; });
+      Object.keys(storeManual).forEach(function(name){ if(manOverride(storeManual[name])==='active') out[normStore(name)]=name; });
+      return out;
+    }
+    // 面接日時のある応募者を予定に
+    function schedEvents(){
+      var evs=[];
+      apps.forEach(function(a){ var d=toDate(a.interviewAt); if(!d) return;
+        evs.push({ y:d.getFullYear(), mo:d.getMonth(), da:d.getDate(), t:schTime(a.interviewAt),
+          code:String(a.code), name:a.name||'(氏名なし)', store:a.store||'不明', key:normStore(a.store||'不明'), app:a });
       });
+      return evs;
     }
-
-    var pollTimer = null, pollSince = '', pollCount = 0;
-    function doRefresh() {
-      var btn = document.getElementById('refreshBtn');
-      btn.disabled = true; btn.textContent = '起動中…';
-      google.script.run.withSuccessHandler(function (r) {
-        if (!r.ok) { toast(r.error || '起動に失敗'); resetBtn(); return; }
-        pollSince = r.since || ''; pollCount = 0;
-        btn.textContent = '取得中…';
-        toast('取得を開始しました（1〜2分）');
-        pollTimer = setInterval(poll, 5000);
-      }).withFailureHandler(function (e) { toast(e.message); resetBtn(); }).triggerRefresh();
+    // 店舗リスト（打ち出し中→その後、面接予定のある店舗）＋色＋既定選択
+    function schBuildStores(){
+      var adv=advertisedNames(), advKeys=Object.keys(adv), names={};
+      advKeys.forEach(function(k){ names[k]=adv[k]; });
+      schedEvents().forEach(function(e){ if(!names[e.key]) names[e.key]=e.store; });
+      var other=Object.keys(names).filter(function(k){ return advKeys.indexOf(k)<0; }).sort(function(a,b){ return names[a]<names[b]?-1:1; });
+      var ordered=advKeys.concat(other);
+      schStores=ordered.map(function(k,i){ return { key:k, name:names[k], color:SCHPAL[i%SCHPAL.length] }; });
+      schStores.forEach(function(s){ if(!(s.key in schSel)) schSel[s.key]=true; });
     }
-
-    function poll() {
-      pollCount++;
-      google.script.run.withSuccessHandler(function (r) {
-        if (r && r.at && r.at !== pollSince) {
-          clearInterval(pollTimer);
-          toast(r.result === 'success' ? '取得完了' : ('取得失敗: ' + (r.note || '')));
-          resetBtn(); loadDashboard();
-        } else if (pollCount > 48) { // 約4分でタイムアウト
-          clearInterval(pollTimer); toast('タイムアウト。あとで更新してください。'); resetBtn();
-        }
-      }).getLatestRun();
+    function renderSchedule(){
+      var el=document.getElementById('scheduleBody'); if(!el) return;
+      if(schY==null){ var n=new Date(); schY=n.getFullYear(); schM=n.getMonth(); }
+      schBuildStores();
+      var nav='<div class="mnav"><button onclick="schMove(-1)">‹</button><span class="mlabel">'+schY+'年 '+(schM+1)+'月</span><button onclick="schMove(1)">›</button></div>';
+      if(!schStores.length){ el.innerHTML=nav+'<div class="schempty">打ち出し中の店舗も、面接予定もありません</div>'; return; }
+      var chips='<div class="schchips">'+schStores.map(function(s){
+        return '<button class="schchip'+(schSel[s.key]?'':' off')+'" onclick="schToggle(\''+s.key.replace(/\\/g,'\\\\').replace(/'/g,"\\'")+'\')"><span class="dot" style="background:'+s.color+'"></span>'+esc(s.name)+'</button>';
+      }).join('')+'</div>';
+      var dows=['日','月','火','水','木','金','土'];
+      var head=dows.map(function(d,i){ return '<div class="dow'+(i===0?' sun':(i===6?' sat':''))+'">'+d+'</div>'; }).join('');
+      var first=new Date(schY,schM,1), lead=first.getDay(), dim=new Date(schY,schM+1,0).getDate();
+      var today=new Date(), thisMonth=(today.getFullYear()===schY&&today.getMonth()===schM);
+      var byDay={}, total=0;
+      schedEvents().forEach(function(e){ if(e.y===schY&&e.mo===schM&&schSel[e.key]){ (byDay[e.da]=byDay[e.da]||[]).push(e); total++; } });
+      Object.keys(byDay).forEach(function(d){ byDay[d].sort(function(a,b){ return (a.t||'99:99')<(b.t||'99:99')?-1:1; }); });
+      var cells='';
+      for(var i=0;i<lead;i++) cells+='<div class="cell blank"></div>';
+      for(var day=1;day<=dim;day++){
+        var list=byDay[day]||[];
+        var evHtml=list.map(function(e){
+          return '<button class="ev" style="background:'+schColorOf(e.key)+'" onclick="schDetail(\''+esc(e.code)+'\')">'+(e.t?'<b>'+e.t+'</b> ':'')+'<span class="nm">'+esc(e.name)+'</span><span class="evst">'+esc(e.store)+'</span></button>';
+        }).join('');
+        cells+='<div class="cell'+(thisMonth&&today.getDate()===day?' today':'')+'"><div class="dn">'+day+'</div>'+evHtml+'</div>';
+      }
+      var body=nav+chips+'<div class="cal">'+head+cells+'</div>';
+      if(total===0) body+='<div class="schnote">この月の面接予定はありません（店舗チップで絞り込み中なら解除して確認）</div>';
+      el.innerHTML=body;
     }
-
-    function resetBtn() {
-      var btn = document.getElementById('refreshBtn');
-      btn.disabled = false; btn.textContent = '更新';
+    function schMove(delta){ schM+=delta; if(schM<0){ schM=11; schY--; } if(schM>11){ schM=0; schY++; } renderSchedule(); }
+    function schToggle(key){ schSel[key]=!schSel[key]; renderSchedule(); }
+    function schDetail(code){ var a=appByCode[code]; if(!a) return;
+      document.getElementById('modalTitle').textContent=a.name||'面接者';
+      var when=a.interviewAt?('面接 '+fmtDT(a.interviewAt)):'';
+      document.getElementById('modalBody').innerHTML=(when?'<div class="modal-when">'+esc(when)+'</div>':'')+appCard(a);
+      document.getElementById('modal').hidden=false;
     }
+    function closeModal(){ document.getElementById('modal').hidden=true; }
 
-    loadDashboard();
+    /* ===== 集計タブ（求人実績の累計・期間選択・店舗別）===== */
+    function parseCost(v){ var n=parseFloat(String(v==null?'':v).replace(/[^\d.]/g,'')); return isNaN(n)?0:n; }
+    function num(v){ var n=parseInt(String(v==null?'':v).replace(/[^\d]/g,''),10); return isNaN(n)?0:n; }
+    function yen(n){ n=Math.round(n||0); var s=String(n); var out=''; while(s.length>3){ out=','+s.slice(-3)+out; s=s.slice(0,-3); } return '¥'+s+out; }
+    function postYear(p){ var d=toDate(p.start)||toDate(p.end); return d?d.getFullYear():null; }
+    function aggPostings(list){ var c=0,a=0,h=0,q=0,rn=0; list.forEach(function(p){ c+=parseCost(p.cost); a+=num(p.apps); h+=num(p.hires); q+=num(p.quit); if(has(p.apps)||has(p.hires)) rn++; }); return {cost:c,apps:a,hires:h,quit:q,n:list.length,result:rn}; }
+    function setYear(y){ statYear=y; renderStats(); }
+    function renderStats(){
+      var host=document.getElementById('statsBody');
+      var years={}; postings.forEach(function(p){ var y=postYear(p); if(y) years[y]=1; });
+      var yl=Object.keys(years).map(Number).sort(function(a,b){return b-a;});
+      var chips='<div class="sfil"><button class="sf'+(statYear==='all'?' on':'')+'" onclick="setYear(\'all\')">全期間</button>'+
+        yl.map(function(y){ return '<button class="sf'+(statYear==y?' on':'')+'" onclick="setYear('+y+')">'+y+'年</button>'; }).join('')+'</div>';
+      var per=postings.filter(function(p){ return statYear==='all' || postYear(p)==statYear; });
+      var A=aggPostings(per);
+      var label=(statYear==='all'?'全期間':statYear+'年');
+      var summary='<div class="card"><h2>会社全体の求人実績（'+label+'）</h2><div class="mgrid">'+
+        mtile('採用単価（1人あたり）', A.hires? yen(A.cost/A.hires):'—', true)+
+        mtile('打ち出し', A.n+'件')+
+        mtile('求人費 合計', yen(A.cost))+
+        mtile('応募 合計', A.apps+'名')+
+        mtile('採用 合計', A.hires+'名')+
+        mtile('採用率', A.apps? (A.hires/A.apps*100).toFixed(2)+'%':'—')+
+        mtile('退職', A.quit+'名'+(A.hires?'（'+(A.quit/A.hires*100).toFixed(1)+'%）':''))+
+      '</div></div>';
+      // 店舗別
+      var byS={}; per.forEach(function(p){ var k=normStore(p.store); (byS[k]=byS[k]||{name:p.store,list:[]}).list.push(p); });
+      var rows=Object.keys(byS).map(function(k){ var o=byS[k]; return {k:k,name:o.name,list:o.list,a:aggPostings(o.list)}; });
+      rows.sort(function(x,y){ return y.a.cost-x.a.cost; });
+      var stores='<div class="card"><h2>店舗別 集計（タップで打ち出し履歴）</h2>'+
+        (rows.length? rows.map(storeAggRow).join('') : '<div class="empty">データなし</div>')+'</div>';
+      // 応募ファネル（会社全体・現在）
+      var f=DASH.funnel||{}, mx=1; STAGES.forEach(function(s){mx=Math.max(mx,f[s]||0);});
+      var funnel='<div class="card"><h2>応募ファネル（現在の全応募者 '+(DASH.total||0)+'名）</h2>'+
+        STAGES.map(function(s){ var v=f[s]||0,w=Math.round(v/mx*100); return '<div class="frow"><div class="nm">'+s+'</div><div class="bar s'+s+'" style="width:'+Math.max(w,v?8:0)+'%">'+(v||'')+'</div></div>'; }).join('')+'</div>';
+      host.innerHTML=chips+summary+stores+funnel;
+    }
+    function mtile(label,val,big){ return '<div class="mtile'+(big?' big':'')+'"><div class="mv">'+val+'</div><div class="ml">'+esc(label)+'</div></div>'; }
+    function storeAggRow(row){
+      var id='sa'+(storeAggRow._i=(storeAggRow._i||0)+1), a=row.a;
+      var st=[ '打ち出し<b>'+row.list.length+'</b>', '費<b>'+yen(a.cost)+'</b>', '応募<b>'+a.apps+'</b>',
+               '採用<b>'+a.hires+'</b>', '単価<b>'+(a.hires?yen(a.cost/a.hires):'—')+'</b>' ]
+             .map(function(x){return '<span>'+x+'</span>';}).join('');
+      var body=row.list.slice().sort(function(p,q){ var tp=toDate(p.start), tq=toDate(q.start); return (tq?tq.getTime():0)-(tp?tp.getTime():0); }).map(postingRow).join('');
+      return '<div class="sc" id="'+id+'w"><div class="sc-top" onclick="saToggle(\''+id+'\')"><span class="chev">›</span>'+
+        '<div class="sc-h"><span class="sc-nm">'+esc(row.name)+'</span></div>'+
+        '<div class="sc-stat">'+st+'</div></div>'+
+        '<div class="sc-body" id="'+id+'" hidden>'+body+'</div></div>';
+    }
+    function saToggle(id){ var b=document.getElementById(id), w=document.getElementById(id+'w'); if(!b) return; b.hidden=!b.hidden; if(w) w.classList.toggle('tapped',!b.hidden); }
+
+    load();
   </script>
 </body>
 </html>
