@@ -12,7 +12,7 @@ on:
         required: true
         default: "discover"
         type: choice
-        options: [discover, listfolder, fetch, plan, sync, music, readsheet, cinemaprev]
+        options: [discover, listfolder, fetch, plan, sync, music, readsheet, cinemaprev, tanzakuprev]
       keyword:
         description: "discover用キーワード（既定: ぎふや）"
         required: false
@@ -104,6 +104,25 @@ jobs:
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add pwa/gifuya/orig_preview.jpg pwa/gifuya/prev_cinema.jpg
           git commit -m "ぎふや: シネマ様式プレビュー生成（元横長写真から）"
+          git push origin HEAD:main
+
+      - name: Tanzaku preview (最大画質=原本から直接)
+        if: github.event.inputs.mode == 'tanzakuprev'
+        working-directory: susabiyu-remotion
+        run: python gifuya_photos.py tanzakuprev "${{ github.event.inputs.keyword }}"
+
+      - name: Commit tanzaku preview (キャッシュ版数は上げない=作業ファイル)
+        if: github.event.inputs.mode == 'tanzakuprev'
+        run: |
+          set -e
+          rm -f susabiyu-remotion/creds.json
+          if [ -z "$(git status --porcelain -- pwa/gifuya)" ]; then
+            echo "変更なし（コミットなし）。"; exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add pwa/gifuya/prev_tanzaku.jpg
+          git commit -m "ぎふや: 短冊様式プレビュー生成（最大画質・原本から直接）"
           git push origin HEAD:main
 
       - name: Bump cache version + commit

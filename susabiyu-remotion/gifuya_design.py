@@ -9,7 +9,7 @@
 """
 import os
 
-from PIL import Image, ImageDraw, ImageFont, ImageFilter
+from PIL import Image, ImageDraw, ImageFont, ImageFilter, ImageOps
 try:
     import numpy as _np
 except Exception:                       # numpy が無い環境では照明補正をスキップ
@@ -275,9 +275,29 @@ def _vertical_ribbon(text, font, pad_x=20, pad_y=26, line_gap_ratio=0.12):
     return rib
 
 
-def render_tanzaku(src, out, title, headline=None, ribbon="福岡天神店", logo=True):
-    """見本 pattern_tanzaku.jpg の体裁で焼き込む。headline=極太見出し／title=赤下線下の料理名。"""
-    base = _cover(Image.open(src), W, H)
+def _pullback_base(im, photo_h):
+    """『若干引き』：写真の高さを photo_h に合わせて中央クロップで幅Wに収め、
+    余白は同じ写真のぼかしで埋める。皿の全体が収まるが引きすぎない見せ方。"""
+    im = _even_lighting(im.convert("RGB"))
+    scale = photo_h / im.height
+    ph = im.resize((max(W, int(im.width * scale)), photo_h), Image.LANCZOS)
+    left = max(0, (ph.width - W) // 2)
+    ph = ph.crop((left, 0, left + W, ph.height))
+    bg = ImageOps.fit(im, (W, H), Image.LANCZOS, centering=(0.5, 0.5)).filter(ImageFilter.GaussianBlur(28))
+    bg = Image.blend(bg, Image.new("RGB", (W, H), (0, 0, 0)), 0.16)
+    bg.paste(ph, (0, (H - ph.height) // 2 - 40))
+    return bg
+
+
+def render_tanzaku(src, out, title, headline=None, ribbon="福岡天神店", logo=True,
+                   pullback=None, quality=95):
+    """見本 pattern_tanzaku.jpg の体裁で焼き込む。headline=極太見出し／title=赤下線下の料理名。
+    pullback=写真高さ(px)を指定すると『若干引き』（皿全体が収まる）。quality=JPEG保存品質。"""
+    src_im = src if isinstance(src, Image.Image) else Image.open(src)
+    if pullback:
+        base = _pullback_base(src_im, int(pullback))
+    else:
+        base = _cover(src_im, W, H)
     base = _scrim(base).convert("RGBA")
 
     # ロゴ（白・左上の角へ寄せる）※大きめだが料理の中心には被らない位置
@@ -322,7 +342,7 @@ def render_tanzaku(src, out, title, headline=None, ribbon="福岡天神店", log
     # 料理名を下線の下に
     _text_shadow(draw, (margin, sub_y - sb[1]), title, sfont, fill=(255, 255, 255))
 
-    base.convert("RGB").save(out, quality=95, subsampling=0)
+    base.convert("RGB").save(out, quality=quality, subsampling=0)
     return out
 
 

@@ -378,6 +378,25 @@ def cinemaprev(name_kw, root=None):
     print("CINEMAPREV|%s|%dx%d|orig=%s|cinema=%s" % (hit["name"], im.width, im.height, orig, prev))
 
 
+def tanzakuprev(name_kw, root=None):
+    """短冊様式を"最大画質"で生成：Drive原本をメモリ上で直接レンダリング（中間JPEGを挟まない）。
+    - pullback=1120（皿が収まる若干引き）／ quality=100・subsampling=0 で保存。
+    - 出力 pwa/gifuya/prev_tanzaku.jpg（確認用・確定後は削除可）。"""
+    import gifuya_design as gd
+    drive = _drive()
+    imgs = _walk_images(drive, root or IMG_ROOT_DEFAULT)
+    hit = next((f for f in imgs if name_kw in f["name"]), None)
+    if not hit:
+        print("NG: 元写真が見つかりません:", name_kw)
+        raise SystemExit(1)
+    buf = _download(drive, hit["id"])
+    im = ImageOps.exif_transpose(Image.open(buf)).convert("RGB")   # Drive原本を1回だけデコード
+    prev = os.path.join(OUT_DIR, "prev_tanzaku.jpg")
+    gd.render_tanzaku(im, prev, "刺身盛り合わせ",
+                      headline="福岡の鮮度、\nそのままに。", pullback=1120, quality=100)
+    print("TANZAKUPREV|%s|%dx%d|%s" % (hit["name"], im.width, im.height, prev))
+
+
 def sync(root=None):
     """料理写真を全同期：4:5トリミングした生写真(f_*.jpg)に加え、ロゴ＋見出し等を焼き込んだ
     「加工済み投稿画像(fd_*.jpg)」も生成。キャプション/タグ/サブコピーを付けて feed.json を書き出す。
@@ -449,6 +468,8 @@ if __name__ == "__main__":
         readsheet(sys.argv[2])
     elif mode == "cinemaprev":
         cinemaprev(sys.argv[2] if len(sys.argv) > 2 else "刺身盛り合わせ")
+    elif mode == "tanzakuprev":
+        tanzakuprev(sys.argv[2] if len(sys.argv) > 2 else "刺身盛り合わせ")
     else:
         print("unknown mode:", mode)
         raise SystemExit(2)
