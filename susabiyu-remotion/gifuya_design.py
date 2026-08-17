@@ -331,33 +331,49 @@ def render_tanzaku(src, out, title, headline=None, ribbon="福岡天神店", log
 #   上下の黒帯＋中央にロゴ／下に店名。写真は"横長のオリジナル"を切らずに全体を収める。
 #   src は 4:5 クロップ済みではなく、横長の元写真を渡すこと（全体が横いっぱいに決まる）。
 # ─────────────────────────────────────────────────────────────────────────────
-def render_cinema(src, out, en="TAISHO 5  -  FUKUOKA TENJIN",
+def render_cinema(src, out, title="", caption=None,
+                  en="TAISHO 5  -  FUKUOKA TENJIN",
                   jp="大衆酒場 ぎふや 福岡天神店", logo=True):
+    """上帯＝ロゴ→屋号→英語／中央＝横長写真（全体）／下帯＝商品名＋キャプション。"""
     GOLD = (206, 170, 110)
     im = _even_lighting(Image.open(src).convert("RGB"))       # トーン統一＆左右均し
     canvas = Image.new("RGB", (W, H), (8, 8, 8))
-    # 写真：横幅いっぱい・アスペクト維持。上下に帯（各≒最低260px）を確保。
+    top_bar, bot_bar = 372, 262
+    avail = H - top_bar - bot_bar
     ratio = im.width / max(1, im.height)
     pw, ph = W, int(W / ratio)
-    max_ph = H - 560
-    if ph > max_ph:
-        ph = max_ph
+    if ph > avail:
+        ph = avail
         pw = int(ph * ratio)
     photo = im.resize((max(1, pw), max(1, ph)), Image.LANCZOS)
-    px, py = (W - pw) // 2, (H - ph) // 2
+    px = (W - pw) // 2
+    py = top_bar + (avail - ph) // 2
     canvas.paste(photo, (px, py))
     d = ImageDraw.Draw(canvas)
+    # 上帯：ロゴマーク → 屋号(和) → 英語(金)
+    y = 26
     if logo and os.path.exists(LOGO_WHITE):
         lg = Image.open(LOGO_WHITE).convert("RGBA")
-        lw = 300
+        lw = 224
         lg = lg.resize((lw, int(lg.height * lw / lg.width)), Image.LANCZOS)
-        canvas.paste(lg, ((W - lw) // 2, max(24, (py - lg.height) // 2)), lg)
-    ef, jf = _font(_GOTHIC_PATH, 34), _font(_SERIF_PATH, 60)
-    by = py + ph
-    ew = d.textlength(en, font=ef)
-    d.text(((W - ew) // 2, by + 62), en, font=ef, fill=GOLD)
+        canvas.paste(lg, ((W - lw) // 2, y), lg)
+        y += lg.height + 12
+    jf, ef = _font(_SERIF_PATH, 46), _font(_GOTHIC_PATH, 28)
     jw = d.textlength(jp, font=jf)
-    d.text(((W - jw) // 2, by + 112), jp, font=jf, fill=(240, 240, 240))
+    d.text(((W - jw) // 2, y), jp, font=jf, fill=(240, 240, 240))
+    y += 60
+    ew = d.textlength(en, font=ef)
+    d.text(((W - ew) // 2, y), en, font=ef, fill=GOLD)
+    # 下帯：商品名（大・明朝）→ キャプション（金系）
+    by = top_bar + avail
+    tf = _font(_SERIF_PATH, 68)
+    tw = d.textlength(title, font=tf)
+    d.text(((W - tw) // 2, by + 40), title, font=tf, fill=(255, 255, 255))
+    if caption:
+        cf = _font(_GOTHIC_PATH, 36)
+        for i, ln in enumerate(str(caption).split("\n")):
+            cw = d.textlength(ln, font=cf)
+            d.text(((W - cw) // 2, by + 132 + i * 46), ln, font=cf, fill=(222, 206, 176))
     canvas.save(out, quality=95, subsampling=0)
     return out
 
