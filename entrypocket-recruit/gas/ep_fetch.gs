@@ -53,8 +53,14 @@ var COLMAP = {
 };
 
 // 店舗マスタ名の先頭にある【アルバイト】等の【…】を除去して店舗名だけにする
+// 店舗名の表記ゆれ統一（左→右）。必要な別名はここに足すだけ。
+var EP_STORE_ALIAS = {
+  "たぬき屋": "たぬきや"
+};
 function epCleanStore_(s) {
-  return String(s || "").replace(/^(?:\s*【[^】]*】\s*)+/, "").trim();
+  var v = String(s || "").replace(/^(?:\s*【[^】]*】\s*)+/, "").trim();
+  if (EP_STORE_ALIAS[v]) return EP_STORE_ALIAS[v];
+  return v;
 }
 
 // 店舗名の照合用キー（空白・中黒を除去して小文字化）。応募データと打ち出しデータの突き合わせに使う。
