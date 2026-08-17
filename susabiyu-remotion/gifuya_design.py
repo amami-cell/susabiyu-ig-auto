@@ -84,8 +84,10 @@ def _even_lighting(im):
     out[hi] = knee + (out[hi] - knee) * 0.66
     out = _np.clip(out, 0, 255)
     im2 = Image.fromarray(out.astype("uint8"))
-    # くっきり：アンシャープマスクで料理の輪郭・質感を立たせる（テキストは後段で別描画なので影響なし）。
-    im2 = im2.filter(ImageFilter.UnsharpMask(radius=2.4, percent=120, threshold=2))
+    # くっきり：2段アンシャープ（微細ディテール→立体感）で料理の質感を最大限引き出す。
+    # テキスト・ロゴは後段で別描画なので影響なし。ハロ抑制のため threshold を設ける。
+    im2 = im2.filter(ImageFilter.UnsharpMask(radius=1.1, percent=95, threshold=1))    # 微細
+    im2 = im2.filter(ImageFilter.UnsharpMask(radius=3.2, percent=85, threshold=3))    # 立体感
     return im2
 
 
