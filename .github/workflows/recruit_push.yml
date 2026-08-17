@@ -5,7 +5,7 @@ name: recruit-webpush
 on:
   schedule:
     - cron: '0 2 * * *'    # JST 11:00（午前まとめ）
-    - cron: '0 8 * * *'    # JST 17:00（夕方まとめ）
+    - cron: '5 8 * * *'    # JST 17:05（夕方まとめ・17時取得の直後）
   workflow_dispatch:        # 手動テスト用
 jobs:
   push:
