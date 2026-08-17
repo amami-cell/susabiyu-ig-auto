@@ -331,14 +331,24 @@ def render_tanzaku(src, out, title, headline=None, ribbon="福岡天神店", log
 #   上下の黒帯＋中央にロゴ／下に店名。写真は"横長のオリジナル"を切らずに全体を収める。
 #   src は 4:5 クロップ済みではなく、横長の元写真を渡すこと（全体が横いっぱいに決まる）。
 # ─────────────────────────────────────────────────────────────────────────────
+def _gold_divider(d, cx, y, half=150, gold=(206, 170, 110), red=RED):
+    """中央に赤い菱形を置いた金の区切り罫。余白が寂しくならない"締め"の飾り。"""
+    d.line([(cx - half, y), (cx - 16, y)], fill=gold, width=3)
+    d.line([(cx + 16, y), (cx + half, y)], fill=gold, width=3)
+    d.polygon([(cx, y - 8), (cx + 9, y), (cx, y + 8), (cx - 9, y)], fill=red)
+    for sx in (cx - half, cx + half):                    # 端の小さな金ドット
+        d.ellipse([sx - 4, y - 4, sx + 4, y + 4], fill=gold)
+
+
 def render_cinema(src, out, title="", caption=None,
                   en="TAISHO 5  -  FUKUOKA TENJIN",
                   jp="大衆酒場 ぎふや 福岡天神店", logo=True):
-    """上帯＝ロゴ→屋号→英語／中央＝横長写真（全体）／下帯＝商品名＋キャプション。"""
+    """上帯＝ロゴ→屋号→英語／中央＝横長写真（金枠付）／下帯＝金罫＋商品名＋キャプション。
+    黒の余白が寂しくならないよう、金のフレーム罫と中央飾りで"間"を締める。"""
     GOLD = (206, 170, 110)
     im = _even_lighting(Image.open(src).convert("RGB"))       # トーン統一＆左右均し
-    canvas = Image.new("RGB", (W, H), (8, 8, 8))
-    top_bar, bot_bar = 372, 262
+    canvas = Image.new("RGB", (W, H), (17, 13, 11))          # 温かみのある濃色（真っ黒を避ける）
+    top_bar, bot_bar = 336, 250
     avail = H - top_bar - bot_bar
     ratio = im.width / max(1, im.height)
     pw, ph = W, int(W / ratio)
@@ -350,30 +360,37 @@ def render_cinema(src, out, title="", caption=None,
     py = top_bar + (avail - ph) // 2
     canvas.paste(photo, (px, py))
     d = ImageDraw.Draw(canvas)
+    # 写真の金の二重枠（上下辺＋四隅ティック）＝額装感を出す
+    for yy, w in ((py - 10, 3), (py + ph + 10, 3), (py - 18, 1), (py + ph + 18, 1)):
+        d.line([(60, yy), (W - 60, yy)], fill=GOLD, width=w)
+    for cx in (60, W - 60):
+        d.line([(cx, py - 22), (cx, py - 6)], fill=GOLD, width=3)
+        d.line([(cx, py + ph + 6), (cx, py + ph + 22)], fill=GOLD, width=3)
     # 上帯：ロゴマーク → 屋号(和) → 英語(金)
-    y = 26
+    y = 24
     if logo and os.path.exists(LOGO_WHITE):
         lg = Image.open(LOGO_WHITE).convert("RGBA")
-        lw = 224
+        lw = 210
         lg = lg.resize((lw, int(lg.height * lw / lg.width)), Image.LANCZOS)
         canvas.paste(lg, ((W - lw) // 2, y), lg)
-        y += lg.height + 12
-    jf, ef = _font(_SERIF_PATH, 46), _font(_GOTHIC_PATH, 28)
+        y += lg.height + 10
+    jf, ef = _font(_SERIF_PATH, 44), _font(_GOTHIC_PATH, 26)
     jw = d.textlength(jp, font=jf)
-    d.text(((W - jw) // 2, y), jp, font=jf, fill=(240, 240, 240))
-    y += 60
+    d.text(((W - jw) // 2, y), jp, font=jf, fill=(238, 238, 238))
+    y += 56
     ew = d.textlength(en, font=ef)
     d.text(((W - ew) // 2, y), en, font=ef, fill=GOLD)
-    # 下帯：商品名（大・明朝）→ キャプション（金系）
+    # 下帯：金の区切り飾り → 商品名（大・明朝）→ キャプション（金系）
     by = top_bar + avail
-    tf = _font(_SERIF_PATH, 68)
+    _gold_divider(d, W // 2, by + 40)
+    tf = _font(_SERIF_PATH, 66)
     tw = d.textlength(title, font=tf)
-    d.text(((W - tw) // 2, by + 40), title, font=tf, fill=(255, 255, 255))
+    d.text(((W - tw) // 2, by + 74), title, font=tf, fill=(255, 255, 255))
     if caption:
-        cf = _font(_GOTHIC_PATH, 36)
+        cf = _font(_GOTHIC_PATH, 34)
         for i, ln in enumerate(str(caption).split("\n")):
             cw = d.textlength(ln, font=cf)
-            d.text(((W - cw) // 2, by + 132 + i * 46), ln, font=cf, fill=(222, 206, 176))
+            d.text(((W - cw) // 2, by + 158 + i * 44), ln, font=cf, fill=(222, 206, 176))
     canvas.save(out, quality=95, subsampling=0)
     return out
 
