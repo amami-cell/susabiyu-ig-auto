@@ -98,12 +98,27 @@ function epEndRecruit(o) {
   if (cStore < 0) return { ok: false, error: "店舗名の列が見つかりません" };
   var norm = function (v) { return epCleanStore_(String(v || "").replace(/\s+/g, " ").trim()); };
 
-  // 既存行（店舗＋開始日）を探す。無ければ新規追加。
+  // 既存行を探す（重複防止）：①控えた元行を店舗名で検証 → ②店舗＋開始日 → ③店舗のみ（結果未入力の行を優先）。無ければ新規追加。
   var row = -1, want = o.start ? String(o.start) : "";
-  for (var i = 1; i < vals.length; i++) {
-    if (norm(vals[i][cStore]) !== store) continue;
-    if (want && cStart >= 0) { var d = epDate_(vals[i][cStart]); if (!d || Utilities.formatDate(d, "Asia/Tokyo", "yyyy-MM-dd") !== want) continue; }
-    row = i + 1; break;
+  var r0 = parseInt(o.srcRow, 10);
+  if (r0 >= 2 && r0 <= vals.length && norm(vals[r0 - 1][cStore]) === store) row = r0;   // ① アプリが狙った既存行
+  if (row < 0 && want && cStart >= 0) {                                                   // ② 店舗＋開始日が一致
+    for (var i = 1; i < vals.length; i++) {
+      if (norm(vals[i][cStore]) !== store) continue;
+      var d = epDate_(vals[i][cStart]); if (!d || Utilities.formatDate(d, "Asia/Tokyo", "yyyy-MM-dd") !== want) continue;
+      row = i + 1; break;
+    }
+  }
+  if (row < 0) {                                                                          // ③ 店舗一致・結果未入力の行があれば上書き（重複させない）
+    var empty = -1, any = -1;
+    for (var i2 = 1; i2 < vals.length; i2++) {
+      if (norm(vals[i2][cStore]) !== store) continue;
+      if (any < 0) any = i2 + 1;
+      var noApps = (cApps < 0) || String(vals[i2][cApps] || "") === "";
+      var noHire = (cHire < 0) || String(vals[i2][cHire] || "") === "";
+      if (noApps && noHire && empty < 0) empty = i2 + 1;
+    }
+    if (empty > 0) row = empty;
   }
   var created = false;
   var setIf = function (r, c, v) { if (c >= 0 && v != null && String(v) !== "") sh.getRange(r, c + 1).setValue(v); };

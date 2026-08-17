@@ -397,20 +397,38 @@
     }
     /* ===== 募集終了 → 求人結果報告（スプシ/Notion）へ移行して結果入力 ===== */
     function fmtYmd(d){ return d.getFullYear()+'-'+('0'+(d.getMonth()+1)).slice(-2)+'-'+('0'+d.getDate()).slice(-2); }
+    // 文字列日付（"2026/05/25" 等）→ 入力欄用 yyyy-MM-dd。解釈できなければ元の文字列。
+    function fmtYmd0(s){ var d=toDate(s); return d?fmtYmd(d):String(s||''); }
     function val(id){ var el=document.getElementById(id); return el?el.value:''; }
+    // 既存の打ち出し行を狙う：未提出（結果未入力）を最優先、無ければ最新の行。重複を作らない。
+    function existingPosting(r){
+      var list=(postByStore[r.key]||[]).slice();
+      if(!list.length) return null;
+      var un=list.filter(isUnsubmitted);
+      var pool=un.length?un:list;
+      pool.sort(function(a,b){ var da=toDate(a.start),db=toDate(b.start); return (db?db.getTime():0)-(da?da.getTime():0); });
+      return pool[0];
+    }
     function endRecruitOpen(i){
       var r=RECS[i]; if(!r) return;
       var arr=r.appsArr||[];
+      var ex=existingPosting(r);   // スプシに既にある同店舗の行（あれば上書き対象）
+      r._srcSheet = ex ? ex.srcSheet : ''; r._srcRow = ex ? ex.srcRow : '';
       var times=arr.map(function(a){ var d=toDate(a.appliedAt); return d?d.getTime():0; }).filter(Boolean);
-      var start=times.length?fmtYmd(new Date(Math.min.apply(null,times))):'';
-      var end=fmtYmd(new Date());
+      // 既存行があれば期間はそれに合わせる（＝重複防止）。無ければ応募日から推定。
+      var start=(ex&&ex.start)?fmtYmd0(ex.start):(times.length?fmtYmd(new Date(Math.min.apply(null,times))):'');
+      var end=(ex&&ex.end)?fmtYmd0(ex.end):fmtYmd(new Date());
       var apps=arr.length;
       var hires=arr.filter(function(a){ return sameCode(a.statusCode,'80')||a.status==='採用'; }).length;
       document.getElementById('modalTitle').textContent='募集終了：'+r.name;
       var f=function(lb,id,v){ return '<div class="rf-f"><label>'+lb+'</label><input id="'+id+'" type="text" inputmode="numeric" value="'+esc(v)+'"></div>'; };
       var fd=function(lb,id,v){ return '<div class="rf-f"><label>'+lb+'</label><input id="'+id+'" type="text" value="'+esc(v)+'"></div>'; };
+      var dupNote = ex
+        ? '<div class="rf-hint" style="margin:6px 0;color:var(--accent)">既にスプシにある「'+esc(r.name)+'」の行を上書きします（重複は作りません）。</div>'
+        : '<div class="rf-hint" style="margin:6px 0;color:var(--accent)">スプシに新しい結果行を追加します。</div>';
       document.getElementById('modalBody').innerHTML=
         '<div class="modal-when">この店舗を募集終了し、求人結果報告（スプシ→Notion）に登録します。採用率・単価は元スプシの数式で自動計算されます。</div>'+
+        dupNote+
         '<div class="rf-grid">'+fd('掲載開始','er_start',start)+fd('掲載終了','er_end',end)+'</div>'+
         '<div class="rf-hint" style="margin:6px 0;color:var(--accent)">CSV自動集計 → 応募 '+apps+' / 採用 '+hires+'（必要なら打ち換え可）</div>'+
         '<div class="rf-grid">'+f('応募総数','er_apps',apps)+f('採用人数','er_hires',hires)+f('退職人数','er_quit','')+'</div>'+
@@ -421,7 +439,7 @@
     }
     function saveEndRecruit(i){
       var r=RECS[i]; if(!r) return;
-      var o={ store:r.name, start:val('er_start'), end:val('er_end'), apps:val('er_apps'), hires:val('er_hires'), quit:val('er_quit'), note:val('er_note') };
+      var o={ store:r.name, start:val('er_start'), end:val('er_end'), apps:val('er_apps'), hires:val('er_hires'), quit:val('er_quit'), note:val('er_note'), srcSheet:r._srcSheet||'', srcRow:r._srcRow||'' };
       if(!confirm('「'+r.name+'」を募集終了し、求人結果を登録します。よろしいですか？')) return;
       var btn=document.querySelector('#modalBody .rf-save'); if(btn){ btn.disabled=true; btn.textContent='登録中…'; }
       google.script.run.withSuccessHandler(function(res){
