@@ -64,22 +64,24 @@ def _cover(im, w, h):
 
 
 def _scrim(base):
-    """テキスト可読性のため、上下と右側をほんのり暗く。"""
+    """テキスト可読性のため、上下と右側を『ごく控えめ』に暗く。
+    見出しは _text_heavy / _text_shadow で自前に縁取り＆影を持つので、
+    帯は薄めにして写真の明るさをできるだけ均一に保つ（右側が暗く割れないように）。"""
     ov = Image.new("L", (W, H), 0)
     d = ImageDraw.Draw(ov)
-    # 上グラデ（ロゴ・リボン用）
-    for y in range(0, 360):
-        d.line([(0, y), (W, y)], fill=int(120 * (1 - y / 360)))
-    # 下グラデ（見出し・サブコピー用）
-    for y in range(H - 520, H):
-        t = (y - (H - 520)) / 520
-        d.line([(0, y), (W, y)], fill=int(165 * t))
-    # 右側グラデ（縦書き見出し用）
-    for x in range(W - 470, W):
-        t = (x - (W - 470)) / 470
-        col = int(120 * t)
+    # 上グラデ（ロゴ・リボン用）— 薄め
+    for y in range(0, 300):
+        d.line([(0, y), (W, y)], fill=int(78 * (1 - y / 300)))
+    # 下グラデ（見出し・サブコピー用）— 下端だけ薄く
+    for y in range(H - 430, H):
+        t = (y - (H - 430)) / 430
+        d.line([(0, y), (W, y)], fill=int(112 * t))
+    # 右側グラデ（縦書き見出し用）— かなり薄く（暗い割れを防ぐ）
+    for x in range(W - 430, W):
+        t = (x - (W - 430)) / 430
+        col = int(40 * t)
         d.line([(x, 0), (x, H)], fill=col)
-    ov = ov.filter(ImageFilter.GaussianBlur(8))
+    ov = ov.filter(ImageFilter.GaussianBlur(16))
     black = Image.new("RGB", (W, H), (0, 0, 0))
     return Image.composite(black, base, ov)
 
