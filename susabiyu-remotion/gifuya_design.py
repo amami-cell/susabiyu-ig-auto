@@ -280,12 +280,12 @@ def render_tanzaku(src, out, title, headline=None, ribbon="福岡天神店", log
     base = _cover(Image.open(src), W, H)
     base = _scrim(base).convert("RGBA")
 
-    # ロゴ（白・左上）※見本 pattern_tanzaku 相当の大きさ
+    # ロゴ（白・左上の角へ寄せる）※大きめだが料理の中心には被らない位置
     if logo and os.path.exists(LOGO_WHITE):
         lg = Image.open(LOGO_WHITE).convert("RGBA")
-        lw = 388
+        lw = 360
         lg = lg.resize((lw, int(lg.height * lw / lg.width)), Image.LANCZOS)
-        base.alpha_composite(lg, (40, 34))
+        base.alpha_composite(lg, (26, 20))
 
     # 右上：赤の縦リボン短冊（福岡天神店）
     if ribbon:
@@ -323,6 +323,42 @@ def render_tanzaku(src, out, title, headline=None, ribbon="福岡天神店", log
     _text_shadow(draw, (margin, sub_y - sb[1]), title, sfont, fill=(255, 255, 255))
 
     base.convert("RGB").save(out, quality=90)
+    return out
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# シネマ（レターボックス）スタイル：見本 pattern_cinema.jpg のデザイン言語。
+#   上下の黒帯＋中央にロゴ／下に店名。写真は"横長のオリジナル"を切らずに全体を収める。
+#   src は 4:5 クロップ済みではなく、横長の元写真を渡すこと（全体が横いっぱいに決まる）。
+# ─────────────────────────────────────────────────────────────────────────────
+def render_cinema(src, out, en="TAISHO 5  -  FUKUOKA TENJIN",
+                  jp="大衆酒場 ぎふや 福岡天神店", logo=True):
+    GOLD = (206, 170, 110)
+    im = _even_lighting(Image.open(src).convert("RGB"))       # トーン統一＆左右均し
+    canvas = Image.new("RGB", (W, H), (8, 8, 8))
+    # 写真：横幅いっぱい・アスペクト維持。上下に帯（各≒最低260px）を確保。
+    ratio = im.width / max(1, im.height)
+    pw, ph = W, int(W / ratio)
+    max_ph = H - 560
+    if ph > max_ph:
+        ph = max_ph
+        pw = int(ph * ratio)
+    photo = im.resize((max(1, pw), max(1, ph)), Image.LANCZOS)
+    px, py = (W - pw) // 2, (H - ph) // 2
+    canvas.paste(photo, (px, py))
+    d = ImageDraw.Draw(canvas)
+    if logo and os.path.exists(LOGO_WHITE):
+        lg = Image.open(LOGO_WHITE).convert("RGBA")
+        lw = 300
+        lg = lg.resize((lw, int(lg.height * lw / lg.width)), Image.LANCZOS)
+        canvas.paste(lg, ((W - lw) // 2, max(24, (py - lg.height) // 2)), lg)
+    ef, jf = _font(_GOTHIC_PATH, 34), _font(_SERIF_PATH, 60)
+    by = py + ph
+    ew = d.textlength(en, font=ef)
+    d.text(((W - ew) // 2, by + 62), en, font=ef, fill=GOLD)
+    jw = d.textlength(jp, font=jf)
+    d.text(((W - jw) // 2, by + 112), jp, font=jf, fill=(240, 240, 240))
+    canvas.save(out, quality=90)
     return out
 
 

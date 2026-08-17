@@ -357,6 +357,27 @@ def plan(root=None):
     return ordered
 
 
+def cinemaprev(name_kw, root=None):
+    """指定名にマッチする画像の"横長オリジナル"を取得し、シネマ様式のプレビューを生成。
+    - 元写真(無加工) → pwa/gifuya/orig_preview.jpg（ローカル微調整用に残す）
+    - シネマ加工      → pwa/gifuya/prev_cinema.jpg（確認用）
+    どちらもコミット対象。確定後は削除してよい作業ファイル。"""
+    import gifuya_design as gd
+    drive = _drive()
+    imgs = _walk_images(drive, root or IMG_ROOT_DEFAULT)
+    hit = next((f for f in imgs if name_kw in f["name"]), None)
+    if not hit:
+        print("NG: 元写真が見つかりません:", name_kw)
+        raise SystemExit(1)
+    buf = _download(drive, hit["id"])
+    im = ImageOps.exif_transpose(Image.open(buf)).convert("RGB")
+    orig = os.path.join(OUT_DIR, "orig_preview.jpg")
+    im.save(orig, "JPEG", quality=92)
+    prev = os.path.join(OUT_DIR, "prev_cinema.jpg")
+    gd.render_cinema(orig, prev)
+    print("CINEMAPREV|%s|%dx%d|orig=%s|cinema=%s" % (hit["name"], im.width, im.height, orig, prev))
+
+
 def sync(root=None):
     """料理写真を全同期：4:5トリミングした生写真(f_*.jpg)に加え、ロゴ＋見出し等を焼き込んだ
     「加工済み投稿画像(fd_*.jpg)」も生成。キャプション/タグ/サブコピーを付けて feed.json を書き出す。
@@ -426,6 +447,8 @@ if __name__ == "__main__":
         music(sys.argv[2] if len(sys.argv) > 2 else None)
     elif mode == "readsheet":
         readsheet(sys.argv[2])
+    elif mode == "cinemaprev":
+        cinemaprev(sys.argv[2] if len(sys.argv) > 2 else "刺身盛り合わせ")
     else:
         print("unknown mode:", mode)
         raise SystemExit(2)
