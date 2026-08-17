@@ -285,6 +285,9 @@ function epRun() {
     note = (chg.added || chg.changed) ? ("新規" + chg.added + "件 / ステータス変更" + chg.changed + "件") : "変更なし";
     Logger.log("✓ ④ スプレッドシートへ蓄積完了（" + note + "）");
 
+    // ④' 新規応募があればLINEへ「店舗名＋件数」を通知（インスタ投稿と同じ公式アカウント）
+    try { epNotifyNewApps_(chg); } catch (eN) { Logger.log("通知スキップ: " + eN); }
+
     // ⑤ EntryPocketの「掲載中の求人原稿がある店舗」を取得（募集中タブ用）→ キャッシュ再作成
     try {
       var ss5 = SpreadsheetApp.getActiveSpreadsheet();
@@ -516,10 +519,13 @@ function epUpsertRaw_(sh, rows, today) {
     prevStatus[vals[i][0]] = scCol >= 0 ? String(vals[i][scCol] || "") : "";
   }
 
-  var incoming = {}, added = 0, changed = 0;
+  var hadPrior = false; for (var pk in prevStatus) { hadPrior = true; break; } // 初回(空)は通知しない
+  var incoming = {}, added = 0, changed = 0, newByStore = {}, totalByStore = {};
   var out = rows.map(function (r) {
     incoming[r.code] = 1;
-    if (!(r.code in prevStatus)) added++;                                  // 新規応募
+    var sname = epCleanStore_(String(r.storeName || "").trim()) || "(店舗不明)";
+    totalByStore[sname] = (totalByStore[sname] || 0) + 1;                  // 現在の応募者数(店舗別)
+    if (!(r.code in prevStatus)) { added++; if (hadPrior) newByStore[sname] = (newByStore[sname] || 0) + 1; } // 新規応募
     else if (String(prevStatus[r.code]) !== String(r.statusName)) changed++; // ステータス変更
     return [r.code, r.name, r.kana, r.statusCode, r.statusName, r.storeId, r.storeName,
       r.telRaw, r.tel, r.tel ? "tel:" + r.tel : "", r.email, r.media, r.appliedAt,
@@ -545,7 +551,7 @@ function epUpsertRaw_(sh, rows, today) {
   var clearW = Math.max(W, oldHdr.length);
   if (sh.getLastRow() > 1) sh.getRange(2, 1, sh.getLastRow() - 1, clearW).clearContent();
   if (out.length) sh.getRange(2, 1, out.length, W).setValues(out);
-  return { added: added, changed: changed };  // 差分サマリ（ログ用）
+  return { added: added, changed: changed, newByStore: newByStore, totalByStore: totalByStore };  // 差分サマリ（ログ・通知用）
 }
 
 var SNAPSHOT_KEEP_DAYS = 92;   // 日次スナップショットは直近この日数だけ残す（古い分は自動削除で軽量化）
