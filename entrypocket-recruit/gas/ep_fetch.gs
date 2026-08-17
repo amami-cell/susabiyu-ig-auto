@@ -45,8 +45,8 @@ var COLMAP = {
   is_duplicate: ["重複フラグ", "重複", "重複応募"],
   change_history: ["変更履歴1", "変更履歴", "対応履歴"],
   gender: ["性別"],
-  birth: ["生年月日", "生年月日（西暦）", "誕生日"],
-  age_col: ["年齢"],
+  birth: ["生年月日", "生年月日（西暦）", "生年月日(西暦)", "誕生日", "生年月日 "],
+  age_col: ["年齢", "満年齢", "年令", "年齢（歳）", "年齢(歳)", "歳", "年齢 "],
   occupation: ["現在の職業", "職業", "現職", "ご職業"],
   memo: ["メモ(新規)", "メモ（新規）", "メモ", "メモ1", "対応メモ", "対応履歴メモ"],
   memo_old: ["メモ(過去)", "メモ（過去）"]
@@ -383,7 +383,8 @@ function epParseCsv_(text) {
     if (!code) continue;
     var telRaw = get("tel");
     var birth = get("birth");
-    var ageDigits = String(get("age_col")).replace(/[^\d]/g, "");   // 「年齢」列の数字だけ取り出す
+    // 全角数字→半角に正規化してから数字を取り出す（全角だと拾えず不明になるのを防ぐ）
+    var ageDigits = epZenHan_(get("age_col")).replace(/[^\d]/g, "");
     var age = (ageDigits && +ageDigits >= 10 && +ageDigits <= 99) ? +ageDigits : epAge_(birth);
     var memoNew = get("memo"), memoOld = get("memo_old"); // メモ(新規)＋メモ(過去)をまとめる
     var memoAll = [memoNew, memoOld ? ("【過去メモ】\n" + memoOld) : ""].filter(Boolean).join("\n\n");
@@ -642,10 +643,15 @@ function epUnescape_(s) { return String(s).replace(/&amp;/g, "&").replace(/&#38;
 
 function epBool_(v) { v = String(v || "").trim().toLowerCase(); return v === "1" || v === "true" || v === "○" || v === "◯" || v === "あり" || v === "重複" || v === "yes"; }
 
+// 全角英数を半角へ（年齢・日付が全角でも拾えるように）
+function epZenHan_(s) {
+  return String(s == null ? "" : s).replace(/[０-９Ａ-Ｚａ-ｚ]/g, function (c) { return String.fromCharCode(c.charCodeAt(0) - 0xFEE0); });
+}
+
 // 生年月日→満年齢（YYYY/MM/DD, YYYY-MM-DD, YYYYMMDD 等に対応）
 function epAge_(s) {
   if (!s) return null;
-  var m = String(s).match(/(\d{4})\D?(\d{1,2})\D?(\d{1,2})/);
+  var m = epZenHan_(s).match(/(\d{4})\D?(\d{1,2})\D?(\d{1,2})/);
   if (!m) return null;
   var by = +m[1], bm = +m[2], bd = +m[3];
   if (by < 1900 || bm < 1 || bm > 12) return null;
