@@ -71,13 +71,18 @@ def _even_lighting(im):
         Image.fromarray(col.reshape(1, W).clip(0, 255).astype("uint8"))
         .filter(ImageFilter.GaussianBlur(max(20, W // 8)))
     ).astype(_np.float32).reshape(W)
-    target = float(_np.percentile(colmap, 75))               # 明るめに合わせる
-    gaincol = _np.clip(target / _np.clip(colmap, 1.0, None), 0.85, 1.45)   # 左右を両側から均す
+    target = float(_np.percentile(colmap, 55))               # 中央寄り＝持ち上げ控えめ（明るくしすぎない）
+    gaincol = _np.clip(target / _np.clip(colmap, 1.0, None), 0.88, 1.18)   # 左右を穏やかに均す
     out = _np.clip(arr * gaincol[None, :, None], 0, 255)
-    # カード間で明るさを揃える：全体平均を目標へ寄せる（倍率は控えめにクリップ）。
+    # カード間で明るさを揃える：目標平均を低め(150)に。持ち上げは弱く・下げは効かせる＝全体トーンを落とす。
     cur = float(out.mean())
     if cur > 1:
-        out = _np.clip(out * _np.clip(172.0 / cur, 0.85, 1.35), 0, 255)
+        out = out * _np.clip(150.0 / cur, 0.80, 1.06)
+    # ハイライト・ロールオフ：明るい所だけ圧縮して白飛びを戻す（暗部・中間は不変）。
+    knee = 200.0
+    hi = out > knee
+    out[hi] = knee + (out[hi] - knee) * 0.55
+    out = _np.clip(out, 0, 255)
     return Image.fromarray(out.astype("uint8"))
 
 
