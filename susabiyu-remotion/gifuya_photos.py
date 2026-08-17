@@ -21,7 +21,7 @@ import hashlib
 from google.oauth2.service_account import Credentials
 from googleapiclient.discovery import build
 from googleapiclient.http import MediaIoBaseDownload
-from PIL import Image, ImageOps
+from PIL import Image, ImageOps, ImageFilter
 
 SCOPES = ["https://www.googleapis.com/auth/drive", "https://www.googleapis.com/auth/spreadsheets.readonly"]
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -160,12 +160,27 @@ def _download(drive, file_id):
     return buf
 
 
-def _save_45(buf, out_path):
+# 長い串など「全体を写したい」品は中央クロップだと上下が切れるので、
+# 全体を収める（contain）＋ぼかしたカバーを背景に敷く保存にする。
+FIT_CONTAIN = ["ジャンボ海老", "生アスパラ"]
+
+
+def _save_45(buf, out_path, contain=False):
     im = Image.open(buf)
     im = ImageOps.exif_transpose(im)
     if im.mode not in ("RGB",):
         im = im.convert("RGB")
-    im = ImageOps.fit(im, (TARGET_W, TARGET_H), method=Image.LANCZOS, centering=(0.5, 0.5))
+    if contain:
+        # 背景＝全面カバー(クロップ)を強めにぼかして暗くし、その上に全体を収めた写真を中央配置
+        bg = ImageOps.fit(im, (TARGET_W, TARGET_H), method=Image.LANCZOS, centering=(0.5, 0.5))
+        bg = bg.filter(ImageFilter.GaussianBlur(34))
+        bg = Image.blend(bg, Image.new("RGB", (TARGET_W, TARGET_H), (0, 0, 0)), 0.28)
+        fg = im.copy()
+        fg.thumbnail((TARGET_W, TARGET_H), Image.LANCZOS)   # アスペクト維持で全体を収める
+        bg.paste(fg, ((TARGET_W - fg.width) // 2, (TARGET_H - fg.height) // 2))
+        im = bg
+    else:
+        im = ImageOps.fit(im, (TARGET_W, TARGET_H), method=Image.LANCZOS, centering=(0.5, 0.5))
     os.makedirs(os.path.dirname(out_path), exist_ok=True)
     im.save(out_path, "JPEG", quality=88, optimize=True, progressive=True)
 
@@ -366,7 +381,8 @@ def sync(root=None):
             # 写真固定：Drive側に別カット/新しい重複があっても既存の1枚を維持（差し替えない）
             print("  LOCK 写真固定（Drive無視）:", d["name"])
         else:
-            _save_45(_download(drive, d["id"]), raw_path)
+            _contain = any(k in d["name"] for k in FIT_CONTAIN)   # 長い串は全体を収める
+            _save_45(_download(drive, d["id"]), raw_path, contain=_contain)
         c = gc.caption_for(d["name"])            # 文面・タグ・サブコピー
         item = {"img": img, "name": d["name"], "title": c["title"],
                 "cap": c["cap"], "tags": c["tags"], "reco": bool(d["reco"])}
