@@ -35,9 +35,10 @@ function epFetchLiveShops_(jar) {
   return names;
 }
 
-/** 掲載中の店舗を _掲載中店舗 シートへ書く（0件や失敗時は既存を消さない）。 */
-function epWriteLiveShops_(ss, jar) {
-  var names = epFetchLiveShops_(jar);
+/** 掲載中の店舗を _掲載中店舗 シートへ書く（0件や失敗時は既存を消さない）。
+ *  prefetched を渡すと再取得せずそれを使う（epRun で1回だけ取得するため）。 */
+function epWriteLiveShops_(ss, jar, prefetched) {
+  var names = (prefetched !== undefined) ? prefetched : epFetchLiveShops_(jar);
   if (names == null) return -1;               // 取得失敗 → 既存維持
   if (!names.length) { Logger.log("  掲載中店舗0件のため既存を保持"); return 0; }
   var sh = epSheet_(ss, "_掲載中店舗", ["店舗名"]);

@@ -288,8 +288,15 @@ function epRun() {
     // ⑤ EntryPocketの「掲載中の求人原稿がある店舗」を取得（募集中タブ用）→ キャッシュ再作成
     try {
       var ss5 = SpreadsheetApp.getActiveSpreadsheet();
-      var live = epWriteLiveShops_(ss5, jar);
+      var liveNames = epFetchLiveShops_(jar);                 // 1回だけ取得
+      var live = epWriteLiveShops_(ss5, jar, liveNames);      // シートへ反映（失敗/0件は既存維持）
       Logger.log("✓ ⑤ 掲載中店舗 " + (live < 0 ? "取得失敗(既存維持)" : (live + "件")));
+      // ⑥ 掲載監視＋掲載終了からN日で自動的に結果報告へ（取得成功時のみ）
+      try {
+        epTrackLive_(ss5, liveNames);
+        var mv = epAutoEndExpired_(ss5, liveNames);
+        if (mv) Logger.log("✓ ⑥ 掲載終了" + epAutoEndDays_() + "日経過で自動終了 " + mv + "店舗");
+      } catch (e6) { Logger.log("自動終了処理スキップ: " + e6); }
       dashStoreCache_();
     } catch (e5) { Logger.log("掲載中店舗の取得スキップ: " + e5); }
   } catch (e) {

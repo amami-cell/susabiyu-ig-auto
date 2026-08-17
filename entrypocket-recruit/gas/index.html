@@ -335,7 +335,8 @@
         return { key:k, name:name, sp:sp, appsArr:appsArr, latest:latest[k]||0, live:!!liveSet[k] };
       });
       RECS.sort(function(a,b){ return (b.latest||0)-(a.latest||0); });                     // 最新応募順
-      var h=alertHtml();
+      var autoHint='<div class="muted" style="font-size:11px;margin:2px 2px 8px;line-height:1.5">掲載終了から14日で自動的に結果報告へ移ります。すぐ確定したい店舗は「募集終了」ボタンを押してください。</div>';
+      var h=autoHint+alertHtml();
       if(!RECS.length){ el.innerHTML=h+'<div class="empty">現在、募集中の店舗はありません（直近'+RECRUIT_RECENT_DAYS+'日に応募なし）</div>'; return; }
       RECS.forEach(function(r){ h+=storeCard(r); });
       el.innerHTML=h;

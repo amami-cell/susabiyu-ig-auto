@@ -134,19 +134,26 @@ function epEndRecruit(o) {
     sh.appendRow(arr);
     row = sh.getLastRow(); created = true;
   } else {
+    // auto（自動終了）のときは、既に値が入っているセルは絶対に上書きしない（手入力を保護）。
+    var put = function (c, v) {
+      if (c < 0 || v == null || String(v) === "") return;
+      if (o.auto && String(vals[row - 1][c] || "") !== "") return;
+      sh.getRange(row, c + 1).setValue(v);
+    };
     if (cStart >= 0 && o.start && !vals[row - 1][cStart]) sh.getRange(row, cStart + 1).setValue(o.start);
-    setIf(row, cEnd, o.end);
-    setIf(row, cApps, (o.apps == null || o.apps === "") ? "" : (+o.apps || 0));
-    setIf(row, cHire, (o.hires == null || o.hires === "") ? "" : (+o.hires || 0));
-    setIf(row, cQuit, (o.quit == null || o.quit === "") ? "" : (+o.quit || 0));
-    if (cNote >= 0 && o.note != null) sh.getRange(row, cNote + 1).setValue(String(o.note));
+    put(cEnd, o.end);
+    put(cApps, (o.apps == null || o.apps === "") ? "" : (+o.apps || 0));
+    put(cHire, (o.hires == null || o.hires === "") ? "" : (+o.hires || 0));
+    put(cQuit, (o.quit == null || o.quit === "") ? "" : (+o.quit || 0));
+    if (cNote >= 0 && o.note != null && !(o.auto && String(vals[row - 1][cNote] || "") !== "")) sh.getRange(row, cNote + 1).setValue(String(o.note));
   }
 
   // 募集中から外す（master_店舗 の手動フラグ＝終了）
   try { epSetStoreManual_(o.store || store, "終了"); } catch (e) { }
 
   epLogResult_(store, row, o);
-  try { var ss = SpreadsheetApp.getActiveSpreadsheet(); epImportPostings_(ss); dashStoreCache_(); } catch (e) { }
+  // auto はバッチ側(epAutoEndExpired_)でまとめて取り込むので、ここでは再取込しない。
+  if (!o.auto) { try { var ss = SpreadsheetApp.getActiveSpreadsheet(); epImportPostings_(ss); dashStoreCache_(); } catch (e) { } }
   return { ok: true, row: row, store: store, created: created };
 }
 
