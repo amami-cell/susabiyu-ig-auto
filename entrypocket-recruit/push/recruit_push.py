@@ -32,7 +32,12 @@ def _drain(exec_url, key):
         r.raise_for_status()
         data = r.json()
     except Exception as e:
-        print("[PUSH] drain失敗:", e)
+        # JSONで無い＝ログイン画面等が返っている可能性。原因が分かるよう状態を出す。
+        try:
+            snippet = (r.text or "")[:200].replace("\n", " ")
+            print("[PUSH] drain失敗:", e, "| HTTP", r.status_code, "| body:", snippet)
+        except Exception:
+            print("[PUSH] drain失敗:", e)
         return []
     if not data.get("ok"):
         print("[PUSH] drain拒否:", data.get("error"))
