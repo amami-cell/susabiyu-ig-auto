@@ -240,12 +240,33 @@ def render_post(src, out, title, subcopy=None, ribbon="福岡天神店", logo=Tr
         vfont = _font(_SERIF_PATH, vsize)
         _draw_vertical(base, title, right_x=W - 60, top_y=top_y, font=vfont)
 
-    # 下部：赤下線＋サブコピー（画像下の一言）。縦書きデザインで見やすいよう大きめに。
+    # 下部：赤下線＋説明文（画像下）。大きめ＋2行対応（\nで改行、無ければ自動折返し）。
     if subcopy:
-        sfont = _font(_GOTHIC_PATH, 58)
-        sy = H - 118
-        draw.line([(60, sy - 22), (60 + 240, sy - 22)], fill=RED, width=8)
-        _text_shadow(draw, (60, sy), subcopy, sfont, fill=(255, 255, 255))
+        sfont = _font(_GOTHIC_PATH, 62)
+        margin = 60
+        maxw = W - margin - 40
+        raw_lines = str(subcopy).split("\n")
+        lines = []
+        for ln in raw_lines:
+            # 1行が長すぎる場合は幅で自動折返し（最大2行/元行）
+            if draw.textlength(ln, font=sfont) <= maxw:
+                lines.append(ln)
+            else:
+                cur = ""
+                for ch in ln:
+                    if draw.textlength(cur + ch, font=sfont) <= maxw:
+                        cur += ch
+                    else:
+                        lines.append(cur); cur = ch
+                if cur:
+                    lines.append(cur)
+        lines = lines[:3]
+        lh = int(62 * 1.22)
+        total = lh * len(lines)
+        sy0 = H - 66 - total
+        draw.line([(margin, sy0 - 22), (margin + 260, sy0 - 22)], fill=RED, width=9)
+        for i, ln in enumerate(lines):
+            _text_shadow(draw, (margin, sy0 + i * lh), ln, sfont, fill=(255, 255, 255))
 
     base.convert("RGB").save(out, quality=quality, subsampling=0)
     return out
