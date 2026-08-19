@@ -357,9 +357,34 @@ def render_tanzaku(src, out, title, headline=None, ribbon="福岡天神店", log
 
     # 見出し（複数行対応・ゴシック）※見本 pattern_tanzaku 相当：クリーンな白＋細い暗フチ
     headline = (headline or "").strip()
-    hlines = headline.split("\n") if headline else []
+    src_lines = headline.split("\n") if headline else []
+    maxw = W - 2 * margin
+    _big = _font(_GOTHIC_PATH, 108)
+
+    def _split_comma(line):
+        """はみ出す行だけ、内側の読点（中央寄り）で2分割。読点が末尾/無いなら分割しない。"""
+        if draw.textlength(line, font=_big) <= maxw:
+            return [line]
+        cuts = [i + 1 for i, ch in enumerate(line) if ch == "、" and 0 < i + 1 < len(line)]
+        if not cuts:
+            return [line]                     # 読点無し＝分割せずフォント縮小で対応（孤立分割を避ける）
+        mid = len(line) / 2.0
+        cut = min(cuts, key=lambda c: abs(c - mid))
+        return [line[:cut], line[cut:]]
+
+    pre = []
+    for ln in src_lines:
+        pre.extend(_split_comma(ln))
+    pre = [p for p in pre if p][:3]
+    # 全行が幅に収まるまでフォント縮小（読点の無い長い行もここで縮めて1行に収める）
     hsize = 108
+    while hsize > 54:
+        hfont = _font(_GOTHIC_PATH, hsize)
+        if all(draw.textlength(w, font=hfont) <= maxw for w in pre):
+            break
+        hsize -= 4
     hfont = _font(_GOTHIC_PATH, hsize)
+    hlines = pre
     lh = int(hsize * 1.28)
     block_h = lh * max(1, len(hlines))
     hy = ul_y - 34 - block_h

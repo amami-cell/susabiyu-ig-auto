@@ -80,16 +80,40 @@ DESIGN_OVERRIDE = [
 ]
 
 
+# 料理ごとの「最終デザイン表」（tz_all＝最後に仕上げた版）。名前→{style, headline/sub, ...}。
+# gifuya_design_table.json を正とし、毎日のDrive同期でもこの仕上げを維持する。
+import os as _os
+import json as _json
+_DESIGN_TABLE = None
+
+
+def _design_table():
+    global _DESIGN_TABLE
+    if _DESIGN_TABLE is None:
+        try:
+            with open(_os.path.join(_os.path.dirname(_os.path.abspath(__file__)),
+                                    "gifuya_design_table.json"), encoding="utf-8") as fp:
+                _DESIGN_TABLE = _json.load(fp)
+        except Exception:
+            _DESIGN_TABLE = {}
+    return _DESIGN_TABLE
+
+
 def caption_for(name):
-    """戻り値 dict: title(整形名) / cap(本文) / tags(料理タグ) / sub(画像に焼くサブコピー)。
-    料理名が DESIGN_OVERRIDE に該当すれば style/headline を上書きして付与する。"""
+    """戻り値 dict: title/cap/tags/sub に加え、最終デザイン表があれば style/headline/pullback 等を付与。
+    style="tanzaku"→短冊（headlineを焼く）／"vertical"→縦書き（subを説明文として焼く）。"""
     res = _caption_base(name)
     raw = str(name or "")
-    for keys, ov in DESIGN_OVERRIDE:
-        if any(k in raw for k in keys):
-            res = dict(res)
-            res.update(ov)
-            break
+    ov = _design_table().get(raw)
+    if ov:                                   # 名前一致（最終デザイン表）を最優先
+        res = dict(res)
+        res.update(ov)
+    else:                                    # 表に無い品は従来の部分一致フォールバック
+        for keys, o2 in DESIGN_OVERRIDE:
+            if any(k in raw for k in keys):
+                res = dict(res)
+                res.update(o2)
+                break
     return res
 
 

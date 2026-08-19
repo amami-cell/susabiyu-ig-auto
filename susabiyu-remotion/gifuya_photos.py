@@ -437,8 +437,8 @@ def sync(root=None):
                 if c.get("style") == "tanzaku":  # 料理ごとの様式上書き（壁の短冊）
                     gd.render_tanzaku(design_src, os.path.join(OUT_DIR, design),
                                       c["title"], headline=c.get("headline"),
-                                      ribbon=c.get("ribbon"), pullback=c.get("pullback"),
-                                      quality=c.get("quality", 95))
+                                      ribbon=(c.get("ribbon") or "福岡天神店"),
+                                      pullback=c.get("pullback"), quality=c.get("quality", 95))
                     item["style"] = "tanzaku"
                 else:
                     gd.render_post(design_src, os.path.join(OUT_DIR, design),

@@ -1,0 +1,256 @@
+{
+ "〆ライス": {
+  "style": "vertical",
+  "sub": "旨みを吸ったごはんで、\n大満足のシメ。"
+ },
+ "〆ラーメン": {
+  "style": "tanzaku",
+  "headline": "シメはやっぱりこれ、濃厚鶏白湯の〆ラーメン"
+ },
+ "あおさ塩のポテトフライ": {
+  "style": "tanzaku",
+  "headline": "揚げたて、あおさ塩のポテトフライ。"
+ },
+ "ぎふやのとん平焼き": {
+  "style": "tanzaku",
+  "headline": "B級グルメ\nぎふやのとん平焼き。"
+ },
+ "ぎふやの明太出汁巻き": {
+  "style": "tanzaku",
+  "headline": "ふわとろ、明太出汁巻き。"
+ },
+ "ぎふやの炊き餃子": {
+  "style": "tanzaku",
+  "headline": "福岡名物、炊き餃子。"
+ },
+ "ぎふや伝統の味 自家製どて味噌_元祖どぶ漬けどてかつ": {
+  "style": "tanzaku",
+  "headline": "名物、元祖どぶ漬けどてかつ"
+ },
+ "ぎふや厳選 串かつ10種盛り": {
+  "style": "tanzaku",
+  "headline": "天神で、串かつを。"
+ },
+ "ぎふや厳選 串かつ7種盛り": {
+  "style": "tanzaku",
+  "headline": "天神で、串かつを。"
+ },
+ "ぎふや厳選 串かつ５種盛り": {
+  "style": "tanzaku",
+  "headline": "天神で、串かつを。"
+ },
+ "ごぼ天": {
+  "style": "vertical",
+  "sub": "揚げたてサクサク、\n香ばしいごぼう天。"
+ },
+ "さっぱり酢もつ": {
+  "style": "vertical",
+  "sub": "コリコリ食感、\nさっぱり味の酢もつ。"
+ },
+ "さつまいもバター": {
+  "style": "tanzaku",
+  "headline": "あつあつ、さつまいもバター。"
+ },
+ "たこわさび": {
+  "style": "vertical",
+  "sub": "ぴりっとわさびが効いた、\n箸休めの一品。"
+ },
+ "イカ下足醬油焼き": {
+  "style": "tanzaku",
+  "headline": "ぎふやのイカ下足\n醤油焼き。"
+ },
+ "カルパッチョサラダ": {
+  "style": "tanzaku",
+  "headline": "本日の鮮度自慢、カルパッチョサラダ。"
+ },
+ "シャキシャキ長芋の短冊": {
+  "style": "tanzaku",
+  "headline": "箸休めに、シャキシャキ長芋の短冊。"
+ },
+ "タコ唐揚げ": {
+  "style": "vertical",
+  "sub": "外はカリッと中はぷりっ、\nタコの唐揚げ。"
+ },
+ "チャンジャクリームチーズ": {
+  "style": "tanzaku",
+  "headline": "本日のおすすめ、チャンジャクリームチーズ。"
+ },
+ "トロっと焼きなす": {
+  "style": "tanzaku",
+  "headline": "箸休めに、トロっと焼きなす。"
+ },
+ "ホタルイカ沖漬け": {
+  "style": "tanzaku",
+  "headline": "本日のおすすめ、ホタルイカ沖漬け。"
+ },
+ "串かつ_うずら卵": {
+  "style": "tanzaku",
+  "headline": "ソース2度漬け禁止、\nうずら卵の串かつ"
+ },
+ "串かつ_さつまいも": {
+  "style": "tanzaku",
+  "headline": "こだわりの衣で、\nさつまいもの串かつ"
+ },
+ "串かつ_しいたけ": {
+  "style": "tanzaku",
+  "headline": "揚げたてサクッと、\nしいたけの串かつ"
+ },
+ "串かつ_たまねぎ": {
+  "style": "tanzaku",
+  "headline": "サクッと軽い衣で、\nたまねぎの串かつ"
+ },
+ "串かつ_れんこん": {
+  "style": "tanzaku",
+  "headline": "こだわりの衣で、\nれんこんの串かつ"
+ },
+ "串かつ_イカ": {
+  "style": "tanzaku",
+  "headline": "サクッと軽い衣で、\nイカの串かつ"
+ },
+ "串かつ_カキ": {
+  "style": "tanzaku",
+  "headline": "サクッと軽い衣で、\nカキの串かつ"
+ },
+ "串かつ_キス": {
+  "style": "tanzaku",
+  "headline": "揚げたてサクッと、\nキスの串かつ"
+ },
+ "串かつ_コンポタ": {
+  "style": "tanzaku",
+  "headline": "ソース2度漬け禁止、\nコンポタの串かつ"
+ },
+ "串かつ_ジャンボ海老": {
+  "style": "tanzaku",
+  "headline": "サクッと軽い衣で、\nジャンボ海老の串かつ",
+  "contain": true
+ },
+ "串かつ_モッツァレラチーズ": {
+  "style": "tanzaku",
+  "headline": "ソース2度漬け禁止、\nモッツァレラチーズの串かつ"
+ },
+ "串かつ_レアサーモン(2本": {
+  "style": "tanzaku",
+  "headline": "揚げたてサクッと、\nレアサーモン"
+ },
+ "串かつ_国産牛フィレ": {
+  "style": "tanzaku",
+  "headline": "肉の旨みを、串で。"
+ },
+ "串かつ_本家牛串かつ": {
+  "style": "tanzaku",
+  "headline": "肉の旨みを、串で。"
+ },
+ "串かつ_海老": {
+  "style": "tanzaku",
+  "headline": "揚げたてサクッと、\n海老の串かつ"
+ },
+ "串かつ_生アスパラ": {
+  "style": "tanzaku",
+  "headline": "揚げたてサクッと、\n生アスパラの串かつ",
+  "contain": true
+ },
+ "串かつ_紅しょうが": {
+  "style": "tanzaku",
+  "headline": "サクッと軽い衣で、\n紅しょうがの串かつ"
+ },
+ "串かつ_豚バラ": {
+  "style": "tanzaku",
+  "headline": "サクッと軽い衣で、\n豚バラの串かつ"
+ },
+ "串かつ_長いも": {
+  "style": "tanzaku",
+  "headline": "こだわりの衣で、\n長いもの串かつ"
+ },
+ "串かつ_雲仙ハムカツ": {
+  "style": "tanzaku",
+  "headline": "油、衣・素材にこだわり、\n雲仙ハムカツの串かつ"
+ },
+ "串かつ_鶏ささみ 梅しそ": {
+  "style": "tanzaku",
+  "headline": "揚げたてサクッと、\n鶏ささみ梅しその串かつ"
+ },
+ "刺身盛り合わせ": {
+  "style": "tanzaku",
+  "headline": "福岡の鮮度、\nそのままに。",
+  "pullback": 1120,
+  "ribbon": "福岡天神店",
+  "quality": 100
+ },
+ "厚揚げわさび": {
+  "style": "tanzaku",
+  "headline": "安くて、旨い。\nぎふやで乾杯。",
+  "sub": "箸休めにさっぱり"
+ },
+ "名物どて焼き": {
+  "style": "vertical",
+  "sub": "大正5年から受け継ぐ、\nとろとろ自家製どて味噌。"
+ },
+ "塩ゆで枝豆": {
+  "style": "vertical",
+  "sub": "ちょうどいい塩加減で、\nついつい進む枝豆。"
+ },
+ "安定の冷やしトマト": {
+  "style": "tanzaku",
+  "headline": "箸休めに、安定の冷やしトマト。"
+ },
+ "希少部位 和牛マルシンのたたき": {
+  "style": "tanzaku",
+  "headline": "本日の鮮度自慢、希少部位 和牛マルシンのたたき。"
+ },
+ "明太ポテトサラダ": {
+  "style": "tanzaku",
+  "headline": "箸休めに、明太ポテトサラダ。"
+ },
+ "海鮮ユッケ": {
+  "style": "vertical",
+  "sub": "とろ〜り卵黄をからめて、\n新鮮な海鮮ユッケ。"
+ },
+ "漁師の漬け丼": {
+  "style": "vertical",
+  "sub": "本日の鮮魚を、\nごはんにたっぷりのせて。"
+ },
+ "漆黒のアテ焼きそば": {
+  "style": "tanzaku",
+  "headline": "シメはこれ。漆黒のアテ焼きそば。"
+ },
+ "炙りエイヒレ日本酒漬け": {
+  "style": "tanzaku",
+  "headline": "本日の鮮度自慢、炙りエイヒレ日本酒漬け。"
+ },
+ "特製ごまさば": {
+  "style": "vertical",
+  "sub": "甘辛ごまダレが絡む、\n福岡名物のごまさば。"
+ },
+ "生ハムポテト": {
+  "style": "vertical",
+  "sub": "生ハムとポテトの、\n止まらない鉄板コンビ。"
+ },
+ "肉味噌パリパリピーマン": {
+  "style": "tanzaku",
+  "headline": "箸休めに、肉味噌パリパリピーマン。"
+ },
+ "胡瓜一本漬け": {
+  "style": "vertical",
+  "sub": "丸ごとポリポリ、\nみずみずしい胡瓜漬け。"
+ },
+ "自家製鶏唐揚げ": {
+  "style": "tanzaku",
+  "headline": "揚げたて、ジューシー。"
+ },
+ "若鶏のせせり焼き": {
+  "style": "tanzaku",
+  "headline": "こだわりのひと皿、若鶏のせせり焼き。"
+ },
+ "赤鶏たたき": {
+  "style": "vertical",
+  "sub": "香ばしく炙った、\n赤鶏のたたき。"
+ },
+ "赤鶏レバー刺し": {
+  "style": "tanzaku",
+  "headline": "本日の鮮度自慢、赤鶏レバー刺し。"
+ },
+ "馬刺し": {
+  "style": "tanzaku",
+  "headline": "酒が進む、馬刺し。"
+ }
+}
