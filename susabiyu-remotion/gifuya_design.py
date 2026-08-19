@@ -240,11 +240,11 @@ def render_post(src, out, title, subcopy=None, ribbon="福岡天神店", logo=Tr
         vfont = _font(_SERIF_PATH, vsize)
         _draw_vertical(base, title, right_x=W - 60, top_y=top_y, font=vfont)
 
-    # 下部：赤下線＋サブコピー
+    # 下部：赤下線＋サブコピー（画像下の一言）。縦書きデザインで見やすいよう大きめに。
     if subcopy:
-        sfont = _font(_GOTHIC_PATH, 40)
-        sy = H - 96
-        draw.line([(60, sy - 18), (60 + 210, sy - 18)], fill=RED, width=7)
+        sfont = _font(_GOTHIC_PATH, 58)
+        sy = H - 118
+        draw.line([(60, sy - 22), (60 + 240, sy - 22)], fill=RED, width=8)
         _text_shadow(draw, (60, sy), subcopy, sfont, fill=(255, 255, 255))
 
     base.convert("RGB").save(out, quality=quality, subsampling=0)
