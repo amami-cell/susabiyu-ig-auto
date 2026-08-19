@@ -1001,6 +1001,7 @@
 
   /* ---------- レポート（インサイト・全員閲覧可・操作なし） ---------- */
   var reportData = null;
+  var lastRep = null;      // A1要約PDF用に、直近レンダリング時の要点を退避
   var repMode = "month";   // 比較期間: week(7日) / biweek(14日) / month(30日)
   var repMetric = "reach"; // 推移グラフの指標: reach / views / pviews / followers
   var REP_METRICS = { reach: "リーチ", views: "閲覧数", pviews: "プロフィール表示", followers: "フォロワー" };
@@ -1019,12 +1020,15 @@
     function avg(list, k) { if (!list.length) return 0; var s = 0; for (var i = 0; i < list.length; i++) s += Number(list[i][k]) || 0; return Math.round(s / list.length); }
     function sum(list, k) { var s = 0; for (var i = 0; i < list.length; i++) s += Number(list[i][k]) || 0; return s; }
     function rate(n, d, dp) { return d > 0 ? Math.round(n / d * (dp ? 1000 : 100)) / (dp ? 10 : 1) : null; }
-    var top = inWin.slice().sort(function (a, b) { return (Number(b.reach) || 0) - (Number(a.reach) || 0); }).slice(0, 5);
+    function byReach(a, b) { return (Number(b.reach) || 0) - (Number(a.reach) || 0); }
+    var top = inWin.slice().sort(byReach).slice(0, 5);
+    var topStory = stories.slice().sort(byReach).slice(0, 5);   // ストーリーだけのTOP5
+    var topFeed = feeds.slice().sort(byReach).slice(0, 5);      // フィード(＋リール)だけのTOP5
     var stReach = sum(stories, "reach"), feedReach = sum(feeds, "reach");
     var navExit = sum(stories, "navExit");
     var hasNav = (navExit + sum(stories, "navFwd") + sum(stories, "navBack") + sum(stories, "navAuto")) > 0;
     return {
-      top: top, storyN: stories.length, feedN: feeds.length,
+      top: top, topStory: topStory, topFeed: topFeed, storyN: stories.length, feedN: feeds.length,
       storyAvg: { reach: avg(stories, "reach"), views: avg(stories, "views"), navigation: avg(stories, "navigation"), replies: avg(stories, "replies") },
       exitRate: hasNav ? rate(navExit, stReach, false) : null,                                  // 離脱率
       compRate: hasNav ? rate(sum(stories, "navFwd") + sum(stories, "navAuto"), stReach, false) : null,  // 完了率(近似)
@@ -1164,7 +1168,6 @@
     var bestWin = WIN;
     var bestLbl = "直近" + WIN + "日";
     var pwin = computePostsWindow(pd, bestWin);
-    repTopPosts = pwin.top;
     function fmtPost(p, i) {
       var badge = p.kind === "story" ? "ストーリーズ" : (p.kind === "reel" ? "リール" : "フィード");
       var cap = p.caption ? esc(String(p.caption).slice(0, 38)) : "（キャプションなし）";
@@ -1182,7 +1185,9 @@
         '</div></div>';
     }
     var postsHtml = "";
-    if (pwin.top && pwin.top.length) {
+    var topS = pwin.topStory || [], topF = pwin.topFeed || [];
+    repTopPosts = topS.concat(topF);   // ライトボックス用インデックス（ストーリー→フィードの順）
+    if ((topS.length + topF.length) > 0) {
       var sa = pwin.storyAvg || {};
       var storyKpis = pwin.storyN ? ('<div class="repkpis">' +
         '<div class="repkpi"><div class="l">平均リーチ</div><div class="v">' + fmtN(sa.reach) + '</div></div>' +
@@ -1198,12 +1203,16 @@
       if (pwin.shareRate != null) rateChips.push('<span class="rchip">投稿 シェア率 ' + pwin.shareRate + '%</span>');
       var rateBox = rateChips.length ? ('<div class="repsec"><h3>反応の質（' + bestLbl + '）</h3><div class="rchips">' + rateChips.join("") +
         '</div><div class="repnote"><b>完了率</b>＝ストーリーズを離脱せず最後（次へ送り・自動送り含む）まで見られた割合の目安。<b>離脱率</b>＝途中で閉じられた割合。完了率が高く・離脱率が低いほど良い。保存率／シェア率＝投稿が保存・拡散された割合（口コミの起点）。</div></div>') : "";
+      // ストーリー／フィードで別々のベスト5（リーチ順）。data-pi は repTopPosts(ストーリー→フィード)の通し番号。
+      var storyTop = topS.length ? ('<div class="repsec"><h3>ストーリー ベスト' + topS.length + '（' + bestLbl + '・リーチ順）</h3><div class="repposts">' +
+        topS.map(function (p, i) { return fmtPost(p, i); }).join("") + '</div></div>') : "";
+      var feedTop = topF.length ? ('<div class="repsec"><h3>フィード ベスト' + topF.length + '（' + bestLbl + '・リーチ順）</h3><div class="repposts">' +
+        topF.map(function (p, i) { return fmtPost(p, topS.length + i); }).join("") +
+        '</div><div class="repnote">フィード投稿はリール含む。リーチ順で表示。</div></div>') : "";
       postsHtml =
         (pwin.storyN ? '<div class="repsec"><h3>ストーリーズの反応（' + bestLbl + '・1本あたり平均）</h3>' + storyKpis +
           '<div class="repnote">' + pwin.storyN + '本の平均。タップ＝次へ/前へ/外部リンク等の操作数。</div></div>' : "") +
-        rateBox +
-        '<div class="repsec"><h3>ベスト投稿 TOP' + pwin.top.length + '（' + bestLbl + '・リーチ順）</h3><div class="repposts">' +
-        pwin.top.map(fmtPost).join("") + '</div></div>';
+        rateBox + storyTop + feedTop;
     }
 
     // ---- 分析・まとめ（期間ごとの実数値で具体化）----
@@ -1262,9 +1271,16 @@
     var period = '<div class="p">' + modeLbl + '（直近' + days + '日' + (latestDate ? '〜' + esc(latestDate) : '') + '）' +
       '<small>' + ((pNet != null || p_("reach") != null) ? cmpLbl : 'データ蓄積中（30日で比較が満額に）') + '</small></div>';
     updateRepModeBar();   // 上部固定の前日/週間/月間バーの表示を同期
+    // A1要約PDF用に、この期間の要点をひとまとめに退避（downloadReportA1 が参照）
+    lastRep = {
+      store: store, handle: CFG.HANDLE || "@susabiyu_sanjyo", modeLbl: modeLbl, days: days, latestDate: latestDate,
+      cur: cur, prev: { reach: p_("reach"), views: p_("views"), pviews: p_("pviews") },
+      fNet: fNet, pNet: pNet, followersEnd: cur.followersEnd, series: series, trendLbl: trendLbl,
+      topS: topS, topF: topF, good: good, warn: warn, act: act
+    };
     reportEl.innerHTML =
-      '<div class="repbar"><button id="repReload">↻ 更新</button><button id="repPdf" class="pdf">📄 PDF出力（A4）</button></div>' +
-      '<div class="rephint">この画面は誰でも閲覧できます（操作はありません）。PDF出力（A4・2ページ）ができます。</div>' +
+      '<div class="repbar"><button id="repReload">↻ 更新</button><button id="repPdf" class="pdf">📄 PDF出力（A4）</button><button id="repPdfA1" class="pdf a1">🖼 A1要約（1枚）</button></div>' +
+      '<div class="rephint">この画面は誰でも閲覧できます（操作はありません）。PDF出力（A4・2ページ／A1・要約1枚）ができます。</div>' +
       '<div class="repdoc">' + head + period + '</div>' +
       '<div class="repsec"><h3>アカウント全体</h3><div class="repkpis">' + kpis + '</div></div>' +
       '<div class="repsec"><h3>' + esc(trendLbl) + '</h3><div class="repchart"><div class="repbars">' + bars + '</div><div class="reptip"></div></div><div class="repax"><span>' + firstD + '</span><span>' + lastD + '</span></div><div class="repnote">KPIをタップで指標を切替／グラフを指でなぞると日付と数値が出ます。</div></div>' +
@@ -1277,6 +1293,7 @@
       '<div class="repfoot">データ元：Instagram Graph API（毎日自動収集）／分析は数値から自動生成</div></div>';
     var rb = document.getElementById("repReload"); if (rb) rb.onclick = loadReport;
     var pb = document.getElementById("repPdf"); if (pb) pb.onclick = downloadReportPdf;
+    var pb1 = document.getElementById("repPdfA1"); if (pb1) pb1.onclick = downloadReportA1;
     // KPIタップ＝推移グラフの指標を切替
     var kps = reportEl.querySelectorAll(".repkpi.tap");
     for (var ik = 0; ik < kps.length; ik++) {
@@ -1419,6 +1436,114 @@
     }
     if (window.html2pdf) { setTimeout(go, 60); }   // 先に「作成中…」を描画してから重い処理へ
     else loadScriptOnce(PDF_LIB, go, function () { finish("PDF部品の読込に失敗。通信環境をご確認ください"); });
+  }
+  /* ---------- A1要約PDF（店舗ごと・1枚） ---------- */
+  var H2C_LIB = "https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js";
+  var JSPDF_LIB = "https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js";
+  function ensureCanvasPdf(cb, onerr) {
+    // html2pdf のバンドルが html2canvas / jspdf を露出していればそれを使う。無ければCDNから補う。
+    var need = [];
+    if (!window.html2canvas) need.push(H2C_LIB);
+    if (!(window.jspdf && window.jspdf.jsPDF)) need.push(JSPDF_LIB);
+    if (!need.length) { cb(); return; }
+    var left = need.length, failed = false;
+    need.forEach(function (u) {
+      loadScriptOnce(u, function () { if (!failed && --left === 0) cb(); },
+        function () { if (!failed) { failed = true; onerr && onerr(); } });
+    });
+  }
+  function a1Post(p) {
+    var kindLbl = p.kind === "story" ? "ストーリー" : (p.kind === "reel" ? "リール" : "フィード");
+    var sub = p.kind === "story"
+      ? ("閲覧 " + fmtN(p.views) + "・タップ " + fmtN(p.navigation) + "・返信 " + fmtN(p.replies))
+      : ("閲覧 " + fmtN(p.views) + "・いいね " + fmtN(p.likes) + "・保存 " + fmtN(p.saved));
+    var img = p.thumb || p.full || "";
+    var thumb = img
+      ? '<img src="' + esc(img) + '" crossorigin="anonymous" style="width:96px;height:120px;object-fit:cover;border-radius:8px;background:#eee;flex:none">'
+      : '<div style="width:96px;height:120px;border-radius:8px;background:#eee;display:flex;align-items:center;justify-content:center;font-size:32px;flex:none">🍶</div>';
+    return '<div style="display:flex;gap:12px;align-items:center;padding:8px 0;border-bottom:1px solid #eee">' + thumb +
+      '<div style="flex:1;min-width:0">' +
+      '<div style="font-size:15px;color:#8a6d3b;font-weight:700">' + esc(kindLbl) + '　<span style="color:#999;font-weight:600">' + esc(String(p.date).slice(5)) + '</span></div>' +
+      '<div style="font-size:24px;font-weight:900;color:#111;line-height:1.2">リーチ ' + fmtN(p.reach) + '</div>' +
+      '<div style="font-size:14px;color:#666">' + esc(sub) + '</div>' +
+      '<div style="font-size:14px;color:#444;margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + (p.caption ? esc(String(p.caption).slice(0, 40)) : "（キャプションなし）") + '</div>' +
+      '</div></div>';
+  }
+  function buildA1Summary(r) {
+    function kpiTile(label, val, sub) {
+      return '<div style="flex:1;background:#faf8f4;border:1px solid #ece5d8;border-radius:14px;padding:18px 20px">' +
+        '<div style="font-size:16px;color:#8a6d3b;font-weight:700">' + esc(label) + '</div>' +
+        '<div style="font-size:44px;font-weight:900;color:#111;line-height:1.1">' + val + '</div>' +
+        (sub ? '<div style="font-size:15px;color:#777;margin-top:2px">' + sub + '</div>' : '') + '</div>';
+    }
+    function pct(c, p) { return (p == null || p === 0) ? "" : (function (v) { return (v > 0 ? "▲+" : (v < 0 ? "▼" : "")) + v + "%"; })(Math.round((c - p) / p * 1000) / 10); }
+    var kpis =
+      kpiTile("リーチ", fmtN(r.cur.reach), pct(r.cur.reach, r.prev.reach) ? ("前期間比 " + pct(r.cur.reach, r.prev.reach)) : "") +
+      kpiTile("閲覧数", fmtN(r.cur.views), pct(r.cur.views, r.prev.views) ? ("前期間比 " + pct(r.cur.views, r.prev.views)) : "") +
+      kpiTile("プロフィール表示", fmtN(r.cur.pviews), pct(r.cur.pviews, r.prev.pviews) ? ("前期間比 " + pct(r.cur.pviews, r.prev.pviews)) : "") +
+      kpiTile("フォロワー", fmtN(r.followersEnd), (r.fNet >= 0 ? "+" : "") + r.fNet + "（純増）");
+    // 推移バー
+    var vals = (r.series || []).map(function (s) { return Number(s.val) || 0; });
+    var mx = Math.max.apply(null, vals.concat([1]));
+    var bars = (r.series || []).map(function (s) {
+      var v = Number(s.val) || 0;
+      return '<i style="display:inline-block;width:' + (100 / Math.max(1, vals.length)) + '%;height:' + Math.max(2, Math.round(v / mx * 100)) + '%;background:#c8a24a;vertical-align:bottom"></i>';
+    }).join("");
+    function col(title, list) {
+      return '<div style="flex:1">' +
+        '<div style="font-size:22px;font-weight:900;color:#111;border-left:6px solid #c8a24a;padding-left:12px;margin-bottom:8px">' + esc(title) + '</div>' +
+        (list.length ? list.map(a1Post).join("") : '<div style="color:#999;padding:14px 0">この期間の投稿はありません</div>') + '</div>';
+    }
+    function bullets(title, arr, color) {
+      return '<div style="flex:1;background:#fff;border:1px solid #eee;border-top:4px solid ' + color + ';border-radius:12px;padding:16px 18px">' +
+        '<div style="font-size:18px;font-weight:900;color:#111;margin-bottom:8px">' + esc(title) + '</div>' +
+        '<ul style="margin:0;padding-left:20px;font-size:15px;line-height:1.6;color:#333">' +
+        arr.slice(0, 3).map(function (x) { return "<li>" + x + "</li>"; }).join("") + '</ul></div>';
+    }
+    var el = document.createElement("div");
+    el.style.cssText = "width:1240px;background:#fff;color:#111;padding:56px;box-sizing:border-box;font-family:-apple-system,BlinkMacSystemFont,'Hiragino Kaku Gothic ProN','Noto Sans JP',sans-serif";
+    el.innerHTML =
+      '<div style="display:flex;align-items:flex-end;justify-content:space-between;border-bottom:3px solid #111;padding-bottom:16px;margin-bottom:22px">' +
+        '<div><div style="font-size:40px;font-weight:900">' + esc(r.store) + '</div>' +
+        '<div style="font-size:20px;color:#666">' + esc(r.handle) + '　／　' + esc(r.modeLbl) + '（直近' + r.days + '日' + (r.latestDate ? '〜' + esc(r.latestDate) : '') + '）</div></div>' +
+        '<div style="text-align:right"><div style="font-size:22px;font-weight:900;color:#8a6d3b">Instagram インサイト要約</div><div style="font-size:15px;color:#999">A1 / 自動生成</div></div>' +
+      '</div>' +
+      '<div style="display:flex;gap:16px;margin-bottom:24px">' + kpis + '</div>' +
+      '<div style="font-size:20px;font-weight:900;margin-bottom:8px">' + esc(r.trendLbl) + '</div>' +
+      '<div style="height:150px;border:1px solid #eee;border-radius:12px;padding:8px;margin-bottom:26px;display:flex;align-items:flex-end;gap:1px">' + bars + '</div>' +
+      '<div style="display:flex;gap:36px;margin-bottom:26px">' + col("ストーリー ベスト5", r.topS) + col("フィード ベスト5", r.topF) + '</div>' +
+      '<div style="display:flex;gap:16px">' + bullets("強み・良かった点", r.good, "#1f9d55") + bullets("課題", r.warn, "#c98a1a") + bullets("今後の施策", r.act, "#3b6fd6") + '</div>' +
+      '<div style="margin-top:22px;font-size:13px;color:#999;text-align:center">データ元：Instagram Graph API（毎日自動収集）／分析は数値から自動生成</div>';
+    // 箇条書きの<b>など装飾はそのまま活かす
+    return el;
+  }
+  function downloadReportA1() {
+    if (!lastRep) { toast("レポートがありません"); return; }
+    var btn = document.getElementById("repPdfA1");
+    if (btn && btn.disabled) return;
+    if (btn) btn.disabled = true;
+    haptic(12);
+    toastBusy("A1要約を準備中…");
+    function finish(msg) { if (btn) btn.disabled = false; if (msg) toast(msg); }
+    ensureCanvasPdf(function () {
+      toastBusy("A1要約を出力中…（数秒かかります）");
+      var node = buildA1Summary(lastRep);
+      var holder = document.createElement("div");
+      holder.style.cssText = "position:fixed;left:-99999px;top:0;background:#fff";
+      holder.appendChild(node); document.body.appendChild(holder);
+      window.html2canvas(node, { scale: 2, backgroundColor: "#ffffff", useCORS: true, logging: false }).then(function (canvas) {
+        var pdf = new window.jspdf.jsPDF({ unit: "mm", format: "a1", orientation: "portrait" });
+        var pw = pdf.internal.pageSize.getWidth(), ph = pdf.internal.pageSize.getHeight();
+        var iw = canvas.width, ih = canvas.height;
+        // 幅合わせ→はみ出すなら高さ合わせ（＝必ず1ページに収める・contain）
+        var w = pw, h = ih * pw / iw;
+        if (h > ph) { h = ph; w = iw * ph / ih; }
+        var x = (pw - w) / 2, y = 0;
+        pdf.addImage(canvas.toDataURL("image/jpeg", 0.95), "JPEG", x, y, w, h);
+        pdf.save((CFG.ACCOUNT || "susabiyu") + "_insight_A1_" + (lastRep.latestDate || "report") + ".pdf");
+        holder.remove(); finish("✓ A1要約PDFを出力しました（1枚）");
+      }).catch(function () { holder.remove(); finish("A1要約の作成に失敗しました。もう一度お試しください"); });
+    }, function () { finish("PDF部品の読込に失敗。通信環境をご確認ください"); });
   }
   // 画像/動画が読み込めなかった枠をタップ → その場で再取得
   if (feed) feed.addEventListener("click", function (e) {
