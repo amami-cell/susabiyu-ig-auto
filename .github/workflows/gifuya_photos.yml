@@ -25,6 +25,8 @@ on:
         description: 'fetch用 マップJSON 例 {"feed_05":["刺身","盛り"],"feed_03":["どて焼き","どて"]}'
         required: false
         default: ""
+  schedule:
+    - cron: '30 16 * * *'   # 毎日 01:30 JST に全同期（Driveの最新写真を自動反映）
 permissions:
   contents: write
   actions: write
@@ -83,7 +85,7 @@ jobs:
         run: python gifuya_photos.py music "${{ github.event.inputs.folder_id }}"
 
       - name: Sync all food photos
-        if: github.event.inputs.mode == 'sync'
+        if: github.event.inputs.mode == 'sync' || github.event_name == 'schedule'
         working-directory: susabiyu-remotion
         run: python gifuya_photos.py sync "${{ github.event.inputs.folder_id }}"
 
@@ -126,7 +128,7 @@ jobs:
           git push origin HEAD:main
 
       - name: Bump cache version + commit
-        if: github.event.inputs.mode == 'fetch' || github.event.inputs.mode == 'sync'
+        if: github.event.inputs.mode == 'fetch' || github.event.inputs.mode == 'sync' || github.event_name == 'schedule'
         run: |
           set -e
           rm -f susabiyu-remotion/creds.json
