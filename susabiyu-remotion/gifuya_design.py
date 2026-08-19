@@ -82,6 +82,9 @@ def _even_lighting(im):
     knee = 214.0
     hi = out > knee
     out[hi] = knee + (out[hi] - knee) * 0.66
+    # 暖色ホワイトバランス：ごく控えめに赤を上げ・青を下げて“白すぎ”を和らげる。
+    out[..., 0] *= 1.030
+    out[..., 2] *= 0.958
     out = _np.clip(out, 0, 255)
     im2 = Image.fromarray(out.astype("uint8"))
     # くっきり：2段アンシャープ（微細ディテール→立体感）で料理の質感を最大限引き出す。
