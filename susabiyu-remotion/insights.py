@@ -221,6 +221,45 @@ def _story_nav(token, mid):
 STORY_METRICS = ["reach", "views", "replies", "total_interactions", "navigation", "profile_visits", "follows", "shares"]
 FEED_METRICS = ["reach", "views", "likes", "saved", "shares", "comments", "total_interactions"]
 
+# フィード/リールは投稿後もリーチが伸び続けるため、直近この日数分を毎回取り直して数値を更新する。
+# （旧実装は最新25件のみ＝多投稿日はTOP5・平均から取りこぼしが出ていた）
+FEED_LOOKBACK_DAYS = int(os.environ.get("FEED_LOOKBACK_DAYS", "45"))
+FEED_MAX = int(os.environ.get("FEED_MAX", "90"))          # 1回の取得上限（API負荷の安全弁）
+
+
+def _fetch_media_window(token, uid):
+    """/media をページングし、直近 FEED_LOOKBACK_DAYS 日以内の投稿をすべて集める（上限 FEED_MAX）。
+    これで多投稿日でも取りこぼさず、既存分はリーチを継続更新できる。"""
+    cutoff = datetime.datetime.now(JST) - datetime.timedelta(days=FEED_LOOKBACK_DAYS)
+    out, pages = [], 0
+    url = IGB + "/" + str(uid) + "/media"
+    params = {"fields": "id,media_type,media_product_type,timestamp,permalink,caption,media_url,thumbnail_url",
+              "limit": 50, "access_token": token}
+    while url and len(out) < FEED_MAX and pages < 8:
+        try:
+            j = req.get(url, params=params, timeout=30).json()
+        except Exception as e:
+            print("[POSTS] media取得失敗:", e); break
+        stop = False
+        for md in j.get("data", []):
+            ts = md.get("timestamp", "")
+            if ts:
+                try:
+                    tt = datetime.datetime.fromisoformat(ts.replace("Z", "+00:00"))
+                    if tt < cutoff.astimezone(tt.tzinfo):
+                        stop = True; break            # 期間外に到達＝以降は古いので打ち切り
+                except Exception:
+                    pass
+            out.append(md)
+            if len(out) >= FEED_MAX:
+                break
+        if stop:
+            break
+        url = (j.get("paging") or {}).get("next")     # 次ページのフルURL（paramsは含まれる）
+        params = None
+        pages += 1
+    return out
+
 
 def _dl(url, path):
     try:
@@ -299,12 +338,11 @@ def _collect_posts(sh, token, uid):
     except Exception as e:
         print("[POSTS] stories取得失敗:", e)
     try:
-        m = req.get(IGB + "/" + str(uid) + "/media",
-                    params={"fields": "id,media_type,media_product_type,timestamp,permalink,caption,media_url,thumbnail_url", "limit": 25, "access_token": token}, timeout=30).json()
-        for md in m.get("data", []):
+        media = _fetch_media_window(token, uid)
+        for md in media:
             mp = (md.get("media_product_type") or "").upper()
             items.append(("reel" if mp == "REELS" else "feed", md))
-        print("[POSTS] 直近フィード/リール:", len(m.get("data", [])))
+        print("[POSTS] 直近フィード/リール（%d日以内）: %d" % (FEED_LOOKBACK_DAYS, len(media)))
     except Exception as e:
         print("[POSTS] media取得失敗:", e)
 
