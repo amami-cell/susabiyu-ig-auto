@@ -1124,10 +1124,10 @@
     var WIN = repMode === "week" ? 7 : (repMode === "biweek" ? 14 : 30);
     var modeLbl = WIN === 7 ? "週間" : (WIN === 14 ? "14日間" : "月間");
     var perWord = WIN === 7 ? "週" : (WIN + "日");   // 「前週」「前14日」などの語幹
-    var cur, prev, series, days, latestDate;
+    var cur, prev, series, days, latestDate, curList = null;
     if (d.daily && d.daily.length) {
       var dly = d.daily;
-      var curList = dly.slice(Math.max(0, dly.length - WIN));
+      curList = dly.slice(Math.max(0, dly.length - WIN));
       var prevList = dly.slice(Math.max(0, dly.length - 2 * WIN), Math.max(0, dly.length - WIN));
       cur = repAgg(curList) || d.cur; prev = repAgg(prevList);
       series = curList.map(function (r) { return { date: String(r.date), val: Number(r[repMetric]) || 0 }; });
@@ -1140,6 +1140,17 @@
     var fNet = cur.followersEnd - cur.followersStart;
     var pNet = (prev && prev.followersEnd != null) ? (prev.followersEnd - prev.followersStart) : null;
     function p_(k) { return (prev && prev[k] != null) ? prev[k] : null; }
+    // 指標ごとの日別推移（スパークライン用）。daily が無い旧GASでは空。
+    var METRIC_COLOR = { reach: "#c8a24a", views: "#3b6fd6", pviews: "#7a4fd6", followers: "#1f9d55" };
+    function colSeries(m) { return curList ? curList.map(function (rr) { return Number(rr[m]) || 0; }) : []; }
+    var sparks = { reach: colSeries("reach"), views: colSeries("views"), pviews: colSeries("pviews"), followers: colSeries("followers") };
+    // 小さな棒スパークライン（インラインstyleでPWA/PDF両対応）
+    function sparkBars(vals, color, h) {
+      if (!vals || !vals.length) return "";
+      var mx = Math.max.apply(null, vals.concat([1]));
+      var bars = vals.map(function (v) { v = Number(v) || 0; return '<i style="display:inline-block;width:' + (100 / vals.length) + '%;height:' + Math.max(8, Math.round(v / mx * 100)) + '%;background:' + color + ';opacity:.9;vertical-align:bottom;border-radius:1px 1px 0 0"></i>'; }).join("");
+      return '<div class="repspark" style="height:' + (h || 30) + 'px;display:flex;align-items:flex-end;gap:1px;margin-top:8px">' + bars + '</div>';
+    }
     function kpi(label, c, p, metric, opts) {
       opts = opts || {};
       var vs = (opts.plus && c > 0 ? "+" : "") + fmtN(c);
@@ -1147,7 +1158,8 @@
       var on = metric === repMetric ? " on" : "";
       return '<div class="repkpi tap' + on + '" data-metric="' + metric + '"><div class="l">' + esc(label) + '</div><div class="v">' + vs +
         (opts.sub ? ' <small>' + esc(opts.sub) + '</small>' : '') + '</div>' + deltaHtml(c, p) +
-        (ps != null ? '<div class="prev">前期間 ' + ps + '</div>' : '') + '</div>';
+        (ps != null ? '<div class="prev">前期間 ' + ps + '</div>' : '') +
+        sparkBars(sparks[metric], METRIC_COLOR[metric] || "#c8a24a", 28) + '</div>';
     }
     var kpis = kpi("リーチ", cur.reach, p_("reach"), "reach") + kpi("閲覧数", cur.views, p_("views"), "views") +
       kpi("プロフィール表示", cur.pviews, p_("pviews"), "pviews") +
@@ -1276,7 +1288,7 @@
       store: store, handle: CFG.HANDLE || "@susabiyu_sanjyo", modeLbl: modeLbl, days: days, latestDate: latestDate,
       cur: cur, prev: { reach: p_("reach"), views: p_("views"), pviews: p_("pviews") },
       fNet: fNet, pNet: pNet, followersEnd: cur.followersEnd, series: series, trendLbl: trendLbl,
-      topS: topS, topF: topF, good: good, warn: warn, act: act
+      sparks: sparks, topS: topS, topF: topF, good: good, warn: warn, act: act
     };
     reportEl.innerHTML =
       '<div class="repbar"><button id="repReload">↻ 更新</button><button id="repPdf" class="pdf">📄 PDF出力（A4）</button><button id="repPdfA1" class="pdf a1">🖼 A1要約（1枚）</button></div>' +
@@ -1470,19 +1482,28 @@
       '</div></div>';
   }
   function buildA1Summary(r) {
-    function kpiTile(label, val, sub) {
+    var MC = { reach: "#c8a24a", views: "#3b6fd6", pviews: "#7a4fd6", followers: "#1f9d55" };
+    function miniBars(vals, color, h) {
+      vals = vals || [];
+      if (!vals.length) return '<div style="height:' + (h || 40) + 'px"></div>';
+      var mx = Math.max.apply(null, vals.concat([1]));
+      return '<div style="height:' + (h || 40) + 'px;display:flex;align-items:flex-end;gap:1px;margin-top:10px">' +
+        vals.map(function (v) { v = Number(v) || 0; return '<i style="flex:1;height:' + Math.max(8, Math.round(v / mx * 100)) + '%;background:' + color + ';opacity:.9;border-radius:1px 1px 0 0"></i>'; }).join("") + '</div>';
+    }
+    function kpiTile(label, val, sub, metric) {
       return '<div style="flex:1;background:#faf8f4;border:1px solid #ece5d8;border-radius:14px;padding:18px 20px">' +
         '<div style="font-size:16px;color:#8a6d3b;font-weight:700">' + esc(label) + '</div>' +
-        '<div style="font-size:44px;font-weight:900;color:#111;line-height:1.1">' + val + '</div>' +
-        (sub ? '<div style="font-size:15px;color:#777;margin-top:2px">' + sub + '</div>' : '') + '</div>';
+        '<div style="font-size:40px;font-weight:900;color:#111;line-height:1.1">' + val + '</div>' +
+        (sub ? '<div style="font-size:15px;color:#777;margin-top:2px">' + sub + '</div>' : '') +
+        miniBars((r.sparks || {})[metric], MC[metric] || "#c8a24a", 40) + '</div>';
     }
     function pct(c, p) { return (p == null || p === 0) ? "" : (function (v) { return (v > 0 ? "▲+" : (v < 0 ? "▼" : "")) + v + "%"; })(Math.round((c - p) / p * 1000) / 10); }
     var kpis =
-      kpiTile("リーチ", fmtN(r.cur.reach), pct(r.cur.reach, r.prev.reach) ? ("前期間比 " + pct(r.cur.reach, r.prev.reach)) : "") +
-      kpiTile("閲覧数", fmtN(r.cur.views), pct(r.cur.views, r.prev.views) ? ("前期間比 " + pct(r.cur.views, r.prev.views)) : "") +
-      kpiTile("プロフィール表示", fmtN(r.cur.pviews), pct(r.cur.pviews, r.prev.pviews) ? ("前期間比 " + pct(r.cur.pviews, r.prev.pviews)) : "") +
-      kpiTile("フォロワー", fmtN(r.followersEnd), (r.fNet >= 0 ? "+" : "") + r.fNet + "（純増）");
-    // 推移バー
+      kpiTile("リーチ", fmtN(r.cur.reach), pct(r.cur.reach, r.prev.reach) ? ("前期間比 " + pct(r.cur.reach, r.prev.reach)) : "", "reach") +
+      kpiTile("閲覧数", fmtN(r.cur.views), pct(r.cur.views, r.prev.views) ? ("前期間比 " + pct(r.cur.views, r.prev.views)) : "", "views") +
+      kpiTile("プロフィール表示", fmtN(r.cur.pviews), pct(r.cur.pviews, r.prev.pviews) ? ("前期間比 " + pct(r.cur.pviews, r.prev.pviews)) : "", "pviews") +
+      kpiTile("フォロワー", fmtN(r.followersEnd), (r.fNet >= 0 ? "+" : "") + r.fNet + "（純増）", "followers");
+    // 推移バー（メイン＝選択指標）
     var vals = (r.series || []).map(function (s) { return Number(s.val) || 0; });
     var mx = Math.max.apply(null, vals.concat([1]));
     var bars = (r.series || []).map(function (s) {
