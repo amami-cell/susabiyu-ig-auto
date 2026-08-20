@@ -81,6 +81,36 @@ function epDiagLive() {
   Logger.log("=== 診断おわり（読み取りのみ）===");
 }
 
+/**
+ * 【診断・書き込みなし】EntryPocket「求人原稿管理」ページの全行を、状態つきでそのまま出す。
+ * これが“掲載中”判断の元データ。Apps Scriptで epShowJobs を実行 → ログを貼る。
+ */
+function epShowJobs() {
+  var jar = epLogin_();
+  if (!jar) { Logger.log("✗ ログイン失敗"); return; }
+  var url = EP_JOB_URL + "?p_p_id=MYNJobManuscriptControl_WAR_MYNJobManuscriptControlportlet" +
+    "&p_p_lifecycle=0&p_p_state=normal&p_p_mode=view" +
+    "&" + EP_JOB_NS + "DisplayNum=200&" + EP_JOB_NS + "PageNo=1";
+  var body;
+  try { body = epFetch_(url, { method: "get", followRedirects: true }, jar).getContentText(); }
+  catch (e) { Logger.log("取得失敗: " + e); return; }
+  Logger.log("■ 参照画面: EntryPocket管理画面 ＞ 求人原稿管理");
+  Logger.log("  " + EP_JOB_URL);
+  Logger.log("  ページ長=" + body.length + " / 一覧データあり=" + (body.indexOf("manuscript_list_data") >= 0));
+  var chunks = body.split('class="table_tr" id="tr_');
+  Logger.log("■ 原稿一覧（全" + (chunks.length - 1) + "件・状態つき。★=掲載中＝アプリの募集中に出す対象）:");
+  var live = 0;
+  for (var i = 1; i < chunks.length; i++) {
+    var c = chunks[i];
+    var status = ((c.match(/td_status[\s\S]*?inr inr2[^>]*>([^<]*)<\/div>/) || [])[1] || "?").replace(/\s+/g, "");
+    var store = ((c.match(/td_branch[\s\S]*?inr inr3">([^<]+)<\/div>/) || [])[1] || "?").replace(/\s+/g, " ").trim();
+    var isLive = status.indexOf("掲載中") >= 0; if (isLive) live++;
+    Logger.log("   " + (isLive ? "★" : "　") + i + ". [" + status + "] " + epCleanStore_(store));
+  }
+  Logger.log("→ ★（掲載中）= " + live + "件 だけを募集中に表示。止めたい店舗はEP側で『掲載停止』にしてください。");
+  Logger.log("=== 診断おわり（読み取りのみ）===");
+}
+
 /** _掲載中店舗 シートの店舗名リストを返す（ダッシュボード表示用）。 */
 function epLiveShops_(ss) {
   var sh = ss.getSheetByName("_掲載中店舗");
