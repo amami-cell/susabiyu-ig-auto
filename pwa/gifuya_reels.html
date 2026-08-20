@@ -210,11 +210,20 @@
 <!-- 予約シート（日の詳細／新規予約） -->
 <div class="modal" id="resvmodal">
   <div class="sheet rsheet">
-    <h3 id="resvttl">予約</h3>
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px">
+      <button id="resvback" style="flex:none;background:#33415a;border:1px solid #4a5d7e;color:#eaf1ff;font-weight:900;font-size:14px;border-radius:11px;padding:9px 14px">← 戻る</button>
+      <h3 id="resvttl" style="margin:0;flex:1;min-width:0">予約</h3>
+    </div>
     <div class="sub" id="resvsub"></div>
     <div id="resvbody"></div>
-    <button class="sheetclose" id="resvclose" style="background:#2a3547;border:1px solid var(--line)">閉じる</button>
+    <button class="sheetclose" id="resvclose" style="background:#33415a;border:1px solid #4a5d7e;color:#eaf1ff">← 戻る</button>
   </div>
+</div>
+
+<!-- 画像の拡大表示（投稿画像の確認用） -->
+<div id="imgbox" style="position:fixed;inset:0;z-index:80;background:rgba(0,0,0,.92);display:none;align-items:center;justify-content:center;padding:16px;flex-direction:column;gap:12px">
+  <img id="imgboxImg" src="" alt="" style="max-width:100%;max-height:82vh;object-fit:contain;border-radius:10px;background:#000">
+  <button id="imgboxClose" style="background:#33415a;border:1px solid #4a5d7e;color:#eaf1ff;font-weight:900;font-size:14px;border-radius:11px;padding:10px 18px">✕ 閉じる</button>
 </div>
 
 <div id="toast"></div>
@@ -731,11 +740,12 @@
     var h="";
     items.forEach(function(s,idx){
       var st=s.status||"scheduled";
-      var thumb=s.media?'<img loading="lazy" src="'+esc(thumbSrc(s.media))+'" data-full="'+esc(s.media)+'" onerror="this.onerror=null;this.src=this.getAttribute(\'data-full\')" alt="">':'<div class="noimg">🍶</div>';
+      var thumb=s.media?'<img class="zoomimg" loading="lazy" src="'+esc(thumbSrc(s.media))+'" data-full="'+esc(s.media)+'" onerror="this.onerror=null;this.src=this.getAttribute(\'data-full\')" alt="">':'<div class="noimg">🍶</div>';
       var cap=s.caption||"";
       var detLbl=(st==="scheduled")?"📝 実際に投稿される内容":"📝 投稿した内容";
       var detail=
         '<div class="rdetail" data-i="'+idx+'" style="display:none;border:1px solid var(--line);border-top:0;border-radius:0 0 12px 12px;background:#0f1319;padding:10px 11px;margin:-8px 0 8px">'+
+          (s.media?'<img class="zoomimg" loading="lazy" src="'+esc(cardSrc(s.media))+'" data-full="'+esc(s.media)+'" onerror="this.onerror=null;this.src=this.getAttribute(\'data-full\')" style="width:100%;border-radius:10px;margin-bottom:4px;background:#000;display:block" alt=""><div style="font-size:10.5px;color:#7c8698;font-weight:700;margin:2px 0 8px">🔍 画像をタップで大きく表示</div>':'')+
           '<div style="font-size:11px;font-weight:800;color:var(--gold);margin:2px 0 5px">'+detLbl+'</div>'+
           '<div style="font-size:13px;line-height:1.6;white-space:pre-wrap;color:#dfe5ee">'+(cap?esc(cap):"（本文なし）")+'</div>'+
           (s.hashtags?('<div style="font-size:11.5px;color:#8ab4e0;margin-top:7px;word-break:break-word">'+esc(s.hashtags)+'</div>'):'')+
@@ -760,13 +770,15 @@
     body.innerHTML=h;
     // 行タップ＝投稿内容の開閉（取消ボタンは除外）
     body.querySelectorAll(".rtap").forEach(function(row){
-      row.onclick=function(e){ if(e.target.closest(".rcancel")||e.target.closest(".histhide2"))return;
+      row.onclick=function(e){ if(e.target.closest(".rcancel")||e.target.closest(".histhide2")||e.target.closest(".zoomimg"))return;
         var i=row.getAttribute("data-i");
         var d=body.querySelector('.rdetail[data-i="'+i+'"]');
         if(d){ var open=d.style.display!=="none"; d.style.display=open?"none":"block";
           var hint=row.querySelector('div[style*="タップ"]'); if(hint) hint.textContent=open?"▼ タップで投稿内容を表示":"▲ 閉じる"; }
       };
     });
+    // 画像タップ＝投稿画像を大きく表示（原寸で確認）
+    body.querySelectorAll(".zoomimg").forEach(function(im){ im.style.cursor="zoom-in"; im.onclick=function(ev){ ev.stopPropagation(); openImg(im.getAttribute("data-full")||im.src); }; });
     body.querySelectorAll(".rcancel").forEach(function(b){ b.onclick=function(ev){ ev.stopPropagation(); var tok=b.getAttribute("data-tok"); if(!confirm("この予約を取り消しますか？"))return;
       // 楽観的：即カレンダーから消して閉じる→裏で確定→失敗時のみ戻す
       var removed=_schedRemove(tok); if(schedCb) schedCb(); closeResv(); toast("予約を取り消しました");
@@ -1009,7 +1021,13 @@
   tM.onclick=function(){ _seltab(tM); renderMentions(); };
   // 予約シートの閉じる（ボタン／背景タップ）
   document.getElementById("resvclose").onclick=closeResv;
+  document.getElementById("resvback").onclick=closeResv;
   document.getElementById("resvmodal").addEventListener("click",function(e){ if(e.target===this) closeResv(); });
+  // 画像の拡大表示（投稿画像の確認）。原寸URLを渡して大きく見せる。
+  var _imgbox=document.getElementById("imgbox");
+  document.getElementById("imgboxClose").onclick=function(){ _imgbox.style.display="none"; document.getElementById("imgboxImg").src=""; };
+  _imgbox.addEventListener("click",function(e){ if(e.target===_imgbox||e.target.id==="imgboxImg"){ _imgbox.style.display="none"; document.getElementById("imgboxImg").src=""; } });
+  window.openImg=function(url){ if(!url)return; document.getElementById("imgboxImg").src=url; _imgbox.style.display="flex"; };
   GSEL = loadGsel() || defaultSel();
   loadRegional();
   FEED = shuffleFeed(FEED);   // 厳選12枚（加工済み）を日替わり順に
