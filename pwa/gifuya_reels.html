@@ -115,6 +115,53 @@
     background:#000;color:#fff;padding:11px 18px;border-radius:24px;font-size:14px;opacity:0;transition:.2s;pointer-events:none;z-index:60;max-width:90%;text-align:center}
   #toast.show{opacity:.96}
   .foot{color:#6f685d;font-size:10px;text-align:center;padding:6px 0 calc(env(safe-area-inset-bottom) + 16px)}
+  .tab.on{--x:0}
+  .tab.sched.on{background:#2a2410;border-color:#7a6320;color:#f0dfa0}
+  /* ===== 予約カレンダー ===== */
+  .schsum{display:flex;align-items:center;gap:10px;background:#12161d;border:1px solid var(--line);border-radius:14px;padding:12px 14px;margin:2px 2px 14px}
+  .schsum .big{font-size:26px;font-weight:900;color:var(--gold);line-height:1}
+  .schsum .lbl{font-size:12.5px;color:var(--sub);font-weight:700}
+  .schsum .leg{margin-left:auto;display:flex;gap:10px;font-size:11px;color:var(--sub);font-weight:700}
+  .schsum .leg i{display:inline-block;width:9px;height:9px;border-radius:2px;margin-right:4px;vertical-align:middle}
+  .cal{margin:0 0 20px}
+  .calhd{font-size:14px;font-weight:900;color:var(--fg);margin:0 2px 8px;display:flex;align-items:center;gap:8px}
+  .calgrid{display:grid;grid-template-columns:repeat(7,1fr);gap:4px}
+  .cwd{text-align:center;font-size:10.5px;font-weight:800;color:var(--sub);padding:2px 0}
+  .cwd.sun{color:#e08a8a}.cwd.sat{color:#8ab4e0}
+  .cday{min-height:52px;border:1px solid var(--line);border-radius:9px;background:#12161d;padding:4px 3px 3px;position:relative;overflow:hidden}
+  .cday.pad{background:transparent;border-color:transparent}
+  .cday.past{opacity:.4}
+  .cday.today{border-color:var(--gold);box-shadow:0 0 0 1px rgba(224,181,110,.35)}
+  .cday .dn{font-size:11px;font-weight:800;color:#cfd6e2}
+  .cday.sun .dn{color:#e08a8a}.cday.sat .dn{color:#8ab4e0}
+  .cday .ct{display:block;font-size:9.5px;font-weight:800;border-radius:5px;padding:1px 3px;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:#fff}
+  .cday .ct.feed{background:#2f5a3a}.cday .ct.reel{background:#4a3a72}
+  .cday .more{font-size:9px;color:var(--sub);font-weight:800}
+  .cday.tapable{cursor:pointer}
+  .cday.tapable:active{transform:scale(.96)}
+  .cday .plus{position:absolute;right:4px;bottom:3px;font-size:12px;color:#5a6472;font-weight:900}
+  /* 予約シート（日詳細／新規予約） */
+  .rsheet .rrow{display:flex;gap:10px;align-items:center;padding:9px;border:1px solid var(--line);border-radius:12px;margin-bottom:8px;background:#12161d}
+  .rsheet .rrow img,.rsheet .rrow .noimg{width:52px;height:65px;border-radius:8px;object-fit:cover;background:#000;flex:none}
+  .rsheet .rrow .noimg{display:flex;align-items:center;justify-content:center;font-size:24px}
+  .rsheet .rrow .rt{font-size:12px;font-weight:900;color:var(--gold)}
+  .rsheet .rrow .rn{font-size:13px;font-weight:800;color:#eaeef2;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .rsheet .rrow .rcancel{margin-left:auto;flex:none;font-size:11.5px;font-weight:800;color:#e6a4a4;background:#2a1c1c;border:1px solid #5a3a3a;border-radius:9px;padding:8px 10px}
+  .rpick{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:8px 0}
+  .rpick .pk{border:1px solid var(--line);border-radius:12px;overflow:hidden;background:#12161d;padding:0;text-align:left}
+  .rpick .pk.on{border-color:var(--gold);box-shadow:0 0 0 1px rgba(224,181,110,.45)}
+  .rpick .pk .th{width:100%;aspect-ratio:4/5;object-fit:cover;background:#000;display:block}
+  .rpick .pk .th.contain{object-fit:contain}
+  .rpick .pk .nm{font-size:10.5px;font-weight:800;color:#dfe5ee;padding:5px 6px;line-height:1.3;min-height:34px}
+  .rpick .pk .gtag{font-size:9px;color:var(--sub);padding:0 6px 5px}
+  .rgridprev{display:grid;grid-template-columns:repeat(3,1fr);gap:2px;border:1px solid var(--line);border-radius:10px;overflow:hidden;margin:6px 0 4px}
+  .rgridprev img{width:100%;aspect-ratio:1/1;object-fit:cover;background:#000;display:block}
+  .rgridprev .ph{width:100%;aspect-ratio:1/1;background:#12161d;display:flex;align-items:center;justify-content:center;color:#3a424e;font-size:11px}
+  .rtime{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:8px 0}
+  .rtime input{background:#0f1115;border:1px solid var(--line);color:var(--fg);border-radius:9px;padding:10px;font-size:14px;font-family:inherit}
+  .rgo{width:100%;background:var(--rd);border:0;color:#fff;font-weight:900;border-radius:12px;padding:13px;font-size:14.5px;margin-top:4px}
+  .rgo:disabled{opacity:.5}
+  .rmore{width:100%;border:1px dashed var(--line);border-radius:12px;background:#12161d;color:#cfd6e2;font-weight:800;font-size:13px;padding:11px;margin:4px 0 10px}
 </style>
 </head>
 <body>
@@ -125,8 +172,9 @@
     <span class="mode" id="mode"></span>
   </div>
   <div class="tabs">
-    <button class="tab on" id="tFeed">📸 フィード投稿</button>
-    <button class="tab reel" id="tReel">🎬 リール投稿</button>
+    <button class="tab on" id="tFeed">📸 フィード</button>
+    <button class="tab reel" id="tReel">🎬 リール</button>
+    <button class="tab sched" id="tSched">📅 予約済</button>
     <button class="tab" id="tMention">💬 メンション</button>
   </div>
 </header>
@@ -152,6 +200,16 @@
   </div>
 </div>
 
+<!-- 予約シート（日の詳細／新規予約） -->
+<div class="modal" id="resvmodal">
+  <div class="sheet rsheet">
+    <h3 id="resvttl">予約</h3>
+    <div class="sub" id="resvsub"></div>
+    <div id="resvbody"></div>
+    <button class="sheetclose" id="resvclose" style="background:#2a3547;border:1px solid var(--line)">閉じる</button>
+  </div>
+</div>
+
 <div id="toast"></div>
 <div class="foot">すさび湯グループ 投稿管理 ・ ぎふや 福岡天神店</div>
 
@@ -159,7 +217,7 @@
 <script>
 (function(){
   "use strict";
-  var V = "?v=161";  // メディアのキャッシュ更新用
+  var V = "?v=162";  // メディアのキャッシュ更新用
   var CFG = window.GIFUYA || {};
   var LIVE = !!window.GIFUYA_LIVE;               // 専用GAS注入済みなら実データ連携
   var GAS = (CFG.GAS_URL||"").trim();
@@ -435,102 +493,261 @@
     }
   }
 
-  /* ---------- 予約済み一覧（三条と同じ：schedlist取得＋取消） ---------- */
-  var schedBox=null;
-  function loadSched(){
-    if(!schedBox) return;
-    if(!LIVE){ schedBox.innerHTML=""; return; }
-    gJsonp({api:"schedlist"}).then(function(res){
-      var items=(res&&res.items)||[];
-      if(!items.length){ schedBox.innerHTML=""; return; }
-      var h='<div class="seclabel">🕒 予約済み <span class="cnt">'+items.length+'件</span></div>';
-      items.forEach(function(it){
-        h+='<div class="card" style="padding:11px">'+
-           '<div style="display:flex;align-items:center;gap:8px">'+
-             '<span class="kind'+(it.kind==="reel"?" reel":"")+'">'+(it.kind==="reel"?"リール":"フィード")+'</span>'+
-             '<b style="font-size:13px;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+esc(it.name||"")+'</b>'+
-             '<span class="cno">'+esc(String(it.when||"").slice(5,16))+'</span>'+
-           '</div>'+
-           '<button class="tagedit sc-cancel" data-tok="'+esc(it.token)+'" style="margin-top:8px;color:#e6a4a4;border-color:#5a3a3a">予約を取り消す</button>'+
-         '</div>';
-      });
-      schedBox.innerHTML=h;
-      schedBox.querySelectorAll(".sc-cancel").forEach(function(b){
-        b.onclick=function(){ var tok=b.getAttribute("data-tok"); b.disabled=true; b.textContent="取消中…";
-          gJsonp({api:"schedcancel", token:tok}).then(function(r){ toast(r&&r.ok?"予約を取り消しました":"取り消せませんでした"); loadSched(); })
-            .catch(function(){ toast("通信エラー"); b.disabled=false; b.textContent="予約を取り消す"; }); };
-      });
-    }).catch(function(){});
+  /* ---------- 予約データ（schedlist）キャッシュ＋カレンダー ---------- */
+  var SCHED=[];          // 予約一覧 [{token,when,kind,media,name}]
+  var schedCb=null;      // 取得後の再描画コールバック（現在のタブ用）
+  function loadSched(cb){
+    if(cb) schedCb=cb;
+    if(!LIVE){ SCHED=[]; if(schedCb)schedCb(); return; }
+    gJsonp({api:"schedlist"}).then(function(res){ SCHED=(res&&res.items)||[]; if(schedCb)schedCb(); })
+      .catch(function(){ if(schedCb)schedCb(); });
+  }
+
+  /* ---------- 料理ジャンル分類（連続の偏りを避ける・順番が肝） ---------- */
+  function genreOf(n){ n=String(n||"");
+    if(/串か|串カツ/.test(n)) return "串かつ";
+    if(/どて|どぶ漬|どてかつ/.test(n)) return "どて";
+    if(/ラーメン|焼きそば|丼|ごはん|ライス|〆|シメ/.test(n)) return "〆";
+    if(/刺身|造り|お造り|海鮮|カルパッチョ|ユッケ|たたき|レバ刺|エイヒレ|馬刺|ごまさば|ごまサバ/.test(n)) return "刺身・海鮮";
+    if(/唐揚|から揚|フライ|天ぷら|ポテト|コロッケ|バター|ごぼ天|揚げ/.test(n)) return "揚げ物";
+    if(/餃子/.test(n)) return "餃子";
+    if(/明太|出汁巻|だし巻/.test(n)) return "卵・明太";
+    if(/とん平|鉄板|せせり|イカ下足|焼き/.test(n)) return "焼き物";
+    if(/サラダ|トマト|枝豆|なす|茄子|ピーマン|胡瓜|きゅうり|長芋|わさび|一本漬|浅漬|冷やし|チャンジャ|厚揚げ/.test(n)) return "野菜・箸休め";
+    if(/もつ|ホルモン/.test(n)) return "もつ";
+    return "その他";
+  }
+  function schedTailGenres(kind,n){
+    var wantReel=(kind==="reel");
+    var arr=SCHED.filter(function(s){ return ((s.kind||"feed")==="reel")===wantReel; })
+      .slice().sort(function(a,b){return String(a.when)<String(b.when)?-1:1;});
+    return arr.slice(-n).map(function(s){return genreOf(s.name);});
+  }
+  // おすすめn件：連続で同ジャンルにならないよう分散。reco優先（poolがreco先頭順）＋直近予約ジャンルを避ける。
+  function pickRecos(pool,n,seedGenres){
+    var picked=[],used={},lastG=(seedGenres&&seedGenres.length)?seedGenres[seedGenres.length-1]:null;
+    function fill(strict){
+      for(var i=0;i<pool.length&&picked.length<n;i++){ var p=pool[i]; if(used[p.t])continue;
+        var g=genreOf(p.t);
+        if(strict){ if(g===lastG)continue; if(picked.length&&genreOf(picked[picked.length-1].t)===g)continue; }
+        picked.push(p);used[p.t]=1;lastG=g;
+      }
+    }
+    fill(true); if(picked.length<n) fill(false);
+    return picked;
   }
 
   var wrap = document.getElementById("wrap");
+  var showAll={feed:false,reel:false};
+  // 候補カードを1枚作る（おすすめ欄・全商品欄で共通利用）
+  function buildCard(kind,p,noLbl){
+    var c=document.createElement("div"); c.className="card"+(p.reco?" reco":"");
+    var _pv=(p.vid||"").replace(/\.mp4$/,"_poster.jpg");
+    var media=kind==="feed"
+      ? '<div class="mediaWrap feed"><img loading="lazy" decoding="async" src="gifuya/'+p.img+V+'" alt=""></div>'
+      : '<div class="mediaWrap reel"><video poster="gifuya/'+_pv+V+'" src="gifuya/'+p.vid+V+'" controls playsinline preload="none" webkit-playsinline></video></div>';
+    var trim=kind==="reel"
+      ? '<div class="trim"><div class="trimhd"><span>切り取り（リール用）</span><span><b class="tlen">--</b> / 元<span class="tall">--</span></span></div>'+
+        '<div class="rangewrap"><div class="track"></div><div class="sel"></div>'+
+        '<input type="range" class="ts" min="0" max="100" value="0"><input type="range" class="te" min="0" max="100" value="60"></div>'+
+        '<div class="trimhd" style="margin-top:4px"><span class="tstart">開始 0:00</span><span class="tend">終了 0:30</span></div></div>'
+      : '';
+    c.innerHTML =
+      (p.reco?'<div class="reco-badge">★ おすすめ</div>':'')+
+      '<div class="chead"><span class="kind'+(kind==="reel"?" reel":"")+'">'+(kind==="feed"?"フィード":"リール")+'</span>'+
+        '<span class="cno">'+esc(noLbl||"")+' ・ '+esc(p.t)+' <span style="color:#6f7684">['+esc(genreOf(p.t))+']</span></span></div>'+
+      media+trim+
+      '<div class="caplbl" style="font-size:11.5px;font-weight:800;color:#8b93a2;margin:11px 2px 4px">▼ 投稿される文面（本文＋お店情報テンプレ）／ハッシュタグは下で選んだ分が付きます</div>'+
+      '<div class="cap"></div>'+
+      '<div class="tagttl">ハッシュタグ <span class="tcnt"></span></div>'+
+      '<div class="tagsel"></div><button class="tagedit">✏️ ハッシュタグを編集</button>'+
+      '<div class="acts"><button class="now">今すぐ投稿</button><button class="resv">日時を決めて予約</button></div>'+
+      '<div class="resvbox"><label>予約日時</label><input type="date" class="rdate"><input type="time" class="rtime" value="18:00"><button class="go">この日時で予約</button></div>'+
+      '<div class="slot"></div>'+
+      '<button class="copybtn">📋 キャプションをコピー</button>';
+    function refreshSel(){
+      c.querySelector(".cap").textContent = previewCaption(p.cap);
+      var w=c.querySelector(".tagsel"); w.innerHTML="";
+      var keys=Object.keys(GSEL);
+      if(!keys.length){ w.innerHTML='<span style="color:#7c8698;font-size:12.5px">（未選択）</span>'; }
+      keys.forEach(function(t){ var inb=HTAGS.concat(REGION_POOL,REGIONAL).some(function(h){return h.t===t&&h.inb;}); var sp=document.createElement("span"); sp.className="t"+(inb?" inb":""); sp.textContent="#"+t; w.appendChild(sp); });
+      c.querySelector(".tcnt").textContent=keys.length+"個";
+    }
+    c._refresh=refreshSel; refreshers.push(refreshSel); refreshSel();
+    if(kind==="reel"){ setupTrim(c,p); }
+    c.querySelector(".tagedit").onclick=function(){ openTagEditor(c); };
+    var slot=c.querySelector(".slot"), rbox=c.querySelector(".resvbox");
+    c.querySelector(".now").onclick=function(){ var d=new Date(); var when=d.getFullYear()+"-"+("0"+(d.getMonth()+1)).slice(-2)+"-"+("0"+d.getDate()).slice(-2)+" "+("0"+d.getHours()).slice(-2)+":"+("0"+d.getMinutes()).slice(-2); doSchedule(kind,p,when,slot,"投稿しました"); };
+    c.querySelector(".resv").onclick=function(){ rbox.classList.toggle("open"); };
+    c.querySelector(".go").onclick=function(){
+      var dd=c.querySelector(".rdate").value, tt=c.querySelector(".rtime").value||"18:00";
+      if(!dd){ toast("予約日を選んでください"); return; }
+      rbox.classList.remove("open");
+      doSchedule(kind,p,dd+" "+tt,slot,"予約しました");
+    };
+    var cb=c.querySelector(".copybtn");
+    cb.onclick=function(){ var f = fullCaption(p.cap, p.tags);
+      copy(f,function(){ cb.textContent="✓ コピーしました"; cb.classList.add("done"); toast("キャプションをコピーしました");
+      setTimeout(function(){ cb.textContent="📋 キャプションをコピー"; cb.classList.remove("done"); },2200); }); };
+    return c;
+  }
+  // フィード/リールタブ：上部に「次のおすすめ3件（ジャンル分散）」＋「全商品から選ぶ」
   function render(kind){
     wrap.innerHTML=""; refreshers=[];
     var hint=document.createElement("div"); hint.className="hint";
     hint.innerHTML = (kind==="feed"
-      ? "候補のフィード投稿です。ハッシュタグを整えて <b>今すぐ投稿</b> または <b>日時を決めて予約</b>できます。"
-      : "候補のリール（動画）です。<b>今すぐ投稿</b> または <b>日時を決めて予約</b>できます。")
-      + "<br>※ぎふや福岡天神（@gifuya_fukuokatenjin）" + (LIVE?"：実データ連携中。":"：現在は見本モードです。") + "ストーリーは毎日11時・17時・20時に自動投稿中（確認はトップ画面）。";
+      ? "次に投稿する<b>おすすめを3つ</b>だけ表示（同じジャンル＝串かつ・どて焼きなどが続かないよう自動で分散）。他の料理は「全商品から選ぶ」で。"
+      : "リール候補です（現在は準備中・形のみ）。<b>今すぐ投稿</b> または <b>日時を決めて予約</b>できます。")
+      + "<br>※ぎふや福岡天神（@gifuya_fukuokatenjin）" + (LIVE?"：実データ連携中。":"：現在は見本モードです。") + "ストーリーは毎日11時・17時・20時に自動投稿中。";
     wrap.appendChild(hint);
-    schedBox=document.createElement("div"); wrap.appendChild(schedBox); loadSched();   // 予約済み一覧（あれば表示）
-    var lab=document.createElement("div"); lab.className="seclabel";
     var list = kind==="feed"?FEED:REEL;
-    lab.innerHTML = (kind==="feed"?"📸 フィード投稿の候補":"🎬 リール投稿の候補")+' <span class="cnt">'+list.length+'件</span>';
-    wrap.appendChild(lab);
-
-    list.forEach(function(p,i){
-      var c=document.createElement("div"); c.className="card"+(p.reco?" reco":"");
-      var _pv = (p.vid||"").replace(/\.mp4$/,"_poster.jpg");
-      var media = kind==="feed"
-        ? '<div class="mediaWrap feed"><img loading="lazy" decoding="async" src="gifuya/'+p.img+V+'" alt=""></div>'
-        : '<div class="mediaWrap reel"><video poster="gifuya/'+_pv+V+'" src="gifuya/'+p.vid+V+'" controls playsinline preload="none" webkit-playsinline></video></div>';
-      var trim = kind==="reel"
-        ? '<div class="trim"><div class="trimhd"><span>切り取り（リール用）</span><span><b class="tlen">--</b> / 元<span class="tall">--</span></span></div>'+
-          '<div class="rangewrap"><div class="track"></div><div class="sel"></div>'+
-          '<input type="range" class="ts" min="0" max="100" value="0"><input type="range" class="te" min="0" max="100" value="60"></div>'+
-          '<div class="trimhd" style="margin-top:4px"><span class="tstart">開始 0:00</span><span class="tend">終了 0:30</span></div></div>'
-        : '';
-      c.innerHTML =
-        (p.reco?'<div class="reco-badge">★ おすすめ</div>':'')+
-        '<div class="chead"><span class="kind'+(kind==="reel"?" reel":"")+'">'+(kind==="feed"?"フィード":"リール")+'</span>'+
-          '<span class="cno">'+(i+1)+' / '+list.length+' ・ '+esc(p.t)+'</span></div>'+
-        media+trim+
-        '<div class="caplbl" style="font-size:11.5px;font-weight:800;color:#8b93a2;margin:11px 2px 4px">▼ 投稿される文面（本文＋お店情報テンプレ）／ハッシュタグは下で選んだ分が付きます</div>'+
-        '<div class="cap"></div>'+
-        '<div class="tagttl">ハッシュタグ <span class="tcnt"></span></div>'+
-        '<div class="tagsel"></div><button class="tagedit">✏️ ハッシュタグを編集</button>'+
-        '<div class="acts"><button class="now">今すぐ投稿</button><button class="resv">日時を決めて予約</button></div>'+
-        '<div class="resvbox"><label>予約日時</label><input type="date" class="rdate"><input type="time" class="rtime" value="18:00"><button class="go">この日時で予約</button></div>'+
-        '<div class="slot"></div>'+
-        '<button class="copybtn">📋 キャプションをコピー</button>';
-      function refreshSel(){
-        // プレビュー＝本文＋お店情報テンプレ（ハッシュタグは下のチップで管理）。実投稿・コピーはタグ入りfullCaption。
-        c.querySelector(".cap").textContent = previewCaption(p.cap);
-        var w=c.querySelector(".tagsel"); w.innerHTML="";
-        var keys=Object.keys(GSEL);
-        if(!keys.length){ w.innerHTML='<span style="color:#7c8698;font-size:12.5px">（未選択）</span>'; }
-        keys.forEach(function(t){ var inb=HTAGS.concat(REGION_POOL,REGIONAL).some(function(h){return h.t===t&&h.inb;}); var sp=document.createElement("span"); sp.className="t"+(inb?" inb":""); sp.textContent="#"+t; w.appendChild(sp); });
-        c.querySelector(".tcnt").textContent=keys.length+"個";
+    function renderList(){
+      Array.prototype.slice.call(wrap.querySelectorAll(".seclabel,.card,.rmore")).forEach(function(x){x.remove();});
+      var recos=pickRecos(list,3,schedTailGenres(kind,2));
+      var lab=document.createElement("div"); lab.className="seclabel";
+      lab.innerHTML=(kind==="feed"?"⭐ 次のおすすめ":"⭐ おすすめリール")+' <span class="cnt">'+recos.length+'件</span>';
+      wrap.appendChild(lab);
+      recos.forEach(function(p,i){ wrap.appendChild(buildCard(kind,p,"おすすめ "+(i+1))); });
+      var rest=list.filter(function(p){return recos.indexOf(p)<0;});
+      var more=document.createElement("button"); more.className="rmore";
+      more.textContent=(showAll[kind]?"▲ おすすめだけ表示":"▼ 全商品から選ぶ（全"+list.length+"品）");
+      wrap.appendChild(more);
+      if(showAll[kind]){
+        var lab2=document.createElement("div"); lab2.className="seclabel";
+        lab2.innerHTML=(kind==="feed"?"📸 全商品":"🎬 全リール")+' <span class="cnt">'+rest.length+'件</span>';
+        wrap.appendChild(lab2);
+        rest.forEach(function(p,i){ wrap.appendChild(buildCard(kind,p,(i+1)+" / "+rest.length)); });
       }
-      c._refresh=refreshSel; refreshers.push(refreshSel); refreshSel();
-      if(kind==="reel"){ setupTrim(c,p); }
-      c.querySelector(".tagedit").onclick=function(){ openTagEditor(c); };
-      var slot=c.querySelector(".slot"), rbox=c.querySelector(".resvbox");
-      c.querySelector(".now").onclick=function(){ var d=new Date(); var when=d.getFullYear()+"-"+("0"+(d.getMonth()+1)).slice(-2)+"-"+("0"+d.getDate()).slice(-2)+" "+("0"+d.getHours()).slice(-2)+":"+("0"+d.getMinutes()).slice(-2); doSchedule(kind,p,when,slot,"投稿しました"); };
-      c.querySelector(".resv").onclick=function(){ rbox.classList.toggle("open"); };
-      c.querySelector(".go").onclick=function(){
-        var dd=c.querySelector(".rdate").value, tt=c.querySelector(".rtime").value||"18:00";
-        if(!dd){ toast("予約日を選んでください"); return; }
-        rbox.classList.remove("open");
-        doSchedule(kind,p,dd+" "+tt,slot,"予約しました");
-      };
-      var cb=c.querySelector(".copybtn");
-      cb.onclick=function(){ var f = fullCaption(p.cap, p.tags);
-        copy(f,function(){ cb.textContent="✓ コピーしました"; cb.classList.add("done"); toast("キャプションをコピーしました");
-        setTimeout(function(){ cb.textContent="📋 キャプションをコピー"; cb.classList.remove("done"); },2200); }); };
-      wrap.appendChild(c);
-    });
+      more.onclick=function(){ showAll[kind]=!showAll[kind]; renderList(); if(!showAll[kind]) window.scrollTo({top:0,behavior:"smooth"}); };
+    }
+    // 予約状況を取得してから、直近予約ジャンルを避けたおすすめで描画（未接続でも描画する）
+    schedCb=function(){ if((kind==="feed"&&tF.classList.contains("on"))||(kind==="reel"&&tR.classList.contains("on"))) renderList(); };
+    renderList();          // まず即描画（キャッシュがあれば反映）
+    if(LIVE) loadSched();  // 取得後にジャンル分散を更新
   }
+
+  /* ---------- 予約カレンダー（当月＋来月・時間表示・タップで確認/新規） ---------- */
+  function _ymd(d){ return d.getFullYear()+"-"+("0"+(d.getMonth()+1)).slice(-2)+"-"+("0"+d.getDate()).slice(-2); }
+  function fmtDateJ(k){ var p=String(k).split("-"); return (+p[1])+"月"+(+p[2])+"日"; }
+  function renderSched(){
+    wrap.innerHTML="";
+    var head=document.createElement("div"); wrap.appendChild(head);
+    if(!LIVE){ var e=document.createElement("div"); e.className="hint"; e.innerHTML="実データ連携後に予約が表示されます（現在は見本モード）。<br>カレンダーの空いてる日をタップすると予約フローを確認できます。"; wrap.appendChild(e); }
+    var cal=document.createElement("div"); wrap.appendChild(cal);
+    function draw(){
+      if(!tS.classList.contains("on")) return;
+      var byDate={};
+      SCHED.forEach(function(s){ var k=String(s.when||"").slice(0,10); if(!k)return; (byDate[k]=byDate[k]||[]).push(s); });
+      Object.keys(byDate).forEach(function(k){ byDate[k].sort(function(a,b){return String(a.when)<String(b.when)?-1:1;}); });
+      var feedN=SCHED.filter(function(s){return (s.kind||'feed')!=='reel';}).length;
+      var reelN=SCHED.filter(function(s){return (s.kind||'feed')==='reel';}).length;
+      head.innerHTML='<div class="schsum"><div><div class="big">'+SCHED.length+'</div><div class="lbl">予約済みの投稿</div></div>'+
+        '<div class="leg"><span><i style="background:#2f5a3a"></i>フィード '+feedN+'</span><span><i style="background:#4a3a72"></i>リール '+reelN+'</span></div></div>'+
+        '<div class="hint" style="margin:0 2px 12px">日付をタップ＝その日の予約を確認／空いてる日をタップ＝新しく予約。</div>';
+      var now=new Date(); var todK=_ymd(now);
+      var months=[new Date(now.getFullYear(),now.getMonth(),1), new Date(now.getFullYear(),now.getMonth()+1,1)];
+      var html="";
+      months.forEach(function(m){
+        html+='<div class="cal"><div class="calhd">📅 '+m.getFullYear()+'年 '+(m.getMonth()+1)+'月</div><div class="calgrid">';
+        ["日","月","火","水","木","金","土"].forEach(function(w,wi){ html+='<div class="cwd'+(wi===0?" sun":wi===6?" sat":"")+'">'+w+'</div>'; });
+        var start=new Date(m.getFullYear(),m.getMonth(),1).getDay();
+        var days=new Date(m.getFullYear(),m.getMonth()+1,0).getDate();
+        for(var i=0;i<start;i++) html+='<div class="cday pad"></div>';
+        for(var d=1;d<=days;d++){
+          var dd=new Date(m.getFullYear(),m.getMonth(),d); var k=_ymd(dd); var wd=dd.getDay();
+          var isPast=k<todK; var items=byDate[k]||[];
+          var cls="cday"+(wd===0?" sun":wd===6?" sat":"")+(k===todK?" today":"")+(isPast?" past":"")+(!isPast?" tapable":"");
+          var inner='<div class="dn">'+d+'</div>';
+          items.slice(0,2).forEach(function(s){ inner+='<span class="ct '+((s.kind||'feed')==='reel'?'reel':'feed')+'">'+esc(String(s.when||"").slice(11,16))+'</span>'; });
+          if(items.length>2) inner+='<span class="more">+'+(items.length-2)+'件</span>';
+          if(!isPast && !items.length) inner+='<span class="plus">＋</span>';
+          html+='<div class="'+cls+'" data-k="'+k+'">'+inner+'</div>';
+        }
+        html+='</div></div>';
+      });
+      cal.innerHTML=html;
+      cal.querySelectorAll(".cday.tapable").forEach(function(cell){
+        cell.onclick=function(){ var k=cell.getAttribute("data-k"); var items=byDate[k]||[];
+          if(items.length) openDayDetail(k,items); else openNewResv(k); };
+      });
+    }
+    schedCb=draw; draw(); if(LIVE) loadSched();
+  }
+  function openDayDetail(k,items){
+    var m=document.getElementById("resvmodal"), body=document.getElementById("resvbody");
+    document.getElementById("resvttl").textContent=fmtDateJ(k)+" の予約";
+    document.getElementById("resvsub").textContent=items.length+"件の予約があります。タップした投稿は取り消せます。";
+    var h="";
+    items.forEach(function(s){
+      var thumb=s.media?'<img src="'+esc(s.media)+'" alt="">':'<div class="noimg">🍶</div>';
+      h+='<div class="rrow">'+thumb+'<div style="flex:1;min-width:0"><div class="rt">'+((s.kind||'feed')==='reel'?'🎬 リール':'📸 フィード')+' '+esc(String(s.when||"").slice(11,16))+'</div><div class="rn">'+esc(s.name||"")+'</div></div>'+
+        '<button class="rcancel" data-tok="'+esc(s.token)+'">取消</button></div>';
+    });
+    h+='<button class="rmore" id="rAddDay" style="margin-top:4px">＋ この日に追加で予約する</button>';
+    body.innerHTML=h;
+    body.querySelectorAll(".rcancel").forEach(function(b){ b.onclick=function(){ if(!confirm("この予約を取り消しますか？"))return; b.disabled=true;b.textContent="取消中…";
+      gJsonp({api:"schedcancel",token:b.getAttribute("data-tok")}).then(function(r){ toast(r&&r.ok?"予約を取り消しました":"取り消せませんでした"); loadSched(); closeResv(); })
+        .catch(function(){toast("通信エラー");b.disabled=false;b.textContent="取消";}); }; });
+    body.querySelector("#rAddDay").onclick=function(){ openNewResv(k); };
+    m.classList.add("open");
+  }
+  var newResv={};
+  function openNewResv(k){
+    var m=document.getElementById("resvmodal"), body=document.getElementById("resvbody");
+    document.getElementById("resvttl").textContent=fmtDateJ(k)+" に新規予約";
+    document.getElementById("resvsub").textContent="投稿を選んで時間を決めるだけ。おすすめは同じジャンルが続かないよう自動で分散します。";
+    newResv={kind:"feed",pick:null,date:k,all:false};
+    body.innerHTML=
+      '<div style="display:flex;gap:8px;margin-bottom:10px">'+
+        '<button class="tab on" id="nvFeed" style="flex:1;padding:9px">📸 フィード</button>'+
+        '<button class="tab reel" id="nvReel" style="flex:1;padding:9px">🎬 リール</button>'+
+      '</div>'+
+      '<div id="nvGridPrev"></div>'+
+      '<div id="nvPickWrap"></div>'+
+      '<div class="rtime"><label style="font-size:12px;font-weight:800;color:var(--sub);width:100%">投稿時間（'+fmtDateJ(k)+'）</label>'+
+        '<input type="time" id="nvTime" value="18:00"></div>'+
+      '<div id="nvSlot"></div>'+
+      '<button class="rgo" id="nvGo" disabled>投稿を選んでください</button>';
+    function drawPick(){
+      var list=newResv.kind==="feed"?FEED:REEL;
+      var recos=pickRecos(list,3,schedTailGenres(newResv.kind,2));
+      var pool=newResv.all?list:recos;
+      var el=body.querySelector("#nvPickWrap");
+      var html='<div style="font-size:12px;font-weight:800;color:var(--gold);margin:6px 2px">'+(newResv.all?'全商品から選ぶ':'⭐ おすすめ（ジャンル分散）')+'</div><div class="rpick">';
+      pool.forEach(function(p){
+        var th=newResv.kind==="feed"?('gifuya/'+p.img+V):('gifuya/'+((p.vid||"").replace(/\.mp4$/,"_poster.jpg"))+V);
+        var on=(newResv.pick&&newResv.pick.t===p.t)?" on":"";
+        html+='<button class="pk'+on+'" data-t="'+esc(p.t)+'"><img class="th'+(newResv.kind==="feed"?" contain":"")+'" loading="lazy" src="'+th+'"><div class="nm">'+esc(p.t)+'</div><div class="gtag">'+esc(genreOf(p.t))+'</div></button>';
+      });
+      html+='</div><button class="rmore" id="nvMore">'+(newResv.all?"▲ おすすめだけ":"▼ 全商品から選ぶ（全"+list.length+"品）")+'</button>';
+      el.innerHTML=html;
+      el.querySelectorAll(".pk").forEach(function(b){ b.onclick=function(){ var t=b.getAttribute("data-t"); newResv.pick=list.filter(function(x){return x.t===t;})[0]||null; drawPick(); drawGridPrev(); updateGo(); }; });
+      body.querySelector("#nvMore").onclick=function(){ newResv.all=!newResv.all; drawPick(); };
+    }
+    function drawGridPrev(){
+      var gp=body.querySelector("#nvGridPrev");
+      if(newResv.kind!=="feed"){ gp.innerHTML=""; return; }
+      var feeds=SCHED.filter(function(s){return (s.kind||'feed')!=='reel';}).slice().sort(function(a,b){return String(a.when)>String(b.when)?-1:1;});
+      var cells=[]; if(newResv.pick) cells.push({media:"gifuya/"+newResv.pick.img+V,me:1});
+      feeds.forEach(function(s){ cells.push({media:s.media}); });
+      var h='<div style="font-size:11px;color:var(--sub);font-weight:800;margin:2px 2px 4px">プロフィールのグリッド見え方（新→旧・9枠）</div><div class="rgridprev">';
+      for(var i=0;i<9;i++){ if(cells[i]&&cells[i].media) h+='<img src="'+esc(cells[i].media)+'"'+(cells[i].me?' style="outline:2px solid var(--gold);outline-offset:-2px"':'')+'>'; else h+='<div class="ph">—</div>'; }
+      h+='</div>'; gp.innerHTML=h;
+    }
+    function updateGo(){ var go=body.querySelector("#nvGo"); if(newResv.pick){ go.disabled=false; go.textContent="この内容で予約する（"+fmtDateJ(k)+" "+(body.querySelector("#nvTime").value||"18:00")+"）"; } else { go.disabled=true; go.textContent="投稿を選んでください"; } }
+    body.querySelector("#nvFeed").onclick=function(){ newResv.kind="feed";newResv.pick=null;newResv.all=false; this.classList.add("on");body.querySelector("#nvReel").classList.remove("on"); drawPick();drawGridPrev();updateGo(); };
+    body.querySelector("#nvReel").onclick=function(){ newResv.kind="reel";newResv.pick=null;newResv.all=false; this.classList.add("on");body.querySelector("#nvFeed").classList.remove("on"); drawPick();drawGridPrev();updateGo(); toast("リールは準備中です（形だけの表示）"); };
+    body.querySelector("#nvTime").oninput=updateGo;
+    body.querySelector("#nvGo").onclick=function(){ if(!newResv.pick)return;
+      var tt=body.querySelector("#nvTime").value||"18:00"; var slot=body.querySelector("#nvSlot");
+      body.querySelector("#nvGo").disabled=true;
+      doSchedule(newResv.kind,newResv.pick,k+" "+tt,slot,"予約しました");
+      setTimeout(function(){ loadSched(); closeResv(); },1100);
+    };
+    drawPick(); drawGridPrev(); updateGo();
+    m.classList.add("open");
+  }
+  function closeResv(){ document.getElementById("resvmodal").classList.remove("open"); }
   /* ===== ストーリーメンション（確認→リポスト＋シェアコメント） ===== */
   var MENTION_DEFAULT="ご来店ありがとうございます\n素敵な投稿に感謝です！\n#ぎふや福岡天神";  // 規定＝1
   var MENTION_STORY_TPL=[
@@ -669,11 +886,15 @@
     }).catch(function(){ lab.innerHTML='💬 メンション <span class="cnt">取得エラー（実データ連携時のみ）</span>'; });
   }
 
-  var tF=document.getElementById("tFeed"), tR=document.getElementById("tReel"), tM=document.getElementById("tMention");
-  function _seltab(el){ [tF,tR,tM].forEach(function(x){ x.classList.remove("on"); }); el.classList.add("on"); window.scrollTo({top:0}); }
+  var tF=document.getElementById("tFeed"), tR=document.getElementById("tReel"), tS=document.getElementById("tSched"), tM=document.getElementById("tMention");
+  function _seltab(el){ [tF,tR,tS,tM].forEach(function(x){ x.classList.remove("on"); }); el.classList.add("on"); window.scrollTo({top:0}); }
   tF.onclick=function(){ _seltab(tF); render("feed"); };
   tR.onclick=function(){ _seltab(tR); render("reel"); };
+  tS.onclick=function(){ _seltab(tS); renderSched(); };
   tM.onclick=function(){ _seltab(tM); renderMentions(); };
+  // 予約シートの閉じる（ボタン／背景タップ）
+  document.getElementById("resvclose").onclick=closeResv;
+  document.getElementById("resvmodal").addEventListener("click",function(e){ if(e.target===this) closeResv(); });
   GSEL = loadGsel() || defaultSel();
   loadRegional();
   FEED = shuffleFeed(FEED);   // 厳選12枚（加工済み）を日替わり順に
