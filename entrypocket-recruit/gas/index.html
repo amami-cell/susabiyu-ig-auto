@@ -465,7 +465,8 @@
         '<div class="rf-grid">'+f('応募総数','er_apps',apps)+f('採用人数','er_hires',hires)+f('退職人数','er_quit','')+'</div>'+
         '<label class="rf-l">備考・退職理由</label><textarea class="rf-ta" id="er_note"></textarea>'+
         '<button class="rf-save" onclick="saveEndRecruit('+i+')">募集終了して結果を登録</button>'+
-        '<div class="rf-hint">登録後、元スプシの「プロジェクト実行」でNotionへ反映されます</div>'+
+        '<button onclick="copyEntryUrlR('+i+')" style="width:100%;margin-top:8px;background:transparent;border:1px solid var(--accent);color:var(--accent);border-radius:9px;padding:9px;font-size:12px;cursor:pointer">🔗 入力用URLをコピー（他の人に入力を依頼）</button>'+
+        '<div class="rf-hint">URLを送れば、その人が入力欄だけ入力→そのまま求人結果に反映されます</div>'+
         '<div style="border-top:1px dashed var(--line);margin:12px 0 0;padding-top:10px">'+
           '<button onclick="dismissStore('+i+')" style="width:100%;background:transparent;border:1px solid var(--red);color:var(--red);border-radius:9px;padding:9px;font-size:12px;cursor:pointer">🗑 結果報告は不要（この店舗を削除）</button>'+
           '<div class="rf-hint" style="margin-top:6px">完全無料枠など、結果報告が不要な打ち出し用。登録せず削除するのでスプシ／Notionに残りません（要パスワード）。</div>'+
@@ -572,8 +573,9 @@
       var more = moreInner ? '<div class="pr-more" id="'+id+'" hidden>'+moreInner+'</div>' : '';
       var hint = (unsub&&writeEnabled&&has(p.srcRow)) ? '<span class="pd" style="color:var(--amber)">タップで入力 ▾</span>'
                : (unsub&&reportUrl ? '<a class="btn-in sm" href="'+esc(reportUrl)+'" target="_top" onclick="event.stopPropagation()">スプシで入力 ▸</a>' : '');
+      var share = (unsub&&writeEnabled&&has(p.srcRow)) ? '<button onclick="event.stopPropagation();copyEntryUrl(\''+id+'\')" style="border:0;background:transparent;color:var(--accent);font-size:12px;font-weight:700;cursor:pointer;padding:0 4px">🔗共有</button>' : '';
       return '<div class="pr'+(unsub?' unsub':'')+'" onclick="prtoggle(\''+id+'\')">'+
-        '<div class="pr-h"><b>'+esc(p.store)+'</b>'+badge+'<span class="pd">'+fmtD(p.start)+'〜'+(p.end?fmtD(p.end):'継続')+'</span>'+hint+'</div>'+
+        '<div class="pr-h"><b>'+esc(p.store)+'</b>'+badge+'<span class="pd">'+fmtD(p.start)+'〜'+(p.end?fmtD(p.end):'継続')+'</span>'+hint+share+'</div>'+
         (line?'<div class="pr-sub">'+line+'</div>':'')+
         (stat?'<div class="pr-stat">'+stat+'</div>':'')+
         more+
@@ -611,11 +613,17 @@
     function ymd(x){ var d=toDate(x); return d?fmtYmd(d):(x||''); }
     function entryUrl(p){ var d={ s:p.srcSheet||'', r:p.srcRow||'', st:p.store||'', start:ymd(p.start), end:ymd(p.end) };
       return EXEC_URL+'?entry=1&d='+encodeURIComponent(JSON.stringify(d)); }
-    function copyEntryUrl(id){ var p=postById[id]; if(!p) return; var u=entryUrl(p);
+    function copyUrl(u){
       if(navigator.clipboard&&navigator.clipboard.writeText){
         navigator.clipboard.writeText(u).then(function(){ toast('入力用URLをコピーしました。送ってください'); },
           function(){ prompt('このURLをコピーして送ってください', u); });
       } else prompt('このURLをコピーして送ってください', u);
+    }
+    function copyEntryUrl(id){ var p=postById[id]; if(!p) return; copyUrl(entryUrl(p)); }
+    // 募集終了/未提出モーダルから：フォームの期間で入力用URLを作る
+    function copyEntryUrlR(i){ var r=RECS[i]; if(!r) return;
+      var d={ s:r._srcSheet||'', r:r._srcRow||'', st:r.name||'', start:val('er_start'), end:val('er_end') };
+      copyUrl(EXEC_URL+'?entry=1&d='+encodeURIComponent(JSON.stringify(d)));
     }
     function saveResult(id){
       var p=postById[id]; if(!p) return;

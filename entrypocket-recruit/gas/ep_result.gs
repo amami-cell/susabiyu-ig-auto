@@ -289,6 +289,7 @@ function epEntryData_(o) {
     }
   } catch (e) { }
   try { var ac = epEntryAutoCounts_(store, out.start, out.end); out.autoApps = ac.apps; out.autoHires = ac.hires; } catch (e2) { }
+  out.ok = !!store;   // 店舗が分かれば入力可（既存行が無ければ保存時に新規作成）
   return out;
 }
 
