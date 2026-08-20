@@ -747,6 +747,7 @@ var RESV_TAB = "予約投稿";
 function schedSheet_() {
   var ss = SpreadsheetApp.openById(SHEET_ID), sh = ss.getSheetByName(RESV_TAB);
   if (!sh) { sh = ss.insertSheet(RESV_TAB); sh.appendRow(["token", "when", "kind", "media_url", "caption", "hashtags", "status", "created_at", "note", "account"]); }
+  try { sh.getRange("B2:B").setNumberFormat('@'); } catch (e) {}   // when列は常に文字列（JSTのUTCずれ防止）
   return sh;
 }
 function schedCreate_(p) {
@@ -757,9 +758,18 @@ function schedCreate_(p) {
   // K/L列: リールの切取位置(秒)。投稿エンジンが ffmpeg で切り出す。空=切らずにそのまま。
   var ts = (p.trimStart === undefined || p.trimStart === "") ? "" : Number(p.trimStart);
   var te = (p.trimEnd === undefined || p.trimEnd === "") ? "" : Number(p.trimEnd);
-  sh.appendRow([token, String(p.when || "").slice(0, 16), kind, p.media || "", p.caption || "", p.hashtags || "",
+  var whenTxt = String(p.when || "").slice(0, 16);
+  sh.appendRow([token, whenTxt, kind, p.media || "", p.caption || "", p.hashtags || "",
     "scheduled", Utilities.formatDate(new Date(), "Asia/Tokyo", "yyyy-MM-dd HH:mm"), "", account, ts, te]);
+  // when列(B)は「文字列」固定にする。Sheetsが日時セルへ自動変換するとUTCずれ（18:00→09:00）で
+  // 表示・JSON化されるため、テキスト書式にして literal "YYYY-MM-DD HH:MM"(JST) を保持する。
+  try { var r = sh.getLastRow(), c = sh.getRange(r, 2); c.setNumberFormat('@'); c.setValue(whenTxt); } catch (e) {}
   return { ok: true, token: token };
+}
+// 予約セルが（過去分などで）日時オブジェクト化していても、必ずJSTの "YYYY-MM-DD HH:mm" 文字列で返す。
+function _whenStr_(w) {
+  if (Object.prototype.toString.call(w) === '[object Date]') return Utilities.formatDate(w, "Asia/Tokyo", "yyyy-MM-dd HH:mm");
+  return String(w == null ? "" : w).slice(0, 16);
 }
 function schedList_(account) {
   var want = String(account || "").trim();          // 店舗別に分離（空=三条・従来どおり）
@@ -767,7 +777,7 @@ function schedList_(account) {
   for (var i = 1; i < v.length; i++) {
     if (String(v[i][6]).trim() !== "scheduled") continue;
     if (String(v[i][9] || "").trim() !== want) continue;
-    out.push({ token: v[i][0], when: v[i][1], kind: v[i][2], media: v[i][3], name: (v[i][4] || "").split("\n")[0].slice(0, 24), copy: "" });
+    out.push({ token: v[i][0], when: _whenStr_(v[i][1]), kind: v[i][2], media: v[i][3], name: (v[i][4] || "").split("\n")[0].slice(0, 24), copy: "" });
   }
   out.sort(function (a, b) { return String(a.when) < String(b.when) ? -1 : 1; });
   return { ok: true, items: out };
