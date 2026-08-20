@@ -331,46 +331,41 @@
           '</div>'; }).join('')+'</div>';
     }
 
-    /* ===== 募集中タブ（EntryPocket由来：直近に応募がある店舗＝募集中）===== */
-    var RECRUIT_RECENT_DAYS=45;   // 直近この日数に応募がある店舗を「募集中」とみなす
+    /* ===== 募集中タブ（応募者ベース：直近に応募がある店舗＝募集中）===== */
+    var RECRUIT_RECENT_DAYS=45;      // 直近この日数に応募がある店舗を「募集中」とみなす
+    var RECRUIT_DORMANT_MAX_DAYS=180; // 応募がこの日数より古い店舗はもう扱わない（未提出アラートにも出さない）
     function renderRecruit(){
       var el=document.getElementById('recruitList');
-      var now=Date.now(), cut=now-RECRUIT_RECENT_DAYS*86400000;
+      var now=Date.now();
       // EntryPocketの応募データから、店舗ごとの最新応募日時を出す
       var latest={}, nameOf={};
       apps.forEach(function(a){ var k=normStore(a.store); if(!k) return; if(a.store) nameOf[k]=a.store;
         var d=toDate(a.appliedAt), t=d?d.getTime():0; if(!latest[k]||t>latest[k]) latest[k]=t; });
       var keys={};
-      Object.keys(latest).forEach(function(k){ if(latest[k]>=cut) keys[k]=1; });          // 直近応募あり＝募集中
-      // EntryPocketで掲載中の求人原稿がある店舗（応募が無くても募集中に出す）
-      (liveShops||[]).forEach(function(nm){ var k=normStore(nm); if(!k) return; keys[k]=1; if(nm&&!nameOf[k]) nameOf[k]=nm; });
+      // ★判定は「応募者(募集者)」ベース。EPの掲載中(原稿)は店舗ごとに何個もあり不明瞭なので判定に使わない。
+      // 直近RECRUIT_DORMANT_MAX_DAYS以内に応募がある店舗を対象に拾う（45日以内＝募集中／超＝長期応募なし）。
+      var maxCut=now-RECRUIT_DORMANT_MAX_DAYS*86400000;
+      Object.keys(latest).forEach(function(k){ if(latest[k]>=maxCut) keys[k]=1; });
       // 手動上書き（master_店舗 F列 募集手動）：終了は外す・募集中は入れる（最後に適用＝終了が優先）
       Object.keys(storeManual).forEach(function(name){ var ov=manOverride(storeManual[name]), k=normStore(name);
         if(ov==='active') keys[k]=1; if(ov==='ended') delete keys[k]; });
-      var liveSet={}; (liveShops||[]).forEach(function(nm){ liveSet[normStore(nm)]=1; });
+      var liveSet={}; (liveShops||[]).forEach(function(nm){ liveSet[normStore(nm)]=1; });   // 掲載中バッジ表示用（判定には使わない）
       RECS=Object.keys(keys).map(function(k){
         var appsArr=appByStore[k]||[], sp=storePosting[k]||null;
         var name=nameOf[k]||(sp&&sp.name)||(appsArr[0]&&appsArr[0].store)||k;
         return { key:k, name:name, sp:sp, appsArr:appsArr, latest:latest[k]||0, live:!!liveSet[k] };
       });
       RECS.sort(function(a,b){ return (b.latest||0)-(a.latest||0); });                     // 最新応募順
-      // 長期応募なし＝募集中から外して結果報告側へ。結果報告があればOK(非表示)、無ければ未提出アラート。
+      // 直近45日に応募あり＝募集中。45日超＝長期応募なし→結果報告へ（あればOK非表示／無ければ未提出アラート）。
       var active=[], dormNoResult=[];
       RECS.forEach(function(r){
         if(isDormant(r)){ if(!hasResultRow(r.key)) dormNoResult.push(r); }   // 結果報告あり→表示しない
         else active.push(r);
       });
-      var autoHint='<div class="muted" style="font-size:11px;margin:2px 2px 8px;line-height:1.5">掲載終了から14日、または長期応募なし('+RECRUIT_DORMANT_DAYS+'日)で自動的に結果報告へ移ります。すぐ確定したい店舗は「募集終了」ボタンを。</div>';
-      // 主リストは「応募がある店舗」、応募0の掲載中は「掲載中・応募待ち」として別枠に分ける。
-      var withApps=[], waiting=[];
-      active.forEach(function(r){ if(r.appsArr.length>0) withApps.push(r); else waiting.push(r); });
+      var autoHint='<div class="muted" style="font-size:11px;margin:2px 2px 8px;line-height:1.5">募集中＝直近'+RECRUIT_RECENT_DAYS+'日に応募がある店舗。最終応募から'+RECRUIT_DORMANT_DAYS+'日で自動的に結果報告へ移ります。すぐ確定したい店舗は「募集終了」ボタンを。</div>';
       var h=autoHint+alertHtml()+dormantAlertHtml(dormNoResult);
-      if(!withApps.length && !waiting.length && !dormNoResult.length){ el.innerHTML=h+'<div class="empty">現在、募集中の店舗はありません（直近'+RECRUIT_RECENT_DAYS+'日に応募なし・掲載中なし）</div>'; return; }
-      withApps.forEach(function(r){ h+=storeCard(r); });
-      if(waiting.length){
-        h+='<div class="muted" style="margin:14px 2px 6px;font-size:12px;font-weight:700;border-top:1px solid var(--line);padding-top:10px">🆕 掲載中・応募待ち（まだ応募なし）'+waiting.length+'店舗</div>';
-        waiting.forEach(function(r){ h+=storeCard(r); });
-      }
+      if(!active.length && !dormNoResult.length){ el.innerHTML=h+'<div class="empty">現在、募集中の店舗はありません（直近'+RECRUIT_RECENT_DAYS+'日に応募なし）</div>'; return; }
+      active.forEach(function(r){ h+=storeCard(r); });
       el.innerHTML=h;
     }
     var RECRUIT_DORMANT_DAYS=45;   // 最終応募からこの日数を超えたら「長期応募なし」＝終了候補として警告表示
@@ -707,10 +702,15 @@
       for(var i=0;i<lead;i++) cells+='<div class="cell blank"></div>';
       for(var day=1;day<=dim;day++){
         var list=byDay[day]||[];
-        var evHtml=list.map(function(e){
+        // 日付：面接があれば件数バッジ付きで、押すとその日の一覧を出す
+        var dn = list.length
+          ? '<div class="dn" style="cursor:pointer" onclick="schDay('+schY+','+schM+','+day+')">'+day+' <span style="font-size:10px;background:var(--accent);color:#fff;border-radius:8px;padding:0 5px;vertical-align:middle">'+list.length+'</span></div>'
+          : '<div class="dn">'+day+'</div>';
+        var evHtml=list.slice(0,2).map(function(e){
           return '<button class="ev" style="background:'+schColorOf(e.key)+'" onclick="schDetail(\''+esc(e.code)+'\')">'+(e.t?'<b>'+e.t+'</b> ':'')+'<span class="nm">'+esc(e.name)+'</span><span class="evst">'+esc(e.store)+'</span></button>';
         }).join('');
-        cells+='<div class="cell'+(thisMonth&&today.getDate()===day?' today':'')+'"><div class="dn">'+day+'</div>'+evHtml+'</div>';
+        if(list.length>2) evHtml+='<button class="ev" style="background:var(--card2);color:var(--fg2)" onclick="schDay('+schY+','+schM+','+day+')">他'+(list.length-2)+'件 ▾</button>';
+        cells+='<div class="cell'+(thisMonth&&today.getDate()===day?' today':'')+'">'+dn+evHtml+'</div>';
       }
       var body=nav+chips+'<div class="cal">'+head+cells+'</div>';
       if(total===0) body+='<div class="schnote">この月の面接予定はありません（店舗チップで絞り込み中なら解除して確認）</div>';
@@ -720,8 +720,23 @@
     function schToggle(key){ schSel[key]=!schSel[key]; renderSchedule(); }
     function schDetail(code){ var a=appByCode[code]; if(!a) return;
       document.getElementById('modalTitle').textContent=a.name||'面接者';
-      var when=a.interviewAt?('面接 '+fmtDT(a.interviewAt)):'';
-      document.getElementById('modalBody').innerHTML=(when?'<div class="modal-when">'+esc(when)+'</div>':'')+appCard(a);
+      var head=[]; if(a.interviewAt) head.push('面接 '+fmtDT(a.interviewAt)); if(a.store) head.push('応募店舗：'+a.store);
+      document.getElementById('modalBody').innerHTML=(head.length?'<div class="modal-when">'+esc(head.join('　／　'))+'</div>':'')+appCard(a);
+      document.getElementById('modal').hidden=false;
+    }
+    // その日の面接を一覧表示（1日に複数件ある時、日付を押すと全部出す）
+    function schDay(y,mo,da){
+      var evs=schedEvents().filter(function(e){ return e.y===y&&e.mo===mo&&e.da===da&&schSel[e.key]; })
+        .sort(function(a,b){ return (a.t||'99:99')<(b.t||'99:99')?-1:1; });
+      if(!evs.length) return;
+      document.getElementById('modalTitle').textContent=(mo+1)+'/'+da+' の面接（'+evs.length+'件）';
+      document.getElementById('modalBody').innerHTML=evs.map(function(e){
+        return '<button onclick="schDetail(\''+esc(e.code)+'\')" style="display:flex;gap:10px;align-items:center;width:100%;text-align:left;border:0;border-bottom:1px solid var(--line);background:transparent;color:var(--fg);padding:11px 4px;cursor:pointer">'+
+          '<span style="width:11px;height:11px;border-radius:50%;background:'+schColorOf(e.key)+';flex:none"></span>'+
+          '<b style="min-width:46px">'+esc(e.t||'—')+'</b>'+
+          '<span style="flex:1;min-width:0">'+esc(e.name)+'<br><small class="muted">'+esc(e.store)+'</small></span>'+
+          '<span style="color:var(--muted)">›</span></button>';
+      }).join('');
       document.getElementById('modal').hidden=false;
     }
     function closeModal(){ document.getElementById('modal').hidden=true; }
