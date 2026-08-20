@@ -1,0 +1,111 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<title>Initiateエンポケ求人</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#7c4dff">
+<link rel="manifest" href="./manifest.webmanifest">
+<link rel="icon" type="image/png" sizes="32x32" href="./icons/favicon-32.png">
+<link rel="icon" type="image/png" sizes="16x16" href="./icons/favicon-16.png">
+<link rel="apple-touch-icon" sizes="180x180" href="./icons/apple-touch-icon-180.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="エンポケ求人">
+<style>
+  :root{ --accent:#7c4dff; }
+  *{ box-sizing:border-box; }
+  html,body{ margin:0; padding:0; height:100%; background:#fff; overflow:hidden; }
+  #frame{ position:fixed; inset:0; width:100%; height:100%; border:0; }
+  /* 通知ボタン（フロート） */
+  #bell{ position:fixed; right:14px; bottom:calc(14px + env(safe-area-inset-bottom)); z-index:10;
+    display:inline-flex; align-items:center; gap:6px; padding:11px 15px; border:0; border-radius:999px;
+    background:var(--accent); color:#fff; font-size:14px; font-weight:700; box-shadow:0 6px 18px rgba(124,77,255,.45);
+    cursor:pointer; -webkit-tap-highlight-color:transparent; }
+  #bell.on{ background:#10b981; box-shadow:0 6px 18px rgba(16,185,129,.4); }
+  #bell:active{ transform:translateY(1px); }
+  /* トースト */
+  #toast{ position:fixed; left:50%; bottom:calc(74px + env(safe-area-inset-bottom)); transform:translateX(-50%);
+    z-index:20; background:#111; color:#fff; padding:10px 16px; border-radius:10px; font-size:13px; max-width:86%;
+    opacity:0; transition:opacity .25s; pointer-events:none; text-align:center; }
+  #toast.show{ opacity:.96; }
+  /* iOS 追加ヒント */
+  #ios{ position:fixed; left:12px; right:12px; bottom:calc(74px + env(safe-area-inset-bottom)); z-index:15;
+    display:none; background:#fff; color:#222; border:1px solid #e5e5ea; border-radius:12px; padding:12px 14px;
+    box-shadow:0 8px 24px rgba(0,0,0,.14); font-size:13px; line-height:1.6; }
+  #ios b{ color:var(--accent); }
+  #ios .x{ float:right; color:#999; cursor:pointer; font-weight:700; }
+</style>
+</head>
+<body>
+  <iframe id="frame" title="Initiateエンポケ求人"
+          allow="clipboard-write; clipboard-read"
+          referrerpolicy="no-referrer"></iframe>
+
+  <button id="bell" onclick="onBell()">🔔 通知</button>
+  <div id="toast"></div>
+  <div id="ios">
+    <span class="x" onclick="document.getElementById('ios').style.display='none'">✕</span>
+    通知を受け取るには、この画面を <b>共有 → ホーム画面に追加</b> して、
+    追加したアイコンから開いてからもう一度 <b>🔔 通知</b> を押してください。
+  </div>
+
+<script src="./config.js"></script>
+<script>
+  var CFG = window.EMPOKE || {};
+  var frame = document.getElementById('frame');
+  // 中に募集ダッシュボード(GAS /exec)を表示
+  frame.src = CFG.GAS_EXEC_URL || 'about:blank';
+
+  function toast(m){ var t=document.getElementById('toast'); t.textContent=m; t.classList.add('show');
+    clearTimeout(toast._t); toast._t=setTimeout(function(){ t.classList.remove('show'); }, 2600); }
+
+  function pushSupported(){ return ('serviceWorker' in navigator) && ('PushManager' in window) && ('Notification' in window); }
+  function urlB64ToU8(s){ var pad='='.repeat((4-s.length%4)%4); var b=(s+pad).replace(/-/g,'+').replace(/_/g,'/');
+    var raw=atob(b), arr=new Uint8Array(raw.length); for(var i=0;i<raw.length;i++) arr[i]=raw.charCodeAt(i); return arr; }
+
+  var swReg=null;
+  if('serviceWorker' in navigator){
+    navigator.serviceWorker.register('./sw.js').then(function(r){ swReg=r; refreshBell(); })
+      .catch(function(e){ /* SW失敗でもアプリ表示は継続 */ });
+  }
+
+  function refreshBell(){
+    var b=document.getElementById('bell');
+    if(!pushSupported()){ b.style.display='none'; return; }
+    navigator.serviceWorker.ready.then(function(reg){ return reg.pushManager.getSubscription(); })
+      .then(function(sub){ if(sub){ b.classList.add('on'); b.textContent='🔔 通知ON'; }
+        else { b.classList.remove('on'); b.textContent='🔔 通知'; } })
+      .catch(function(){});
+  }
+
+  function onBell(){
+    var isIos=/iphone|ipad|ipod/i.test(navigator.userAgent);
+    var standalone=(('standalone' in navigator)&&navigator.standalone)||matchMedia('(display-mode: standalone)').matches;
+    if(isIos && !standalone){ document.getElementById('ios').style.display='block'; return; }
+    if(!pushSupported()){ toast('この端末/ブラウザは通知に未対応です'); return; }
+    if(!CFG.VAPID_PUBLIC){ toast('通知設定(VAPID)が未設定です'); return; }
+    // 既にONなら設定（解除）
+    navigator.serviceWorker.ready.then(function(reg){ return reg.pushManager.getSubscription().then(function(cur){
+      if(cur){ if(confirm('通知をオフにしますか？')){ cur.unsubscribe().then(function(){ sendUnsub(cur); toast('通知をオフにしました'); refreshBell(); }); } return; }
+      Notification.requestPermission().then(function(perm){
+        if(perm!=='granted'){ toast('通知が許可されませんでした'); return; }
+        reg.pushManager.subscribe({ userVisibleOnly:true, applicationServerKey:urlB64ToU8(CFG.VAPID_PUBLIC) })
+          .then(function(sub){ sendSub(sub); toast('通知をオンにしました 🔔'); refreshBell(); })
+          .catch(function(e){ toast('通知の登録に失敗: '+((e&&e.message)||e)); });
+      });
+    }); });
+  }
+
+  // 購読情報を募集GASへ保存（CORS回避のため no-cors の text/plain POST・応答は読めないが登録は通る）
+  function post(obj){
+    try{
+      fetch(CFG.GAS_EXEC_URL, { method:'POST', mode:'no-cors',
+        headers:{ 'Content-Type':'text/plain;charset=UTF-8' }, body: JSON.stringify(obj) });
+    }catch(e){}
+  }
+  function sendSub(sub){ post({ api:'subscribe', sub: JSON.stringify(sub), ep: sub.endpoint, ua: navigator.userAgent.slice(0,120) }); }
+  function sendUnsub(sub){ post({ api:'unsubscribe', ep: sub.endpoint }); }
+</script>
+</body>
+</html>
