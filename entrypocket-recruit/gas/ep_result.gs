@@ -215,6 +215,32 @@ function epDeletePosting(o) {
   return { ok: true, store: store, row: row };
 }
 
+/**
+ * 【緊急用・パスワード必須】結果報告せずに店舗を削除する（完全無料枠など報告不要な打ち出し）。
+ * スプシに既存行があれば削除し、master_店舗を「終了」にして募集中/未提出から外す。結果は書かない。
+ */
+function epDismissStore(o) {
+  o = o || {};
+  if (String(o.pass || "") !== "8888") return { ok: false, error: "パスワードが違います" };
+  var store = epCleanStore_(String(o.store || "").replace(/\s+/g, " ").trim());
+  if (!store) return { ok: false, error: "店舗が空です" };
+  var deleted = false;
+  // スプシに既存の結果行があれば削除（無ければスキップ＝そもそもスプシに書かれていない）
+  try {
+    var res = epDeletePosting({ pass: "8888", store: o.store || store, srcSheet: o.srcSheet, srcRow: o.srcRow, start: o.start });
+    deleted = !!(res && res.ok);
+  } catch (e) { }
+  // 募集中/未提出から外す
+  try { epSetStoreManual_(o.store || store, "終了"); } catch (e) { }
+  try {
+    var ss = SpreadsheetApp.getActiveSpreadsheet();
+    var log = epSheet_(ss, "_削除ログ", ["日時", "店舗", "元行", "削除内容"]);
+    log.appendRow([Utilities.formatDate(new Date(), "Asia/Tokyo", "yyyy-MM-dd HH:mm:ss"), store, (o.srcRow || ""), "結果報告不要で除外" + (deleted ? "（スプシ行も削除）" : "（スプシには元々なし）")]);
+    dashStoreCache_();
+  } catch (e) { }
+  return { ok: true, store: store, deleted: deleted };
+}
+
 /** master_店舗 の手動フラグ列(F)に値を書く（店舗表示名で照合）。 */
 function epSetStoreManual_(storeDisp, value) {
   var ss = SpreadsheetApp.getActiveSpreadsheet();
