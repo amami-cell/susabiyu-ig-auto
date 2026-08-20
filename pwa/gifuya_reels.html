@@ -222,7 +222,7 @@
 <script>
 (function(){
   "use strict";
-  var V = "?v=165";  // メディアのキャッシュ更新用
+  var V = "?v=166";  // メディアのキャッシュ更新用
   window.__APPV = "v" + (V.replace("?v=","")||"?");   // 画面下の版数表示用（?v=と同期）
   var CFG = window.GIFUYA || {};
   var LIVE = !!window.GIFUYA_LIVE;               // 専用GAS注入済みなら実データ連携
@@ -261,8 +261,9 @@
   }
   function fullCaption(cap, dishTags){
     // ハッシュタグは「選んだ分だけ」。共通タグの大量自動付与はやめ、料理タグ＋選択タグのみ。
+    // 並び：本文 → 店舗情報テンプレ → ハッシュタグ（＝一番下に1箇所だけまとめる）。
     var tags = dedupeTags((dishTags?dishTags+" ":"") + selTags(), 13);
-    return (cap||"") + (tags?("\n\n" + tags):"") + "\n\n" + TEMPLATE;
+    return (cap||"") + "\n\n" + TEMPLATE + (tags?("\n\n" + tags):"");
   }
   // プレビュー表示用：ハッシュタグは下のチップで管理するので本文には並べない（本文＋お店情報テンプレのみ）。
   // 実際の投稿・コピーは fullCaption（タグ入り）を使うので、投稿にはちゃんとタグが付く。
