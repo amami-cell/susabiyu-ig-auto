@@ -223,7 +223,7 @@
 <script>
 (function(){
   "use strict";
-  var V = "?v=169";  // メディアのキャッシュ更新用
+  var V = "?v=170";  // メディアのキャッシュ更新用
   window.__APPV = "v" + (V.replace("?v=","")||"?");   // 画面下の版数表示用（?v=と同期）
   var CFG = window.GIFUYA || {};
   var LIVE = !!window.GIFUYA_LIVE;               // 専用GAS注入済みなら実データ連携
@@ -288,7 +288,7 @@
     return new Promise(function(resolve,reject){
       if(!LIVE || !GAS || GAS.indexOf("PASTE_")===0){ reject(new Error("no-backend")); return; }
       var cb="__gf"+(++jc)+"_"+Date.now(), s=document.createElement("script");
-      var to=setTimeout(function(){cleanup();reject(new Error("timeout"));},14000);
+      var to=setTimeout(function(){cleanup();reject(new Error("timeout"));},9000);
       function cleanup(){clearTimeout(to);delete window[cb];if(s.parentNode)s.parentNode.removeChild(s);}
       window[cb]=function(d){cleanup();resolve(d);};
       if(params.account===undefined) params.account=ACCOUNT;
@@ -494,7 +494,7 @@
     if(LIVE){
       slot.innerHTML='<div class="banner okb">送信中…</div>';
       gJsonp(params).then(function(res){
-        if(res&&(res.ok||res.result==="ok")){ slot.innerHTML='<div class="banner okb">✓ '+label+'<br><small style="font-weight:600;color:#6fb595">予定時刻に自動投稿されます</small></div>'; toast(label); loadSched(); }
+        if(res&&(res.ok||res.result==="ok")){ slot.innerHTML='<div class="banner okb">✓ '+label+'<br><small style="font-weight:600;color:#6fb595">予定時刻に自動投稿されます</small></div>'; toast(label); loadSched(null,true); }
         else { slot.innerHTML='<div class="banner ngb">送信できませんでした</div>'; toast("失敗しました。再度お試しください"); }
       }).catch(function(){ slot.innerHTML='<div class="banner ngb">通信エラー</div>'; toast("通信エラー"); });
     } else {
@@ -505,10 +505,13 @@
   /* ---------- 予約データ（schedlist）キャッシュ＋カレンダー ---------- */
   var SCHED=[];          // 予約一覧 [{token,when,kind,media,name}]
   var schedCb=null;      // 取得後の再描画コールバック（現在のタブ用）
-  function loadSched(cb){
+  var schedFetchedAt=0;  // 直近取得時刻（短時間キャッシュ＝無駄な通信を省く）
+  // force=true で必ず取得。それ以外は20秒以内なら通信せず即描画（stale-while-revalidate）。
+  function loadSched(cb, force){
     if(cb) schedCb=cb;
     if(!LIVE){ SCHED=[]; if(schedCb)schedCb(); return; }
-    gJsonp({api:"schedlist"}).then(function(res){ SCHED=(res&&res.items)||[]; if(schedCb)schedCb(); })
+    if(!force && (Date.now()-schedFetchedAt) < 20000){ if(schedCb)schedCb(); return; }
+    gJsonp({api:"schedlist"}).then(function(res){ SCHED=(res&&res.items)||[]; schedFetchedAt=Date.now(); if(schedCb)schedCb(); })
       .catch(function(){ if(schedCb)schedCb(); });
   }
 
@@ -830,7 +833,7 @@
       SCHED.push(opt); if(schedCb) schedCb(); closeResv(); toast("予約しました（予定時刻に自動投稿）");
       if(!LIVE) return;
       gJsonp({api:"schedule", kind:(kind==="feed"?"feed":"reel"), name:it.t||"", when:when, media:media, caption:caption, hashtags:""}).then(function(res){
-        if(res&&(res.ok||res.result==="ok")){ loadSched(); }                         // 実トークンで整合
+        if(res&&(res.ok||res.result==="ok")){ loadSched(null,true); }                 // 実トークンで整合（強制取得）
         else { _schedRemove(opt.token); if(schedCb)schedCb(); toast("予約に失敗しました。もう一度お試しください"); }
       }).catch(function(){ _schedRemove(opt.token); if(schedCb)schedCb(); toast("通信エラー。予約できませんでした"); });
     };
@@ -1000,7 +1003,7 @@
   FEED = shuffleFeed(FEED);   // 厳選12枚（加工済み）を日替わり順に
   render("feed");
   // 予約データを起動時に先読み（＝予約タブ初回が一瞬で開く）。schedCbは呼ばず静かにSCHEDだけ温める。
-  if(LIVE){ gJsonp({api:"schedlist"}).then(function(res){ SCHED=(res&&res.items)||SCHED; }).catch(function(){}); }
+  if(LIVE){ gJsonp({api:"schedlist"}).then(function(res){ SCHED=(res&&res.items)||SCHED; schedFetchedAt=Date.now(); }).catch(function(){}); }
   // seedから決まる順列（Fisher-Yates+LCG）。post_gifuya_story.py と同一式。
   function seededOrder(n, seed){ var a=[],i,s=(seed>>>0)||1; for(i=0;i<n;i++)a.push(i);
     for(i=n-1;i>0;i--){ s=(s*1664525+1013904223)>>>0; var j=s%(i+1),t=a[i];a[i]=a[j];a[j]=t; } return a; }
