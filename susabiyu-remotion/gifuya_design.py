@@ -205,12 +205,12 @@ def render_post(src, out, title, subcopy=None, ribbon="福岡天神店", logo=Tr
     base = _cover(src_im, W, H)
     base = _scrim(base).convert("RGBA")
 
-    # ロゴ（白・左上）
+    # ロゴ（白・左上）※短冊と同じ大きさ・位置に統一（360・左上角(16,14)）
     if logo and os.path.exists(LOGO_WHITE):
         lg = Image.open(LOGO_WHITE).convert("RGBA")
-        lw = 250
+        lw = 360
         lg = lg.resize((lw, int(lg.height * lw / lg.width)), Image.LANCZOS)
-        base.alpha_composite(lg, (36, 28))
+        base.alpha_composite(lg, (16, 14))
 
     draw = ImageDraw.Draw(base)
 
