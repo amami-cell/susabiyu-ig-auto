@@ -9,10 +9,17 @@
  */
 
 function doGet(e) {
-  // アプリ通知(Webプッシュ)の送信待ち取り出しAPI（GitHub Actions の送信役が叩く）
   if (e && e.parameter && e.parameter.push) {
     var out;
-    try { out = epDrainPush_(e.parameter.key); } catch (err) { out = { ok: false, error: String(err) }; }
+    try {
+      if (e.parameter.push === 'test') {
+        // 動作確認用：テスト通知を1件キューに積む（送信役が拾って実送信する）
+        out = epEnqueueTest_(e.parameter.key);
+      } else {
+        // アプリ通知(Webプッシュ)の送信待ち取り出しAPI（GitHub Actions の送信役が叩く）
+        out = epDrainPush_(e.parameter.key);
+      }
+    } catch (err) { out = { ok: false, error: String(err) }; }
     return ContentService.createTextOutput(JSON.stringify(out)).setMimeType(ContentService.MimeType.JSON);
   }
   return HtmlService.createHtmlOutputFromFile('index')
