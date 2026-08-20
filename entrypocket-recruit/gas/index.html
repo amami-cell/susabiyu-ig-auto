@@ -361,10 +361,16 @@
         else active.push(r);
       });
       var autoHint='<div class="muted" style="font-size:11px;margin:2px 2px 8px;line-height:1.5">掲載終了から14日、または長期応募なし('+RECRUIT_DORMANT_DAYS+'日)で自動的に結果報告へ移ります。すぐ確定したい店舗は「募集終了」ボタンを。</div>';
+      // 主リストは「応募がある店舗」、応募0の掲載中は「掲載中・応募待ち」として別枠に分ける。
+      var withApps=[], waiting=[];
+      active.forEach(function(r){ if(r.appsArr.length>0) withApps.push(r); else waiting.push(r); });
       var h=autoHint+alertHtml()+dormantAlertHtml(dormNoResult);
-      if(!active.length && !dormNoResult.length){ el.innerHTML=h+'<div class="empty">現在、募集中の店舗はありません（直近'+RECRUIT_RECENT_DAYS+'日に応募なし）</div>'; return; }
-      active.forEach(function(r){ h+=storeCard(r); });
-      if(!active.length) h+='<div class="empty">アクティブな募集はありません（上の「未提出」をご確認ください）</div>';
+      if(!withApps.length && !waiting.length && !dormNoResult.length){ el.innerHTML=h+'<div class="empty">現在、募集中の店舗はありません（直近'+RECRUIT_RECENT_DAYS+'日に応募なし・掲載中なし）</div>'; return; }
+      withApps.forEach(function(r){ h+=storeCard(r); });
+      if(waiting.length){
+        h+='<div class="muted" style="margin:14px 2px 6px;font-size:12px;font-weight:700;border-top:1px solid var(--line);padding-top:10px">🆕 掲載中・応募待ち（まだ応募なし）'+waiting.length+'店舗</div>';
+        waiting.forEach(function(r){ h+=storeCard(r); });
+      }
       el.innerHTML=h;
     }
     var RECRUIT_DORMANT_DAYS=45;   // 最終応募からこの日数を超えたら「長期応募なし」＝終了候補として警告表示
