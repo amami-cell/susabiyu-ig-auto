@@ -101,3 +101,10 @@ GitHub に push すると `.github/workflows/kobito_build.yml`（**kobito-build*
 | 効果音 | [Kenney Audio](https://kenney.nl/assets?q=audio) / [Freesound](https://freesound.org/) | CC0 / 要確認 |
 
 使ったものは `CREDITS.md` に追記してください（CC0でも、どこから来たか分かるようにしておくと後で助かります）。
+
+---
+
+### メモ: Androidのパッケージ名
+`jp.co.eightsin.kobito` にしてあります（`export_presets.cfg`）。
+Androidの規則で **各セグメントを数字で始められない** ため、`8sin` はそのまま使えません。
+一度ストアに出すと変更できない値なので、公開前に決め直すならこのタイミングで。
