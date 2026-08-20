@@ -29,12 +29,12 @@
     z-index:20; background:#111; color:#fff; padding:10px 16px; border-radius:10px; font-size:13px; max-width:86%;
     opacity:0; transition:opacity .25s; pointer-events:none; text-align:center; }
   #toast.show{ opacity:.96; }
-  /* iOS 追加ヒント */
-  #ios{ position:fixed; left:12px; right:12px; bottom:calc(74px + env(safe-area-inset-bottom)); z-index:15;
+  /* iOS追加ヒント／通知ブロック案内 */
+  #ios, #blocked{ position:fixed; left:12px; right:12px; bottom:calc(74px + env(safe-area-inset-bottom)); z-index:15;
     display:none; background:#fff; color:#222; border:1px solid #e5e5ea; border-radius:12px; padding:12px 14px;
-    box-shadow:0 8px 24px rgba(0,0,0,.14); font-size:13px; line-height:1.6; }
-  #ios b{ color:var(--accent); }
-  #ios .x{ float:right; color:#999; cursor:pointer; font-weight:700; }
+    box-shadow:0 8px 24px rgba(0,0,0,.14); font-size:13px; line-height:1.6; max-height:60vh; overflow:auto; }
+  #ios b, #blocked b{ color:var(--accent); }
+  #ios .x, #blocked .x{ float:right; color:#999; cursor:pointer; font-weight:700; }
 </style>
 </head>
 <body>
@@ -48,6 +48,15 @@
     <span class="x" onclick="document.getElementById('ios').style.display='none'">✕</span>
     通知を受け取るには、この画面を <b>共有 → ホーム画面に追加</b> して、
     追加したアイコンから開いてからもう一度 <b>🔔 通知</b> を押してください。
+  </div>
+  <div id="blocked">
+    <span class="x" onclick="document.getElementById('blocked').style.display='none'">✕</span>
+    <b>通知がブロックされています。</b><br>
+    一度「許可しない」を押すと、ブラウザ側でブロックされ自動で出せません。下記で解除してください：<br>
+    ・<b>iPhone（ホーム画面アプリ）</b>：iPhoneの「設定」→「通知」→<b>このアプリ</b>→通知を許可<br>
+    ・<b>Android / Chrome</b>：アイコン長押し→アプリ情報→通知をON（またはブラウザのサイト設定→通知→許可）<br>
+    ・<b>PC Chrome</b>：アドレスバーの🔒→サイトの設定→通知→「許可」<br>
+    解除できたら、もう一度 <b>🔔 通知</b> を押してください。
   </div>
 
 <script src="./config.js"></script>
@@ -85,11 +94,16 @@
     if(isIos && !standalone){ document.getElementById('ios').style.display='block'; return; }
     if(!pushSupported()){ toast('この端末/ブラウザは通知に未対応です'); return; }
     if(!CFG.VAPID_PUBLIC){ toast('通知設定(VAPID)が未設定です'); return; }
+    // 一度ブロックされていると requestPermission しても即 denied で戻せない → 解除方法を案内
+    if(('Notification' in window) && Notification.permission==='denied'){
+      document.getElementById('blocked').style.display='block'; return;
+    }
     // 既にONなら設定（解除）
     navigator.serviceWorker.ready.then(function(reg){ return reg.pushManager.getSubscription().then(function(cur){
       if(cur){ if(confirm('通知をオフにしますか？')){ cur.unsubscribe().then(function(){ sendUnsub(cur); toast('通知をオフにしました'); refreshBell(); }); } return; }
       Notification.requestPermission().then(function(perm){
-        if(perm!=='granted'){ toast('通知が許可されませんでした'); return; }
+        if(perm==='denied'){ document.getElementById('blocked').style.display='block'; return; }
+        if(perm!=='granted'){ toast('通知の許可がキャンセルされました。もう一度🔔を押してください'); return; }
         reg.pushManager.subscribe({ userVisibleOnly:true, applicationServerKey:urlB64ToU8(CFG.VAPID_PUBLIC) })
           .then(function(sub){ sendSub(sub); toast('通知をオンにしました 🔔'); refreshBell(); })
           .catch(function(e){ toast('通知の登録に失敗: '+((e&&e.message)||e)); });

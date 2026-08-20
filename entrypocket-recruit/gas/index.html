@@ -465,8 +465,24 @@
         '<div class="rf-grid">'+f('応募総数','er_apps',apps)+f('採用人数','er_hires',hires)+f('退職人数','er_quit','')+'</div>'+
         '<label class="rf-l">備考・退職理由</label><textarea class="rf-ta" id="er_note"></textarea>'+
         '<button class="rf-save" onclick="saveEndRecruit('+i+')">募集終了して結果を登録</button>'+
-        '<div class="rf-hint">登録後、元スプシの「プロジェクト実行」でNotionへ反映されます</div>';
+        '<div class="rf-hint">登録後、元スプシの「プロジェクト実行」でNotionへ反映されます</div>'+
+        '<div style="border-top:1px dashed var(--line);margin:12px 0 0;padding-top:10px">'+
+          '<button onclick="dismissStore('+i+')" style="width:100%;background:transparent;border:1px solid var(--red);color:var(--red);border-radius:9px;padding:9px;font-size:12px;cursor:pointer">🗑 結果報告は不要（この店舗を削除）</button>'+
+          '<div class="rf-hint" style="margin-top:6px">完全無料枠など、結果報告が不要な打ち出し用。登録せず削除するのでスプシ／Notionに残りません（要パスワード）。</div>'+
+        '</div>';
       document.getElementById('modal').hidden=false;
+    }
+    // 結果報告せずに削除（完全無料枠など不要な打ち出し）。スプシに残さない。パスワード必須。
+    function dismissStore(i){
+      var r=RECS[i]; if(!r) return;
+      var pass=prompt('結果報告せずに「'+r.name+'」を削除します。パスワードを入力してください。');
+      if(pass==null) return;
+      if(!confirm(r.name+' を結果報告せず削除します（スプシ／Notionに残しません）。よろしいですか？')) return;
+      toast('削除中…');
+      google.script.run.withSuccessHandler(function(res){
+        if(res&&res.ok){ toast('削除しました'+(res.deleted?'（スプシ行も削除）':'')); closeModal(); load(); }
+        else toast('削除できませんでした: '+((res&&res.error)||''));
+      }).withFailureHandler(function(e){ toast('通信エラー: '+(e&&e.message||'')); }).epDismissStore({ store:r.name, srcSheet:r._srcSheet||'', srcRow:r._srcRow||'', start:val('er_start'), pass:pass });
     }
     function saveEndRecruit(i){
       var r=RECS[i]; if(!r) return;
