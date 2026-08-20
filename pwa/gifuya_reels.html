@@ -227,7 +227,7 @@
 <script>
 (function(){
   "use strict";
-  var V = "?v=172";  // メディアのキャッシュ更新用
+  var V = "?v=173";  // メディアのキャッシュ更新用
   window.__APPV = "v" + (V.replace("?v=","")||"?");   // 画面下の版数表示用（?v=と同期）
   var CFG = window.GIFUYA || {};
   var LIVE = !!window.GIFUYA_LIVE;               // 専用GAS注入済みなら実データ連携
@@ -1010,9 +1010,8 @@
   GSEL = loadGsel() || defaultSel();
   loadRegional();
   FEED = shuffleFeed(FEED);   // 厳選12枚（加工済み）を日替わり順に
-  render("feed");
-  // 予約データを起動時に先読み（＝予約タブ初回が一瞬で開く）。schedCbは呼ばず静かにSCHEDだけ温める。
-  if(LIVE){ gJsonp({api:"schedlist"}).then(function(res){ SCHED=(res&&res.items)||SCHED; schedFetchedAt=Date.now(); }).catch(function(){}); }
+  render("feed");   // ← 内部で loadSched() が走り、予約データも起動時に温まる（予約タブ初回が即開く）。
+  // ※以前ここに別途 schedlist を先読みしていたが render 内の loadSched と二重だったので削除（通信を1本に）。
   // seedから決まる順列（Fisher-Yates+LCG）。post_gifuya_story.py と同一式。
   function seededOrder(n, seed){ var a=[],i,s=(seed>>>0)||1; for(i=0;i<n;i++)a.push(i);
     for(i=n-1;i>0;i--){ s=(s*1664525+1013904223)>>>0; var j=s%(i+1),t=a[i];a[i]=a[j];a[j]=t; } return a; }
