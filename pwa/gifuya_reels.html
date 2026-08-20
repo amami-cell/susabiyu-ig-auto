@@ -200,6 +200,11 @@
     var tags = dedupeTags((dishTags?dishTags+" ":"") + selTags(), 13);
     return (cap||"") + (tags?("\n\n" + tags):"") + "\n\n" + TEMPLATE;
   }
+  // プレビュー表示用：ハッシュタグは下のチップで管理するので本文には並べない（本文＋お店情報テンプレのみ）。
+  // 実際の投稿・コピーは fullCaption（タグ入り）を使うので、投稿にはちゃんとタグが付く。
+  function previewCaption(cap){
+    return (cap||"") + "\n\n" + TEMPLATE;
+  }
   var refreshers=[];  // 全カードのタグ表示を一括更新するための登録先
   function refreshAll(){ for(var i=0;i<refreshers.length;i++){ try{ refreshers[i](); }catch(e){} } }
   var toastEl=document.getElementById("toast"),toastT=null;
@@ -490,7 +495,7 @@
         '<div class="chead"><span class="kind'+(kind==="reel"?" reel":"")+'">'+(kind==="feed"?"フィード":"リール")+'</span>'+
           '<span class="cno">'+(i+1)+' / '+list.length+' ・ '+esc(p.t)+'</span></div>'+
         media+trim+
-        '<div class="caplbl" style="font-size:11.5px;font-weight:800;color:#8b93a2;margin:11px 2px 4px">▼ そのまま投稿される文面（お店情報テンプレ・選んだハッシュタグのみ）</div>'+
+        '<div class="caplbl" style="font-size:11.5px;font-weight:800;color:#8b93a2;margin:11px 2px 4px">▼ 投稿される文面（本文＋お店情報テンプレ）／ハッシュタグは下で選んだ分が付きます</div>'+
         '<div class="cap"></div>'+
         '<div class="tagttl">ハッシュタグ <span class="tcnt"></span></div>'+
         '<div class="tagsel"></div><button class="tagedit">✏️ ハッシュタグを編集</button>'+
@@ -499,8 +504,8 @@
         '<div class="slot"></div>'+
         '<button class="copybtn">📋 キャプションをコピー</button>';
       function refreshSel(){
-        // プレビュー＝実際に投稿される全文（料理文面＋タグ＋お店情報テンプレ）。タグ変更で即時反映。
-        c.querySelector(".cap").textContent = fullCaption(p.cap, p.tags);
+        // プレビュー＝本文＋お店情報テンプレ（ハッシュタグは下のチップで管理）。実投稿・コピーはタグ入りfullCaption。
+        c.querySelector(".cap").textContent = previewCaption(p.cap);
         var w=c.querySelector(".tagsel"); w.innerHTML="";
         var keys=Object.keys(GSEL);
         if(!keys.length){ w.innerHTML='<span style="color:#7c8698;font-size:12.5px">（未選択）</span>'; }
