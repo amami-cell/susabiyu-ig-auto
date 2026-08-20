@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <base target="_top">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#7c4dff">
+  <title>求人結果 入力</title>
+  <style>
+    :root{ --bg:#0d1117; --card:#161d27; --line:#28323f; --fg:#eef3f8; --fg2:#c3ccd6; --muted:#8593a1; --accent:#7c4dff; --green:#3ec17f; --red:#ff6b6b; }
+    *{ box-sizing:border-box; }
+    body{ margin:0; background:var(--bg); color:var(--fg); font-family:-apple-system,BlinkMacSystemFont,"Hiragino Kaku Gothic ProN","Noto Sans JP",sans-serif; }
+    .wrap{ max-width:520px; margin:0 auto; padding:20px 16px calc(28px + env(safe-area-inset-bottom)); }
+    h1{ font-size:17px; margin:4px 0 14px; }
+    .store{ font-size:22px; font-weight:800; }
+    .period{ color:var(--fg2); font-size:13px; margin:4px 0 2px; }
+    .hint{ color:var(--accent); font-size:12px; margin:8px 0 14px; min-height:1em; }
+    label{ display:block; font-size:12px; color:var(--muted); margin:12px 0 5px; }
+    input,textarea{ width:100%; background:var(--card); border:1px solid var(--line); border-radius:10px; color:var(--fg); font-size:16px; padding:11px 12px; }
+    textarea{ min-height:84px; resize:vertical; }
+    .grid{ display:grid; grid-template-columns:1fr 1fr 1fr; gap:8px; }
+    .grid label{ margin-top:0; }
+    .save{ width:100%; margin-top:18px; background:var(--accent); color:#fff; border:0; border-radius:12px; padding:14px; font-size:16px; font-weight:700; cursor:pointer; }
+    .save:disabled{ opacity:.6; }
+    #msg{ margin-top:12px; text-align:center; font-size:14px; min-height:1.2em; }
+    .ok{ color:var(--green); } .err{ color:var(--red); }
+    .foot{ color:var(--muted); font-size:11px; margin-top:16px; line-height:1.6; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>求人結果の入力</h1>
+    <div class="store" id="store">—</div>
+    <div class="period" id="period"></div>
+    <div class="hint" id="hint"></div>
+    <div class="grid">
+      <div><label>応募総数</label><input id="apps" type="number" inputmode="numeric"></div>
+      <div><label>採用人数</label><input id="hires" type="number" inputmode="numeric"></div>
+      <div><label>退職人数</label><input id="quit" type="number" inputmode="numeric"></div>
+    </div>
+    <label>備考・退職理由</label>
+    <textarea id="note"></textarea>
+    <button class="save" id="save" onclick="save()">保存する</button>
+    <div id="msg"></div>
+    <div class="foot">この画面は結果入力専用です。保存すると求人結果（担当のスプレッドシート）に反映されます。採用率・単価は自動計算されます。</div>
+  </div>
+<script>
+  var ENTRY = <?!= ENTRY ?>;
+  function el(id){ return document.getElementById(id); }
+  function v(x){ return (x==null?'':x); }
+  el('store').textContent = ENTRY.store || '(店舗不明)';
+  el('period').textContent = (ENTRY.start||'') + (ENTRY.end?(' 〜 '+ENTRY.end):' 〜 継続');
+  if(ENTRY.autoApps!=='' && ENTRY.autoApps!=null) el('hint').textContent = 'CSV自動集計 → 応募 '+ENTRY.autoApps+' / 採用 '+ENTRY.autoHires+'（必要なら打ち換え可）';
+  el('apps').value  = (v(ENTRY.apps)!=='') ? ENTRY.apps  : (ENTRY.autoApps!=null?ENTRY.autoApps:'');
+  el('hires').value = (v(ENTRY.hires)!=='')? ENTRY.hires : (ENTRY.autoHires!=null?ENTRY.autoHires:'');
+  el('quit').value  = v(ENTRY.quit);
+  el('note').value  = v(ENTRY.note);
+  if(!ENTRY.ok){ el('msg').className='err'; el('msg').textContent='この入力リンクの対象が見つかりませんでした（送り主に確認してください）。'; el('save').disabled=true; }
+  function save(){
+    var btn=el('save'); btn.disabled=true; btn.textContent='保存中…'; el('msg').textContent='';
+    var o={ srcSheet:ENTRY.s, srcRow:ENTRY.r, store:ENTRY.store, start:ENTRY.start,
+      apps:el('apps').value, hires:el('hires').value, quit:el('quit').value, note:el('note').value };
+    google.script.run.withSuccessHandler(function(res){
+      if(res&&res.ok){ el('msg').className='ok'; el('msg').textContent='✅ 保存しました。ありがとうございます。'; btn.textContent='保存済み'; }
+      else { btn.disabled=false; btn.textContent='保存する'; el('msg').className='err'; el('msg').textContent='保存できませんでした: '+((res&&res.error)||''); }
+    }).withFailureHandler(function(e){ btn.disabled=false; btn.textContent='保存する'; el('msg').className='err'; el('msg').textContent='通信エラー: '+((e&&e.message)||''); }).epSaveResult(o);
+  }
+</script>
+</body>
+</html>

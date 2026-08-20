@@ -215,6 +215,71 @@ function epDeletePosting(o) {
   return { ok: true, store: store, row: row };
 }
 
+/** 共有入力ページ用：対象行の現在値＋CSV自動集計を返す。ok:falseなら対象が見つからない。 */
+function epEntryData_(o) {
+  o = o || {};
+  var store = epCleanStore_(String(o.st || o.store || "").replace(/\s+/g, " ").trim());
+  var out = { ok: false, s: o.s || "", r: o.r || "", store: o.st || o.store || store, start: o.start || "", end: o.end || "", apps: "", hires: "", quit: "", note: "", autoApps: "", autoHires: "" };
+  if (!store) return out;
+  try {
+    var ext = SpreadsheetApp.openById(NOTION_POSTINGS_SHEET_ID);
+    var sh = o.s ? ext.getSheetByName(o.s) : null;
+    if (!sh) {
+      var shs = ext.getSheets();
+      for (var i = 0; i < shs.length; i++) {
+        var w = Math.min(40, shs[i].getLastColumn() || 1);
+        var hd = shs[i].getRange(1, 1, 1, w).getValues()[0].map(function (x) { return String(x || "").replace(/　/g, "").trim(); });
+        if (hd.indexOf("店舗名") >= 0) { sh = shs[i]; break; }
+      }
+    }
+    if (sh) {
+      var vals = sh.getDataRange().getValues();
+      var hdr = vals[0].map(function (x) { return String(x || "").replace(/　/g, "").trim(); });
+      var col = function (k) { for (var j = 0; j < POST_COLMAP[k].length; j++) { var p = hdr.indexOf(POST_COLMAP[k][j]); if (p >= 0) return p; } return -1; };
+      var cStore = col("store"), cApps = col("apps"), cHire = col("hired"), cQuit = col("quit"), cNote = col("note"), cStart = col("start"), cEnd = col("end");
+      var norm = function (v) { return epCleanStore_(String(v || "").replace(/\s+/g, " ").trim()); };
+      var row = -1, r0 = parseInt(o.r, 10);
+      if (r0 >= 2 && r0 <= vals.length && cStore >= 0 && norm(vals[r0 - 1][cStore]) === store) row = r0;
+      if (row < 0 && cStore >= 0) {
+        for (var k = 1; k < vals.length; k++) {
+          if (norm(vals[k][cStore]) !== store) continue;
+          if (o.start && cStart >= 0) { var d = epDate_(vals[k][cStart]); if (!d || Utilities.formatDate(d, "Asia/Tokyo", "yyyy-MM-dd") !== String(o.start)) continue; }
+          row = k + 1; break;
+        }
+      }
+      if (row >= 2) {
+        out.ok = true; out.r = row; out.store = String(vals[row - 1][cStore] || out.store);
+        if (cApps >= 0) out.apps = vals[row - 1][cApps]; if (cHire >= 0) out.hires = vals[row - 1][cHire];
+        if (cQuit >= 0) out.quit = vals[row - 1][cQuit]; if (cNote >= 0) out.note = String(vals[row - 1][cNote] || "");
+        if (cStart >= 0) { var ds = epDate_(vals[row - 1][cStart]); if (ds) out.start = Utilities.formatDate(ds, "Asia/Tokyo", "yyyy-MM-dd"); }
+        if (cEnd >= 0) { var de = epDate_(vals[row - 1][cEnd]); if (de) out.end = Utilities.formatDate(de, "Asia/Tokyo", "yyyy-MM-dd"); }
+      }
+    }
+  } catch (e) { }
+  try { var ac = epEntryAutoCounts_(store, out.start, out.end); out.autoApps = ac.apps; out.autoHires = ac.hires; } catch (e2) { }
+  return out;
+}
+
+/** raw_応募者 から店舗×期間内の応募/採用を数える（共有入力ページの初期値用）。 */
+function epEntryAutoCounts_(store, start, end) {
+  var ss = SpreadsheetApp.getActiveSpreadsheet(), raw = ss.getSheetByName("raw_応募者");
+  var a = 0, h = 0;
+  if (raw && raw.getLastRow() > 1) {
+    var v = raw.getDataRange().getValues(), hh = v[0], ci = {}; hh.forEach(function (x, i) { ci[String(x)] = i; });
+    var cS = ci["店舗名"], cA = ci["応募日時"], cC = ci["ステータスコード"], cN = ci["ステータス"], cG = ci["消失"];
+    var st = start ? epDate_(start) : null, en = end ? epDate_(end) : null, endEx = en ? new Date(en.getTime() + 86400000) : null;
+    var key = epNormStore_(store);
+    for (var i = 1; i < v.length; i++) {
+      if (cS == null || epNormStore_(epCleanStore_(String(v[i][cS] || ""))) !== key) continue;
+      if (cG != null && String(v[i][cG] || "") !== "") continue;
+      var d = cA != null ? epDate_(v[i][cA]) : null;
+      if (st && (!d || d < st)) continue; if (endEx && d && d >= endEx) continue;
+      a++; var sc = String(v[i][cC] || ""), sn = String(v[i][cN] || ""); if (sc === "80" || sn.indexOf("採用") >= 0) h++;
+    }
+  }
+  return { apps: a, hires: h };
+}
+
 /**
  * 【緊急用・パスワード必須】結果報告せずに店舗を削除する（完全無料枠など報告不要な打ち出し）。
  * スプシに既存行があれば削除し、master_店舗を「終了」にして募集中/未提出から外す。結果は書かない。
