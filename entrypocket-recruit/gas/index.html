@@ -453,15 +453,16 @@
       var hires=arr.filter(function(a){ return sameCode(a.statusCode,'80')||a.status==='採用'; }).length;
       document.getElementById('modalTitle').textContent='募集終了：'+r.name;
       var f=function(lb,id,v){ return '<div class="rf-f"><label>'+lb+'</label><input id="'+id+'" type="text" inputmode="numeric" value="'+esc(v)+'"></div>'; };
-      var fd=function(lb,id,v){ return '<div class="rf-f"><label>'+lb+'</label><input id="'+id+'" type="text" value="'+esc(v)+'"></div>'; };
+      var fd=function(lb,id,v){ return '<div class="rf-f"><label>'+lb+'</label><input id="'+id+'" type="date" value="'+esc(v)+'"></div>'; };
       var dupNote = ex
         ? '<div class="rf-hint" style="margin:6px 0;color:var(--accent)">既にスプシにある「'+esc(r.name)+'」の行を上書きします（重複は作りません）。</div>'
         : '<div class="rf-hint" style="margin:6px 0;color:var(--accent)">スプシに新しい結果行を追加します。</div>';
       document.getElementById('modalBody').innerHTML=
         '<div class="modal-when">この店舗を募集終了し、求人結果報告（スプシ→Notion）に登録します。採用率・単価は元スプシの数式で自動計算されます。</div>'+
         dupNote+
+        '<label class="rf-l">応募期間（開始日・打ち出し終了日）</label>'+
         '<div class="rf-grid">'+fd('掲載開始','er_start',start)+fd('掲載終了','er_end',end)+'</div>'+
-        '<div class="rf-hint" style="margin:6px 0;color:var(--accent)">CSV自動集計 → 応募 '+apps+' / 採用 '+hires+'（必要なら打ち換え可）</div>'+
+        '<div class="rf-hint" style="margin:6px 0;color:var(--muted);font-size:11px">※応募人数と採用人数はエントリーポケットから自動反映。集計数値は最終分で入力お願いします。</div>'+
         '<div class="rf-grid">'+f('応募総数','er_apps',apps)+f('採用人数','er_hires',hires)+f('退職人数','er_quit','')+'</div>'+
         '<label class="rf-l">備考・退職理由</label><textarea class="rf-ta" id="er_note"></textarea>'+
         '<button class="rf-save" onclick="saveEndRecruit('+i+')">募集終了して結果を登録</button>'+
@@ -619,11 +620,13 @@
           function(){ prompt('このURLをコピーして送ってください', u); });
       } else prompt('このURLをコピーして送ってください', u);
     }
-    function copyEntryUrl(id){ var p=postById[id]; if(!p) return; copyUrl(entryUrl(p)); }
+    // 送信用メッセージ：店舗名／求人結果報告／URL の順
+    function entryMsg(store,url){ return (store||'')+'\n求人結果報告\n'+url; }
+    function copyEntryUrl(id){ var p=postById[id]; if(!p) return; copyUrl(entryMsg(p.store, entryUrl(p))); }
     // 募集終了/未提出モーダルから：フォームの期間で入力用URLを作る
     function copyEntryUrlR(i){ var r=RECS[i]; if(!r) return;
       var d={ s:r._srcSheet||'', r:r._srcRow||'', st:r.name||'', start:val('er_start'), end:val('er_end') };
-      copyUrl(EXEC_URL+'?entry=1&d='+encodeURIComponent(JSON.stringify(d)));
+      copyUrl(entryMsg(r.name, EXEC_URL+'?entry=1&d='+encodeURIComponent(JSON.stringify(d))));
     }
     function saveResult(id){
       var p=postById[id]; if(!p) return;
