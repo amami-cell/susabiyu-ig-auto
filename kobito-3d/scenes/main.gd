@@ -91,9 +91,19 @@ func _run_selftest() -> void:
 	if not players.is_empty():
 		xp_now = players[0].xp
 		xp_gained = xp_now > xp_before
+
+	# 飛行が「癒やして集めた5パーツ」で解禁されるかを確認する
+	var could_fly_before: bool = players.is_empty() or players[0].can_fly()
+	for part in WorldState.FLIGHT_PARTS:
+		WorldState.grant_power(part)
+	await get_tree().create_timer(0.3).timeout
+	var can_fly_after: bool = not players.is_empty() and players[0].can_fly()
+	var flight_ok: bool = (not could_fly_before) and can_fly_after and WorldState.has_flight()
+
 	var ok: bool = _garden != null and players.size() == 1 and bugs.size() > 0 \
-		and WorldState.recovery > 0.0 and xp_gained
-	print("[selftest] 回復度=%.2f XP=%d 経験値入った=%s" % [WorldState.recovery, xp_now, xp_gained])
+		and WorldState.recovery > 0.0 and xp_gained and flight_ok
+	print("[selftest] 回復度=%.2f XP=%d 経験値=%s 飛行解禁=%s" % [
+		WorldState.recovery, xp_now, xp_gained, flight_ok])
 	print("[selftest] %s" % ("OK" if ok else "NG"))
 	get_tree().quit(0 if ok else 1)
 

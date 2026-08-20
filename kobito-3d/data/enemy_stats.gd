@@ -15,3 +15,10 @@ class_name EnemyStats
 @export var xp_reward: int = 5
 @export var body_color: Color = Color(0.35, 0.25, 0.2)
 @export var body_scale: float = 1.0
+
+## 癒やしたときに授ける力（空なら無し）。飛行5パーツは hop/float/glide/hover/lift。
+## 例：バッタ.tres なら "hop"、トンボ.tres なら "hover"。
+@export var grants_power: String = ""
+
+## 中ボスか（湧き対象から外す・演出を変える等、後で使う）。
+@export var is_midboss: bool = false

@@ -23,7 +23,7 @@ const GRAVITY := 14.0
 const JUMP_SPEED := 5.2
 const FLY_LIFT := 4.2          # 飛行中の上昇速度
 const FLY_CEILING := 12.0      # 上がりすぎ防止
-const FLY_UNLOCK_LEVEL := 3    # レベル3で飛行解禁（HTML版と同じ）
+# 飛行の解禁は Lv ではなく「癒やして集めた5パーツ」で判定する（WorldState.has_flight）
 const ATTACK_RANGE := 1.6
 const ATTACK_COOLDOWN := 0.45
 const SYNC_HZ := 20.0
@@ -152,7 +152,7 @@ func _local_step(delta: float) -> void:
 
 
 func can_fly() -> bool:
-	return level >= FLY_UNLOCK_LEVEL
+	return WorldState.has_flight()
 
 
 func _try_attack() -> void:

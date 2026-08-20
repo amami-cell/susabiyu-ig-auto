@@ -7,6 +7,12 @@ extends Node
 
 signal recovery_changed(value: float)
 signal notice(text: String)
+signal powers_changed
+
+## 飛行を組み上げる5パーツ。癒やした空の虫がそれぞれ授ける（STORY/AREAS参照）。
+## 5つ全部そろうと自由飛行が解禁される（＝物語の約2/3地点）。
+## 昔の「Lv3で飛行」から、この“癒やして力を集める”方式へ置き換えた。
+const FLIGHT_PARTS := ["hop", "float", "glide", "hover", "lift"]
 
 ## 行動 -> 上がる量。数値はここ一箇所。バランス調整はこの表だけ触ればいい。
 const GAIN := {
@@ -17,6 +23,53 @@ const GAIN := {
 }
 
 var recovery: float = 0.0
+
+## 授かった力の集合（癒やした生き物が残す）。例: {"hop": true, "float": true}
+var powers: Dictionary = {}
+
+
+# ---------------------------------------------------------------- 授かる力
+#
+# 癒やした生き物が「力」を残す。飛行はこの集まりで解禁する（Lv依存をやめた）。
+# サーバが正。クライアントは配られたものを受け取るだけ。
+
+## サーバだけが呼ぶ。癒やした生き物の力を1つ足す。
+func grant_power(power: String) -> void:
+	if power.is_empty():
+		return
+	if not multiplayer.has_multiplayer_peer() or not multiplayer.is_server():
+		return
+	if powers.has(power):
+		return
+	_apply_power(power)
+	rpc("_remote_power", power)
+
+
+func has_power(power: String) -> bool:
+	return powers.has(power)
+
+
+## 飛行が解禁されたか＝5パーツが全部そろったか。
+func has_flight() -> bool:
+	for part in FLIGHT_PARTS:
+		if not powers.has(part):
+			return false
+	return true
+
+
+@rpc("authority", "reliable")
+func _remote_power(power: String) -> void:
+	_apply_power(power)
+
+
+func _apply_power(power: String) -> void:
+	if powers.has(power):
+		return
+	var could_fly := has_flight()
+	powers[power] = true
+	powers_changed.emit()
+	if not could_fly and has_flight():
+		notice.emit("空を飛べるようになった！")
 
 
 ## サーバだけが呼ぶ。クライアントが勝手に上げても効かない。
@@ -32,14 +85,18 @@ func add(kind: String, times: int = 1) -> void:
 
 func reset() -> void:
 	_apply(0.0)
+	powers.clear()
+	powers_changed.emit()
 	if multiplayer.has_multiplayer_peer() and multiplayer.is_server():
 		rpc("_remote_apply", 0.0)
 
 
-## 後から参加した人にも今の回復度を伝える（サーバから個別に送る）
+## 後から参加した人にも今の回復度と授かった力を伝える（サーバから個別に送る）
 func send_to(id: int) -> void:
 	if multiplayer.has_multiplayer_peer() and multiplayer.is_server():
 		rpc_id(id, "_remote_apply", recovery)
+		for power in powers:
+			rpc_id(id, "_remote_power", power)
 
 
 @rpc("authority", "reliable")
