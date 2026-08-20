@@ -340,13 +340,19 @@
         var name=nameOf[k]||(sp&&sp.name)||(appsArr[0]&&appsArr[0].store)||k;
         return { key:k, name:name, sp:sp, appsArr:appsArr, latest:latest[k]||0, live:!!liveSet[k] };
       });
-      RECS.sort(function(a,b){ return (b.latest||0)-(a.latest||0); });                     // 最新応募順
+      RECS.sort(function(a,b){                                                             // 長期応募なしを上に→残りは最新応募順
+        var da=isDormant(a)?1:0, db=isDormant(b)?1:0; if(da!==db) return db-da;
+        return (b.latest||0)-(a.latest||0);
+      });
       var autoHint='<div class="muted" style="font-size:11px;margin:2px 2px 8px;line-height:1.5">掲載終了から14日で自動的に結果報告へ移ります。すぐ確定したい店舗は「募集終了」ボタンを押してください。</div>';
       var h=autoHint+alertHtml();
       if(!RECS.length){ el.innerHTML=h+'<div class="empty">現在、募集中の店舗はありません（直近'+RECRUIT_RECENT_DAYS+'日に応募なし）</div>'; return; }
       RECS.forEach(function(r){ h+=storeCard(r); });
       el.innerHTML=h;
     }
+    var RECRUIT_DORMANT_DAYS=45;   // 最終応募からこの日数を超えたら「長期応募なし」＝終了候補として警告表示
+    function dormantDays(r){ if(!r.latest) return 0; return Math.floor((Date.now()-r.latest)/86400000); }
+    function isDormant(r){ return r.latest && dormantDays(r)>=RECRUIT_DORMANT_DAYS; }
     function storeCard(r){
       var i=RECS.indexOf(r);
       var sub = r.latest ? ((r.live?'掲載中・':'')+'最新応募 '+fmtD(new Date(r.latest))+'　現応募'+r.appsArr.length+'名')
@@ -355,10 +361,12 @@
       var chips=[ '<span>現応募者<b>'+r.appsArr.length+'</b></span>' ];
       if(untreated) chips.unshift('<span class="warnchip">未対応<b>'+untreated+'</b></span>');
       var stat=chips.join('');
-      return '<div class="sc" id="sc_'+i+'">'+
+      // 長期応募なし（例：最終応募が5〜6月）＝そろそろ募集終了して結果へ回す候補。目立たせる。
+      var dorm = isDormant(r) ? '<span class="warnchip" style="background:var(--warnbg);border-color:var(--warnbd);color:var(--amber)">⚠️長期応募なし '+dormantDays(r)+'日</span>' : '';
+      return '<div class="sc'+(isDormant(r)?' dormant':'')+'" id="sc_'+i+'">'+
         '<div class="sc-top" onclick="stoggle('+i+')">'+
           '<span class="chev">›</span>'+
-          '<div class="sc-h"><span class="sc-nm">'+esc(r.name)+'</span><span class="badge on">●募集中</span></div>'+
+          '<div class="sc-h"><span class="sc-nm">'+esc(r.name)+'</span><span class="badge on">●募集中</span>'+dorm+'</div>'+
           '<div class="sc-sub">'+sub+'</div>'+
           '<div class="sc-stat">'+stat+'</div>'+
         '</div>'+
