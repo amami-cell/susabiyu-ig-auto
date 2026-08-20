@@ -317,6 +317,19 @@
         '<div class="al-note">掲載終了なのに結果が未入力です。行をタップして入力（採用率・単価は自動計算）。</div>'+
         u.map(postingRow).join('')+'</div>';
     }
+    // 店舗が「求人結果報告(求人打ち出し)」に既にあるか
+    function hasResultRow(key){ var p=postByStore[key]; return !!(p&&p.length); }
+    // 長期応募なしで結果報告が“まだ無い”店舗＝未提出アラート（タップで結果入力）
+    function dormantAlertHtml(list){
+      if(!list.length) return '';
+      return '<div class="alert"><div class="al-h">📋 結果報告 未提出（長期応募なし）'+list.length+'件</div>'+
+        '<div class="al-note">最終応募から'+RECRUIT_DORMANT_DAYS+'日以上たち、結果報告がまだありません。タップして結果を入力してください（重複は作りません）。</div>'+
+        list.map(function(r){ var i=RECS.indexOf(r);
+          return '<div class="prow" style="cursor:pointer" onclick="endRecruitOpen('+i+')">'+
+            '<div class="pr-nm">'+esc(r.name)+' <span class="warnchip" style="background:var(--warnbg);border-color:var(--warnbd);color:var(--amber)">'+dormantDays(r)+'日</span></div>'+
+            '<div class="pr-sub muted" style="font-size:12px">最終応募 '+fmtD(new Date(r.latest))+' ・応募'+r.appsArr.length+'名　<span style="color:var(--amber)">タップで結果入力 ▾</span></div>'+
+          '</div>'; }).join('')+'</div>';
+    }
 
     /* ===== 募集中タブ（EntryPocket由来：直近に応募がある店舗＝募集中）===== */
     var RECRUIT_RECENT_DAYS=45;   // 直近この日数に応募がある店舗を「募集中」とみなす
@@ -340,14 +353,18 @@
         var name=nameOf[k]||(sp&&sp.name)||(appsArr[0]&&appsArr[0].store)||k;
         return { key:k, name:name, sp:sp, appsArr:appsArr, latest:latest[k]||0, live:!!liveSet[k] };
       });
-      RECS.sort(function(a,b){                                                             // 長期応募なしを上に→残りは最新応募順
-        var da=isDormant(a)?1:0, db=isDormant(b)?1:0; if(da!==db) return db-da;
-        return (b.latest||0)-(a.latest||0);
+      RECS.sort(function(a,b){ return (b.latest||0)-(a.latest||0); });                     // 最新応募順
+      // 長期応募なし＝募集中から外して結果報告側へ。結果報告があればOK(非表示)、無ければ未提出アラート。
+      var active=[], dormNoResult=[];
+      RECS.forEach(function(r){
+        if(isDormant(r)){ if(!hasResultRow(r.key)) dormNoResult.push(r); }   // 結果報告あり→表示しない
+        else active.push(r);
       });
-      var autoHint='<div class="muted" style="font-size:11px;margin:2px 2px 8px;line-height:1.5">掲載終了から14日で自動的に結果報告へ移ります。すぐ確定したい店舗は「募集終了」ボタンを押してください。</div>';
-      var h=autoHint+alertHtml();
-      if(!RECS.length){ el.innerHTML=h+'<div class="empty">現在、募集中の店舗はありません（直近'+RECRUIT_RECENT_DAYS+'日に応募なし）</div>'; return; }
-      RECS.forEach(function(r){ h+=storeCard(r); });
+      var autoHint='<div class="muted" style="font-size:11px;margin:2px 2px 8px;line-height:1.5">掲載終了から14日、または長期応募なし('+RECRUIT_DORMANT_DAYS+'日)で自動的に結果報告へ移ります。すぐ確定したい店舗は「募集終了」ボタンを。</div>';
+      var h=autoHint+alertHtml()+dormantAlertHtml(dormNoResult);
+      if(!active.length && !dormNoResult.length){ el.innerHTML=h+'<div class="empty">現在、募集中の店舗はありません（直近'+RECRUIT_RECENT_DAYS+'日に応募なし）</div>'; return; }
+      active.forEach(function(r){ h+=storeCard(r); });
+      if(!active.length) h+='<div class="empty">アクティブな募集はありません（上の「未提出」をご確認ください）</div>';
       el.innerHTML=h;
     }
     var RECRUIT_DORMANT_DAYS=45;   // 最終応募からこの日数を超えたら「長期応募なし」＝終了候補として警告表示
@@ -361,12 +378,10 @@
       var chips=[ '<span>現応募者<b>'+r.appsArr.length+'</b></span>' ];
       if(untreated) chips.unshift('<span class="warnchip">未対応<b>'+untreated+'</b></span>');
       var stat=chips.join('');
-      // 長期応募なし（例：最終応募が5〜6月）＝そろそろ募集終了して結果へ回す候補。目立たせる。
-      var dorm = isDormant(r) ? '<span class="warnchip" style="background:var(--warnbg);border-color:var(--warnbd);color:var(--amber)">⚠️長期応募なし '+dormantDays(r)+'日</span>' : '';
-      return '<div class="sc'+(isDormant(r)?' dormant':'')+'" id="sc_'+i+'">'+
+      return '<div class="sc" id="sc_'+i+'">'+
         '<div class="sc-top" onclick="stoggle('+i+')">'+
           '<span class="chev">›</span>'+
-          '<div class="sc-h"><span class="sc-nm">'+esc(r.name)+'</span><span class="badge on">●募集中</span>'+dorm+'</div>'+
+          '<div class="sc-h"><span class="sc-nm">'+esc(r.name)+'</span><span class="badge on">●募集中</span></div>'+
           '<div class="sc-sub">'+sub+'</div>'+
           '<div class="sc-stat">'+stat+'</div>'+
         '</div>'+
