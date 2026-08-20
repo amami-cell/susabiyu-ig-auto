@@ -47,7 +47,7 @@ jobs:
             fi
           done
           # HTML: コメント削除＋CSSコメント削除（崩れ防止のため空白圧縮・JS圧縮はしない）
-          for h in index.html gifuya_reels.html gifuyatenjin.html; do
+          for h in index.html reels.html gifuya_reels.html gifuyatenjin.html; do
             if [ -f "$h" ]; then
               npx -y html-minifier-terser "$h" --remove-comments --minify-css -o "$h.tmp" \
                 && mv "$h.tmp" "$h" && echo "stripped $h" \
