@@ -211,13 +211,17 @@
 </div>
 
 <div id="toast"></div>
-<div class="foot">すさび湯グループ 投稿管理 ・ ぎふや 福岡天神店</div>
+<div class="foot">すさび湯グループ 投稿管理 ・ ぎふや 福岡天神店<br>
+  <span id="verlbl" style="opacity:.7"></span>
+  <a id="forceupd" style="color:#8ab4e0;text-decoration:underline;cursor:pointer;margin-left:8px">🔄 最新に更新</a>
+</div>
 
 <script src="./config.gifuya.js"></script>
 <script>
 (function(){
   "use strict";
-  var V = "?v=162";  // メディアのキャッシュ更新用
+  var V = "?v=163";  // メディアのキャッシュ更新用
+  window.__APPV = "v" + (V.replace("?v=","")||"?");   // 画面下の版数表示用（?v=と同期）
   var CFG = window.GIFUYA || {};
   var LIVE = !!window.GIFUYA_LIVE;               // 専用GAS注入済みなら実データ連携
   var GAS = (CFG.GAS_URL||"").trim();
@@ -924,7 +928,28 @@
 })();
 </script>
 <script>
-  if ("serviceWorker" in navigator) { window.addEventListener("load", function(){ navigator.serviceWorker.register("./sw.js").catch(function(){}); }); }
+  if ("serviceWorker" in navigator) {
+    window.addEventListener("load", function(){
+      navigator.serviceWorker.register("./sw.js").then(function(reg){ if(reg&&reg.update) try{ reg.update(); }catch(e){} }).catch(function(){});
+    });
+    // 新しいSWが有効化されたら自動で一度だけリロード（＝更新の取りこぼしを防ぐ）
+    var _reloaded=false;
+    navigator.serviceWorker.addEventListener("controllerchange", function(){ if(_reloaded)return; _reloaded=true; location.reload(); });
+  }
+  // 画面下：現在の版数表示＋「最新に更新」（SW解除＋キャッシュ全消去＋再取得）
+  (function(){
+    var vl=document.getElementById("verlbl"); if(vl){ vl.textContent="バージョン "+(window.__APPV||"v?"); }
+    var fu=document.getElementById("forceupd");
+    if(fu) fu.onclick=function(){
+      fu.textContent="更新中…";
+      var done=function(){ location.reload(true); };
+      var jobs=[];
+      if(window.caches&&caches.keys) jobs.push(caches.keys().then(function(ks){ return Promise.all(ks.map(function(k){return caches.delete(k);})); }));
+      if(navigator.serviceWorker&&navigator.serviceWorker.getRegistrations) jobs.push(navigator.serviceWorker.getRegistrations().then(function(rs){ return Promise.all(rs.map(function(r){return r.unregister();})); }));
+      Promise.all(jobs).then(done).catch(done);
+      setTimeout(done, 2500);   // 念のため
+    };
+  })();
 </script>
 </body>
 </html>
