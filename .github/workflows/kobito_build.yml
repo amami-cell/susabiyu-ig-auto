@@ -190,6 +190,10 @@ jobs:
              （身内用で署名を買っていないため。ストアの審査とは無関係です）
              「詳細情報」→「実行」で進めます。
 
+          ※ 起動しても画面が真っ黒なときは、
+             同じフォルダの「黒画面のときはこれ.bat」をダブルクリックしてください。
+             グラフィックの描き方を切り替えて起動します。
+
           遊びかた
             起動したら「ひとりで始める」
             移動      WASD / 矢印キー（マウスで画面左半分をドラッグでも可）
@@ -201,6 +205,10 @@ jobs:
           2人で遊ぶとき
             片方が「ホストする」→ 画面に出るIPを、もう片方が入れて「参加する」
           TXT
+          # 古いGPUドライバだと素のOpenGLが弾かれて真っ黒になることがある。
+          # そのときのための「D3D11経由で起動する」ワンクリック。
+          printf '@echo off\r\nstart "" "%%~dp0\\小人一家と汚れた世界.exe" --rendering-driver opengl3_angle\r\n' \
+            > "kobito-3d/build/windows/黒画面のときはこれ.bat"
           cp kobito-3d/build/windows/はじめに.txt kobito-3d/build/linux/
 
       - uses: actions/upload-artifact@v4
