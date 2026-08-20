@@ -89,6 +89,11 @@ jobs:
         working-directory: susabiyu-remotion
         run: python gifuya_photos.py sync "${{ github.event.inputs.folder_id }}"
 
+      - name: Make webp thumbnails (グリッド表示用の軽い版・増分)
+        if: github.event.inputs.mode == 'sync' || github.event.inputs.mode == 'fetch' || github.event_name == 'schedule'
+        working-directory: susabiyu-remotion
+        run: python make_thumbs.py
+
       - name: Cinema preview (元写真=横長からシネマ加工)
         if: github.event.inputs.mode == 'cinemaprev'
         working-directory: susabiyu-remotion

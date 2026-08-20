@@ -227,7 +227,7 @@
 <script>
 (function(){
   "use strict";
-  var V = "?v=171";  // メディアのキャッシュ更新用
+  var V = "?v=172";  // メディアのキャッシュ更新用
   window.__APPV = "v" + (V.replace("?v=","")||"?");   // 画面下の版数表示用（?v=と同期）
   var CFG = window.GIFUYA || {};
   var LIVE = !!window.GIFUYA_LIVE;               // 専用GAS注入済みなら実データ連携
@@ -275,6 +275,9 @@
   function previewCaption(cap){
     return (cap||"") + "\n\n" + TEMPLATE;
   }
+  // グリッド／小サムネ用の軽いWebPサムネURL（<name>.jpg → <name>.thumb.webp）。
+  // 無ければ <img onerror> で原寸へ自動フォールバックするので表示は壊れない。
+  function thumbSrc(u){ return String(u||"").replace(/\.(jpe?g|png)(\?.*)?$/i, ".thumb.webp"); }
   var refreshers=[];  // 全カードのタグ表示を一括更新するための登録先
   function refreshAll(){ for(var i=0;i<refreshers.length;i++){ try{ refreshers[i](); }catch(e){} } }
   var toastEl=document.getElementById("toast"),toastT=null;
@@ -696,7 +699,7 @@
           var ok=s.status==='posted';
           var badge=ok?'<span style="color:#7fd1a0;font-weight:800">✓ 投稿済</span>':(s.status==='failed'?'<span style="color:#e6a4a4;font-weight:800">✕ 失敗</span>':'<span style="color:#c9a06a;font-weight:800">期限切れ</span>');
           html+='<div class="rrow histrow" data-tok="'+esc(s.token)+'" style="cursor:pointer;margin-bottom:8px">'+
-            (s.media?'<img src="'+esc(s.media)+'" alt="">':'<div class="noimg">🍶</div>')+
+            (s.media?'<img loading="lazy" src="'+esc(thumbSrc(s.media))+'" data-full="'+esc(s.media)+'" onerror="this.onerror=null;this.src=this.getAttribute(\'data-full\')" alt="">':'<div class="noimg">🍶</div>')+
             '<div style="flex:1;min-width:0"><div class="rt">'+((s.kind||'feed')==='reel'?'🎬 リール':'📸 フィード')+' '+esc(String(s.when||"").slice(5,16))+'　'+badge+'</div>'+
             '<div class="rn">'+esc(s.name||"")+'</div>'+
             '<div style="font-size:10.5px;color:#7c8698;font-weight:700;margin-top:2px">▼ タップで投稿内容を表示</div></div>'+
@@ -725,7 +728,7 @@
     var h="";
     items.forEach(function(s,idx){
       var st=s.status||"scheduled";
-      var thumb=s.media?'<img src="'+esc(s.media)+'" alt="">':'<div class="noimg">🍶</div>';
+      var thumb=s.media?'<img loading="lazy" src="'+esc(thumbSrc(s.media))+'" data-full="'+esc(s.media)+'" onerror="this.onerror=null;this.src=this.getAttribute(\'data-full\')" alt="">':'<div class="noimg">🍶</div>';
       var cap=s.caption||"";
       var detLbl=(st==="scheduled")?"📝 実際に投稿される内容":"📝 投稿した内容";
       var detail=
@@ -795,9 +798,11 @@
       var el=body.querySelector("#nvPickWrap");
       var html='<div style="font-size:12px;font-weight:800;color:var(--gold);margin:6px 2px">'+(newResv.all?'全商品から選ぶ':'⭐ おすすめ（ジャンル分散）')+'</div><div class="rpick">';
       pool.forEach(function(p){
-        var th=newResv.kind==="feed"?('gifuya/'+p.img+V):('gifuya/'+((p.vid||"").replace(/\.mp4$/,"_poster.jpg"))+V);
+        var base=newResv.kind==="feed"? p.img : ((p.vid||"").replace(/\.mp4$/,"_poster.jpg"));
+        var full='gifuya/'+base+V;                 // 原寸（フォールバック用）
+        var th='gifuya/'+thumbSrc(base)+V;         // 軽いWebPサムネ
         var on=(newResv.pick&&newResv.pick.t===p.t)?" on":"";
-        html+='<button class="pk'+on+'" data-t="'+esc(p.t)+'"><img class="th'+(newResv.kind==="feed"?" contain":"")+'" loading="lazy" src="'+th+'"><div class="nm">'+esc(p.t)+'</div><div class="gtag">'+esc(genreOf(p.t))+'</div></button>';
+        html+='<button class="pk'+on+'" data-t="'+esc(p.t)+'"><img class="th'+(newResv.kind==="feed"?" contain":"")+'" loading="lazy" src="'+th+'" onerror="this.onerror=null;this.src=\''+full+'\'"><div class="nm">'+esc(p.t)+'</div><div class="gtag">'+esc(genreOf(p.t))+'</div></button>';
       });
       html+='</div><button class="rmore" id="nvMore">'+(newResv.all?"▲ おすすめだけ":"▼ 全商品から選ぶ（全"+list.length+"品）")+'</button>';
       el.innerHTML=html;
