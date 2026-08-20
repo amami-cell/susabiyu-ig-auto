@@ -227,7 +227,7 @@
 <script>
 (function(){
   "use strict";
-  var V = "?v=173";  // メディアのキャッシュ更新用
+  var V = "?v=174";  // メディアのキャッシュ更新用
   window.__APPV = "v" + (V.replace("?v=","")||"?");   // 画面下の版数表示用（?v=と同期）
   var CFG = window.GIFUYA || {};
   var LIVE = !!window.GIFUYA_LIVE;               // 専用GAS注入済みなら実データ連携
@@ -278,6 +278,9 @@
   // グリッド／小サムネ用の軽いWebPサムネURL（<name>.jpg → <name>.thumb.webp）。
   // 無ければ <img onerror> で原寸へ自動フォールバックするので表示は壊れない。
   function thumbSrc(u){ return String(u||"").replace(/\.(jpe?g|png)(\?.*)?$/i, ".thumb.webp"); }
+  // カード本表示用の中サイズ高品質WebP（<name>.card.webp）。無ければ原寸JPEGへ自動フォールバック。
+  // ※実際のInstagram投稿には原寸JPEGを使うので投稿画質は不変。表示だけ軽くする。
+  function cardSrc(u){ return String(u||"").replace(/\.(jpe?g|png)(\?.*)?$/i, ".card.webp"); }
   var refreshers=[];  // 全カードのタグ表示を一括更新するための登録先
   function refreshAll(){ for(var i=0;i<refreshers.length;i++){ try{ refreshers[i](); }catch(e){} } }
   var toastEl=document.getElementById("toast"),toastT=null;
@@ -563,7 +566,7 @@
     var c=document.createElement("div"); c.className="card"+(p.reco?" reco":"");
     var _pv=(p.vid||"").replace(/\.mp4$/,"_poster.jpg");
     var media=kind==="feed"
-      ? '<div class="mediaWrap feed"><img loading="lazy" decoding="async" src="gifuya/'+p.img+V+'" alt=""></div>'
+      ? '<div class="mediaWrap feed"><img loading="lazy" decoding="async" src="gifuya/'+cardSrc(p.img)+V+'" onerror="this.onerror=null;this.src=\'gifuya/'+p.img+V+'\'" alt=""></div>'
       : '<div class="mediaWrap reel"><video poster="gifuya/'+_pv+V+'" src="gifuya/'+p.vid+V+'" controls playsinline preload="none" webkit-playsinline></video></div>';
     var trim=kind==="reel"
       ? '<div class="trim"><div class="trimhd"><span>切り取り（リール用）</span><span><b class="tlen">--</b> / 元<span class="tall">--</span></span></div>'+
