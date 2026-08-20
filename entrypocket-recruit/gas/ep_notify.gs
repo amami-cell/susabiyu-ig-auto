@@ -69,6 +69,16 @@ function epPushCleanup_(sh) {
   } catch (e) { }
 }
 
+/** 動作確認用：テスト通知を1件キューに積む（?push=test から呼ばれる）。key未設定なら誰でも可。 */
+function epEnqueueTest_(key) {
+  var need = PropertiesService.getScriptProperties().getProperty("EP_PUSH_KEY") || "";
+  if (need && String(key || "") !== need) return { ok: false, error: "forbidden" };
+  epEnqueuePush_("🔔 テスト通知（動作確認）",
+    "募集システムの通知テストです。実際の新規応募時は、ここに店舗名と新規件数が入ります。",
+    "recruit");
+  return { ok: true, test: true };
+}
+
 /** 送信待ちを取り出して sent に更新（送信役=Actionsが呼ぶ）。key未設定なら誰でも可（推奨は設定）。 */
 function epDrainPush_(key) {
   var props = PropertiesService.getScriptProperties();
