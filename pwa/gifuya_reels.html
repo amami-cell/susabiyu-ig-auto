@@ -3,6 +3,10 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
+<!-- 初回通信を速く：GAS(JSONP)先へ事前接続（DNS/TLSを前倒し） -->
+<link rel="preconnect" href="https://script.google.com" crossorigin>
+<link rel="preconnect" href="https://script.googleusercontent.com" crossorigin>
+<link rel="dns-prefetch" href="https://script.google.com">
 <meta name="theme-color" content="#0f1115">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -223,7 +227,7 @@
 <script>
 (function(){
   "use strict";
-  var V = "?v=170";  // メディアのキャッシュ更新用
+  var V = "?v=171";  // メディアのキャッシュ更新用
   window.__APPV = "v" + (V.replace("?v=","")||"?");   // 画面下の版数表示用（?v=と同期）
   var CFG = window.GIFUYA || {};
   var LIVE = !!window.GIFUYA_LIVE;               // 専用GAS注入済みなら実データ連携
