@@ -1198,6 +1198,14 @@
     }
     var postsHtml = "";
     var topS = pwin.topStory || [], topF = pwin.topFeed || [];
+    // フィード投稿は頻度が低く、前日/週間だと期間内に無いことが多い。空なら全期間から直近ベストを補う。
+    var feedLbl = bestLbl, feedWide = false;
+    if (!topF.length) {
+      var pwAll = computePostsWindow(pd, 3650);
+      topF = pwAll.topFeed || [];
+      feedWide = topF.length > 0;
+      if (feedWide) feedLbl = "直近のフィード";
+    }
     repTopPosts = topS.concat(topF);   // ライトボックス用インデックス（ストーリー→フィードの順）
     if ((topS.length + topF.length) > 0) {
       var sa = pwin.storyAvg || {};
@@ -1218,9 +1226,11 @@
       // ストーリー／フィードで別々のベスト5（リーチ順）。data-pi は repTopPosts(ストーリー→フィード)の通し番号。
       var storyTop = topS.length ? ('<div class="repsec"><h3>ストーリー ベスト' + topS.length + '（' + bestLbl + '・リーチ順）</h3><div class="repposts">' +
         topS.map(function (p, i) { return fmtPost(p, i); }).join("") + '</div></div>') : "";
-      var feedTop = topF.length ? ('<div class="repsec"><h3>フィード ベスト' + topF.length + '（' + bestLbl + '・リーチ順）</h3><div class="repposts">' +
-        topF.map(function (p, i) { return fmtPost(p, topS.length + i); }).join("") +
-        '</div><div class="repnote">フィード投稿はリール含む。リーチ順で表示。</div></div>') : "";
+      var feedTop = topF.length
+        ? ('<div class="repsec"><h3>フィード ベスト' + topF.length + '（' + feedLbl + '・リーチ順）</h3><div class="repposts">' +
+            topF.map(function (p, i) { return fmtPost(p, topS.length + i); }).join("") +
+            '</div><div class="repnote">フィード投稿はリール含む。リーチ順で表示。' + (feedWide ? '　※選択期間内に投稿が無いため、直近のフィード投稿を表示しています。' : '') + '</div></div>')
+        : '<div class="repsec"><h3>フィード ベスト</h3><div class="repnote">まだフィード投稿のデータがありません。</div></div>';
       postsHtml =
         (pwin.storyN ? '<div class="repsec"><h3>ストーリーズの反応（' + bestLbl + '・1本あたり平均）</h3>' + storyKpis +
           '<div class="repnote">' + pwin.storyN + '本の平均。タップ＝次へ/前へ/外部リンク等の操作数。</div></div>' : "") +

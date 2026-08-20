@@ -522,6 +522,7 @@ function _api_(p) {
     if (p.api === "schedule")     return _jsonp_(cb, schedCreate_(p));
     if (p.api === "schedlist")    return _jsonp_(cb, schedList_(p.account || ""));
     if (p.api === "schedcancel")  return _jsonp_(cb, schedCancel_(p.token));
+    if (p.api === "schedhide")    return _jsonp_(cb, schedHide_(p.token));
     if (p.api === "regionaltags") return _jsonp_(cb, regionalTags_(p.region || "", p.peek === "1"));
     if (p.api === "cands")        return _jsonp_(cb, cands_());
     if (p.api === "storyset")     return _jsonp_(cb, storySet_(p.account || "", p.slot || "", p.action || "", p.file || ""));
@@ -779,7 +780,7 @@ function schedList_(account) {
   for (var i = 1; i < v.length; i++) {
     if (String(v[i][9] || "").trim() !== want) continue;
     var st = String(v[i][6] || "").trim();
-    if (st === "canceled") continue;                                    // 取消は出さない
+    if (st === "canceled" || st.indexOf("_hidden") >= 0) continue;      // 取消・非表示は出さない
     var whenStr = _whenStr_(v[i][1]);
     // scheduled は常に。posted/failed/expired/posting は直近14日ぶんだけ履歴表示。
     if (st !== "scheduled" && whenStr.slice(0, 10) < cutoff) continue;
@@ -794,6 +795,18 @@ function schedList_(account) {
 function schedCancel_(token) {
   var sh = schedSheet_(), v = sh.getDataRange().getValues();
   for (var i = 1; i < v.length; i++) { if (v[i][0] === token) { sh.getRange(i + 1, 7).setValue("canceled"); return { ok: true }; } }
+  return { ok: false, error: "not found" };
+}
+// 投稿済み/失敗などの履歴を「非表示」にする（Instagramで削除した等）。記録は残しつつ一覧から消す。
+function schedHide_(token) {
+  var sh = schedSheet_(), v = sh.getDataRange().getValues();
+  for (var i = 1; i < v.length; i++) {
+    if (v[i][0] === token) {
+      var st = String(v[i][6] || "").trim();
+      if (st.indexOf("_hidden") < 0) sh.getRange(i + 1, 7).setValue((st || "posted") + "_hidden");
+      return { ok: true };
+    }
+  }
   return { ok: false, error: "not found" };
 }
 // ストーリー自動投稿の「回ごとの指示」を保存/取得（三条と同じオプトアウト方式）。
