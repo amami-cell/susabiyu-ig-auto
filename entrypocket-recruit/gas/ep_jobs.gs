@@ -47,6 +47,40 @@ function epWriteLiveShops_(ss, jar, prefetched) {
   return names.length;
 }
 
+/**
+ * 【診断・書き込みなし】募集中に出ている「掲載中(応募0含む)」が、本物か残骸かを判定する。
+ * Apps Script で epDiagLive を実行 → ログを貼る。
+ */
+function epDiagLive() {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var cur = epLiveShops_(ss);
+  Logger.log("■ 今アプリが『掲載中』として募集中に出している店舗: " + cur.length + "件");
+  Logger.log("  " + (cur.join(" / ") || "(なし)"));
+
+  var mon = ss.getSheetByName("_掲載監視");
+  if (mon && mon.getLastRow() > 1) {
+    var mv = mon.getDataRange().getValues();
+    Logger.log("■ _掲載監視（店舗ごとの最終掲載中日／自動終了印）:");
+    for (var i = 1; i < Math.min(mv.length, 60); i++)
+      Logger.log("   " + mv[i][1] + " : 最終掲載中=" + mv[i][2] + (mv[i][3] ? ("  [" + mv[i][3] + "]") : ""));
+  } else {
+    Logger.log("■ _掲載監視: まだ無し（自動終了機能デプロイ後の初回取得待ち）");
+  }
+
+  Logger.log("■ いまEntryPocketに実際に問い合わせて『掲載中』を取り直します…");
+  var jar = epLogin_();
+  if (!jar) { Logger.log("  ✗ ログイン失敗 → 掲載中の取得も失敗する状態。古い掲載中が残り続けている可能性が高い。"); return; }
+  var fresh = epFetchLiveShops_(jar);
+  if (fresh == null) {
+    Logger.log("  ✗ 求人原稿ページの取得/解析に失敗(null) → 掲載中を更新できず、_掲載中店舗 が古いまま。");
+    Logger.log("    ＝『応募0の掲載中店舗』は残骸の疑い。ページ構造/ログインの修正が必要。");
+  } else {
+    Logger.log("  ✓ 今EntryPocketが返す掲載中: " + fresh.length + "件 → " + (fresh.join(" / ") || "(0件)"));
+    Logger.log("    上の『アプリが出している掲載中』と食い違う店舗があれば、それが残骸です。");
+  }
+  Logger.log("=== 診断おわり（読み取りのみ）===");
+}
+
 /** _掲載中店舗 シートの店舗名リストを返す（ダッシュボード表示用）。 */
 function epLiveShops_(ss) {
   var sh = ss.getSheetByName("_掲載中店舗");
