@@ -58,12 +58,12 @@
   if(!ENTRY.ok){ el('msg').className='err'; el('msg').textContent='この入力リンクの対象が見つかりませんでした（送り主に確認してください）。'; el('save').disabled=true; }
   function save(){
     var btn=el('save'); btn.disabled=true; btn.textContent='保存中…'; el('msg').textContent='';
-    var o={ srcSheet:ENTRY.s, srcRow:ENTRY.r, store:ENTRY.store, start:ENTRY.start,
+    var o={ srcSheet:ENTRY.s, srcRow:ENTRY.r, store:ENTRY.store, start:ENTRY.start, end:ENTRY.end,
       apps:el('apps').value, hires:el('hires').value, quit:el('quit').value, note:el('note').value };
     google.script.run.withSuccessHandler(function(res){
       if(res&&res.ok){ el('msg').className='ok'; el('msg').textContent='✅ 保存しました。ありがとうございます。'; btn.textContent='保存済み'; }
       else { btn.disabled=false; btn.textContent='保存する'; el('msg').className='err'; el('msg').textContent='保存できませんでした: '+((res&&res.error)||''); }
-    }).withFailureHandler(function(e){ btn.disabled=false; btn.textContent='保存する'; el('msg').className='err'; el('msg').textContent='通信エラー: '+((e&&e.message)||''); }).epSaveResult(o);
+    }).withFailureHandler(function(e){ btn.disabled=false; btn.textContent='保存する'; el('msg').className='err'; el('msg').textContent='通信エラー: '+((e&&e.message)||''); }).epEndRecruit(o);
   }
 </script>
 </body>
