@@ -31,7 +31,8 @@
   .hint{color:var(--sub);font-size:12.5px;line-height:1.7;text-align:center;margin:2px 2px 16px}
   .seclabel{font-size:13px;font-weight:800;color:var(--fg);margin:8px 2px 10px;display:flex;align-items:center;gap:8px}
   .seclabel .cnt{color:var(--accent);font-size:12px;font-weight:800}
-  .card{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:12px;margin-bottom:16px;position:relative}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:12px;margin-bottom:16px;position:relative;content-visibility:auto;contain-intrinsic-size:auto 560px}
+  .rpick .pk{content-visibility:auto;contain-intrinsic-size:auto 170px}
   .card.reco{border-color:var(--gold);box-shadow:0 0 0 1px rgba(224,181,110,.35)}
   .reco-badge{position:absolute;top:-11px;left:14px;background:linear-gradient(90deg,#e0b56e,#caa14e);color:#241c08;font-size:11.5px;font-weight:900;padding:4px 11px;border-radius:999px}
   .chead{display:flex;align-items:center;gap:8px;margin-bottom:10px}
@@ -222,7 +223,7 @@
 <script>
 (function(){
   "use strict";
-  var V = "?v=167";  // メディアのキャッシュ更新用
+  var V = "?v=168";  // メディアのキャッシュ更新用
   window.__APPV = "v" + (V.replace("?v=","")||"?");   // 画面下の版数表示用（?v=と同期）
   var CFG = window.GIFUYA || {};
   var LIVE = !!window.GIFUYA_LIVE;               // 専用GAS注入済みなら実データ連携
@@ -753,9 +754,11 @@
           var hint=row.querySelector('div[style*="タップ"]'); if(hint) hint.textContent=open?"▼ タップで投稿内容を表示":"▲ 閉じる"; }
       };
     });
-    body.querySelectorAll(".rcancel").forEach(function(b){ b.onclick=function(ev){ ev.stopPropagation(); if(!confirm("この予約を取り消しますか？"))return; b.disabled=true;b.textContent="取消中…";
-      gJsonp({api:"schedcancel",token:b.getAttribute("data-tok")}).then(function(r){ toast(r&&r.ok?"予約を取り消しました":"取り消せませんでした"); loadSched(); closeResv(); })
-        .catch(function(){toast("通信エラー");b.disabled=false;b.textContent="取消";}); }; });
+    body.querySelectorAll(".rcancel").forEach(function(b){ b.onclick=function(ev){ ev.stopPropagation(); var tok=b.getAttribute("data-tok"); if(!confirm("この予約を取り消しますか？"))return;
+      // 楽観的：即カレンダーから消して閉じる→裏で確定→失敗時のみ戻す
+      var removed=_schedRemove(tok); if(schedCb) schedCb(); closeResv(); toast("予約を取り消しました");
+      gJsonp({api:"schedcancel",token:tok}).then(function(r){ if(!(r&&r.ok)&&removed){ SCHED.push(removed); if(schedCb)schedCb(); toast("取り消せませんでした（戻しました）"); } })
+        .catch(function(){ if(removed){ SCHED.push(removed); if(schedCb)schedCb(); } toast("通信エラー（戻しました）"); }); }; });
     body.querySelectorAll(".histhide2").forEach(function(b){ b.onclick=function(ev){ ev.stopPropagation(); closeResv(); hideHist(b.getAttribute("data-tok")); }; });
     var addb=body.querySelector("#rAddDay"); if(addb) addb.onclick=function(){ openNewResv(k); };
     m.classList.add("open");
@@ -819,20 +822,31 @@
     body.querySelector("#nvReel").onclick=function(){ newResv.kind="reel";newResv.pick=null;newResv.all=false; this.classList.add("on");body.querySelector("#nvFeed").classList.remove("on"); drawPick();drawGridPrev();drawDetail();updateGo(); toast("リールは準備中です（形だけの表示）"); };
     body.querySelector("#nvTime").oninput=updateGo;
     body.querySelector("#nvGo").onclick=function(){ if(!newResv.pick)return;
-      var tt=body.querySelector("#nvTime").value||"18:00"; var slot=body.querySelector("#nvSlot");
-      body.querySelector("#nvGo").disabled=true;
-      doSchedule(newResv.kind,newResv.pick,k+" "+tt,slot,"予約しました");
-      setTimeout(function(){ loadSched(); closeResv(); },1100);
+      var tt=body.querySelector("#nvTime").value||"18:00"; var it=newResv.pick, kind=newResv.kind, when=k+" "+tt;
+      var caption=fullCaption(it.cap, it.tags);
+      var media=absUrl("gifuya/"+(kind==="feed"?it.img:it.vid));
+      // 楽観的：即カレンダーに反映＆閉じる→裏で保存→成功で整合／失敗でロールバック
+      var opt={token:"tmp"+Date.now(), when:when, kind:kind, media:media, name:it.t||"", caption:caption, hashtags:"", status:"scheduled"};
+      SCHED.push(opt); if(schedCb) schedCb(); closeResv(); toast("予約しました（予定時刻に自動投稿）");
+      if(!LIVE) return;
+      gJsonp({api:"schedule", kind:(kind==="feed"?"feed":"reel"), name:it.t||"", when:when, media:media, caption:caption, hashtags:""}).then(function(res){
+        if(res&&(res.ok||res.result==="ok")){ loadSched(); }                         // 実トークンで整合
+        else { _schedRemove(opt.token); if(schedCb)schedCb(); toast("予約に失敗しました。もう一度お試しください"); }
+      }).catch(function(){ _schedRemove(opt.token); if(schedCb)schedCb(); toast("通信エラー。予約できませんでした"); });
     };
     drawPick(); drawGridPrev(); drawDetail(); updateGo();
     m.classList.add("open");
   }
   function closeResv(){ document.getElementById("resvmodal").classList.remove("open"); }
+  // ローカルSCHEDからtokenの1件を取り除く（見つかれば戻り値に退避、無ければnull）
+  function _schedRemove(token){ for(var i=0;i<SCHED.length;i++){ if(SCHED[i].token===token){ return SCHED.splice(i,1)[0]; } } return null; }
   // 投稿済み/失敗の履歴をカレンダーから非表示（Instagram側で削除した等）。記録は残す。
+  // 楽観的更新：先に画面から消して即反映→裏で確定→失敗時のみ戻す。
   function hideHist(token){
     if(!confirm("この投稿をカレンダーの履歴から消しますか？\n（Instagram側の投稿には影響しません）")) return;
-    gJsonp({api:"schedhide", token:token}).then(function(r){ toast(r&&r.ok?"履歴から消しました":"消せませんでした"); loadSched(); })
-      .catch(function(){ toast("通信エラー"); });
+    var removed=_schedRemove(token); if(schedCb) schedCb(); toast("履歴から消しました");
+    gJsonp({api:"schedhide", token:token}).then(function(r){ if(!(r&&r.ok)&&removed){ SCHED.push(removed); if(schedCb)schedCb(); toast("消せませんでした（元に戻しました）"); } })
+      .catch(function(){ if(removed){ SCHED.push(removed); if(schedCb)schedCb(); } toast("通信エラー（元に戻しました）"); });
   }
   /* ===== ストーリーメンション（確認→リポスト＋シェアコメント） ===== */
   var MENTION_DEFAULT="ご来店ありがとうございます\n素敵な投稿に感謝です！\n#ぎふや福岡天神";  // 規定＝1
