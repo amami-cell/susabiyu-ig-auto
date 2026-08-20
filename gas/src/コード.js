@@ -774,12 +774,19 @@ function _whenStr_(w) {
 function schedList_(account) {
   var want = String(account || "").trim();          // 店舗別に分離（空=三条・従来どおり）
   var sh = schedSheet_(), v = sh.getDataRange().getValues(), out = [];
+  // 「投稿済み/失敗」も直近14日ぶんは履歴として返す（アプリで“消えた”ように見えないように）。
+  var cutoff = Utilities.formatDate(new Date(Date.now() - 14 * 24 * 3600 * 1000), "Asia/Tokyo", "yyyy-MM-dd");
   for (var i = 1; i < v.length; i++) {
-    if (String(v[i][6]).trim() !== "scheduled") continue;
     if (String(v[i][9] || "").trim() !== want) continue;
-    out.push({ token: v[i][0], when: _whenStr_(v[i][1]), kind: v[i][2], media: v[i][3],
+    var st = String(v[i][6] || "").trim();
+    if (st === "canceled") continue;                                    // 取消は出さない
+    var whenStr = _whenStr_(v[i][1]);
+    // scheduled は常に。posted/failed/expired/posting は直近14日ぶんだけ履歴表示。
+    if (st !== "scheduled" && whenStr.slice(0, 10) < cutoff) continue;
+    out.push({ token: v[i][0], when: whenStr, kind: v[i][2], media: v[i][3],
                name: (v[i][4] || "").split("\n")[0].slice(0, 24),
-               caption: String(v[i][4] || ""), hashtags: String(v[i][5] || ""), copy: "" });
+               caption: String(v[i][4] || ""), hashtags: String(v[i][5] || ""),
+               status: st || "scheduled", note: String(v[i][8] || "") });
   }
   out.sort(function (a, b) { return String(a.when) < String(b.when) ? -1 : 1; });
   return { ok: true, items: out };

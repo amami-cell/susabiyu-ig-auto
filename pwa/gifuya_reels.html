@@ -136,6 +136,8 @@
   .cday.sun .dn{color:#e08a8a}.cday.sat .dn{color:#8ab4e0}
   .cday .ct{display:block;font-size:9.5px;font-weight:800;border-radius:5px;padding:1px 3px;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:#fff}
   .cday .ct.feed{background:#2f5a3a}.cday .ct.reel{background:#4a3a72}
+  .cday .ct.posted{background:#1f6d3f}.cday .ct.failed{background:#7a2f2f}
+  .cday.donesol{opacity:1}
   .cday .more{font-size:9px;color:var(--sub);font-weight:800}
   .cday.tapable{cursor:pointer}
   .cday.tapable:active{transform:scale(.96)}
@@ -220,7 +222,7 @@
 <script>
 (function(){
   "use strict";
-  var V = "?v=164";  // メディアのキャッシュ更新用
+  var V = "?v=165";  // メディアのキャッシュ更新用
   window.__APPV = "v" + (V.replace("?v=","")||"?");   // 画面下の版数表示用（?v=と同期）
   var CFG = window.GIFUYA || {};
   var LIVE = !!window.GIFUYA_LIVE;               // 専用GAS注入済みなら実データ連携
@@ -476,11 +478,12 @@
 
   /* ---------- 実投稿/予約（実データ接続時はGASへ、未接続は見本） ---------- */
   function doSchedule(kind,it,when,slot,label){
-    var tags=selTags();
     var name=it.t||"";
+    // caption は本文＋ハッシュタグ＋店舗情報の「完成形」。ハッシュタグはこの中に1回だけ含まれる。
+    // 別枠 hashtags には入れない（投稿エンジンが再度末尾に付けて“上にも下にも”重複するのを防ぐ）。
     var caption=fullCaption(it.cap, it.tags);
     var media=absUrl("gifuya/"+(kind==="feed"?it.img:it.vid));
-    var params={api:"schedule", kind:(kind==="feed"?"feed":"reel"), name:name, when:when, media:media, caption:caption, hashtags:tags};
+    var params={api:"schedule", kind:(kind==="feed"?"feed":"reel"), name:name, when:when, media:media, caption:caption, hashtags:""};
     // リールは切取位置(秒)を渡す。投稿エンジンが ffmpeg で切り出してから投稿する。
     var card=(slot&&slot.closest)?slot.closest(".card"):null;
     if(kind==="reel" && card && card._trim && (card._trim.end-card._trim.start)>=1){
@@ -640,17 +643,23 @@
     var cal=document.createElement("div"); wrap.appendChild(cal);
     function draw(){
       if(!tS.classList.contains("on")) return;
+      var isDone=function(s){ return (s.status||"scheduled")!=="scheduled"; };
+      var pending=SCHED.filter(function(s){return !isDone(s);});
+      var done=SCHED.filter(isDone);
       var byDate={};
       SCHED.forEach(function(s){ var k=String(s.when||"").slice(0,10); if(!k)return; (byDate[k]=byDate[k]||[]).push(s); });
       Object.keys(byDate).forEach(function(k){ byDate[k].sort(function(a,b){return String(a.when)<String(b.when)?-1:1;}); });
-      var feedN=SCHED.filter(function(s){return (s.kind||'feed')!=='reel';}).length;
-      var reelN=SCHED.filter(function(s){return (s.kind||'feed')==='reel';}).length;
-      head.innerHTML='<div class="schsum"><div><div class="big">'+SCHED.length+'</div><div class="lbl">予約済みの投稿</div></div>'+
-        '<div class="leg"><span><i style="background:#2f5a3a"></i>フィード '+feedN+'</span><span><i style="background:#4a3a72"></i>リール '+reelN+'</span></div></div>'+
-        '<div class="hint" style="margin:0 2px 12px">日付をタップ＝その日の予約を確認／空いてる日をタップ＝新しく予約。</div>';
+      var feedN=pending.filter(function(s){return (s.kind||'feed')!=='reel';}).length;
+      var reelN=pending.filter(function(s){return (s.kind||'feed')==='reel';}).length;
+      var postedN=done.filter(function(s){return s.status==='posted';}).length;
+      head.innerHTML='<div class="schsum"><div><div class="big">'+pending.length+'</div><div class="lbl">予約中の投稿</div></div>'+
+        '<div class="leg"><span><i style="background:#2f5a3a"></i>フィード '+feedN+'</span><span><i style="background:#4a3a72"></i>リール '+reelN+'</span>'+(postedN?'<span><i style="background:#1f6d3f"></i>投稿済 '+postedN+'</span>':'')+'</div></div>'+
+        '<div class="hint" style="margin:0 2px 12px">日付タップ＝その日の予約/投稿を確認／空き日タップ＝新しく予約。<b>✓＝投稿済み</b>・<b>✕＝失敗</b>。</div>';
       var now=new Date(); var todK=_ymd(now);
       var months=[new Date(now.getFullYear(),now.getMonth(),1), new Date(now.getFullYear(),now.getMonth()+1,1)];
       var html="";
+      function chipCls(s){ var st=s.status||"scheduled"; return st==="posted"?"posted":(st==="failed"||st==="expired"?"failed":((s.kind||'feed')==='reel'?'reel':'feed')); }
+      function chipMark(s){ var st=s.status||"scheduled"; return st==="posted"?"✓":(st==="failed"?"✕":(st==="expired"?"⤫":"")); }
       months.forEach(function(m){
         html+='<div class="cal"><div class="calhd">📅 '+m.getFullYear()+'年 '+(m.getMonth()+1)+'月</div><div class="calgrid">';
         ["日","月","火","水","木","金","土"].forEach(function(w,wi){ html+='<div class="cwd'+(wi===0?" sun":wi===6?" sat":"")+'">'+w+'</div>'; });
@@ -660,45 +669,74 @@
         for(var d=1;d<=days;d++){
           var dd=new Date(m.getFullYear(),m.getMonth(),d); var k=_ymd(dd); var wd=dd.getDay();
           var isPast=k<todK; var items=byDate[k]||[];
-          var cls="cday"+(wd===0?" sun":wd===6?" sat":"")+(k===todK?" today":"")+(isPast?" past":"")+(!isPast?" tapable":"");
+          var tap=(!isPast)||items.length>0;   // 過去でも投稿履歴があればタップで確認可
+          var cls="cday"+(wd===0?" sun":wd===6?" sat":"")+(k===todK?" today":"")+(isPast?" past":"")+(items.length?" donesol":"")+(tap?" tapable":"");
           var inner='<div class="dn">'+d+'</div>';
-          items.slice(0,2).forEach(function(s){ inner+='<span class="ct '+((s.kind||'feed')==='reel'?'reel':'feed')+'">'+esc(String(s.when||"").slice(11,16))+'</span>'; });
+          items.slice(0,2).forEach(function(s){ inner+='<span class="ct '+chipCls(s)+'">'+chipMark(s)+esc(String(s.when||"").slice(11,16))+'</span>'; });
           if(items.length>2) inner+='<span class="more">+'+(items.length-2)+'件</span>';
           if(!isPast && !items.length) inner+='<span class="plus">＋</span>';
           html+='<div class="'+cls+'" data-k="'+k+'">'+inner+'</div>';
         }
         html+='</div></div>';
       });
+      // 投稿済み・履歴（直近）
+      if(done.length){
+        var hist=done.slice().sort(function(a,b){return String(a.when)>String(b.when)?-1:1;}).slice(0,20);
+        html+='<div class="seclabel" style="margin-top:6px">✅ 投稿済み・履歴 <span class="cnt">直近'+done.length+'件</span></div>';
+        hist.forEach(function(s){
+          var ok=s.status==='posted';
+          var badge=ok?'<span style="color:#7fd1a0;font-weight:800">✓ 投稿済</span>':(s.status==='failed'?'<span style="color:#e6a4a4;font-weight:800">✕ 失敗</span>':'<span style="color:#c9a06a;font-weight:800">期限切れ</span>');
+          html+='<div class="rrow histrow" data-tok="'+esc(s.token)+'" style="cursor:pointer;margin-bottom:8px">'+
+            (s.media?'<img src="'+esc(s.media)+'" alt="">':'<div class="noimg">🍶</div>')+
+            '<div style="flex:1;min-width:0"><div class="rt">'+((s.kind||'feed')==='reel'?'🎬 リール':'📸 フィード')+' '+esc(String(s.when||"").slice(5,16))+'　'+badge+'</div>'+
+            '<div class="rn">'+esc(s.name||"")+'</div>'+
+            '<div style="font-size:10.5px;color:#7c8698;font-weight:700;margin-top:2px">▼ タップで投稿内容を表示</div></div></div>';
+        });
+      }
       cal.innerHTML=html;
       cal.querySelectorAll(".cday.tapable").forEach(function(cell){
         cell.onclick=function(){ var k=cell.getAttribute("data-k"); var items=byDate[k]||[];
           if(items.length) openDayDetail(k,items); else openNewResv(k); };
+      });
+      // 履歴行タップ＝その予約の詳細（投稿内容）を単体表示
+      cal.querySelectorAll(".histrow").forEach(function(row){
+        row.onclick=function(){ var tok=row.getAttribute("data-tok"); var s=SCHED.filter(function(x){return x.token===tok;})[0]; if(s) openDayDetail(String(s.when||"").slice(0,10),[s]); };
       });
     }
     schedCb=draw; draw(); if(LIVE) loadSched();
   }
   function openDayDetail(k,items){
     var m=document.getElementById("resvmodal"), body=document.getElementById("resvbody");
-    document.getElementById("resvttl").textContent=fmtDateJ(k)+" の予約";
-    document.getElementById("resvsub").textContent=items.length+"件の予約があります。タップした投稿は取り消せます。";
+    var todK=_ymd(new Date());
+    var anyPending=items.some(function(s){return (s.status||"scheduled")==="scheduled";});
+    document.getElementById("resvttl").textContent=fmtDateJ(k)+" の予約・投稿";
+    document.getElementById("resvsub").textContent="タップで投稿内容を表示。予約中の分は取り消せます。";
     var h="";
     items.forEach(function(s,idx){
+      var st=s.status||"scheduled";
       var thumb=s.media?'<img src="'+esc(s.media)+'" alt="">':'<div class="noimg">🍶</div>';
       var cap=s.caption||"";
+      var detLbl=(st==="scheduled")?"📝 実際に投稿される内容":"📝 投稿した内容";
       var detail=
         '<div class="rdetail" data-i="'+idx+'" style="display:none;border:1px solid var(--line);border-top:0;border-radius:0 0 12px 12px;background:#0f1319;padding:10px 11px;margin:-8px 0 8px">'+
-          '<div style="font-size:11px;font-weight:800;color:var(--gold);margin:2px 0 5px">📝 実際に投稿される内容</div>'+
+          '<div style="font-size:11px;font-weight:800;color:var(--gold);margin:2px 0 5px">'+detLbl+'</div>'+
           '<div style="font-size:13px;line-height:1.6;white-space:pre-wrap;color:#dfe5ee">'+(cap?esc(cap):"（本文なし）")+'</div>'+
           (s.hashtags?('<div style="font-size:11.5px;color:#8ab4e0;margin-top:7px;word-break:break-word">'+esc(s.hashtags)+'</div>'):'')+
+          (st!=="scheduled"&&s.note?('<div style="font-size:10.5px;color:#7c8698;margin-top:6px">'+esc(s.note)+'</div>'):'')+
         '</div>';
+      // 右側：予約中は取消ボタン、投稿済/失敗/期限切れは状態バッジ
+      var right = (st==="scheduled")
+        ? '<button class="rcancel" data-tok="'+esc(s.token)+'">取消</button>'
+        : '<span style="flex:none;font-size:11.5px;font-weight:800;padding:6px 9px;border-radius:9px;'+(st==="posted"?'color:#7fd1a0;background:#12261a;border:1px solid #2a5a3a':(st==="failed"?'color:#e6a4a4;background:#2a1c1c;border:1px solid #5a3a3a':'color:#c9a06a;background:#241d10;border:1px solid #5a4a2a'))+'">'+(st==="posted"?"✓ 投稿済":(st==="failed"?"✕ 失敗":"期限切れ"))+'</span>';
       h+='<div class="rrow rtap" data-i="'+idx+'" style="cursor:pointer">'+thumb+
            '<div style="flex:1;min-width:0"><div class="rt">'+((s.kind||'feed')==='reel'?'🎬 リール':'📸 フィード')+' '+esc(String(s.when||"").slice(11,16))+'</div>'+
              '<div class="rn">'+esc(s.name||"")+'</div>'+
              '<div style="font-size:10.5px;color:#7c8698;font-weight:700;margin-top:2px">▼ タップで投稿内容を表示</div></div>'+
-           '<button class="rcancel" data-tok="'+esc(s.token)+'">取消</button></div>'+
+           right+'</div>'+
          detail;
     });
-    h+='<button class="rmore" id="rAddDay" style="margin-top:4px">＋ この日に追加で予約する</button>';
+    // 追加予約ボタンは「今日以降」だけ
+    if(k>=todK) h+='<button class="rmore" id="rAddDay" style="margin-top:4px">＋ この日に追加で予約する</button>';
     body.innerHTML=h;
     // 行タップ＝投稿内容の開閉（取消ボタンは除外）
     body.querySelectorAll(".rtap").forEach(function(row){
@@ -712,7 +750,7 @@
     body.querySelectorAll(".rcancel").forEach(function(b){ b.onclick=function(ev){ ev.stopPropagation(); if(!confirm("この予約を取り消しますか？"))return; b.disabled=true;b.textContent="取消中…";
       gJsonp({api:"schedcancel",token:b.getAttribute("data-tok")}).then(function(r){ toast(r&&r.ok?"予約を取り消しました":"取り消せませんでした"); loadSched(); closeResv(); })
         .catch(function(){toast("通信エラー");b.disabled=false;b.textContent="取消";}); }; });
-    body.querySelector("#rAddDay").onclick=function(){ openNewResv(k); };
+    var addb=body.querySelector("#rAddDay"); if(addb) addb.onclick=function(){ openNewResv(k); };
     m.classList.add("open");
   }
   var newResv={};

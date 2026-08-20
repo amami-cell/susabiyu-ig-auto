@@ -49,7 +49,8 @@ def build_caption(caption, hashtags):
     """本文＋ハッシュタグを1つのキャプションに。"""
     cap = (caption or "").rstrip()
     tags = (hashtags or "").strip()
-    if tags:
+    # 既にキャプション内にそのタグ群が含まれていれば二重付与しない（“上にも下にも”重複を防ぐ）。
+    if tags and tags not in cap:
         return (cap + "\n\n" + tags).strip() if cap else tags
     return cap
 
