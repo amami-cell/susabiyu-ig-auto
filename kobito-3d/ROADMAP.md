@@ -120,7 +120,8 @@ XP／レベルアップ／飛行解禁（Lv3）、押せるゴミ、掃除で環
 
 1. Godot 4.7 を入れて、`kobito-3d` を開いて ▶ を押す。「ひとりで始める」で庭を歩く。
 2. PCでホスト、スマホ（同じWi-Fi）で参加して、**2人で虫を殴ってみる**。
-   - Android なら、GitHub の Actions → `kobito-build` → `kobito-apk` を落としてインストール。
+   - Android なら、GitHub の Actions → `kobito-build` → 成果物 `kobito-apk` を落としてインストール
+     （提供元不明のアプリを許可する必要があります）。
    - iPhone なら、`kobito-web` を適当な場所に置いてURLで開く（このときは通信路を **WebSocket** に）。
 3. 触ってみて「ここが気持ちよくない」を3つ書き出す。次はそこを直します。
 

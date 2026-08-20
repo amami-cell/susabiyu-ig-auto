@@ -130,16 +130,11 @@ jobs:
           retention-days: 14
 
   # ------------------------------------------------------------------
-  # 3) Android APK … 本命。ダウンロードしてスマホに入れる
-  #
-  # ※このジョブだけは開発環境で実機検証できていないため、まずは
-  #   continue-on-error: true で「赤くても他を止めない」状態にしてある。
-  #   1回グリーンになったらこの行を消してよい。
+  # 3) Android APK … 本命。Actions の成果物 kobito-apk を落として端末に入れる
   # ------------------------------------------------------------------
   android:
     runs-on: ubuntu-latest
     needs: selftest
-    continue-on-error: true
     steps:
       - uses: actions/checkout@v4
 
