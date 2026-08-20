@@ -516,18 +516,29 @@
     }
 
     /* ===== 打ち出し履歴タブ ===== */
-    // 結果報告の重複チェック：同じ店舗＋同じ掲載開始日の行が2件以上＝重複の疑い
+    // 結果報告の重複チェック：同じ店舗で「期間が重なる」行が複数＝重複の疑い（求人は2〜4週間の打ち出し）
     function dupePostings(){
-      var by={}; postings.forEach(function(p){ var d=toDate(p.start); var sk=d?fmtYmd(d):(p.start||'');
-        var k=normStore(p.store)+'|'+sk; (by[k]=by[k]||[]).push(p); });
-      return Object.keys(by).map(function(k){ return by[k]; }).filter(function(g){ return g.length>1; });
+      var DEF=21*86400000;  // 掲載終了が不明な行は約3週間の打ち出しとみなす
+      var by={}; postings.forEach(function(p){ var k=normStore(p.store); if(k) (by[k]=by[k]||[]).push(p); });
+      var out=[];
+      Object.keys(by).forEach(function(k){ var arr=by[k]; if(arr.length<2) return;
+        var flagged=[];
+        for(var i=0;i<arr.length;i++) for(var j=i+1;j<arr.length;j++){
+          var s1=toDate(arr[i].start), s2=toDate(arr[j].start); if(!s1||!s2) continue;
+          var e1=toDate(arr[i].end)||new Date(s1.getTime()+DEF), e2=toDate(arr[j].end)||new Date(s2.getTime()+DEF);
+          if(s1<=e2 && s2<=e1){ if(flagged.indexOf(arr[i])<0)flagged.push(arr[i]); if(flagged.indexOf(arr[j])<0)flagged.push(arr[j]); }
+        }
+        if(flagged.length>1) out.push(flagged);
+      });
+      return out;
     }
     function dupeAlertHtml(){
       var g=dupePostings(); if(!g.length) return '';
-      return '<div class="alert"><div class="al-h">⚠️ 結果報告 重複の疑い '+g.length+'組</div>'+
-        '<div class="al-note">同じ店舗・同じ掲載開始日の結果報告が複数あります。不要な方は展開して「🗑 削除（緊急用）」で消せます。</div>'+
+      return '<div class="alert"><div class="al-h">⚠️ 求人結果 重複の疑い '+g.length+'組</div>'+
+        '<div class="al-note">同じ店舗で期間が重なる結果報告が複数あります（求人は通常2〜4週間の打ち出し＝重なる＝二重登録の疑い）。不要な方を展開して「🗑 削除」で消せます。</div>'+
         g.map(function(grp){ return '<div class="prow"><div class="pr-nm">'+esc(grp[0].store)+' <span class="warnchip">'+grp.length+'件</span></div>'+
-          '<div class="pr-sub muted" style="font-size:12px">掲載開始 '+fmtD(grp[0].start)+'　'+grp.map(function(p){return '応募'+(has(p.apps)?p.apps:'-')+'/採用'+(has(p.hires)?p.hires:'-');}).join('　｜　')+'</div></div>'; }).join('')+'</div>';
+          grp.map(function(p){ return '<div class="pr-sub muted" style="font-size:12px">・'+fmtD(p.start)+'〜'+(p.end?fmtD(p.end):'継続')+'　応募'+(has(p.apps)?p.apps:'-')+'/採用'+(has(p.hires)?p.hires:'-')+'</div>'; }).join('')+
+        '</div>'; }).join('')+'</div>';
     }
     function renderHistory(){
       var el=document.getElementById('historyList');

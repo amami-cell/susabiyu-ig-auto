@@ -215,6 +215,38 @@ function epDeletePosting(o) {
   return { ok: true, store: store, row: row };
 }
 
+/**
+ * 【診断・書き込みなし】求人結果の重複を洗い出す（同じ店舗で期間が重なる＝二重登録の疑い）。
+ * Apps Scriptで epDiagDupes を実行 → ログを貼る。求人は2〜4週間の打ち出し前提。
+ */
+function epDiagDupes() {
+  var rows = (typeof epFetchNotionRows_ === 'function' ? epFetchNotionRows_() : null), src = 'Notion';
+  if (!rows || !rows.length) { rows = (typeof epFetchPostingSheetRows_ === 'function' ? epFetchPostingSheetRows_() : null); src = 'スプレッドシート'; }
+  if (!rows || !rows.length) { Logger.log('結果データ0件'); return; }
+  var DEF = 21 * 86400000;
+  var fmt_ = function (v) { var d = epDate_(v); return d ? Utilities.formatDate(d, 'Asia/Tokyo', 'yyyy-MM-dd') : String(v || ''); };
+  Logger.log('■ 求人結果 ' + rows.length + '件（' + src + '）の重複チェック（同じ店舗＋期間が重なる／終了不明は約3週間とみなす）');
+  var by = {};
+  rows.forEach(function (r) { var k = epNormStore_(epCleanStore_(r.store || '')); if (k) (by[k] = by[k] || []).push(r); });
+  var found = 0;
+  Object.keys(by).forEach(function (k) {
+    var arr = by[k]; if (arr.length < 2) return;
+    var flagged = [];
+    for (var i = 0; i < arr.length; i++) for (var j = i + 1; j < arr.length; j++) {
+      var s1 = epDate_(arr[i].start), s2 = epDate_(arr[j].start); if (!s1 || !s2) continue;
+      var e1 = epDate_(arr[i].end) || new Date(s1.getTime() + DEF), e2 = epDate_(arr[j].end) || new Date(s2.getTime() + DEF);
+      if (s1 <= e2 && s2 <= e1) { if (flagged.indexOf(arr[i]) < 0) flagged.push(arr[i]); if (flagged.indexOf(arr[j]) < 0) flagged.push(arr[j]); }
+    }
+    if (flagged.length > 1) {
+      found++;
+      Logger.log('  ⚠️ ' + arr[0].store + '：' + flagged.length + '件 重複の疑い');
+      flagged.forEach(function (p) { Logger.log('     ・' + fmt_(p.start) + '〜' + fmt_(p.end) + '  応募' + (p.apps || '-') + '/採用' + (p.hired || '-') + ' 媒体' + (p.media || '-')); });
+    }
+  });
+  if (!found) Logger.log('  重複の疑いは見つかりませんでした。');
+  Logger.log('=== 診断おわり（読み取りのみ）===');
+}
+
 /** 共有入力ページ用：対象行の現在値＋CSV自動集計を返す。ok:falseなら対象が見つからない。 */
 function epEntryData_(o) {
   o = o || {};
