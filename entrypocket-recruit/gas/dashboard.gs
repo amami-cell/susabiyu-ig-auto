@@ -8,23 +8,49 @@
  *   実行ユーザー: デプロイ元 / アクセス: 全員（現行設定を維持）
  */
 
+// 求人専用PWA(GitHub Pages)のアイコン公開ベース。差し替えは pwa-recruit/icons/ を置換してpush。
+var EP_ICONS_BASE = 'https://amami-cell.github.io/susabiyu-media/recruit/icons';
+
 function doGet(e) {
-  if (e && e.parameter && e.parameter.push) {
-    var out;
-    try {
-      if (e.parameter.push === 'test') {
-        // 動作確認用：テスト通知を1件キューに積む（送信役が拾って実送信する）
-        out = epEnqueueTest_(e.parameter.key);
-      } else {
-        // アプリ通知(Webプッシュ)の送信待ち取り出しAPI（GitHub Actions の送信役が叩く）
-        out = epDrainPush_(e.parameter.key);
-      }
-    } catch (err) { out = { ok: false, error: String(err) }; }
-    return ContentService.createTextOutput(JSON.stringify(out)).setMimeType(ContentService.MimeType.JSON);
+  if (e && e.parameter) {
+    // アプリ通知(Webプッシュ)の送信待ち取り出し/テスト投入API
+    if (e.parameter.push) {
+      var out;
+      try {
+        if (e.parameter.push === 'test') out = epEnqueueTest_(e.parameter.key);   // テスト通知を積む
+        else out = epDrainPush_(e.parameter.key);                                 // 送信役が取り出す
+      } catch (err) { out = { ok: false, error: String(err) }; }
+      return ContentService.createTextOutput(JSON.stringify(out)).setMimeType(ContentService.MimeType.JSON);
+    }
+    // 求人PWAの購読者リスト（送信役が読む）/ 失効掃除
+    if (e.parameter.subs) {
+      var so;
+      try {
+        if (e.parameter.subs === 'prune') so = epSubPrune_(String(e.parameter.eps || '').split(',').filter(String));
+        else so = epSubList_(e.parameter.key);
+      } catch (err2) { so = { ok: false, error: String(err2) }; }
+      return ContentService.createTextOutput(JSON.stringify(so)).setMimeType(ContentService.MimeType.JSON);
+    }
   }
+  // ダッシュボード本体。PC/スマホのタブ用favicon＋iframe許可（求人PWAが中に表示するため）。
   return HtmlService.createHtmlOutputFromFile('index')
-    .setTitle('求人進捗')
-    .addMetaTag('viewport', 'width=device-width, initial-scale=1, maximum-scale=1');
+    .setTitle('Initiateエンポケ求人')
+    .setFaviconUrl(EP_ICONS_BASE + '/favicon-32.png')
+    .addMetaTag('viewport', 'width=device-width, initial-scale=1, viewport-fit=cover')
+    .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
+}
+
+/** 求人PWAからの購読登録/解除を受ける（no-cors POST・本文はJSON文字列）。 */
+function doPost(e) {
+  var out = { ok: false };
+  try {
+    var body = (e && e.postData && e.postData.contents) || '';
+    var o = {}; try { o = JSON.parse(body); } catch (x) { o = {}; }
+    if (o.api === 'subscribe') out = epSubRegister_(o);
+    else if (o.api === 'unsubscribe') out = epSubUnregister_(o.ep);
+    else out = { ok: false, error: 'unknown api' };
+  } catch (err) { out = { ok: false, error: String(err) }; }
+  return ContentService.createTextOutput(JSON.stringify(out)).setMimeType(ContentService.MimeType.JSON);
 }
 
 /** セルの日付値を正しく文字列化する（Date型を "yyyy/MM/dd (HH:mm)" に。文字列はそのまま）。

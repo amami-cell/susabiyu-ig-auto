@@ -47,15 +47,33 @@ def _drain(exec_url, key):
     return items
 
 
-def _subscribers(sheet_id):
-    """購読!A:D を読む。B=subscription JSON, D=カテゴリON/OFF。"""
-    from google.oauth2 import service_account
-    from googleapiclient.discovery import build
-    creds = service_account.Credentials.from_service_account_file(
-        "creds.json", scopes=["https://www.googleapis.com/auth/spreadsheets"])
-    sh = build("sheets", "v4", credentials=creds).spreadsheets()
-    rows = sh.values().get(spreadsheetId=sheet_id, range="購読!A:D").execute().get("values", [])
-    return rows[1:] if rows else []
+def _recruit_subscribers(exec_url, key):
+    """求人PWAの購読者を募集GAS(?subs=list)から読む。[{subscription, prefs, endpoint}] を返す。"""
+    try:
+        r = requests.get(exec_url, params={"subs": "list", "key": key or ""}, timeout=30, allow_redirects=True)
+        r.raise_for_status()
+        data = r.json()
+    except Exception as e:
+        try:
+            print("[PUSH] 購読取得失敗:", e, "| HTTP", r.status_code, "| body:", (r.text or "")[:160].replace("\n", " "))
+        except Exception:
+            print("[PUSH] 購読取得失敗:", e)
+        return []
+    if not data.get("ok"):
+        print("[PUSH] 購読取得拒否:", data.get("error")); return []
+    return data.get("subs", [])
+
+
+def _prune_dead(exec_url, key, endpoints):
+    """失効(404/410)したendpointを募集GAS(?subs=prune)に伝えて掃除する。"""
+    if not endpoints:
+        return
+    try:
+        requests.get(exec_url, params={"subs": "prune", "key": key or "", "eps": ",".join(endpoints)},
+                     timeout=30, allow_redirects=True)
+        print("[PUSH] 失効購読を掃除:", len(endpoints), "件")
+    except Exception as e:
+        print("[PUSH] 掃除失敗:", str(e)[:120])
 
 
 def _vapid_pem(raw):
@@ -143,9 +161,9 @@ def main():
     # ① LINE（まとめて1通）
     _line_broadcast(title + ("\n" + body if body else ""))
 
-    # ② アプリ通知（Webプッシュ）
-    if not (sheet_id and vapid_raw):
-        print("[PUSH] SHEET_ID / VAPID_PRIVATE_KEY 未設定のためWebプッシュはスキップ"); return 0
+    # ② アプリ通知（Webプッシュ）→ 求人PWAの購読者へ（インスタとは別リスト）
+    if not vapid_raw:
+        print("[PUSH] VAPID_PRIVATE_KEY 未設定のためWebプッシュはスキップ"); return 0
     try:
         from pywebpush import webpush, WebPushException
     except Exception as e:
@@ -154,21 +172,22 @@ def main():
         _vapid_pem(vapid_raw)
     except Exception as e:
         print("[PUSH] VAPID秘密鍵の復元失敗:", e); return 0
-    try:
-        subs = _subscribers(sheet_id)
-    except Exception as e:
-        print("[PUSH] 購読の読取失敗:", e); return 0
+    subs = _recruit_subscribers(exec_url, key)
+    if not subs:
+        print("[PUSH] 求人PWAの購読者がまだ0人（LINEは送信済み）"); return 0
 
     payload = json.dumps({"title": title, "body": body, "url": exec_url,
                           "focus": "", "category": "recruit", "tag": "recruit"})
     sent = gone = 0
-    for r in subs:
-        if len(r) < 2 or not str(r[1]).strip():
+    dead = []
+    for s in subs:
+        raw = s.get("subscription") or ""
+        if not str(raw).strip():
             continue
-        if not _category_on(r[3] if len(r) > 3 else "", "recruit"):
+        if not _category_on(s.get("prefs") or "", "recruit"):
             continue
         try:
-            sub = json.loads(r[1])
+            sub = json.loads(raw)
         except Exception:
             continue
         try:
@@ -179,11 +198,14 @@ def main():
             code = getattr(getattr(e, "response", None), "status_code", None)
             if code in (404, 410):
                 gone += 1
+                if s.get("endpoint"):
+                    dead.append(s["endpoint"])
             else:
                 print("[PUSH] 送信失敗(%s):" % code, str(e)[:120])
         except Exception as e:
             print("[PUSH] 送信エラー:", str(e)[:120])
     print("[PUSH] Webプッシュ 送信 %d件 / 期限切れ %d件（まとめ %d件分）" % (sent, gone, len(items)))
+    _prune_dead(exec_url, key, dead)
     return 0
 
 

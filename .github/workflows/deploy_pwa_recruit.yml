@@ -1,0 +1,52 @@
+name: deploy-pwa-recruit
+
+# pwa-recruit/ 配下（求人専用アプリ＝アイコン＋通知＋募集ダッシュボード表示）を変更して main に入れると、
+# インスタPWAと同じ公開サイト（GH_MEDIA_REPO）の /recruit/ フォルダへ公開する。
+# 公開URL: https://<owner>.github.io/<repo>/recruit/
+# 手動実行（Actionsの Run workflow）でも動く。
+on:
+  workflow_dispatch:
+  push:
+    branches: [ main ]
+    paths: [ 'pwa-recruit/**', '.github/workflows/deploy_pwa_recruit.yml' ]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Inject GAS URL into config.js (任意・シークレットがあれば差し替え)
+        env:
+          RECRUIT_EXEC_URL: ${{ secrets.RECRUIT_EXEC_URL }}
+        run: |
+          if [ -n "$RECRUIT_EXEC_URL" ]; then
+            sed -i "s#GAS_EXEC_URL: \".*\"#GAS_EXEC_URL: \"${RECRUIT_EXEC_URL}\"#" pwa-recruit/config.js
+            echo "RECRUIT_EXEC_URL injected."
+          else
+            echo "INFO: RECRUIT_EXEC_URL secret 未設定。config.js の既定URLを使用。"
+          fi
+
+      - name: Publish pwa-recruit/ to public site repo (recruit/ subfolder)
+        env:
+          TOKEN: ${{ secrets.GH_MEDIA_TOKEN }}
+          MEDIA_REPO: ${{ secrets.GH_MEDIA_REPO }}
+        run: |
+          if [ -z "$TOKEN" ] || [ -z "$MEDIA_REPO" ]; then
+            echo "::error::GH_MEDIA_TOKEN / GH_MEDIA_REPO が未設定です"; exit 1
+          fi
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git clone --depth 1 "https://x-access-token:${TOKEN}@github.com/${MEDIA_REPO}.git" _site
+          rm -rf _site/recruit
+          mkdir -p _site/recruit
+          cp -r pwa-recruit/. _site/recruit/
+          touch _site/.nojekyll
+          cd _site
+          git add recruit .nojekyll
+          if git diff --cached --quiet; then
+            echo "No changes to deploy."; exit 0
+          fi
+          git commit -m "deploy 求人PWA (recruit)"
+          git push
+          echo "Deployed. Pages URL: https://${MEDIA_REPO%%/*}.github.io/${MEDIA_REPO#*/}/recruit/"
