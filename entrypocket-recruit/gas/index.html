@@ -332,7 +332,7 @@
     }
 
     /* ===== 募集中タブ（応募者ベース：直近に応募がある店舗＝募集中）===== */
-    var RECRUIT_RECENT_DAYS=45;      // 直近この日数に応募がある店舗を「募集中」とみなす
+    var RECRUIT_RECENT_DAYS=14;      // 直近この日数に応募がある店舗を「募集中」とみなす
     var RECRUIT_DORMANT_MAX_DAYS=180; // 応募がこの日数より古い店舗はもう扱わない（未提出アラートにも出さない）
     function renderRecruit(){
       var el=document.getElementById('recruitList');
@@ -368,7 +368,7 @@
       active.forEach(function(r){ h+=storeCard(r); });
       el.innerHTML=h;
     }
-    var RECRUIT_DORMANT_DAYS=45;   // 最終応募からこの日数を超えたら「長期応募なし」＝終了候補として警告表示
+    var RECRUIT_DORMANT_DAYS=14;   // 最終応募からこの日数を超えたら「長期応募なし」＝結果報告未提出へ
     function dormantDays(r){ if(!r.latest) return 0; return Math.floor((Date.now()-r.latest)/86400000); }
     function isDormant(r){ return r.latest && dormantDays(r)>=RECRUIT_DORMANT_DAYS; }
     function storeCard(r){
