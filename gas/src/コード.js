@@ -970,18 +970,44 @@ function _mentionExists_(account, mid) {
   for (var i = 0; i < col.length; i++) { if (String(col[i][0]) === String(mid)) return true; }
   return false;
 }
+// ストーリー再シェア可能な猶予（時間）。Instagramのストーリーは24hで消えるので、それ以降は店ストーリーに
+// リポストできない。既定24h（Scriptプロパティ IG_REPOST_WINDOW_H で微調整可・0<h<=48）。
+function _mentionRepostWindowH_() {
+  var v = PropertiesService.getScriptProperties().getProperty('IG_REPOST_WINDOW_H');
+  var n = v ? Number(v) : 24;
+  return (n > 0 && n <= 48) ? n : 24;
+}
+// 元メディアの生存確認（削除検知の補助）。404/410 のときだけ「削除済み」と断定。
+// 取得失敗・その他コードは“不明→生存扱い”にして誤判定（勝手にリポスト不可化）を避ける。
+function _mediaAlive_(url) {
+  if (!url) return false;
+  try {
+    var res = UrlFetchApp.fetch(url, { method: 'get', muteHttpExceptions: true, followRedirects: true });
+    var code = res.getResponseCode();
+    return !(code === 404 || code === 410);
+  } catch (e) { return true; }
+}
 function _apiMentions_(account) {
   var sh = _mentionSheet_(account);
   var last = sh.getLastRow();
   if (last < 2) return { items: [] };
   var rows = sh.getRange(2, 1, last - 1, 10).getValues();
+  var winH = _mentionRepostWindowH_(), now = Date.now(), checks = 0;
   var items = [];
   for (var i = 0; i < rows.length; i++) {
     var st = String(rows[i][7] || 'pending');
     if (st === 'ignored' || st === 'done') continue;             // 済み/無視は出さない
-    items.push({ mid: String(rows[i][0]), dt: rows[i][1], senderId: String(rows[i][3]),
-                 url: String(rows[i][5]), mediaType: String(rows[i][6] || 'story'),
-                 status: st, text: String(rows[i][8] || '') });
+    var dt = rows[i][1], t = 0;
+    try { t = new Date(dt).getTime(); } catch (e) {}
+    var ageH = t ? (now - t) / 3600000 : 999;
+    var url = String(rows[i][5] || '');
+    var repostable = true, reason = '';
+    if (ageH >= winH) { repostable = false; reason = 'expired'; }          // 24h超＝ストーリー消滅→再シェア不可
+    else if (checks < 12) { checks++; if (_mediaAlive_(url) === false) { repostable = false; reason = 'deleted'; } }  // 期限内は削除確認（負荷上限あり）
+    items.push({ mid: String(rows[i][0]), dt: dt, senderId: String(rows[i][3]),
+                 url: url, mediaType: String(rows[i][6] || 'story'),
+                 status: st, text: String(rows[i][8] || ''),
+                 ageH: Math.round(ageH * 10) / 10, repostable: repostable, reason: reason });
   }
   items.reverse();   // 新しい順
   return { items: items };
@@ -996,7 +1022,11 @@ function _mentionAct_(mid, action, text, account) {
     if (String(rows[i][0]) !== String(mid)) continue;
     if (action === 'ignore')      rows[i][7] = 'ignored';        // 無視
     else if (action === 'reply')  rows[i][7] = 'reply';          // DM返信のみ（Python送信）
-    else if (action === 'story')  rows[i][7] = 'approved';       // 店ストーリーに追加（Python投稿）
+    else if (action === 'story') {                               // 店ストーリーに追加（Python投稿）
+      var t0 = 0; try { t0 = new Date(rows[i][1]).getTime(); } catch (e) {}
+      if (t0 && (Date.now() - t0) >= _mentionRepostWindowH_() * 3600 * 1000) return 'expired';  // 期限切れは再シェア不可
+      rows[i][7] = 'approved';
+    }
     else return 'bad-action';
     if (text) rows[i][8] = String(text);
     rows[i][9] = new Date();

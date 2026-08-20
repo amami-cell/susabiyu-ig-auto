@@ -159,7 +159,7 @@
 <script>
 (function(){
   "use strict";
-  var V = "?v=160";  // メディアのキャッシュ更新用
+  var V = "?v=161";  // メディアのキャッシュ更新用
   var CFG = window.GIFUYA || {};
   var LIVE = !!window.GIFUYA_LIVE;               // 専用GAS注入済みなら実データ連携
   var GAS = (CFG.GAS_URL||"").trim();
@@ -564,6 +564,14 @@
         badge.textContent=done.t;
         card.insertBefore(badge, card.firstChild);
         ensureDoneLabel(); wrap.appendChild(card);   // 済みは末尾へ寄せる
+      } else if(r&&r.result==="expired"){
+        // 送信の直前に期限切れ（24h経過）→ リポスト不可を明示して一覧を再取得
+        toast("ストーリーの公開期限が過ぎたためリポストできません");
+        card.querySelectorAll(".acts,.tplrow").forEach(function(x){ x.style.display="none"; });
+        var xb=document.createElement("div");
+        xb.style.cssText="margin:8px 0 2px;padding:9px 11px;border-radius:10px;font-weight:800;font-size:13px;background:#2a1c1c;border:1px solid #5a3a3a;color:#e6a4a4";
+        xb.textContent="⛔ リポスト不可（ストーリー期限切れ）";
+        card.insertBefore(xb, card.firstChild); card.style.opacity=".82";
       } else { toast("反映できませんでした"); card.style.opacity="1"; card.querySelectorAll("button,textarea").forEach(function(b){b.disabled=false;}); }
     }).catch(function(){ toast("通信エラー"); card.style.opacity="1"; card.querySelectorAll("button,textarea").forEach(function(b){b.disabled=false;}); });
   }
@@ -581,24 +589,31 @@
     var lab=document.createElement("div"); lab.className="seclabel"; lab.innerHTML='💬 メンション <span class="cnt">読み込み中…</span>'; wrap.appendChild(lab);
     gJsonp({api:"mentions"}).then(function(res){
       var items=(res&&res.items)||[];
-      lab.innerHTML='💬 メンション <span class="cnt">'+items.length+'件</span>';
+      // リポスト可能（期限内・生存）とリポスト不可（期限切れ・削除済み）に仕分け
+      var live=items.filter(function(it){ return it.repostable!==false; });
+      var dead=items.filter(function(it){ return it.repostable===false; });
+      lab.innerHTML='💬 メンション <span class="cnt">'+items.length+'件</span>'+(dead.length?' <span style="font-size:12px;color:#e6a4a4;font-weight:700">（リポスト不可 '+dead.length+'件）</span>':'');
       if(!items.length){ var e=document.createElement("div"); e.className="hint"; e.textContent="確認待ちのメンションはありません。"; wrap.appendChild(e); return; }
-      items.forEach(function(it){
-        var c=document.createElement("div"); c.className="card";
-        var media=(String(it.mediaType).toLowerCase()==="video")
+      var taStyle="width:100%;min-height:64px;border-radius:12px;border:1px solid #262c36;background:#12161d;color:#eaeef2;padding:10px;font-family:inherit;font-size:13.5px";
+      function fmtWhen(it){ var _d=it.dt?new Date(it.dt):null; return (_d&&!isNaN(_d))?(("0"+_d.getHours()).slice(-2)+":"+("0"+_d.getMinutes()).slice(-2)):esc(String(it.dt||"")); }
+      function mediaHtml(it){ return (String(it.mediaType).toLowerCase()==="video")
           ? '<div class="mediaWrap reel"><video src="'+esc(it.url)+'" controls playsinline preload="metadata"></video></div>'
-          : '<div class="mediaWrap reel"><img loading="lazy" decoding="async" src="'+esc(it.url)+'" alt=""></div>';
-        var taStyle="width:100%;min-height:64px;border-radius:12px;border:1px solid #262c36;background:#12161d;color:#eaeef2;padding:10px;font-family:inherit;font-size:13.5px";
+          : '<div class="mediaWrap reel"><img loading="lazy" decoding="async" src="'+esc(it.url)+'" alt=""></div>'; }
+      // ① リポスト可能なメンション
+      live.forEach(function(it){
+        var c=document.createElement("div"); c.className="card";
         var storyChips=MENTION_STORY_TPL.map(function(t,i){ return '<button class="tpl" data-t="'+esc(t)+'">例'+(i+1)+'</button>'; }).join("")
           + '<button class="tpl" data-reset="story">↩ 規定に戻す</button>';
         var dmChips=MENTION_DM_TPL.map(function(t,i){ return '<button class="tpl" data-d="'+esc(t)+'">DM例'+(i+1)+'</button>'; }).join("")
           + '<button class="tpl" data-reset="dm">↩ 規定に戻す</button>';
         var isAuto=String(it.status)==="auto";
-        var _d=it.dt?new Date(it.dt):null, when=(_d&&!isNaN(_d))?(("0"+_d.getHours()).slice(-2)+":"+("0"+_d.getMinutes()).slice(-2)):esc(String(it.dt||""));
+        // 残り時間（24h窓）を表示：期限が近いほど早めの対応を促す
+        var remainH=(typeof it.ageH==="number")?Math.max(0,Math.floor(24-it.ageH)):null;
+        var remTxt=(remainH!=null)?('<span style="font-size:11px;color:'+(remainH<=3?'#e6a4a4':'#8b93a2')+';font-weight:700;margin-left:8px">リポスト期限 残り約'+remainH+'時間</span>'):'';
         var note=isAuto?'<div class="banner ngb" style="margin:8px 0 0">🕒 自動投稿の予定です。何もしなければ約5時間後にリポストします。それまでに文面を直して「今すぐ投稿」、やめる場合は「取り消し」。</div>':'';
         c.innerHTML=
-          '<div class="chead"><span class="kind">💬 メンション</span><span class="cno">'+when+'</span></div>'+
-          media+note+
+          '<div class="chead"><span class="kind">💬 メンション</span><span class="cno">'+fmtWhen(it)+remTxt+'</span></div>'+
+          mediaHtml(it)+note+
           '<div style="margin:10px 2px 4px;font-size:12px;color:#9aa3b2">① シェアコメント（店ストーリーに焼く文）</div>'+
           '<textarea class="mtext" style="'+taStyle+'"></textarea>'+
           '<div class="tplrow" style="display:flex;gap:6px;flex-wrap:wrap;margin:8px 0">'+storyChips+'</div>'+
@@ -630,6 +645,27 @@
         c.querySelector('[data-a="ignore"]').onclick=function(){ mentAct(it.mid,"ignore","",this); };
         wrap.appendChild(c);
       });
+      // ② リポストできない（ストーリー期限切れ／元投稿削除）。理由を明示し、一覧から消すだけ。
+      if(dead.length){
+        var dl=document.createElement("div"); dl.className="seclabel"; dl.style.cssText="margin-top:20px";
+        dl.innerHTML='⛔ リポストできない <span class="cnt">'+dead.length+'件</span>';
+        wrap.appendChild(dl);
+        var dhint=document.createElement("div"); dhint.className="hint";
+        dhint.innerHTML="ストーリーは公開から約24時間で消えるため、それ以降は店ストーリーに再シェアできません。元の投稿が削除された場合も同様です。<br>下記は<b>リポスト不可</b>です（お礼DMも期限切れの場合あり）。確認できたら「一覧から消す」で片付けられます。";
+        wrap.appendChild(dhint);
+        dead.forEach(function(it){
+          var c=document.createElement("div"); c.className="card"; c.style.opacity=".82";
+          var why=(it.reason==="deleted")?"元の投稿が削除されています":"ストーリーの公開期限（24時間）が過ぎています";
+          var ageTxt=(typeof it.ageH==="number")?("約"+Math.floor(it.ageH)+"時間前"):"";
+          c.innerHTML=
+            '<div class="chead"><span class="kind" style="background:#3a2a2a;color:#e6a4a4">⛔ リポスト不可</span><span class="cno">'+fmtWhen(it)+(ageTxt?'・'+ageTxt:'')+'</span></div>'+
+            mediaHtml(it)+
+            '<div class="banner ngb" style="margin:8px 0 0">⛔ '+why+'（店ストーリーへのリポストはできません）</div>'+
+            '<div class="acts"><button class="resv" data-a="ignore" style="flex:1;background:#2a2330;border:1px solid #3a2a3a">一覧から消す</button></div>';
+          c.querySelector('[data-a="ignore"]').onclick=function(){ mentAct(it.mid,"ignore","",this); };
+          wrap.appendChild(c);
+        });
+      }
     }).catch(function(){ lab.innerHTML='💬 メンション <span class="cnt">取得エラー（実データ連携時のみ）</span>'; });
   }
 
