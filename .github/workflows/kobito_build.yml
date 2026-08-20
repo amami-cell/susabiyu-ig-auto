@@ -60,6 +60,11 @@ jobs:
           ~/godot-bin/godot --headless --path kobito-3d -- --selftest | tee solo.log
           grep -q "\[selftest\] OK" solo.log
 
+      - name: ブラウザ版と同じ条件（待ち受け不可）での1人プレイ確認
+        run: |
+          ~/godot-bin/godot --headless --path kobito-3d -- --selftest --offline | tee offline.log
+          grep -q "\[selftest\] OK" offline.log
+
       - name: 2台つなぐ確認（ENet）
         run: |
           ~/godot-bin/godot --headless --path kobito-3d -- --selftest-host > host.log 2>&1 &

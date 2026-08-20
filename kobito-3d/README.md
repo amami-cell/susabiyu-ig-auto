@@ -34,21 +34,45 @@ Godot 4.7 / GDScript。**オンライン協力プレイ・スマホ本命・当�
 1. ホスト側：「**ホストする**」を押す。画面下に自分のIP（例 `192.168.1.5`）が出ます。
 2. 参加側：そのIPを入力して「**参加する**」。
 
+### iPhone から（＝Web版・費用0円）
+iPhone にネイティブで入れるには年 $99 かかるので、**Web版をSafariで開く**のが0円ルートです。ただし2つ制約があります。
+
+- **ブラウザはホストになれません。** WebSocketの待ち受けはブラウザでは作れないので、
+  iPhone は必ず「参加する」側。ホストは PC か Android が務めます。
+  （ひとりで試すだけなら、Web版でも「ひとりで試す（通信なし）」が使えます）
+- **https のページからは `ws://` を張れません。** ブラウザが混在コンテンツとして遮断します。
+
+この2つを同時に回避するいちばん安い方法が、**ホスト役の機械が http でWeb版も配る**ことです。
+ページも通信も同じ相手・同じ http になるので、ブラウザは何も文句を言いません。
+
+```bash
+# ホスト役のPCで（build/web は Actions の成果物 kobito-web でも可）
+python3 tools/serve_web.py build/web
+#   → 同じWi-Fiの他端末 : http://192.168.x.x:8080/
+```
+
+出てきたURLを iPhone の Safari で開き、PC側で「ホストする」→ Safari側で「ホストに参加する」。
+参加先の欄には**このページを配っている相手が最初から入っている**ので、普通は触りません。
+
 ### 離れた場所から
 家のWi-Fiの外に出ると、スマホ回線は途中の網（CGNAT）に阻まれて直接はつながりません。**中継が要ります。**
 無料のまま行くなら次の順で検討してください（詳細は `ROADMAP.md` の「オンラインを家の外へ出す」）。
 
 1. どちらかの家に**ポート開放**（`24567/UDP`）— 追加費用0円。まずこれで十分。
 2. **Tailscale / ZeroTier**（個人利用は無料枠）で2台を同じ仮想LANに入れる。設定が一番ラク。
+   Web版を外から使うなら、`tailscale cert` で wss 用の証明書も無料で取れます。
 3. **常時稼働の中継サーバ**（Oracle Cloud Always Free など）に headless の Godot をホストとして常駐。
 
-`Net.transport` を **WebSocket** に切り替えると、ブラウザ版でも通信できます（PC/Androidアプリなら ENet のほうが低遅延）。
+通信路は Web版では自動で **WebSocket** になります（PC/Androidアプリは ENet のほうが低遅延なのでそちら）。
 
 ## 3. フォルダの見取り図
 
 ```
 kobito-3d/
-├─ project.godot          … 設定。入力キー・描画方式(gl_compatibility=スマホ安全側)
+├─ project.godot          … 設定。入力キー・描画方式(gl_compatibility=スマホ安全側)・既定テーマ
+├─ fonts/ipag.ttf         … IPAゴシック。**同梱しないとWeb版の日本語が全部豆腐(□)になる**
+├─ theme/main_theme.tres  … ボタンの見た目。スマホで「押せる場所」が分かるように
+├─ tools/serve_web.py     … Web版を同じWi-Fiの端末へ配る簡易サーバ（iPhone用）
 ├─ autoload/
 │  ├─ net.gd              … Net：ホスト/参加・名簿。1人プレイも「自分だけのホスト」
 │  └─ world_state.gd      … WorldState：環境回復度（このゲームの魂）
@@ -78,9 +102,15 @@ kobito-3d/
 # ひとりぶんの通し確認（庭・虫・戦闘・経験値・環境回復度）
 godot --headless --path kobito-3d -- --selftest
 
+# ブラウザ版と同じ条件（待ち受けできない）での1人プレイ確認
+godot --headless --path kobito-3d -- --selftest --offline
+
 # 2台つなぐ確認（ホスト側と参加側を別々に起動する）
 godot --headless --path kobito-3d -- --selftest-host
 godot --headless --path kobito-3d -- --selftest-join
+
+# 画面を見て確かめたいとき（画面のない環境では xvfb-run 経由で）
+godot --path kobito-3d -- --shot        # /tmp/shot_lobby.png と /tmp/shot_game.png
 ```
 
 GitHub に push すると `.github/workflows/kobito_build.yml`（**kobito-build**）が同じことを自動でやり、
@@ -99,6 +129,9 @@ GitHub に push すると `.github/workflows/kobito_build.yml`（**kobito-build*
 | 人型のモーション | [Mixamo](https://www.mixamo.com/) | 無料（Adobeアカウント） |
 | テクスチャ | [ambientCG](https://ambientcg.com/) | CC0 |
 | 効果音 | [Kenney Audio](https://kenney.nl/assets?q=audio) / [Freesound](https://freesound.org/) | CC0 / 要確認 |
+
+日本語フォントだけは先に入れてあります（`fonts/ipag.ttf` = IPAゴシック / IPAフォントライセンス v1.0）。
+Web版にはOSのフォントが無いので、同梱しないと**日本語が全部豆腐(□)になります**。詳細は `CREDITS.md`。
 
 使ったものは `CREDITS.md` に追記してください（CC0でも、どこから来たか分かるようにしておくと後で助かります）。
 

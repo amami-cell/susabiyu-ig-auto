@@ -24,6 +24,13 @@ window/handheld/orientation=6
 window/stretch/mode="canvas_items"
 window/stretch/aspect="expand"
 
+[gui]
+
+; ブラウザ版にはOSのフォントが無く、同梱しないと日本語が全部豆腐(□)になる。
+; 全プラットフォームで同じ見た目にするため、どの書き出しでもこれを使う。
+theme/custom="res://theme/main_theme.tres"
+theme/custom_font="res://fonts/ipag.ttf"
+
 [input_devices]
 
 pointing/emulate_touch_from_mouse=true

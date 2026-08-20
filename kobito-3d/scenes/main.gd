@@ -18,6 +18,11 @@ func _ready() -> void:
 	var args := OS.get_cmdline_user_args()
 	if args.has("--ws"):
 		Net.transport = Net.Transport.WEBSOCKET
+	if args.has("--offline"):
+		Net.force_offline = true
+	if args.has("--shot"):
+		_run_shot()
+		return
 	if args.has("--selftest"):
 		_run_selftest()
 	elif args.has("--selftest-host"):
@@ -129,3 +134,14 @@ func _wait_until(cond: Callable, timeout: float) -> bool:
 		await get_tree().create_timer(0.25).timeout
 		waited += 0.25
 	return false
+
+
+func _run_shot() -> void:
+	await get_tree().create_timer(1.5).timeout
+	await RenderingServer.frame_post_draw
+	get_viewport().get_texture().get_image().save_png("/tmp/shot_lobby.png")
+	Net.start_solo()
+	await get_tree().create_timer(3.0).timeout
+	await RenderingServer.frame_post_draw
+	get_viewport().get_texture().get_image().save_png("/tmp/shot_game.png")
+	get_tree().quit()

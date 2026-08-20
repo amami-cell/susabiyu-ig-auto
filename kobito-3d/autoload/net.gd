@@ -7,9 +7,14 @@ extends Node
 ##   ＝ start_solo() も host() の薄いラッパーでしかない。
 ##
 ## 通信路は2つ用意してある:
-##   ENET      … UDP。低遅延で本命。Android / PC 用。Webエクスポートでは使えない。
-##   WEBSOCKET … TCP。ブラウザでも動く。無料枠の中継サーバに載せやすい。
-## 迷ったら ENET。奥さんのスマホがブラウザで遊ぶ段になったら WEBSOCKET に切り替える。
+##   ENET      … UDP。低遅延で本命。Android / PC 用。ブラウザでは使えない。
+##   WEBSOCKET … TCP。ブラウザでも動く。iPhone(Web版)はこちら一択。
+## Web版で起動したときは自動で WEBSOCKET になるので、遊ぶ側は何も選ばなくてよい。
+##
+## ★ブラウザはホストになれない★
+##   WebSocketの待ち受け(サーバ)はブラウザでは作れない。
+##   つまり iPhone(Web版) は必ず「参加する」側。ホストは Android か PC が務める。
+##   ひとりで試すときだけは OfflineMultiplayerPeer を使って、通信なしで同じ道を通す。
 
 signal status_changed(text: String)
 signal roster_changed
@@ -26,6 +31,10 @@ const ROLE_NAMES := ["夫", "妻", "こども1", "こども2"]
 const ROLE_COLORS := [Color(0.45, 0.78, 0.5), Color(0.95, 0.55, 0.7), Color(0.6, 0.7, 0.95), Color(0.95, 0.85, 0.5)]
 
 var transport: Transport = Transport.ENET
+
+## 点検用: true にすると「ブラウザと同じ扱い」（待ち受けできない）を再現できる。
+## ブラウザ版の1人プレイが壊れていないかを、PC上のCIで確かめるために使う。
+var force_offline := false
 var my_display_name := "夫"
 var is_online := false
 
@@ -36,6 +45,9 @@ var _peer: MultiplayerPeer = null
 
 
 func _ready() -> void:
+	# ブラウザで動いているなら ENet は使えないので、問答無用で WebSocket にする
+	if is_web():
+		transport = Transport.WEBSOCKET
 	multiplayer.peer_connected.connect(_on_peer_connected)
 	multiplayer.peer_disconnected.connect(_on_peer_disconnected)
 	multiplayer.connected_to_server.connect(_on_connected_to_server)
@@ -45,12 +57,37 @@ func _ready() -> void:
 
 # ---------------------------------------------------------------- 開始・終了
 
-## ひとりで遊ぶ。中身は「自分だけのホスト」。あとから誰かが join できる。
+func is_web() -> bool:
+	return OS.has_feature("web")
+
+
+## ブラウザは待ち受けできない。それ以外(PC/Android)はホストになれる。
+func can_host() -> bool:
+	return not is_web() and not force_offline
+
+
+## ひとりで遊ぶ。
+## PC/Android … 「自分だけのホスト」。遊んでいる途中で相手が join できる。
+## ブラウザ    … 待ち受けできないので通信なしのピアを挿す。処理の道筋は同じ。
 func start_solo() -> Error:
-	return host(DEFAULT_PORT)
+	if can_host():
+		return host(DEFAULT_PORT)
+
+	_shutdown_peer()
+	_peer = OfflineMultiplayerPeer.new()
+	multiplayer.multiplayer_peer = _peer
+	is_online = false
+	roster.clear()
+	_register(1, my_display_name)
+	_emit_status("ひとりで遊んでいます（ブラウザ版は待ち受けができないので、2人で遊ぶときは参加側になります）")
+	session_started.emit()
+	return OK
 
 
 func host(port: int = DEFAULT_PORT) -> Error:
+	if not can_host():
+		_emit_status("ブラウザ版はホストになれません。PCかAndroid側でホストして、こちらは「参加する」を使ってください")
+		return ERR_UNAVAILABLE
 	_shutdown_peer()
 	var peer := _make_peer()
 	var err: Error
@@ -198,7 +235,26 @@ func color_of(id: int) -> Color:
 	return ROLE_COLORS[role_of(id) % ROLE_COLORS.size()]
 
 
+## Web版で「今このページを配っている相手」を参加先の初期値にする。
+## 同じ機械がゲームのホストも兼ねている構成なら、これで住所の入力が要らなくなる。
+##
+## 注意: https のページからは ws:// を張れない（ブラウザがブロックする）。
+## 家の中で遊ぶぶんには、ホスト機が http でWeb版を配れば同一オリジンなので素通り。
+## 外から繋ぐときだけ wss（＝証明書）が要る。tools/serve_web.py と README を参照。
+func web_default_address() -> String:
+	if not is_web():
+		return "127.0.0.1"
+	var host_name := str(JavaScriptBridge.eval("location.hostname", true))
+	var protocol := str(JavaScriptBridge.eval("location.protocol", true))
+	if host_name.is_empty():
+		return "127.0.0.1"
+	var scheme := "wss" if protocol == "https:" else "ws"
+	return "%s://%s:%d" % [scheme, host_name, DEFAULT_PORT]
+
+
 func local_ip_hint() -> String:
+	if is_web():
+		return "（ブラウザ版）"
 	for ip in IP.get_local_addresses():
 		if ip.begins_with("192.168.") or ip.begins_with("10.") or ip.begins_with("172."):
 			return ip
