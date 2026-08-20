@@ -446,9 +446,9 @@
       var ex=existingPosting(r);   // スプシに既にある同店舗の行（あれば上書き対象）
       r._srcSheet = ex ? ex.srcSheet : ''; r._srcRow = ex ? ex.srcRow : '';
       var times=arr.map(function(a){ var d=toDate(a.appliedAt); return d?d.getTime():0; }).filter(Boolean);
-      // 既存行があれば期間はそれに合わせる（＝重複防止）。無ければ応募日から推定。
+      // 既存行があれば期間はそれに合わせる（＝重複防止）。無ければEntryPocketの応募日から自動反映（開始=最初の応募／終了=最新の応募）。
       var start=(ex&&ex.start)?fmtYmd0(ex.start):(times.length?fmtYmd(new Date(Math.min.apply(null,times))):'');
-      var end=(ex&&ex.end)?fmtYmd0(ex.end):fmtYmd(new Date());
+      var end=(ex&&ex.end)?fmtYmd0(ex.end):(times.length?fmtYmd(new Date(Math.max.apply(null,times))):fmtYmd(new Date()));
       var apps=arr.length;
       var hires=arr.filter(function(a){ return sameCode(a.statusCode,'80')||a.status==='採用'; }).length;
       document.getElementById('modalTitle').textContent='募集終了：'+r.name;
@@ -460,9 +460,9 @@
       document.getElementById('modalBody').innerHTML=
         '<div class="modal-when">この店舗を募集終了し、求人結果報告（スプシ→Notion）に登録します。採用率・単価は元スプシの数式で自動計算されます。</div>'+
         dupNote+
-        '<label class="rf-l">応募期間（開始日・打ち出し終了日）</label>'+
-        '<div class="rf-grid">'+fd('掲載開始','er_start',start)+fd('掲載終了','er_end',end)+'</div>'+
-        '<div class="rf-hint" style="margin:6px 0;color:var(--muted);font-size:11px">※応募人数と採用人数はエントリーポケットから自動反映。集計数値は最終分で入力お願いします。</div>'+
+        '<label class="rf-l">連載期間（連載開始・連載終了日）</label>'+
+        '<div class="rf-grid">'+fd('連載開始','er_start',start)+fd('連載終了','er_end',end)+'</div>'+
+        '<div class="rf-hint" style="margin:6px 0;color:var(--muted);font-size:11px">※応募人数・採用人数・連載開始/終了日はエントリーポケットから自動反映。連載時期と集計数値の最終分は更新をお願いします。</div>'+
         '<div class="rf-grid">'+f('応募総数','er_apps',apps)+f('採用人数','er_hires',hires)+f('退職人数','er_quit','')+'</div>'+
         '<label class="rf-l">備考・退職理由</label><textarea class="rf-ta" id="er_note"></textarea>'+
         '<button class="rf-save" onclick="saveEndRecruit('+i+')">募集終了して結果を登録</button>'+
