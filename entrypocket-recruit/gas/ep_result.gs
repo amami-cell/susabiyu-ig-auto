@@ -157,6 +157,64 @@ function epEndRecruit(o) {
   return { ok: true, row: row, store: store, created: created };
 }
 
+/**
+ * 【緊急用・パスワード必須】求人結果報告(元スプシ)の行を1件削除する。
+ * 完全無料枠など結果報告が不要な打ち出しを消す用。パスワードは "8888"。
+ * 誤爆防止：指定行の店舗名が一致するか検証してから削除。削除内容は _削除ログ に残す。
+ */
+function epDeletePosting(o) {
+  o = o || {};
+  if (String(o.pass || "") !== "8888") return { ok: false, error: "パスワードが違います" };
+  if (typeof epWriteEnabled_ === 'function' && !epWriteEnabled_()) return { ok: false, error: "書き込みが無効です" };
+  var store = epCleanStore_(String(o.store || "").replace(/\s+/g, " ").trim());
+  if (!store) return { ok: false, error: "店舗が空です" };
+
+  var ext;
+  try { ext = SpreadsheetApp.openById(NOTION_POSTINGS_SHEET_ID); }
+  catch (e) { return { ok: false, error: "スプレッドシートを開けません: " + e }; }
+
+  var sh = o.srcSheet ? ext.getSheetByName(o.srcSheet) : null;
+  if (!sh) {
+    var shs = ext.getSheets();
+    for (var s = 0; s < shs.length; s++) {
+      var w = Math.min(40, shs[s].getLastColumn() || 1);
+      var head = shs[s].getRange(1, 1, 1, w).getValues()[0].map(function (x) { return String(x || "").replace(/　/g, "").trim(); });
+      if (head.indexOf("店舗名") >= 0) { sh = shs[s]; break; }
+    }
+  }
+  if (!sh) return { ok: false, error: "対象シートが見つかりません" };
+
+  var vals = sh.getDataRange().getValues();
+  var hdr = vals[0].map(function (x) { return String(x || "").replace(/　/g, "").trim(); });
+  var col = function (key) { for (var j = 0; j < POST_COLMAP[key].length; j++) { var p = hdr.indexOf(POST_COLMAP[key][j]); if (p >= 0) return p; } return -1; };
+  var cStore = col("store"), cStart = col("start");
+  if (cStore < 0) return { ok: false, error: "店舗名の列が見つかりません" };
+  var norm = function (v) { return epCleanStore_(String(v || "").replace(/\s+/g, " ").trim()); };
+
+  // 行特定：控えた行番号→店舗名で検証。ダメなら店舗名＋開始日で探索。
+  var row = -1, r0 = parseInt(o.srcRow, 10);
+  if (r0 >= 2 && r0 <= vals.length && norm(vals[r0 - 1][cStore]) === store) row = r0;
+  if (row < 0) {
+    var want = o.start ? String(o.start) : "";
+    for (var i = 1; i < vals.length; i++) {
+      if (norm(vals[i][cStore]) !== store) continue;
+      if (want && cStart >= 0) { var d = epDate_(vals[i][cStart]); if (!d || Utilities.formatDate(d, "Asia/Tokyo", "yyyy-MM-dd") !== want) continue; }
+      row = i + 1; break;
+    }
+  }
+  if (row < 0) return { ok: false, error: "対象行が見つかりません（店舗名/期間が一致せず）" };
+
+  var snapshot = vals[row - 1].join(" | ");
+  sh.deleteRow(row);
+  try {
+    var ss = SpreadsheetApp.getActiveSpreadsheet();
+    var log = epSheet_(ss, "_削除ログ", ["日時", "店舗", "元行", "削除内容"]);
+    log.appendRow([Utilities.formatDate(new Date(), "Asia/Tokyo", "yyyy-MM-dd HH:mm:ss"), store, row, String(snapshot).slice(0, 800)]);
+  } catch (e) { }
+  try { var ss2 = SpreadsheetApp.getActiveSpreadsheet(); epImportPostings_(ss2); dashStoreCache_(); } catch (e) { }
+  return { ok: true, store: store, row: row };
+}
+
 /** master_店舗 の手動フラグ列(F)に値を書く（店舗表示名で照合）。 */
 function epSetStoreManual_(storeDisp, value) {
   var ss = SpreadsheetApp.getActiveSpreadsheet();
