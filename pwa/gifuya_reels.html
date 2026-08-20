@@ -220,7 +220,7 @@
 <script>
 (function(){
   "use strict";
-  var V = "?v=163";  // メディアのキャッシュ更新用
+  var V = "?v=164";  // メディアのキャッシュ更新用
   window.__APPV = "v" + (V.replace("?v=","")||"?");   // 画面下の版数表示用（?v=と同期）
   var CFG = window.GIFUYA || {};
   var LIVE = !!window.GIFUYA_LIVE;               // 専用GAS注入済みなら実データ連携
@@ -682,14 +682,34 @@
     document.getElementById("resvttl").textContent=fmtDateJ(k)+" の予約";
     document.getElementById("resvsub").textContent=items.length+"件の予約があります。タップした投稿は取り消せます。";
     var h="";
-    items.forEach(function(s){
+    items.forEach(function(s,idx){
       var thumb=s.media?'<img src="'+esc(s.media)+'" alt="">':'<div class="noimg">🍶</div>';
-      h+='<div class="rrow">'+thumb+'<div style="flex:1;min-width:0"><div class="rt">'+((s.kind||'feed')==='reel'?'🎬 リール':'📸 フィード')+' '+esc(String(s.when||"").slice(11,16))+'</div><div class="rn">'+esc(s.name||"")+'</div></div>'+
-        '<button class="rcancel" data-tok="'+esc(s.token)+'">取消</button></div>';
+      var cap=s.caption||"";
+      var detail=
+        '<div class="rdetail" data-i="'+idx+'" style="display:none;border:1px solid var(--line);border-top:0;border-radius:0 0 12px 12px;background:#0f1319;padding:10px 11px;margin:-8px 0 8px">'+
+          '<div style="font-size:11px;font-weight:800;color:var(--gold);margin:2px 0 5px">📝 実際に投稿される内容</div>'+
+          '<div style="font-size:13px;line-height:1.6;white-space:pre-wrap;color:#dfe5ee">'+(cap?esc(cap):"（本文なし）")+'</div>'+
+          (s.hashtags?('<div style="font-size:11.5px;color:#8ab4e0;margin-top:7px;word-break:break-word">'+esc(s.hashtags)+'</div>'):'')+
+        '</div>';
+      h+='<div class="rrow rtap" data-i="'+idx+'" style="cursor:pointer">'+thumb+
+           '<div style="flex:1;min-width:0"><div class="rt">'+((s.kind||'feed')==='reel'?'🎬 リール':'📸 フィード')+' '+esc(String(s.when||"").slice(11,16))+'</div>'+
+             '<div class="rn">'+esc(s.name||"")+'</div>'+
+             '<div style="font-size:10.5px;color:#7c8698;font-weight:700;margin-top:2px">▼ タップで投稿内容を表示</div></div>'+
+           '<button class="rcancel" data-tok="'+esc(s.token)+'">取消</button></div>'+
+         detail;
     });
     h+='<button class="rmore" id="rAddDay" style="margin-top:4px">＋ この日に追加で予約する</button>';
     body.innerHTML=h;
-    body.querySelectorAll(".rcancel").forEach(function(b){ b.onclick=function(){ if(!confirm("この予約を取り消しますか？"))return; b.disabled=true;b.textContent="取消中…";
+    // 行タップ＝投稿内容の開閉（取消ボタンは除外）
+    body.querySelectorAll(".rtap").forEach(function(row){
+      row.onclick=function(e){ if(e.target.closest(".rcancel"))return;
+        var i=row.getAttribute("data-i");
+        var d=body.querySelector('.rdetail[data-i="'+i+'"]');
+        if(d){ var open=d.style.display!=="none"; d.style.display=open?"none":"block";
+          var hint=row.querySelector('div[style*="タップ"]'); if(hint) hint.textContent=open?"▼ タップで投稿内容を表示":"▲ 閉じる"; }
+      };
+    });
+    body.querySelectorAll(".rcancel").forEach(function(b){ b.onclick=function(ev){ ev.stopPropagation(); if(!confirm("この予約を取り消しますか？"))return; b.disabled=true;b.textContent="取消中…";
       gJsonp({api:"schedcancel",token:b.getAttribute("data-tok")}).then(function(r){ toast(r&&r.ok?"予約を取り消しました":"取り消せませんでした"); loadSched(); closeResv(); })
         .catch(function(){toast("通信エラー");b.disabled=false;b.textContent="取消";}); }; });
     body.querySelector("#rAddDay").onclick=function(){ openNewResv(k); };
@@ -708,6 +728,7 @@
       '</div>'+
       '<div id="nvGridPrev"></div>'+
       '<div id="nvPickWrap"></div>'+
+      '<div id="nvDetail"></div>'+
       '<div class="rtime"><label style="font-size:12px;font-weight:800;color:var(--sub);width:100%">投稿時間（'+fmtDateJ(k)+'）</label>'+
         '<input type="time" id="nvTime" value="18:00"></div>'+
       '<div id="nvSlot"></div>'+
@@ -725,8 +746,18 @@
       });
       html+='</div><button class="rmore" id="nvMore">'+(newResv.all?"▲ おすすめだけ":"▼ 全商品から選ぶ（全"+list.length+"品）")+'</button>';
       el.innerHTML=html;
-      el.querySelectorAll(".pk").forEach(function(b){ b.onclick=function(){ var t=b.getAttribute("data-t"); newResv.pick=list.filter(function(x){return x.t===t;})[0]||null; drawPick(); drawGridPrev(); updateGo(); }; });
+      el.querySelectorAll(".pk").forEach(function(b){ b.onclick=function(){ var t=b.getAttribute("data-t"); newResv.pick=list.filter(function(x){return x.t===t;})[0]||null; drawPick(); drawGridPrev(); drawDetail(); updateGo(); }; });
       body.querySelector("#nvMore").onclick=function(){ newResv.all=!newResv.all; drawPick(); };
+    }
+    function drawDetail(){
+      var el=body.querySelector("#nvDetail"); if(!el) return;
+      if(!newResv.pick){ el.innerHTML=""; return; }
+      var p=newResv.pick, full=fullCaption(p.cap,p.tags);
+      el.innerHTML='<div style="border:1px solid var(--line);border-radius:12px;background:#0f1319;padding:11px;margin:2px 0 10px">'+
+        '<div style="font-size:11px;font-weight:800;color:var(--gold);margin-bottom:5px">📝 実際に投稿される内容（'+esc(p.t)+' ['+esc(genreOf(p.t))+']）</div>'+
+        '<div style="font-size:13px;line-height:1.6;white-space:pre-wrap;color:#dfe5ee">'+esc(full)+'</div>'+
+        '<div style="font-size:10.5px;color:#7c8698;margin-top:7px">※ハッシュタグは画面で選んだ分が付きます（フィード/リールの各カードで編集可）。</div>'+
+      '</div>';
     }
     function drawGridPrev(){
       var gp=body.querySelector("#nvGridPrev");
@@ -739,8 +770,8 @@
       h+='</div>'; gp.innerHTML=h;
     }
     function updateGo(){ var go=body.querySelector("#nvGo"); if(newResv.pick){ go.disabled=false; go.textContent="この内容で予約する（"+fmtDateJ(k)+" "+(body.querySelector("#nvTime").value||"18:00")+"）"; } else { go.disabled=true; go.textContent="投稿を選んでください"; } }
-    body.querySelector("#nvFeed").onclick=function(){ newResv.kind="feed";newResv.pick=null;newResv.all=false; this.classList.add("on");body.querySelector("#nvReel").classList.remove("on"); drawPick();drawGridPrev();updateGo(); };
-    body.querySelector("#nvReel").onclick=function(){ newResv.kind="reel";newResv.pick=null;newResv.all=false; this.classList.add("on");body.querySelector("#nvFeed").classList.remove("on"); drawPick();drawGridPrev();updateGo(); toast("リールは準備中です（形だけの表示）"); };
+    body.querySelector("#nvFeed").onclick=function(){ newResv.kind="feed";newResv.pick=null;newResv.all=false; this.classList.add("on");body.querySelector("#nvReel").classList.remove("on"); drawPick();drawGridPrev();drawDetail();updateGo(); };
+    body.querySelector("#nvReel").onclick=function(){ newResv.kind="reel";newResv.pick=null;newResv.all=false; this.classList.add("on");body.querySelector("#nvFeed").classList.remove("on"); drawPick();drawGridPrev();drawDetail();updateGo(); toast("リールは準備中です（形だけの表示）"); };
     body.querySelector("#nvTime").oninput=updateGo;
     body.querySelector("#nvGo").onclick=function(){ if(!newResv.pick)return;
       var tt=body.querySelector("#nvTime").value||"18:00"; var slot=body.querySelector("#nvSlot");
@@ -748,7 +779,7 @@
       doSchedule(newResv.kind,newResv.pick,k+" "+tt,slot,"予約しました");
       setTimeout(function(){ loadSched(); closeResv(); },1100);
     };
-    drawPick(); drawGridPrev(); updateGo();
+    drawPick(); drawGridPrev(); drawDetail(); updateGo();
     m.classList.add("open");
   }
   function closeResv(){ document.getElementById("resvmodal").classList.remove("open"); }

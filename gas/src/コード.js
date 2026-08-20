@@ -777,7 +777,9 @@ function schedList_(account) {
   for (var i = 1; i < v.length; i++) {
     if (String(v[i][6]).trim() !== "scheduled") continue;
     if (String(v[i][9] || "").trim() !== want) continue;
-    out.push({ token: v[i][0], when: _whenStr_(v[i][1]), kind: v[i][2], media: v[i][3], name: (v[i][4] || "").split("\n")[0].slice(0, 24), copy: "" });
+    out.push({ token: v[i][0], when: _whenStr_(v[i][1]), kind: v[i][2], media: v[i][3],
+               name: (v[i][4] || "").split("\n")[0].slice(0, 24),
+               caption: String(v[i][4] || ""), hashtags: String(v[i][5] || ""), copy: "" });
   }
   out.sort(function (a, b) { return String(a.when) < String(b.when) ? -1 : 1; });
   return { ok: true, items: out };
