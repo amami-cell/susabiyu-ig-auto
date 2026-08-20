@@ -135,7 +135,88 @@ jobs:
           retention-days: 14
 
   # ------------------------------------------------------------------
-  # 3) Android APK … 本命。Actions の成果物 kobito-apk を落として端末に入れる
+  # 3) PC版（Windows / Linux）… ダウンロードして展開 → ダブルクリックで起動。
+  #    Python もサーバーも要らないので、これが「PCで触る」いちばん確実な形。
+  # ------------------------------------------------------------------
+  desktop:
+    runs-on: ubuntu-latest
+    needs: selftest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Cache Godot + templates
+        id: cache-godot
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/godot-bin
+            ~/.local/share/godot/export_templates
+          key: godot-tpl-${{ env.GODOT_VERSION }}
+
+      - name: Download Godot + templates
+        if: steps.cache-godot.outputs.cache-hit != 'true'
+        run: |
+          set -e
+          mkdir -p ~/godot-bin && cd ~/godot-bin
+          curl -fsSL -o godot.zip \
+            "https://github.com/godotengine/godot/releases/download/${GODOT_VERSION}/Godot_v${GODOT_VERSION}_linux.x86_64.zip"
+          unzip -q godot.zip && rm godot.zip
+          mv Godot_v${GODOT_VERSION}_linux.x86_64 godot && chmod +x godot
+          curl -fsSL -o tpl.tpz \
+            "https://github.com/godotengine/godot/releases/download/${GODOT_VERSION}/Godot_v${GODOT_VERSION}_export_templates.tpz"
+          mkdir -p ~/.local/share/godot/export_templates
+          unzip -q tpl.tpz -d tpl
+          mv tpl/templates ~/.local/share/godot/export_templates/${GODOT_VERSION/-/.}
+          rm -rf tpl tpl.tpz
+
+      - name: Export Windows / Linux
+        run: |
+          ~/godot-bin/godot --headless --path kobito-3d --import
+          mkdir -p kobito-3d/build/windows kobito-3d/build/linux
+          ~/godot-bin/godot --headless --path kobito-3d --export-release "Windows" "build/windows/小人一家と汚れた世界.exe"
+          ~/godot-bin/godot --headless --path kobito-3d --export-release "Linux" build/linux/kobito.x86_64
+          ls -la kobito-3d/build/windows kobito-3d/build/linux
+
+      - name: 遊びかたのメモを同梱
+        run: |
+          cat > kobito-3d/build/windows/はじめに.txt <<'TXT'
+          小人一家と汚れた世界 — PC版（Windows）
+
+          このフォルダを「すべて展開」してから、
+          「小人一家と汚れた世界.exe」をダブルクリックしてください。
+
+          ※ zip の中身のまま実行すると動きません。必ず展開してから。
+          ※ 初回は Windows が「WindowsによってPCが保護されました」と出ます。
+             （身内用で署名を買っていないため。ストアの審査とは無関係です）
+             「詳細情報」→「実行」で進めます。
+
+          遊びかた
+            起動したら「ひとりで始める」
+            移動      WASD / 矢印キー（マウスで画面左半分をドラッグでも可）
+            こうげき  J
+            つかむ    E
+            跳ぶ・飛ぶ スペース（レベル3から長押しで飛べます）
+            戻る      Esc
+
+          2人で遊ぶとき
+            片方が「ホストする」→ 画面に出るIPを、もう片方が入れて「参加する」
+          TXT
+          cp kobito-3d/build/windows/はじめに.txt kobito-3d/build/linux/
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: kobito-windows
+          path: kobito-3d/build/windows
+          retention-days: 14
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: kobito-linux
+          path: kobito-3d/build/linux
+          retention-days: 14
+
+  # ------------------------------------------------------------------
+  # 4) Android APK … 本命。Actions の成果物 kobito-apk を落として端末に入れる
   # ------------------------------------------------------------------
   android:
     runs-on: ubuntu-latest

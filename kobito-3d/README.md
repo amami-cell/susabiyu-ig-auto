@@ -7,7 +7,23 @@ Godot 4.7 / GDScript。**オンライン協力プレイ・スマホ本命・当�
 
 ---
 
-## 1. すぐ動かす
+## 0. とりあえず遊ぶだけなら（Godotを入れなくていい）
+
+GitHub → **Actions** → `kobito-build` の最新の実行 → 一番下の **Artifacts** から落とすだけ。
+
+| 成果物 | 中身 | 遊び方 |
+|---|---|---|
+| `kobito-windows` | Windows用 | zipを**展開してから** `小人一家と汚れた世界.exe` をダブルクリック |
+| `kobito-linux` | Linux用 | 展開して `./kobito.x86_64` |
+| `kobito-apk` | Android用 | スマホに送ってタップ→「提供元不明のアプリ」を許可 |
+| `kobito-web` | ブラウザ用 | `python3 tools/serve_web.py <展開先>` で配る（iPhoneはこれ） |
+
+> Windowsは初回だけ「WindowsによってPCが保護されました」と出ます。
+> 身内用で署名を買っていないためで、「詳細情報」→「実行」で進めます。
+
+---
+
+## 1. 自分で開発するとき
 
 1. [godotengine.org](https://godotengine.org/download) から **Godot 4.7 系 Standard版**（C#不要）をダウンロード。
    インストール不要、実行ファイル1個です。
