@@ -31,6 +31,14 @@ function doGet(e) {
       } catch (err2) { so = { ok: false, error: String(err2) }; }
       return ContentService.createTextOutput(JSON.stringify(so)).setMimeType(ContentService.MimeType.JSON);
     }
+    // 結果入力だけの共有ページ（他の人に入力を依頼するURL）
+    if (e.parameter.entry) {
+      var eo = {}; try { eo = JSON.parse(e.parameter.d || '{}'); } catch (x) { eo = {}; }
+      var data; try { data = epEntryData_(eo); } catch (err3) { data = { ok: false, error: String(err3) }; }
+      var t = HtmlService.createTemplateFromFile('entry');
+      t.ENTRY = JSON.stringify(data);
+      return t.evaluate().setTitle('求人結果 入力').addMetaTag('viewport', 'width=device-width, initial-scale=1, viewport-fit=cover');
+    }
   }
   // ダッシュボード本体。PC/スマホのタブ用favicon＋iframe許可（求人PWAが中に表示するため）。
   return HtmlService.createHtmlOutputFromFile('index')

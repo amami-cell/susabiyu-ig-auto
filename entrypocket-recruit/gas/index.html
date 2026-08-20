@@ -591,8 +591,20 @@
         '<div class="rf-grid">'+f('応募総数','rf_apps_'+id,appsV)+f('採用人数','rf_hires_'+id,hiresV)+f('退職人数','rf_quit_'+id,p.quit)+'</div>'+
         '<label class="rf-l">備考・退職理由</label><textarea class="rf-ta" id="rf_note_'+id+'">'+esc(p.note||'')+'</textarea>'+
         '<button class="rf-save" onclick="event.stopPropagation();saveResult(\''+id+'\')">保存</button>'+
-        '<div class="rf-hint">保存後、元スプシの「プロジェクト実行」でNotionへ反映されます</div>'+
+        '<button onclick="event.stopPropagation();copyEntryUrl(\''+id+'\')" style="width:100%;margin-top:8px;background:transparent;border:1px solid var(--accent);color:var(--accent);border-radius:9px;padding:9px;font-size:12px;cursor:pointer">🔗 入力用URLをコピー（他の人に入力を依頼）</button>'+
+        '<div class="rf-hint">保存後、元スプシの「プロジェクト実行」でNotionへ反映されます。URLを送れば、その人が入力欄だけ入力→そのまま結果に反映されます。</div>'+
       '</div>';
+    }
+    // 結果入力だけの共有URL（他の人に入力してもらう）。/exec?entry=1&d=... を開くと入力専用ページ。
+    var EXEC_URL='https://script.google.com/macros/s/AKfycbz6i36c7UjbM3S44kl1kEcsI0CSjYo9jL-W-T4BJUAr9jmBlVXj-vnQTUwQbGoxcHYT/exec';
+    function ymd(x){ var d=toDate(x); return d?fmtYmd(d):(x||''); }
+    function entryUrl(p){ var d={ s:p.srcSheet||'', r:p.srcRow||'', st:p.store||'', start:ymd(p.start), end:ymd(p.end) };
+      return EXEC_URL+'?entry=1&d='+encodeURIComponent(JSON.stringify(d)); }
+    function copyEntryUrl(id){ var p=postById[id]; if(!p) return; var u=entryUrl(p);
+      if(navigator.clipboard&&navigator.clipboard.writeText){
+        navigator.clipboard.writeText(u).then(function(){ toast('入力用URLをコピーしました。送ってください'); },
+          function(){ prompt('このURLをコピーして送ってください', u); });
+      } else prompt('このURLをコピーして送ってください', u);
     }
     function saveResult(id){
       var p=postById[id]; if(!p) return;
