@@ -1,0 +1,211 @@
+name: kobito-build
+
+# 小人一家と汚れた世界（kobito-3d）の自動チェック＆ビルド。
+#
+# ねらい: 「push したら、壊れていないかが自動で分かる／奥さんのスマホに入れるAPKが出てくる」。
+# 募集システムや インスタ投稿システムとは無関係。paths で kobito-3d/ だけを見ているので
+# 他の仕組みには一切影響しない。
+#
+# 無料枠について: このリポジトリは public なので標準ランナーは無料・無制限。
+# 重いのは Godot本体(75MB)とエクスポートテンプレート(1.3GB)のダウンロードなので、
+# cache に載せて2回目以降はほぼ待たない。従量課金の要素は無し。
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ main, 'claude/**' ]
+    paths:
+      - 'kobito-3d/**'
+      - '.github/workflows/kobito_build.yml'
+
+env:
+  GODOT_VERSION: 4.7-stable
+
+concurrency:
+  group: kobito-build-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # ------------------------------------------------------------------
+  # 1) 自己点検 … ひとりぶん＋2台つないだオンラインを headless で通す
+  # ------------------------------------------------------------------
+  selftest:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Cache Godot
+        id: cache-godot
+        uses: actions/cache@v4
+        with:
+          path: ~/godot-bin
+          key: godot-${{ env.GODOT_VERSION }}
+
+      - name: Download Godot
+        if: steps.cache-godot.outputs.cache-hit != 'true'
+        run: |
+          set -e
+          mkdir -p ~/godot-bin && cd ~/godot-bin
+          curl -fsSL -o godot.zip \
+            "https://github.com/godotengine/godot/releases/download/${GODOT_VERSION}/Godot_v${GODOT_VERSION}_linux.x86_64.zip"
+          unzip -q godot.zip && rm godot.zip
+          mv Godot_v${GODOT_VERSION}_linux.x86_64 godot
+          chmod +x godot
+
+      - name: Import project
+        run: ~/godot-bin/godot --headless --path kobito-3d --import
+
+      - name: ひとりぶんの通し確認（庭・虫・戦闘・経験値・環境回復度）
+        run: |
+          ~/godot-bin/godot --headless --path kobito-3d -- --selftest | tee solo.log
+          grep -q "\[selftest\] OK" solo.log
+
+      - name: 2台つなぐ確認（ENet）
+        run: |
+          ~/godot-bin/godot --headless --path kobito-3d -- --selftest-host > host.log 2>&1 &
+          HOST_PID=$!
+          sleep 3
+          ~/godot-bin/godot --headless --path kobito-3d -- --selftest-join > join.log 2>&1
+          JOIN_RC=$?
+          wait $HOST_PID; HOST_RC=$?
+          cat host.log join.log
+          test "$HOST_RC" = "0" && test "$JOIN_RC" = "0"
+
+      - name: 2台つなぐ確認（WebSocket＝ブラウザ用の通信路）
+        run: |
+          ~/godot-bin/godot --headless --path kobito-3d -- --selftest-host --ws > hostws.log 2>&1 &
+          HOST_PID=$!
+          sleep 3
+          ~/godot-bin/godot --headless --path kobito-3d -- --selftest-join --ws > joinws.log 2>&1
+          JOIN_RC=$?
+          wait $HOST_PID; HOST_RC=$?
+          cat hostws.log joinws.log
+          test "$HOST_RC" = "0" && test "$JOIN_RC" = "0"
+
+  # ------------------------------------------------------------------
+  # 2) Web書き出し … スマホにURLを送ってその場で試せる形
+  # ------------------------------------------------------------------
+  web:
+    runs-on: ubuntu-latest
+    needs: selftest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Cache Godot + templates
+        id: cache-godot
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/godot-bin
+            ~/.local/share/godot/export_templates
+          key: godot-tpl-${{ env.GODOT_VERSION }}
+
+      - name: Download Godot + templates
+        if: steps.cache-godot.outputs.cache-hit != 'true'
+        run: |
+          set -e
+          mkdir -p ~/godot-bin && cd ~/godot-bin
+          curl -fsSL -o godot.zip \
+            "https://github.com/godotengine/godot/releases/download/${GODOT_VERSION}/Godot_v${GODOT_VERSION}_linux.x86_64.zip"
+          unzip -q godot.zip && rm godot.zip
+          mv Godot_v${GODOT_VERSION}_linux.x86_64 godot && chmod +x godot
+          curl -fsSL -o tpl.tpz \
+            "https://github.com/godotengine/godot/releases/download/${GODOT_VERSION}/Godot_v${GODOT_VERSION}_export_templates.tpz"
+          mkdir -p ~/.local/share/godot/export_templates
+          unzip -q tpl.tpz -d tpl
+          mv tpl/templates ~/.local/share/godot/export_templates/${GODOT_VERSION/-/.}
+          rm -rf tpl tpl.tpz
+
+      - name: Export Web
+        run: |
+          ~/godot-bin/godot --headless --path kobito-3d --import
+          mkdir -p kobito-3d/build/web
+          ~/godot-bin/godot --headless --path kobito-3d --export-release "Web" build/web/index.html
+          ls -la kobito-3d/build/web
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: kobito-web
+          path: kobito-3d/build/web
+          retention-days: 14
+
+  # ------------------------------------------------------------------
+  # 3) Android APK … 本命。ダウンロードしてスマホに入れる
+  #
+  # ※このジョブだけは開発環境で実機検証できていないため、まずは
+  #   continue-on-error: true で「赤くても他を止めない」状態にしてある。
+  #   1回グリーンになったらこの行を消してよい。
+  # ------------------------------------------------------------------
+  android:
+    runs-on: ubuntu-latest
+    needs: selftest
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - uses: android-actions/setup-android@v3
+        with:
+          packages: 'platform-tools build-tools;34.0.0 platforms;android-34'
+
+      - name: Cache Godot + templates
+        id: cache-godot
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/godot-bin
+            ~/.local/share/godot/export_templates
+          key: godot-tpl-${{ env.GODOT_VERSION }}
+
+      - name: Download Godot + templates
+        if: steps.cache-godot.outputs.cache-hit != 'true'
+        run: |
+          set -e
+          mkdir -p ~/godot-bin && cd ~/godot-bin
+          curl -fsSL -o godot.zip \
+            "https://github.com/godotengine/godot/releases/download/${GODOT_VERSION}/Godot_v${GODOT_VERSION}_linux.x86_64.zip"
+          unzip -q godot.zip && rm godot.zip
+          mv Godot_v${GODOT_VERSION}_linux.x86_64 godot && chmod +x godot
+          curl -fsSL -o tpl.tpz \
+            "https://github.com/godotengine/godot/releases/download/${GODOT_VERSION}/Godot_v${GODOT_VERSION}_export_templates.tpz"
+          mkdir -p ~/.local/share/godot/export_templates
+          unzip -q tpl.tpz -d tpl
+          mv tpl/templates ~/.local/share/godot/export_templates/${GODOT_VERSION/-/.}
+          rm -rf tpl tpl.tpz
+
+      - name: デバッグ用の署名鍵をその場で作る（配布用ではない）
+        run: |
+          keytool -keyalg RSA -genkeypair -alias androiddebugkey -keypass android \
+            -keystore "$HOME/debug.keystore" -storepass android \
+            -dname "CN=Android Debug,O=Android,C=US" -validity 9999 -deststoretype pkcs12
+
+      - name: Godot のエディタ設定に SDK と鍵を書く
+        run: |
+          mkdir -p ~/.config/godot
+          cat > ~/.config/godot/editor_settings-4.7.tres <<EOF
+          [gd_resource type="EditorSettings" format=3]
+
+          [resource]
+          export/android/android_sdk_path = "${ANDROID_SDK_ROOT}"
+          export/android/java_sdk_path = "${JAVA_HOME}"
+          export/android/debug_keystore = "${HOME}/debug.keystore"
+          export/android/debug_keystore_user = "androiddebugkey"
+          export/android/debug_keystore_pass = "android"
+          EOF
+
+      - name: Export APK
+        run: |
+          ~/godot-bin/godot --headless --path kobito-3d --import
+          mkdir -p kobito-3d/build/android
+          ~/godot-bin/godot --headless --path kobito-3d --export-debug "Android" build/android/kobito.apk
+          ls -la kobito-3d/build/android
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: kobito-apk
+          path: kobito-3d/build/android/*.apk
+          retention-days: 14

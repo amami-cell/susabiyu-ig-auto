@@ -1,0 +1,49 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scenes/ui/touch_pad.gd" id="1_pad"]
+
+[node name="TouchPad" type="Control"]
+anchor_right = 1.0
+anchor_bottom = 1.0
+mouse_filter = 2
+script = ExtResource("1_pad")
+
+[node name="StickArea" type="Control" parent="."]
+anchor_right = 0.5
+anchor_bottom = 1.0
+mouse_filter = 0
+
+[node name="CameraArea" type="Control" parent="."]
+anchor_left = 0.5
+anchor_right = 1.0
+anchor_bottom = 1.0
+mouse_filter = 0
+
+[node name="Buttons" type="HBoxContainer" parent="."]
+anchor_left = 1.0
+anchor_top = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = -400.0
+offset_top = -140.0
+offset_right = -24.0
+offset_bottom = -24.0
+grow_horizontal = 0
+grow_vertical = 0
+theme_override_constants/separation = 16
+
+[node name="BtnGrab" type="Button" parent="Buttons"]
+custom_minimum_size = Vector2(112, 112)
+size_flags_horizontal = 3
+text = "つかむ"
+
+[node name="BtnJump" type="Button" parent="Buttons"]
+custom_minimum_size = Vector2(112, 112)
+size_flags_horizontal = 3
+text = "跳ぶ
+/飛ぶ"
+
+[node name="BtnAttack" type="Button" parent="Buttons"]
+custom_minimum_size = Vector2(112, 112)
+size_flags_horizontal = 3
+text = "こうげき"
