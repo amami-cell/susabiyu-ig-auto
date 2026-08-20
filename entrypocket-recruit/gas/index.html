@@ -500,10 +500,23 @@
     }
 
     /* ===== 打ち出し履歴タブ ===== */
+    // 結果報告の重複チェック：同じ店舗＋同じ掲載開始日の行が2件以上＝重複の疑い
+    function dupePostings(){
+      var by={}; postings.forEach(function(p){ var d=toDate(p.start); var sk=d?fmtYmd(d):(p.start||'');
+        var k=normStore(p.store)+'|'+sk; (by[k]=by[k]||[]).push(p); });
+      return Object.keys(by).map(function(k){ return by[k]; }).filter(function(g){ return g.length>1; });
+    }
+    function dupeAlertHtml(){
+      var g=dupePostings(); if(!g.length) return '';
+      return '<div class="alert"><div class="al-h">⚠️ 結果報告 重複の疑い '+g.length+'組</div>'+
+        '<div class="al-note">同じ店舗・同じ掲載開始日の結果報告が複数あります。不要な方は展開して「🗑 削除（緊急用）」で消せます。</div>'+
+        g.map(function(grp){ return '<div class="prow"><div class="pr-nm">'+esc(grp[0].store)+' <span class="warnchip">'+grp.length+'件</span></div>'+
+          '<div class="pr-sub muted" style="font-size:12px">掲載開始 '+fmtD(grp[0].start)+'　'+grp.map(function(p){return '応募'+(has(p.apps)?p.apps:'-')+'/採用'+(has(p.hires)?p.hires:'-');}).join('　｜　')+'</div></div>'; }).join('')+'</div>';
+    }
     function renderHistory(){
       var el=document.getElementById('historyList');
       if(!postings.length){ el.innerHTML='<div class="empty">打ち出しデータがありません（次の取得で反映）</div>'; return; }
-      el.innerHTML='<div class="card">'+postings.slice(0,300).map(postingRow).join('')+'</div>';
+      el.innerHTML=dupeAlertHtml()+'<div class="card">'+postings.slice(0,300).map(postingRow).join('')+'</div>';
     }
     function postingRow(p){
       var id='pr'+(postingRow._i=(postingRow._i||0)+1);
@@ -521,12 +534,14 @@
       var area=[esc(p.area1||''),esc(p.area2||'')].filter(Boolean).join(' / ');
       var line2=[esc(p.line1||''),esc(p.line2||'')].filter(Boolean).join(' / ');
       var canForm = unsub && writeEnabled && has(p.srcRow);
+      var delBtn = (writeEnabled && has(p.srcRow)) ? '<button onclick="event.stopPropagation();delPosting(\''+id+'\')" style="margin-top:10px;background:transparent;border:1px solid var(--red);color:var(--red);border-radius:8px;padding:7px 12px;font-size:12px;cursor:pointer">🗑 この結果報告を削除（緊急用）</button>' : '';
       var moreInner =
         (canForm?resultForm(id,p):'')+
         (area?'<div><span class="k">エリア：</span>'+area+'</div>':'')+
         (line2?'<div><span class="k">路線：</span>'+line2+'</div>':'')+
         (p.reporter?'<div><span class="k">報告者：</span>'+esc(p.reporter)+'</div>':'')+
-        (p.note?'<div><span class="k">備考・退職理由：</span>\n'+esc(p.note)+'</div>':'');
+        (p.note?'<div><span class="k">備考・退職理由：</span>\n'+esc(p.note)+'</div>':'')+
+        delBtn;
       var more = moreInner ? '<div class="pr-more" id="'+id+'" hidden>'+moreInner+'</div>' : '';
       var hint = (unsub&&writeEnabled&&has(p.srcRow)) ? '<span class="pd" style="color:var(--amber)">タップで入力 ▾</span>'
                : (unsub&&reportUrl ? '<a class="btn-in sm" href="'+esc(reportUrl)+'" target="_top" onclick="event.stopPropagation()">スプシで入力 ▸</a>' : '');
@@ -573,6 +588,18 @@
         if(r&&r.ok){ p.apps=apps; p.hires=hires; p.quit=quit; p.note=note; p.state='終了'; toast('保存しました（Notionは元スプシの「プロジェクト実行」で反映）'); renderRecruit(); renderHistory(); renderStats(); }
         else toast('保存失敗: '+((r&&r.error)||''));
       }).withFailureHandler(function(e){ toast('通信エラー: '+(e&&e.message||'')); }).epSaveResult({ srcSheet:p.srcSheet, srcRow:p.srcRow, store:p.store, start:p.start, apps:apps, hires:hires, quit:quit, note:note });
+    }
+    // 緊急用：結果報告の行を削除（パスワード必須）。完全無料枠など結果報告不要な打ち出し用。
+    function delPosting(id){
+      var p=postById[id]; if(!p) return;
+      var pass=prompt('この結果報告を削除します。パスワードを入力してください。');
+      if(pass==null) return;
+      if(!confirm(p.store+'（'+fmtD(p.start)+'〜'+(p.end?fmtD(p.end):'')+'）の結果報告を削除します。\n元に戻せません。よろしいですか？')) return;
+      toast('削除中…');
+      google.script.run.withSuccessHandler(function(r){
+        if(r&&r.ok){ toast('削除しました'); load(); }
+        else toast('削除できませんでした: '+((r&&r.error)||''));
+      }).withFailureHandler(function(e){ toast('通信エラー: '+(e&&e.message||'')); }).epDeletePosting({ srcSheet:p.srcSheet, srcRow:p.srcRow, store:p.store, start:p.start, pass:pass });
     }
 
     /* ===== 応募者カード（店舗ドリルダウン内） ===== */
