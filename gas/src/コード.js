@@ -744,6 +744,11 @@ function _ghDispatch_(workflow, inputs) {
 }
 
 // ===== 予約投稿 / 地域タグ共有 / 投稿候補（PWA確認画面用・Claude追加） =====
+// 軽量化：schedlist/mentions を数秒だけキャッシュしてシート読取を省く（応答を速く・無料枠にも優しい）。
+//   書込（作成/取消/非表示/メンション操作）時は必ず該当キーを消して「反映は確実」に保つ。
+function _cacheGet_(key) { try { var v = CacheService.getScriptCache().get(key); return v ? JSON.parse(v) : null; } catch (e) { return null; } }
+function _cachePut_(key, obj, ttl) { try { var s = JSON.stringify(obj); if (s.length < 95000) CacheService.getScriptCache().put(key, s, ttl || 6); } catch (e) {} }
+function _cacheDel_(key) { try { CacheService.getScriptCache().remove(key); } catch (e) {} }
 var RESV_TAB = "予約投稿";
 function schedSheet_() {
   var ss = SpreadsheetApp.openById(SHEET_ID), sh = ss.getSheetByName(RESV_TAB);
@@ -765,6 +770,7 @@ function schedCreate_(p) {
   // when列(B)は「文字列」固定にする。Sheetsが日時セルへ自動変換するとUTCずれ（18:00→09:00）で
   // 表示・JSON化されるため、テキスト書式にして literal "YYYY-MM-DD HH:MM"(JST) を保持する。
   try { var r = sh.getLastRow(), c = sh.getRange(r, 2); c.setNumberFormat('@'); c.setValue(whenTxt); } catch (e) {}
+  _cacheDel_("sched_" + account);   // 予約追加を即反映（キャッシュ破棄）
   return { ok: true, token: token };
 }
 // 予約セルが（過去分などで）日時オブジェクト化していても、必ずJSTの "YYYY-MM-DD HH:mm" 文字列で返す。
@@ -774,6 +780,8 @@ function _whenStr_(w) {
 }
 function schedList_(account) {
   var want = String(account || "").trim();          // 店舗別に分離（空=三条・従来どおり）
+  var ck = "sched_" + want;
+  var hit = _cacheGet_(ck); if (hit) return hit;     // 数秒キャッシュ（変更時は消えるので実害なし）
   var sh = schedSheet_(), v = sh.getDataRange().getValues(), out = [];
   // 「投稿済み/失敗」も直近14日ぶんは履歴として返す（アプリで“消えた”ように見えないように）。
   var cutoff = Utilities.formatDate(new Date(Date.now() - 14 * 24 * 3600 * 1000), "Asia/Tokyo", "yyyy-MM-dd");
@@ -790,11 +798,13 @@ function schedList_(account) {
                status: st || "scheduled", note: String(v[i][8] || "") });
   }
   out.sort(function (a, b) { return String(a.when) < String(b.when) ? -1 : 1; });
-  return { ok: true, items: out };
+  var res = { ok: true, items: out };
+  _cachePut_(ck, res, 6);
+  return res;
 }
 function schedCancel_(token) {
   var sh = schedSheet_(), v = sh.getDataRange().getValues();
-  for (var i = 1; i < v.length; i++) { if (v[i][0] === token) { sh.getRange(i + 1, 7).setValue("canceled"); return { ok: true }; } }
+  for (var i = 1; i < v.length; i++) { if (v[i][0] === token) { sh.getRange(i + 1, 7).setValue("canceled"); _cacheDel_("sched_" + String(v[i][9] || "").trim()); return { ok: true }; } }
   return { ok: false, error: "not found" };
 }
 // 投稿済み/失敗などの履歴を「非表示」にする（Instagramで削除した等）。記録は残しつつ一覧から消す。
@@ -804,6 +814,7 @@ function schedHide_(token) {
     if (v[i][0] === token) {
       var st = String(v[i][6] || "").trim();
       if (st.indexOf("_hidden") < 0) sh.getRange(i + 1, 7).setValue((st || "posted") + "_hidden");
+      _cacheDel_("sched_" + String(v[i][9] || "").trim());
       return { ok: true };
     }
   }
@@ -988,6 +999,7 @@ function _ingestMentions_(body) {
         var comment = (mode === 'off') ? '' : _autoComment_(account);
         var nowIso = new Date().toISOString();   // Pythonが保留時間を計算できるようISOで保存
         _mentionSheet_(account).appendRow([mid, nowIso, account, String((ev.sender && ev.sender.id) || ''), '', url, 'image', status, comment, nowIso]);
+        _cacheDel_("ment_" + account);   // 新着メンションを早く反映
         count++;
       }
     }
@@ -1020,6 +1032,8 @@ function _mediaAlive_(url) {
   } catch (e) { return true; }
 }
 function _apiMentions_(account) {
+  var ck = "ment_" + String(account || "").trim();
+  var hit = _cacheGet_(ck); if (hit) return hit;     // 数秒キャッシュ（操作時は消える）
   var sh = _mentionSheet_(account);
   var last = sh.getLastRow();
   if (last < 2) return { items: [] };
@@ -1043,9 +1057,12 @@ function _apiMentions_(account) {
                  ageH: Math.round(ageH * 10) / 10, repostable: repostable, reason: reason });
   }
   items.reverse();   // 新しい順
-  return { items: items };
+  var res = { items: items };
+  _cachePut_(ck, res, 6);
+  return res;
 }
 function _mentionAct_(mid, action, text, account) {
+  _cacheDel_("ment_" + String(account || "").trim());   // メンション操作を即反映
   var sh = _mentionSheet_(account);
   var last = sh.getLastRow();
   if (last < 2) return 'no-rows';
