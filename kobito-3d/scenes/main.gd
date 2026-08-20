@@ -80,7 +80,7 @@ func _run_selftest() -> void:
 	if not players.is_empty():
 		xp_before = players[0].xp
 	if not bugs.is_empty():
-		bugs[0].take_damage(9999, players[0].name.to_int())
+		bugs[0].cleanse(9999, players[0].name.to_int())
 		await get_tree().create_timer(0.5).timeout
 
 	WorldState.add("drain_cleared")
@@ -103,6 +103,10 @@ func _run_selftest_host() -> void:
 	Net.host()
 	var ok := await _wait_until(func() -> bool:
 		return Net.roster.size() == 2 and get_tree().get_nodes_in_group("player").size() == 2, 20.0)
+	# ここで即 quit すると、参加側がまだ自分の庭を組み立て終える前に切断され、
+	# 参加側が roster をクリアしてしまう（＝参加側だけ 0 に見える）。
+	# 参加側が同期を終える猶予を残してから落ちる。
+	await get_tree().create_timer(6.0).timeout
 	print("[selftest-host] 名簿=%d プレイヤーノード=%d" % [Net.roster.size(), get_tree().get_nodes_in_group("player").size()])
 	print("[selftest-host] %s" % ("OK" if ok else "NG"))
 	get_tree().quit(0 if ok else 1)

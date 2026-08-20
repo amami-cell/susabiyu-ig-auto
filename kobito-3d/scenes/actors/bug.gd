@@ -1,5 +1,9 @@
 extends CharacterBody3D
-## 虫（敵）
+## 虫（ヘドロに侵された生き物）
+##
+## この世界の「敵」は悪者ではない。ヘドロに侵されて苦しく、暴れているだけ。
+## プレイヤーの攻撃は駆除ではなく「汚れを叩き落として正気に戻す＝癒やす」行為。
+## 癒やされた虫は澄んだ色になって昇っていく（将来は仲間になって力を授ける）。
 ##
 ## 中身はサーバだけが動かす。クライアントは 10Hz で届く位置に寄せるだけ。
 ## 敵の数が増えても通信量が線形にしか増えないので、スマホ回線でも耐える。
@@ -109,8 +113,10 @@ func _nearest_player() -> Node3D:
 	return best
 
 
-## サーバ側でのみ意味を持つ
-func take_damage(amount: int, attacker_id: int) -> void:
+## サーバ側でのみ意味を持つ。amount ぶん「汚れ」を落とす。
+## 汚れが尽きたら癒やし完了＝浄化。
+## （関数名は cleanse。以前の take_damage から改名。中身は同じく“HPを削る”）
+func cleanse(amount: int, healer_id: int) -> void:
 	if not multiplayer.has_multiplayer_peer() or not multiplayer.is_server() or _dead:
 		return
 	hp -= amount
@@ -119,12 +125,12 @@ func take_damage(amount: int, attacker_id: int) -> void:
 		return
 
 	_dead = true
-	WorldState.add("bug_defeated")
+	WorldState.add("bug_healed")
 	for p in get_tree().get_nodes_in_group("player"):
-		if p.name.to_int() == attacker_id:
+		if p.name.to_int() == healer_id:
 			p.rpc("gain_xp", stats.xp_reward)
 			break
-	rpc("_remote_die")
+	rpc("_remote_healed")
 
 
 @rpc("authority", "unreliable_ordered")
@@ -135,15 +141,22 @@ func _remote_state(pos: Vector3, remote_hp: int) -> void:
 
 @rpc("authority", "call_local", "unreliable")
 func _remote_hit() -> void:
+	# 叩くたび、汚れがぽろっと落ちるイメージのひと跳ね
 	var tween := create_tween()
 	tween.tween_property(_body, "position:y", 0.25, 0.05)
 	tween.tween_property(_body, "position:y", 0.0, 0.1)
 
 
 @rpc("authority", "call_local", "reliable")
-func _remote_die() -> void:
+func _remote_healed() -> void:
+	# 癒やし完了：汚れた色 → 澄んだ色になって、光るように昇って消える。
+	# 「倒した（潰れて消える）」ではなく「救われて還っていく」見え方にする。
 	_dead = true
 	remove_from_group("bug")
 	var tween := create_tween()
-	tween.tween_property(self, "scale", Vector3.ZERO, 0.25)
+	var mat := _body.material_override as StandardMaterial3D
+	if mat != null:
+		tween.tween_property(mat, "albedo_color", Color(0.85, 1.0, 0.8), 0.2)
+	tween.parallel().tween_property(self, "global_position:y", global_position.y + 0.9, 0.55)
+	tween.parallel().tween_property(self, "scale", scale * 0.2, 0.55)
 	tween.tween_callback(queue_free)

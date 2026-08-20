@@ -9,7 +9,7 @@ class_name Player
 ##
 ## ● ダメージの正はサーバ
 ##   攻撃はサーバへ申告し、当たり判定と HP はサーバが決める。
-##   クライアントが勝手に「倒した」と言っても通らない。
+##   クライアントが勝手に「癒やした」と言っても通らない。
 ##
 ## ● 操作はキーボードもタッチも同じ道
 ##   タッチUI(TouchPad)が Input.action_press() を叩くので、
@@ -244,7 +244,7 @@ func _server_attack(from: Vector3, yaw: float) -> void:
 			continue
 		if facing.dot(to_bug.normalized()) < 0.2:   # 背中側は当たらない
 			continue
-		bug.take_damage(attack_power, name.to_int())
+		bug.cleanse(attack_power, name.to_int())
 
 
 @rpc("any_peer", "reliable")

@@ -10,7 +10,7 @@ signal notice(text: String)
 
 ## 行動 -> 上がる量。数値はここ一箇所。バランス調整はこの表だけ触ればいい。
 const GAIN := {
-	"bug_defeated": 0.01,     # 虫を倒す … ちょっと
+	"bug_healed": 0.01,       # 虫を癒やす … ちょっと
 	"trash_removed": 0.06,    # ゴミを排水溝から出す … しっかり
 	"drain_cleared": 0.20,    # 排水溝が1つ開通 … 大きく
 	"source_purified": 0.30,  # 汚染源を浄化 … 大きく
