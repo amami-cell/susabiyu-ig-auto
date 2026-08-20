@@ -751,18 +751,30 @@
       document.getElementById('modalBody').innerHTML=(head.length?'<div class="modal-when">'+esc(head.join('　／　'))+'</div>':'')+appCard(a);
       document.getElementById('modal').hidden=false;
     }
-    // その日の面接を一覧表示（1日に複数件ある時、日付を押すと全部出す）
+    // その日の面接を「全員・詳細つき」で一覧表示（1日に複数件ある時、日付を押すと全部出す）
     function schDay(y,mo,da){
       var evs=schedEvents().filter(function(e){ return e.y===y&&e.mo===mo&&e.da===da&&schSel[e.key]; })
         .sort(function(a,b){ return (a.t||'99:99')<(b.t||'99:99')?-1:1; });
       if(!evs.length) return;
       document.getElementById('modalTitle').textContent=(mo+1)+'/'+da+' の面接（'+evs.length+'件）';
       document.getElementById('modalBody').innerHTML=evs.map(function(e){
-        return '<button onclick="schDetail(\''+esc(e.code)+'\')" style="display:flex;gap:10px;align-items:center;width:100%;text-align:left;border:0;border-bottom:1px solid var(--line);background:transparent;color:var(--fg);padding:11px 4px;cursor:pointer">'+
-          '<span style="width:11px;height:11px;border-radius:50%;background:'+schColorOf(e.key)+';flex:none"></span>'+
-          '<b style="min-width:46px">'+esc(e.t||'—')+'</b>'+
-          '<span style="flex:1;min-width:0">'+esc(e.name)+'<br><small class="muted">'+esc(e.store)+'</small></span>'+
-          '<span style="color:var(--muted)">›</span></button>';
+        var a=e.app||appByCode[e.code]||{};
+        var meta=[ageTxt(a.age), a.gender, a.occupation].filter(Boolean).join('・');
+        var tel=String(a.telRaw||a.tel||'').trim();
+        return '<div style="border-bottom:1px solid var(--line);padding:11px 2px">'+
+          '<div style="display:flex;gap:9px;align-items:center">'+
+            '<span style="width:11px;height:11px;border-radius:50%;background:'+schColorOf(e.key)+';flex:none"></span>'+
+            '<b style="min-width:46px">'+esc(e.t||'—')+'</b>'+
+            '<b style="flex:1;min-width:0">'+esc(a.name||e.name)+'</b>'+
+            '<button onclick="schDetail(\''+esc(e.code)+'\')" style="border:0;background:var(--card2);color:var(--fg2);border-radius:8px;padding:5px 10px;font-size:11px;cursor:pointer;flex:none">詳細 ›</button>'+
+          '</div>'+
+          '<div class="muted" style="font-size:12px;margin:5px 0 0 20px;line-height:1.7">'+
+            '🏢 '+esc(e.store)+
+            (meta?'<br>👤 '+esc(meta):'')+
+            '<br>☎ '+(tel?('<a href="tel:'+esc(tel.replace(/[^\\d+]/g,''))+'" style="color:var(--accent)">'+esc(tel)+'</a>'):'なし')+
+            '　✉ '+esc(a.email||'なし')+
+          '</div>'+
+        '</div>';
       }).join('');
       document.getElementById('modal').hidden=false;
     }
