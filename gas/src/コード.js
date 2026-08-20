@@ -1024,7 +1024,7 @@ function _apiMentions_(account) {
   var last = sh.getLastRow();
   if (last < 2) return { items: [] };
   var rows = sh.getRange(2, 1, last - 1, 10).getValues();
-  var winH = _mentionRepostWindowH_(), now = Date.now(), checks = 0;
+  var winH = _mentionRepostWindowH_(), now = Date.now();
   var items = [];
   for (var i = 0; i < rows.length; i++) {
     var st = String(rows[i][7] || 'pending');
@@ -1034,8 +1034,9 @@ function _apiMentions_(account) {
     var ageH = t ? (now - t) / 3600000 : 999;
     var url = String(rows[i][5] || '');
     var repostable = true, reason = '';
-    if (ageH >= winH) { repostable = false; reason = 'expired'; }          // 24h超＝ストーリー消滅→再シェア不可
-    else if (checks < 12) { checks++; if (_mediaAlive_(url) === false) { repostable = false; reason = 'deleted'; } }  // 期限内は削除確認（負荷上限あり）
+    // 判定は「24h超＝期限切れ」だけ（=ネット通信ゼロで即返す）。以前は1件ずつ削除確認の通信をして
+    // メンション画面が重かった。削除済みでもリポスト時にエンジン側が失敗するだけなので実害なし。
+    if (ageH >= winH) { repostable = false; reason = 'expired'; }
     items.push({ mid: String(rows[i][0]), dt: dt, senderId: String(rows[i][3]),
                  url: url, mediaType: String(rows[i][6] || 'story'),
                  status: st, text: String(rows[i][8] || ''),
