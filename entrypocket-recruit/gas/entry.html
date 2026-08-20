@@ -20,6 +20,8 @@
     textarea{ min-height:84px; resize:vertical; }
     .grid{ display:grid; grid-template-columns:1fr 1fr 1fr; gap:8px; }
     .grid label{ margin-top:0; }
+    .grid2{ display:grid; grid-template-columns:1fr 1fr; gap:8px; }
+    .note-anno{ color:var(--muted); font-size:11px; margin:9px 0 2px; line-height:1.6; }
     .save{ width:100%; margin-top:18px; background:var(--accent); color:#fff; border:0; border-radius:12px; padding:14px; font-size:16px; font-weight:700; cursor:pointer; }
     .save:disabled{ opacity:.6; }
     #msg{ margin-top:12px; text-align:center; font-size:14px; min-height:1.2em; }
@@ -31,7 +33,12 @@
   <div class="wrap">
     <h1>求人結果の入力</h1>
     <div class="store" id="store">—</div>
-    <div class="period" id="period"></div>
+    <label>応募期間（開始日・打ち出し終了日）</label>
+    <div class="grid2">
+      <div><label style="margin-top:0">掲載開始</label><input id="start" type="date"></div>
+      <div><label style="margin-top:0">掲載終了</label><input id="end" type="date"></div>
+    </div>
+    <div class="note-anno">※応募人数と採用人数はエントリーポケットから自動反映。集計数値は最終分で入力お願いします。</div>
     <div class="hint" id="hint"></div>
     <div class="grid">
       <div><label>応募総数</label><input id="apps" type="number" inputmode="numeric"></div>
@@ -49,7 +56,8 @@
   function el(id){ return document.getElementById(id); }
   function v(x){ return (x==null?'':x); }
   el('store').textContent = ENTRY.store || '(店舗不明)';
-  el('period').textContent = (ENTRY.start||'') + (ENTRY.end?(' 〜 '+ENTRY.end):' 〜 継続');
+  el('start').value = ENTRY.start || '';
+  el('end').value = ENTRY.end || '';
   if(ENTRY.autoApps!=='' && ENTRY.autoApps!=null) el('hint').textContent = 'CSV自動集計 → 応募 '+ENTRY.autoApps+' / 採用 '+ENTRY.autoHires+'（必要なら打ち換え可）';
   el('apps').value  = (v(ENTRY.apps)!=='') ? ENTRY.apps  : (ENTRY.autoApps!=null?ENTRY.autoApps:'');
   el('hires').value = (v(ENTRY.hires)!=='')? ENTRY.hires : (ENTRY.autoHires!=null?ENTRY.autoHires:'');
@@ -58,7 +66,7 @@
   if(!ENTRY.ok){ el('msg').className='err'; el('msg').textContent='この入力リンクの対象が見つかりませんでした（送り主に確認してください）。'; el('save').disabled=true; }
   function save(){
     var btn=el('save'); btn.disabled=true; btn.textContent='保存中…'; el('msg').textContent='';
-    var o={ srcSheet:ENTRY.s, srcRow:ENTRY.r, store:ENTRY.store, start:ENTRY.start, end:ENTRY.end,
+    var o={ srcSheet:ENTRY.s, srcRow:ENTRY.r, store:ENTRY.store, start:el('start').value, end:el('end').value,
       apps:el('apps').value, hires:el('hires').value, quit:el('quit').value, note:el('note').value };
     google.script.run.withSuccessHandler(function(res){
       if(res&&res.ok){ el('msg').className='ok'; el('msg').textContent='✅ 保存しました。ありがとうございます。'; btn.textContent='保存済み'; }
