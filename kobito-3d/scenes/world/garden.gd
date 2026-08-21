@@ -51,9 +51,20 @@ var _spawn_timer := 0.0
 @onready var _ground_mat := StandardMaterial3D.new()
 @onready var _env: WorldEnvironment = $WorldEnvironment
 
+# 見た目（すべて手続き生成＝外部素材ゼロ・スマホ安全）
+const GRASS_COUNT := 500
+const FLOWER_COUNT := 60
+var _sky_mat: ProceduralSkyMaterial = null
+var _grass_mm: MultiMesh = null
+var _flower_mm: MultiMesh = null
+var _grass_pos := PackedVector3Array()
+var _grass_h := PackedFloat32Array()
+var _grass_yaw := PackedFloat32Array()
+
 
 func _ready() -> void:
 	_ground.material_override = _ground_mat
+	_setup_visuals()
 	WorldState.recovery_changed.connect(_on_recovery_changed)
 	Net.roster_changed.connect(_reconcile_players)
 	$CleanupZone.body_entered.connect(_on_cleanup_zone_entered)
@@ -184,9 +195,137 @@ func _on_cleanup_zone_entered(body: Node3D) -> void:
 
 
 # ------------------------------------------------------------ 見た目
+#
+# このゲームの魂＝「掃除するほど世界が緑に還る」を、目に見えるところまで作る。
+# 空・霧・草・花、すべて環境回復度に連動。手続き生成なので外部素材は要らず、
+# 草500本＋花60個も MultiMesh で各1ドローコール＝スマホでも軽い。
+
+func _setup_visuals() -> void:
+	_setup_sky_fog()
+	_build_grass()
+	_build_flowers()
+
+
+## 空と霧。汚れているほど灰色・濃い霧（近くしか見えない＝澱んだ空気）、
+## 回復するほど青空・霧が晴れる。霧は「小人視点のジオラマ感」も出す。
+func _setup_sky_fog() -> void:
+	var env := Environment.new()
+	_sky_mat = ProceduralSkyMaterial.new()
+	var sky := Sky.new()
+	sky.sky_material = _sky_mat
+	env.background_mode = Environment.BG_SKY
+	env.sky = sky
+	env.ambient_light_source = Environment.AMBIENT_SOURCE_SKY
+	env.ambient_light_energy = 0.75
+	env.fog_enabled = true
+	env.fog_light_energy = 1.0
+	_env.environment = env
+
+
+## 草。回復度で「伸びる」。汚れているうちは生えていない（高さ0）。
+func _build_grass() -> void:
+	var blade := BoxMesh.new()
+	blade.size = Vector3(0.05, 0.3, 0.05)
+	var mat := StandardMaterial3D.new()
+	mat.vertex_color_use_as_albedo = true
+	mat.roughness = 1.0
+	blade.material = mat
+
+	_grass_mm = MultiMesh.new()
+	_grass_mm.transform_format = MultiMesh.TRANSFORM_3D
+	_grass_mm.use_colors = true
+	_grass_mm.mesh = blade
+	_grass_mm.instance_count = GRASS_COUNT
+
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 20260821   # 固定シード＝毎回同じ配置（クライアント間でも揃う）
+	for i in GRASS_COUNT:
+		var x := rng.randf_range(-21.0, 21.0)
+		var z := rng.randf_range(-21.0, 21.0)
+		var h := rng.randf_range(0.6, 1.4)
+		# 排水溝の上には生やさない
+		if x > -3.6 and x < 3.6 and z > -11.5 and z < -6.5:
+			h = 0.0
+		_grass_pos.append(Vector3(x, 0.0, z))
+		_grass_h.append(h)
+		_grass_yaw.append(rng.randf_range(0.0, TAU))
+		_grass_mm.set_instance_color(i, Color(0.28, 0.45, 0.18).lerp(Color(0.45, 0.7, 0.3), rng.randf()))
+
+	var mmi := MultiMeshInstance3D.new()
+	mmi.name = "Grass"
+	mmi.multimesh = _grass_mm
+	add_child(mmi)
+	_update_grass(WorldState.recovery)
+
+
+## 花。回復30%を超えたあたりから咲き始め、100%で満開。草の上に散らす。
+func _build_flowers() -> void:
+	var head := SphereMesh.new()
+	head.radius = 0.07
+	head.height = 0.14
+	var mat := StandardMaterial3D.new()
+	mat.vertex_color_use_as_albedo = true
+	mat.roughness = 0.8
+	head.material = mat
+
+	_flower_mm = MultiMesh.new()
+	_flower_mm.transform_format = MultiMesh.TRANSFORM_3D
+	_flower_mm.use_colors = true
+	_flower_mm.mesh = head
+	_flower_mm.instance_count = FLOWER_COUNT
+
+	var cols := [Color(0.95, 0.4, 0.5), Color(0.98, 0.85, 0.35), Color(0.92, 0.92, 0.96), Color(0.75, 0.55, 0.9)]
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 99887766
+	for i in FLOWER_COUNT:
+		var src: Vector3 = _grass_pos[(i * 7) % _grass_pos.size()]
+		var origin := src + Vector3(0.0, 0.34, 0.0)
+		_flower_mm.set_instance_transform(i, Transform3D(Basis(), origin))
+		_flower_mm.set_instance_color(i, cols[rng.randi() % cols.size()])
+
+	var mmi := MultiMeshInstance3D.new()
+	mmi.name = "Flowers"
+	mmi.multimesh = _flower_mm
+	add_child(mmi)
+	_update_flowers(WorldState.recovery)
+
+
+func _update_grass(r: float) -> void:
+	if _grass_mm == null:
+		return
+	var grow := clampf(r * 1.2, 0.0, 1.0)
+	for i in _grass_pos.size():
+		var h := _grass_h[i] * grow
+		var basis := Basis(Vector3.UP, _grass_yaw[i]).scaled(Vector3(1.0, maxf(0.001, h), 1.0))
+		var origin: Vector3 = _grass_pos[i] + Vector3(0.0, 0.15 * h, 0.0)
+		_grass_mm.set_instance_transform(i, Transform3D(basis, origin))
+
+
+func _update_flowers(r: float) -> void:
+	if _flower_mm == null:
+		return
+	var t := clampf((r - 0.3) / 0.7, 0.0, 1.0)
+	_flower_mm.visible_instance_count = int(round(FLOWER_COUNT * t))
+
+
+func _update_sky_fog(r: float) -> void:
+	if _sky_mat != null:
+		_sky_mat.sky_top_color = Color(0.34, 0.34, 0.40).lerp(Color(0.25, 0.5, 0.85), r)
+		_sky_mat.sky_horizon_color = Color(0.62, 0.57, 0.5).lerp(Color(0.72, 0.86, 0.95), r)
+		_sky_mat.ground_horizon_color = WorldState.ground_color()
+		_sky_mat.ground_bottom_color = WorldState.ground_color()
+	var env := _env.environment
+	if env != null:
+		env.fog_light_color = Color(0.6, 0.56, 0.5).lerp(Color(0.78, 0.86, 0.9), r)
+		env.fog_density = lerpf(0.06, 0.012, r)   # 澱んだ濃霧 → 澄んだ空気
+
 
 func _on_recovery_changed(_value: float) -> void:
+	var r := WorldState.recovery
 	_ground_mat.albedo_color = WorldState.ground_color()
+	_update_sky_fog(r)
+	_update_grass(r)
+	_update_flowers(r)
 	var env := _env.environment
 	if env != null:
 		env.background_color = WorldState.sky_color()
