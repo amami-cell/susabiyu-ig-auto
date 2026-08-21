@@ -73,12 +73,15 @@ var _grass_mmi: MultiMeshInstance3D = null
 var _flower_mmi: MultiMeshInstance3D = null
 var _pillars: Node3D = null
 
-# 遠景（オープンワールドの“広さ”を出す背景）：山なみ・水面・木立。
+# 遠景（オープンワールドの“広さ”を出す背景）：山なみ・水面・木立・うねる丘。
 # すべて壁(半径24)の外＝背景専用。MultiMeshで各1ドローコール＝スマホでも軽い。
-const TREE_COUNT := 140
+const TREE_COUNT := 96        # 広葉樹（まるい木）
+const CONIFER_COUNT := 84     # 針葉樹（とがった木）
+const BOULDER_COUNT := 70     # 岩
 var _hills: MultiMeshInstance3D = null
 var _water_mat: ShaderMaterial = null
 var _trees: Node3D = null
+var _terrain_noise: FastNoiseLite = null
 
 # 舞台(biome)。"garden"=庭 / "ruins"=遺跡。main が session 開始時に設定。
 var biome := "garden"
@@ -258,9 +261,10 @@ func _setup_visuals() -> void:
 	_build_grass()
 	_build_flowers()
 	_build_pillars()
-	_build_water()
+	_build_terrain_skirt()
 	_build_distant_hills()
 	_build_trees()
+	_build_boulders()
 	_apply_biome()
 
 
@@ -296,13 +300,10 @@ func _apply_biome() -> void:
 		_sun.light_energy = 0.8 if ruins else 1.15
 	# 遺跡は森まばら・水は淀む。庭は森が茂り水は澄む。
 	if _trees != null:
-		var vis := int(TREE_COUNT * (0.35 if ruins else 1.0))
-		var tt := _trees.get_node_or_null("TreeTrunks")
-		var tf := _trees.get_node_or_null("TreeFoliage")
-		if tt != null:
-			tt.multimesh.visible_instance_count = vis
-		if tf != null:
-			tf.multimesh.visible_instance_count = vis
+		var frac := 0.35 if ruins else 1.0
+		for mmi in _trees.get_children():
+			if mmi is MultiMeshInstance3D and mmi.multimesh != null:
+				mmi.multimesh.visible_instance_count = int(mmi.multimesh.instance_count * frac)
 	if _water_mat != null:
 		if ruins:
 			_water_mat.set_shader_parameter("shallow", Color(0.22, 0.30, 0.28))
@@ -338,6 +339,76 @@ func _build_pillars() -> void:
 		pillar.position = Vector3(cos(ang) * rad, h * 0.5, sin(ang) * rad)
 		pillar.rotation = Vector3(rng.randf_range(-0.12, 0.12), rng.randf_range(0.0, TAU), rng.randf_range(-0.12, 0.12))
 		_pillars.add_child(pillar)
+
+
+## 地形の高さ関数。遊べる島（半径22内）は平ら＝ゲームに影響なし。
+## 外へ向かってなだらかに丘へ盛り上がる。背景の丘・木・岩がこれを共有して“同じ大地”に乗る。
+func _ensure_terrain_noise() -> void:
+	if _terrain_noise != null:
+		return
+	_terrain_noise = FastNoiseLite.new()
+	_terrain_noise.seed = 777
+	_terrain_noise.frequency = 0.016
+	_terrain_noise.fractal_octaves = 3
+
+
+func _terrain_height(x: float, z: float) -> float:
+	_ensure_terrain_noise()
+	var r := sqrt(x * x + z * z)
+	var rise := clampf((r - 22.0) / 30.0, 0.0, 1.0)   # 島の外周からせり上がる
+	var n := _terrain_noise.get_noise_2d(x, z)         # -1..1 のうねり
+	return rise * rise * 13.0 + n * rise * 5.0
+
+
+## うねる丘（島を囲む大地）。平らな遊び場の外側を、なだらかな丘で囲って“広さ”を出す。
+## 地面と同じシェーダーを使うので継ぎ目が馴染み、回復すると一緒に緑へ戻る。
+## 手続き生成のArrayMesh 1枚＝1ドローコール。壁の外＝背景専用でゲーム性に影響なし。
+func _build_terrain_skirt() -> void:
+	# 四角い地面プレーンは隠し、この丘メッシュ1枚を“見える大地”にする＝角の継ぎ目が消える。
+	# 遊べる中心(半径22内)は高さ0で平ら＝ゲームの当たり判定(GroundBody)とズレない。
+	if _ground != null:
+		_ground.visible = false
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	var rings := 52
+	var segs := 96
+	var r0 := 0.0
+	var r1 := 98.0
+	for i in rings:
+		var ta := float(i) / float(rings)
+		var tb := float(i + 1) / float(rings)
+		var ra := lerpf(r0, r1, ta * ta)   # 近くを細かく、遠くは粗く
+		var rb := lerpf(r0, r1, tb * tb)
+		for j in segs:
+			var a0 := TAU * float(j) / float(segs)
+			var a1 := TAU * float(j + 1) / float(segs)
+			var p00 := _skirt_vertex(ra, a0)
+			var p01 := _skirt_vertex(ra, a1)
+			var p10 := _skirt_vertex(rb, a0)
+			var p11 := _skirt_vertex(rb, a1)
+			_skirt_tri(st, p00, p10, p11)
+			_skirt_tri(st, p00, p11, p01)
+	st.generate_normals()
+	var mi := MeshInstance3D.new()
+	mi.name = "TerrainSkirt"
+	mi.mesh = st.commit()
+	# 地面と同じ質感（回復で緑になるシェーダー）を共有
+	mi.material_override = _ground_shader
+	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	add_child(mi)
+
+
+func _skirt_vertex(r: float, a: float) -> Vector3:
+	var x := cos(a) * r
+	var z := sin(a) * r
+	return Vector3(x, _terrain_height(x, z), z)
+
+
+func _skirt_tri(st: SurfaceTool, a: Vector3, b: Vector3, c: Vector3) -> void:
+	for v in [a, b, c]:
+		# 地面(48四方)のUVマッピングに合わせて質感を連続させる
+		st.set_uv(Vector2(v.x, v.z) / 48.0 + Vector2(0.5, 0.5))
+		st.add_vertex(v)
 
 
 ## 世界を囲む水面（湖）。庭(48四方)が水に浮かぶ島のように見え、一気に“広い風景”になる。
@@ -381,7 +452,7 @@ void fragment() {
 	mi.name = "Water"
 	mi.mesh = plane
 	mi.material_override = _water_mat
-	mi.position = Vector3(0.0, -0.12, 0.0)   # 地面(y=0)の少し下＝岸辺が生まれる
+	mi.position = Vector3(0.0, -0.5, 0.0)   # 丘のあいだの低い谷に水が見える
 	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	add_child(mi)
 
@@ -428,7 +499,7 @@ func _build_distant_hills() -> void:
 	add_child(mmi)
 
 
-## 低ポリの木立。壁の外〜山の手前に散らす（背景の森）。幹＋葉を各1ドローコール。
+## 低ポリの木立。うねる丘の上に散らす（背景の森）。まるい木＋とがった木の2種で単調さを消す。
 ## 参考画像の「森が地平まで続く」感じ。回復で葉が濃く茂る（_on_recovery_changed）。
 func _build_trees() -> void:
 	_trees = Node3D.new()
@@ -438,6 +509,7 @@ func _build_trees() -> void:
 	var rng := RandomNumberGenerator.new()
 	rng.seed = 246813
 
+	# --- 幹（広葉樹・針葉樹で共有） ---
 	var trunk := CylinderMesh.new()
 	trunk.top_radius = 0.12
 	trunk.bottom_radius = 0.18
@@ -447,51 +519,113 @@ func _build_trees() -> void:
 	tmat.albedo_color = Color(0.30, 0.22, 0.14)
 	tmat.roughness = 1.0
 	trunk.material = tmat
+	var trunk_mm := _new_mm(trunk, TREE_COUNT + CONIFER_COUNT, false)
 
+	# --- 広葉樹の葉（まるい塊） ---
 	var leaf := SphereMesh.new()
 	leaf.radius = 1.0
 	leaf.height = 2.0
 	leaf.radial_segments = 6
 	leaf.rings = 4
-	var lmat := StandardMaterial3D.new()
-	lmat.vertex_color_use_as_albedo = true
-	lmat.roughness = 1.0
-	leaf.material = lmat
+	leaf.material = _vcol_mat()
+	var leaf_mm := _new_mm(leaf, TREE_COUNT, true)
 
-	var trunk_mm := MultiMesh.new()
-	trunk_mm.transform_format = MultiMesh.TRANSFORM_3D
-	trunk_mm.mesh = trunk
-	trunk_mm.instance_count = TREE_COUNT
-	var leaf_mm := MultiMesh.new()
-	leaf_mm.transform_format = MultiMesh.TRANSFORM_3D
-	leaf_mm.use_colors = true
-	leaf_mm.mesh = leaf
-	leaf_mm.instance_count = TREE_COUNT
+	# --- 針葉樹の葉（とがった円錐） ---
+	var cone := CylinderMesh.new()
+	cone.top_radius = 0.0
+	cone.bottom_radius = 1.0
+	cone.height = 2.6
+	cone.radial_segments = 6
+	cone.material = _vcol_mat()
+	var cone_mm := _new_mm(cone, CONIFER_COUNT, true)
 
+	var ti := 0
+	# 広葉樹
 	for i in TREE_COUNT:
 		var ang := rng.randf_range(0.0, TAU)
-		var rad := rng.randf_range(32.0, 82.0)
-		var pos := Vector3(cos(ang) * rad, 0.0, sin(ang) * rad)
-		var s := rng.randf_range(1.4, 2.8)
+		var rad := rng.randf_range(26.0, 88.0)
+		var base := _tree_base(cos(ang) * rad, sin(ang) * rad)
+		var s := rng.randf_range(1.3, 2.6)
 		var yaw := rng.randf_range(0.0, TAU)
-		var tb := Basis(Vector3.UP, yaw).scaled(Vector3(s, s, s))
-		trunk_mm.set_instance_transform(i, Transform3D(tb, pos + Vector3(0.0, s * 0.5, 0.0)))
+		trunk_mm.set_instance_transform(ti, Transform3D(Basis(Vector3.UP, yaw).scaled(Vector3(s, s, s)), base + Vector3(0.0, s * 0.5, 0.0)))
+		ti += 1
 		var ls := s * rng.randf_range(0.9, 1.2)
-		var lb := Basis(Vector3.UP, yaw).scaled(Vector3(ls, ls * 1.1, ls))
-		leaf_mm.set_instance_transform(i, Transform3D(lb, pos + Vector3(0.0, s + ls * 0.5, 0.0)))
-		var green := Color(0.20, 0.38, 0.16).lerp(Color(0.34, 0.52, 0.22), rng.randf())
-		leaf_mm.set_instance_color(i, green)
+		leaf_mm.set_instance_transform(i, Transform3D(Basis(Vector3.UP, yaw).scaled(Vector3(ls, ls * 1.1, ls)), base + Vector3(0.0, s + ls * 0.5, 0.0)))
+		leaf_mm.set_instance_color(i, Color(0.20, 0.38, 0.16).lerp(Color(0.34, 0.52, 0.22), rng.randf()))
+	# 針葉樹（少し外側・高地に多い＝森の奥）
+	for i in CONIFER_COUNT:
+		var ang := rng.randf_range(0.0, TAU)
+		var rad := rng.randf_range(34.0, 94.0)
+		var base := _tree_base(cos(ang) * rad, sin(ang) * rad)
+		var s := rng.randf_range(1.6, 3.4)
+		var yaw := rng.randf_range(0.0, TAU)
+		trunk_mm.set_instance_transform(ti, Transform3D(Basis(Vector3.UP, yaw).scaled(Vector3(s * 0.7, s * 0.7, s * 0.7)), base + Vector3(0.0, s * 0.35, 0.0)))
+		ti += 1
+		var cs := s * rng.randf_range(0.8, 1.1)
+		cone_mm.set_instance_transform(i, Transform3D(Basis(Vector3.UP, yaw).scaled(Vector3(cs, cs, cs)), base + Vector3(0.0, s * 0.6 + cs * 1.3, 0.0)))
+		cone_mm.set_instance_color(i, Color(0.14, 0.30, 0.16).lerp(Color(0.22, 0.40, 0.20), rng.randf()))
 
-	var ti := MultiMeshInstance3D.new()
-	ti.name = "TreeTrunks"
-	ti.multimesh = trunk_mm
-	ti.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	_trees.add_child(ti)
-	var fi := MultiMeshInstance3D.new()
-	fi.name = "TreeFoliage"
-	fi.multimesh = leaf_mm
-	fi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	_trees.add_child(fi)
+	_add_mmi("TreeTrunks", trunk_mm)
+	_add_mmi("TreeFoliage", leaf_mm)
+	_add_mmi("Conifers", cone_mm)
+
+
+## 岩（丘の上のごろた石・大きめ）。地面ディテールを立体にして“自然物”を増やす。
+func _build_boulders() -> void:
+	var rock := SphereMesh.new()
+	rock.radius = 1.0
+	rock.height = 1.6
+	rock.radial_segments = 6
+	rock.rings = 4
+	rock.material = _vcol_mat()
+	var mm := _new_mm(rock, BOULDER_COUNT, true)
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 135791
+	for i in BOULDER_COUNT:
+		var ang := rng.randf_range(0.0, TAU)
+		var rad := rng.randf_range(26.0, 92.0)
+		var x := cos(ang) * rad
+		var z := sin(ang) * rad
+		var base := _tree_base(x, z)
+		var s := rng.randf_range(0.6, 2.4)
+		var b := Basis(Vector3(rng.randf(), rng.randf(), rng.randf()).normalized(), rng.randf_range(0.0, TAU)).scaled(Vector3(s, s * rng.randf_range(0.6, 0.9), s))
+		mm.set_instance_transform(i, Transform3D(b, base + Vector3(0.0, s * 0.25, 0.0)))
+		var g := rng.randf_range(0.38, 0.56)
+		mm.set_instance_color(i, Color(g, g * 0.97, g * 0.9))
+	var mmi := MultiMeshInstance3D.new()
+	mmi.name = "Boulders"
+	mmi.multimesh = mm
+	mmi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	add_child(mmi)
+
+
+## 背景の自然物を丘の上に乗せる共通ヘルパ（地形の高さに合わせる）。
+func _tree_base(x: float, z: float) -> Vector3:
+	return Vector3(x, _terrain_height(x, z), z)
+
+
+func _vcol_mat() -> StandardMaterial3D:
+	var m := StandardMaterial3D.new()
+	m.vertex_color_use_as_albedo = true
+	m.roughness = 1.0
+	return m
+
+
+func _new_mm(mesh: Mesh, count: int, colors: bool) -> MultiMesh:
+	var mm := MultiMesh.new()
+	mm.transform_format = MultiMesh.TRANSFORM_3D
+	mm.use_colors = colors
+	mm.mesh = mesh
+	mm.instance_count = count
+	return mm
+
+
+func _add_mmi(node_name: String, mm: MultiMesh) -> void:
+	var mmi := MultiMeshInstance3D.new()
+	mmi.name = node_name
+	mmi.multimesh = mm
+	mmi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	_trees.add_child(mmi)
 
 
 ## 小石。常に散らばっている地面ディテール（回復に関係なく“地面らしさ”を足す）。
