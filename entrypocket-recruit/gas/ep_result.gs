@@ -33,6 +33,7 @@ function epSaveResult(o) {
   var hdr = vals[0].map(function (x) { return String(x || "").replace(/　/g, "").trim(); });
   var col = function (key) { for (var j = 0; j < POST_COLMAP[key].length; j++) { var p = hdr.indexOf(POST_COLMAP[key][j]); if (p >= 0) return p; } return -1; };
   var cStore = col("store"), cApps = col("apps"), cHire = col("hired"), cQuit = col("quit"), cNote = col("note"), cStart = col("start");
+  var cReporter = col("reporter"), cMedia = col("media"), cPlan = col("plan"), cArea1 = col("area1"), cArea2 = col("area2"), cLine1 = col("line1"), cLine2 = col("line2"), cCost = col("cost");
   if (cStore < 0) return { ok: false, error: "店舗名の列が見つかりません" };
 
   var norm = function (v) { return epCleanStore_(String(v || "").replace(/\s+/g, " ").trim()); };
@@ -50,7 +51,11 @@ function epSaveResult(o) {
   }
   if (row < 0) return { ok: false, error: "対象行が見つかりません（店舗名/期間が一致せず）" };
 
-  // 書き込み（入力4項目だけ。数式列＝採用単価/率/退職率 は触らない）
+  // 書き込み（入力項目のみ。数式列＝採用単価/率/退職率 は触らない）。空欄は上書きしない。
+  var setStr = function (c, v) { if (c >= 0 && v != null && String(v) !== "") sh.getRange(row, c + 1).setValue(String(v)); };
+  var setVal = function (c, v) { if (c >= 0 && v != null && String(v) !== "") sh.getRange(row, c + 1).setValue(v); };
+  setStr(cReporter, o.reporter); setStr(cMedia, o.media); setStr(cPlan, o.plan);
+  setVal(cArea1, o.area1); setVal(cArea2, o.area2); setVal(cLine1, o.line1); setVal(cLine2, o.line2); setVal(cCost, o.cost);
   if (cApps >= 0 && o.apps != null && String(o.apps) !== "") sh.getRange(row, cApps + 1).setValue(+o.apps || 0);
   if (cHire >= 0 && o.hires != null && String(o.hires) !== "") sh.getRange(row, cHire + 1).setValue(+o.hires || 0);
   if (cQuit >= 0 && o.quit != null && String(o.quit) !== "") sh.getRange(row, cQuit + 1).setValue(+o.quit || 0);
@@ -95,6 +100,7 @@ function epEndRecruit(o) {
   var hdr = vals[0].map(function (x) { return String(x || "").replace(/　/g, "").trim(); });
   var col = function (key) { for (var j = 0; j < POST_COLMAP[key].length; j++) { var p = hdr.indexOf(POST_COLMAP[key][j]); if (p >= 0) return p; } return -1; };
   var cStore = col("store"), cStart = col("start"), cEnd = col("end"), cApps = col("apps"), cHire = col("hired"), cQuit = col("quit"), cNote = col("note");
+  var cReporter = col("reporter"), cMedia = col("media"), cPlan = col("plan"), cArea1 = col("area1"), cArea2 = col("area2"), cLine1 = col("line1"), cLine2 = col("line2"), cCost = col("cost");
   if (cStore < 0) return { ok: false, error: "店舗名の列が見つかりません" };
   var norm = function (v) { return epCleanStore_(String(v || "").replace(/\s+/g, " ").trim()); };
 
@@ -125,6 +131,14 @@ function epEndRecruit(o) {
   if (row < 0) {
     var arr = []; for (var k = 0; k < hdr.length; k++) arr.push("");
     arr[cStore] = o.store || store;
+    if (cReporter >= 0 && o.reporter != null && String(o.reporter) !== "") arr[cReporter] = String(o.reporter);
+    if (cMedia >= 0 && o.media != null && String(o.media) !== "") arr[cMedia] = String(o.media);
+    if (cPlan >= 0 && o.plan != null && String(o.plan) !== "") arr[cPlan] = String(o.plan);
+    if (cArea1 >= 0 && o.area1 != null && String(o.area1) !== "") arr[cArea1] = o.area1;
+    if (cArea2 >= 0 && o.area2 != null && String(o.area2) !== "") arr[cArea2] = o.area2;
+    if (cLine1 >= 0 && o.line1 != null && String(o.line1) !== "") arr[cLine1] = o.line1;
+    if (cLine2 >= 0 && o.line2 != null && String(o.line2) !== "") arr[cLine2] = o.line2;
+    if (cCost >= 0 && o.cost != null && String(o.cost) !== "") arr[cCost] = o.cost;
     if (cStart >= 0 && o.start) arr[cStart] = o.start;
     if (cEnd >= 0 && o.end) arr[cEnd] = o.end;
     if (cApps >= 0 && o.apps != null && String(o.apps) !== "") arr[cApps] = +o.apps || 0;
@@ -140,6 +154,10 @@ function epEndRecruit(o) {
       if (o.auto && String(vals[row - 1][c] || "") !== "") return;
       sh.getRange(row, c + 1).setValue(v);
     };
+    put(cReporter, (o.reporter == null || o.reporter === "") ? "" : String(o.reporter));
+    put(cMedia, (o.media == null || o.media === "") ? "" : String(o.media));
+    put(cPlan, (o.plan == null || o.plan === "") ? "" : String(o.plan));
+    put(cArea1, o.area1); put(cArea2, o.area2); put(cLine1, o.line1); put(cLine2, o.line2); put(cCost, o.cost);
     if (cStart >= 0 && o.start && !vals[row - 1][cStart]) sh.getRange(row, cStart + 1).setValue(o.start);
     put(cEnd, o.end);
     put(cApps, (o.apps == null || o.apps === "") ? "" : (+o.apps || 0));
@@ -251,7 +269,7 @@ function epDiagDupes() {
 function epEntryData_(o) {
   o = o || {};
   var store = epCleanStore_(String(o.st || o.store || "").replace(/\s+/g, " ").trim());
-  var out = { ok: false, s: o.s || "", r: o.r || "", store: o.st || o.store || store, start: o.start || "", end: o.end || "", apps: "", hires: "", quit: "", note: "", autoApps: "", autoHires: "" };
+  var out = { ok: false, s: o.s || "", r: o.r || "", store: o.st || o.store || store, start: o.start || "", end: o.end || "", apps: "", hires: "", quit: "", note: "", autoApps: "", autoHires: "", reporter: "", media: "", plan: "", area1: "", area2: "", line1: "", line2: "", cost: "" };
   if (!store) return out;
   try {
     var ext = SpreadsheetApp.openById(NOTION_POSTINGS_SHEET_ID);
@@ -269,6 +287,7 @@ function epEntryData_(o) {
       var hdr = vals[0].map(function (x) { return String(x || "").replace(/　/g, "").trim(); });
       var col = function (k) { for (var j = 0; j < POST_COLMAP[k].length; j++) { var p = hdr.indexOf(POST_COLMAP[k][j]); if (p >= 0) return p; } return -1; };
       var cStore = col("store"), cApps = col("apps"), cHire = col("hired"), cQuit = col("quit"), cNote = col("note"), cStart = col("start"), cEnd = col("end");
+      var cReporter = col("reporter"), cMedia = col("media"), cPlan = col("plan"), cArea1 = col("area1"), cArea2 = col("area2"), cLine1 = col("line1"), cLine2 = col("line2"), cCost = col("cost");
       var norm = function (v) { return epCleanStore_(String(v || "").replace(/\s+/g, " ").trim()); };
       var row = -1, r0 = parseInt(o.r, 10);
       if (r0 >= 2 && r0 <= vals.length && cStore >= 0 && norm(vals[r0 - 1][cStore]) === store) row = r0;
@@ -283,6 +302,12 @@ function epEntryData_(o) {
         out.ok = true; out.r = row; out.store = String(vals[row - 1][cStore] || out.store);
         if (cApps >= 0) out.apps = vals[row - 1][cApps]; if (cHire >= 0) out.hires = vals[row - 1][cHire];
         if (cQuit >= 0) out.quit = vals[row - 1][cQuit]; if (cNote >= 0) out.note = String(vals[row - 1][cNote] || "");
+        if (cReporter >= 0) out.reporter = String(vals[row - 1][cReporter] || "");
+        if (cMedia >= 0) out.media = String(vals[row - 1][cMedia] || "");
+        if (cPlan >= 0) out.plan = String(vals[row - 1][cPlan] || "");
+        if (cArea1 >= 0) out.area1 = vals[row - 1][cArea1]; if (cArea2 >= 0) out.area2 = vals[row - 1][cArea2];
+        if (cLine1 >= 0) out.line1 = vals[row - 1][cLine1]; if (cLine2 >= 0) out.line2 = vals[row - 1][cLine2];
+        if (cCost >= 0) out.cost = vals[row - 1][cCost];
         if (cStart >= 0) { var ds = epDate_(vals[row - 1][cStart]); if (ds) out.start = Utilities.formatDate(ds, "Asia/Tokyo", "yyyy-MM-dd"); }
         if (cEnd >= 0) { var de = epDate_(vals[row - 1][cEnd]); if (de) out.end = Utilities.formatDate(de, "Asia/Tokyo", "yyyy-MM-dd"); }
       }
@@ -357,4 +382,57 @@ function epLogResult_(store, row, o) {
   var sh = epSheet_(ss, "_結果入力ログ", ["日時", "店舗", "元行", "応募総数", "採用人数", "退職人数", "備考"]);
   sh.appendRow([Utilities.formatDate(new Date(), "Asia/Tokyo", "yyyy-MM-dd HH:mm:ss"), store, row,
     (o.apps == null ? "" : o.apps), (o.hires == null ? "" : o.hires), (o.quit == null ? "" : o.quit), String(o.note || "")]);
+}
+
+/**
+ * 【診断・書き込みなし】応募データの店舗名と、求人打ち出し(＝求人結果報告)の店舗名の
+ * 突き合わせを点検する。名前が違って結合できていない店舗＝別名(EP_STORE_ALIAS)登録の候補を洗い出す。
+ * Apps Scriptで epDiagStoreMatch を実行 → ログを担当に貼る。
+ */
+function epDiagStoreMatch() {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  // 応募データ側：店舗ごとの最終応募日
+  var appLatest = {}, appDisp = {};
+  var raw = ss.getSheetByName("raw_応募者");
+  if (raw && raw.getLastRow() > 1) {
+    var rv = raw.getDataRange().getValues(), h = rv[0], ci = {}; h.forEach(function (x, i) { ci[String(x)] = i; });
+    var cS = ci["店舗名"], cA = ci["応募日時"], cG = ci["消失"];
+    for (var i = 1; i < rv.length; i++) {
+      if (cG != null && String(rv[i][cG]) === "TRUE") continue;
+      var disp = epCleanStore_(String(rv[i][cS] || "")); if (!disp) continue;
+      var k = epNormStore_(disp); if (!k) continue;
+      var d = cA != null ? epDate_(rv[i][cA]) : null, t = d ? d.getTime() : 0;
+      if (!appLatest[k] || t > appLatest[k]) appLatest[k] = t;
+      appDisp[k] = disp;
+    }
+  }
+  // 打ち出し側（結果報告）：店舗キーの集合
+  var postKey = {}, postDisp = {};
+  var pp = ss.getSheetByName("求人打ち出し");
+  if (pp && pp.getLastRow() > 1) {
+    var pv = pp.getDataRange().getValues(), ph = pv[0], pc = {}; ph.forEach(function (x, i) { pc[String(x)] = i; });
+    var cP = pc["店舗名"];
+    for (var j = 1; j < pv.length; j++) {
+      var pd = epCleanStore_(String(pv[j][cP] || "")); if (!pd) continue;
+      var pk = epNormStore_(pd); postKey[pk] = 1; postDisp[pk] = pd;
+    }
+  }
+  var now = Date.now(), DORM = 14 * 86400000, MAXA = 180 * 86400000;
+  var miss = [], ok = 0;
+  Object.keys(appLatest).forEach(function (k) {
+    var age = now - appLatest[k];
+    if (age > MAXA) return;                 // 半年より古い店舗は対象外
+    if (postKey[k]) { ok++; return; }       // 結果報告に対応行あり＝OK
+    miss.push({ k: k, disp: appDisp[k], days: Math.floor(age / 86400000), dorm: age >= DORM });
+  });
+  miss.sort(function (a, b) { return b.days - a.days; });
+  Logger.log("■ 店舗名の突き合わせ点検（応募データ ⇄ 求人結果報告）");
+  Logger.log("  結果報告に対応行が見つかった店舗: " + ok + "件 / 見つからない店舗: " + miss.length + "件");
+  Logger.log("  ※下の店舗は応募はあるのに結果報告側に同名の行がありません。");
+  Logger.log("    ・結果報告がまだ→OK（未提出）。 ・名前が違うだけ→ EP_STORE_ALIAS に別名登録を。");
+  miss.forEach(function (m) {
+    Logger.log("   ・[" + (m.dorm ? "長期応募なし" : "募集中") + " " + m.days + "日] 応募側『" + m.disp + "』 に一致する結果報告の店舗名なし");
+  });
+  Logger.log("  参考）結果報告側の店舗名一覧: " + Object.keys(postDisp).map(function (k) { return postDisp[k]; }).sort().join(" / "));
+  Logger.log("=== 点検おわり（読み取りのみ）===");
 }

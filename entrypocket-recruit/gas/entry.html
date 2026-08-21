@@ -33,6 +33,20 @@
   <div class="wrap">
     <h1>求人結果の入力</h1>
     <div class="store" id="store">—</div>
+    <div class="grid2">
+      <div><label style="margin-top:0">報告者</label><input id="reporter" type="text"></div>
+      <div><label style="margin-top:0">求人媒体</label><input id="media" type="text"></div>
+    </div>
+    <label>商品名（プラン）</label><input id="plan" type="text">
+    <div class="grid2">
+      <div><label style="margin-top:0">エリアリスティング1週目</label><input id="area1" type="text" inputmode="numeric"></div>
+      <div><label style="margin-top:0">エリアリスティング2週目</label><input id="area2" type="text" inputmode="numeric"></div>
+    </div>
+    <div class="grid2">
+      <div><label style="margin-top:0">路線リスティング1週目</label><input id="line1" type="text" inputmode="numeric"></div>
+      <div><label style="margin-top:0">路線リスティング2週目</label><input id="line2" type="text" inputmode="numeric"></div>
+    </div>
+    <label>求人費（税込）</label><input id="cost" type="text" inputmode="numeric">
     <label>連載期間（連載開始・連載終了日）</label>
     <div class="grid2">
       <div><label style="margin-top:0">連載開始</label><input id="start" type="date"></div>
@@ -56,6 +70,14 @@
   function el(id){ return document.getElementById(id); }
   function v(x){ return (x==null?'':x); }
   el('store').textContent = ENTRY.store || '(店舗不明)';
+  el('reporter').value = v(ENTRY.reporter);
+  el('media').value = v(ENTRY.media);
+  el('plan').value = v(ENTRY.plan);
+  el('area1').value = v(ENTRY.area1);
+  el('area2').value = v(ENTRY.area2);
+  el('line1').value = v(ENTRY.line1);
+  el('line2').value = v(ENTRY.line2);
+  el('cost').value = v(ENTRY.cost);
   el('start').value = ENTRY.start || '';
   el('end').value = ENTRY.end || '';
   if(ENTRY.autoApps!=='' && ENTRY.autoApps!=null) el('hint').textContent = 'CSV自動集計 → 応募 '+ENTRY.autoApps+' / 採用 '+ENTRY.autoHires+'（必要なら打ち換え可）';
@@ -67,7 +89,9 @@
   function save(){
     var btn=el('save'); btn.disabled=true; btn.textContent='保存中…'; el('msg').textContent='';
     var o={ srcSheet:ENTRY.s, srcRow:ENTRY.r, store:ENTRY.store, start:el('start').value, end:el('end').value,
-      apps:el('apps').value, hires:el('hires').value, quit:el('quit').value, note:el('note').value };
+      apps:el('apps').value, hires:el('hires').value, quit:el('quit').value, note:el('note').value,
+      reporter:el('reporter').value, media:el('media').value, plan:el('plan').value,
+      area1:el('area1').value, area2:el('area2').value, line1:el('line1').value, line2:el('line2').value, cost:el('cost').value };
     google.script.run.withSuccessHandler(function(res){
       if(res&&res.ok){ el('msg').className='ok'; el('msg').textContent='✅ 保存しました。ありがとうございます。'; btn.textContent='保存済み'; }
       else { btn.disabled=false; btn.textContent='保存する'; el('msg').className='err'; el('msg').textContent='保存できませんでした: '+((res&&res.error)||''); }

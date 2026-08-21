@@ -241,7 +241,7 @@
 
     function toast(m){ var t=document.getElementById('toast'); t.textContent=m; t.classList.add('show'); setTimeout(function(){t.classList.remove('show');},2600); }
     function esc(s){ return String(s==null?'':s).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];}); }
-    function normStore(s){ return String(s||'').replace(/^(?:【[^】]*】)+/,'').replace(/[\s　・･]/g,'').toLowerCase(); }
+    function normStore(s){ var t=String(s||''); try{ t=t.normalize('NFKC'); }catch(e){} return t.replace(/^(?:【[^】]*】)+/,'').replace(/[\s　・･]/g,'').toLowerCase(); }
     function toDate(s){ if(s==null||s==='') return null; if(typeof s==='object'&&s.getTime) return isNaN(s.getTime())?null:s;
       var m=String(s).match(/(\d{4})\D(\d{1,2})\D(\d{1,2})(?:\D+(\d{1,2}):(\d{2}))?/); if(!m) return null;
       return new Date(+m[1],+m[2]-1,+m[3],+(m[4]||0),+(m[5]||0)); }
@@ -454,13 +454,21 @@
       var hires=arr.filter(function(a){ return sameCode(a.statusCode,'80')||a.status==='採用'; }).length;
       document.getElementById('modalTitle').textContent='募集終了：'+r.name;
       var f=function(lb,id,v){ return '<div class="rf-f"><label>'+lb+'</label><input id="'+id+'" type="text" inputmode="numeric" value="'+esc(v)+'"></div>'; };
+      var ft=function(lb,id,v){ return '<div class="rf-f"><label>'+lb+'</label><input id="'+id+'" type="text" value="'+esc(v==null?'':v)+'"></div>'; };
       var fd=function(lb,id,v){ return '<div class="rf-f"><label>'+lb+'</label><input id="'+id+'" type="date" value="'+esc(v)+'"></div>'; };
+      var xp=ex||{};
       var dupNote = ex
         ? '<div class="rf-hint" style="margin:6px 0;color:var(--accent)">既にスプシにある「'+esc(r.name)+'」の行を上書きします（重複は作りません）。</div>'
         : '<div class="rf-hint" style="margin:6px 0;color:var(--accent)">スプシに新しい結果行を追加します。</div>';
       document.getElementById('modalBody').innerHTML=
         '<div class="modal-when">この店舗を募集終了し、求人結果報告（スプシ→Notion）に登録します。採用率・単価は元スプシの数式で自動計算されます。</div>'+
         dupNote+
+        '<label class="rf-l">求人情報（スプシへ反映）</label>'+
+        '<div class="rf-grid">'+ft('報告者','er_reporter',xp.reporter)+ft('求人媒体','er_media',xp.media)+'</div>'+
+        '<div class="rf-f"><label>商品名（プラン）</label><input id="er_plan" type="text" value="'+esc(xp.plan==null?'':xp.plan)+'"></div>'+
+        '<div class="rf-grid">'+f('エリアリスティング1週目','er_area1',xp.area1==null?'':xp.area1)+f('エリアリスティング2週目','er_area2',xp.area2==null?'':xp.area2)+'</div>'+
+        '<div class="rf-grid">'+f('路線リスティング1週目','er_line1',xp.line1==null?'':xp.line1)+f('路線リスティング2週目','er_line2',xp.line2==null?'':xp.line2)+'</div>'+
+        '<div class="rf-f"><label>求人費（税込）</label><input id="er_cost" type="text" inputmode="numeric" value="'+esc(xp.cost==null?'':xp.cost)+'"></div>'+
         '<label class="rf-l">連載期間（連載開始・連載終了日）</label>'+
         '<div class="rf-grid">'+fd('連載開始','er_start',start)+fd('連載終了','er_end',end)+'</div>'+
         '<div class="rf-hint" style="margin:6px 0;color:var(--muted);font-size:11px">※応募人数・採用人数・連載開始/終了日はエントリーポケットから自動反映。連載時期と集計数値の最終分は更新をお願いします。</div>'+
@@ -489,7 +497,8 @@
     }
     function saveEndRecruit(i){
       var r=RECS[i]; if(!r) return;
-      var o={ store:r.name, start:val('er_start'), end:val('er_end'), apps:val('er_apps'), hires:val('er_hires'), quit:val('er_quit'), note:val('er_note'), srcSheet:r._srcSheet||'', srcRow:r._srcRow||'' };
+      var o={ store:r.name, start:val('er_start'), end:val('er_end'), apps:val('er_apps'), hires:val('er_hires'), quit:val('er_quit'), note:val('er_note'), srcSheet:r._srcSheet||'', srcRow:r._srcRow||'',
+        reporter:val('er_reporter'), media:val('er_media'), plan:val('er_plan'), area1:val('er_area1'), area2:val('er_area2'), line1:val('er_line1'), line2:val('er_line2'), cost:val('er_cost') };
       if(!confirm('「'+r.name+'」を募集終了し、求人結果を登録します。よろしいですか？')) return;
       var btn=document.querySelector('#modalBody .rf-save'); if(btn){ btn.disabled=true; btn.textContent='登録中…'; }
       google.script.run.withSuccessHandler(function(res){
@@ -601,8 +610,14 @@
       var au=autoCounts(p);
       var appsV=has(p.apps)?p.apps:au.apps, hiresV=has(p.hires)?p.hires:au.hires;
       var f=function(lb,fid,val){ return '<div class="rf-f"><label>'+lb+'</label><input id="'+fid+'" type="number" inputmode="numeric" value="'+esc(has(val)?val:'')+'"></div>'; };
+      var ft=function(lb,fid,val,num){ return '<div class="rf-f"><label>'+lb+'</label><input id="'+fid+'" type="text"'+(num?' inputmode="numeric"':'')+' value="'+esc(val==null?'':val)+'"></div>'; };
       return '<div class="resform" onclick="event.stopPropagation()">'+
         '<div class="rf-hint" style="margin:0 0 9px;color:var(--accent)">CSV自動集計 → 応募 '+au.apps+' / 採用 '+au.hires+'（必要なら打ち換え可）</div>'+
+        '<div class="rf-grid">'+ft('報告者','rf_reporter_'+id,p.reporter)+ft('求人媒体','rf_media_'+id,p.media)+'</div>'+
+        '<div class="rf-f"><label>商品名（プラン）</label><input id="rf_plan_'+id+'" type="text" value="'+esc(p.plan==null?'':p.plan)+'"></div>'+
+        '<div class="rf-grid">'+ft('エリアリスティング1週目','rf_area1_'+id,p.area1,1)+ft('エリアリスティング2週目','rf_area2_'+id,p.area2,1)+'</div>'+
+        '<div class="rf-grid">'+ft('路線リスティング1週目','rf_line1_'+id,p.line1,1)+ft('路線リスティング2週目','rf_line2_'+id,p.line2,1)+'</div>'+
+        '<div class="rf-f"><label>求人費（税込）</label><input id="rf_cost_'+id+'" type="text" inputmode="numeric" value="'+esc(p.cost==null?'':p.cost)+'"></div>'+
         '<div class="rf-grid">'+f('応募総数','rf_apps_'+id,appsV)+f('採用人数','rf_hires_'+id,hiresV)+f('退職人数','rf_quit_'+id,p.quit)+'</div>'+
         '<label class="rf-l">備考・退職理由</label><textarea class="rf-ta" id="rf_note_'+id+'">'+esc(p.note||'')+'</textarea>'+
         '<button class="rf-save" onclick="event.stopPropagation();saveResult(\''+id+'\')">保存</button>'+
@@ -633,12 +648,13 @@
       var p=postById[id]; if(!p) return;
       var gv=function(k){ var el=document.getElementById(k+id); return el?el.value:''; };
       var apps=gv('rf_apps_'), hires=gv('rf_hires_'), quit=gv('rf_quit_'), note=gv('rf_note_');
+      var reporter=gv('rf_reporter_'), media=gv('rf_media_'), plan=gv('rf_plan_'), area1=gv('rf_area1_'), area2=gv('rf_area2_'), line1=gv('rf_line1_'), line2=gv('rf_line2_'), cost=gv('rf_cost_');
       if(!confirm(p.store+' の結果を保存します。\n応募 '+(apps||'-')+' / 採用 '+(hires||'-')+' / 退職 '+(quit||'-')+'\nよろしいですか？')) return;
       toast('保存中…');
       google.script.run.withSuccessHandler(function(r){
-        if(r&&r.ok){ p.apps=apps; p.hires=hires; p.quit=quit; p.note=note; p.state='終了'; toast('保存しました（Notionは元スプシの「プロジェクト実行」で反映）'); renderRecruit(); renderHistory(); renderStats(); }
+        if(r&&r.ok){ p.apps=apps; p.hires=hires; p.quit=quit; p.note=note; p.reporter=reporter; p.media=media; p.plan=plan; p.area1=area1; p.area2=area2; p.line1=line1; p.line2=line2; p.cost=cost; p.state='終了'; toast('保存しました（Notionは元スプシの「プロジェクト実行」で反映）'); renderRecruit(); renderHistory(); renderStats(); }
         else toast('保存失敗: '+((r&&r.error)||''));
-      }).withFailureHandler(function(e){ toast('通信エラー: '+(e&&e.message||'')); }).epSaveResult({ srcSheet:p.srcSheet, srcRow:p.srcRow, store:p.store, start:p.start, apps:apps, hires:hires, quit:quit, note:note });
+      }).withFailureHandler(function(e){ toast('通信エラー: '+(e&&e.message||'')); }).epSaveResult({ srcSheet:p.srcSheet, srcRow:p.srcRow, store:p.store, start:p.start, apps:apps, hires:hires, quit:quit, note:note, reporter:reporter, media:media, plan:plan, area1:area1, area2:area2, line1:line1, line2:line2, cost:cost });
     }
     // 緊急用：結果報告の行を削除（パスワード必須）。完全無料枠など結果報告不要な打ち出し用。
     function delPosting(id){
