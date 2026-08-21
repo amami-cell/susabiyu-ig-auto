@@ -440,10 +440,17 @@ func _setup_sky_fog() -> void:
 	env.tonemap_white = 1.1
 
 	env.glow_enabled = true
-	env.glow_intensity = 0.22
-	env.glow_strength = 0.9
-	env.glow_bloom = 0.03
-	env.glow_hdr_threshold = 1.05
+	env.glow_intensity = 0.28
+	env.glow_strength = 0.95
+	env.glow_bloom = 0.04
+	env.glow_hdr_threshold = 1.0
+
+	# カラーグレーディング：コントラストと彩度を少し上げて“作り込んだ絵”に。
+	# （gl_compatibility でも使える。SSAO等は Forward+ 専用なので GRAPHICS.md 参照）
+	env.adjustment_enabled = true
+	env.adjustment_brightness = 1.02
+	env.adjustment_contrast = 1.12
+	env.adjustment_saturation = 1.14
 
 	env.fog_enabled = true
 	env.fog_light_energy = 1.0
@@ -455,10 +462,22 @@ func _setup_sun() -> void:
 	if _sun == null:
 		return
 	_sun.light_color = Color(1.0, 0.95, 0.86)
-	_sun.light_energy = 1.15
+	_sun.light_energy = 1.25
 	_sun.shadow_enabled = true
 	_sun.directional_shadow_blend_splits = true
-	_sun.shadow_bias = 0.03
+	_sun.directional_shadow_mode = DirectionalLight3D.SHADOW_PARALLEL_4_SPLITS
+	_sun.shadow_bias = 0.04
+	_sun.shadow_normal_bias = 1.2
+	_sun.light_specular = 0.6
+
+	# 空の反対側から弱い青の“フィル”を足して、影の中を暗く潰さない（現代的な絵作り）
+	var fill := DirectionalLight3D.new()
+	fill.name = "Fill"
+	fill.transform = _sun.transform.rotated_local(Vector3.UP, PI)
+	fill.light_color = Color(0.6, 0.72, 0.9)
+	fill.light_energy = 0.35
+	fill.shadow_enabled = false
+	add_child(fill)
 
 
 ## 地面。ノイズで土と芝のムラを出し、平面ののっぺりを消す。回復度で土→芝へ。
@@ -472,11 +491,24 @@ func _build_ground() -> void:
 	ntex.seamless = true
 	ntex.noise = noise
 
+	# 凹凸（ノーマルマップ）。地面に細かい起伏の陰影が出て“質感”が一段上がる。
+	var nnoise := FastNoiseLite.new()
+	nnoise.frequency = 0.08
+	nnoise.fractal_octaves = 3
+	var normtex := NoiseTexture2D.new()
+	normtex.width = 256
+	normtex.height = 256
+	normtex.seamless = true
+	normtex.as_normal_map = true
+	normtex.bump_strength = 3.0
+	normtex.noise = nnoise
+
 	_ground_shader = ShaderMaterial.new()
 	var sh := Shader.new()
 	sh.code = """
 shader_type spatial;
 uniform sampler2D noisetex : filter_linear_mipmap, repeat_enable;
+uniform sampler2D normaltex : hint_normal, filter_linear_mipmap, repeat_enable;
 uniform vec3 soil : source_color = vec3(0.34, 0.27, 0.19);
 uniform vec3 grass : source_color = vec3(0.30, 0.55, 0.25);
 uniform float greenness = 0.0;
@@ -486,13 +518,19 @@ void fragment() {
 	vec3 dry = mix(soil * 0.75, soil * 1.15, n);
 	vec3 wet = mix(grass * 0.65, grass * 1.20, n);
 	vec3 col = mix(dry, wet, greenness);
-	col *= mix(0.9, 1.0, n2);           // 細かい粒状感
+	col *= mix(0.88, 1.05, n2);         // 細かい粒状感
 	ALBEDO = col;
-	ROUGHNESS = mix(1.0, 0.82, greenness);
+	// 近くほど凹凸を強く、遠くは平ら（ちらつき防止）
+	float d = clamp(length(VERTEX) / 24.0, 0.0, 1.0);
+	NORMAL_MAP = texture(normaltex, UV * 26.0).rgb;
+	NORMAL_MAP_DEPTH = mix(0.9, 0.0, d);
+	ROUGHNESS = mix(1.0, 0.78, greenness);
+	SPECULAR = 0.3;                     // 濡れたような弱い照り（緑ほど）
 }
 """
 	_ground_shader.shader = sh
 	_ground_shader.set_shader_parameter("noisetex", ntex)
+	_ground_shader.set_shader_parameter("normaltex", normtex)
 	_ground.material_override = _ground_shader
 
 
