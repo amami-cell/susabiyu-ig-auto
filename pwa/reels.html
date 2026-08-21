@@ -236,7 +236,7 @@
 <script>
 (function(){
   "use strict";
-  window.__APPV = "v179";   // 画面下の版数表示用（sw.js の VER と同期・コード変更で更新）
+  window.__APPV = "v180";   // 画面下の版数表示用（sw.js の VER と同期・コード変更で更新）
   var CFG = window.SUSABIYU || {};
   var GAS = (CFG.GAS_URL||"").trim();
   // 実データ連携が有効か（config.js の GAS_URL が実物URLに置換済みか）。未置換(PASTE_)なら見本モード。
@@ -348,7 +348,7 @@
     {video:SAMPLEVID, poster:"", t:"揚げたて天ぷら", cap:"サクッと、揚げたて。", dur:48}
   ];
   // 候補カードの画像/動画URL。加工済みフィード画像は中身更新時に ?v を上げてキャッシュを確実に更新。
-  var SUSV = "?v=2";   // susabiyu/ の画像の版（中身が変わった時だけ上げる）
+  var SUSV = "?v=3";   // susabiyu/ の画像の版（中身が変わった時だけ上げる）
   function feedImg(p){ return p.img ? p.img + SUSV : ""; }
   function reelVid(p){ return p.video||SAMPLEVID; }
   function reelPoster(p){ return p.poster||""; }
