@@ -48,13 +48,14 @@ var _spawn_timer := 0.0
 @onready var _bugs: Node3D = $Bugs
 @onready var _children: Node3D = $Children
 @onready var _ground: MeshInstance3D = $Ground
-@onready var _ground_mat := StandardMaterial3D.new()
 @onready var _env: WorldEnvironment = $WorldEnvironment
+@onready var _sun: DirectionalLight3D = $Sun
 
 # 見た目（すべて手続き生成＝外部素材ゼロ・スマホ安全）
-const GRASS_COUNT := 500
-const FLOWER_COUNT := 60
+const GRASS_COUNT := 900
+const FLOWER_COUNT := 90
 var _sky_mat: ProceduralSkyMaterial = null
+var _ground_shader: ShaderMaterial = null
 var _grass_mm: MultiMesh = null
 var _flower_mm: MultiMesh = null
 var _grass_pos := PackedVector3Array()
@@ -63,7 +64,6 @@ var _grass_yaw := PackedFloat32Array()
 
 
 func _ready() -> void:
-	_ground.material_override = _ground_mat
 	_setup_visuals()
 	WorldState.recovery_changed.connect(_on_recovery_changed)
 	Net.roster_changed.connect(_reconcile_players)
@@ -202,33 +202,114 @@ func _on_cleanup_zone_entered(body: Node3D) -> void:
 
 func _setup_visuals() -> void:
 	_setup_sky_fog()
+	_setup_sun()
+	_build_ground()
 	_build_grass()
 	_build_flowers()
 
 
-## 空と霧。汚れているほど灰色・濃い霧（近くしか見えない＝澱んだ空気）、
-## 回復するほど青空・霧が晴れる。霧は「小人視点のジオラマ感」も出す。
+## 空・霧・トーン・ブルーム。汚れているほど灰色・濃霧、回復で青空・澄んだ空気。
+## トーンマップ(フィルミック)とわずかなブルームで、色が“作り込まれて”見える。
 func _setup_sky_fog() -> void:
 	var env := Environment.new()
 	_sky_mat = ProceduralSkyMaterial.new()
+	_sky_mat.sun_angle_max = 30.0
 	var sky := Sky.new()
 	sky.sky_material = _sky_mat
 	env.background_mode = Environment.BG_SKY
 	env.sky = sky
 	env.ambient_light_source = Environment.AMBIENT_SOURCE_SKY
-	env.ambient_light_energy = 0.75
+	env.ambient_light_energy = 0.6
+
+	env.tonemap_mode = Environment.TONE_MAPPER_FILMIC
+	env.tonemap_exposure = 1.05
+	env.tonemap_white = 1.1
+
+	env.glow_enabled = true
+	env.glow_intensity = 0.22
+	env.glow_strength = 0.9
+	env.glow_bloom = 0.03
+	env.glow_hdr_threshold = 1.05
+
 	env.fog_enabled = true
 	env.fog_light_energy = 1.0
 	_env.environment = env
 
 
-## 草。回復度で「伸びる」。汚れているうちは生えていない（高さ0）。
+## 太陽。夕方寄りの暖色＋やわらかい影で、のっぺりを避ける。
+func _setup_sun() -> void:
+	if _sun == null:
+		return
+	_sun.light_color = Color(1.0, 0.95, 0.86)
+	_sun.light_energy = 1.15
+	_sun.shadow_enabled = true
+	_sun.directional_shadow_blend_splits = true
+	_sun.shadow_bias = 0.03
+
+
+## 地面。ノイズで土と芝のムラを出し、平面ののっぺりを消す。回復度で土→芝へ。
+func _build_ground() -> void:
+	var noise := FastNoiseLite.new()
+	noise.frequency = 0.03
+	noise.fractal_octaves = 4
+	var ntex := NoiseTexture2D.new()
+	ntex.width = 256
+	ntex.height = 256
+	ntex.seamless = true
+	ntex.noise = noise
+
+	_ground_shader = ShaderMaterial.new()
+	var sh := Shader.new()
+	sh.code = """
+shader_type spatial;
+uniform sampler2D noisetex : filter_linear_mipmap, repeat_enable;
+uniform vec3 soil : source_color = vec3(0.34, 0.27, 0.19);
+uniform vec3 grass : source_color = vec3(0.30, 0.55, 0.25);
+uniform float greenness = 0.0;
+void fragment() {
+	float n = texture(noisetex, UV * 9.0).r;
+	float n2 = texture(noisetex, UV * 40.0).r;
+	vec3 dry = mix(soil * 0.75, soil * 1.15, n);
+	vec3 wet = mix(grass * 0.65, grass * 1.20, n);
+	vec3 col = mix(dry, wet, greenness);
+	col *= mix(0.9, 1.0, n2);           // 細かい粒状感
+	ALBEDO = col;
+	ROUGHNESS = mix(1.0, 0.82, greenness);
+}
+"""
+	_ground_shader.shader = sh
+	_ground_shader.set_shader_parameter("noisetex", ntex)
+	_ground.material_override = _ground_shader
+
+
+## 草。回復度で「伸びる」。風で揺れ、根元が濃く穂先が明るい。
 func _build_grass() -> void:
 	var blade := BoxMesh.new()
-	blade.size = Vector3(0.05, 0.3, 0.05)
-	var mat := StandardMaterial3D.new()
-	mat.vertex_color_use_as_albedo = true
-	mat.roughness = 1.0
+	blade.size = Vector3(0.045, 0.3, 0.045)
+
+	var mat := ShaderMaterial.new()
+	var sh := Shader.new()
+	sh.code = """
+shader_type spatial;
+render_mode cull_disabled;
+uniform float wind = 0.10;
+void vertex() {
+	float base_x = MODEL_MATRIX[3].x;
+	float base_z = MODEL_MATRIX[3].z;
+	float h = clamp((VERTEX.y + 0.15) / 0.3, 0.0, 1.0);   // 0=根元 1=穂先
+	float s = sin(TIME * 1.6 + base_x * 0.6 + base_z * 0.4);
+	float c = cos(TIME * 1.2 + base_z * 0.7);
+	VERTEX.x += s * wind * h;
+	VERTEX.z += c * wind * 0.6 * h;
+}
+void fragment() {
+	float h = clamp((UV.y), 0.0, 1.0);
+	// COLOR＝MultiMeshのインスタンス色。根元を暗く、穂先を明るく。
+	ALBEDO = COLOR.rgb * mix(0.55, 1.15, 1.0 - UV.y);
+	ROUGHNESS = 1.0;
+}
+"""
+	mat.shader = sh
 	blade.material = mat
 
 	_grass_mm = MultiMesh.new()
@@ -242,30 +323,36 @@ func _build_grass() -> void:
 	for i in GRASS_COUNT:
 		var x := rng.randf_range(-21.0, 21.0)
 		var z := rng.randf_range(-21.0, 21.0)
-		var h := rng.randf_range(0.6, 1.4)
-		# 排水溝の上には生やさない
+		var h := rng.randf_range(0.6, 1.5)
 		if x > -3.6 and x < 3.6 and z > -11.5 and z < -6.5:
-			h = 0.0
+			h = 0.0   # 排水溝の上には生やさない
 		_grass_pos.append(Vector3(x, 0.0, z))
 		_grass_h.append(h)
 		_grass_yaw.append(rng.randf_range(0.0, TAU))
-		_grass_mm.set_instance_color(i, Color(0.28, 0.45, 0.18).lerp(Color(0.45, 0.7, 0.3), rng.randf()))
+		var c := Color(0.26, 0.42, 0.16).lerp(Color(0.5, 0.72, 0.32), rng.randf())
+		_grass_mm.set_instance_color(i, c)
 
 	var mmi := MultiMeshInstance3D.new()
 	mmi.name = "Grass"
 	mmi.multimesh = _grass_mm
+	mmi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF   # 草の影は重い＆汚いので切る
 	add_child(mmi)
 	_update_grass(WorldState.recovery)
 
 
-## 花。回復30%を超えたあたりから咲き始め、100%で満開。草の上に散らす。
+## 花。花びららしく平たい形。回復30%から咲き始め100%で満開。
 func _build_flowers() -> void:
-	var head := SphereMesh.new()
-	head.radius = 0.07
-	head.height = 0.14
+	var head := CylinderMesh.new()
+	head.top_radius = 0.11
+	head.bottom_radius = 0.11
+	head.height = 0.035
+	head.radial_segments = 6
 	var mat := StandardMaterial3D.new()
 	mat.vertex_color_use_as_albedo = true
-	mat.roughness = 0.8
+	mat.roughness = 0.6
+	mat.emission_enabled = true
+	mat.emission = Color(1, 1, 1)
+	mat.emission_energy_multiplier = 0.25   # ブルームでほんのり光る
 	head.material = mat
 
 	_flower_mm = MultiMesh.new()
@@ -274,13 +361,14 @@ func _build_flowers() -> void:
 	_flower_mm.mesh = head
 	_flower_mm.instance_count = FLOWER_COUNT
 
-	var cols := [Color(0.95, 0.4, 0.5), Color(0.98, 0.85, 0.35), Color(0.92, 0.92, 0.96), Color(0.75, 0.55, 0.9)]
+	var cols := [Color(0.98, 0.42, 0.55), Color(1.0, 0.86, 0.38), Color(0.95, 0.95, 0.98), Color(0.78, 0.56, 0.95)]
 	var rng := RandomNumberGenerator.new()
 	rng.seed = 99887766
 	for i in FLOWER_COUNT:
-		var src: Vector3 = _grass_pos[(i * 7) % _grass_pos.size()]
-		var origin := src + Vector3(0.0, 0.34, 0.0)
-		_flower_mm.set_instance_transform(i, Transform3D(Basis(), origin))
+		var src: Vector3 = _grass_pos[(i * 11) % _grass_pos.size()]
+		var tilt := Basis(Vector3.RIGHT, rng.randf_range(-0.2, 0.2)) * Basis(Vector3.UP, rng.randf_range(0.0, TAU))
+		var origin := src + Vector3(0.0, 0.36, 0.0)
+		_flower_mm.set_instance_transform(i, Transform3D(tilt, origin))
 		_flower_mm.set_instance_color(i, cols[rng.randi() % cols.size()])
 
 	var mmi := MultiMeshInstance3D.new()
@@ -316,13 +404,14 @@ func _update_sky_fog(r: float) -> void:
 		_sky_mat.ground_bottom_color = WorldState.ground_color()
 	var env := _env.environment
 	if env != null:
-		env.fog_light_color = Color(0.6, 0.56, 0.5).lerp(Color(0.78, 0.86, 0.9), r)
-		env.fog_density = lerpf(0.06, 0.012, r)   # 澱んだ濃霧 → 澄んだ空気
+		env.fog_light_color = Color(0.58, 0.54, 0.48).lerp(Color(0.66, 0.80, 0.92), r)
+		env.fog_density = lerpf(0.055, 0.006, r)   # 澱んだ濃霧 → 澄んだ空気
 
 
 func _on_recovery_changed(_value: float) -> void:
 	var r := WorldState.recovery
-	_ground_mat.albedo_color = WorldState.ground_color()
+	if _ground_shader != null:
+		_ground_shader.set_shader_parameter("greenness", r)
 	_update_sky_fog(r)
 	_update_grass(r)
 	_update_flowers(r)
