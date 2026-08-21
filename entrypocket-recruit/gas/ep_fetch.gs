@@ -54,12 +54,31 @@ var COLMAP = {
 
 // 店舗マスタ名の先頭にある【アルバイト】等の【…】を除去して店舗名だけにする
 // 店舗名の表記ゆれ統一（左→右）。必要な別名はここに足すだけ。
+// エントリーポケット上の店舗名 → 求人結果スプシ上の店舗名（正）へ寄せる別名表。
+// ★左＝EntryPocket(応募データ)の表記、右＝スプシ(求人結果報告)の表記。両方を同じ名前に揃えて突き合わせる。
+// 空白・大文字小文字・全角半角の違いは吸収するので、代表的な表記を1つ書けばよい。
 var EP_STORE_ALIAS = {
-  "たぬき屋": "たぬきや"
+  "たぬき屋": "味のたぬきや",
+  "たぬきや": "味のたぬきや",
+  "お初天神GOLD": "フレンチ酒場GOLD お初天神店",
+  "Itarian Bar NagaGutsu": "NagaGutsu"
 };
+// 別名照合用の正規化（空白・中黒を除去し、全角英数を半角化して小文字化）。表記ゆれを吸収する。
+function epAliasNorm_(s) {
+  var v = String(s || "");
+  try { v = v.normalize("NFKC"); } catch (e) { }   // 全角英数→半角 等
+  return v.replace(/[\s　・･]/g, "").toLowerCase();
+}
+var EP_STORE_ALIAS_NORM_ = null;
 function epCleanStore_(s) {
   var v = String(s || "").replace(/^(?:\s*【[^】]*】\s*)+/, "").trim();
   if (EP_STORE_ALIAS[v]) return EP_STORE_ALIAS[v];
+  if (!EP_STORE_ALIAS_NORM_) {   // 正規化キーの別名表を初回だけ作る（表記ゆれ対策）
+    EP_STORE_ALIAS_NORM_ = {};
+    for (var k in EP_STORE_ALIAS) EP_STORE_ALIAS_NORM_[epAliasNorm_(k)] = EP_STORE_ALIAS[k];
+  }
+  var nk = epAliasNorm_(v);
+  if (nk && EP_STORE_ALIAS_NORM_[nk]) return EP_STORE_ALIAS_NORM_[nk];
   return v;
 }
 
