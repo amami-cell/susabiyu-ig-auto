@@ -222,7 +222,7 @@ func _update_look() -> void:
 func _follow_camera() -> void:
 	# 追従カメラ。バネで寄せるだけ。SpringArm3D を使わないのは、
 	# スマホで壁にめり込む挙動を自分で調整したいときに分かりやすいから。
-	var want := global_position + Vector3(0.0, 2.6, 4.4).rotated(Vector3.UP, _cam_rig.rotation.y)
+	var want := global_position + Vector3(0.0, 2.3, 5.6).rotated(Vector3.UP, _cam_rig.rotation.y)
 	_cam_rig.global_position = _cam_rig.global_position.lerp(want, 0.14)
 	_camera.look_at(global_position + Vector3.UP * 0.8, Vector3.UP)
 

@@ -87,4 +87,8 @@ static func _mat(c: Color, rough: float) -> StandardMaterial3D:
 	var m := StandardMaterial3D.new()
 	m.albedo_color = c
 	m.roughness = rough
+	# リムライト：輪郭がふちどられて浮き立つ（現代スタイライズドの定番）
+	m.rim_enabled = true
+	m.rim = 0.5
+	m.rim_tint = 0.4
 	return m

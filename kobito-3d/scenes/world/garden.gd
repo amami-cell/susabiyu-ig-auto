@@ -436,21 +436,21 @@ func _setup_sky_fog() -> void:
 	env.ambient_light_energy = 0.6
 
 	env.tonemap_mode = Environment.TONE_MAPPER_FILMIC
-	env.tonemap_exposure = 1.05
+	env.tonemap_exposure = 0.98
 	env.tonemap_white = 1.1
 
 	env.glow_enabled = true
-	env.glow_intensity = 0.28
+	env.glow_intensity = 0.35
 	env.glow_strength = 0.95
 	env.glow_bloom = 0.04
-	env.glow_hdr_threshold = 1.0
+	env.glow_hdr_threshold = 1.1
 
-	# カラーグレーディング：コントラストと彩度を少し上げて“作り込んだ絵”に。
+	# カラーグレーディング：コントラストと彩度を上げて“作り込んだ映える絵”に。
 	# （gl_compatibility でも使える。SSAO等は Forward+ 専用なので GRAPHICS.md 参照）
 	env.adjustment_enabled = true
-	env.adjustment_brightness = 1.02
-	env.adjustment_contrast = 1.12
-	env.adjustment_saturation = 1.14
+	env.adjustment_brightness = 1.03
+	env.adjustment_contrast = 1.18
+	env.adjustment_saturation = 1.22
 
 	env.fog_enabled = true
 	env.fog_light_energy = 1.0
@@ -461,23 +461,26 @@ func _setup_sky_fog() -> void:
 func _setup_sun() -> void:
 	if _sun == null:
 		return
-	_sun.light_color = Color(1.0, 0.95, 0.86)
-	_sun.light_energy = 1.25
+	# マジックアワー（夕方寄り）：低い角度の金色の光＋長い影＝いちばん“映える”。
+	_sun.rotation_degrees = Vector3(-24.0, 128.0, 0.0)
+	_sun.light_color = Color(1.0, 0.83, 0.62)   # 金色
+	_sun.light_energy = 1.35
 	_sun.shadow_enabled = true
 	_sun.directional_shadow_blend_splits = true
 	_sun.directional_shadow_mode = DirectionalLight3D.SHADOW_PARALLEL_4_SPLITS
 	_sun.shadow_bias = 0.04
 	_sun.shadow_normal_bias = 1.2
-	_sun.light_specular = 0.6
+	_sun.light_specular = 0.8
 
-	# 空の反対側から弱い青の“フィル”を足して、影の中を暗く潰さない（現代的な絵作り）
-	var fill := DirectionalLight3D.new()
-	fill.name = "Fill"
-	fill.transform = _sun.transform.rotated_local(Vector3.UP, PI)
-	fill.light_color = Color(0.6, 0.72, 0.9)
-	fill.light_energy = 0.35
-	fill.shadow_enabled = false
-	add_child(fill)
+	# 空の反対側から青い“フィル”を足して、影の中を暗く潰さない＝映画的な色対比。
+	if not has_node("Fill"):
+		var fill := DirectionalLight3D.new()
+		fill.name = "Fill"
+		fill.rotation_degrees = Vector3(-30.0, -60.0, 0.0)
+		fill.light_color = Color(0.5, 0.66, 0.95)
+		fill.light_energy = 0.45
+		fill.shadow_enabled = false
+		add_child(fill)
 
 
 ## 地面。ノイズで土と芝のムラを出し、平面ののっぺりを消す。回復度で土→芝へ。
@@ -667,14 +670,18 @@ func _update_sky_fog(r: float) -> void:
 			e.fog_density = lerpf(0.07, 0.03, r)   # 常にうっすら霧が残る
 		return
 	if _sky_mat != null:
-		_sky_mat.sky_top_color = Color(0.34, 0.34, 0.40).lerp(Color(0.25, 0.5, 0.85), r)
-		_sky_mat.sky_horizon_color = Color(0.62, 0.57, 0.5).lerp(Color(0.72, 0.86, 0.95), r)
+		# 汚: くすんだ曇天 → 回復: 夕方のマジックアワー（上は青紫、地平は金/桃）
+		_sky_mat.sky_top_color = Color(0.30, 0.30, 0.36).lerp(Color(0.20, 0.34, 0.62), r)
+		_sky_mat.sky_horizon_color = Color(0.55, 0.50, 0.46).lerp(Color(0.95, 0.66, 0.45), r)
+		_sky_mat.sun_angle_max = 22.0
+		_sky_mat.sky_energy_multiplier = 1.0
 		_sky_mat.ground_horizon_color = WorldState.ground_color()
 		_sky_mat.ground_bottom_color = WorldState.ground_color()
 	var env := _env.environment
 	if env != null:
-		env.fog_light_color = Color(0.58, 0.54, 0.48).lerp(Color(0.66, 0.80, 0.92), r)
-		env.fog_density = lerpf(0.055, 0.006, r)   # 澱んだ濃霧 → 澄んだ空気
+		# 遠景に金色のもや（大気遠近）で奥行きを出す
+		env.fog_light_color = Color(0.56, 0.52, 0.47).lerp(Color(1.0, 0.78, 0.60), r)
+		env.fog_density = lerpf(0.055, 0.010, r)
 
 
 func _on_recovery_changed(_value: float) -> void:
