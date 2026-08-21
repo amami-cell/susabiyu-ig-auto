@@ -150,6 +150,33 @@ def _set(sh, row_idx, col, value):
 def _now_str(now):
     return now.strftime("%Y-%m-%d %H:%M")
 
+def clean_captions(live):
+    """今シートに残っている予約(scheduled/posting)の本文を、投稿と同じ“1か所だけ”に整える。
+    E列(caption)を build_caption で畳んだ結果に置き換え、F列(hashtags)は本文へ内包済みなので空にする。
+    live=False は変更内容の表示のみ（DRY）、live=True で実際に書き換える。"""
+    sh = poster._sheets()
+    if not sh:
+        print("NG: creds/Sheets が使えません"); return 1
+    rows = _read_rows(sh)
+    fixed_n = 0
+    for i, row in enumerate(rows):
+        row = list(row) + [""] * (12 - len(row))
+        token, when_s, kind, media, caption, tags, status = row[:7]
+        st = (status or "").strip() or "scheduled"
+        if st not in ("scheduled", "posting"):
+            continue                              # 未投稿の分だけ整える（投稿済/失敗/取消は触らない）
+        fixed = build_caption(caption, tags)      # 実投稿と同じ組み立て＝重複タグを畳んだ正
+        if fixed == (caption or "").rstrip() and not (tags or "").strip():
+            continue                              # 既にキレイ＝変更不要
+        print("  row%d %s(%s): E %d→%d字, F=%r→''" % (i + 2, token, st, len(caption or ""), len(fixed), tags))
+        fixed_n += 1
+        if live:
+            _set(sh, i + 1, "E", fixed)           # 畳んだ本文をE列へ
+            if (tags or "").strip():
+                _set(sh, i + 1, "F", "")          # タグは本文に内包済み→別枠は空に
+    print("[CLEAN] %s: 対象 %d 件" % ("書き換え" if live else "DRY(表示のみ)", fixed_n))
+    return 0
+
 def run(live):
     sh = poster._sheets()
     if not sh:
@@ -259,4 +286,7 @@ if __name__ == "__main__":
         if a in ("live", "dry"):
             mode = a
     live = (mode == "live") or (os.environ.get("RESV_LIVE", "").strip() in ("1", "true", "yes"))
+    if "clean" in sys.argv[1:]:
+        # 既存予約の本文を“1か所だけ”に整える一括処理。RESV_LIVE=1 か 引数live で実書き換え。
+        sys.exit(clean_captions(live))
     sys.exit(run(live))
