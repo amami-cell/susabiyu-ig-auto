@@ -768,7 +768,24 @@ func _setup_sky_fog() -> void:
 
 	env.fog_enabled = true
 	env.fog_light_energy = 1.0
+
+	# PC「きれい版」(Forward+/Vulkan)だけ：接触影(AO)と反射で立体感を一段上げる。
+	# スマホ(Mobile)・古いPC(gl_compatibility)では無効＝カクつかせない。写真に一番近い見た目はここ。
+	if _is_high_fidelity():
+		env.ssao_enabled = true          # 物のすき間・草の根元に自然な陰り（AAAの肝）
+		env.ssao_radius = 1.4
+		env.ssao_intensity = 2.2
+		env.ssao_detail = 1.0
+		env.ssil_enabled = true          # 面で反射した“回り込む光”（色がにじむ）
+		env.glow_bloom = 0.05
+
 	_env.environment = env
+
+
+## 今この瞬間、Forward+（Vulkan・PCきれい版）で描いているか。
+## AO等の重い効果は“きれい版”だけで有効にする判定に使う。
+func _is_high_fidelity() -> bool:
+	return RenderingServer.get_current_rendering_method() == "forward_plus"
 
 
 ## 太陽。夕方寄りの暖色＋やわらかい影で、のっぺりを避ける。

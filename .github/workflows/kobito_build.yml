@@ -194,6 +194,12 @@ jobs:
              同じフォルダの「黒画面のときはこれ.bat」をダブルクリックしてください。
              グラフィックの描き方を切り替えて起動します。
 
+          ★ きれいな画質で遊びたいとき（新しめのPC向け）
+             同じフォルダの「きれい版（新しめPC向け）.bat」をダブルクリック。
+             Vulkan(Forward+)で起動し、接触影(AO)などが効いて一段リアルになります。
+             動かない/真っ黒なら、そのPCは非対応なので通常の.exeで遊んでください。
+             （通常起動＝軽い版・全PC対応 / きれい版＝新しめPCのみ）
+
           遊びかた
             起動したら「ひとりで始める」
             移動      WASD / 矢印キー（マウスで画面左半分をドラッグでも可）
@@ -209,6 +215,10 @@ jobs:
           # そのときのための「D3D11経由で起動する」ワンクリック。
           printf '@echo off\r\nstart "" "%%~dp0\\小人一家と汚れた世界.exe" --rendering-driver opengl3_angle\r\n' \
             > "kobito-3d/build/windows/黒画面のときはこれ.bat"
+          # 新しめPC向け「きれい版」：Vulkan(Forward+)で起動＝接触影(AO)などが効く。
+          # 非対応PCなら起動に失敗するだけ（通常の.exeは影響を受けない）。
+          printf '@echo off\r\nstart "" "%%~dp0\\小人一家と汚れた世界.exe" --rendering-method forward_plus --rendering-driver vulkan\r\n' \
+            > "kobito-3d/build/windows/きれい版（新しめPC向け）.bat"
           cp kobito-3d/build/windows/はじめに.txt kobito-3d/build/linux/
 
       - uses: actions/upload-artifact@v4
