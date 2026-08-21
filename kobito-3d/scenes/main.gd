@@ -14,12 +14,17 @@ func _ready() -> void:
 	_show_lobby(true)
 	Net.session_started.connect(_on_session_started)
 	Net.session_ended.connect(_on_session_ended)
+	Net.biome_changed.connect(func(b: String) -> void:
+		if _garden != null and _garden.has_method("set_biome"):
+			_garden.set_biome(b))
 
 	var args := OS.get_cmdline_user_args()
 	if args.has("--ws"):
 		Net.transport = Net.Transport.WEBSOCKET
 	if args.has("--offline"):
 		Net.force_offline = true
+	if args.has("--ruins"):
+		Net.world_biome = "ruins"
 	if args.has("--shot"):
 		_run_shot()
 		return
@@ -41,6 +46,7 @@ func _on_session_started() -> void:
 	if _garden != null:
 		return
 	_garden = GardenScene.instantiate()
+	_garden.biome = Net.world_biome
 	$World.add_child(_garden)
 	_show_lobby(false)
 

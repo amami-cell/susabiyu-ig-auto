@@ -17,7 +17,17 @@ extends Control
 @onready var _join: Button = $Panel/VBox/JoinButton
 
 
+var _biome: OptionButton = null
+
 func _ready() -> void:
+	# 舞台セレクタを名前欄の下に差し込む（庭/遺跡）
+	_biome = OptionButton.new()
+	_biome.add_item("庭（家族の巣・緑がよく戻る）", 0)
+	_biome.add_item("遺跡（薄暗い石の世界・石版パズル）", 1)
+	var vbox := $Panel/VBox
+	vbox.add_child(_biome)
+	vbox.move_child(_biome, 2)   # なまえ／通信路 の下あたり
+
 	_transport.add_item("ENet（PC/Android・低遅延・おすすめ）", Net.Transport.ENET)
 	_transport.add_item("WebSocket（ブラウザでも動く）", Net.Transport.WEBSOCKET)
 	_transport.selected = 1 if Net.transport == Net.Transport.WEBSOCKET else 0
@@ -44,6 +54,8 @@ func _setup_for_browser() -> void:
 	# 通信路は WebSocket 固定。選ばせても間違えるだけなので隠す。
 	_transport.visible = false
 	_host.visible = false
+	if _biome != null:
+		_biome.visible = false
 	_solo.text = "ひとりで試す（通信なし）"
 	_join.text = "ホストに参加する"
 	_addr_edit.text = Net.web_default_address()
@@ -55,6 +67,8 @@ func _sync_settings() -> void:
 	Net.my_display_name = typed if not typed.is_empty() else "小人"
 	if not Net.is_web():
 		Net.transport = _transport.get_item_id(_transport.selected) as Net.Transport
+	if _biome != null:
+		Net.world_biome = "ruins" if _biome.selected == 1 else "garden"
 
 
 func _on_solo() -> void:

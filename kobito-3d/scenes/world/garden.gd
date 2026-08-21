@@ -69,6 +69,12 @@ var _grass_yaw := PackedFloat32Array()
 var _plant_mm: MultiMesh = null
 var _plant_base := PackedVector3Array()
 var _plant_rot := PackedFloat32Array()
+var _grass_mmi: MultiMeshInstance3D = null
+var _flower_mmi: MultiMeshInstance3D = null
+var _pillars: Node3D = null
+
+# 舞台(biome)。"garden"=庭 / "ruins"=遺跡。main が session 開始時に設定。
+var biome := "garden"
 
 
 func _ready() -> void:
@@ -244,6 +250,68 @@ func _setup_visuals() -> void:
 	_build_plants()
 	_build_grass()
 	_build_flowers()
+	_build_pillars()
+	_apply_biome()
+
+
+func _is_ruins() -> bool:
+	return biome == "ruins"
+
+
+## 舞台を切り替える（庭⇔遺跡）。色・霧・草花の密度・石柱をまとめて変える。
+func set_biome(b: String) -> void:
+	biome = b
+	_apply_biome()
+
+
+func _apply_biome() -> void:
+	var ruins := _is_ruins()
+	if _pillars != null:
+		_pillars.visible = ruins
+	# 遺跡は草まばら・花なし。庭は満開まで戻る。
+	if _grass_mmi != null:
+		_grass_mmi.multimesh.visible_instance_count = int(GRASS_COUNT * (0.28 if ruins else 1.0))
+	if ruins and _flower_mm != null:
+		_flower_mm.visible_instance_count = 0
+	# 地面の色（遺跡＝苔むした石）
+	if _ground_shader != null:
+		if ruins:
+			_ground_shader.set_shader_parameter("soil", Color(0.28, 0.28, 0.26))
+			_ground_shader.set_shader_parameter("grass", Color(0.30, 0.42, 0.28))
+		else:
+			_ground_shader.set_shader_parameter("soil", Color(0.34, 0.27, 0.19))
+			_ground_shader.set_shader_parameter("grass", Color(0.30, 0.55, 0.25))
+	if _sun != null:
+		_sun.light_color = Color(0.7, 0.78, 0.72) if ruins else Color(1.0, 0.95, 0.86)
+		_sun.light_energy = 0.8 if ruins else 1.15
+	_on_recovery_changed(WorldState.recovery)
+
+
+## 遺跡の石柱（崩れた土管・古い柱のイメージ）。庭では隠す。
+func _build_pillars() -> void:
+	_pillars = Node3D.new()
+	_pillars.name = "Pillars"
+	add_child(_pillars)
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 31337
+	for i in 10:
+		var h := rng.randf_range(1.5, 3.5)
+		var pillar := MeshInstance3D.new()
+		var cm := CylinderMesh.new()
+		cm.top_radius = 0.35
+		cm.bottom_radius = 0.42
+		cm.height = h
+		cm.radial_segments = 8
+		pillar.mesh = cm
+		var mat := StandardMaterial3D.new()
+		mat.albedo_color = Color(0.32, 0.33, 0.30).lerp(Color(0.26, 0.34, 0.26), rng.randf())
+		mat.roughness = 0.95
+		pillar.material_override = mat
+		var ang := rng.randf_range(0.0, TAU)
+		var rad := rng.randf_range(6.0, 18.0)
+		pillar.position = Vector3(cos(ang) * rad, h * 0.5, sin(ang) * rad)
+		pillar.rotation = Vector3(rng.randf_range(-0.12, 0.12), rng.randf_range(0.0, TAU), rng.randf_range(-0.12, 0.12))
+		_pillars.add_child(pillar)
 
 
 ## 小石。常に散らばっている地面ディテール（回復に関係なく“地面らしさ”を足す）。
@@ -482,6 +550,7 @@ void fragment() {
 	mmi.name = "Grass"
 	mmi.multimesh = _grass_mm
 	mmi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF   # 草の影は重い＆汚いので切る
+	_grass_mmi = mmi
 	add_child(mmi)
 	_update_grass(WorldState.recovery)
 
@@ -520,6 +589,7 @@ func _build_flowers() -> void:
 	var mmi := MultiMeshInstance3D.new()
 	mmi.name = "Flowers"
 	mmi.multimesh = _flower_mm
+	_flower_mmi = mmi
 	add_child(mmi)
 	_update_flowers(WorldState.recovery)
 
@@ -538,11 +608,26 @@ func _update_grass(r: float) -> void:
 func _update_flowers(r: float) -> void:
 	if _flower_mm == null:
 		return
+	if _is_ruins():
+		_flower_mm.visible_instance_count = 0   # 遺跡に花は咲かない
+		return
 	var t := clampf((r - 0.3) / 0.7, 0.0, 1.0)
 	_flower_mm.visible_instance_count = int(round(FLOWER_COUNT * t))
 
 
 func _update_sky_fog(r: float) -> void:
+	if _is_ruins():
+		# 遺跡：薄暗く苔むした空気。回復しても“青空”にはならず、澄んだ翠に。
+		if _sky_mat != null:
+			_sky_mat.sky_top_color = Color(0.16, 0.20, 0.20).lerp(Color(0.22, 0.34, 0.30), r)
+			_sky_mat.sky_horizon_color = Color(0.30, 0.34, 0.30).lerp(Color(0.42, 0.52, 0.42), r)
+			_sky_mat.ground_horizon_color = Color(0.24, 0.26, 0.22)
+			_sky_mat.ground_bottom_color = Color(0.2, 0.22, 0.2)
+		var e := _env.environment
+		if e != null:
+			e.fog_light_color = Color(0.32, 0.40, 0.34).lerp(Color(0.45, 0.58, 0.48), r)
+			e.fog_density = lerpf(0.07, 0.03, r)   # 常にうっすら霧が残る
+		return
 	if _sky_mat != null:
 		_sky_mat.sky_top_color = Color(0.34, 0.34, 0.40).lerp(Color(0.25, 0.5, 0.85), r)
 		_sky_mat.sky_horizon_color = Color(0.62, 0.57, 0.5).lerp(Color(0.72, 0.86, 0.95), r)

@@ -17,6 +17,7 @@ extends Node
 ##   ひとりで試すときだけは OfflineMultiplayerPeer を使って、通信なしで同じ道を通す。
 
 signal status_changed(text: String)
+signal biome_changed(biome: String)
 signal roster_changed
 signal session_started
 signal session_ended(reason: String)
@@ -36,6 +37,7 @@ var transport: Transport = Transport.ENET
 ## ブラウザ版の1人プレイが壊れていないかを、PC上のCIで確かめるために使う。
 var force_offline := false
 var my_display_name := "夫"
+var world_biome := "garden"   # 舞台。ロビーで選ぶ（庭/遺跡）。ホストが決めて全員に配る
 var is_online := false
 
 ## peer_id -> { "name": String, "role": int }
@@ -162,6 +164,7 @@ func _on_peer_connected(id: int) -> void:
 	# 新規参加者へ、今いる全員と、今の環境回復度を教える
 	for pid in roster:
 		rpc_id(id, "_remote_register", pid, roster[pid]["name"], roster[pid]["role"])
+	rpc_id(id, "_remote_biome", world_biome)
 	WorldState.send_to(id)
 
 
@@ -194,6 +197,12 @@ func _request_register(display_name: String) -> void:
 	var role := _register(id, display_name)
 	# 全員（自分含む）へ通知
 	rpc("_remote_register", id, display_name, role)
+
+
+@rpc("authority", "reliable")
+func _remote_biome(biome: String) -> void:
+	world_biome = biome
+	biome_changed.emit(biome)
 
 
 @rpc("authority", "call_local", "reliable")
