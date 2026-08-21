@@ -1,0 +1,18 @@
+name: recruit-setup-regions
+# 手動実行専用。master_店舗 に「地域」列を作成し、空欄だけを推定値で自動入力する（既存値は保護）。
+# 実行後、店舗ごとに master_店舗 の地域を手で正せば、集計の地域別が正確になる。
+on:
+  workflow_dispatch:
+jobs:
+  setup:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Setup 地域 column
+        env:
+          RECRUIT_EXEC_URL: ${{ secrets.RECRUIT_EXEC_URL }}
+          EP_PUSH_KEY: ${{ secrets.EP_PUSH_KEY }}
+        run: |
+          export RECRUIT_EXEC_URL="${RECRUIT_EXEC_URL:-https://script.google.com/macros/s/AKfycbz6i36c7UjbM3S44kl1kEcsI0CSjYo9jL-W-T4BJUAr9jmBlVXj-vnQTUwQbGoxcHYT/exec}"
+          echo "--- master_店舗 に地域列を用意して推定値を投入 ---"
+          curl -sSL "$RECRUIT_EXEC_URL?setup=regions&key=$EP_PUSH_KEY"; echo
