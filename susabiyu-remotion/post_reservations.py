@@ -45,14 +45,37 @@ def classify(when_dt, now, grace_h=GRACE_H):
         return "expired"
     return "due"
 
+def collapse_dup_hashtags(text):
+    """キャプション全体で同じハッシュタグの2回目以降を除去（“上にも下にも”を根絶）。
+    ・大文字小文字は同一視。最初の出現だけ残す。
+    ・重複タグだけで空になった行は丸ごと削除（過去の予約=旧アプリ由来の二重付与も投稿時に自動で1つにまとめる）。
+    ・本文中に1回だけ出るタグ（例：店舗テンプレの #すさび湯）は消さない。"""
+    import re
+    seen = set()
+    def repl(m):
+        t = m.group(0); k = t.lower()
+        if k in seen:
+            return "\x00"          # 重複＝後で除去するマーク
+        seen.add(k); return t
+    marked = re.sub(r'#[^\s#　]+', repl, text or "")
+    out_lines = []
+    for ln in marked.split("\n"):
+        cleaned = ln.replace("\x00", "")
+        if "\x00" in ln and cleaned.strip() == "":
+            continue               # 重複タグだけの行は捨てる
+        out_lines.append(re.sub(r'[ \t]{2,}', ' ', cleaned).rstrip())
+    out = re.sub(r'\n{3,}', '\n\n', "\n".join(out_lines))
+    return out.strip()
+
 def build_caption(caption, hashtags):
-    """本文＋ハッシュタグを1つのキャプションに。"""
+    """本文＋ハッシュタグを1つのキャプションに。最後に重複ハッシュタグを畳んで“1か所だけ”にする。"""
     cap = (caption or "").rstrip()
     tags = (hashtags or "").strip()
     # 既にキャプション内にそのタグ群が含まれていれば二重付与しない（“上にも下にも”重複を防ぐ）。
     if tags and tags not in cap:
-        return (cap + "\n\n" + tags).strip() if cap else tags
-    return cap
+        cap = (cap + "\n\n" + tags).strip() if cap else tags
+    # 旧い予約（＝アプリ修正前に保存された本文）にも効くよう、最終キャプションで重複タグを畳む。
+    return collapse_dup_hashtags(cap)
 
 def _on_cdn(url):
     low = (url or "").lower()
