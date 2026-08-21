@@ -1,0 +1,38 @@
+name: susabiyu-patterns-status
+# いま「採用(GO)」になっている投稿パターン数を、パターンタブ(enabled列)から読み出して表示するだけ。
+# 手動実行のみ（cronなし・シートは変更しない・読み取り専用）。
+on:
+  workflow_dispatch: {}
+permissions:
+  contents: read
+jobs:
+  status:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    defaults:
+      run:
+        working-directory: susabiyu-remotion
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install deps
+        run: pip install google-api-python-client google-auth requests
+      - name: Write creds.json
+        run: echo "$GOOGLE_CREDS_B64" | base64 -d > creds.json
+        env:
+          GOOGLE_CREDS_B64: ${{ secrets.GOOGLE_CREDS_B64 }}
+      - name: 採用(GO)パターン数を表示
+        env:
+          SHEET_ID: ${{ secrets.SHEET_ID }}
+        run: |
+          python - <<'PY'
+          import decide_post as D
+          v, s = D._enabled_patterns()   # [ENABLED] 採用動画/採用画像 を内部でprint
+          LAB = D.LABEL
+          print("==== 採用(GO)状況 ====")
+          print("動画(リール/ストーリー) %d種: %s" % (len(v), "、".join(LAB.get(k,k) for k in v)))
+          print("画像(フィード)         %d種: %s" % (len(s), "、".join(LAB.get(k,k) for k in s)))
+          print("合計 %d種" % (len(v)+len(s)))
+          PY
