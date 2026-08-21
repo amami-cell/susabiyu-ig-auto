@@ -89,7 +89,8 @@ def _vapid_pem(raw):
 
 
 def _consolidate(items):
-    """溜まった複数件を1つの通知にまとめる（店舗ごとに新規件数を合算）。"""
+    """溜まった複数件を1つの通知にまとめる（店舗ごとに新規件数を合算）。
+    新規応募以外（サマリー等）の item は title を保ったまま送る。"""
     merged_new, merged_tot, fallback = {}, {}, []
     for it in items:
         raw = it.get("data") or ""
@@ -104,15 +105,19 @@ def _consolidate(items):
                 parsed = True
             except Exception:
                 parsed = False
-        if not parsed and it.get("body"):
-            fallback.append(it["body"])
+        if not parsed and (it.get("body") or it.get("title")):
+            fallback.append((it.get("title") or "", it.get("body") or ""))
     if merged_new:
         total = sum(merged_new.values())
         order = sorted(merged_new, key=lambda k: -merged_new[k])
         lines = ["・%s：新規%d件%s" % (s, merged_new[s], ("（現在%d名）" % merged_tot[s]) if s in merged_tot else "")
                  for s in order]
         return "🆕 新規応募 %d件" % total, "\n".join(lines)
-    return "🆕 新規応募", "\n".join(fallback)
+    if len(fallback) == 1:
+        return (fallback[0][0] or "お知らせ"), fallback[0][1]
+    titles = "／".join(t for t, _ in fallback if t)
+    bodies = "\n".join(b for _, b in fallback if b)
+    return (titles or "お知らせ"), bodies
 
 
 def _line_broadcast(text):
