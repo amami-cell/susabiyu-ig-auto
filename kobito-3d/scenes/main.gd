@@ -12,6 +12,7 @@ var _garden: Node3D = null
 
 func _ready() -> void:
 	_show_lobby(true)
+	_build_vignette()
 	Net.session_started.connect(_on_session_started)
 	Net.session_ended.connect(_on_session_ended)
 	Net.biome_changed.connect(func(b: String) -> void:
@@ -34,6 +35,31 @@ func _ready() -> void:
 		_run_selftest_host()
 	elif args.has("--selftest-join"):
 		_run_selftest_join()
+
+
+## 映画的なビネット（周辺減光）。全機種で効く軽い画面演出＝“今っぽさ”が出る。
+## 3Dの上・HUDの下に敷く。中央は透明、周辺だけ暗い放射グラデ。
+func _build_vignette() -> void:
+	var grad := Gradient.new()
+	grad.set_offset(0, 0.62)
+	grad.set_color(0, Color(0, 0, 0, 0))
+	grad.add_point(1.0, Color(0.02, 0.02, 0.04, 0.30))
+	var tex := GradientTexture2D.new()
+	tex.gradient = grad
+	tex.fill = GradientTexture2D.FILL_RADIAL
+	tex.fill_from = Vector2(0.5, 0.5)
+	tex.fill_to = Vector2(1.25, 1.25)
+	tex.width = 256
+	tex.height = 256
+
+	var rect := TextureRect.new()
+	rect.name = "Vignette"
+	rect.texture = tex
+	rect.stretch_mode = TextureRect.STRETCH_SCALE
+	rect.set_anchors_preset(Control.PRESET_FULL_RECT)
+	rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	$UI.add_child(rect)
+	$UI.move_child(rect, 0)   # 3Dの上・他UIの下
 
 
 func _show_lobby(lobby_visible: bool) -> void:
