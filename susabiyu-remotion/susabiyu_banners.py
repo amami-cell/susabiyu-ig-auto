@@ -85,6 +85,7 @@ def main():
         _webp(feed)
         banner_items.append({
             "img": key + "_feed.jpg",
+            "story": key + "_story.jpg",   # 9:16版（ストーリー予約で使う）
             "name": "🍺 ドリンク170円バナー " + label.split("（")[0].replace("170円", ""),
             "cap": BANNER_CAP, "tags": BANNER_TAGS, "reco": False, "banner": True,
         })

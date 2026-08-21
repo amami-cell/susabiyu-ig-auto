@@ -236,7 +236,7 @@
 <script>
 (function(){
   "use strict";
-  window.__APPV = "v181";   // 画面下の版数表示用（sw.js の VER と同期・コード変更で更新）
+  window.__APPV = "v182";   // 画面下の版数表示用（sw.js の VER と同期・コード変更で更新）
   var CFG = window.SUSABIYU || {};
   var GAS = (CFG.GAS_URL||"").trim();
   // 実データ連携が有効か（config.js の GAS_URL が実物URLに置換済みか）。未置換(PASTE_)なら見本モード。
@@ -350,6 +350,7 @@
   // 候補カードの画像/動画URL。加工済みフィード画像は中身更新時に ?v を上げてキャッシュを確実に更新。
   var SUSV = "?v=3";   // susabiyu/ の画像の版（中身が変わった時だけ上げる）
   function feedImg(p){ return p.img ? p.img + SUSV : ""; }
+  function storyImg(p){ return p.story ? p.story + SUSV : ""; }   // バナーの9:16版（ストーリー予約用）
   function reelVid(p){ return p.video||SAMPLEVID; }
   function reelPoster(p){ return p.poster||""; }
 
@@ -443,11 +444,13 @@
   document.getElementById("tagmodal").addEventListener("click",function(e){ if(e.target===this){ closeTagEditor(); } });
 
   /* ---------- 実投稿/予約（実データ接続時はGASへ、未接続は見本） ---------- */
+  function mediaFor(kind,it){ return kind==="reel"?reelVid(it):(kind==="story"?storyImg(it):feedImg(it)); }
   function doSchedule(kind,it,when,slot,label){
     var name=it.t||"";
-    var caption=fullCaption(kind,it);   // 本文＋ハッシュタグ（1箇所）。hashtags別枠は空＝重複防止。
-    var media=absUrl(kind==="feed"?feedImg(it):reelVid(it));
-    var params={api:"schedule", kind:(kind==="feed"?"feed":"reel"), name:name, when:when, media:media, caption:caption, hashtags:""};
+    // ストーリーはIG仕様でキャプション不可＝本文なしで送る（feed/reelは従来通り）。
+    var caption=(kind==="story")?"":fullCaption(kind,it);   // 本文＋ハッシュタグ（1箇所）。hashtags別枠は空＝重複防止。
+    var media=absUrl(mediaFor(kind,it));
+    var params={api:"schedule", kind:(kind==="reel"?"reel":(kind==="story"?"story":"feed")), name:name, when:when, media:media, caption:caption, hashtags:""};
     var card=(slot&&slot.closest)?slot.closest(".card"):null;
     if(kind==="reel" && card && card._trim && (card._trim.end-card._trim.start)>=1){
       params.trimStart=card._trim.start; params.trimEnd=card._trim.end;
@@ -478,7 +481,7 @@
   function loadFeedJson(){
     fetch("./susabiyu/feed.json", {cache:"no-store"}).then(function(r){ return r.ok?r.json():null; }).then(function(d){
       if(!d||!d.items||!d.items.length) return;
-      FEED = d.items.map(function(it){ return {img:"./susabiyu/"+it.img, t:it.name||it.title||"", cap:it.cap||"", tags:it.tags||"", reco:!!it.reco, banner:!!it.banner}; });
+      FEED = d.items.map(function(it){ return {img:"./susabiyu/"+it.img, story:it.story?("./susabiyu/"+it.story):"", t:it.name||it.title||"", cap:it.cap||"", tags:it.tags||"", reco:!!it.reco, banner:!!it.banner}; });
       FEED = shuffleFeed(FEED);
       if(tF.classList.contains("on")) render("feed");
     }).catch(function(){});
@@ -529,6 +532,9 @@
   // 候補カードを1枚作る（おすすめ欄・全商品欄で共通利用）
   function buildCard(kind,p,noLbl){
     var c=document.createElement("div"); c.className="card"+(p.reco?" reco":"");
+    var isBn = (kind==="feed") && p.banner && !!p.story;   // バナー（フィード/ストーリー両対応）
+    var dest = "feed";                                     // バナーの投稿先（既定=フィード）
+    function effKind(){ return (isBn && dest==="story") ? "story" : kind; }
     var media=kind==="feed"
       ? '<div class="mediaWrap feed">'+(feedImg(p)?'<img loading="lazy" decoding="async" src="'+esc(cardSrc(feedImg(p)))+'" onerror="this.onerror=null;this.src=\''+esc(feedImg(p))+'\'" alt="">':'<div class="ph" style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:#3a424e">画像なし</div>')+'</div>'
       : '<div class="mediaWrap reel"><video '+(reelPoster(p)?'poster="'+esc(reelPoster(p))+'" ':'')+'src="'+esc(reelVid(p))+'" controls playsinline preload="none" webkit-playsinline></video></div>';
@@ -547,6 +553,10 @@
       '<div class="cap"></div>'+
       '<div class="tagttl">ハッシュタグ <span class="tcnt"></span></div>'+
       '<div class="tagsel"></div><button class="tagedit">✏️ ハッシュタグを編集</button>'+
+      (isBn ? '<div class="bdst" style="display:flex;gap:8px;align-items:center;margin:10px 2px 2px;font-size:12.5px;font-weight:800;color:#8b93a2">投稿先'+
+        '<button class="bdf on" style="border:0;border-radius:999px;padding:6px 13px;font-weight:800;font-size:12.5px;cursor:pointer;background:var(--rd);color:#fff">📸 フィード</button>'+
+        '<button class="bds" style="border:0;border-radius:999px;padding:6px 13px;font-weight:800;font-size:12.5px;cursor:pointer;background:#23262d;color:#aeb6c2">📱 ストーリー</button></div>'+
+        '<div class="bdsthint" style="font-size:11px;color:#6f7684;margin:3px 2px 0">ストーリーは文面なし（画像のみ）で投稿されます。</div>' : '')+
       '<div class="acts"><button class="now">今すぐ投稿</button><button class="resv">日時を決めて予約</button></div>'+
       '<div class="resvbox"><label>予約日時</label><input type="date" class="rdate"><input type="time" class="rtime" value="18:00"><button class="go">この日時で予約</button></div>'+
       '<div class="slot"></div>'+
@@ -563,13 +573,24 @@
     if(kind==="reel"){ setupTrim(c,p); }
     c.querySelector(".tagedit").onclick=function(){ openTagEditor(c); };
     var slot=c.querySelector(".slot"), rbox=c.querySelector(".resvbox");
-    c.querySelector(".now").onclick=function(){ var d=new Date(); var when=d.getFullYear()+"-"+("0"+(d.getMonth()+1)).slice(-2)+"-"+("0"+d.getDate()).slice(-2)+" "+("0"+d.getHours()).slice(-2)+":"+("0"+d.getMinutes()).slice(-2); doSchedule(kind,p,when,slot,"投稿しました"); };
+    // バナーの投稿先トグル（フィード⇄ストーリー）。プレビュー画像も9:16/4:5で切り替え。
+    if(isBn){
+      var bF=c.querySelector(".bdf"), bS=c.querySelector(".bds"), mimg=c.querySelector(".mediaWrap img");
+      function setDest(d){ dest=d;
+        bF.style.background=(d==="feed")?"var(--rd)":"#23262d"; bF.style.color=(d==="feed")?"#fff":"#aeb6c2";
+        bS.style.background=(d==="story")?"var(--rd)":"#23262d"; bS.style.color=(d==="story")?"#fff":"#aeb6c2";
+        // フィードはWebP(cardSrc)。ストーリーはWebP未生成なのでjpg直指定（無駄な404を出さない）。
+        if(mimg){ var src=(d==="story")?storyImg(p):feedImg(p); mimg.src=(d==="story")?src:cardSrc(src); mimg.onerror=function(){ this.onerror=null; this.src=src; }; }
+      }
+      bF.onclick=function(){ setDest("feed"); }; bS.onclick=function(){ setDest("story"); };
+    }
+    c.querySelector(".now").onclick=function(){ var d=new Date(); var when=d.getFullYear()+"-"+("0"+(d.getMonth()+1)).slice(-2)+"-"+("0"+d.getDate()).slice(-2)+" "+("0"+d.getHours()).slice(-2)+":"+("0"+d.getMinutes()).slice(-2); doSchedule(effKind(),p,when,slot,"投稿しました"); };
     c.querySelector(".resv").onclick=function(){ rbox.classList.toggle("open"); };
     c.querySelector(".go").onclick=function(){
       var dd=c.querySelector(".rdate").value, tt=c.querySelector(".rtime").value||"18:00";
       if(!dd){ toast("予約日を選んでください"); return; }
       rbox.classList.remove("open");
-      doSchedule(kind,p,dd+" "+tt,slot,"予約しました");
+      doSchedule(effKind(),p,dd+" "+tt,slot,"予約しました");
     };
     var cb=c.querySelector(".copybtn");
     cb.onclick=function(){ var f = fullCaption(kind,p);

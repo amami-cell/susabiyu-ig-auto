@@ -25,6 +25,14 @@ GRACE_H = 24            # when がこの時間より過去なら投稿せず exp
 JST = poster.JST
 
 # ---- 純粋ロジック（ネット/シート不要・selftest対象） ----
+def _norm_kind(kind):
+    """kind を feed/reel/story のいずれかに正規化（未知や空は feed）。"""
+    k = (kind or "").strip().lower()
+    return k if k in ("reel", "story") else "feed"
+
+def _kind_label(kind):
+    return {"reel": "リール", "story": "ストーリー"}.get(kind, "フィード")
+
 def parse_when(s):
     """'YYYY-MM-DD HH:MM'(JST) を aware datetime に。失敗で None。"""
     s = (s or "").strip()[:16]
@@ -88,7 +96,7 @@ def resolve_media(media, kind):
     if not media:
         return ""
     if media.startswith("http"):
-        if kind == "feed" and not _on_cdn(media):
+        if kind in ("feed", "story") and not _on_cdn(media):
             try:
                 import tempfile
                 r = poster.req.get(media, timeout=30)
@@ -211,7 +219,7 @@ def repost(token_arg, live):
         return 1
     for row in matches:
         token_id, when_s, kind, media, caption, tags, status, created, note, account, trim_s, trim_e = row
-        kind = "reel" if (kind or "").strip().lower() == "reel" else "feed"
+        kind = _norm_kind(kind)
         cap = build_caption(caption, tags)         # 重複タグを畳んだキレイ版
         acc = (account or "").strip(); acc_label = acc or "既定(三条)"
         print("[REPOST] token=%s account=%s kind=%s media=%s" % (token_id, acc_label, kind, (media or "")[:70]))
@@ -274,7 +282,7 @@ def run(live):
             continue
 
         # due
-        kind = "reel" if (kind or "").strip().lower() == "reel" else "feed"
+        kind = _norm_kind(kind)
         cap = build_caption(caption, tags)
         acc = (account or "").strip()
         acc_label = acc or "既定(三条)"
@@ -303,7 +311,7 @@ def run(live):
             pid = ""; print("  [FAIL] 例外:", e)
         if pid:
             _set(sh, i + 1, "G", "posted"); _set(sh, i + 1, "I", "投稿済 %s id=%s" % (_now_str(now), pid))
-            poster.line_notify("[予約投稿] %s を投稿しました\n%s" % ("リール" if kind == "reel" else "フィード", caption or ""))
+            poster.line_notify("[予約投稿] %s を投稿しました\n%s" % (_kind_label(kind), caption or ""))
             print("  [POSTED] token=%s id=%s" % (token_id, pid)); posted += 1
         else:
             _set(sh, i + 1, "G", "failed"); _set(sh, i + 1, "I", "投稿失敗 " + _now_str(now))
@@ -323,6 +331,13 @@ def selftest():
     assert classify(parse_when("2026-07-25 18:30"), now) == "future"
     assert classify(parse_when("2026-07-24 10:00"), now) == "expired"  # 32h前
     assert classify(parse_when("x"), now) == "bad"
+    assert _norm_kind("reel") == "reel"
+    assert _norm_kind("STORY") == "story"
+    assert _norm_kind("story") == "story"
+    assert _norm_kind("") == "feed"
+    assert _norm_kind("feed") == "feed"
+    assert _norm_kind("xxx") == "feed"
+    assert _kind_label("story") == "ストーリー" and _kind_label("reel") == "リール" and _kind_label("feed") == "フィード"
     assert build_caption("本文", "#a #b") == "本文\n\n#a #b"
     assert build_caption("", "#a") == "#a"
     assert build_caption("本文", "") == "本文"

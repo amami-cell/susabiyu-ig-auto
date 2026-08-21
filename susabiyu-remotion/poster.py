@@ -458,8 +458,9 @@ def ig_post(token, url, is_video):
     print("[POST] done!", pid); return pid
 
 def ig_post_media(token, url, kind, caption=""):
-    """フィード画像 / リール動画を本投稿する（ストーリー用 ig_post とは別系統）。
-       kind: 'feed'=画像フィード投稿 / 'reel'=リール動画投稿。成功でメディアIDを返す。"""
+    """フィード画像 / リール動画 / 画像ストーリーを本投稿する。
+       kind: 'feed'=画像フィード投稿 / 'reel'=リール動画投稿 / 'story'=画像ストーリー投稿。
+       成功でメディアIDを返す。※ストーリーはIG仕様上キャプション不可なので付けない。"""
     B = IGB
     me = req.get(f"{B}/me", params={"fields": "user_id,username", "access_token": token}).json()
     if me.get("error"):
@@ -470,9 +471,11 @@ def ig_post_media(token, url, kind, caption=""):
     print("[POST] @%s (uid=%s) kind=%s" % (me.get("username"), uid, kind))
     if kind == "reel":
         data = {"media_type": "REELS", "video_url": url, "access_token": token}
+    elif kind == "story":
+        data = {"media_type": "STORIES", "image_url": url, "access_token": token}   # 画像ストーリー
     else:
         data = {"image_url": url, "access_token": token}   # 画像フィード（media_type省略＝IMAGE）
-    if caption:
+    if caption and kind != "story":
         data["caption"] = caption
     c = req.post(f"{B}/{uid}/media", data=data).json()
     if "error" in c:
