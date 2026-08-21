@@ -36,7 +36,11 @@ jobs:
           nxt=$((cur + 1))
           sed -i "s/susabiyu-v$cur/susabiyu-v$nxt/" pwa/sw.js
           sed -i "s/window.__APPV = \"v$cur\"/window.__APPV = \"v$nxt\"/" pwa/reels.html
-          echo "cache v$cur -> v$nxt"
+          # susabiyu/画像の中身が変わったので ?v も上げてキャッシュを確実に更新
+          scur=$(grep -oE 'SUSV = "\?v=[0-9]+"' pwa/reels.html | grep -oE '[0-9]+' | head -1)
+          snxt=$((scur + 1))
+          sed -i "s/SUSV = \"?v=$scur\"/SUSV = \"?v=$snxt\"/" pwa/reels.html
+          echo "cache sw v$cur -> v$nxt / img ?v=$scur -> ?v=$snxt"
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add pwa/susabiyu pwa/sw.js pwa/reels.html

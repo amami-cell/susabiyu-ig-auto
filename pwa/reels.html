@@ -236,7 +236,7 @@
 <script>
 (function(){
   "use strict";
-  window.__APPV = "v178";   // 画面下の版数表示用（sw.js の VER と同期・コード変更で更新）
+  window.__APPV = "v179";   // 画面下の版数表示用（sw.js の VER と同期・コード変更で更新）
   var CFG = window.SUSABIYU || {};
   var GAS = (CFG.GAS_URL||"").trim();
   // 実データ連携が有効か（config.js の GAS_URL が実物URLに置換済みか）。未置換(PASTE_)なら見本モード。
@@ -273,8 +273,9 @@
   // プレビュー表示用：ハッシュタグは下のチップで管理するので本文には並べない（本文テンプレのみ）。
   function previewCaption(kind,p){ return bodyCap(kind,p); }
   // ローカルの加工済みフィード画像(pwa/susabiyu/*.jpg)だけ軽量WebPへ変換。CDN/絶対URLはそのまま（webpが無いため）。
-  function thumbSrc(u){ u=String(u||""); return /susabiyu\/[^\/?#]+\.(jpe?g|png)$/i.test(u) ? u.replace(/\.(jpe?g|png)$/i,".thumb.webp") : u; }
-  function cardSrc(u){ u=String(u||""); return /susabiyu\/[^\/?#]+\.(jpe?g|png)$/i.test(u) ? u.replace(/\.(jpe?g|png)$/i,".card.webp") : u; }
+  // ?v= のクエリ（キャッシュ更新用）が付いていても保持して変換する。
+  function thumbSrc(u){ u=String(u||""); return /susabiyu\/[^\/?#]+\.(jpe?g|png)(\?.*)?$/i.test(u) ? u.replace(/\.(jpe?g|png)(\?.*)?$/i,".thumb.webp$2") : u; }
+  function cardSrc(u){ u=String(u||""); return /susabiyu\/[^\/?#]+\.(jpe?g|png)(\?.*)?$/i.test(u) ? u.replace(/\.(jpe?g|png)(\?.*)?$/i,".card.webp$2") : u; }
   var refreshers=[];  // 全カードのタグ表示を一括更新するための登録先
   function refreshAll(){ for(var i=0;i<refreshers.length;i++){ try{ refreshers[i](); }catch(e){} } }
   var toastEl=document.getElementById("toast"),toastT=null;
@@ -346,8 +347,9 @@
     {video:SAMPLEVID, poster:"", t:"乾杯シーン", cap:"まずは一杯、いかがですか。", dur:48},
     {video:SAMPLEVID, poster:"", t:"揚げたて天ぷら", cap:"サクッと、揚げたて。", dur:48}
   ];
-  // 候補カードの画像/動画URL（三条は絶対URL or ./sample をそのまま使う）
-  function feedImg(p){ return p.img||""; }
+  // 候補カードの画像/動画URL。加工済みフィード画像は中身更新時に ?v を上げてキャッシュを確実に更新。
+  var SUSV = "?v=2";   // susabiyu/ の画像の版（中身が変わった時だけ上げる）
+  function feedImg(p){ return p.img ? p.img + SUSV : ""; }
   function reelVid(p){ return p.video||SAMPLEVID; }
   function reelPoster(p){ return p.poster||""; }
 
@@ -494,11 +496,11 @@
 
   /* ---------- 料理ジャンル分類（連続の偏りを避ける・寿司/海鮮向け） ---------- */
   function genreOf(n){ n=String(n||"");
-    if(/にぎり|握り|鮨|寿司|すし/.test(n)) return "寿司";
-    if(/まぐろ|マグロ|サーモン|トロ|とろ|鯛|たい|ぶり|ブリ|ハマチ|はまち|いか|イカ|たこ|タコ|えび|エビ|海鮮|刺身|造り|お造り|カルパッチョ|三昧|ネタ/.test(n)) return "刺身・海鮮";
-    if(/天ぷら|天麩羅|唐揚|から揚|フライ|揚げ|串カツ|串かつ|コロッケ/.test(n)) return "揚げ物";
-    if(/焼き|焼鳥|焼き鳥|串焼|鉄板|グリル/.test(n)) return "焼き物";
-    if(/サラダ|枝豆|漬|野菜|冷奴|奴|トマト|なす|茄子|きゅうり|胡瓜/.test(n)) return "野菜・箸休め";
+    if(/にぎり|握り|鮨|寿司|すし|軍艦|巻き|鉄火|手毬/.test(n)) return "寿司";
+    if(/天ぷら|天麩羅|唐揚|から揚|フライ|揚げ|串カツ|串かつ|コロッケ|天$|天1本|えび天|あなご天|キス天/.test(n)) return "揚げ物";
+    if(/つくね|ねぎま|串焼|焼き鳥|焼鳥|もも串|串|焼き|鉄板|グリル/.test(n)) return "焼き物";
+    if(/まぐろ|マグロ|サーモン|トロ|とろ|鯛|たい|ぶり|ブリ|ハマチ|はまち|いか|イカ|たこ|タコ|えび|エビ|海鮮|刺身|刺し|造り|お造り|カルパッチョ|三昧|ネタ|いくら|うに|ウニ|帆立|ほたて|かんぱち|しめ|えんがわ|漬け/.test(n)) return "刺身・海鮮";
+    if(/サラダ|枝豆|漬|野菜|冷奴|奴|トマト|なす|茄子|きゅうり|胡瓜|長芋|ピーマン/.test(n)) return "野菜・箸休め";
     if(/ラーメン|丼|ごはん|茶漬|〆|シメ|うどん|そば/.test(n)) return "〆";
     if(/ビール|ハイボール|日本酒|サワー|ドリンク|乾杯|酒/.test(n)) return "ドリンク";
     return "その他";

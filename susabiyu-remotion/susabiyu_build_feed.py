@@ -1,29 +1,45 @@
 # -*- coding: utf-8 -*-
-"""すさび湯 三条：メニュー(susabiyu_menu.MENU)から“加工済みフィード投稿画像”を一括生成し、
-pwa/susabiyu/ に feed_XX.jpg（＋軽量WebPサムネ）と feed.json を書き出す。
+"""すさび湯 三条：メニュー(susabiyu_menu.MENU)の各品を、実際の料理写真(review_photos/)へ
+見本feed1の体裁で焼き込み、pwa/susabiyu/ に一括出力する。
 
   python susabiyu_build_feed.py
 
 生成物:
-  ../pwa/susabiyu/feed_01.jpg .. feed_30.jpg     （投稿用 1080x1350・原寸）
+  ../pwa/susabiyu/feed_01.jpg .. feed_30.jpg     （投稿用 1080x1350・写真＋大衆デザイン）
   ../pwa/susabiyu/feed_01.thumb.webp / .card.webp（グリッド/カード表示用の軽量版）
   ../pwa/susabiyu/feed.json                       （確認アプリ reels.html が読む候補一覧）
 
-※ 確認アプリ(reels.html)は feed.json を読んで「全商品」ピッカーに並べる。
-   画像URLの中身が変わった時だけ ?v を上げる運用（sw.js側の画像キャッシュは固定名で保持）。
+写真は三条の実データ review_photos/ から料理名で特定（ぎふや天神フォルダ 1HUtrz… は除外）。
 """
 import os
+import re
+import glob
 import json
 
 from PIL import Image
 
-from susabiyu_menu import MENU, keys
-from susabiyu_design import render_card
+from susabiyu_menu import MENU, keys, headline_for
+from susabiyu_feed_design import render_feed
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 OUT_DIR = os.path.abspath(os.path.join(HERE, "..", "pwa", "susabiyu"))
-# thumb=360/q72（小サムネ）, card=960/q85（カード本表示）。原寸JPEGは投稿にも使える品質のまま。
+PHOTO_DIR = os.path.join(HERE, "review_photos")
+GIFUYA_FOLDER = "1HUtrzFFJiCuazZOhHBW88RVVdrvyh1Ox"   # ぎふや天神フォルダ＝三条では使わない
 WEBP = [("thumb.webp", 360, 72), ("card.webp", 960, 85)]
+
+
+def _clean(b):
+    return b.split("__")[-1].rsplit(".", 1)[0]
+
+
+def _index_photos():
+    idx = {}
+    for p in sorted(glob.glob(os.path.join(PHOTO_DIR, "*.jpg"))):
+        b = os.path.basename(p)
+        if GIFUYA_FOLDER in b:
+            continue
+        idx.setdefault(_clean(b), p)
+    return idx
 
 
 def _webp(src_jpg):
@@ -39,12 +55,18 @@ def _webp(src_jpg):
 
 def main():
     os.makedirs(OUT_DIR, exist_ok=True)
+    photos = _index_photos()
     ks = keys()
-    items = []
+    items, missing = [], []
     for i, it in enumerate(MENU):
+        src = photos.get(it["photo"])
+        if not src:
+            missing.append(it["photo"])
+            print("[SUSABIYU] !! 写真が見つかりません:", it["photo"])
+            continue
         key = ks[i]
         jpg = os.path.join(OUT_DIR, key + ".jpg")
-        render_card(it["name"], it.get("sub", ""), jpg, reco=bool(it.get("reco")))
+        render_feed(src, jpg, headline_for(i), it["name"], reco=bool(it.get("reco")))
         _webp(jpg)
         items.append({
             "img": key + ".jpg",
@@ -53,11 +75,13 @@ def main():
             "tags": it.get("tags", ""),
             "reco": bool(it.get("reco")),
         })
-        print("[SUSABIYU] built", key, it["name"])
+        print("[SUSABIYU] built", key, it["name"], "<-", os.path.basename(src))
     feed = {"items": items, "count": len(items)}
     with open(os.path.join(OUT_DIR, "feed.json"), "w", encoding="utf-8") as f:
         json.dump(feed, f, ensure_ascii=False, indent=1)
     print("[SUSABIYU] %d products -> %s" % (len(items), OUT_DIR))
+    if missing:
+        print("[SUSABIYU] 見つからなかった料理(%d): %s" % (len(missing), ", ".join(missing)))
 
 
 if __name__ == "__main__":
