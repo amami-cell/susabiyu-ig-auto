@@ -1,0 +1,55 @@
+name: recruit-weekly-summary
+# 週次/月次の求人サマリーを LINE＋アプリ通知で自動配信。
+#  - 週次: 毎週月曜 9:00 JST（= 月曜 00:00 UTC）
+#  - 月次: 毎月1日 9:00 JST（= 1日 00:00 UTC）／その日は月次を優先
+# 手動実行(workflow_dispatch)でも送れる（period を指定）。
+on:
+  schedule:
+    - cron: '0 0 * * 1'
+    - cron: '0 0 1 * *'
+  workflow_dispatch:
+    inputs:
+      period:
+        description: 'weekly か monthly（未指定は日付で自動判定）'
+        required: false
+        default: ''
+jobs:
+  summary:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: entrypocket-recruit/push
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install Python deps
+        run: pip install pywebpush google-api-python-client google-auth requests cryptography
+      - name: Write creds.json
+        run: echo "$GOOGLE_CREDS_B64" | base64 -d > creds.json
+        env:
+          GOOGLE_CREDS_B64: ${{ secrets.GOOGLE_CREDS_B64 }}
+      - name: Build & send summary
+        env:
+          RECRUIT_EXEC_URL: ${{ secrets.RECRUIT_EXEC_URL }}
+          EP_PUSH_KEY: ${{ secrets.EP_PUSH_KEY }}
+          SHEET_ID: ${{ secrets.SHEET_ID }}
+          VAPID_PRIVATE_KEY: ${{ secrets.VAPID_PRIVATE_KEY }}
+          VAPID_SUBJECT: ${{ secrets.VAPID_SUBJECT }}
+          LINE_CHANNEL_TOKEN: ${{ secrets.LINE_CHANNEL_TOKEN }}
+          INPUT_PERIOD: ${{ github.event.inputs.period }}
+        run: |
+          export RECRUIT_EXEC_URL="${RECRUIT_EXEC_URL:-https://script.google.com/macros/s/AKfycbz6i36c7UjbM3S44kl1kEcsI0CSjYo9jL-W-T4BJUAr9jmBlVXj-vnQTUwQbGoxcHYT/exec}"
+          echo "--- 溜まった新規応募通知を先に送ってキューを空に ---"
+          python recruit_push.py || true
+          PERIOD="$INPUT_PERIOD"
+          if [ -z "$PERIOD" ]; then
+            DOM=$(TZ=Asia/Tokyo date +%d)
+            if [ "$DOM" = "01" ]; then PERIOD=monthly; else PERIOD=weekly; fi
+          fi
+          echo "--- サマリー($PERIOD)をキューに投入 ---"
+          curl -sSL "$RECRUIT_EXEC_URL?summary=$PERIOD&key=$EP_PUSH_KEY"; echo
+          echo "--- サマリーを送信 ---"
+          python recruit_push.py
