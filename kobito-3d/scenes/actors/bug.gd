@@ -39,8 +39,14 @@ func _ready() -> void:
 
 	var mat := StandardMaterial3D.new()
 	mat.albedo_color = stats.body_color
+	mat.roughness = 0.8
+	mat.rim_enabled = true
+	mat.rim = 0.4
 	_body.material_override = mat
 	_body.scale = Vector3.ONE * stats.body_scale
+
+	# 横倒しカプセル1個を“虫”に見せる（頭・目・触角・6本脚・甲羅）
+	BugLook.decorate(self, stats.body_color, stats.body_scale, stats.shell)
 
 	# 敵の頭脳はサーバにしか無い
 	set_physics_process(true)
@@ -88,7 +94,7 @@ func _think(delta: float) -> void:
 		var dir := to_target.normalized()
 		velocity.x = dir.x * stats.move_speed
 		velocity.z = dir.z * stats.move_speed
-		look_at(global_position - dir, Vector3.UP)
+		look_at(global_position + dir, Vector3.UP)   # 頭(前=-Z)を進行方向へ向ける
 	else:
 		velocity.x = 0.0
 		velocity.z = 0.0

@@ -22,3 +22,6 @@ class_name EnemyStats
 
 ## 中ボスか（湧き対象から外す・演出を変える等、後で使う）。
 @export var is_midboss: bool = false
+
+## 見た目：甲羅を付けるか（コガネムシ等の硬い虫＝つやのあるドーム）。
+@export var shell: bool = false

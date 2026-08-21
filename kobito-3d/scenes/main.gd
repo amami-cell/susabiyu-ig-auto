@@ -235,4 +235,16 @@ func _run_shot() -> void:
 		await get_tree().create_timer(1.0).timeout
 		await RenderingServer.frame_post_draw
 		get_viewport().get_texture().get_image().save_png("/tmp/shot_puzzle.png")
+	# --bugs を付けると、アリとコガネムシを近くに出して寄りで撮る（虫の見た目確認）
+	if OS.get_cmdline_user_args().has("--bugs") and _garden != null:
+		_garden.call("_remote_spawn_bug", 901, "res://data/ant.tres", Vector3(-0.8, 0.6, -1.2))
+		_garden.call("_remote_spawn_bug", 902, "res://data/beetle.tres", Vector3(0.9, 0.6, -1.4))
+		var cam := Camera3D.new()
+		add_child(cam)
+		cam.global_position = Vector3(0.0, 1.1, 0.6)
+		cam.look_at(Vector3(0.0, 0.4, -1.3), Vector3.UP)
+		cam.current = true
+		await get_tree().create_timer(1.2).timeout
+		await RenderingServer.frame_post_draw
+		get_viewport().get_texture().get_image().save_png("/tmp/shot_bugs.png")
 	get_tree().quit()
