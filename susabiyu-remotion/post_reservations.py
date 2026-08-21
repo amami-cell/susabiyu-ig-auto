@@ -191,6 +191,42 @@ def clean_captions(live):
     print("[CLEAN] %s: 対象 %d 件" % ("書き換え" if live else "DRY(表示のみ)", fixed_n))
     return 0
 
+def repost(token_arg, live):
+    """指定tokenの予約行を、キャプションをキレイに畳んで“もう一度投稿”する（画像・本文はそのまま）。
+    既に投稿済みの分をIGで削除→クリーン版を再投稿する用途。シートは書き換えない。"""
+    token_arg = (token_arg or "").strip()
+    if not token_arg:
+        print("[REPOST] token を指定してください（REPOST_TOKEN か 引数）"); return 1
+    sh = poster._sheets()
+    if not sh:
+        print("NG: creds/Sheets が使えません"); return 1
+    for i, row in enumerate(_read_rows(sh)):
+        row = (list(row) + [""] * 12)[:12]
+        token_id, when_s, kind, media, caption, tags, status, created, note, account, trim_s, trim_e = row
+        if (token_id or "").strip() != token_arg:
+            continue
+        kind = "reel" if (kind or "").strip().lower() == "reel" else "feed"
+        cap = build_caption(caption, tags)         # 重複タグを畳んだキレイ版
+        acc = (account or "").strip(); acc_label = acc or "既定(三条)"
+        print("[REPOST] token=%s account=%s kind=%s media=%s" % (token_id, acc_label, kind, (media or "")[:70]))
+        print("---- caption ----\n%s\n----" % cap)
+        if not live:
+            print("[REPOST] DRY: 実投稿しません（mode=live で投稿）"); return 0
+        atoken = poster.fresh_token_for(acc)
+        if not atoken:
+            print("[REPOST] トークン無効/未設定 account=%s" % acc_label); return 1
+        url = resolve_media(media, kind)
+        if not url:
+            print("[REPOST] メディアURL取得失敗"); return 1
+        try:
+            pid = poster.ig_post_media(atoken, url, kind, cap)
+        except Exception as e:
+            print("[REPOST] 例外:", e); return 1
+        if pid:
+            print("[REPOST] 投稿しました id=%s" % pid); return 0
+        print("[REPOST] 投稿失敗"); return 1
+    print("[REPOST] token が見つかりません:", token_arg); return 1
+
 def run(live):
     sh = poster._sheets()
     if not sh:
@@ -303,4 +339,12 @@ if __name__ == "__main__":
     if "clean" in sys.argv[1:]:
         # 既存予約の本文を“1か所だけ”に整える一括処理。RESV_LIVE=1 か 引数live で実書き換え。
         sys.exit(clean_captions(live))
+    if "repost" in sys.argv[1:]:
+        # 指定tokenをキレイなキャプションで再投稿。token は REPOST_TOKEN か `repost <token>`。
+        tok = os.environ.get("REPOST_TOKEN", "").strip()
+        if not tok:
+            idx = sys.argv.index("repost")
+            if idx + 1 < len(sys.argv):
+                tok = sys.argv[idx + 1].strip()
+        sys.exit(repost(tok, live))
     sys.exit(run(live))

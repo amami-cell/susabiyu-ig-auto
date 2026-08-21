@@ -1,0 +1,56 @@
+name: susabiyu-reservations-repost
+# 指定した予約token（過去の投稿）を、ハッシュタグ1か所のキレイなキャプションで“再投稿”する。
+# 用途: 二重ハッシュタグで投稿済みの分をIGで削除→本ワークフローでクリーン版を再投稿。
+# 手動実行のみ（cronなし）。既定は dry(キャプション表示のみ)。live で実投稿。
+on:
+  workflow_dispatch:
+    inputs:
+      token:
+        description: "予約token（例: R2026082018453）"
+        required: true
+        type: string
+      mode:
+        description: "dry=キャプション確認のみ / live=実際に再投稿"
+        required: false
+        default: "dry"
+        type: choice
+        options: [dry, live]
+permissions:
+  contents: read
+concurrency:
+  group: susabiyu-reservations   # 予約ポスターと同じグループ＝二重実行を避ける
+  cancel-in-progress: false
+jobs:
+  repost:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: susabiyu-remotion
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install deps
+        run: pip install google-api-python-client google-auth requests
+      - name: Write creds.json
+        run: echo "$GOOGLE_CREDS_B64" | base64 -d > creds.json
+        env:
+          GOOGLE_CREDS_B64: ${{ secrets.GOOGLE_CREDS_B64 }}
+      - name: Repost（キレイなキャプションで再投稿）
+        env:
+          SHEET_ID: ${{ secrets.SHEET_ID }}
+          IG_ACCESS_TOKEN: ${{ secrets.IG_ACCESS_TOKEN }}
+          IG_ACCESS_TOKEN_GIFUYATENJIN: ${{ secrets.IG_ACCESS_TOKEN_GIFUYATENJIN }}
+          GH_MEDIA_TOKEN: ${{ secrets.GH_MEDIA_TOKEN }}
+          GH_MEDIA_REPO: ${{ secrets.GH_MEDIA_REPO }}
+          R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          R2_BUCKET: ${{ secrets.R2_BUCKET }}
+          R2_PUBLIC_BASE: ${{ secrets.R2_PUBLIC_BASE }}
+          REPOST_TOKEN: ${{ github.event.inputs.token }}
+          RESV_LIVE: ${{ github.event.inputs.mode == 'live' && '1' || '0' }}
+        run: |
+          python post_reservations.py creds.json repost
