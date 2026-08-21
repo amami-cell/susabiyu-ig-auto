@@ -134,6 +134,36 @@ jobs:
           path: kobito-3d/build/web
           retention-days: 14
 
+      # テストプレイ用の公開URL：Web書き出しを既存の公開サイト(GH_MEDIA_REPO)の
+      # kobito/ フォルダへ載せる。iPhoneはこのURLをSafariで開くだけでテストできる。
+      # 求人PWA(deploy_pwa_recruit)と同じ仕組み。app/recruit/tana には一切触れない。
+      # ※シークレット未設定なら黙ってスキップ（CIは緑のまま／成果物 kobito-web は取得可）。
+      # ※iPhone(Safari)版は現行の見た目（Vulkanのリアル強化は届かない）。
+      - name: テストプレイ用の公開URLへ載せる（kobito/ サブフォルダ）
+        env:
+          TOKEN: ${{ secrets.GH_MEDIA_TOKEN }}
+          MEDIA_REPO: ${{ secrets.GH_MEDIA_REPO }}
+        run: |
+          if [ -z "$TOKEN" ] || [ -z "$MEDIA_REPO" ]; then
+            echo "INFO: GH_MEDIA_TOKEN / GH_MEDIA_REPO 未設定のため公開はスキップ（成果物 kobito-web は取得可）"
+            exit 0
+          fi
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git clone --depth 1 "https://x-access-token:${TOKEN}@github.com/${MEDIA_REPO}.git" _site
+          rm -rf _site/kobito
+          mkdir -p _site/kobito
+          cp -r kobito-3d/build/web/. _site/kobito/
+          touch _site/.nojekyll
+          cd _site
+          git add kobito .nojekyll
+          if git diff --cached --quiet; then
+            echo "変更なし"; exit 0
+          fi
+          git commit -m "deploy kobito web (test play)"
+          git push
+          echo "公開URL: https://${MEDIA_REPO%%/*}.github.io/${MEDIA_REPO#*/}/kobito/"
+
   # ------------------------------------------------------------------
   # 3) PC版（Windows / Linux）… ダウンロードして展開 → ダブルクリックで起動。
   #    Python もサーバーも要らないので、これが「PCで触る」いちばん確実な形。
