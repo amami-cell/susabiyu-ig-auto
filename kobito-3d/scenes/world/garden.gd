@@ -73,6 +73,13 @@ var _grass_mmi: MultiMeshInstance3D = null
 var _flower_mmi: MultiMeshInstance3D = null
 var _pillars: Node3D = null
 
+# 遠景（オープンワールドの“広さ”を出す背景）：山なみ・水面・木立。
+# すべて壁(半径24)の外＝背景専用。MultiMeshで各1ドローコール＝スマホでも軽い。
+const TREE_COUNT := 140
+var _hills: MultiMeshInstance3D = null
+var _water_mat: ShaderMaterial = null
+var _trees: Node3D = null
+
 # 舞台(biome)。"garden"=庭 / "ruins"=遺跡。main が session 開始時に設定。
 var biome := "garden"
 
@@ -251,6 +258,9 @@ func _setup_visuals() -> void:
 	_build_grass()
 	_build_flowers()
 	_build_pillars()
+	_build_water()
+	_build_distant_hills()
+	_build_trees()
 	_apply_biome()
 
 
@@ -284,6 +294,22 @@ func _apply_biome() -> void:
 	if _sun != null:
 		_sun.light_color = Color(0.7, 0.78, 0.72) if ruins else Color(1.0, 0.95, 0.86)
 		_sun.light_energy = 0.8 if ruins else 1.15
+	# 遺跡は森まばら・水は淀む。庭は森が茂り水は澄む。
+	if _trees != null:
+		var vis := int(TREE_COUNT * (0.35 if ruins else 1.0))
+		var tt := _trees.get_node_or_null("TreeTrunks")
+		var tf := _trees.get_node_or_null("TreeFoliage")
+		if tt != null:
+			tt.multimesh.visible_instance_count = vis
+		if tf != null:
+			tf.multimesh.visible_instance_count = vis
+	if _water_mat != null:
+		if ruins:
+			_water_mat.set_shader_parameter("shallow", Color(0.22, 0.30, 0.28))
+			_water_mat.set_shader_parameter("deep", Color(0.06, 0.12, 0.12))
+		else:
+			_water_mat.set_shader_parameter("shallow", Color(0.20, 0.45, 0.52))
+			_water_mat.set_shader_parameter("deep", Color(0.06, 0.16, 0.24))
 	_on_recovery_changed(WorldState.recovery)
 
 
@@ -312,6 +338,160 @@ func _build_pillars() -> void:
 		pillar.position = Vector3(cos(ang) * rad, h * 0.5, sin(ang) * rad)
 		pillar.rotation = Vector3(rng.randf_range(-0.12, 0.12), rng.randf_range(0.0, TAU), rng.randf_range(-0.12, 0.12))
 		_pillars.add_child(pillar)
+
+
+## 世界を囲む水面（湖）。庭(48四方)が水に浮かぶ島のように見え、一気に“広い風景”になる。
+## 地面の外側にだけ見える。波は頂点＆法線をTIMEで揺らし、太陽がきらめく（gl_compatibility可）。
+## 参考画像の「川・湖が地平まで続く」オープンワールド感を、外部素材ゼロで出す。
+func _build_water() -> void:
+	var plane := PlaneMesh.new()
+	plane.size = Vector2(600.0, 600.0)
+	plane.subdivide_width = 40
+	plane.subdivide_depth = 40
+
+	_water_mat = ShaderMaterial.new()
+	var sh := Shader.new()
+	sh.code = """
+shader_type spatial;
+render_mode specular_schlick_ggx, cull_disabled;
+uniform vec3 shallow : source_color = vec3(0.20, 0.45, 0.52);
+uniform vec3 deep : source_color = vec3(0.06, 0.16, 0.24);
+uniform float clarity = 0.0;
+void vertex() {
+	VERTEX.y += sin(TIME * 0.6 + VERTEX.x * 0.12) * 0.06
+	          + cos(TIME * 0.5 + VERTEX.z * 0.10) * 0.06;
+}
+void fragment() {
+	vec3 n = NORMAL;
+	n += vec3(sin(TIME * 1.3 + VERTEX.x * 1.6) * 0.08, 0.0,
+	          cos(TIME * 1.1 + VERTEX.z * 1.6) * 0.08);
+	NORMAL = normalize(n);
+	float fres = pow(1.0 - clamp(dot(normalize(VIEW), NORMAL), 0.0, 1.0), 3.0);
+	vec3 base = mix(deep, shallow, clarity);
+	ALBEDO = mix(base, base * 1.5 + vec3(0.12), fres);
+	ROUGHNESS = mix(0.14, 0.04, clarity);
+	SPECULAR = 1.0;
+	METALLIC = 0.0;
+	ALPHA = 0.92;
+}
+"""
+	_water_mat.shader = sh
+
+	var mi := MeshInstance3D.new()
+	mi.name = "Water"
+	mi.mesh = plane
+	mi.material_override = _water_mat
+	mi.position = Vector3(0.0, -0.12, 0.0)   # 地面(y=0)の少し下＝岸辺が生まれる
+	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	add_child(mi)
+
+
+## 遠景の山なみ。世界の外周をぐるりと囲む低ポリの山を、霧に溶かして“広い世界”の奥行きに。
+## 手前は緑がかり、奥は青灰（空気遠近）。壁の外＝背景専用。1ドローコールで軽い。
+func _build_distant_hills() -> void:
+	var cone := CylinderMesh.new()
+	cone.top_radius = 0.0
+	cone.bottom_radius = 1.0
+	cone.height = 2.0
+	cone.radial_segments = 6
+	cone.rings = 1
+	var mat := StandardMaterial3D.new()
+	mat.vertex_color_use_as_albedo = true
+	mat.roughness = 1.0
+	cone.material = mat
+
+	var mm := MultiMesh.new()
+	mm.transform_format = MultiMesh.TRANSFORM_3D
+	mm.use_colors = true
+	mm.mesh = cone
+	mm.instance_count = 46
+
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 5150
+	var near := Color(0.34, 0.42, 0.34)   # 手前の山＝緑がかる
+	var far := Color(0.52, 0.58, 0.70)    # 奥の山＝空気遠近で青灰
+	for i in mm.instance_count:
+		var ang := rng.randf_range(0.0, TAU)
+		var rad := rng.randf_range(70.0, 150.0)
+		var w := rng.randf_range(14.0, 40.0)
+		var h := rng.randf_range(14.0, 46.0)
+		var b := Basis(Vector3.UP, rng.randf_range(0.0, TAU)).scaled(Vector3(w, h, w))
+		# 根元を地平線下に沈めて“連なり”に見せる
+		mm.set_instance_transform(i, Transform3D(b, Vector3(cos(ang) * rad, h * 0.5 - 3.0, sin(ang) * rad)))
+		var t := clampf((rad - 70.0) / 80.0, 0.0, 1.0)
+		mm.set_instance_color(i, near.lerp(far, t))
+	var mmi := MultiMeshInstance3D.new()
+	mmi.name = "DistantHills"
+	mmi.multimesh = mm
+	mmi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	_hills = mmi
+	add_child(mmi)
+
+
+## 低ポリの木立。壁の外〜山の手前に散らす（背景の森）。幹＋葉を各1ドローコール。
+## 参考画像の「森が地平まで続く」感じ。回復で葉が濃く茂る（_on_recovery_changed）。
+func _build_trees() -> void:
+	_trees = Node3D.new()
+	_trees.name = "Trees"
+	add_child(_trees)
+
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 246813
+
+	var trunk := CylinderMesh.new()
+	trunk.top_radius = 0.12
+	trunk.bottom_radius = 0.18
+	trunk.height = 1.0
+	trunk.radial_segments = 5
+	var tmat := StandardMaterial3D.new()
+	tmat.albedo_color = Color(0.30, 0.22, 0.14)
+	tmat.roughness = 1.0
+	trunk.material = tmat
+
+	var leaf := SphereMesh.new()
+	leaf.radius = 1.0
+	leaf.height = 2.0
+	leaf.radial_segments = 6
+	leaf.rings = 4
+	var lmat := StandardMaterial3D.new()
+	lmat.vertex_color_use_as_albedo = true
+	lmat.roughness = 1.0
+	leaf.material = lmat
+
+	var trunk_mm := MultiMesh.new()
+	trunk_mm.transform_format = MultiMesh.TRANSFORM_3D
+	trunk_mm.mesh = trunk
+	trunk_mm.instance_count = TREE_COUNT
+	var leaf_mm := MultiMesh.new()
+	leaf_mm.transform_format = MultiMesh.TRANSFORM_3D
+	leaf_mm.use_colors = true
+	leaf_mm.mesh = leaf
+	leaf_mm.instance_count = TREE_COUNT
+
+	for i in TREE_COUNT:
+		var ang := rng.randf_range(0.0, TAU)
+		var rad := rng.randf_range(32.0, 82.0)
+		var pos := Vector3(cos(ang) * rad, 0.0, sin(ang) * rad)
+		var s := rng.randf_range(1.4, 2.8)
+		var yaw := rng.randf_range(0.0, TAU)
+		var tb := Basis(Vector3.UP, yaw).scaled(Vector3(s, s, s))
+		trunk_mm.set_instance_transform(i, Transform3D(tb, pos + Vector3(0.0, s * 0.5, 0.0)))
+		var ls := s * rng.randf_range(0.9, 1.2)
+		var lb := Basis(Vector3.UP, yaw).scaled(Vector3(ls, ls * 1.1, ls))
+		leaf_mm.set_instance_transform(i, Transform3D(lb, pos + Vector3(0.0, s + ls * 0.5, 0.0)))
+		var green := Color(0.20, 0.38, 0.16).lerp(Color(0.34, 0.52, 0.22), rng.randf())
+		leaf_mm.set_instance_color(i, green)
+
+	var ti := MultiMeshInstance3D.new()
+	ti.name = "TreeTrunks"
+	ti.multimesh = trunk_mm
+	ti.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	_trees.add_child(ti)
+	var fi := MultiMeshInstance3D.new()
+	fi.name = "TreeFoliage"
+	fi.multimesh = leaf_mm
+	fi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	_trees.add_child(fi)
 
 
 ## 小石。常に散らばっている地面ディテール（回復に関係なく“地面らしさ”を足す）。
@@ -440,10 +620,10 @@ func _setup_sky_fog() -> void:
 	env.tonemap_white = 1.1
 
 	env.glow_enabled = true
-	env.glow_intensity = 0.35
+	env.glow_intensity = 0.28
 	env.glow_strength = 0.95
-	env.glow_bloom = 0.04
-	env.glow_hdr_threshold = 1.1
+	env.glow_bloom = 0.03
+	env.glow_hdr_threshold = 1.25
 
 	# カラーグレーディング：コントラストと彩度を上げて“作り込んだ映える絵”に。
 	# （gl_compatibility でも使える。SSAO等は Forward+ 専用なので GRAPHICS.md 参照）
@@ -688,6 +868,8 @@ func _on_recovery_changed(_value: float) -> void:
 	var r := WorldState.recovery
 	if _ground_shader != null:
 		_ground_shader.set_shader_parameter("greenness", r)
+	if _water_mat != null:
+		_water_mat.set_shader_parameter("clarity", r)   # 回復ほど水が澄む
 	_update_sky_fog(r)
 	_update_grass(r)
 	_update_flowers(r)
