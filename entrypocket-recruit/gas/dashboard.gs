@@ -31,6 +31,21 @@ function doGet(e) {
       } catch (err2) { so = { ok: false, error: String(err2) }; }
       return ContentService.createTextOutput(JSON.stringify(so)).setMimeType(ContentService.MimeType.JSON);
     }
+    // 表示スナップショット(app_cache)を今すぐ作り直す。名寄せ等コード反映を次の自動取得を待たず即反映させる用。
+    if (e.parameter.refresh) {
+      var ro;
+      try {
+        var needR = PropertiesService.getScriptProperties().getProperty('EP_PUSH_KEY') || '';
+        if (needR && String(e.parameter.refresh) !== needR) { ro = { ok: false, error: 'forbidden' }; }
+        else {
+          var ss0 = SpreadsheetApp.getActiveSpreadsheet();
+          try { epImportPostings_(ss0); } catch (ri) { }   // 元スプシ→求人打ち出し を取り込み直し
+          dashStoreCache_();                                 // 表示用スナップショットを作り直す
+          ro = { ok: true, refreshed: true };
+        }
+      } catch (err4) { ro = { ok: false, error: String(err4) }; }
+      return ContentService.createTextOutput(JSON.stringify(ro)).setMimeType(ContentService.MimeType.JSON);
+    }
     // 結果入力だけの共有ページ（他の人に入力を依頼するURL）
     if (e.parameter.entry) {
       var eo = {}; try { eo = JSON.parse(e.parameter.d || '{}'); } catch (x) { eo = {}; }

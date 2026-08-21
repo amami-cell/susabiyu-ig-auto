@@ -1,0 +1,19 @@
+name: recruit-refresh-cache
+# 手動実行専用。募集アプリの表示スナップショット(app_cache)を今すぐ作り直す。
+# 店舗名の名寄せ(EP_STORE_ALIAS)追加など、コードは反映済みだが表示が古いままの時に使う。
+# エントリーポケットへの再ログインはしない（既存データから作り直すだけ＝軽い・安全）。
+on:
+  workflow_dispatch:
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Rebuild app_cache
+        env:
+          RECRUIT_EXEC_URL: ${{ secrets.RECRUIT_EXEC_URL }}
+          EP_PUSH_KEY: ${{ secrets.EP_PUSH_KEY }}
+        run: |
+          export RECRUIT_EXEC_URL="${RECRUIT_EXEC_URL:-https://script.google.com/macros/s/AKfycbz6i36c7UjbM3S44kl1kEcsI0CSjYo9jL-W-T4BJUAr9jmBlVXj-vnQTUwQbGoxcHYT/exec}"
+          echo "--- 表示スナップショット(app_cache)を作り直し ---"
+          curl -sSL "$RECRUIT_EXEC_URL?refresh=$EP_PUSH_KEY" ; echo
