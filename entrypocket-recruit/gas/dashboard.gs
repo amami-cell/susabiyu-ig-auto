@@ -43,7 +43,7 @@ function doGet(e) {
   // ダッシュボード本体。PC/スマホのタブ用favicon＋iframe許可（求人PWAが中に表示するため）。
   return HtmlService.createHtmlOutputFromFile('index')
     .setTitle('Initiateエンポケ求人')
-    .setFaviconUrl(EP_ICONS_BASE + '/favicon-32.png')
+    .setFaviconUrl(EP_ICONS_BASE + '/favicon-32.png?v=2')
     .addMetaTag('viewport', 'width=device-width, initial-scale=1, viewport-fit=cover')
     .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
 }
