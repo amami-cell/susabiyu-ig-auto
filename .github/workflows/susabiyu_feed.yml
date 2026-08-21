@@ -1,0 +1,49 @@
+name: susabiyu-feed
+# すさび湯 三条：メニュー(susabiyu_menu.py)から“加工済みフィード投稿画像”を一括生成して
+# pwa/susabiyu/ に反映（feed_XX.jpg＋WebP＋feed.json）。手動実行のみ（cronなし＝無料枠を消費しない）。
+#   使い方: susabiyu_menu.py を編集 → Actions からこのワークフローを Run。
+on:
+  workflow_dispatch: {}
+permissions:
+  contents: write
+  actions: write
+concurrency:
+  group: susabiyu-feed
+  cancel-in-progress: false
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install deps
+        run: pip install Pillow numpy
+      - name: Install 日本語フォント（見出し=明朝/ゴシック）
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq fonts-noto-cjk fonts-ipafont-mincho fonts-ipafont-gothic
+      - name: Build feed images + feed.json
+        working-directory: susabiyu-remotion
+        run: python susabiyu_build_feed.py
+      - name: Commit（コードのみ画像更新＝?vは据置。swのVERのみ+1）
+        run: |
+          set -e
+          if [ -z "$(git status --porcelain -- pwa/susabiyu)" ]; then
+            echo "画像に変更がありません（コミットなし）。"; exit 0
+          fi
+          cur=$(grep -oE 'susabiyu-v[0-9]+' pwa/sw.js | grep -oE '[0-9]+' | head -1)
+          nxt=$((cur + 1))
+          sed -i "s/susabiyu-v$cur/susabiyu-v$nxt/" pwa/sw.js
+          sed -i "s/window.__APPV = \"v$cur\"/window.__APPV = \"v$nxt\"/" pwa/reels.html
+          echo "cache v$cur -> v$nxt"
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add pwa/susabiyu pwa/sw.js pwa/reels.html
+          git commit -m "すさび湯三条: 全商品フィード画像を再生成（susabiyu_menu.pyより）＋sw VER v$nxt"
+          git push origin HEAD:main
+          # GITHUB_TOKEN の push は他ワークフローを起動しないため deploy_pwa を明示発火
+          curl -sS -X POST -H "Authorization: Bearer ${{ github.token }}" \
+            -H "Accept: application/vnd.github+json" \
+            "${{ github.api_url }}/repos/${{ github.repository }}/actions/workflows/deploy_pwa.yml/dispatches" \
+            -d '{"ref":"main"}' && echo "deploy_pwa をトリガーしました。"

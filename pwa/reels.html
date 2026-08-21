@@ -236,7 +236,7 @@
 <script>
 (function(){
   "use strict";
-  window.__APPV = "v177";   // 画面下の版数表示用（sw.js の VER と同期・コード変更で更新）
+  window.__APPV = "v178";   // 画面下の版数表示用（sw.js の VER と同期・コード変更で更新）
   var CFG = window.SUSABIYU || {};
   var GAS = (CFG.GAS_URL||"").trim();
   // 実データ連携が有効か（config.js の GAS_URL が実物URLに置換済みか）。未置換(PASTE_)なら見本モード。
@@ -246,9 +246,11 @@
   // 投稿キャプションのテンプレ（{NAME}に商品名）。三条は本文テンプレ自体に店舗情報まで含む。
   var FEEDCAP="こんにちは\n河原町三条店の【大衆寿司酒場すさび湯】です🍻\n\n本日のおすすめは、{NAME}です！\n新鮮なネタのお寿司も、豊富な一品料理も、うれしい価格でご用意しています。\nドリンク全品170円で、気兼ねなく乾杯を。\n\n♨️\"すさび湯\"とは\n『遊びに来る感覚で楽しんでほしい』という想いから、“遊ぶ”の語源である“すさぶ”と、日常に溶け込んだ“銭湯”を掛け合わせて“すさび湯”と名付けました。\n価格はカジュアルに、お寿司は本格的に。\n\n▪️▪️▪️▪️▪️▪️▪️▪️▪️▪️\n#すさび湯\n・営業時間\n月〜金 16:00〜23:00\n土日祝 11:00〜23:00\n・住所\n京都市中京区河原町通三条上る恵比寿町534-16\n京阪本線 三条駅から徒歩約4分\n▪️▪️▪️▪️▪️▪️▪️▪️▪️▪️\n\n新メニューやお得な情報も投稿していきます。\nぜひフォローお願いします！";
   var REELCAP="本日のおすすめは、{NAME}です！🍣\n河原町三条／大衆寿司酒場すさび湯 三条\n\nドリンク全品170円、気兼ねなく乾杯を。\nお寿司は本格的に、価格はカジュアルに。";
+  // 商品説明あり（feed.jsonの各品）は「商品説明＋店舗情報テンプレ」、無い候補は{NAME}差し込みテンプレ。
+  var STORE_TAIL = "▪️▪️▪️▪️▪️▪️▪️▪️▪️▪️\n#すさび湯\n・営業時間\n月〜金 16:00〜23:00\n土日祝 11:00〜23:00\n・住所\n京都市中京区河原町通三条上る恵比寿町534-16\n京阪本線 三条駅から徒歩約4分\n▪️▪️▪️▪️▪️▪️▪️▪️▪️▪️\n\nドリンク全品170円、気兼ねなく乾杯を。\nぜひフォローお願いします！";
   function cleanName(n){ return (n||"").replace(/\s*\d+$/,"").trim(); }   // 末尾の数字を除去（例：サーモン三昧2→サーモン三昧）
   function capFor(tmpl,name){ return tmpl.replace(/\{NAME\}/g, cleanName(name)); }
-  function bodyCap(kind,p){ return capFor(kind==="feed"?FEEDCAP:REELCAP, p.t||""); }
+  function bodyCap(kind,p){ if(p&&p.cap){ return p.cap + "\n\n" + STORE_TAIL; } return capFor(kind==="feed"?FEEDCAP:REELCAP, p&&p.t||""); }
 
   // 選択ハッシュタグは全カード共有＋端末に保存（更新すると以降の投稿にも反映）。
   var GSEL_LS = "sb_tags_v1";
@@ -265,14 +267,14 @@
   }
   // 実際に投稿される完成キャプション＝本文テンプレ＋選択ハッシュタグ（一番下に1箇所だけ）。
   function fullCaption(kind,p){
-    var tags = dedupeTags(selTags(), 13);
+    var tags = dedupeTags(((p&&p.tags)?p.tags+" ":"") + selTags(), 13);   // 料理別タグ→選択タグの順で重複除去
     return bodyCap(kind,p) + (tags?("\n\n" + tags):"");
   }
   // プレビュー表示用：ハッシュタグは下のチップで管理するので本文には並べない（本文テンプレのみ）。
   function previewCaption(kind,p){ return bodyCap(kind,p); }
-  // 三条はバックエンド/CDNの絶対URLか ./sample を使う＝原寸そのまま（webpサムネは存在しないので変換しない）。
-  function thumbSrc(u){ return String(u||""); }
-  function cardSrc(u){ return String(u||""); }
+  // ローカルの加工済みフィード画像(pwa/susabiyu/*.jpg)だけ軽量WebPへ変換。CDN/絶対URLはそのまま（webpが無いため）。
+  function thumbSrc(u){ u=String(u||""); return /susabiyu\/[^\/?#]+\.(jpe?g|png)$/i.test(u) ? u.replace(/\.(jpe?g|png)$/i,".thumb.webp") : u; }
+  function cardSrc(u){ u=String(u||""); return /susabiyu\/[^\/?#]+\.(jpe?g|png)$/i.test(u) ? u.replace(/\.(jpe?g|png)$/i,".card.webp") : u; }
   var refreshers=[];  // 全カードのタグ表示を一括更新するための登録先
   function refreshAll(){ for(var i=0;i<refreshers.length;i++){ try{ refreshers[i](); }catch(e){} } }
   var toastEl=document.getElementById("toast"),toastT=null;
@@ -470,19 +472,23 @@
     gJsonp({api:"schedlist"}).then(function(res){ SCHED=(res&&res.items)||[]; schedFetchedAt=Date.now(); if(schedCb)schedCb(); })
       .catch(function(){ if(schedCb)schedCb(); });
   }
-  /* 投稿候補を共有ストア(GAS)から読む。未接続なら組み込みの三条サンプルのまま。 */
+  /* フィード候補＝加工済みの投稿画像(pwa/susabiyu/feed_XX.jpg)。feed.jsonから全商品を読み込む。 */
+  function loadFeedJson(){
+    fetch("./susabiyu/feed.json", {cache:"no-store"}).then(function(r){ return r.ok?r.json():null; }).then(function(d){
+      if(!d||!d.items||!d.items.length) return;
+      FEED = d.items.map(function(it){ return {img:"./susabiyu/"+it.img, t:it.name||it.title||"", cap:it.cap||"", tags:it.tags||"", reco:!!it.reco}; });
+      FEED = shuffleFeed(FEED);
+      if(tF.classList.contains("on")) render("feed");
+    }).catch(function(){});
+  }
+  /* リール候補を共有ストア(GAS)から読む（接続時）。フィードはfeed.jsonが正なので上書きしない。 */
   function loadCands(){
     gJsonp({api:"cands"}).then(function(res){
       if(!res||!res.ok) return;
-      if(res.feed&&res.feed.length){
-        FEED=res.feed.map(function(c){ return {img:c.media||"", t:c.name||"", cap:c.copy||"", reco:!!c.reco}; });
-      }
       if(res.reel&&res.reel.length){
         REEL=res.reel.map(function(c){ return {video:c.media||SAMPLEVID, poster:c.poster||"", t:c.name||"", cap:c.copy||"", dur:c.dur||48, reco:!!c.reco}; });
+        if(tR.classList.contains("on")) render("reel");
       }
-      FEED=shuffleFeed(FEED);
-      if(tF.classList.contains("on")) render("feed");
-      else if(tR.classList.contains("on")) render("reel");
     }).catch(function(){});
   }
 
@@ -522,7 +528,7 @@
   function buildCard(kind,p,noLbl){
     var c=document.createElement("div"); c.className="card"+(p.reco?" reco":"");
     var media=kind==="feed"
-      ? '<div class="mediaWrap feed">'+(feedImg(p)?'<img loading="lazy" decoding="async" src="'+esc(feedImg(p))+'" alt="">':'<div class="ph" style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:#3a424e">画像なし</div>')+'</div>'
+      ? '<div class="mediaWrap feed">'+(feedImg(p)?'<img loading="lazy" decoding="async" src="'+esc(cardSrc(feedImg(p)))+'" onerror="this.onerror=null;this.src=\''+esc(feedImg(p))+'\'" alt="">':'<div class="ph" style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:#3a424e">画像なし</div>')+'</div>'
       : '<div class="mediaWrap reel"><video '+(reelPoster(p)?'poster="'+esc(reelPoster(p))+'" ':'')+'src="'+esc(reelVid(p))+'" controls playsinline preload="none" webkit-playsinline></video></div>';
     var trim=kind==="reel"
       ? '<div class="trim"><div class="trimhd"><span>切り取り（リール用）</span><span><b class="tlen">--</b> / 元<span class="tall">--</span></span></div>'+
@@ -753,7 +759,7 @@
       pool.forEach(function(p){
         var base=newResv.kind==="feed"? feedImg(p) : (reelPoster(p)||"");
         var on=(newResv.pick&&newResv.pick.t===p.t)?" on":"";
-        var img=base?'<img class="th'+(newResv.kind==="feed"?" contain":"")+'" loading="lazy" src="'+esc(base)+'">':'<div class="th" style="display:flex;align-items:center;justify-content:center;color:#3a424e;font-size:22px">'+(newResv.kind==="feed"?"🍣":"🎬")+'</div>';
+        var img=base?'<img class="th'+(newResv.kind==="feed"?" contain":"")+'" loading="lazy" src="'+esc(thumbSrc(base))+'" onerror="this.onerror=null;this.src=\''+esc(base)+'\'">':'<div class="th" style="display:flex;align-items:center;justify-content:center;color:#3a424e;font-size:22px">'+(newResv.kind==="feed"?"🍣":"🎬")+'</div>';
         html+='<button class="pk'+on+'" data-t="'+esc(p.t)+'">'+img+'<div class="nm">'+esc(p.t)+'</div><div class="gtag">'+esc(genreOf(p.t))+'</div></button>';
       });
       html+='</div><button class="rmore" id="nvMore">'+(newResv.all?"▲ おすすめだけ":"▼ 全商品から選ぶ（全"+list.length+"品）")+'</button>';
@@ -969,7 +975,8 @@
   loadRegional();
   FEED = shuffleFeed(FEED);
   render("feed");   // 内部で loadSched() が走り、予約データも起動時に温まる。
-  loadCands();      // 投稿候補を共有ストアから読み込む（接続時。未接続は組み込みの三条サンプル）
+  loadFeedJson();   // 全商品（加工済みフィード画像）を読み込む＝「全商品から選ぶ」に約30品並ぶ
+  loadCands();      // リール候補を共有ストアから読み込む（接続時）
 })();
 </script>
 <script>
