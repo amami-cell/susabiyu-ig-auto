@@ -70,7 +70,9 @@ func _ready() -> void:
 
 	var mat := StandardMaterial3D.new()
 	mat.albedo_color = Net.color_of(owner_id)
+	mat.roughness = 0.9
 	_body.material_override = mat
+	KobitoLook.decorate(_body, Net.color_of(owner_id))
 	_label.text = Net.roster.get(owner_id, {}).get("name", "小人")
 
 	# カメラは自分のぶんだけ。他人の小人のカメラは切っておく。

@@ -33,7 +33,9 @@ func _ready() -> void:
 
 	var mat := StandardMaterial3D.new()
 	mat.albedo_color = body_color
+	mat.roughness = 0.9
 	_body.material_override = mat
+	KobitoLook.decorate(_body, body_color)
 	scale = Vector3.ONE * body_scale
 	_label.text = child_name
 	set_physics_process(true)
