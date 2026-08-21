@@ -16,4 +16,4 @@ jobs:
         run: |
           export RECRUIT_EXEC_URL="${RECRUIT_EXEC_URL:-https://script.google.com/macros/s/AKfycbz6i36c7UjbM3S44kl1kEcsI0CSjYo9jL-W-T4BJUAr9jmBlVXj-vnQTUwQbGoxcHYT/exec}"
           echo "--- 表示スナップショット(app_cache)を作り直し ---"
-          curl -sSL "$RECRUIT_EXEC_URL?refresh=$EP_PUSH_KEY" ; echo
+          curl -sSL "$RECRUIT_EXEC_URL?refresh=go&key=$EP_PUSH_KEY" ; echo

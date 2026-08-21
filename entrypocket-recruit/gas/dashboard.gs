@@ -32,11 +32,12 @@ function doGet(e) {
       return ContentService.createTextOutput(JSON.stringify(so)).setMimeType(ContentService.MimeType.JSON);
     }
     // 表示スナップショット(app_cache)を今すぐ作り直す。名寄せ等コード反映を次の自動取得を待たず即反映させる用。
-    if (e.parameter.refresh) {
+    // ※ refresh は「パラメータが在るか」で判定（値が空でも作動）。認証は key（EP_PUSH_KEY未設定なら不要）。
+    if (e.parameter.refresh != null) {
       var ro;
       try {
         var needR = PropertiesService.getScriptProperties().getProperty('EP_PUSH_KEY') || '';
-        if (needR && String(e.parameter.refresh) !== needR) { ro = { ok: false, error: 'forbidden' }; }
+        if (needR && String(e.parameter.key || '') !== needR) { ro = { ok: false, error: 'forbidden' }; }
         else {
           var ss0 = SpreadsheetApp.getActiveSpreadsheet();
           try { epImportPostings_(ss0); } catch (ri) { }   // 元スプシ→求人打ち出し を取り込み直し
