@@ -13,6 +13,9 @@ extends Node3D
 const PlayerScene := preload("res://scenes/actors/player.tscn")
 const BugScene := preload("res://scenes/actors/bug.tscn")
 const ChildScene := preload("res://scenes/actors/child.tscn")
+const StonePuzzleScript := preload("res://scenes/props/stone_puzzle.gd")
+
+var _puzzle: Node3D = null
 
 ## 8人の子ども（CHARACTERS.md 準拠）。頭のスミレが親を追い、あとはぞろぞろ続く。
 ## 色・大きさはここ一箇所。順番＝隊列の並び（末尾のつぼみがいちばん小さい）。
@@ -73,10 +76,21 @@ func _ready() -> void:
 	$CleanupZone.body_entered.connect(_on_cleanup_zone_entered)
 	if multiplayer.has_multiplayer_peer():
 		multiplayer.peer_connected.connect(_on_peer_connected)
+	_spawn_puzzle()
 	_on_recovery_changed(WorldState.recovery)
 	_reconcile_players()
 	if _is_server():
 		_spawn_children()
+
+
+## 遺跡の石版パズル（順番に踏む）を庭の一角に置く。全員がローカルに組み立て、
+## 判定はサーバが持つ。まずは1つで“謎解きの手触り”を確かめる（M5の入口）。
+func _spawn_puzzle() -> void:
+	_puzzle = Node3D.new()
+	_puzzle.set_script(StonePuzzleScript)
+	_puzzle.name = "StonePuzzle"
+	_puzzle.position = Vector3(-9.0, 0.0, 6.0)
+	add_child(_puzzle)
 
 
 func _process(delta: float) -> void:
@@ -130,6 +144,9 @@ func _on_peer_connected(id: int) -> void:
 	# 子どもは決まった8人。番号だけ送れば相手が同じ子を組み立てられる。
 	for child in _children.get_children():
 		rpc_id(id, "_remote_spawn_child", int(child.name.trim_prefix("Child")))
+	# 石版パズルの今の状態も配る
+	if _puzzle != null and _puzzle.has_method("sync_to"):
+		_puzzle.sync_to(id)
 
 
 # ------------------------------------------------------------ 子ども（追従隊列）

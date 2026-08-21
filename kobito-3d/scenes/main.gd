@@ -92,6 +92,15 @@ func _run_selftest() -> void:
 		xp_now = players[0].xp
 		xp_gained = xp_now > xp_before
 
+	# 石版パズルが「順番に踏むと解ける」経路を確認する
+	var puzzle := _garden.get_node_or_null("StonePuzzle") if _garden != null else null
+	var puzzle_ok := false
+	if puzzle != null:
+		var rec_before := WorldState.recovery
+		puzzle.debug_solve()
+		await get_tree().create_timer(0.3).timeout
+		puzzle_ok = puzzle.solved and WorldState.recovery > rec_before
+
 	# 飛行が「癒やして集めた5パーツ」で解禁されるかを確認する
 	var could_fly_before: bool = players.is_empty() or players[0].can_fly()
 	for part in WorldState.FLIGHT_PARTS:
@@ -111,9 +120,9 @@ func _run_selftest() -> void:
 	var kids_ok: bool = children.size() == 8
 
 	var ok: bool = _garden != null and players.size() == 1 and bugs.size() > 0 \
-		and WorldState.recovery > 0.0 and xp_gained and flight_ok and kids_ok
-	print("[selftest] 回復度=%.2f XP=%d 経験値=%s 飛行解禁=%s 子ども=%d(最寄り%.1f)" % [
-		WorldState.recovery, xp_now, xp_gained, flight_ok, children.size(), nearest])
+		and WorldState.recovery > 0.0 and xp_gained and flight_ok and kids_ok and puzzle_ok
+	print("[selftest] 回復度=%.2f XP=%d 経験値=%s 飛行解禁=%s 子ども=%d(最寄り%.1f) 石版=%s" % [
+		WorldState.recovery, xp_now, xp_gained, flight_ok, children.size(), nearest, puzzle_ok])
 	print("[selftest] %s" % ("OK" if ok else "NG"))
 	get_tree().quit(0 if ok else 1)
 
@@ -174,4 +183,17 @@ func _run_shot() -> void:
 		await get_tree().create_timer(1.5).timeout
 		await RenderingServer.frame_post_draw
 		get_viewport().get_texture().get_image().save_png("/tmp/shot_green.png")
+	# --puzzle を付けると石版パズルを専用カメラで撮る（開発確認用）
+	if OS.get_cmdline_user_args().has("--puzzle"):
+		var puzzle := _garden.get_node_or_null("StonePuzzle")
+		if puzzle != null:
+			puzzle.debug_solve()   # 解けた光り方も確認する
+		var cam := Camera3D.new()
+		add_child(cam)
+		cam.global_position = Vector3(-9.0, 3.2, 10.0)
+		cam.look_at(Vector3(-9.0, 0.6, 6.0), Vector3.UP)
+		cam.current = true
+		await get_tree().create_timer(1.0).timeout
+		await RenderingServer.frame_post_draw
+		get_viewport().get_texture().get_image().save_png("/tmp/shot_puzzle.png")
 	get_tree().quit()
