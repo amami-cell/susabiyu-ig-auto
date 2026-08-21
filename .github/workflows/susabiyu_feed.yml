@@ -25,7 +25,9 @@ jobs:
         run: sudo apt-get update -qq && sudo apt-get install -y -qq fonts-noto-cjk fonts-ipafont-mincho fonts-ipafont-gothic
       - name: Build feed images + feed.json
         working-directory: susabiyu-remotion
-        run: python susabiyu_build_feed.py
+        run: |
+          python susabiyu_build_feed.py
+          python susabiyu_banners.py   # ドリンクバナー(4:5/9:16)も再生成しfeed.jsonへ再追加
       - name: Commit（コードのみ画像更新＝?vは据置。swのVERのみ+1）
         run: |
           set -e

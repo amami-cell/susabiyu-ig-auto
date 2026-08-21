@@ -236,7 +236,7 @@
 <script>
 (function(){
   "use strict";
-  window.__APPV = "v180";   // 画面下の版数表示用（sw.js の VER と同期・コード変更で更新）
+  window.__APPV = "v181";   // 画面下の版数表示用（sw.js の VER と同期・コード変更で更新）
   var CFG = window.SUSABIYU || {};
   var GAS = (CFG.GAS_URL||"").trim();
   // 実データ連携が有効か（config.js の GAS_URL が実物URLに置換済みか）。未置換(PASTE_)なら見本モード。
@@ -478,7 +478,7 @@
   function loadFeedJson(){
     fetch("./susabiyu/feed.json", {cache:"no-store"}).then(function(r){ return r.ok?r.json():null; }).then(function(d){
       if(!d||!d.items||!d.items.length) return;
-      FEED = d.items.map(function(it){ return {img:"./susabiyu/"+it.img, t:it.name||it.title||"", cap:it.cap||"", tags:it.tags||"", reco:!!it.reco}; });
+      FEED = d.items.map(function(it){ return {img:"./susabiyu/"+it.img, t:it.name||it.title||"", cap:it.cap||"", tags:it.tags||"", reco:!!it.reco, banner:!!it.banner}; });
       FEED = shuffleFeed(FEED);
       if(tF.classList.contains("on")) render("feed");
     }).catch(function(){});
@@ -589,7 +589,7 @@
     var list = kind==="feed"?FEED:REEL;
     function renderList(){
       Array.prototype.slice.call(wrap.querySelectorAll(".seclabel,.card,.rmore")).forEach(function(x){x.remove();});
-      var recos=pickRecos(list,3,schedTailGenres(kind,2));
+      var recos=pickRecos(list.filter(function(p){return !p.banner;}),3,schedTailGenres(kind,2));  // バナーはおすすめに出さない（全商品で選ぶ）
       var lab=document.createElement("div"); lab.className="seclabel";
       lab.innerHTML=(kind==="feed"?"⭐ 次のおすすめ":"⭐ おすすめリール")+' <span class="cnt">'+recos.length+'件</span>';
       wrap.appendChild(lab);
