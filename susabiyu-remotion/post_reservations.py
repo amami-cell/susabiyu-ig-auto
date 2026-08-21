@@ -157,18 +157,32 @@ def clean_captions(live):
     sh = poster._sheets()
     if not sh:
         print("NG: creds/Sheets が使えません"); return 1
+    import re as _re
     rows = _read_rows(sh)
+    print("[CLEAN] シート総行数(データ):", len(rows))
+    def _dup_count(text):
+        seen = set(); dup = 0
+        for m in _re.findall(r'#[^\s#　]+', text or ""):
+            k = m.lower()
+            if k in seen: dup += 1
+            else: seen.add(k)
+        return dup
     fixed_n = 0
     for i, row in enumerate(rows):
         row = list(row) + [""] * (12 - len(row))
         token, when_s, kind, media, caption, tags, status = row[:7]
         st = (status or "").strip() or "scheduled"
+        merged = ((caption or "") + " " + (tags or ""))
+        dups = _dup_count(merged)
+        # 全行の状態を可視化（何が入っているか目で確認できるように）
+        print("  row%d [%s] %s when=%s 重複タグ=%d capF=%d字 tagsF=%d字" % (
+            i + 2, st, (token or "")[:14], when_s, dups, len(caption or ""), len(tags or "")))
         if st not in ("scheduled", "posting"):
             continue                              # 未投稿の分だけ整える（投稿済/失敗/取消は触らない）
         fixed = build_caption(caption, tags)      # 実投稿と同じ組み立て＝重複タグを畳んだ正
         if fixed == (caption or "").rstrip() and not (tags or "").strip():
             continue                              # 既にキレイ＝変更不要
-        print("  row%d %s(%s): E %d→%d字, F=%r→''" % (i + 2, token, st, len(caption or ""), len(fixed), tags))
+        print("    -> 直す: E %d→%d字, F=%r→''" % (len(caption or ""), len(fixed), tags))
         fixed_n += 1
         if live:
             _set(sh, i + 1, "E", fixed)           # 畳んだ本文をE列へ
