@@ -200,11 +200,17 @@ def repost(token_arg, live):
     sh = poster._sheets()
     if not sh:
         print("NG: creds/Sheets が使えません"); return 1
-    for i, row in enumerate(_read_rows(sh)):
-        row = (list(row) + [""] * 12)[:12]
+    all_rows = [(list(r) + [""] * 12)[:12] for r in _read_rows(sh)]
+    # 完全一致 or 前方一致（tokenが長くて途中までしか分からない場合も拾う）で1件に特定
+    matches = [r for r in all_rows if (r[0] or "").strip() == token_arg]
+    if not matches:
+        matches = [r for r in all_rows if (r[0] or "").strip().startswith(token_arg)]
+    if len(matches) != 1:
+        print("[REPOST] token=%r は %d 件ヒット（全token: %s）" % (
+            token_arg, len(matches), ", ".join((r[0] or "") for r in all_rows)))
+        return 1
+    for row in matches:
         token_id, when_s, kind, media, caption, tags, status, created, note, account, trim_s, trim_e = row
-        if (token_id or "").strip() != token_arg:
-            continue
         kind = "reel" if (kind or "").strip().lower() == "reel" else "feed"
         cap = build_caption(caption, tags)         # 重複タグを畳んだキレイ版
         acc = (account or "").strip(); acc_label = acc or "既定(三条)"
