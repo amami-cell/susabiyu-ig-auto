@@ -24,6 +24,17 @@ SHU_D = (150, 26, 24)
 KIN = (224, 181, 110)      # 金（下線・リボン縁）
 INK = (30, 24, 20)
 
+# 短冊の“色違い”パターン。レイアウト(feed1)は同じで、短冊リボンの色だけ変える。
+# 下線・縁・ロゴは金/白のまま＝大衆の統一感は保つ。
+SCHEMES = {
+    "shu":   (196, 40, 38),    # 朱赤（現行）
+    "ai":    (30, 54, 104),    # 藍
+    "midori": (28, 86, 60),    # 深緑
+    "kuro":  (34, 30, 28),     # 黒（×金）
+    "enji":  (122, 32, 46),    # 臙脂（ワイン）
+    "cha":   (120, 74, 36),    # 茶（渋め）
+}
+
 
 def _scrim(base):
     """上（ロゴ/リボン）と下（見出し）をほんのり暗くして文字を読みやすく。写真中央は明るいまま。"""
@@ -52,8 +63,8 @@ def _put_logo(base):
     base.alpha_composite(lg, (36, 40))
 
 
-def _fuda(base, lines, x, top=44, w=96, rot=-6, big_idx=None):
-    """朱の縦リボン短冊（金フチ）に縦書き。lines=各段の文字列（右→左）。big_idx段は少し大きく。"""
+def _fuda(base, lines, x, top=44, w=96, rot=-6, big_idx=None, fill=SHU):
+    """縦リボン短冊（金フチ）に縦書き。lines=各段の文字列（右→左）。fill=短冊の色。"""
     pad = 16
     size = 46
     gap = 8
@@ -63,7 +74,7 @@ def _fuda(base, lines, x, top=44, w=96, rot=-6, big_idx=None):
     ww = pad * 2 + len(lines) * (size + gap) - gap
     tile = Image.new("RGBA", (ww, hh), (0, 0, 0, 0))
     d = ImageDraw.Draw(tile)
-    d.rounded_rectangle([0, 0, ww - 1, hh - 1], radius=14, fill=SHU + (255,), outline=KIN + (255,), width=4)
+    d.rounded_rectangle([0, 0, ww - 1, hh - 1], radius=14, fill=fill + (255,), outline=KIN + (255,), width=4)
     f = _font(_GOTHIC_PATH, size)
     cx = ww - pad - size
     for col in lines:
@@ -71,7 +82,8 @@ def _fuda(base, lines, x, top=44, w=96, rot=-6, big_idx=None):
         for ch in col:
             b = f.getbbox(ch)
             cwx = cx + (size - (b[2] - b[0])) / 2 - b[0]
-            d.text((cwx + 2, y + 2), ch, font=f, fill=(90, 12, 10, 200))
+            _sc = tuple(int(c * 0.45) for c in fill)   # 影＝短冊色を暗くした色
+            d.text((cwx + 2, y + 2), ch, font=f, fill=_sc + (200,))
             d.text((cwx, y), ch, font=f, fill=(255, 247, 232, 255))
             y += size + 4
         cx -= (size + gap)
@@ -84,16 +96,17 @@ def _fuda(base, lines, x, top=44, w=96, rot=-6, big_idx=None):
     return ww
 
 
-def render_feed(src, out, headline, dishname, reco=False, quality=92):
+def render_feed(src, out, headline, dishname, reco=False, quality=92, scheme="shu"):
+    col = SCHEMES.get(scheme, SHU)       # 短冊の色（色違いパターン）
     src_im = src if isinstance(src, Image.Image) else Image.open(src)
     base = _cover(src_im, W, H)          # 4:5に覆う＋照明ムラ補正（ぎふや実績の処理）
     base = _scrim(base)
 
     _put_logo(base)
 
-    # 右上：朱の縦リボン短冊2枚（見本feed1と同じ並び＝左「ドリンク全品170円!!」／右「河原町三条店」）
-    _fuda(base, ["河原町三条店"], x=W - 150, top=44, rot=-6)
-    _fuda(base, ["ドリンク全品170円!!"], x=W - 258, top=36, rot=-6)
+    # 右上：縦リボン短冊2枚（見本feed1と同じ並び＝左「ドリンク全品170円!!」／右「河原町三条店」）
+    _fuda(base, ["河原町三条店"], x=W - 150, top=44, rot=-6, fill=col)
+    _fuda(base, ["ドリンク全品170円!!"], x=W - 258, top=36, rot=-6, fill=col)
 
     draw = ImageDraw.Draw(base)
 
