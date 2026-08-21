@@ -16,6 +16,22 @@ var _blink := 2.0
 var _base_y := 0.0
 var _phase := 0.0
 
+# 戦闘の芝居（残り時間 >0 の間だけ、歩き振りより優先して上体を動かす）
+const ATTACK_DUR := 0.30
+const HURT_DUR := 0.34
+var _attack_t := 0.0
+var _hurt_t := 0.0
+
+
+## 攻撃：腕を振りかぶって振り下ろす（player から呼ばれる。全員の画面で再生）
+func attack() -> void:
+	_attack_t = ATTACK_DUR
+
+
+## 被弾：うしろへのけぞって震える（apply_damage から呼ばれる）
+func hurt() -> void:
+	_hurt_t = HURT_DUR
+
 
 func setup(body: Node3D, head: Node3D, arm_l: Node3D, arm_r: Node3D, eyes: Array[Node3D]) -> void:
 	_body = body
@@ -46,12 +62,40 @@ func _process(delta: float) -> void:
 	# 歩き：上下にぴょこぴょこ（body.scale は殴りの潰しが使うので触らない＝位置で弾む）
 	_body.position.y = _base_y + absf(sin(_phase)) * 0.045 * walk
 
-	# 腕振り（待機でもほんの少し揺れる）
-	var swing := sin(_phase) * (0.55 * walk + 0.06)
+	# 腕と上体：通常＝歩きの振り／攻撃＝振り下ろし／被弾＝のけぞり、で切り替える。
+	var arm_l_rot := sin(_phase) * (0.55 * walk + 0.06)
+	var arm_r_rot := -arm_l_rot
+	var lean_x := 0.0     # 前後の傾き（＋うしろ／−前）
+	var lean_z := 0.0     # 左右の震え
+
+	if _hurt_t > 0.0:
+		# くらってる：うしろへのけぞり＋小刻みに震える＋両腕を上げてかばう
+		_hurt_t -= delta
+		var h := clampf(_hurt_t / HURT_DUR, 0.0, 1.0)
+		lean_x = 0.5 * h
+		lean_z = sin(_t * 60.0) * 0.09 * h
+		arm_l_rot = 1.4 * h
+		arm_r_rot = 1.4 * h
+	elif _attack_t > 0.0:
+		# 攻撃：振りかぶり(うしろ)→振り下ろし(前へ大きく)。踏み込みで前傾。
+		_attack_t -= delta
+		var k := clampf(1.0 - _attack_t / ATTACK_DUR, 0.0, 1.0)
+		var punch := lerpf(-0.9, 2.0, k)
+		arm_r_rot = punch
+		arm_l_rot = punch * 0.35
+		lean_x = -0.32 * sin(k * PI)
+
 	if _arm_l != null:
-		_arm_l.rotation.x = swing
+		_arm_l.rotation.x = arm_l_rot
 	if _arm_r != null:
-		_arm_r.rotation.x = -swing
+		_arm_r.rotation.x = arm_r_rot
+	# 上体の傾き：芝居中はそのまま当て、終わったら0へなめらかに戻す
+	if _hurt_t > 0.0 or _attack_t > 0.0:
+		_body.rotation.x = lean_x
+		_body.rotation.z = lean_z
+	else:
+		_body.rotation.x = lerp_angle(_body.rotation.x, 0.0, clampf(delta * 12.0, 0.0, 1.0))
+		_body.rotation.z = lerp_angle(_body.rotation.z, 0.0, clampf(delta * 12.0, 0.0, 1.0))
 
 	# 待機の呼吸は頭でやる（body.scale を避ける）
 	if _head != null:

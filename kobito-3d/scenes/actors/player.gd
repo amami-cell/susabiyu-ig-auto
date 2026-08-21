@@ -46,6 +46,7 @@ var _hurt_time := 0.0
 var _sync_accum := 0.0
 var _age := 0.0
 var _held_trash: Node3D = null
+var _base_color := Color.WHITE   # 被弾フラッシュから戻す元の色
 
 # 他人の小人を滑らかに寄せるための目標値
 var _net_pos := Vector3.ZERO
@@ -68,8 +69,9 @@ func _ready() -> void:
 	_net_pos = global_position
 	_net_yaw = _yaw
 
+	_base_color = Net.color_of(owner_id)
 	var mat := StandardMaterial3D.new()
-	mat.albedo_color = Net.color_of(owner_id)
+	mat.albedo_color = _base_color
 	mat.roughness = 0.9
 	_body.material_override = mat
 	KobitoLook.decorate(_body, Net.color_of(owner_id))
@@ -206,9 +208,25 @@ func _remote_state(pos: Vector3, yaw: float, st: int) -> void:
 @rpc("any_peer", "call_local", "unreliable")
 func _remote_swing() -> void:
 	# 見た目だけの振り。当たり判定とは無関係なので取りこぼしても実害なし。
+	# 腕を大きく振り下ろす芝居＋踏み込みのつぶし＝「攻撃した」が一目で分かる。
+	var anim := _body.get_node_or_null("Anim")
+	if anim != null and anim.has_method("attack"):
+		anim.attack()
 	var tween := create_tween()
-	tween.tween_property(_body, "scale", Vector3(1.25, 0.8, 1.25), 0.06)
+	tween.tween_property(_body, "scale", Vector3(1.15, 0.9, 1.15), 0.06)
 	tween.tween_property(_body, "scale", Vector3.ONE, 0.14)
+
+
+## 被弾の見た目：赤フラッシュ＋のけぞり。apply_damage(全員で実行)から呼ぶ。
+func _play_hurt_fx() -> void:
+	var anim := _body.get_node_or_null("Anim")
+	if anim != null and anim.has_method("hurt"):
+		anim.hurt()
+	var mat := _body.material_override as StandardMaterial3D
+	if mat != null:
+		var tw := create_tween()
+		tw.tween_property(mat, "albedo_color", Color(1.0, 0.32, 0.28), 0.05)
+		tw.tween_property(mat, "albedo_color", _base_color, 0.22)
 
 
 func _update_look() -> void:
@@ -266,6 +284,7 @@ func apply_damage(amount: int) -> void:
 	hp = maxi(0, hp - amount)
 	_hurt_time = 0.35
 	state = State.HURT if hp > 0 else State.DOWN
+	_play_hurt_fx()
 	stats_changed.emit()
 	if hp == 0 and multiplayer.has_multiplayer_peer() and multiplayer.is_server():
 		get_tree().create_timer(4.0).timeout.connect(func() -> void:

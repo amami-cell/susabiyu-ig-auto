@@ -94,6 +94,7 @@ func _think(delta: float) -> void:
 		velocity.z = 0.0
 		if _attack_cd <= 0.0:
 			_attack_cd = stats.attack_interval
+			rpc("_remote_lunge")   # 見た目：噛みつきの予備動作＋赤フラッシュ
 			if _target.has_method("apply_damage"):
 				_target.rpc("apply_damage", stats.attack_power)
 
@@ -120,8 +121,8 @@ func cleanse(amount: int, healer_id: int) -> void:
 	if not multiplayer.has_multiplayer_peer() or not multiplayer.is_server() or _dead:
 		return
 	hp -= amount
-	rpc("_remote_hit")
 	if hp > 0:
+		rpc("_remote_hit")   # まだ倒れない＝くらった芝居
 		return
 
 	_dead = true
@@ -143,10 +144,42 @@ func _remote_state(pos: Vector3, remote_hp: int) -> void:
 
 @rpc("authority", "call_local", "unreliable")
 func _remote_hit() -> void:
-	# 叩くたび、汚れがぽろっと落ちるイメージのひと跳ね
-	var tween := create_tween()
-	tween.tween_property(_body, "position:y", 0.25, 0.05)
-	tween.tween_property(_body, "position:y", 0.0, 0.1)
+	# くらった：白くフラッシュ＋のけぞって跳ね、ぐしゃっと潰れて戻る＝当たった手応え。
+	_flash_bug(Color(1.0, 1.0, 1.0))
+	var base := Vector3.ONE * stats.body_scale
+	var tw := create_tween()
+	tw.tween_property(_body, "scale", base * Vector3(1.35, 0.65, 1.35), 0.05)
+	tw.tween_property(_body, "scale", base, 0.14)
+	var tw2 := create_tween()
+	tw2.tween_property(_body, "position:y", 0.4, 0.06)
+	tw2.tween_property(_body, "position:y", 0.0, 0.16)
+
+
+## 敵の攻撃モーション：振りかぶって噛みつく＋怒りの赤フラッシュ（＝これから攻撃する予告）。
+## 向きに依存しないスケールの伸縮で表すので、どの角度から見ても「噛んだ」が分かる。
+@rpc("authority", "call_local", "unreliable")
+func _remote_lunge() -> void:
+	if _dead:
+		return
+	_flash_bug(Color(1.0, 0.4, 0.3))
+	var base := Vector3.ONE * stats.body_scale
+	var tw := create_tween()
+	tw.tween_property(_body, "scale", base * Vector3(0.8, 1.2, 0.8), 0.09)    # 振りかぶり（縮む）
+	tw.tween_property(_body, "scale", base * Vector3(1.3, 0.8, 1.3), 0.07)    # 噛みつき（のびる）
+	tw.tween_property(_body, "scale", base, 0.14)
+	var tw2 := create_tween()
+	tw2.tween_property(_body, "position:y", 0.22, 0.16)                       # ぐっと持ち上げて
+	tw2.tween_property(_body, "position:y", 0.0, 0.14)                        # 噛みつく
+
+
+## 汚れ色（stats.body_color）を base に、一瞬 c に光らせて戻す共通処理。
+func _flash_bug(c: Color) -> void:
+	var mat := _body.material_override as StandardMaterial3D
+	if mat == null:
+		return
+	var tw := create_tween()
+	tw.tween_property(mat, "albedo_color", c, 0.04)
+	tw.tween_property(mat, "albedo_color", stats.body_color, 0.18)
 
 
 @rpc("authority", "call_local", "reliable")
