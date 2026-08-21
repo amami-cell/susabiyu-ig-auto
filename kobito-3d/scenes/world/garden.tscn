@@ -123,3 +123,5 @@ shape = SubResource("BoxShape3D_zone")
 [node name="Players" type="Node3D" parent="."]
 
 [node name="Bugs" type="Node3D" parent="."]
+
+[node name="Children" type="Node3D" parent="."]

@@ -12,6 +12,20 @@ extends Node3D
 
 const PlayerScene := preload("res://scenes/actors/player.tscn")
 const BugScene := preload("res://scenes/actors/bug.tscn")
+const ChildScene := preload("res://scenes/actors/child.tscn")
+
+## 8人の子ども（CHARACTERS.md 準拠）。頭のスミレが親を追い、あとはぞろぞろ続く。
+## 色・大きさはここ一箇所。順番＝隊列の並び（末尾のつぼみがいちばん小さい）。
+const CHILDREN := [
+	{"name": "スミレ", "color": Color(0.55, 0.40, 0.70), "scale": 0.68},
+	{"name": "カヤ", "color": Color(0.85, 0.50, 0.25), "scale": 0.66},
+	{"name": "ソラ", "color": Color(0.50, 0.75, 0.95), "scale": 0.62},
+	{"name": "シズク", "color": Color(0.55, 0.80, 0.85), "scale": 0.60},
+	{"name": "リン", "color": Color(0.58, 0.82, 0.42), "scale": 0.58},
+	{"name": "ラン", "color": Color(0.50, 0.74, 0.38), "scale": 0.58},
+	{"name": "マメ", "color": Color(0.66, 0.70, 0.35), "scale": 0.56},
+	{"name": "つぼみ", "color": Color(0.95, 0.65, 0.75), "scale": 0.46},
+]
 
 const SPAWN_POINTS := [
 	Vector3(0.0, 0.6, 0.0),
@@ -32,6 +46,7 @@ var _spawn_timer := 0.0
 
 @onready var _players: Node3D = $Players
 @onready var _bugs: Node3D = $Bugs
+@onready var _children: Node3D = $Children
 @onready var _ground: MeshInstance3D = $Ground
 @onready var _ground_mat := StandardMaterial3D.new()
 @onready var _env: WorldEnvironment = $WorldEnvironment
@@ -46,6 +61,8 @@ func _ready() -> void:
 		multiplayer.peer_connected.connect(_on_peer_connected)
 	_on_recovery_changed(WorldState.recovery)
 	_reconcile_players()
+	if _is_server():
+		_spawn_children()
 
 
 func _process(delta: float) -> void:
@@ -96,6 +113,38 @@ func _on_peer_connected(id: int) -> void:
 		return
 	for bug in _bugs.get_children():
 		rpc_id(id, "_remote_spawn_bug", int(bug.name.trim_prefix("Bug")), bug.stats_path, bug.global_position)
+	# 子どもは決まった8人。番号だけ送れば相手が同じ子を組み立てられる。
+	for child in _children.get_children():
+		rpc_id(id, "_remote_spawn_child", int(child.name.trim_prefix("Child")))
+
+
+# ------------------------------------------------------------ 子ども（追従隊列）
+
+func _spawn_children() -> void:
+	if _children.get_child_count() > 0:
+		return
+	for i in CHILDREN.size():
+		rpc("_remote_spawn_child", i)
+
+
+@rpc("authority", "call_local", "reliable")
+func _remote_spawn_child(index: int) -> void:
+	if _children.has_node("Child%d" % index):
+		return
+	var data: Dictionary = CHILDREN[index]
+	var child := ChildScene.instantiate()
+	child.name = "Child%d" % index
+	child.child_name = data["name"]
+	child.body_color = data["color"]
+	child.body_scale = data["scale"]
+	# 頭（0番＝スミレ）は親を追い、あとは前の子を追う
+	if index == 0:
+		child.follows_player = true
+	else:
+		child.leader_path = NodePath("../Child%d" % (index - 1))
+	_children.add_child(child)
+	# 初期位置は巣のうしろに一列。すぐ隊列に整う。
+	child.global_position = SPAWN_POINTS[0] + Vector3(0.0, 0.0, 1.0 + index * 0.6)
 
 
 # ------------------------------------------------------------ 敵

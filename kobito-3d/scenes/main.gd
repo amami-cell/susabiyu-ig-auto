@@ -100,10 +100,19 @@ func _run_selftest() -> void:
 	var can_fly_after: bool = not players.is_empty() and players[0].can_fly()
 	var flight_ok: bool = (not could_fly_before) and can_fly_after and WorldState.has_flight()
 
+	# 子どもNPCが8人そろい、親のそばに隊列を組んでいるか
+	var children := get_tree().get_nodes_in_group("child")
+	var near_leader := 0
+	if not players.is_empty():
+		for c in children:
+			if c.global_position.distance_to(players[0].global_position) < 8.0:
+				near_leader += 1
+	var kids_ok: bool = children.size() == 8 and near_leader >= 6
+
 	var ok: bool = _garden != null and players.size() == 1 and bugs.size() > 0 \
-		and WorldState.recovery > 0.0 and xp_gained and flight_ok
-	print("[selftest] 回復度=%.2f XP=%d 経験値=%s 飛行解禁=%s" % [
-		WorldState.recovery, xp_now, xp_gained, flight_ok])
+		and WorldState.recovery > 0.0 and xp_gained and flight_ok and kids_ok
+	print("[selftest] 回復度=%.2f XP=%d 経験値=%s 飛行解禁=%s 子ども=%d(近く%d)" % [
+		WorldState.recovery, xp_now, xp_gained, flight_ok, children.size(), near_leader])
 	print("[selftest] %s" % ("OK" if ok else "NG"))
 	get_tree().quit(0 if ok else 1)
 
