@@ -16,6 +16,11 @@ const CATCHUP := 6.0        # 離れているほど速く追う係数
 var follows_player := false     # true＝頭の子。いちばん近い親を追う
 var leader_path: NodePath       # follows_player=false のとき、追う前の子
 
+# 協力ギミックの“相方”役。helping中は親ではなく指定地点へ向かう
+# （ソロ時、子NPCが同時スイッチの片方に乗ってくれる）。
+var helping := false
+var helper_target := Vector3.ZERO
+
 # 隊列パラメータ（子ごとに変えられる）。末っ子つぼみは spacing を広げ speed を下げると
 # 少し遅れて、ちょこちょこ追いつく“末っ子”らしい芝居になる。
 var follow_spacing := SPACING
@@ -65,17 +70,25 @@ func _follow(delta: float) -> void:
 	if is_on_floor():
 		velocity.y = -0.1
 
-	var leader := _current_leader()
-	if leader == null:
-		velocity.x = move_toward(velocity.x, 0.0, 8.0 * delta)
-		velocity.z = move_toward(velocity.z, 0.0, 8.0 * delta)
-		move_and_slide()
-		return
+	# 相方役なら指定地点へ。そうでなければ親/前の子を追う。
+	var target_pos: Vector3
+	var stop_dist := follow_spacing
+	if helping:
+		target_pos = helper_target
+		stop_dist = 0.25          # 台の上でしっかり止まる
+	else:
+		var leader := _current_leader()
+		if leader == null:
+			velocity.x = move_toward(velocity.x, 0.0, 8.0 * delta)
+			velocity.z = move_toward(velocity.z, 0.0, 8.0 * delta)
+			move_and_slide()
+			return
+		target_pos = leader.global_position
 
-	var to_leader: Vector3 = leader.global_position - global_position
+	var to_leader: Vector3 = target_pos - global_position
 	to_leader.y = 0.0
 	var dist := to_leader.length()
-	if dist > follow_spacing:
+	if dist > stop_dist:
 		var dir := to_leader / dist
 		var speed := minf(follow_speed, (dist - follow_spacing) * follow_catchup)
 		velocity.x = dir.x * speed
@@ -109,3 +122,13 @@ func _nearest_player() -> Node3D:
 func _remote_state(pos: Vector3, yaw: float) -> void:
 	_net_pos = pos
 	rotation.y = yaw
+
+
+## 協力ギミックから呼ばれる：指定地点へ相方として向かう（サーバのみ有効）
+func help_go(pos: Vector3) -> void:
+	helping = true
+	helper_target = pos
+
+
+func help_stop() -> void:
+	helping = false

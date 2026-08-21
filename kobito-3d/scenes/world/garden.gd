@@ -14,8 +14,10 @@ const PlayerScene := preload("res://scenes/actors/player.tscn")
 const BugScene := preload("res://scenes/actors/bug.tscn")
 const ChildScene := preload("res://scenes/actors/child.tscn")
 const StonePuzzleScript := preload("res://scenes/props/stone_puzzle.gd")
+const SwitchPairScript := preload("res://scenes/props/switch_pair.gd")
 
 var _puzzle: Node3D = null
+var _switch: Node3D = null
 
 ## 8人の子ども（CHARACTERS.md 準拠）。頭のスミレが親を追い、あとはぞろぞろ続く。
 ## 色・大きさはここ一箇所。順番＝隊列の並び（末尾のつぼみがいちばん小さい）。
@@ -92,6 +94,13 @@ func _spawn_puzzle() -> void:
 	_puzzle.position = Vector3(-9.0, 0.0, 6.0)
 	add_child(_puzzle)
 
+	# 同時スイッチ（協力／ソロは子NPCが相方）
+	_switch = Node3D.new()
+	_switch.set_script(SwitchPairScript)
+	_switch.name = "SwitchPair"
+	_switch.position = Vector3(9.0, 0.0, -2.0)
+	add_child(_switch)
+
 
 func _process(delta: float) -> void:
 	if not _is_server():
@@ -144,9 +153,11 @@ func _on_peer_connected(id: int) -> void:
 	# 子どもは決まった8人。番号だけ送れば相手が同じ子を組み立てられる。
 	for child in _children.get_children():
 		rpc_id(id, "_remote_spawn_child", int(child.name.trim_prefix("Child")))
-	# 石版パズルの今の状態も配る
+	# 石版パズル・同時スイッチの今の状態も配る
 	if _puzzle != null and _puzzle.has_method("sync_to"):
 		_puzzle.sync_to(id)
+	if _switch != null and _switch.has_method("sync_to"):
+		_switch.sync_to(id)
 
 
 # ------------------------------------------------------------ 子ども（追従隊列）
