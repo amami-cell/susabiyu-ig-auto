@@ -26,6 +26,9 @@ func setup(body: Node3D, head: Node3D, arm_l: Node3D, arm_r: Node3D, eyes: Array
 	_base_y = body.position.y
 	_actor = body.get_parent()   # Body の親＝プレイヤー/子どもの本体
 	_blink = randf_range(1.5, 4.0)
+	# 個体差：呼吸・まばたきの位相をずらして、全員が同じ動きにならないように
+	_t = randf_range(0.0, 6.28)
+	_phase = randf_range(0.0, 6.28)
 
 
 func _process(delta: float) -> void:

@@ -16,6 +16,12 @@ const CATCHUP := 6.0        # 離れているほど速く追う係数
 var follows_player := false     # true＝頭の子。いちばん近い親を追う
 var leader_path: NodePath       # follows_player=false のとき、追う前の子
 
+# 隊列パラメータ（子ごとに変えられる）。末っ子つぼみは spacing を広げ speed を下げると
+# 少し遅れて、ちょこちょこ追いつく“末っ子”らしい芝居になる。
+var follow_spacing := SPACING
+var follow_speed := SPEED
+var follow_catchup := CATCHUP
+
 var child_name := "こども"
 var body_color := Color.WHITE
 var body_scale := 0.6
@@ -69,9 +75,9 @@ func _follow(delta: float) -> void:
 	var to_leader: Vector3 = leader.global_position - global_position
 	to_leader.y = 0.0
 	var dist := to_leader.length()
-	if dist > SPACING:
+	if dist > follow_spacing:
 		var dir := to_leader / dist
-		var speed := minf(SPEED, (dist - SPACING) * CATCHUP)
+		var speed := minf(follow_speed, (dist - follow_spacing) * follow_catchup)
 		velocity.x = dir.x * speed
 		velocity.z = dir.z * speed
 		rotation.y = atan2(-dir.x, -dir.z)

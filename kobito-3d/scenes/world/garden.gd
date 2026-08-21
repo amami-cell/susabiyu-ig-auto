@@ -61,6 +61,9 @@ var _flower_mm: MultiMesh = null
 var _grass_pos := PackedVector3Array()
 var _grass_h := PackedFloat32Array()
 var _grass_yaw := PackedFloat32Array()
+var _plant_mm: MultiMesh = null
+var _plant_base := PackedVector3Array()
+var _plant_rot := PackedFloat32Array()
 
 
 func _ready() -> void:
@@ -153,6 +156,11 @@ func _remote_spawn_child(index: int) -> void:
 		child.follows_player = true
 	else:
 		child.leader_path = NodePath("../Child%d" % (index - 1))
+	# 末っ子つぼみ（最後尾）は少し遅れて、ちょこちょこ追いつく
+	if index == CHILDREN.size() - 1:
+		child.follow_spacing = 1.0
+		child.follow_speed = 3.4
+		child.follow_catchup = 8.0
 	_children.add_child(child)
 	# 初期位置は巣のうしろに一列。すぐ隊列に整う。
 	child.global_position = SPAWN_POINTS[0] + Vector3(0.0, 0.0, 1.0 + index * 0.6)
@@ -204,8 +212,118 @@ func _setup_visuals() -> void:
 	_setup_sky_fog()
 	_setup_sun()
 	_build_ground()
+	_build_pebbles()
+	_build_plants()
 	_build_grass()
 	_build_flowers()
+
+
+## 小石。常に散らばっている地面ディテール（回復に関係なく“地面らしさ”を足す）。
+func _build_pebbles() -> void:
+	var mesh := SphereMesh.new()
+	mesh.radius = 0.12
+	mesh.height = 0.16
+	var mat := StandardMaterial3D.new()
+	mat.vertex_color_use_as_albedo = true
+	mat.roughness = 0.95
+	mesh.material = mat
+
+	var mm := MultiMesh.new()
+	mm.transform_format = MultiMesh.TRANSFORM_3D
+	mm.use_colors = true
+	mm.mesh = mesh
+	mm.instance_count = 220
+
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 424242
+	for i in mm.instance_count:
+		var x := rng.randf_range(-22.0, 22.0)
+		var z := rng.randf_range(-22.0, 22.0)
+		var s := rng.randf_range(0.5, 1.6)
+		var b := Basis(Vector3.UP, rng.randf_range(0.0, TAU)).scaled(Vector3(s, s * 0.55, s))
+		mm.set_instance_transform(i, Transform3D(b, Vector3(x, 0.02, z)))
+		var g := rng.randf_range(0.35, 0.6)
+		mm.set_instance_color(i, Color(g, g * 0.98, g * 0.92))
+	var mmi := MultiMeshInstance3D.new()
+	mmi.name = "Pebbles"
+	mmi.multimesh = mm
+	add_child(mmi)
+
+
+## 下草／植物。回復で茂る。
+## assets/plant.glb を置けば“本物のCC0モデル”に自動で差し替わる（無ければ手続きの葉）。
+## 配布元: Kenney / Quaternius / Poly Pizza（すべてCC0/無料）。詳細は assets/README.md。
+func _build_plants() -> void:
+	var mesh := _optional_model_mesh("res://assets/plant.glb")
+	var procedural := mesh == null
+	if procedural:
+		# 手続きの下草：平たい葉を1枚（低ポリ）。本物を置くまでのつなぎ。
+		var leaf := SphereMesh.new()
+		leaf.radius = 0.16
+		leaf.height = 0.08
+		var mat := StandardMaterial3D.new()
+		mat.vertex_color_use_as_albedo = true
+		mat.roughness = 0.9
+		leaf.material = mat
+		mesh = leaf
+
+	var mm := MultiMesh.new()
+	mm.transform_format = MultiMesh.TRANSFORM_3D
+	mm.use_colors = true
+	mm.mesh = mesh
+	mm.instance_count = 160
+
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 71717171
+	_plant_mm = mm
+	_plant_base = PackedVector3Array()
+	_plant_rot = PackedFloat32Array()
+	for i in mm.instance_count:
+		var x := rng.randf_range(-21.0, 21.0)
+		var z := rng.randf_range(-21.0, 21.0)
+		_plant_base.append(Vector3(x, 0.06, z))
+		_plant_rot.append(rng.randf_range(0.0, TAU))
+		var c := Color(0.24, 0.42, 0.16).lerp(Color(0.42, 0.66, 0.28), rng.randf())
+		mm.set_instance_color(i, c)
+	var mmi := MultiMeshInstance3D.new()
+	mmi.name = "Plants"
+	mmi.multimesh = mm
+	add_child(mmi)
+	_update_plants(WorldState.recovery)
+
+
+## assets/plant.glb があれば、その中の最初のメッシュを取り出して返す。無ければ null。
+func _optional_model_mesh(path: String) -> Mesh:
+	if not ResourceLoader.exists(path):
+		return null
+	var packed := load(path)
+	if packed == null:
+		return null
+	var scene: Node = packed.instantiate()
+	var found: Mesh = null
+	for node in _iter_nodes(scene):
+		if node is MeshInstance3D and node.mesh != null:
+			found = node.mesh
+			break
+	scene.queue_free()
+	return found
+
+
+func _iter_nodes(root: Node) -> Array:
+	var out: Array = [root]
+	for c in root.get_children():
+		out.append_array(_iter_nodes(c))
+	return out
+
+
+func _update_plants(r: float) -> void:
+	if _plant_mm == null:
+		return
+	var grow := clampf((r - 0.15) / 0.85, 0.0, 1.0)
+	for i in _plant_base.size():
+		var s := 0.4 + grow          # 回復で茂る
+		var b := Basis(Vector3.UP, _plant_rot[i]).scaled(Vector3.ONE * s * maxf(0.01, grow))
+		_plant_mm.set_instance_transform(i, Transform3D(b, _plant_base[i]))
 
 
 ## 空・霧・トーン・ブルーム。汚れているほど灰色・濃霧、回復で青空・澄んだ空気。
@@ -415,6 +533,7 @@ func _on_recovery_changed(_value: float) -> void:
 	_update_sky_fog(r)
 	_update_grass(r)
 	_update_flowers(r)
+	_update_plants(r)
 	var env := _env.environment
 	if env != null:
 		env.background_color = WorldState.sky_color()
