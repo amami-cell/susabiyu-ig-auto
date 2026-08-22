@@ -235,6 +235,20 @@ func _run_shot() -> void:
 		await get_tree().create_timer(1.0).timeout
 		await RenderingServer.frame_post_draw
 		get_viewport().get_texture().get_image().save_png("/tmp/shot_puzzle.png")
+	# --attack を付けると、プレイヤーの攻撃を振らせて実カメラ(背後)から連写する（振りの確認）
+	if OS.get_cmdline_user_args().has("--attack") and _garden != null:
+		var p: Node = _garden.local_player()
+		var times := [0.06, 0.13, 0.22, 0.30]   # 背後の実カメラで、薙ぎが横に振れる各時点を撮る
+		if p != null:
+			p.call("_remote_swing")
+		var elapsed := 0.0
+		for i in times.size():
+			var want: float = times[i]
+			while elapsed < want:
+				await get_tree().create_timer(0.02).timeout
+				elapsed += 0.02
+			await RenderingServer.frame_post_draw
+			get_viewport().get_texture().get_image().save_png("/tmp/shot_attack%d.png" % i)
 	# --bugs を付けると、アリとコガネムシを近くに出して寄りで撮る（虫の見た目確認）
 	if OS.get_cmdline_user_args().has("--bugs") and _garden != null:
 		_garden.call("_remote_spawn_bug", 901, "res://data/ant.tres", Vector3(-0.8, 0.6, -1.2))
