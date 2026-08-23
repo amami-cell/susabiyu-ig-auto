@@ -195,37 +195,11 @@ def gen():
     prompt = os.environ.get("I2V_PROMPT") or DEFAULT_PROMPT
     drive, creds_path = _drive()
     img_path, source = _pick_food_photo(drive)
-    print("[I2V] 元写真:", source, "| Space:", HF_SPACE, "| api:", HF_API_NAME)
-    c = _client()
-    from gradio_client import handle_file
-    api = HF_API_NAME
-    if api == "/image_to_video":
-        # LTX-Video distilled の正式シグネチャ（probeで確認済み・順番厳守）
-        result = c.predict(
-            prompt,                    # prompt
-            NEG_PROMPT,                # negative_prompt
-            handle_file(img_path),     # input_image_filepath
-            None,                      # input_video_filepath
-            I2V_HEIGHT,                # height_ui
-            I2V_WIDTH,                 # width_ui
-            "image-to-video",          # mode
-            I2V_DURATION,              # duration_ui（秒）
-            9,                         # ui_frames_to_use
-            42,                        # seed_ui
-            True,                      # randomize_seed
-            1,                         # ui_guidance_scale
-            True,                      # improve_texture_flag
-            api_name="/image_to_video")
-    elif api == "/video":
-        # SVD系（プロンプト無し・カメラ/視差モーションのみ）
-        result = c.predict(handle_file(img_path), 42, True, 127, 6, api_name="/video")
-    else:
-        # 未知Space：無難に (image, prompt) を試す
-        try:
-            result = c.predict(handle_file(img_path), prompt, NEG_PROMPT, api_name=api)
-        except Exception as e:
-            print("[I2V] 既定シグネチャ失敗→(image,prompt)で再試行:", e)
-            result = c.predict(handle_file(img_path), prompt, api_name=api)
+    print("[I2V] 元写真:", source)
+    result = _generate_with_fallback(img_path, prompt)
+    if result is None:
+        print("[I2V] 全Spaceで無料GPUを確保できず（混雑）。今日はスキップ＝明日また回す。")
+        return 0   # “空き待ち”は失敗ではないのでワークフローは緑（毎日回し続ける）
     # 返り値は動画パス or {video:...} or (video, ...) のことが多い。動画ファイルを取り出す。
     vid = _extract_video(result)
     if not vid or not os.path.exists(vid):
@@ -236,6 +210,57 @@ def gen():
     print("[I2V] 生成OK →", url)
     _record_library(creds_path, url, source, prompt)
     return 0
+
+
+def _looks_like_no_gpu(e):
+    s = str(e).lower()
+    return ("no gpu" in s) or ("gpu was available" in s) or ("quota" in s) or ("queue" in s) or ("gpu task aborted" in s)
+
+
+def _call_ltx(c, img, prompt):
+    from gradio_client import handle_file
+    return c.predict(
+        prompt, NEG_PROMPT, handle_file(img), None,
+        I2V_HEIGHT, I2V_WIDTH, "image-to-video", I2V_DURATION,
+        9, 42, True, 1, True, api_name="/image_to_video")
+
+
+def _call_svd(c, img, prompt):
+    from gradio_client import handle_file
+    return c.predict(handle_file(img), 42, True, 127, 6, api_name="/video")
+
+
+# 生存確認済みの無料I2V。プロンプトが効くLTXを最優先、混雑時はSVD系にフォールバック。
+TARGETS = [
+    ("Lightricks/ltx-video-distilled", _call_ltx),
+    ("wangfuyun/AnimateLCM-SVD", _call_svd),
+    ("multimodalart/stable-video-diffusion", _call_svd),
+]
+
+
+def _generate_with_fallback(img_path, prompt):
+    """無料ZeroGPUは空き待ちで落ちることがある。Space×リトライで“1本”を粘り強く狙う。"""
+    import time
+    # HF_SPACE を明示指定した時はそれだけ（api_nameで呼び分け）
+    if os.environ.get("HF_SPACE"):
+        builder = _call_ltx if HF_API_NAME == "/image_to_video" else _call_svd
+        targets = [(HF_SPACE, builder)]
+    else:
+        targets = TARGETS
+    for space, builder in targets:
+        for attempt in (1, 2):
+            try:
+                print("[I2V] 生成試行:", space, "(%d回目)" % attempt)
+                c = _client(space)
+                return builder(c, img_path, prompt)
+            except Exception as e:
+                if _looks_like_no_gpu(e):
+                    print("   混雑でGPU確保できず:", str(e)[:90])
+                    time.sleep(20)   # 少し待って再挑戦
+                    continue
+                print("   失敗（別Spaceへ）:", type(e).__name__, str(e)[:90])
+                break   # このSpace固有のエラーは次のSpaceへ
+    return None
 
 
 def _extract_video(result):
