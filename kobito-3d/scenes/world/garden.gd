@@ -86,6 +86,18 @@ var _water_mat: ShaderMaterial = null
 var _trees: Node3D = null
 var _terrain_noise: FastNoiseLite = null
 
+# 蝶（回復するほど増えて舞う“命”）。純見た目・非同期（各自の画面でふわふわ飛ぶ）。
+# MultiMesh 1体＝1ドローコール。羽ばたきは頂点シェーダ（CPU負荷なし）、
+# 飛行経路だけ毎フレームCPUで更新（数十匹＝軽い）。
+const BUTTERFLY_COUNT := 30
+var _bfly_mm: MultiMesh = null
+var _bfly_center := PackedVector3Array()
+var _bfly_radius := PackedFloat32Array()
+var _bfly_speed := PackedFloat32Array()
+var _bfly_phase := PackedFloat32Array()
+var _bfly_bob := PackedFloat32Array()
+var _anim_t := 0.0
+
 # 舞台(biome)。"garden"=庭 / "ruins"=遺跡。main が session 開始時に設定。
 var biome := "garden"
 
@@ -126,6 +138,7 @@ func _spawn_puzzle() -> void:
 
 
 func _process(delta: float) -> void:
+	_update_butterflies(delta)   # 見た目だけ＝全員の画面で回す（サーバ判定の前）
 	if not _is_server():
 		return
 	_spawn_timer -= delta
@@ -320,9 +333,11 @@ func _setup_visuals() -> void:
 	_build_flowers()
 	_build_pillars()
 	_build_terrain_skirt()
+	_build_water()
 	_build_distant_hills()
 	_build_trees()
 	_build_boulders()
+	_build_butterflies()
 	_apply_biome()
 
 
@@ -1073,10 +1088,100 @@ func _update_sky_fog(r: float) -> void:
 		env.fog_density = lerpf(0.055, 0.010, r)
 
 
+## 蝶。回復するほど数が増える“命”。羽ばたきは頂点シェーダ、飛行はCPUで軽く。
+func _build_butterflies() -> void:
+	var wing := PlaneMesh.new()
+	wing.size = Vector2(0.28, 0.2)
+	wing.subdivide_width = 6
+
+	var mat := ShaderMaterial.new()
+	var sh := Shader.new()
+	sh.code = """
+shader_type spatial;
+render_mode cull_disabled, unshaded;
+void vertex() {
+	float phase = INSTANCE_CUSTOM.r * 6.2831;
+	float spd = 7.0 + INSTANCE_CUSTOM.g * 9.0;
+	float flap = 0.5 + 0.5 * sin(TIME * spd + phase);
+	// 中心線(x=0)から外へいくほど上下に折る＝羽ばたき
+	VERTEX.y += -abs(VERTEX.x) * (0.5 + 1.1 * flap);
+}
+void fragment() {
+	ALBEDO = COLOR.rgb;
+	// ふちを少し明るく＝やわらかい発光感（ブルームでほんのり光る）
+	EMISSION = COLOR.rgb * 0.35;
+}
+"""
+	mat.shader = sh
+	wing.material = mat
+
+	_bfly_mm = MultiMesh.new()
+	_bfly_mm.transform_format = MultiMesh.TRANSFORM_3D
+	_bfly_mm.use_colors = true
+	_bfly_mm.use_custom_data = true
+	_bfly_mm.mesh = wing
+	_bfly_mm.instance_count = BUTTERFLY_COUNT
+
+	var cols := [
+		Color(1.0, 0.85, 0.35),   # 黄
+		Color(1.0, 0.6, 0.72),    # 桃
+		Color(0.98, 0.98, 1.0),   # 白
+		Color(0.62, 0.8, 1.0),    # 水色
+		Color(0.9, 0.55, 0.95),   # 藤
+	]
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 8008135
+	for i in BUTTERFLY_COUNT:
+		var ang := rng.randf_range(0.0, TAU)
+		var rad := rng.randf_range(6.0, 30.0)
+		_bfly_center.append(Vector3(cos(ang) * rad, rng.randf_range(0.7, 2.0), sin(ang) * rad))
+		_bfly_radius.append(rng.randf_range(1.2, 3.6))
+		_bfly_speed.append(rng.randf_range(0.5, 1.3))
+		_bfly_phase.append(rng.randf_range(0.0, TAU))
+		_bfly_bob.append(rng.randf_range(0.2, 0.6))
+		_bfly_mm.set_instance_color(i, cols[rng.randi() % cols.size()])
+		_bfly_mm.set_instance_custom_data(i, Color(rng.randf(), rng.randf(), 0.0, 0.0))
+	var mmi := MultiMeshInstance3D.new()
+	mmi.name = "Butterflies"
+	mmi.multimesh = _bfly_mm
+	mmi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	add_child(mmi)
+	_update_butterfly_count(WorldState.recovery)
+
+
+func _update_butterflies(delta: float) -> void:
+	if _bfly_mm == null:
+		return
+	_anim_t += delta
+	var vis := _bfly_mm.visible_instance_count
+	if vis < 0:
+		vis = BUTTERFLY_COUNT
+	for i in mini(vis, _bfly_center.size()):
+		var ang: float = _bfly_phase[i] + _anim_t * _bfly_speed[i]
+		var c: Vector3 = _bfly_center[i]
+		var rad: float = _bfly_radius[i]
+		var pos := c + Vector3(cos(ang) * rad, sin(_anim_t * 2.2 + _bfly_phase[i]) * _bfly_bob[i], sin(ang) * rad * 0.7)
+		var yaw := ang + PI * 0.5
+		var basis := Basis(Vector3.UP, yaw) * Basis(Vector3.RIGHT, -0.5)   # 少し前傾＝上から羽が見える
+		_bfly_mm.set_instance_transform(i, Transform3D(basis, pos))
+
+
+## 回復（と舞台）で蝶の数を決める。汚れた最初でも数匹は舞い、みどりが戻ると賑やかに。
+func _update_butterfly_count(r: float) -> void:
+	if _bfly_mm == null:
+		return
+	var t := clampf((r - 0.05) / 0.6, 0.0, 1.0)
+	var vis := 4 + int(round((BUTTERFLY_COUNT - 4) * t))
+	if _is_ruins():
+		vis = int(vis * 0.4)   # 遺跡は命がまばら
+	_bfly_mm.visible_instance_count = vis
+
+
 func _on_recovery_changed(_value: float) -> void:
 	var r := WorldState.recovery
 	if _ground_shader != null:
 		_ground_shader.set_shader_parameter("greenness", r)
+	_update_butterfly_count(r)
 	if _water_mat != null:
 		_water_mat.set_shader_parameter("clarity", r)   # 回復ほど水が澄む
 	_update_sky_fog(r)
