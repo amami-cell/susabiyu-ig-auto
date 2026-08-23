@@ -491,7 +491,102 @@ func _run_shot() -> void:
 			_facepat(fp[0], fp[1], fp[2])
 		await RenderingServer.frame_post_draw
 		get_viewport().get_texture().get_image().save_png("/tmp/shot_facepat.png")
+	# --stylepat：本物モデル(自然頭身)の“絵づくり”6パターン（シェーディング違い）
+	if OS.get_cmdline_user_args().has("--stylepat") and ResourceLoader.exists("res://assets/human_base.glb"):
+		$UI.visible = false
+		var sdefs := [
+			{"n": "1 標準", "k": "std"},
+			{"n": "2 トゥーン", "k": "toon"},
+			{"n": "3 トゥーン+輪郭線", "k": "toon_ol"},
+			{"n": "4 アニメ強め", "k": "anime"},
+			{"n": "5 水彩絵本", "k": "water"},
+			{"n": "6 リアル寄り", "k": "real"},
+		]
+		var sr := Node3D.new()
+		add_child(sr)
+		sr.global_position = Vector3(0.0, 0.0, -40.0)
+		var spk: PackedScene = load("res://assets/human_base.glb")
+		var sbody := {"head": 1.32, "hand": 1.1, "foot": 1.1, "body": 1.0, "leg": 1.0}
+		var spend: Array = []
+		var sxp := -(sdefs.size() - 1) * 0.8
+		for d in sdefs:
+			var h := Node3D.new()
+			sr.add_child(h)
+			h.position = Vector3(sxp, 0.0, 0.0)
+			var m: Node3D = spk.instantiate()
+			h.add_child(m)
+			m.scale = Vector3.ONE * 0.052
+			m.rotation.y = PI
+			var ap: AnimationPlayer = m.find_child("AnimationPlayer", true, false)
+			if ap != null and ap.has_animation("Idle"):
+				ap.play("Idle")
+			var sk: Skeleton3D = m.find_child("Skeleton3D", true, false)
+			_apply_style(m, d["k"])
+			var lb := Label3D.new()
+			lb.text = d["n"]
+			lb.position = Vector3(sxp, 1.85, 0.0)
+			lb.pixel_size = 0.0045
+			lb.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+			sr.add_child(lb)
+			spend.append([sk, sbody])
+			sxp += 1.6
+		var sl := DirectionalLight3D.new()
+		sl.rotation = Vector3(deg_to_rad(-38.0), deg_to_rad(20.0), 0.0)
+		sr.add_child(sl)
+		var scp := Camera3D.new()
+		add_child(scp)
+		scp.global_position = Vector3(0.0, 1.2, -46.8)
+		scp.look_at(Vector3(0.0, 1.02, -40.0), Vector3.UP)
+		scp.fov = 46.0
+		scp.current = true
+		await get_tree().create_timer(0.8).timeout
+		for sp in spend:
+			_pattern_bones(sp[0], sp[1])
+		await RenderingServer.frame_post_draw
+		get_viewport().get_texture().get_image().save_png("/tmp/shot_stylepat.png")
 	get_tree().quit()
+
+
+## 本物モデルの材質に“絵づくり”を適用（--stylepat 用）。std/toon/toon_ol/anime/water/real。
+func _apply_style(model: Node, style: String) -> void:
+	for n in model.find_children("*", "MeshInstance3D", true, false):
+		var mi := n as MeshInstance3D
+		var cnt := mi.mesh.get_surface_count() if mi.mesh != null else 0
+		for s in cnt:
+			var base := mi.get_active_material(s)
+			if base == null:
+				continue
+			var m := base.duplicate() as BaseMaterial3D
+			if m == null:
+				continue
+			if style in ["toon", "toon_ol", "anime", "water"]:
+				m.diffuse_mode = BaseMaterial3D.DIFFUSE_TOON
+				m.specular_mode = BaseMaterial3D.SPECULAR_TOON
+				m.rim_enabled = true
+				m.rim = 0.35
+			if style == "water":
+				m.albedo_color = m.albedo_color.lightened(0.14)
+				m.roughness = 1.0
+				m.rim = 0.6
+				m.rim_tint = 0.5
+			if style == "real":
+				m.metallic_specular = 0.5
+			if style in ["toon_ol", "anime", "water"]:
+				var ol := StandardMaterial3D.new()
+				ol.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+				ol.cull_mode = BaseMaterial3D.CULL_FRONT
+				ol.grow = true
+				if style == "anime":
+					ol.grow_amount = 0.6
+					ol.albedo_color = Color(0.06, 0.05, 0.06)
+				elif style == "water":
+					ol.grow_amount = 0.12
+					ol.albedo_color = Color(0.34, 0.27, 0.24)
+				else:
+					ol.grow_amount = 0.3
+					ol.albedo_color = Color(0.1, 0.08, 0.09)
+				m.next_pass = ol
+			mi.set_surface_override_material(s, m)
 
 
 ## 本採用の“大きなアニメ目”仕様で、表情スタイル別に顔を乗せる（--facepat 用）。
