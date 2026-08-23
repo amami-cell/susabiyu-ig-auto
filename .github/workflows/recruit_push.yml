@@ -2,7 +2,7 @@ name: recruit-webpush
 # 募集システムの新規応募をまとめて「LINE＋アプリ通知(Webプッシュ)」で送る送信役。
 # 取得(epRun)は1日5回だが、通知は溜めて【1日2回】まとめて送る（朝と夕方）。
 # GASキュー(_Push送信待ち)を取り出し、複数件を1通に集約して送信する。
-# あわせて「未対応(新規)のまま6時間以上」の応募があればアラートも同梱する。
+# あわせて 未対応(6時間)アラート・取得監視・面接/未提出リマインド も同梱する。
 on:
   schedule:
     - cron: '0 2 * * *'    # JST 11:00（午前まとめ）
@@ -37,6 +37,10 @@ jobs:
           LINE_CHANNEL_TOKEN: ${{ secrets.LINE_CHANNEL_TOKEN }}
         run: |
           export RECRUIT_EXEC_URL="${RECRUIT_EXEC_URL:-https://script.google.com/macros/s/AKfycbz6i36c7UjbM3S44kl1kEcsI0CSjYo9jL-W-T4BJUAr9jmBlVXj-vnQTUwQbGoxcHYT/exec}"
-          echo "--- 未対応(6時間以上)の応募があればアラートをキューに追加 ---"
+          echo "--- 未対応(6時間以上)の応募アラート ---"
           curl -sSL "$RECRUIT_EXEC_URL?untreated=6&key=$EP_PUSH_KEY" || true; echo
+          echo "--- 取得の健全性チェック（12時間以上更新なし/失敗で警告） ---"
+          curl -sSL "$RECRUIT_EXEC_URL?health=12&key=$EP_PUSH_KEY" || true; echo
+          echo "--- 面接/未提出リマインド（1日1回） ---"
+          curl -sSL "$RECRUIT_EXEC_URL?remind=1&key=$EP_PUSH_KEY" || true; echo
           python recruit_push.py
