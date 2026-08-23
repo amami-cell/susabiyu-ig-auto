@@ -212,6 +212,7 @@ func _remote_swing() -> void:
 	var anim := _body.get_node_or_null("Anim")
 	if anim != null and anim.has_method("attack"):
 		anim.attack()
+	Sfx.play("swing")
 	var tween := create_tween()
 	tween.tween_property(_body, "scale", Vector3(1.15, 0.9, 1.15), 0.06)
 	tween.tween_property(_body, "scale", Vector3.ONE, 0.14)
@@ -222,6 +223,7 @@ func _play_hurt_fx() -> void:
 	var anim := _body.get_node_or_null("Anim")
 	if anim != null and anim.has_method("hurt"):
 		anim.hurt()
+	Sfx.play("hurt")
 	var mat := _body.material_override as StandardMaterial3D
 	if mat != null:
 		var tw := create_tween()

@@ -163,7 +163,8 @@ func _remote_state(pos: Vector3, remote_hp: int) -> void:
 
 @rpc("authority", "call_local", "unreliable")
 func _remote_hit(amount: int = 0) -> void:
-	# くらった：白フラッシュ＋のけぞって跳ね潰れ＋火花＋ダメージ数字＝はっきりした手応え。
+	# くらった：白フラッシュ＋のけぞって跳ね潰れ＋火花＋ダメージ数字＋音＝はっきりした手応え。
+	Sfx.play("hit")
 	_flash_bug(Color(1.0, 1.0, 1.0))
 	var base := Vector3.ONE * stats.body_scale
 	var tw := create_tween()
@@ -234,6 +235,7 @@ func _player_by_id(id: int) -> Node3D:
 func _remote_lunge() -> void:
 	if _dead:
 		return
+	Sfx.play("bite")
 	_flash_bug(Color(1.0, 0.4, 0.3))
 	var base := Vector3.ONE * stats.body_scale
 	var tw := create_tween()
@@ -261,6 +263,7 @@ func _remote_healed() -> void:
 	# 「倒した（潰れて消える）」ではなく「救われて還っていく」見え方にする。
 	_dead = true
 	remove_from_group("bug")
+	Sfx.play("heal")
 	var tween := create_tween()
 	var mat := _body.material_override as StandardMaterial3D
 	if mat != null:
