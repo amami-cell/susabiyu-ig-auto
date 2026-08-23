@@ -35,4 +35,27 @@ jobs:
           print("動画(リール/ストーリー) %d種: %s" % (len(v), "、".join(LAB.get(k,k) for k in v)))
           print("画像(フィード)         %d種: %s" % (len(s), "、".join(LAB.get(k,k) for k in s)))
           print("合計 %d種" % (len(v)+len(s)))
+          # --- 成績で自動重み付け（A1）＆ 曜日別ベスト時間（A2）の可視化 ---
+          try:
+              import perf
+              sc = perf.pattern_scores(set(D.ALL))
+              if sc:
+                  print("\n==== 成績の重み(倍率・高い順) ====")
+                  for k, w in sorted(sc.items(), key=lambda x: -x[1]):
+                      print("  %s : x%.2f" % (LAB.get(k, k), w))
+              else:
+                  print("\n[成績] まだデータ不足→均等運用（探索中）")
+              wd = ["月","火","水","木","金","土","日"]
+              bh = perf.best_hours_by_weekday()
+              if bh:
+                  print("\n==== 曜日別“伸びる時間帯”(平均リーチ) ====")
+                  for d in range(7):
+                      if d in bh:
+                          cells = " / ".join("%d時:%.0f" % (h, a) for h, a in bh[d][:4])
+                          print("  %s: %s" % (wd[d], cells))
+                  print("※現状は学習のみ表示。スケジュール自動変更はデータが十分＆GOをもらってから。")
+              else:
+                  print("[時間帯] まだデータ不足→現状の固定時間のまま")
+          except Exception as e:
+              print("[perf] 集計スキップ:", e)
           PY

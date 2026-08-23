@@ -82,3 +82,60 @@ def pattern_scores(valid_patterns=None):
 def weight_of(pattern, scores):
     """データのあるパターンは成績倍率、無いパターンは1.0（探索）。"""
     return scores.get(pattern, 1.0) if scores else 1.0
+
+
+# ---- A2: 曜日ごとの“伸びる時間帯”を学習（読み取り専用・スケジュール変更はまだしない） ----
+_HOURS_CACHE = None
+MIN_POSTS_PER_WD = 3   # その曜日でこの件数未満は学習しない（既定時間のまま）
+
+
+def best_hours_by_weekday():
+    """{weekday(0=月): [(hour, 平均リーチ), ...] 降順} を返す。失敗時 {}。
+    「投稿履歴」の日時から曜日・時、media_id経由で「インサイト投稿」のリーチを突合。"""
+    global _HOURS_CACHE
+    if _HOURS_CACHE is not None:
+        return _HOURS_CACHE
+    out = {}
+    try:
+        import poster, datetime
+        sh = poster._sheets()
+        if not sh or not poster.SHEET_ID:
+            return {}
+        hist = sh.values().get(spreadsheetId=poster.SHEET_ID, range=HIST_TAB + "!A:F").execute().get("values", [])
+        posts = sh.values().get(spreadsheetId=poster.SHEET_ID, range=POST_TAB + "!A:Q").execute().get("values", [])
+        reach = {}
+        for i, r in enumerate(posts):
+            if i == 0 or len(r) < 6:
+                continue
+            v = _to_int(r[5])
+            if str(r[1]).strip() and v is not None:
+                reach[str(r[1]).strip()] = v
+        # (weekday, hour) -> [reach,...]
+        bucket = {}
+        for i, r in enumerate(hist):
+            if i == 0 or len(r) < 5:
+                continue
+            mid = str(r[4]).strip()
+            if mid not in reach:
+                continue
+            ds = str(r[0]).strip()[:16]
+            dt = None
+            for fmt in ("%Y-%m-%d %H:%M", "%Y/%m/%d %H:%M"):
+                try:
+                    dt = datetime.datetime.strptime(ds, fmt); break
+                except Exception:
+                    pass
+            if not dt:
+                continue
+            bucket.setdefault(dt.weekday(), {}).setdefault(dt.hour, []).append(reach[mid])
+        for wd, hours in bucket.items():
+            ranked = sorted(
+                ((h, sum(v) / len(v)) for h, v in hours.items() if len(v) >= 1),
+                key=lambda x: -x[1])
+            n = sum(len(v) for v in hours.values())
+            if n >= MIN_POSTS_PER_WD and ranked:
+                out[wd] = [(h, round(a, 1)) for h, a in ranked]
+    except Exception as e:
+        print("[PERF] best_hours失敗:", e); return {}
+    _HOURS_CACHE = out
+    return out
