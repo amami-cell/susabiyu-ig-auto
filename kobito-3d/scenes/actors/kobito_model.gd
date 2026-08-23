@@ -12,10 +12,15 @@ const MODEL_PATH := "res://assets/human_base.glb"
 const BASE_SCALE := 0.052       # HVGirl の素の大きさ→小人サイズへ
 const FEET_Y := -0.52           # body ローカルでの足元（クレイ版と揃える）
 const WALK_SPEED_ON := 0.4      # この速さ以上で歩きアニメ
+const HEAD_SCALE := 2.0         # 頭を大きく＝3頭身チビで可愛く
+const HAND_SCALE := 1.35        # 手足も少し大きく＝ぷにっと可愛い
+const FOOT_SCALE := 1.3
 
 var _actor: Object = null
 var _ap: AnimationPlayer = null
 var _walking := false
+var _skel: Skeleton3D = null
+var _cute_bones: Array = []     # [[bone_idx, scale], ...] 毎フレーム再適用してチビ体型を保つ
 
 
 static func has_model() -> bool:
@@ -43,11 +48,30 @@ func setup(body: MeshInstance3D, color: Color, _role: String = "child", _char_na
 	# 家族の色でうっすら色付け（服・肌をまとめて軽くトーン）
 	_tint(model, color)
 
+	# チビ化：頭を大きく・手足も少し大きく（可愛い3頭身）。毎フレーム再適用して保つ。
+	_skel = model.find_child("Skeleton3D", true, false)
+	if _skel != null:
+		_add_cute_bone("mixamorig_Head", HEAD_SCALE)
+		_add_cute_bone("mixamorig_LeftHand", HAND_SCALE)
+		_add_cute_bone("mixamorig_RightHand", HAND_SCALE)
+		_add_cute_bone("mixamorig_LeftFoot", FOOT_SCALE)
+		_add_cute_bone("mixamorig_RightFoot", FOOT_SCALE)
+		_apply_cute()
+
 	_ap = model.find_child("AnimationPlayer", true, false)
-	if _ap != null:
-		if _ap.has_animation("Idle"):
-			_ap.play("Idle")
-		_ap.get_animation("Walking")   # 触っておく（存在確認は play 時にガード）
+	if _ap != null and _ap.has_animation("Idle"):
+		_ap.play("Idle")
+
+
+func _add_cute_bone(bone_name: String, s: float) -> void:
+	var idx := _skel.find_bone(bone_name)
+	if idx >= 0:
+		_cute_bones.append([idx, s])
+
+
+func _apply_cute() -> void:
+	for pair in _cute_bones:
+		_skel.set_bone_pose_scale(pair[0], Vector3.ONE * pair[1])
 
 
 func _tint(root: Node, color: Color) -> void:
@@ -62,11 +86,16 @@ func _tint(root: Node, color: Color) -> void:
 			var m := base.duplicate() as BaseMaterial3D
 			if m == null:
 				continue
-			m.albedo_color = m.albedo_color.lerp(color, 0.22)
+			# パステル＝家族色を混ぜつつ明るく・やわらかく（可愛い方向）
+			m.albedo_color = m.albedo_color.lerp(color, 0.25).lightened(0.12)
+			m.roughness = maxf(m.roughness, 0.7)   # つや消し＝やわらか
 			mi.set_surface_override_material(s, m)
 
 
 func _process(_delta: float) -> void:
+	# アニメが上書きしても“チビ体型”を保つため毎フレーム再適用（スケールはアニメが触らない）
+	if _skel != null:
+		_apply_cute()
 	if _actor == null or _ap == null:
 		return
 	var speed := 0.0
