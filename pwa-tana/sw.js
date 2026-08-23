@@ -24,6 +24,34 @@ self.addEventListener('activate', function (e) {
   );
 });
 
+// ── プッシュ通知 ──────────────────────────────────────────────
+// 配信本体（GitHub Actions + pywebpush）から届いた通知を表示する。
+self.addEventListener('push', function (e) {
+  var data = {};
+  try { data = e.data ? e.data.json() : {}; } catch (err) { data = { title: '棚卸', body: (e.data && e.data.text()) || '' }; }
+  var title = data.title || '棚卸';
+  var opts = {
+    body: data.body || '',
+    icon: './icons/icon-192.png',
+    badge: './icons/icon-192.png',
+    tag: data.tag || 'tana',
+    renotify: true,
+    data: { url: data.url || './' }
+  };
+  e.waitUntil(self.registration.showNotification(title, opts));
+});
+
+self.addEventListener('notificationclick', function (e) {
+  e.notification.close();
+  var target = (e.notification.data && e.notification.data.url) || './';
+  e.waitUntil(
+    self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then(function (cl) {
+      for (var i = 0; i < cl.length; i++) { if ('focus' in cl[i]) return cl[i].focus(); }
+      if (self.clients.openWindow) return self.clients.openWindow(target);
+    })
+  );
+});
+
 self.addEventListener('fetch', function (e) {
   var req = e.request;
   if (req.method !== 'GET') return;
