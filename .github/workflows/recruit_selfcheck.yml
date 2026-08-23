@@ -16,6 +16,7 @@ jobs:
           U="${RECRUIT_EXEC_URL:-https://script.google.com/macros/s/AKfycbz6i36c7UjbM3S44kl1kEcsI0CSjYo9jL-W-T4BJUAr9jmBlVXj-vnQTUwQbGoxcHYT/exec}"
           K="$EP_PUSH_KEY"
           probe(){ echo "=== $1 ==="; curl -sSL --max-time 60 "$U?$2&key=$K" || echo "(curl error)"; echo; echo; }
+          probe "diag run(取得ログ)"      "diag=run"
           probe "health(取得監視)"        "health=12&dry=1"
           probe "remind(リマインド)"       "remind=1&dry=1"
           probe "untreated(未対応)"        "untreated=6&dry=1"
