@@ -286,4 +286,53 @@ func _run_shot() -> void:
 		await get_tree().create_timer(0.08).timeout
 		await RenderingServer.frame_post_draw
 		get_viewport().get_texture().get_image().save_png("/tmp/shot_hit.png")
+	# --family を付けると、家族を一列に並べて撮る（家族ごとの見た目差の確認）
+	if OS.get_cmdline_user_args().has("--family"):
+		var fam := [
+			{"name": "父", "color": Color(0.30, 0.55, 0.95), "scale": 1.0, "role": "adult"},
+			{"name": "スミレ", "color": Color(0.55, 0.40, 0.70), "scale": 0.68, "role": "child"},
+			{"name": "カヤ", "color": Color(0.85, 0.50, 0.25), "scale": 0.66, "role": "child"},
+			{"name": "ソラ", "color": Color(0.50, 0.75, 0.95), "scale": 0.62, "role": "child"},
+			{"name": "シズク", "color": Color(0.55, 0.80, 0.85), "scale": 0.60, "role": "child"},
+			{"name": "リン", "color": Color(0.58, 0.82, 0.42), "scale": 0.58, "role": "child"},
+			{"name": "ラン", "color": Color(0.50, 0.74, 0.38), "scale": 0.58, "role": "child"},
+			{"name": "マメ", "color": Color(0.66, 0.70, 0.35), "scale": 0.56, "role": "child"},
+			{"name": "つぼみ", "color": Color(0.95, 0.65, 0.75), "scale": 0.46, "role": "child"},
+			{"name": "おじい", "color": Color(0.70, 0.70, 0.72), "scale": 0.9, "role": "adult"},
+		]
+		var root := Node3D.new()
+		add_child(root)
+		root.global_position = Vector3(0.0, 0.0, -40.0)
+		var x := -(fam.size() - 1) * 0.75
+		for d in fam:
+			var holder := Node3D.new()
+			root.add_child(holder)
+			holder.position = Vector3(x, 0.0, 0.0)
+			holder.scale = Vector3.ONE * float(d["scale"])
+			var mi := MeshInstance3D.new()
+			var cap := CapsuleMesh.new()
+			cap.radius = 0.25
+			cap.height = 1.0
+			mi.mesh = cap
+			holder.add_child(mi)
+			KobitoLook.decorate(mi, d["color"], false, d["role"], d["name"])
+			var lbl := Label3D.new()
+			lbl.text = d["name"]
+			lbl.position = Vector3(0.0, 1.1, 0.0)
+			lbl.pixel_size = 0.006
+			lbl.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+			holder.add_child(lbl)
+			x += 1.5
+		var lightp := DirectionalLight3D.new()
+		lightp.rotation = Vector3(deg_to_rad(-45.0), deg_to_rad(30.0), 0.0)
+		root.add_child(lightp)
+		var fcam := Camera3D.new()
+		add_child(fcam)
+		fcam.global_position = Vector3(0.0, 0.75, -36.2)
+		fcam.look_at(Vector3(0.0, 0.45, -40.0), Vector3.UP)
+		fcam.fov = 62.0
+		fcam.current = true
+		await get_tree().create_timer(1.0).timeout
+		await RenderingServer.frame_post_draw
+		get_viewport().get_texture().get_image().save_png("/tmp/shot_family.png")
 	get_tree().quit()

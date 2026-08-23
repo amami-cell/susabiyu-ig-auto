@@ -76,8 +76,9 @@ func _ready() -> void:
 	mat.albedo_color = _base_color
 	mat.roughness = 0.9
 	_body.material_override = mat
-	KobitoLook.decorate(_body, Net.color_of(owner_id), true)   # プレイヤーは武器を持つ
-	_label.text = Net.roster.get(owner_id, {}).get("name", "小人")
+	var pname: String = Net.roster.get(owner_id, {}).get("name", "小人")
+	KobitoLook.decorate(_body, Net.color_of(owner_id), true, "adult", pname)   # 親：武器を持つ
+	_label.text = pname
 
 	# カメラは自分のぶんだけ。他人の小人のカメラは切っておく。
 	_camera.current = is_local
