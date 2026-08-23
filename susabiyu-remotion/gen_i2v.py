@@ -28,8 +28,16 @@ DEFAULT_PROMPT = (
 )
 NEG_PROMPT = "fast motion, jitter, glitch, distortion, deformed, extra fingers, text, watermark, cartoon, oversaturated"
 
-HF_SPACE = os.environ.get("HF_SPACE", "Lightricks/LTX-Video")
-HF_API_NAME = os.environ.get("HF_API_NAME", "/generate")
+# probeで確認済み：Lightricks/ltx-video-distilled の /image_to_video は
+#   (prompt, negative_prompt, image, video, height, width, mode, duration,
+#    frames_to_use, seed, randomize_seed, guidance, improve_texture) を取り、動画を返す。
+# テキストプロンプトが効く＝「箸で持ち上げる・湯気」など“実食”を指示できる唯一の生存Space。
+HF_SPACE = os.environ.get("HF_SPACE", "Lightricks/ltx-video-distilled")
+HF_API_NAME = os.environ.get("HF_API_NAME", "/image_to_video")
+# 縦動画寄り（後段のリールは9:16に整形するので厳密でなくてよい）。無料GPU時間を考え小さめ・短め。
+I2V_HEIGHT = int(os.environ.get("I2V_HEIGHT", "704"))
+I2V_WIDTH = int(os.environ.get("I2V_WIDTH", "512"))
+I2V_DURATION = float(os.environ.get("I2V_DURATION", "3"))
 FOOD_FOLDER = os.environ.get("GENRE_FOOD_ID") or "14oKNgdXee2NrI7Dkmbrlbid4f0_VZ5Cv"
 MIN_SIDE = 800
 LIB_TAB = "リール素材"
@@ -190,12 +198,34 @@ def gen():
     print("[I2V] 元写真:", source, "| Space:", HF_SPACE, "| api:", HF_API_NAME)
     c = _client()
     from gradio_client import handle_file
-    # 代表的なI2V Spaceは (image, prompt, ...) を取る。api_nameはprobeで確定→env上書き可。
-    try:
-        result = c.predict(handle_file(img_path), prompt, NEG_PROMPT, api_name=HF_API_NAME)
-    except Exception as e:
-        print("[I2V] 既定シグネチャ失敗→単純(image,prompt)で再試行:", e)
-        result = c.predict(handle_file(img_path), prompt, api_name=HF_API_NAME)
+    api = HF_API_NAME
+    if api == "/image_to_video":
+        # LTX-Video distilled の正式シグネチャ（probeで確認済み・順番厳守）
+        result = c.predict(
+            prompt,                    # prompt
+            NEG_PROMPT,                # negative_prompt
+            handle_file(img_path),     # input_image_filepath
+            None,                      # input_video_filepath
+            I2V_HEIGHT,                # height_ui
+            I2V_WIDTH,                 # width_ui
+            "image-to-video",          # mode
+            I2V_DURATION,              # duration_ui（秒）
+            9,                         # ui_frames_to_use
+            42,                        # seed_ui
+            True,                      # randomize_seed
+            1,                         # ui_guidance_scale
+            True,                      # improve_texture_flag
+            api_name="/image_to_video")
+    elif api == "/video":
+        # SVD系（プロンプト無し・カメラ/視差モーションのみ）
+        result = c.predict(handle_file(img_path), 42, True, 127, 6, api_name="/video")
+    else:
+        # 未知Space：無難に (image, prompt) を試す
+        try:
+            result = c.predict(handle_file(img_path), prompt, NEG_PROMPT, api_name=api)
+        except Exception as e:
+            print("[I2V] 既定シグネチャ失敗→(image,prompt)で再試行:", e)
+            result = c.predict(handle_file(img_path), prompt, api_name=api)
     # 返り値は動画パス or {video:...} or (video, ...) のことが多い。動画ファイルを取り出す。
     vid = _extract_video(result)
     if not vid or not os.path.exists(vid):
