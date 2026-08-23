@@ -1,5 +1,5 @@
 name: recruit-probe-listing
-# 手動実行専用（読み取りのみ）。リスティング列の実データをJSONで取得して分析設計に使う。
+# 手動実行専用（読み取りのみ）。リスティング列＋集計内訳をJSONで取得して検証に使う。
 on:
   workflow_dispatch:
 jobs:
@@ -7,11 +7,11 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
-      - name: Probe listing columns
+      - name: Probe listing & aggregation
         env:
           RECRUIT_EXEC_URL: ${{ secrets.RECRUIT_EXEC_URL }}
           EP_PUSH_KEY: ${{ secrets.EP_PUSH_KEY }}
         run: |
           export RECRUIT_EXEC_URL="${RECRUIT_EXEC_URL:-https://script.google.com/macros/s/AKfycbz6i36c7UjbM3S44kl1kEcsI0CSjYo9jL-W-T4BJUAr9jmBlVXj-vnQTUwQbGoxcHYT/exec}"
-          echo "--- リスティング列の実データ ---"
-          curl -sSL "$RECRUIT_EXEC_URL?probe=listing&key=$EP_PUSH_KEY"; echo
+          echo "--- 集計内訳（採用単価の検証） ---"
+          curl -sSL "$RECRUIT_EXEC_URL?diag=agg&key=$EP_PUSH_KEY"; echo
