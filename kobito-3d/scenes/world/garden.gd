@@ -40,10 +40,12 @@ const SPAWN_POINTS := [
 	Vector3(0.0, 0.6, 1.8),
 ]
 const BUG_SPAWN_POINTS := [
-	Vector3(9.0, 0.6, -6.0),
-	Vector3(-8.0, 0.6, -8.0),
-	Vector3(10.0, 0.6, 7.0),
-	Vector3(-10.0, 0.6, 6.0),
+	Vector3(22.0, 0.6, -14.0),
+	Vector3(-20.0, 0.6, -18.0),
+	Vector3(24.0, 0.6, 16.0),
+	Vector3(-24.0, 0.6, 14.0),
+	Vector3(0.0, 0.6, -26.0),
+	Vector3(14.0, 0.6, 24.0),
 ]
 const MAX_BUGS := 8
 
@@ -58,7 +60,7 @@ var _spawn_timer := 0.0
 @onready var _sun: DirectionalLight3D = $Sun
 
 # 見た目（すべて手続き生成＝外部素材ゼロ・スマホ安全）
-const GRASS_COUNT := 900
+const GRASS_COUNT := 1600
 const FLOWER_COUNT := 90
 var _sky_mat: ProceduralSkyMaterial = null
 var _ground_shader: ShaderMaterial = null
@@ -112,14 +114,14 @@ func _spawn_puzzle() -> void:
 	_puzzle = Node3D.new()
 	_puzzle.set_script(StonePuzzleScript)
 	_puzzle.name = "StonePuzzle"
-	_puzzle.position = Vector3(-9.0, 0.0, 6.0)
+	_puzzle.position = Vector3(-27.0, 0.0, 20.0)   # 西の奥（探索の目的地）
 	add_child(_puzzle)
 
 	# 同時スイッチ（協力／ソロは子NPCが相方）
 	_switch = Node3D.new()
 	_switch.set_script(SwitchPairScript)
 	_switch.name = "SwitchPair"
-	_switch.position = Vector3(9.0, 0.0, -2.0)
+	_switch.position = Vector3(28.0, 0.0, -8.0)    # 東の奥
 	add_child(_switch)
 
 
@@ -224,12 +226,12 @@ func _remote_spawn_child(index: int) -> void:
 # マップの各所に散らばる“寄り道のご褒美”。集めると少し緑が戻り、章の進行が数える。
 
 const SEED_POINTS := [
-	Vector3(15.0, 0.6, 10.0),
-	Vector3(-14.0, 0.6, 12.0),
-	Vector3(16.0, 0.6, -12.0),
-	Vector3(-16.0, 0.6, -9.0),
-	Vector3(7.0, 0.6, 16.0),
-	Vector3(-6.0, 0.6, -16.0),
+	Vector3(26.0, 0.6, 22.0),
+	Vector3(-24.0, 0.6, 26.0),
+	Vector3(28.0, 0.6, -22.0),
+	Vector3(-28.0, 0.6, -18.0),
+	Vector3(12.0, 0.6, 30.0),
+	Vector3(-10.0, 0.6, -30.0),
 ]
 
 
@@ -263,7 +265,7 @@ func _on_chapter_boss() -> void:
 	if not _is_server():
 		return
 	_bug_serial += 1
-	rpc("_remote_spawn_bug", _bug_serial, "res://data/queen_ant.tres", Vector3(0.0, 1.0, -15.0))
+	rpc("_remote_spawn_bug", _bug_serial, "res://data/queen_ant.tres", Vector3(0.0, 1.0, -30.0))
 
 
 # ------------------------------------------------------------ 敵
@@ -411,7 +413,7 @@ func _ensure_terrain_noise() -> void:
 func _terrain_height(x: float, z: float) -> float:
 	_ensure_terrain_noise()
 	var r := sqrt(x * x + z * z)
-	var rise := clampf((r - 22.0) / 30.0, 0.0, 1.0)   # 島の外周からせり上がる
+	var rise := clampf((r - 52.0) / 30.0, 0.0, 1.0)   # 遊べる島(72四方)の外からせり上がる
 	var n := _terrain_noise.get_noise_2d(x, z)         # -1..1 のうねり
 	return rise * rise * 13.0 + n * rise * 5.0
 
@@ -426,10 +428,10 @@ func _build_terrain_skirt() -> void:
 		_ground.visible = false
 	var st := SurfaceTool.new()
 	st.begin(Mesh.PRIMITIVE_TRIANGLES)
-	var rings := 52
+	var rings := 56
 	var segs := 96
 	var r0 := 0.0
-	var r1 := 98.0
+	var r1 := 130.0
 	for i in rings:
 		var ta := float(i) / float(rings)
 		var tb := float(i + 1) / float(rings)
@@ -539,13 +541,13 @@ func _build_distant_hills() -> void:
 	var far := Color(0.52, 0.58, 0.70)    # 奥の山＝空気遠近で青灰
 	for i in mm.instance_count:
 		var ang := rng.randf_range(0.0, TAU)
-		var rad := rng.randf_range(70.0, 150.0)
+		var rad := rng.randf_range(95.0, 175.0)
 		var w := rng.randf_range(14.0, 40.0)
 		var h := rng.randf_range(14.0, 46.0)
 		var b := Basis(Vector3.UP, rng.randf_range(0.0, TAU)).scaled(Vector3(w, h, w))
 		# 根元を地平線下に沈めて“連なり”に見せる
 		mm.set_instance_transform(i, Transform3D(b, Vector3(cos(ang) * rad, h * 0.5 - 3.0, sin(ang) * rad)))
-		var t := clampf((rad - 70.0) / 80.0, 0.0, 1.0)
+		var t := clampf((rad - 95.0) / 80.0, 0.0, 1.0)
 		mm.set_instance_color(i, near.lerp(far, t))
 	var mmi := MultiMeshInstance3D.new()
 	mmi.name = "DistantHills"
@@ -599,7 +601,7 @@ func _build_trees() -> void:
 	# 広葉樹
 	for i in TREE_COUNT:
 		var ang := rng.randf_range(0.0, TAU)
-		var rad := rng.randf_range(26.0, 88.0)
+		var rad := rng.randf_range(56.0, 120.0)
 		var base := _tree_base(cos(ang) * rad, sin(ang) * rad)
 		var s := rng.randf_range(1.3, 2.6)
 		var yaw := rng.randf_range(0.0, TAU)
@@ -611,7 +613,7 @@ func _build_trees() -> void:
 	# 針葉樹（少し外側・高地に多い＝森の奥）
 	for i in CONIFER_COUNT:
 		var ang := rng.randf_range(0.0, TAU)
-		var rad := rng.randf_range(34.0, 94.0)
+		var rad := rng.randf_range(58.0, 125.0)
 		var base := _tree_base(cos(ang) * rad, sin(ang) * rad)
 		var s := rng.randf_range(1.6, 3.4)
 		var yaw := rng.randf_range(0.0, TAU)
@@ -639,7 +641,7 @@ func _build_boulders() -> void:
 	rng.seed = 135791
 	for i in BOULDER_COUNT:
 		var ang := rng.randf_range(0.0, TAU)
-		var rad := rng.randf_range(26.0, 92.0)
+		var rad := rng.randf_range(54.0, 116.0)
 		var x := cos(ang) * rad
 		var z := sin(ang) * rad
 		var base := _tree_base(x, z)
@@ -698,13 +700,13 @@ func _build_pebbles() -> void:
 	mm.transform_format = MultiMesh.TRANSFORM_3D
 	mm.use_colors = true
 	mm.mesh = mesh
-	mm.instance_count = 220
+	mm.instance_count = 420
 
 	var rng := RandomNumberGenerator.new()
 	rng.seed = 424242
 	for i in mm.instance_count:
-		var x := rng.randf_range(-22.0, 22.0)
-		var z := rng.randf_range(-22.0, 22.0)
+		var x := rng.randf_range(-35.0, 35.0)
+		var z := rng.randf_range(-35.0, 35.0)
 		var s := rng.randf_range(0.5, 1.6)
 		var b := Basis(Vector3.UP, rng.randf_range(0.0, TAU)).scaled(Vector3(s, s * 0.55, s))
 		mm.set_instance_transform(i, Transform3D(b, Vector3(x, 0.02, z)))
@@ -737,7 +739,7 @@ func _build_plants() -> void:
 	mm.transform_format = MultiMesh.TRANSFORM_3D
 	mm.use_colors = true
 	mm.mesh = mesh
-	mm.instance_count = 160
+	mm.instance_count = 320
 
 	var rng := RandomNumberGenerator.new()
 	rng.seed = 71717171
@@ -745,8 +747,8 @@ func _build_plants() -> void:
 	_plant_base = PackedVector3Array()
 	_plant_rot = PackedFloat32Array()
 	for i in mm.instance_count:
-		var x := rng.randf_range(-21.0, 21.0)
-		var z := rng.randf_range(-21.0, 21.0)
+		var x := rng.randf_range(-35.0, 35.0)
+		var z := rng.randf_range(-35.0, 35.0)
 		_plant_base.append(Vector3(x, 0.06, z))
 		_plant_rot.append(rng.randf_range(0.0, TAU))
 		var c := Color(0.24, 0.42, 0.16).lerp(Color(0.42, 0.66, 0.28), rng.randf())
@@ -963,8 +965,8 @@ void fragment() {
 	var rng := RandomNumberGenerator.new()
 	rng.seed = 20260821   # 固定シード＝毎回同じ配置（クライアント間でも揃う）
 	for i in GRASS_COUNT:
-		var x := rng.randf_range(-21.0, 21.0)
-		var z := rng.randf_range(-21.0, 21.0)
+		var x := rng.randf_range(-35.0, 35.0)
+		var z := rng.randf_range(-35.0, 35.0)
 		var h := rng.randf_range(0.6, 1.5)
 		if x > -3.6 and x < 3.6 and z > -11.5 and z < -6.5:
 			h = 0.0   # 排水溝の上には生やさない
