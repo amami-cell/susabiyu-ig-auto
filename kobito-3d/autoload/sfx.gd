@@ -16,7 +16,10 @@ var _bank := {}             # name -> AudioStreamWAV
 
 var _bgm_pad: AudioStreamPlayer
 var _bgm_shine: AudioStreamPlayer
+var _bgm_battle: AudioStreamPlayer
 var _bgm_on := false
+var _battle := 0.0             # 戦闘度 0..1（敵が近いと上がる。曲をなめらかに切替）
+const BATTLE_RANGE := 9.0      # この距離に敵が来たら“戦闘”
 
 const CFG_PATH := "user://settings.cfg"
 var _master := 0.8          # 全体音量（0.0〜1.0）。設定スライダーで変える。保存される。
@@ -34,6 +37,9 @@ func _ready() -> void:
 	_bgm_shine = AudioStreamPlayer.new()
 	_bgm_shine.bus = "Master"
 	add_child(_bgm_shine)
+	_bgm_battle = AudioStreamPlayer.new()
+	_bgm_battle.bus = "Master"
+	add_child(_bgm_battle)
 	_build_bank()
 	_load_settings()
 
@@ -98,27 +104,56 @@ func start_bgm() -> void:
 	if _bgm_on:
 		return
 	_bgm_on = true
+	_battle = 0.0
 	_bgm_pad.stream = _bank.get("bgm_pad")
 	_bgm_shine.stream = _bank.get("bgm_shine")
+	_bgm_battle.stream = _bank.get("bgm_battle")
 	_bgm_pad.volume_db = -14.0
-	_bgm_shine.volume_db = -60.0   # 最初は聞こえない（汚れている）
+	_bgm_shine.volume_db = -60.0    # 最初は聞こえない（汚れている）
+	_bgm_battle.volume_db = -60.0   # 最初は聞こえない（戦闘してない）
 	_bgm_pad.play()
 	_bgm_shine.play()
-	_on_recovery_changed(WorldState.recovery)
+	_bgm_battle.play()
 
 
 func stop_bgm() -> void:
 	_bgm_on = false
 	_bgm_pad.stop()
 	_bgm_shine.stop()
+	_bgm_battle.stop()
 
 
-func _on_recovery_changed(r: float) -> void:
+func _on_recovery_changed(_r: float) -> void:
+	pass   # 音量は _process でまとめて（回復度＋戦闘度から）決める
+
+
+## 毎フレーム、BGMの3層をなめらかに混ぜる：
+## 回復度で“きらめき”を上げ、敵が近いと“戦闘曲”を前に出す（近づく＝すっと切替）。
+func _process(delta: float) -> void:
 	if not _bgm_on:
 		return
-	# 回復するほど“きらめき”が前に出る＝世界が明るくなる音
-	_bgm_shine.volume_db = lerpf(-60.0, -10.0, clampf(r, 0.0, 1.0))
-	_bgm_pad.volume_db = lerpf(-16.0, -11.0, clampf(r, 0.0, 1.0))
+	var target := 1.0 if _enemy_near() else 0.0
+	# 戦闘へは素早く(0.5秒)、平和へはゆっくり(2秒)戻す＝ピリッと入り、余韻を残す
+	var rate := (1.0 / 0.5) if target > _battle else (1.0 / 2.0)
+	_battle = move_toward(_battle, target, delta * rate)
+
+	var r := clampf(WorldState.recovery, 0.0, 1.0)
+	_bgm_battle.volume_db = lerpf(-60.0, -7.0, _battle)
+	# 戦闘中は穏やかな層を少し下げて、戦闘曲を主役に
+	_bgm_shine.volume_db = lerpf(-60.0, -10.0, r) - _battle * 10.0
+	_bgm_pad.volume_db = lerpf(-16.0, -11.0, r) - _battle * 3.0
+
+
+## 敵（虫）がどれかのプレイヤーの近くにいるか＝戦闘中か。各自の端末で判定。
+func _enemy_near() -> bool:
+	var players := get_tree().get_nodes_in_group("player")
+	if players.is_empty():
+		return false
+	for b in get_tree().get_nodes_in_group("bug"):
+		for p in players:
+			if b.global_position.distance_to(p.global_position) < BATTLE_RANGE:
+				return true
+	return false
 
 
 # ---------------------------------------------------------------- 音づくり
@@ -140,6 +175,7 @@ func _build_bank() -> void:
 	_bank["pickup"] = _make(_pickup())
 	_bank["bgm_pad"] = _make_loop(_bgm_pad_wave())
 	_bank["bgm_shine"] = _make_loop(_bgm_shine_wave())
+	_bank["bgm_battle"] = _make_loop(_bgm_battle_wave())
 
 
 ## 立ち上がり(attack)→やわらかく減衰する共通エンベロープ。t は 0..1。
@@ -352,6 +388,32 @@ func _bgm_shine_wave() -> PackedFloat32Array:
 		var bell := sin(TAU * f * t) * 0.6 + sin(TAU * f * 2.0 * t) * 0.25
 		var edge := clampf(minf(t, dur - t) / 0.05, 0.0, 1.0)
 		out[i] = bell * env * 0.5 * edge
+	return out
+
+
+## 戦闘BGM：敵と対峙したとき用の、少し緊張感のある駆けるループ（イ短調）。
+## 低音の刻み＋短調のアルペジオ。可愛さは残しつつ“来た！”と分かる。
+func _bgm_battle_wave() -> PackedFloat32Array:
+	var dur := 3.2
+	var n := int(RATE * dur)
+	var out := PackedFloat32Array()
+	out.resize(n)
+	# イ短調ペンタの駆けるアルペジオ（16分の刻み）
+	var notes := [440.0, 523.25, 659.25, 523.25, 587.33, 523.25, 440.0, 392.0]
+	var step := dur / 16.0
+	for i in n:
+		var t := float(i) / RATE
+		# 低音の刻み（8分）＝鼓動
+		var beat := fmod(t, 0.4) / 0.4
+		var pulse := sin(TAU * 110.0 * t) * pow(1.0 - beat, 3.0) * 0.5
+		# アルペジオ
+		var idx := int(t / step) % notes.size()
+		var lt := t - float(int(t / step)) * step
+		var env := pow(clampf(1.0 - lt / step, 0.0, 1.0), 1.4)
+		var f: float = notes[idx]
+		var arp := (sin(TAU * f * t) * 0.5 + fposmod(f * t, 1.0) * 0.2) * env
+		var edge := clampf(minf(t, dur - t) / 0.04, 0.0, 1.0)
+		out[i] = (pulse + arp * 0.5) * 0.5 * edge
 	return out
 
 
