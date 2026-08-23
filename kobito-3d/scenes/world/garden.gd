@@ -33,6 +33,10 @@ const CHILDREN := [
 	{"name": "つぼみ", "color": Color(0.95, 0.65, 0.75), "scale": 0.46},
 ]
 
+## 母（妻）。家族の隊列の先頭で父（プレイヤー）を追い、子どもたちは母に続く。
+## role="adult" で大人の見た目＝ロングヘア・スカート・無精ひげなし（kobito_look）。
+const MOTHER := {"name": "母", "color": Color(0.88, 0.44, 0.52), "scale": 0.92}
+
 const SPAWN_POINTS := [
 	Vector3(0.0, 0.6, 0.0),
 	Vector3(1.6, 0.6, 0.6),
@@ -186,8 +190,12 @@ func _on_peer_connected(id: int) -> void:
 		return
 	for bug in _bugs.get_children():
 		rpc_id(id, "_remote_spawn_bug", int(bug.name.trim_prefix("Bug")), bug.stats_path, bug.global_position)
-	# 子どもは決まった8人。番号だけ送れば相手が同じ子を組み立てられる。
+	# 母＋子ども。母は専用RPC、子は番号だけ送れば相手が同じ子を組み立てられる。
+	if _children.has_node("Mother"):
+		rpc_id(id, "_remote_spawn_mother")
 	for child in _children.get_children():
+		if child.name == "Mother":
+			continue
 		rpc_id(id, "_remote_spawn_child", int(child.name.trim_prefix("Child")))
 	# 石版パズル・同時スイッチの今の状態も配る
 	if _puzzle != null and _puzzle.has_method("sync_to"):
@@ -205,8 +213,25 @@ func _on_peer_connected(id: int) -> void:
 func _spawn_children() -> void:
 	if _children.get_child_count() > 0:
 		return
+	rpc("_remote_spawn_mother")
 	for i in CHILDREN.size():
 		rpc("_remote_spawn_child", i)
+
+
+@rpc("authority", "call_local", "reliable")
+func _remote_spawn_mother() -> void:
+	if _children.has_node("Mother"):
+		return
+	var mom := ChildScene.instantiate()
+	mom.name = "Mother"
+	mom.child_name = MOTHER["name"]
+	mom.body_color = MOTHER["color"]
+	mom.body_scale = MOTHER["scale"]
+	mom.role = "adult"
+	mom.follows_player = true          # 母は父（いちばん近いプレイヤー）を追う
+	mom.follow_spacing = 0.7
+	_children.add_child(mom)
+	mom.global_position = SPAWN_POINTS[0] + Vector3(0.6, 0.0, 0.8)
 
 
 @rpc("authority", "call_local", "reliable")
@@ -219,9 +244,12 @@ func _remote_spawn_child(index: int) -> void:
 	child.child_name = data["name"]
 	child.body_color = data["color"]
 	child.body_scale = data["scale"]
-	# 頭（0番＝スミレ）は親を追い、あとは前の子を追う
+	# 頭（0番＝スミレ）は母を追い（母が居なければ親）、あとは前の子を追う
 	if index == 0:
-		child.follows_player = true
+		if _children.has_node("Mother"):
+			child.leader_path = NodePath("../Mother")
+		else:
+			child.follows_player = true
 	else:
 		child.leader_path = NodePath("../Child%d" % (index - 1))
 	# 末っ子つぼみ（最後尾）は少し遅れて、ちょこちょこ追いつく

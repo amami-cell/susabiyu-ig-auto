@@ -75,6 +75,20 @@ static func decorate(body: MeshInstance3D, color: Color, with_weapon: bool = fal
 	_cap(body, SHORTS, br * 0.46, half * 0.4,
 		Vector3(0.0, half * (HIP_Y + 0.04), 0.0), Vector3(1.12, 0.95, 0.68))
 
+	# 女性（母）はワンピース風スカート＝シャツ色。腰から広がる。
+	var female := _is_female(char_name)
+	if female:
+		var skirt := MeshInstance3D.new()
+		var skm := CylinderMesh.new()
+		skm.top_radius = br * 0.5
+		skm.bottom_radius = br * 0.98
+		skm.height = half * 0.52
+		skm.radial_segments = 14
+		skirt.mesh = skm
+		skirt.material_override = _clay(color)
+		skirt.position = Vector3(0.0, half * (HIP_Y - 0.04), 0.0)
+		body.add_child(skirt)
+
 	# --- 頭（少し縦長）＝肌色 ---
 	var head := MeshInstance3D.new()
 	head.name = "Head"
@@ -112,7 +126,7 @@ static func decorate(body: MeshInstance3D, color: Color, with_weapon: bool = fal
 
 	var style := _hair_style(char_name, role)
 	var hair_col := _hair_color(char_name, role)
-	_build_face(head, head_r, hair_col, style, adult)
+	_build_face(head, head_r, hair_col, style, adult, adult and not female)
 
 	# --- 腕・脚 ---
 	var arm_l := _make_arm(body, color, br, half, -1.0, shoulder_x)
@@ -142,9 +156,18 @@ static var _face_eyes: Array[Node3D] = []
 
 # ---- 家族の差 ----
 
+static func _is_female(char_name: String) -> bool:
+	for k in ["母", "妻", "ママ", "かあ", "おかん"]:
+		if k in char_name:
+			return true
+	return false
+
+
 static func _hair_style(char_name: String, role: String) -> String:
 	if "じい" in char_name or "祖" in char_name or "翁" in char_name:
 		return "elder"
+	if _is_female(char_name):
+		return "long"   # 母＝ロングヘア
 	match char_name:
 		"つぼみ": return "sprout"
 		"スミレ": return "long"
@@ -196,7 +219,7 @@ static func _ring(parent: Node3D, c: Color, inner: float, outer: float, pos: Vec
 
 
 ## 顔（髪＋耳の内側なし・眉＋大きな丸い目＋小ハイライト・ピンクほっぺ・にっこり口・鼻）。
-static func _build_face(head: MeshInstance3D, hr: float, hair_col: Color, style: String, adult: bool) -> void:
+static func _build_face(head: MeshInstance3D, hr: float, hair_col: Color, style: String, adult: bool, stubble: bool) -> void:
 	_face_eyes = []
 	_build_hair(head, hr, hair_col, style)
 
@@ -288,7 +311,7 @@ static func _build_face(head: MeshInstance3D, hr: float, hair_col: Color, style:
 		beard.scale = Vector3(0.9, 0.9, 0.55)
 		beard.position = Vector3(0.0, -hr * 0.6, hr * 0.5)
 		head.add_child(beard)
-	elif adult:
+	elif stubble:
 		var stub := MeshInstance3D.new()
 		var stm := SphereMesh.new()
 		stm.radius = hr * 0.44

@@ -163,10 +163,14 @@ func _run_selftest() -> void:
 			nearest = minf(nearest, c.global_position.distance_to(players[0].global_position))
 	var kids_ok: bool = children.size() == 8
 
+	# 母（妻）が家族の先頭に居るか
+	var mother: Node = _garden.get_node_or_null("Children/Mother") if _garden != null else null
+	var mother_ok: bool = mother != null
+
 	var ok: bool = _garden != null and players.size() == 1 and bugs.size() > 0 \
-		and WorldState.recovery > 0.0 and xp_gained and flight_ok and kids_ok and puzzle_ok and switch_ok
-	print("[selftest] 回復度=%.2f XP=%d 経験値=%s 飛行解禁=%s 子ども=%d(最寄り%.1f) 石版=%s 扉=%s" % [
-		WorldState.recovery, xp_now, xp_gained, flight_ok, children.size(), nearest, puzzle_ok, switch_ok])
+		and WorldState.recovery > 0.0 and xp_gained and flight_ok and kids_ok and mother_ok and puzzle_ok and switch_ok
+	print("[selftest] 回復度=%.2f XP=%d 経験値=%s 飛行解禁=%s 子ども=%d(最寄り%.1f) 母=%s 石版=%s 扉=%s" % [
+		WorldState.recovery, xp_now, xp_gained, flight_ok, children.size(), nearest, mother_ok, puzzle_ok, switch_ok])
 	print("[selftest] %s" % ("OK" if ok else "NG"))
 	get_tree().quit(0 if ok else 1)
 
@@ -290,6 +294,7 @@ func _run_shot() -> void:
 	if OS.get_cmdline_user_args().has("--family"):
 		var fam := [
 			{"name": "父", "color": Color(0.30, 0.55, 0.95), "scale": 1.0, "role": "adult"},
+			{"name": "母", "color": Color(0.88, 0.44, 0.52), "scale": 0.92, "role": "adult"},
 			{"name": "スミレ", "color": Color(0.55, 0.40, 0.70), "scale": 0.68, "role": "child"},
 			{"name": "カヤ", "color": Color(0.85, 0.50, 0.25), "scale": 0.66, "role": "child"},
 			{"name": "ソラ", "color": Color(0.50, 0.75, 0.95), "scale": 0.62, "role": "child"},
@@ -303,7 +308,7 @@ func _run_shot() -> void:
 		var root := Node3D.new()
 		add_child(root)
 		root.global_position = Vector3(0.0, 0.0, -40.0)
-		var x := -(fam.size() - 1) * 0.625
+		var x := -(fam.size() - 1) * 0.58
 		for d in fam:
 			var holder := Node3D.new()
 			root.add_child(holder)
@@ -322,15 +327,15 @@ func _run_shot() -> void:
 			lbl.pixel_size = 0.006
 			lbl.billboard = BaseMaterial3D.BILLBOARD_ENABLED
 			holder.add_child(lbl)
-			x += 1.25
+			x += 1.16
 		var lightp := DirectionalLight3D.new()
 		lightp.rotation = Vector3(deg_to_rad(-45.0), deg_to_rad(30.0), 0.0)
 		root.add_child(lightp)
 		var fcam := Camera3D.new()
 		add_child(fcam)
-		fcam.global_position = Vector3(0.0, 1.05, -31.2)
+		fcam.global_position = Vector3(0.0, 1.1, -30.0)
 		fcam.look_at(Vector3(0.0, 0.5, -40.0), Vector3.UP)
-		fcam.fov = 66.0
+		fcam.fov = 70.0
 		fcam.current = true
 		await get_tree().create_timer(1.0).timeout
 		await RenderingServer.frame_post_draw

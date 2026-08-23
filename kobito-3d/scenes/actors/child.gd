@@ -30,6 +30,7 @@ var follow_catchup := CATCHUP
 var child_name := "こども"
 var body_color := Color.WHITE
 var body_scale := 0.6
+var role := "child"        # "adult"＝母などの大人（見た目が変わる）
 
 var _sync_accum := 0.0
 var _net_pos := Vector3.ZERO
@@ -39,14 +40,17 @@ var _net_pos := Vector3.ZERO
 
 
 func _ready() -> void:
-	add_to_group("child")
+	# 大人（母）は "child" ではなく "family" に入れる（子ども8人の判定を汚さない）。
+	add_to_group("family")
+	if role != "adult":
+		add_to_group("child")
 	_net_pos = global_position
 
 	var mat := StandardMaterial3D.new()
 	mat.albedo_color = body_color
 	mat.roughness = 0.9
 	_body.material_override = mat
-	KobitoLook.decorate(_body, body_color, false, "child", child_name)
+	KobitoLook.decorate(_body, body_color, false, role, child_name)
 	scale = Vector3.ONE * body_scale
 	_label.text = child_name
 	set_physics_process(true)
