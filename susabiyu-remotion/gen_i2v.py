@@ -28,7 +28,7 @@ DEFAULT_PROMPT = (
 )
 NEG_PROMPT = "fast motion, jitter, glitch, distortion, deformed, extra fingers, text, watermark, cartoon, oversaturated"
 
-HF_SPACE = os.environ.get("HF_SPACE", "Lightricks/ltx-video-distilled")
+HF_SPACE = os.environ.get("HF_SPACE", "Lightricks/LTX-Video")
 HF_API_NAME = os.environ.get("HF_API_NAME", "/generate")
 FOOD_FOLDER = os.environ.get("GENRE_FOOD_ID") or "14oKNgdXee2NrI7Dkmbrlbid4f0_VZ5Cv"
 MIN_SIDE = 800
@@ -40,7 +40,14 @@ def _client():
     tok = os.environ.get("HF_TOKEN", "").strip()
     if not tok:
         raise SystemExit("NG: HF_TOKEN 未設定（無料HFアカウントの read トークンを設定してください）")
-    return Client(HF_SPACE, hf_token=tok)
+    # gradio_client のバージョン差でトークン引数名が違う（hf_token / token）。両対応＋env自動認証。
+    last = None
+    for kw in ("hf_token", "token"):
+        try:
+            return Client(HF_SPACE, **{kw: tok})
+        except TypeError as e:
+            last = e
+    return Client(HF_SPACE)   # 最終手段：env HF_TOKEN を自動参照
 
 
 def probe():
