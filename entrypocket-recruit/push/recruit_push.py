@@ -8,6 +8,7 @@
   同じアプリに category="recruit" でプッシュする（新しいアプリのインストール不要）。
 - 送信は pywebpush。失敗しても他の購読者への送信は続ける。
 - 購読者ごとの prefs（D列JSON）で「通知する店舗」を絞れる（stores 未設定＝全店舗＝従来通り）。
+- 店舗タグ付きの通知（data.store）＝店舗別スコアカード等は、その店舗を通知ONにした購読者だけに届く。
 
 必要な環境変数（GitHub Actions のシークレット等）:
   RECRUIT_EXEC_URL   募集GASの公開URL（.../exec）。クリック時に開く先にも使う。
@@ -89,29 +90,45 @@ def _vapid_pem(raw):
     open("vapid_private.pem", "wb").write(pem)
 
 
+def _norm_store(s):
+    """店舗名の照合用に軽く正規化（前後空白と全角/半角スペース除去）。"""
+    return "".join(str(s or "").split()).replace("　", "")
+
+
 def _extract(items):
-    """溜まったitemsから 店舗別新規(merged_new)・店舗別現在数(merged_tot)・その他(fallback) を取り出す。"""
-    merged_new, merged_tot, fallback = {}, {}, []
+    """溜まったitemsを分解して返す。
+      merged_new  : 店舗別の新規応募数（合算）
+      merged_tot  : 店舗別の現在応募者数
+      general_fb  : 店舗を問わない通知（サマリー/リマインド等）の [(title, body)]
+      store_fb    : 店舗タグ付き通知（スコアカード等）の {正規化店舗名: [(title, body)]}
+    """
+    merged_new, merged_tot, general_fb, store_fb = {}, {}, [], {}
     for it in items:
         raw = it.get("data") or ""
-        parsed = False
+        d = None
         if raw:
             try:
                 d = json.loads(raw)
-                for s, n in (d.get("newByStore") or {}).items():
-                    merged_new[s] = merged_new.get(s, 0) + int(n)
-                for s, t in (d.get("totalByStore") or {}).items():
-                    merged_tot[s] = int(t)
-                parsed = True
             except Exception:
-                parsed = False
-        if not parsed and (it.get("body") or it.get("title")):
-            fallback.append((it.get("title") or "", it.get("body") or ""))
-    return merged_new, merged_tot, fallback
+                d = None
+        if isinstance(d, dict) and (d.get("newByStore") or d.get("totalByStore")):
+            for s, n in (d.get("newByStore") or {}).items():
+                merged_new[s] = merged_new.get(s, 0) + int(n)
+            for s, t in (d.get("totalByStore") or {}).items():
+                merged_tot[s] = int(t)
+            continue
+        if it.get("body") or it.get("title"):
+            tb = (it.get("title") or "", it.get("body") or "")
+            store = d.get("store") if isinstance(d, dict) else None
+            if store:
+                store_fb.setdefault(_norm_store(store), []).append(tb)
+            else:
+                general_fb.append(tb)
+    return merged_new, merged_tot, general_fb, store_fb
 
 
-def _compose(merged_new, merged_tot, fallback):
-    """指定の店舗別新規＋その他 から (title, body) を作る。新規応募がある場合は下にその他本文も付す。"""
+def _compose(merged_new, merged_tot, fb_list):
+    """店舗別新規＋その他通知 から (title, body) を作る。新規があれば下にその他本文も付す。"""
     if merged_new:
         total = sum(merged_new.values())
         order = sorted(merged_new, key=lambda k: -merged_new[k])
@@ -119,57 +136,30 @@ def _compose(merged_new, merged_tot, fallback):
                  for s in order]
         title = "🆕 新規応募 %d件" % total
         body = "\n".join(lines)
-        fb = "\n".join(b for _, b in fallback if b)
+        fb = "\n".join(b for _, b in fb_list if b)
         if fb:
             body = body + "\n\n" + fb
         return title, body
-    if len(fallback) == 1:
-        return (fallback[0][0] or "お知らせ"), fallback[0][1]
-    titles = "／".join(t for t, _ in fallback if t)
-    bodies = "\n".join(b for _, b in fallback if b)
+    if len(fb_list) == 1:
+        return (fb_list[0][0] or "お知らせ"), fb_list[0][1]
+    titles = "／".join(t for t, _ in fb_list if t)
+    bodies = "\n".join(b for _, b in fb_list if b)
     return (titles or "お知らせ"), bodies
 
 
-def _consolidate(items):
-    """LINE用：全店舗まとめて1通に（従来どおり）。"""
-    merged_new, merged_tot, fallback = _extract(items)
+def _consolidate_line(merged_new, merged_tot, general_fb):
+    """LINE用：全店舗の新規＋店舗を問わない通知をまとめて1通に（店舗別スコアカードは含めない）。"""
     if merged_new:
         total = sum(merged_new.values())
         order = sorted(merged_new, key=lambda k: -merged_new[k])
         lines = ["・%s：新規%d件%s" % (s, merged_new[s], ("（現在%d名）" % merged_tot[s]) if s in merged_tot else "")
                  for s in order]
         return "🆕 新規応募 %d件" % total, "\n".join(lines)
-    if len(fallback) == 1:
-        return (fallback[0][0] or "お知らせ"), fallback[0][1]
-    titles = "／".join(t for t, _ in fallback if t)
-    bodies = "\n".join(b for _, b in fallback if b)
+    if len(general_fb) == 1:
+        return (general_fb[0][0] or "お知らせ"), general_fb[0][1]
+    titles = "／".join(t for t, _ in general_fb if t)
+    bodies = "\n".join(b for _, b in general_fb if b)
     return (titles or "お知らせ"), bodies
-
-
-def _norm_store(s):
-    """店舗名の照合用に軽く正規化（前後空白と全角/半角スペース除去）。"""
-    return "".join(str(s or "").split()).replace("　", "")
-
-
-def _prefs_stores(prefs_cell):
-    """購読者の「通知する店舗」設定。None＝全店舗（従来通り）。set＝その店舗のみ。"""
-    if not prefs_cell or not str(prefs_cell).strip():
-        return None
-    try:
-        pr = json.loads(prefs_cell)
-    except Exception:
-        return None
-    st = pr.get("stores")
-    if st is None:
-        return None  # 店舗指定なし＝全店舗
-    if isinstance(st, str):
-        if st.strip().lower() in ("all", ""):
-            return None
-        st = st.split(",")
-    if isinstance(st, list):
-        out = set(_norm_store(x) for x in st if str(x).strip())
-        return out  # 空set＝新規応募の個別通知は無し（サマリー等は届く）
-    return None
 
 
 def _line_broadcast(text):
@@ -199,6 +189,26 @@ def _category_on(prefs_cell, category):
     return str(pr.get(category, 1)).lower() not in ("0", "false", "off", "no", "なし")
 
 
+def _prefs_stores(prefs_cell):
+    """購読者の「通知する店舗」設定。None＝全店舗（従来通り）。set＝その店舗のみ。"""
+    if not prefs_cell or not str(prefs_cell).strip():
+        return None
+    try:
+        pr = json.loads(prefs_cell)
+    except Exception:
+        return None
+    st = pr.get("stores")
+    if st is None:
+        return None  # 店舗指定なし＝全店舗
+    if isinstance(st, str):
+        if st.strip().lower() in ("all", ""):
+            return None
+        st = st.split(",")
+    if isinstance(st, list):
+        return set(_norm_store(x) for x in st if str(x).strip())
+    return None
+
+
 def main():
     exec_url = (os.environ.get("RECRUIT_EXEC_URL") or "").strip()
     key = (os.environ.get("EP_PUSH_KEY") or "").strip()
@@ -212,12 +222,12 @@ def main():
     if not items:
         return 0
 
-    # 店舗別の新規／その他を取り出す（購読者ごとの絞り込みに使う）
-    merged_new, merged_tot, fallback = _extract(items)
+    merged_new, merged_tot, general_fb, store_fb = _extract(items)
 
-    # ① LINE（全店舗まとめて1通・従来どおり）
-    title, body = _consolidate(items)
-    _line_broadcast(title + ("\n" + body if body else ""))
+    # ① LINE（全店舗の新規＋店舗を問わない通知を1通に。店舗別スコアカードは個人向けなので含めない）
+    l_title, l_body = _consolidate_line(merged_new, merged_tot, general_fb)
+    if merged_new or general_fb:
+        _line_broadcast(l_title + ("\n" + l_body if l_body else ""))
 
     # ② アプリ通知（Webプッシュ）→ 求人PWAの購読者へ（インスタとは別リスト）
     if not vapid_raw:
@@ -243,17 +253,19 @@ def main():
         prefs = s.get("prefs") or ""
         if not _category_on(prefs, "recruit"):
             continue
-        # 購読者ごとに「通知する店舗」で新規応募を絞る（未設定＝全店舗）
-        allow = _prefs_stores(prefs)
+        allow = _prefs_stores(prefs)  # None＝全店舗
         if allow is None:
             sub_new = merged_new
+            sub_store_fb = [tb for lst in store_fb.values() for tb in lst]
         else:
             sub_new = {k: v for k, v in merged_new.items() if _norm_store(k) in allow}
-        # この購読者に送る中身が無ければスキップ（新規も その他も無し）
-        if not sub_new and not fallback:
+            sub_store_fb = [tb for sk, lst in store_fb.items() if sk in allow for tb in lst]
+        sub_fb = general_fb + sub_store_fb
+        # 送る中身が無ければスキップ
+        if not sub_new and not sub_fb:
             skipped += 1
             continue
-        s_title, s_body = _compose(sub_new, merged_tot, fallback)
+        s_title, s_body = _compose(sub_new, merged_tot, sub_fb)
         payload = json.dumps({"title": s_title, "body": s_body, "url": exec_url,
                               "focus": "", "category": "recruit", "tag": "recruit"})
         try:
