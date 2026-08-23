@@ -123,6 +123,7 @@ func _process(delta: float) -> void:
 		_blink = randf_range(2.0, 5.0)
 		for e in _eyes:
 			if is_instance_valid(e):
+				var oy: float = e.scale.y          # 目の元のつぶし具合（白目は縦につぶれている）
 				var tw := create_tween()
-				tw.tween_property(e, "scale:y", 0.1, 0.05)
-				tw.tween_property(e, "scale:y", 1.0, 0.09)
+				tw.tween_property(e, "scale:y", oy * 0.12, 0.05)
+				tw.tween_property(e, "scale:y", oy, 0.09)
