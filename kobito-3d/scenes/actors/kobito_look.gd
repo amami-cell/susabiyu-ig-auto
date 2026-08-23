@@ -28,6 +28,9 @@ const KNEE_BEND := 0.08
 const SKIN := Color(0.98, 0.82, 0.71)
 const SHORTS := Color(0.24, 0.27, 0.40)   # 紺の半ズボン
 const TRIM := Color(0.97, 0.97, 0.95)     # 襟・袖口の白トリム
+const PANTS_BLACK := Color(0.11, 0.11, 0.13)   # 黒の長ズボン（父）
+const SWEATER := Color(0.86, 0.84, 0.78)       # 生成りのセーター（父）
+const FUR := Color(0.66, 0.62, 0.54)           # フードのファー（父）
 const HAIR_PALETTE := [
 	Color(0.92, 0.66, 0.20),  # ブロンド/オレンジ
 	Color(0.30, 0.19, 0.10),  # こげ茶
@@ -58,6 +61,8 @@ static func decorate(body: MeshInstance3D, color: Color, with_weapon: bool = fal
 	var head_r := br * HEAD_R
 	var adult := role == "adult"
 	var female := _is_female(char_name)
+	var dad := _is_dad(char_name)
+	var jacket: Color = color.darkened(0.32)
 	var shoulder_x := SHOULDER_X * (1.16 if adult else 1.0)
 	var chest_wide := 1.28 if adult else 1.16
 	var boots := color.darkened(0.18)
@@ -68,32 +73,50 @@ static func decorate(body: MeshInstance3D, color: Color, with_weapon: bool = fal
 	inv.albedo_color = Color(0, 0, 0, 0)
 	body.material_override = inv
 
-	# --- 胴：Tシャツ（胸→腰のなだらかテーパー・前後に薄い）---
-	var chest := _cap(body, color, br * 0.52, half * 0.66,
-		Vector3(0.0, half * CHEST_Y, 0.0), Vector3(chest_wide, 1.0, 0.66))
-	chest.name = "Torso"
-	_cap(body, color, br * 0.46, half * 0.44,
-		Vector3(0.0, half * WAIST_Y, 0.0), Vector3(1.05, 1.0, 0.64))
-
-	# 襟（首もとの白トリム）
-	_ring(body, TRIM, br * 0.26, br * 0.36, Vector3(0.0, half * 1.0, 0.0))
-
-	# --- 半ズボン（腰）---
-	_cap(body, SHORTS, br * 0.46, half * 0.36,
-		Vector3(0.0, half * (HIP_Y + 0.06), 0.0), Vector3(1.12, 0.95, 0.68))
-
-	# 女性（母）はワンピース風スカート＝シャツ色。短めにして脚を見せる。
-	if female:
-		var skirt := MeshInstance3D.new()
-		var skm := CylinderMesh.new()
-		skm.top_radius = br * 0.5
-		skm.bottom_radius = br * 0.9
-		skm.height = half * 0.42
-		skm.radial_segments = 14
-		skirt.mesh = skm
-		skirt.material_override = _clay(color)
-		skirt.position = Vector3(0.0, half * (HIP_Y + 0.02), 0.0)
-		body.add_child(skirt)
+	if dad:
+		# --- 父：もこもこフード付きパーカー＋生成りセーター（Zepeto風の私服）---
+		# セーター（前中央にのぞく）＝ジャケットの内側
+		_cap(body, SWEATER, br * 0.44, half * 0.6,
+			Vector3(0.0, half * (CHEST_Y - 0.04), br * 0.18), Vector3(1.0, 1.0, 0.7))
+		# パーカー本体（少し太め）
+		var chest := _cap(body, jacket, br * 0.58, half * 0.72,
+			Vector3(0.0, half * CHEST_Y, 0.0), Vector3(chest_wide * 1.06, 1.0, 0.74))
+		chest.name = "Torso"
+		_cap(body, jacket, br * 0.52, half * 0.48,
+			Vector3(0.0, half * WAIST_Y, 0.0), Vector3(1.12, 1.0, 0.72))
+		# ファーの襟（もこもこ）
+		_ring(body, FUR, br * 0.28, br * 0.5, Vector3(0.0, half * 1.0, 0.0), Vector3(1.15, 0.9, 1.15))
+		# ファスナーの線
+		_cap(body, jacket.darkened(0.35), br * 0.045, half * 0.7,
+			Vector3(0.0, half * 0.44, br * 0.46), Vector3(1.0, 1.0, 0.5))
+		# ポケット2つ
+		for sx in [-1.0, 1.0]:
+			_cap(body, jacket.darkened(0.12), br * 0.16, half * 0.22,
+				Vector3(br * 0.36 * sx, half * 0.14, br * 0.42), Vector3(1.3, 1.0, 0.4))
+	else:
+		# --- 胴：Tシャツ（胸→腰のなだらかテーパー・前後に薄い）---
+		var chest := _cap(body, color, br * 0.52, half * 0.66,
+			Vector3(0.0, half * CHEST_Y, 0.0), Vector3(chest_wide, 1.0, 0.66))
+		chest.name = "Torso"
+		_cap(body, color, br * 0.46, half * 0.44,
+			Vector3(0.0, half * WAIST_Y, 0.0), Vector3(1.05, 1.0, 0.64))
+		# 襟（首もとの白トリム）
+		_ring(body, TRIM, br * 0.26, br * 0.36, Vector3(0.0, half * 1.0, 0.0))
+		# --- 半ズボン（腰）---
+		_cap(body, SHORTS, br * 0.46, half * 0.36,
+			Vector3(0.0, half * (HIP_Y + 0.06), 0.0), Vector3(1.12, 0.95, 0.68))
+		# 女性（母）はワンピース風スカート＝シャツ色。短めにして脚を見せる。
+		if female:
+			var skirt := MeshInstance3D.new()
+			var skm := CylinderMesh.new()
+			skm.top_radius = br * 0.5
+			skm.bottom_radius = br * 0.9
+			skm.height = half * 0.42
+			skm.radial_segments = 14
+			skirt.mesh = skm
+			skirt.material_override = _clay(color)
+			skirt.position = Vector3(0.0, half * (HIP_Y + 0.02), 0.0)
+			body.add_child(skirt)
 
 	# --- 頭 ＝肌色 ---
 	var head := MeshInstance3D.new()
@@ -131,14 +154,22 @@ static func decorate(body: MeshInstance3D, color: Color, with_weapon: bool = fal
 	var style := _hair_style(char_name, role)
 	var hair_col := _hair_color(char_name, role)
 	var eye_col: Color = EYE_PALETTE[absi(char_name.hash()) % EYE_PALETTE.size()]
-	_build_face(head, head_r, hair_col, eye_col, style, adult, adult and not female)
+	var beard := "none"
+	if style == "elder":
+		beard = "full"
+	elif dad:
+		beard = "goatee"
+	elif adult and not female:
+		beard = "stubble"
+	_build_face(head, head_r, hair_col, eye_col, style, adult, beard)
 
-	# --- 腕・脚 ---
-	var arm_l := _make_arm(body, color, br, half, -1.0, shoulder_x)
-	var arm_r := _make_arm(body, color, br, half, 1.0, shoulder_x)
+	# --- 腕・脚 ---（父は長袖パーカー＝ジャケット色、脚は黒パンツ＋スニーカー）
+	var sleeve: Color = jacket if dad else color
+	var arm_l := _make_arm(body, sleeve, br, half, -1.0, shoulder_x, dad)
+	var arm_r := _make_arm(body, sleeve, br, half, 1.0, shoulder_x, dad)
 	var legs: Array[Node3D] = []
-	legs.append(_make_leg(body, boots, br, half, -1.0))
-	legs.append(_make_leg(body, boots, br, half, 1.0))
+	legs.append(_make_leg(body, boots, br, half, -1.0, dad))
+	legs.append(_make_leg(body, boots, br, half, 1.0, dad))
 
 	# --- 武器（プレイヤーだけ・右手）---
 	var weapon: Node3D = null
@@ -168,9 +199,19 @@ static func _is_female(char_name: String) -> bool:
 	return false
 
 
+## 父（夫）＝Zepeto風の私服（パーカー＋長ズボン＋スニーカー＋くるくる髪＋あごひげ）。
+static func _is_dad(char_name: String) -> bool:
+	for k in ["父", "夫", "パパ", "とう"]:
+		if k in char_name:
+			return true
+	return false
+
+
 static func _hair_style(char_name: String, role: String) -> String:
 	if "じい" in char_name or "祖" in char_name or "翁" in char_name:
 		return "elder"
+	if _is_dad(char_name):
+		return "curly"
 	if _is_female(char_name):
 		return "long"
 	match char_name:
@@ -191,6 +232,8 @@ static func _hair_style(char_name: String, role: String) -> String:
 static func _hair_color(char_name: String, role: String) -> Color:
 	if "じい" in char_name or "祖" in char_name or "翁" in char_name:
 		return HAIR_WHITE
+	if _is_dad(char_name):
+		return Color(0.17, 0.12, 0.09)   # 父＝黒に近いこげ茶（参考のくるくる）
 	return HAIR_PALETTE[absi(char_name.hash()) % HAIR_PALETTE.size()]
 
 
@@ -297,7 +340,7 @@ static func _hair_mat(c: Color) -> StandardMaterial3D:
 
 
 ## 顔（髪＋眉＋リアルな目＋鼻筋/小鼻＋上下くちびる）。hr=頭の半径。
-static func _build_face(head: MeshInstance3D, hr: float, hair_col: Color, eye_col: Color, style: String, adult: bool, stubble: bool) -> void:
+static func _build_face(head: MeshInstance3D, hr: float, hair_col: Color, eye_col: Color, style: String, adult: bool, beard: String) -> void:
 	_face_eyes = []
 	_build_hair(head, hr, hair_col, style)
 
@@ -378,10 +421,14 @@ static func _build_face(head: MeshInstance3D, hr: float, hair_col: Color, eye_co
 	for sx in [-1.0, 1.0]:
 		_ball(head, Color(0.7, 0.36, 0.36), hr * 0.045, Vector3(hr * 0.2 * sx, -hr * 0.33, hr * 0.91))
 
-	# あごひげ（お年寄り）／無精ひげ（大人男性）
-	if style == "elder":
+	# ひげ：full=あごひげ(白/お年寄り), goatee=ヤギひげ+口ひげ(父), stubble=無精ひげ
+	if beard == "full":
 		_ball(head, HAIR_WHITE, hr * 0.5, Vector3(0.0, -hr * 0.58, hr * 0.5), Vector3(0.9, 0.9, 0.55))
-	elif stubble:
+	elif beard == "goatee":
+		var gcol := Color(0.32, 0.22, 0.13)
+		_ball(head, gcol, hr * 0.2, Vector3(0.0, -hr * 0.6, hr * 0.66), Vector3(1.0, 1.15, 0.7), _hair_mat(gcol))    # あご
+		_ball(head, gcol, hr * 0.12, Vector3(0.0, -hr * 0.28, hr * 0.94), Vector3(1.9, 0.5, 0.6), _hair_mat(gcol))   # 口ひげ
+	elif beard == "stubble":
 		_ball(head, SKIN.darkened(0.22), hr * 0.44, Vector3(0.0, -hr * 0.38, hr * 0.66), Vector3(0.92, 0.5, 0.5))
 
 
@@ -402,7 +449,7 @@ static func _build_hair(head: MeshInstance3D, hr: float, hair_col: Color, style:
 		cap.position = Vector3(0.0, hr * 0.34, -hr * 0.14)
 	head.add_child(cap)
 
-	if style != "sprout" and style != "elder":
+	if style != "sprout" and style != "elder" and style != "curly":
 		for i in 3:
 			var bang := MeshInstance3D.new()
 			var bm := SphereMesh.new()
@@ -450,6 +497,16 @@ static func _build_hair(head: MeshInstance3D, hr: float, hair_col: Color, style:
 				bun.material_override = _hair_mat(hair_col)
 				bun.position = Vector3(hr * 1.0 * sx, hr * 0.22, -hr * 0.08)
 				head.add_child(bun)
+		"curly":
+			# くるくる＝小さな球を頭頂〜前に散らす（黄金角で均等・決定的に）
+			for i in 16:
+				var a := float(i) * 2.399963
+				var rad := hr * (0.28 + 0.52 * fmod(float(i) * 0.137, 1.0))
+				var cx := cos(a) * rad
+				var cz := sin(a) * rad * 0.85 - hr * 0.08
+				var cy := hr * (0.5 + 0.32 * fmod(float(i) * 0.29, 1.0))
+				var curl := _ball(head, hair_col, hr * 0.21, Vector3(cx, cy, cz), Vector3.ONE, _hair_mat(hair_col))
+				curl.scale = Vector3(1.0, 1.0, 0.9)
 		"sprout":
 			var stem := MeshInstance3D.new()
 			var stm := CylinderMesh.new()
@@ -474,7 +531,7 @@ static func _build_hair(head: MeshInstance3D, hr: float, hair_col: Color, style:
 
 
 ## 腕：肩ピボット→lean→上腕(半袖=シャツ)→袖口(白)→ひじ→前腕(肌)→手。
-static func _make_arm(body: MeshInstance3D, color: Color, br: float, half: float, side: float, shoulder_x: float) -> Node3D:
+static func _make_arm(body: MeshInstance3D, color: Color, br: float, half: float, side: float, shoulder_x: float, dad: bool = false) -> Node3D:
 	var pivot := Node3D.new()
 	pivot.name = "Arm%s" % ("L" if side < 0 else "R")
 	pivot.position = Vector3(br * shoulder_x * side, half * SHOULDER_Y, 0.0)
@@ -485,9 +542,11 @@ static func _make_arm(body: MeshInstance3D, color: Color, br: float, half: float
 	lean.rotation.z = ARM_SPLAY * side
 	pivot.add_child(lean)
 
-	_cap(lean, color, br * 0.19, half * UPPER_ARM_H * 0.85,
+	# 上腕（父はパーカー袖で少し太め）
+	_cap(lean, color, br * (0.23 if dad else 0.19), half * UPPER_ARM_H * 0.85,
 		Vector3(0.0, half * UPPER_ARM_H * -0.42, 0.0))
-	_ring(lean, TRIM, br * 0.16, br * 0.24, Vector3(0.0, half * -UPPER_ARM_H * 0.78, 0.0))
+	if not dad:
+		_ring(lean, TRIM, br * 0.16, br * 0.24, Vector3(0.0, half * -UPPER_ARM_H * 0.78, 0.0))
 
 	var elbow := Node3D.new()
 	elbow.name = "Elbow"
@@ -495,8 +554,12 @@ static func _make_arm(body: MeshInstance3D, color: Color, br: float, half: float
 	elbow.rotation.x = ELBOW_BEND
 	lean.add_child(elbow)
 
-	_cap(elbow, SKIN, br * 0.16, half * FOREARM_H,
-		Vector3(0.0, half * FOREARM_H * -0.5, 0.0), Vector3.ONE, _skin_mat(SKIN))
+	# 前腕＝父はパーカー袖（長袖）、子/母は肌（半袖）
+	if dad:
+		_cap(elbow, color, br * 0.2, half * FOREARM_H, Vector3(0.0, half * FOREARM_H * -0.5, 0.0))
+	else:
+		_cap(elbow, SKIN, br * 0.16, half * FOREARM_H,
+			Vector3(0.0, half * FOREARM_H * -0.5, 0.0), Vector3.ONE, _skin_mat(SKIN))
 
 	var hand := Node3D.new()
 	hand.name = "Hand"
@@ -506,15 +569,19 @@ static func _make_arm(body: MeshInstance3D, color: Color, br: float, half: float
 	return pivot
 
 
-## 脚：股ピボット→太もも(肌・半ズボンから出た足)→ひざ→すね(ブーツ)→足(ブーツ)。
-static func _make_leg(body: MeshInstance3D, boots: Color, br: float, half: float, side: float) -> Node3D:
+## 脚：股ピボット→太もも→ひざ→すね→足。子/母＝素肌＋ブーツ、父＝黒の長ズボン＋スニーカー。
+static func _make_leg(body: MeshInstance3D, boots: Color, br: float, half: float, side: float, dad: bool = false) -> Node3D:
 	var pivot := Node3D.new()
 	pivot.name = "Leg%s" % ("L" if side < 0 else "R")
 	pivot.position = Vector3(br * HIP_X * side, half * HIP_Y, 0.0)
 	body.add_child(pivot)
 
-	_cap(pivot, SKIN, br * 0.22, half * THIGH_H,
-		Vector3(0.0, half * THIGH_H * -0.5, 0.0), Vector3.ONE, _skin_mat(SKIN))
+	# 太もも：父は黒パンツ（少し太め）、他は素肌
+	if dad:
+		_cap(pivot, PANTS_BLACK, br * 0.26, half * THIGH_H, Vector3(0.0, half * THIGH_H * -0.5, 0.0))
+	else:
+		_cap(pivot, SKIN, br * 0.22, half * THIGH_H,
+			Vector3(0.0, half * THIGH_H * -0.5, 0.0), Vector3.ONE, _skin_mat(SKIN))
 
 	var knee := Node3D.new()
 	knee.name = "Knee"
@@ -522,18 +589,36 @@ static func _make_leg(body: MeshInstance3D, boots: Color, br: float, half: float
 	knee.rotation.x = KNEE_BEND
 	pivot.add_child(knee)
 
-	_cap(knee, boots, br * 0.21, half * SHIN_H,
+	# すね：父は黒パンツ、他はブーツ色
+	_cap(knee, PANTS_BLACK if dad else boots, br * (0.24 if dad else 0.21), half * SHIN_H,
 		Vector3(0.0, half * SHIN_H * -0.5, 0.0))
 
-	var foot := MeshInstance3D.new()
-	var fm := SphereMesh.new()
-	fm.radius = br * 0.26
-	fm.height = br * 0.5
-	foot.mesh = fm
-	foot.material_override = _clay(boots)
-	foot.scale = Vector3(1.0, 0.85, 1.6)
-	foot.position = Vector3(0.0, half * -SHIN_H - br * 0.02, br * 0.16)
-	knee.add_child(foot)
+	if dad:
+		# スニーカー（黒本体＋白ソール＋白いつま先）
+		var shoe := MeshInstance3D.new()
+		var shm := BoxMesh.new()
+		shm.size = Vector3(br * 0.44, br * 0.28, br * 0.86)
+		shoe.mesh = shm
+		shoe.material_override = _clay(Color(0.1, 0.1, 0.12))
+		shoe.position = Vector3(0.0, half * -SHIN_H + br * 0.04, br * 0.2)
+		knee.add_child(shoe)
+		var sole := MeshInstance3D.new()
+		var som := BoxMesh.new()
+		som.size = Vector3(br * 0.48, br * 0.12, br * 0.92)
+		sole.mesh = som
+		sole.material_override = _clay(Color(0.95, 0.95, 0.93))
+		sole.position = Vector3(0.0, half * -SHIN_H - br * 0.08, br * 0.22)
+		knee.add_child(sole)
+	else:
+		var foot := MeshInstance3D.new()
+		var fm := SphereMesh.new()
+		fm.radius = br * 0.26
+		fm.height = br * 0.5
+		foot.mesh = fm
+		foot.material_override = _clay(boots)
+		foot.scale = Vector3(1.0, 0.85, 1.6)
+		foot.position = Vector3(0.0, half * -SHIN_H - br * 0.02, br * 0.16)
+		knee.add_child(foot)
 	return pivot
 
 
