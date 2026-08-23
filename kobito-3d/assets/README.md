@@ -18,3 +18,9 @@
 - 使ったモデルは必ず `../CREDITS.md` に1行足してください（CC0でも出典を残す）。
 - この環境（クラウド）は配布元サイトへ接続できないため、モデルの取得は
   お手元のPCで行ってください。置いて push すれば、CIのWeb/APK/PC版にも反映されます。
+
+## キャラクターの本物モデル（human_base.glb）
+- 出典: BabylonJS/Assets（HVGirl.glb）https://github.com/BabylonJS/Assets  ライセンス: Apache-2.0
+- 用途: リグ付き人体モデル。`KobitoModel`（scenes/actors/kobito_model.gd）が読み込み、
+  家族全員をこのモデルで表示する（色替え＋body_scaleで作り分け／個性は簡略化）。
+- このファイルを削除すると、自動で手続きのクレイ小人（KobitoLook）にフォールバックする。

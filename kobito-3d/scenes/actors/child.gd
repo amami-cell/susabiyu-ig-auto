@@ -50,7 +50,14 @@ func _ready() -> void:
 	mat.albedo_color = body_color
 	mat.roughness = 0.9
 	_body.material_override = mat
-	KobitoLook.decorate(_body, body_color, false, role, child_name)
+	# 本物モデルがあれば差し替え（無ければ手続きのクレイ小人にフォールバック）
+	if KobitoModel.has_model():
+		var mdl := KobitoModel.new()
+		mdl.name = "Model"
+		_body.add_child(mdl)
+		mdl.setup(_body, body_color, role, child_name)
+	else:
+		KobitoLook.decorate(_body, body_color, false, role, child_name)
 	scale = Vector3.ONE * body_scale
 	_label.text = child_name
 	set_physics_process(true)

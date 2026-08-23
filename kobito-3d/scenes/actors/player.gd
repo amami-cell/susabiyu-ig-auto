@@ -77,7 +77,14 @@ func _ready() -> void:
 	mat.roughness = 0.9
 	_body.material_override = mat
 	var pname: String = Net.roster.get(owner_id, {}).get("name", "小人")
-	KobitoLook.decorate(_body, Net.color_of(owner_id), true, "adult", pname)   # 親：武器を持つ
+	# 本物モデルがあれば差し替え（無ければ手続きのクレイ小人にフォールバック）
+	if KobitoModel.has_model():
+		var mdl := KobitoModel.new()
+		mdl.name = "Model"
+		_body.add_child(mdl)
+		mdl.setup(_body, _base_color, "adult", pname)
+	else:
+		KobitoLook.decorate(_body, Net.color_of(owner_id), true, "adult", pname)   # 親：武器を持つ
 	_label.text = pname
 
 	# カメラは自分のぶんだけ。他人の小人のカメラは切っておく。
