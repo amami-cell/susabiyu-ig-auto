@@ -20,6 +20,14 @@ const HIP_X := 0.32           # 股の左右間隔（br倍）＝せまめ
 const LEG_H := 0.98           # 脚の長さ（half倍）＝長め
 const FOOT_Y := -0.86         # 足の位置（half倍・股から）
 
+# --- 人らしい配色 ---
+# プレイヤーの色は「シャツ（胴）」として残す＝誰が誰か分かる。
+# 顔・首・腕・手は肌色、ズボン・靴・髪は人らしい色にする。
+const SKIN := Color(0.97, 0.80, 0.68)   # 肌色
+const PANTS := Color(0.27, 0.30, 0.42)  # ズボン（デニム調）
+const SHOES := Color(0.19, 0.15, 0.12)  # 靴
+const HAIR := Color(0.26, 0.17, 0.10)   # 髪（こげ茶）
+
 
 static func decorate(body: MeshInstance3D, color: Color, with_weapon: bool = false) -> void:
 	if body == null or body.mesh == null:
@@ -61,20 +69,20 @@ static func decorate(body: MeshInstance3D, color: Color, with_weapon: bool = fal
 	hm.radius = head_r
 	hm.height = head_r * 2.0
 	head.mesh = hm
-	var head_mat := _mat(color, 0.85)
+	var head_mat := _mat(SKIN, 0.7)          # 顔は肌色
 	head_mat.next_pass = _outline(br)
 	head.material_override = head_mat
 	head.position = Vector3(0.0, half * HEAD_Y, 0.0)
 	body.add_child(head)
 
-	# 細い首（頭と胴のつなぎ）
+	# 細い首（頭と胴のつなぎ）＝肌色
 	var neck := MeshInstance3D.new()
 	var ncm := CylinderMesh.new()
 	ncm.top_radius = br * 0.24
 	ncm.bottom_radius = br * 0.28
 	ncm.height = half * 0.14
 	neck.mesh = ncm
-	neck.material_override = _mat(color.darkened(0.05), 0.85)
+	neck.material_override = _mat(SKIN.darkened(0.05), 0.7)
 	neck.position = Vector3(0.0, half * (HEAD_Y - 0.14), 0.0)
 	body.add_child(neck)
 
@@ -109,6 +117,20 @@ static var _face_eyes: Array[Node3D] = []
 ## 顔（大きな目＋ハイライト・ほっぺ・口・鼻）を頭に付ける。hr=頭の半径。
 static func _build_face(head: MeshInstance3D, color: Color, hr: float) -> void:
 	_face_eyes = []
+
+	# 髪（頭の上〜後ろを覆うキャップ。前(顔)は出す）
+	var hair := MeshInstance3D.new()
+	hair.name = "Hair"
+	var harm := SphereMesh.new()
+	harm.radius = hr * 0.98
+	harm.height = hr * 1.96
+	hair.mesh = harm
+	var hair_mat := _mat(HAIR, 0.6)
+	hair_mat.next_pass = _outline(hr)
+	hair.material_override = hair_mat
+	hair.position = Vector3(0.0, hr * 0.34, -hr * 0.16)
+	hair.scale = Vector3(1.06, 0.92, 1.06)
+	head.add_child(hair)
 	var eyemat := _mat(Color(0.1, 0.08, 0.09), 0.25)
 	var hi_mat := StandardMaterial3D.new()
 	hi_mat.albedo_color = Color(1, 1, 1)
@@ -161,7 +183,7 @@ static func _build_face(head: MeshInstance3D, color: Color, hr: float) -> void:
 	nm.radius = hr * 0.12
 	nm.height = hr * 0.24
 	nose.mesh = nm
-	nose.material_override = _mat(color.lightened(0.25), 0.6)
+	nose.material_override = _mat(SKIN.darkened(0.06), 0.6)
 	nose.position = Vector3(0.0, -hr * 0.05, hr * 0.95)
 	head.add_child(nose)
 
@@ -177,7 +199,7 @@ static func _make_arm(body: MeshInstance3D, color: Color, br: float, half: float
 	am.radius = br * 0.18
 	am.height = half * ARM_H
 	arm.mesh = am
-	var arm_mat := _mat(color.darkened(0.06), 0.9)
+	var arm_mat := _mat(SKIN, 0.7)               # 腕は肌色（半袖）
 	arm_mat.next_pass = _outline(br)
 	arm.material_override = arm_mat
 	arm.position = Vector3(0.0, half * ARM_H * -0.5, 0.0)
@@ -188,7 +210,7 @@ static func _make_arm(body: MeshInstance3D, color: Color, br: float, half: float
 	hgm.radius = br * 0.22
 	hgm.height = br * 0.44
 	hand.mesh = hgm
-	hand.material_override = _mat(color.lightened(0.12), 0.85)
+	hand.material_override = _mat(SKIN.lightened(0.04), 0.7)   # 手は肌色
 	hand.position = Vector3(0.0, half * HAND_Y, 0.0)
 	pivot.add_child(hand)
 	return pivot
@@ -206,7 +228,7 @@ static func _make_leg(body: MeshInstance3D, color: Color, br: float, half: float
 	lm.radius = br * 0.23
 	lm.height = half * LEG_H
 	leg.mesh = lm
-	var leg_mat := _mat(color.darkened(0.18), 0.9)
+	var leg_mat := _mat(PANTS, 0.9)              # 脚はズボン
 	leg_mat.next_pass = _outline(br)
 	leg.material_override = leg_mat
 	leg.position = Vector3(0.0, half * LEG_H * -0.5, 0.0)
@@ -217,7 +239,7 @@ static func _make_leg(body: MeshInstance3D, color: Color, br: float, half: float
 	fm.radius = br * 0.3
 	fm.height = br * 0.44
 	foot.mesh = fm
-	foot.material_override = _mat(color.darkened(0.28), 0.9)
+	foot.material_override = _mat(SHOES, 0.6)    # 足は靴
 	foot.scale = Vector3(1.0, 0.7, 1.4)
 	foot.position = Vector3(0.0, half * FOOT_Y, br * 0.15)
 	pivot.add_child(foot)
