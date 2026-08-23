@@ -28,6 +28,21 @@ func _ready() -> void:
 	vbox.add_child(_biome)
 	vbox.move_child(_biome, 2)   # なまえ／通信路 の下あたり
 
+	# 音量スライダー（保存される）。タッチしやすいよう高さを確保。
+	var vol_label := Label.new()
+	vol_label.text = "音量"
+	vbox.add_child(vol_label)
+	vbox.move_child(vol_label, 3)
+	var vol := HSlider.new()
+	vol.min_value = 0.0
+	vol.max_value = 1.0
+	vol.step = 0.05
+	vol.value = Sfx.get_master_volume()
+	vol.custom_minimum_size = Vector2(0, 44)
+	vbox.add_child(vol)
+	vbox.move_child(vol, 4)
+	vol.value_changed.connect(func(v: float) -> void: Sfx.set_master_volume(v))
+
 	_transport.add_item("ENet（PC/Android・低遅延・おすすめ）", Net.Transport.ENET)
 	_transport.add_item("WebSocket（ブラウザでも動く）", Net.Transport.WEBSOCKET)
 	_transport.selected = 1 if Net.transport == Net.Transport.WEBSOCKET else 0

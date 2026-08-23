@@ -18,6 +18,9 @@ var _bgm_pad: AudioStreamPlayer
 var _bgm_shine: AudioStreamPlayer
 var _bgm_on := false
 
+const CFG_PATH := "user://settings.cfg"
+var _master := 0.8          # 全体音量（0.0〜1.0）。設定スライダーで変える。保存される。
+
 
 func _ready() -> void:
 	for i in VOICES:
@@ -32,6 +35,7 @@ func _ready() -> void:
 	_bgm_shine.bus = "Master"
 	add_child(_bgm_shine)
 	_build_bank()
+	_load_settings()
 
 	# BGMはゲーム中だけ。回復度で“きらめき”の音量を上げる。
 	Net.session_started.connect(start_bgm)
@@ -52,6 +56,40 @@ func play(sound_name: String, volume_db: float = -7.0) -> void:
 	p.volume_db = volume_db
 	p.pitch_scale = randf_range(0.97, 1.04)   # 毎回わずかに変えて機械的な連打感を消す
 	p.play()
+
+
+# ---------------------------------------------------------------- 全体音量（設定）
+#
+# Master バスの音量を1本のスライダーで調整。user://settings.cfg に保存し、次回も復元。
+# Web でも user:// は保持される（Godotが IndexedDB に保存）。
+
+func get_master_volume() -> float:
+	return _master
+
+
+func set_master_volume(v: float) -> void:
+	_master = clampf(v, 0.0, 1.0)
+	_apply_master()
+	var cfg := ConfigFile.new()
+	cfg.load(CFG_PATH)                    # 既存の他設定は残す
+	cfg.set_value("audio", "master", _master)
+	cfg.save(CFG_PATH)
+
+
+func _load_settings() -> void:
+	var cfg := ConfigFile.new()
+	if cfg.load(CFG_PATH) == OK:
+		_master = clampf(float(cfg.get_value("audio", "master", 0.8)), 0.0, 1.0)
+	_apply_master()
+
+
+func _apply_master() -> void:
+	var idx := AudioServer.get_bus_index("Master")
+	if _master <= 0.001:
+		AudioServer.set_bus_mute(idx, true)
+	else:
+		AudioServer.set_bus_mute(idx, false)
+		AudioServer.set_bus_volume_db(idx, linear_to_db(_master))
 
 
 # ---------------------------------------------------------------- BGM
