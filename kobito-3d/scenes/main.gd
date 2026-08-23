@@ -303,7 +303,7 @@ func _run_shot() -> void:
 		var root := Node3D.new()
 		add_child(root)
 		root.global_position = Vector3(0.0, 0.0, -40.0)
-		var x := -(fam.size() - 1) * 0.75
+		var x := -(fam.size() - 1) * 0.625
 		for d in fam:
 			var holder := Node3D.new()
 			root.add_child(holder)
@@ -322,15 +322,15 @@ func _run_shot() -> void:
 			lbl.pixel_size = 0.006
 			lbl.billboard = BaseMaterial3D.BILLBOARD_ENABLED
 			holder.add_child(lbl)
-			x += 1.5
+			x += 1.25
 		var lightp := DirectionalLight3D.new()
 		lightp.rotation = Vector3(deg_to_rad(-45.0), deg_to_rad(30.0), 0.0)
 		root.add_child(lightp)
 		var fcam := Camera3D.new()
 		add_child(fcam)
-		fcam.global_position = Vector3(0.0, 0.75, -36.2)
-		fcam.look_at(Vector3(0.0, 0.45, -40.0), Vector3.UP)
-		fcam.fov = 62.0
+		fcam.global_position = Vector3(0.0, 1.05, -31.2)
+		fcam.look_at(Vector3(0.0, 0.5, -40.0), Vector3.UP)
+		fcam.fov = 66.0
 		fcam.current = true
 		await get_tree().create_timer(1.0).timeout
 		await RenderingServer.frame_post_draw
