@@ -442,7 +442,123 @@ func _run_shot() -> void:
 			_build_overlay_face(fp[0], fp[1], fp[2])  # 頭の位置に顔パーツを乗せる
 		await RenderingServer.frame_post_draw
 		get_viewport().get_texture().get_image().save_png("/tmp/shot_faces.png")
+	# --facepat：本物モデル＋大きなアニメ目の“表情パターン”6種（本採用の仕様で確認）
+	if OS.get_cmdline_user_args().has("--facepat") and ResourceLoader.exists("res://assets/human_base.glb"):
+		$UI.visible = false   # HUD/会話を隠してキャラだけ見せる
+		var fstyles := ["まる目", "キラキラ", "うるうる", "たれ目", "ジト目", "にっこり^^"]
+		var fr := Node3D.new()
+		add_child(fr)
+		fr.global_position = Vector3(0.0, 0.0, -40.0)
+		var fpk: PackedScene = load("res://assets/human_base.glb")
+		var bodyd := {"head": 2.3, "hand": 1.3, "foot": 1.3, "body": 1.05, "leg": 0.95}
+		var fpend: Array = []
+		var fxp := -(fstyles.size() - 1) * 0.75
+		for st in fstyles:
+			var h := Node3D.new()
+			fr.add_child(h)
+			h.position = Vector3(fxp, 0.0, 0.0)
+			var m: Node3D = fpk.instantiate()
+			h.add_child(m)
+			m.scale = Vector3.ONE * 0.052
+			m.rotation.y = PI
+			var ap: AnimationPlayer = m.find_child("AnimationPlayer", true, false)
+			if ap != null and ap.has_animation("Idle"):
+				ap.play("Idle")
+			var sk: Skeleton3D = m.find_child("Skeleton3D", true, false)
+			var lb := Label3D.new()
+			lb.text = st
+			lb.position = Vector3(fxp, 1.7, 0.0)
+			lb.pixel_size = 0.004
+			lb.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+			fr.add_child(lb)
+			fpend.append([h, sk, st])
+			fxp += 1.5
+		var fl := DirectionalLight3D.new()
+		fl.rotation = Vector3(deg_to_rad(-35.0), deg_to_rad(15.0), 0.0)
+		fr.add_child(fl)
+		var fcp := Camera3D.new()
+		add_child(fcp)
+		fcp.global_position = Vector3(0.0, 1.25, -47.0)
+		fcp.look_at(Vector3(0.0, 1.02, -40.0), Vector3.UP)
+		fcp.fov = 40.0
+		fcp.current = true
+		await get_tree().create_timer(0.8).timeout
+		for fp in fpend:
+			_pattern_bones(fp[1], bodyd)
+		await RenderingServer.frame_post_draw
+		for fp in fpend:
+			_pattern_bones(fp[1], bodyd)
+			_facepat(fp[0], fp[1], fp[2])
+		await RenderingServer.frame_post_draw
+		get_viewport().get_texture().get_image().save_png("/tmp/shot_facepat.png")
 	get_tree().quit()
+
+
+## 本採用の“大きなアニメ目”仕様で、表情スタイル別に顔を乗せる（--facepat 用）。
+func _facepat(holder: Node3D, skel: Skeleton3D, style: String) -> void:
+	if skel == null:
+		return
+	var hidx := skel.find_bone("mixamorig_Head")
+	if hidx < 0:
+		return
+	var ht: Transform3D = skel.global_transform * skel.get_bone_global_pose(hidx)
+	var ho: Vector3 = ht.origin - holder.global_position
+	var r := 0.12
+	var eye_c := ho + Vector3(0.0, 0.28, -0.18)
+	var mouth_c := ho + Vector3(0.0, 0.12, -0.2)
+	var cheek_c := ho + Vector3(0.0, 0.17, -0.18)
+	var white := Color(0.98, 0.98, 0.97)
+	var blk := Color(0.09, 0.07, 0.09)
+	# ほっぺ（共通）
+	for sx in [-1.0, 1.0]:
+		_wball(holder, Color(1.0, 0.56, 0.6), r * 0.42, cheek_c + Vector3(0.16 * sx, -0.04, 0), Vector3(1.2, 0.9, 0.5), 0.15)
+	match style:
+		"まる目":
+			for sx in [-1.0, 1.0]:
+				var e := _wball(holder, white, r * 0.8, eye_c + Vector3(0.095 * sx, 0, 0), Vector3(1.0, 1.25, 0.5), 0.0)
+				_wball(e, blk, r * 0.5, Vector3(0, 0, -r * 0.35), Vector3.ONE, 0.0)
+				_wball(e, Color(1, 1, 1), r * 0.2, Vector3(r * 0.28, r * 0.3, -r * 0.55), Vector3.ONE, 0.7)
+			_face_smile(holder, mouth_c, r, 0.09)
+		"キラキラ":
+			for sx in [-1.0, 1.0]:
+				var e2 := _wball(holder, white, r * 0.9, eye_c + Vector3(0.1 * sx, 0, 0), Vector3(1.0, 1.3, 0.5), 0.0)
+				_wball(e2, Color(0.16, 0.1, 0.28), r * 0.62, Vector3(0, 0, -r * 0.3), Vector3.ONE, 0.0)
+				_wball(e2, Color(1, 1, 1), r * 0.3, Vector3(r * 0.24, r * 0.3, -r * 0.55), Vector3.ONE, 0.8)
+				_wball(e2, Color(1, 1, 1), r * 0.15, Vector3(-r * 0.24, -r * 0.28, -r * 0.5), Vector3.ONE, 0.7)
+			_face_smile(holder, mouth_c, r, 0.1)
+		"うるうる":
+			for sx in [-1.0, 1.0]:
+				var e3 := _wball(holder, white, r * 1.02, eye_c + Vector3(0.105 * sx, 0, 0), Vector3(1.0, 1.35, 0.5), 0.0)
+				_wball(e3, blk, r * 0.66, Vector3(0, -r * 0.05, -r * 0.28), Vector3.ONE, 0.0)
+				_wball(e3, Color(1, 1, 1), r * 0.34, Vector3(r * 0.2, r * 0.34, -r * 0.5), Vector3.ONE, 0.85)
+				_wball(e3, Color(1, 1, 1), r * 0.22, Vector3(-r * 0.24, -r * 0.18, -r * 0.5), Vector3.ONE, 0.8)
+			_face_smile(holder, mouth_c, r, 0.07)
+		"たれ目":
+			for sx in [-1.0, 1.0]:
+				var e4 := _wball(holder, white, r * 0.82, eye_c + Vector3(0.1 * sx, 0, 0), Vector3(1.2, 1.0, 0.5), 0.0)
+				e4.rotation.z = 0.45 * sx
+				_wball(e4, blk, r * 0.5, Vector3(0, -r * 0.06, -r * 0.35), Vector3.ONE, 0.0)
+				_wball(e4, Color(1, 1, 1), r * 0.2, Vector3(r * 0.24, r * 0.24, -r * 0.5), Vector3.ONE, 0.7)
+			_face_smile(holder, mouth_c, r, 0.09)
+		"ジト目":
+			for sx in [-1.0, 1.0]:
+				var e5 := _wball(holder, white, r * 0.78, eye_c + Vector3(0.1 * sx, -r * 0.05, 0), Vector3(1.2, 0.7, 0.5), 0.0)
+				_wball(e5, blk, r * 0.42, Vector3(0, 0, -r * 0.35), Vector3.ONE, 0.0)
+				# 上まぶたの線
+				_wbox(holder, Color(0.1, 0.08, 0.09), Vector3(0.13, 0.02, 0.02), eye_c + Vector3(0.1 * sx, r * 0.28, -0.02), Vector3.ZERO)
+			_wbox(holder, Color(0.5, 0.25, 0.25), Vector3(0.09, 0.02, 0.02), mouth_c, Vector3.ZERO)
+		"にっこり^^":
+			for sx in [-1.0, 1.0]:
+				_wbox(holder, Color(0.1, 0.08, 0.09), Vector3(0.09, 0.03, 0.02), eye_c + Vector3(0.1 * sx + 0.035, 0, 0), Vector3.ZERO, 0.7 * sx)
+				_wbox(holder, Color(0.1, 0.08, 0.09), Vector3(0.09, 0.03, 0.02), eye_c + Vector3(0.1 * sx - 0.035, 0, 0), Vector3.ZERO, -0.7 * sx)
+			_face_smile(holder, mouth_c, r, 0.12)
+
+
+func _face_smile(holder: Node3D, c: Vector3, r: float, w: float) -> void:
+	var col := Color(0.72, 0.34, 0.36)
+	_wball(holder, col, r * 0.17, c, Vector3(2.2, 0.7, 0.6), 0.0)
+	for sx in [-1.0, 1.0]:
+		_wball(holder, col, r * 0.11, c + Vector3(w * 0.5 * sx, r * 0.28, 0), Vector3.ONE, 0.0)
 
 
 ## モデルの頭ボーン位置に、アニメ顔（目・口・ほっぺ）を world 空間で乗せる。style で表情を変える。
