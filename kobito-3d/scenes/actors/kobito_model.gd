@@ -58,9 +58,9 @@ func setup(body: MeshInstance3D, color: Color, _role: String = "child", _char_na
 		_add_cute_bone("mixamorig_LeftFoot", FOOT_SCALE)
 		_add_cute_bone("mixamorig_RightFoot", FOOT_SCALE)
 		_apply_cute()
-		# 控えめな表情リグ（眉＋口のフラットな線）を顔に置き、set_expression で切替できるように。
+		# 表情リグは用意するが、既定は非表示＝モデル本来のきれいな顔（浮いた貼り付け感を出さない）。
 		_build_expression()
-		set_expression("happy")
+		set_expression("none")
 
 	_ap = model.find_child("AnimationPlayer", true, false)
 	if _ap != null and _ap.has_animation("Idle"):
@@ -103,16 +103,23 @@ func _build_expression() -> void:
 	_mouth_o = _mk_ball(0.035, mouth_c, Vector3(1.0, 1.2, 0.5))
 
 
-## 表情を切り替える：happy / neutral / sad / surprised / angry。
+## 表情を切り替える：none（素の顔）/ happy / neutral / sad / surprised / angry。
 func set_expression(name: String) -> void:
 	_expression = name
 	if _brows.size() < 2 or _mouth_mid == null:
 		return
+	# none＝すべて隠してモデル本来の顔にする
+	var show := name != "none"
+	for b in _brows:
+		(b as MeshInstance3D).visible = show
+	_mouth_mid.visible = show
+	_mouth_l.visible = show
+	_mouth_r.visible = show
+	_mouth_o.visible = false
+	if not show:
+		return
 	var bl: MeshInstance3D = _brows[0]   # 左（x<0）
 	var br: MeshInstance3D = _brows[1]   # 右（x>0）
-	# 既定
-	_mouth_mid.visible = true
-	_mouth_o.visible = false
 	var corner_y := 0.02      # 口角の上下（＋で笑顔）
 	var brow_dy := 0.0        # 眉の上下
 	var brow_inner := 0.0     # 眉の内側の傾き（＋で内側が上がる＝困り眉）
