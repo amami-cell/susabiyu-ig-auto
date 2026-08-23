@@ -850,25 +850,26 @@ func _setup_sky_fog() -> void:
 	env.ambient_light_source = Environment.AMBIENT_SOURCE_SKY
 	env.ambient_light_energy = 0.6
 
-	env.tonemap_mode = Environment.TONE_MAPPER_FILMIC
-	env.tonemap_exposure = 0.98
-	env.tonemap_white = 1.1
+	# ACESフィルミック寄りのトーン。露出は控えめ＝ハイライトの白飛びを抑える。
+	env.tonemap_mode = Environment.TONE_MAPPER_ACES
+	env.tonemap_exposure = 0.85
+	env.tonemap_white = 1.4
 
+	# ブルームは“強い光だけ”に絞る（しきい値を上げ・量を下げ）＝全体の白もやを防ぐ。
 	env.glow_enabled = true
-	env.glow_intensity = 0.28
-	env.glow_strength = 0.95
-	env.glow_bloom = 0.03
-	env.glow_hdr_threshold = 1.25
+	env.glow_intensity = 0.16
+	env.glow_strength = 0.9
+	env.glow_bloom = 0.02
+	env.glow_hdr_threshold = 1.7
 
-	# カラーグレーディング：コントラストと彩度を上げて“作り込んだ映える絵”に。
-	# （gl_compatibility でも使える。SSAO等は Forward+ 専用なので GRAPHICS.md 参照）
+	# カラーグレーディング：明るさは上げず、コントラストと彩度で締める＝色が濁らず映える。
 	env.adjustment_enabled = true
-	env.adjustment_brightness = 1.03
-	env.adjustment_contrast = 1.18
-	env.adjustment_saturation = 1.22
+	env.adjustment_brightness = 1.0
+	env.adjustment_contrast = 1.16
+	env.adjustment_saturation = 1.2
 
 	env.fog_enabled = true
-	env.fog_light_energy = 1.0
+	env.fog_light_energy = 0.8
 
 	# PC「きれい版」(Forward+/Vulkan)だけ：接触影(AO)と反射で立体感を一段上げる。
 	# スマホ(Mobile)・古いPC(gl_compatibility)では無効＝カクつかせない。写真に一番近い見た目はここ。
@@ -895,8 +896,8 @@ func _setup_sun() -> void:
 		return
 	# マジックアワー（夕方寄り）：低い角度の金色の光＋長い影＝いちばん“映える”。
 	_sun.rotation_degrees = Vector3(-24.0, 128.0, 0.0)
-	_sun.light_color = Color(1.0, 0.83, 0.62)   # 金色
-	_sun.light_energy = 1.35
+	_sun.light_color = Color(1.0, 0.86, 0.68)   # 金色（少しだけ白めで濁らせない）
+	_sun.light_energy = 1.12
 	_sun.shadow_enabled = true
 	_sun.directional_shadow_blend_splits = true
 	_sun.directional_shadow_mode = DirectionalLight3D.SHADOW_PARALLEL_4_SPLITS
@@ -1111,9 +1112,9 @@ func _update_sky_fog(r: float) -> void:
 		_sky_mat.ground_bottom_color = WorldState.ground_color()
 	var env := _env.environment
 	if env != null:
-		# 遠景に金色のもや（大気遠近）で奥行きを出す
-		env.fog_light_color = Color(0.56, 0.52, 0.47).lerp(Color(1.0, 0.78, 0.60), r)
-		env.fog_density = lerpf(0.055, 0.010, r)
+		# 遠景に金色のもや（大気遠近）で奥行きを出す。回復で澄んで遠くまで見える。
+		env.fog_light_color = Color(0.54, 0.5, 0.46).lerp(Color(0.95, 0.8, 0.66), r)
+		env.fog_density = lerpf(0.05, 0.006, r)
 
 
 ## 蝶。回復するほど数が増える“命”。羽ばたきは頂点シェーダ、飛行はCPUで軽く。
