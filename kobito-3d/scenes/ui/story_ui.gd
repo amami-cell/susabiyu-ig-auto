@@ -37,14 +37,13 @@ func _build() -> void:
 	_obj.anchor_right = 1.0
 	_obj.anchor_top = 0.0
 	_obj.anchor_bottom = 0.0
-	_obj.offset_left = 0.0
-	_obj.offset_right = 0.0
-	_obj.offset_top = 96.0
+	_obj.offset_left = 220.0
+	_obj.offset_right = -220.0
+	_obj.offset_top = 92.0
 	_obj.offset_bottom = 140.0
-	_obj.add_theme_font_size_override("font_size", 26)
-	_obj.add_theme_color_override("font_color", Color(1, 1, 0.85))
-	_obj.add_theme_color_override("font_outline_color", Color(0.05, 0.1, 0.05))
-	_obj.add_theme_constant_override("outline_size", 8)
+	_obj.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	_obj.add_theme_stylebox_override("normal", UIKit.panel(Color(0.34, 0.58, 0.3, 0.92), UIKit.GREEN, 18, 3, 10))
+	UIKit.style_label(_obj, 24, Color(1, 1, 1), 4, Color(0.12, 0.24, 0.14, 0.95))
 	_obj.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(_obj)
 
@@ -57,15 +56,18 @@ func _build() -> void:
 	_box.offset_right = -24
 	_box.offset_top = -196
 	_box.offset_bottom = -24
-	var sb := StyleBoxFlat.new()
-	sb.bg_color = Color(0.05, 0.08, 0.06, 0.82)
-	sb.set_corner_radius_all(16)
-	sb.set_content_margin_all(18)
-	sb.border_color = Color(0.6, 0.9, 0.7, 0.5)
-	sb.set_border_width_all(2)
-	_box.add_theme_stylebox_override("panel", sb)
+	_box.add_theme_stylebox_override("panel", UIKit.panel(UIKit.CREAM, UIKit.GREEN, 22, 4, 20))
 	_box.visible = false
 	add_child(_box)
+
+	# 会話ボックスの左上に“おはなし”の名札
+	var tag := Label.new()
+	tag.text = "  おはなし  "
+	tag.add_theme_stylebox_override("normal", UIKit.panel(UIKit.GREEN_DK, UIKit.GREEN, 12, 0, 6))
+	UIKit.style_label(tag, 18, Color(1, 1, 1))
+	tag.position = Vector2(14, -16)
+	tag.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_box.add_child(tag)
 
 	# タップ受けは会話ボックスの範囲だけ（画面中央〜左の移動操作は邪魔しない）
 	_catch = Button.new()
@@ -87,20 +89,19 @@ func _build() -> void:
 	_text.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_text.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	_text.add_theme_font_size_override("font_size", 28)
-	_text.add_theme_color_override("font_color", Color(1, 1, 1))
+	_text.add_theme_color_override("font_color", UIKit.INK)
 	_text.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_box.add_child(_text)
 
 	_hint = Label.new()
-	_hint.text = "▶ タップでつぎへ"
+	_hint.text = "タップで つぎへ ▶"
 	_hint.set_anchors_preset(Control.PRESET_BOTTOM_RIGHT)
-	_hint.offset_left = -220
+	_hint.offset_left = -240
 	_hint.offset_top = -34
 	_hint.offset_right = -16
 	_hint.offset_bottom = -8
 	_hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
-	_hint.add_theme_font_size_override("font_size", 18)
-	_hint.add_theme_color_override("font_color", Color(0.7, 0.95, 0.8))
+	UIKit.style_label(_hint, 18, UIKit.GREEN_DK)
 	_hint.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_box.add_child(_hint)
 
@@ -135,7 +136,17 @@ func show_dialogue(lines: PackedStringArray) -> void:
 		return
 	_box.visible = true
 	_catch.visible = true
+	_set_play_ui(false)   # お話中は操作ボタン等を隠して重なりを防ぐ
 	_show_line()
+
+
+## 会話中だけ、操作ボタン・HP等のプレイUIを隠す（会話ボックスと重ならないように）。
+func _set_play_ui(vis: bool) -> void:
+	for path in ["../TouchPad/Buttons", "../Hud/Bottom"]:
+		var n := get_node_or_null(path)
+		if n != null:
+			n.visible = vis
+	get_tree().call_group("play_ui_extra", "set_visible", vis)
 
 
 func _show_line() -> void:
@@ -157,6 +168,7 @@ func _advance() -> void:
 func _hide_box() -> void:
 	_box.visible = false
 	_catch.visible = false
+	_set_play_ui(true)
 
 
 func show_banner(text: String) -> void:

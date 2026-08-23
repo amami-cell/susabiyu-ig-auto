@@ -31,6 +31,24 @@ func _ready() -> void:
 	_bind_button($Buttons/BtnAttack, "act_attack")
 	_bind_button($Buttons/BtnGrab, "act_grab")
 	_bind_button($Buttons/BtnJump, "act_jump")
+	_skin_buttons()
+
+
+## ボタンを絵本テイスト（ぷにっと角丸・アイコン付き）に整える。
+func _skin_buttons() -> void:
+	var a: Button = $Buttons/BtnAttack
+	var g: Button = $Buttons/BtnGrab
+	var j: Button = $Buttons/BtnJump
+	a.text = "🧹\nきれいに"
+	g.text = "✊\nつかむ"
+	j.text = "⤴\nジャンプ"
+	UIKit.style_button(a, UIKit.GREEN, UIKit.GREEN_DK)
+	UIKit.style_button(g, UIKit.GOLD, Color(0.82, 0.6, 0.24))
+	UIKit.style_button(j, Color(0.62, 0.8, 1.0), Color(0.42, 0.6, 0.9))
+	for b in [a, g, j]:
+		b.custom_minimum_size = Vector2(124, 124)
+		b.autowrap_mode = TextServer.AUTOWRAP_OFF
+		b.add_theme_constant_override("outline_size", 0)
 
 
 func _bind_button(btn: BaseButton, action: String) -> void:
