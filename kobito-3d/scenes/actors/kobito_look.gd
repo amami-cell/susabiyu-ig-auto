@@ -3,8 +3,23 @@ class_name KobitoLook
 ## カプセル1体型を“人型の小人”に組み直す（頭・胴・腕2・脚2＋顔）＋芝居アニメ。
 ##
 ## 当たり判定のカプセル(body)は透明にして残し、見た目は人型パーツで作る。
-## 低ポリ・素材ゼロのまま「ちゃんと脚のある人」に見せる。絵本風の輪郭線つき。
+## 「頭小さめ・脚長め」の 4頭身くらいの子どもっぽい人型。絵本風の輪郭線つき。
 ## プレイヤーは右手に武器（光の棒）を持つ。脚は歩くと交互に振る（KobitoAnim）。
+
+# --- 体つきの比率（half=カプセル半身, br=半径 を基準にする）---
+const HEAD_R := 0.60          # 頭の半径（br倍）＝小さめ
+const HEAD_Y := 1.06          # 頭の高さ（half倍）
+const TORSO_R := 0.66         # 胴の太さ（br倍）＝スリム
+const TORSO_H := 1.02         # 胴の縦長（half倍）
+const TORSO_Y := 0.34         # 胴の高さ（half倍）
+const SHOULDER_Y := 0.66      # 肩の高さ（half倍）
+const ARM_H := 0.95           # 腕の長さ（half倍）
+const HAND_Y := -0.9          # 手の位置（half倍・肩から）
+const HIP_Y := -0.16          # 股の高さ（half倍）＝高め＝脚が長く見える
+const HIP_X := 0.32           # 股の左右間隔（br倍）＝せまめ
+const LEG_H := 0.98           # 脚の長さ（half倍）＝長め
+const FOOT_Y := -0.86         # 足の位置（half倍・股から）
+
 
 static func decorate(body: MeshInstance3D, color: Color, with_weapon: bool = false) -> void:
 	if body == null or body.mesh == null:
@@ -18,39 +33,52 @@ static func decorate(body: MeshInstance3D, color: Color, with_weapon: bool = fal
 		half = body.mesh.height * 0.5
 		br = body.mesh.radius
 
+	var head_r := br * HEAD_R
+
 	# 当たり判定のカプセルは透明化（見た目は人型パーツが担う）
 	var inv := StandardMaterial3D.new()
 	inv.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 	inv.albedo_color = Color(0, 0, 0, 0)
 	body.material_override = inv
 
-	# --- 胴（トルソ）：丸みのある縦長。人の体つき ---
+	# --- 胴（トルソ）：スリムな縦長 ---
 	var torso := MeshInstance3D.new()
 	torso.name = "Torso"
 	var tm := CapsuleMesh.new()
-	tm.radius = br * 0.82
-	tm.height = half * 1.25
+	tm.radius = br * TORSO_R
+	tm.height = half * TORSO_H
 	torso.mesh = tm
 	var torso_mat := _mat(color, 0.85)
 	torso_mat.next_pass = _outline(br)
 	torso.material_override = torso_mat
-	torso.position = Vector3(0.0, half * 0.12, 0.0)
+	torso.position = Vector3(0.0, half * TORSO_Y, 0.0)
 	body.add_child(torso)
 
-	# --- 頭（胴の上）---
+	# --- 頭（小さめ・胴の上）---
 	var head := MeshInstance3D.new()
 	head.name = "Head"
 	var hm := SphereMesh.new()
-	hm.radius = br * 0.82
-	hm.height = br * 1.64
+	hm.radius = head_r
+	hm.height = head_r * 2.0
 	head.mesh = hm
 	var head_mat := _mat(color, 0.85)
 	head_mat.next_pass = _outline(br)
 	head.material_override = head_mat
-	head.position = Vector3(0.0, half * 0.92, 0.0)
+	head.position = Vector3(0.0, half * HEAD_Y, 0.0)
 	body.add_child(head)
 
-	_build_face(head, color, br)
+	# 細い首（頭と胴のつなぎ）
+	var neck := MeshInstance3D.new()
+	var ncm := CylinderMesh.new()
+	ncm.top_radius = br * 0.24
+	ncm.bottom_radius = br * 0.28
+	ncm.height = half * 0.14
+	neck.mesh = ncm
+	neck.material_override = _mat(color.darkened(0.05), 0.85)
+	neck.position = Vector3(0.0, half * (HEAD_Y - 0.14), 0.0)
+	body.add_child(neck)
+
+	_build_face(head, color, head_r)
 
 	# --- 腕 x2（肩・手つき）---
 	var arm_l := _make_arm(body, color, br, half, -1.0)
@@ -65,7 +93,7 @@ static func decorate(body: MeshInstance3D, color: Color, with_weapon: bool = fal
 	var weapon: Node3D = null
 	var trail: Node3D = null
 	if with_weapon:
-		weapon = _make_weapon(arm_r, br)
+		weapon = _make_weapon(arm_r, br, half * HAND_Y)
 		trail = weapon.get_node_or_null("Trail")
 
 	# --- 芝居アニメ ---
@@ -78,8 +106,8 @@ static func decorate(body: MeshInstance3D, color: Color, with_weapon: bool = fal
 static var _face_eyes: Array[Node3D] = []
 
 
-## 顔（大きな目＋ハイライト・ほっぺ・口・鼻）を頭に付ける。
-static func _build_face(head: MeshInstance3D, color: Color, br: float) -> void:
+## 顔（大きな目＋ハイライト・ほっぺ・口・鼻）を頭に付ける。hr=頭の半径。
+static func _build_face(head: MeshInstance3D, color: Color, hr: float) -> void:
 	_face_eyes = []
 	var eyemat := _mat(Color(0.1, 0.08, 0.09), 0.25)
 	var hi_mat := StandardMaterial3D.new()
@@ -91,77 +119,77 @@ static func _build_face(head: MeshInstance3D, color: Color, br: float) -> void:
 		var eye := MeshInstance3D.new()
 		eye.name = "Eye%s" % ("L" if sx < 0 else "R")
 		var em := SphereMesh.new()
-		em.radius = br * 0.26
-		em.height = br * 0.52
+		em.radius = hr * 0.34
+		em.height = hr * 0.68
 		eye.mesh = em
 		eye.material_override = eyemat
-		eye.position = Vector3(br * 0.38 * sx, br * 0.16, br * 0.72)
+		eye.position = Vector3(hr * 0.44 * sx, hr * 0.18, hr * 0.82)
 		head.add_child(eye)
 		_face_eyes.append(eye)
 		var hi := MeshInstance3D.new()
 		var him := SphereMesh.new()
-		him.radius = br * 0.085
-		him.height = br * 0.17
+		him.radius = hr * 0.11
+		him.height = hr * 0.22
 		hi.mesh = him
 		hi.material_override = hi_mat
-		hi.position = Vector3(br * 0.09, br * 0.11, br * 0.2)
+		hi.position = Vector3(hr * 0.12, hr * 0.14, hr * 0.26)
 		eye.add_child(hi)
 
 	var cheek_mat := _mat(Color(1.0, 0.6, 0.62), 0.7)
 	for sx in [-1.0, 1.0]:
 		var cheek := MeshInstance3D.new()
 		var cm := SphereMesh.new()
-		cm.radius = br * 0.15
-		cm.height = br * 0.18
+		cm.radius = hr * 0.2
+		cm.height = hr * 0.24
 		cheek.mesh = cm
 		cheek.material_override = cheek_mat
-		cheek.position = Vector3(br * 0.58 * sx, -br * 0.14, br * 0.6)
+		cheek.position = Vector3(hr * 0.66 * sx, -hr * 0.16, hr * 0.68)
 		head.add_child(cheek)
 
 	var mouth := MeshInstance3D.new()
 	var mo := SphereMesh.new()
-	mo.radius = br * 0.11
-	mo.height = br * 0.1
+	mo.radius = hr * 0.14
+	mo.height = hr * 0.13
 	mouth.mesh = mo
 	mouth.material_override = _mat(Color(0.35, 0.14, 0.14), 0.6)
 	mouth.scale = Vector3(1.6, 0.5, 1.0)
-	mouth.position = Vector3(0.0, -br * 0.32, br * 0.78)
+	mouth.position = Vector3(0.0, -hr * 0.36, hr * 0.88)
 	head.add_child(mouth)
 
 	var nose := MeshInstance3D.new()
 	var nm := SphereMesh.new()
-	nm.radius = br * 0.09
-	nm.height = br * 0.18
+	nm.radius = hr * 0.12
+	nm.height = hr * 0.24
 	nose.mesh = nm
 	nose.material_override = _mat(color.lightened(0.25), 0.6)
-	nose.position = Vector3(0.0, -br * 0.04, br * 0.84)
+	nose.position = Vector3(0.0, -hr * 0.05, hr * 0.95)
 	head.add_child(nose)
 
 
 static func _make_arm(body: MeshInstance3D, color: Color, br: float, half: float, side: float) -> Node3D:
 	var pivot := Node3D.new()
 	pivot.name = "Arm%s" % ("L" if side < 0 else "R")
-	pivot.position = Vector3(br * 0.95 * side, half * 0.42, 0.0)   # 肩
+	pivot.position = Vector3(br * 0.82 * side, half * SHOULDER_Y, 0.0)   # 肩
 	body.add_child(pivot)
 
 	var arm := MeshInstance3D.new()
 	var am := CapsuleMesh.new()
-	am.radius = br * 0.22
-	am.height = half * 0.9
+	am.radius = br * 0.18
+	am.height = half * ARM_H
 	arm.mesh = am
 	var arm_mat := _mat(color.darkened(0.06), 0.9)
 	arm_mat.next_pass = _outline(br)
 	arm.material_override = arm_mat
-	arm.position = Vector3(0.0, -half * 0.42, 0.0)
+	arm.position = Vector3(0.0, half * ARM_H * -0.5, 0.0)
 	pivot.add_child(arm)
 
 	var hand := MeshInstance3D.new()
 	var hgm := SphereMesh.new()
-	hgm.radius = br * 0.26
-	hgm.height = br * 0.52
+	hgm.radius = br * 0.22
+	hgm.height = br * 0.44
 	hand.mesh = hgm
 	hand.material_override = _mat(color.lightened(0.12), 0.85)
-	hand.position = Vector3(0.0, -half * 0.85, 0.0)
+	hand.position = Vector3(0.0, half * HAND_Y, 0.0)
 	pivot.add_child(hand)
 	return pivot
 
@@ -170,18 +198,18 @@ static func _make_arm(body: MeshInstance3D, color: Color, br: float, half: float
 static func _make_leg(body: MeshInstance3D, color: Color, br: float, half: float, side: float) -> Node3D:
 	var pivot := Node3D.new()
 	pivot.name = "Leg%s" % ("L" if side < 0 else "R")
-	pivot.position = Vector3(br * 0.42 * side, -half * 0.4, 0.0)   # 股
+	pivot.position = Vector3(br * HIP_X * side, half * HIP_Y, 0.0)   # 股
 	body.add_child(pivot)
 
 	var leg := MeshInstance3D.new()
 	var lm := CapsuleMesh.new()
-	lm.radius = br * 0.26
-	lm.height = half * 0.7
+	lm.radius = br * 0.23
+	lm.height = half * LEG_H
 	leg.mesh = lm
 	var leg_mat := _mat(color.darkened(0.18), 0.9)
 	leg_mat.next_pass = _outline(br)
 	leg.material_override = leg_mat
-	leg.position = Vector3(0.0, -half * 0.32, 0.0)
+	leg.position = Vector3(0.0, half * LEG_H * -0.5, 0.0)
 	pivot.add_child(leg)
 
 	var foot := MeshInstance3D.new()
@@ -191,16 +219,17 @@ static func _make_leg(body: MeshInstance3D, color: Color, br: float, half: float
 	foot.mesh = fm
 	foot.material_override = _mat(color.darkened(0.28), 0.9)
 	foot.scale = Vector3(1.0, 0.7, 1.4)
-	foot.position = Vector3(0.0, -half * 0.62, br * 0.15)
+	foot.position = Vector3(0.0, half * FOOT_Y, br * 0.15)
 	pivot.add_child(foot)
 	return pivot
 
 
 ## 右手に握る棒（前方へ伸びる明るい刃）。攻撃時は水平に薙ぐので、刃は前(-Z)へ長く伸ばす。
-static func _make_weapon(arm_pivot: Node3D, br: float) -> Node3D:
+## hand_y=手の高さ（肩ピボットから見た位置）。武器は手の位置に付ける。
+static func _make_weapon(arm_pivot: Node3D, br: float, hand_y: float) -> Node3D:
 	var holder := Node3D.new()
 	holder.name = "Weapon"
-	holder.position = Vector3(0.0, -br * 3.2, 0.0)   # 手の位置（腕の先）
+	holder.position = Vector3(0.0, hand_y, 0.0)   # 手の位置（腕の先）
 	arm_pivot.add_child(holder)
 
 	var handle := MeshInstance3D.new()
