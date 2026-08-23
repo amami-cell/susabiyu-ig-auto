@@ -2,7 +2,7 @@
 # src/beatData.ts に書き出す。カット割りはRemotion側でビートに正確に合わせる。
 import os, io, glob, json, sys, random, subprocess
 
-FOOD_FOLDER = "14oKNgdXee2NrI7Dkmbrlbid4f0_VZ5Cv"
+FOOD_FOLDER = os.environ.get("GENRE_FOOD_ID") or "14oKNgdXee2NrI7Dkmbrlbid4f0_VZ5Cv"
 SAKE_FOLDER = os.environ.get("GENRE_SAKE_ID") or "1vIAC9frejCyGhQAizT1Wsgmlaj8ULhTb"
 N_PHOTOS = 8
 MIN_SIDE = 800
