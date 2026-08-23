@@ -13,6 +13,7 @@ var _arm_r: Node3D = null
 var _eyes: Array[Node3D] = []
 var _weapon: Node3D = null      # 右手の武器（あれば）
 var _trail: Node3D = null       # 振りのトレイル（攻撃中だけ表示）
+var _legs: Array[Node3D] = []   # 脚 [左, 右]（歩くと交互に振る）
 
 var _t := 0.0
 var _blink := 2.0
@@ -28,7 +29,7 @@ var _hurt_t := 0.0
 const WEAPON_REST := 0.35       # 武器を構える基本角度
 
 
-func setup(body: Node3D, head: Node3D, arm_l: Node3D, arm_r: Node3D, eyes: Array[Node3D], weapon: Node3D = null, trail: Node3D = null) -> void:
+func setup(body: Node3D, head: Node3D, arm_l: Node3D, arm_r: Node3D, eyes: Array[Node3D], weapon: Node3D = null, trail: Node3D = null, legs: Array[Node3D] = []) -> void:
 	_body = body
 	_head = head
 	_arm_l = arm_l
@@ -36,6 +37,7 @@ func setup(body: Node3D, head: Node3D, arm_l: Node3D, arm_r: Node3D, eyes: Array
 	_eyes = eyes
 	_weapon = weapon
 	_trail = trail
+	_legs = legs
 	_base_y = body.position.y
 	_actor = body.get_parent()
 	_blink = randf_range(1.5, 4.0)
@@ -72,6 +74,14 @@ func _process(delta: float) -> void:
 	var walk_swing := sin(_phase) * (0.55 * walk + 0.06)
 	if _arm_l != null:
 		_arm_l.rotation.x = walk_swing
+
+	# 脚：歩くと左右交互に前後へ振る（止まると自然にまっすぐへ戻る）
+	var leg_swing := sin(_phase) * (0.7 * walk)
+	for i in _legs.size():
+		var leg := _legs[i]
+		if leg != null:
+			# 右脚(奇数)は逆位相＝腕とちぐはぐにならず「歩き」に見える
+			leg.rotation.x = leg_swing if (i % 2 == 0) else -leg_swing
 
 	# 右腕：攻撃中は「前方水平に構えて右→左へ大きく薙ぐ」。ふだんは 武器持ち=構え / 素手=歩き振り。
 	if _attack_t > 0.0:

@@ -242,11 +242,18 @@ func _play_hurt_fx() -> void:
 	if anim != null and anim.has_method("hurt"):
 		anim.hurt()
 	Sfx.play("hurt")
-	var mat := _body.material_override as StandardMaterial3D
-	if mat != null:
+	# 当たり判定カプセルは透明なので、見た目の胴・頭を赤くフラッシュさせる。
+	for part_name in ["Torso", "Head"]:
+		var part := _body.get_node_or_null(part_name) as MeshInstance3D
+		if part == null:
+			continue
+		var mat := part.material_override as StandardMaterial3D
+		if mat == null:
+			continue
+		var from: Color = mat.albedo_color
 		var tw := create_tween()
 		tw.tween_property(mat, "albedo_color", Color(1.0, 0.32, 0.28), 0.05)
-		tw.tween_property(mat, "albedo_color", _base_color, 0.22)
+		tw.tween_property(mat, "albedo_color", from, 0.22)
 
 
 func _update_look() -> void:
