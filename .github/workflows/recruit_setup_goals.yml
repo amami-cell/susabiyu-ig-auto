@@ -1,0 +1,19 @@
+name: recruit-setup-goals
+# 手動実行専用。master_目標（地域｜月間応募目標｜月間採用目標）を用意する。
+# 実行後、スプレッドシートの master_目標 に地域ごとの目標を入力すれば、集計タブの
+# 「今月の目標と進捗」に反映される。既存の目標値は保護。
+on:
+  workflow_dispatch:
+jobs:
+  setup:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Setup master_目標
+        env:
+          RECRUIT_EXEC_URL: ${{ secrets.RECRUIT_EXEC_URL }}
+          EP_PUSH_KEY: ${{ secrets.EP_PUSH_KEY }}
+        run: |
+          export RECRUIT_EXEC_URL="${RECRUIT_EXEC_URL:-https://script.google.com/macros/s/AKfycbz6i36c7UjbM3S44kl1kEcsI0CSjYo9jL-W-T4BJUAr9jmBlVXj-vnQTUwQbGoxcHYT/exec}"
+          echo "--- master_目標 を用意 ---"
+          curl -sSL "$RECRUIT_EXEC_URL?setup=goals&key=$EP_PUSH_KEY"; echo
