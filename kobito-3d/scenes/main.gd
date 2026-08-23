@@ -340,4 +340,99 @@ func _run_shot() -> void:
 		await get_tree().create_timer(1.0).timeout
 		await RenderingServer.frame_post_draw
 		get_viewport().get_texture().get_image().save_png("/tmp/shot_family.png")
+	# --patterns：本物モデルを“誇張ちがい”6パターン並べて撮る（デフォルメの方向決め）
+	if OS.get_cmdline_user_args().has("--patterns") and ResourceLoader.exists("res://assets/human_base.glb"):
+		var defs := [
+			{"n": "1 リアル寄り", "head": 1.3, "hand": 1.0, "foot": 1.0, "body": 1.0, "leg": 1.0, "col": Color(0.5, 0.7, 1.0), "lit": 0.05},
+			{"n": "2 標準チビ", "head": 2.0, "hand": 1.3, "foot": 1.3, "body": 1.05, "leg": 1.0, "col": Color(1.0, 0.7, 0.4), "lit": 0.1},
+			{"n": "3 デカ頭2頭身", "head": 2.8, "hand": 1.4, "foot": 1.4, "body": 1.0, "leg": 0.95, "col": Color(0.7, 0.9, 0.5), "lit": 0.12},
+			{"n": "4 まんまる", "head": 2.3, "hand": 1.6, "foot": 1.6, "body": 1.45, "leg": 0.75, "col": Color(1.0, 0.6, 0.72), "lit": 0.2},
+			{"n": "5 ぷにデフォルメ", "head": 2.4, "hand": 1.9, "foot": 1.9, "body": 1.2, "leg": 0.7, "col": Color(0.7, 0.85, 1.0), "lit": 0.16},
+			{"n": "6 小顔スタイリッシュ", "head": 1.55, "hand": 1.05, "foot": 1.1, "body": 0.95, "leg": 1.2, "col": Color(0.9, 0.55, 0.95), "lit": 0.03},
+		]
+		var proot := Node3D.new()
+		add_child(proot)
+		proot.global_position = Vector3(0.0, 0.0, -40.0)
+		var packed: PackedScene = load("res://assets/human_base.glb")
+		var pending: Array = []   # [[skel, defDict], ...] 撮影直前にボーンスケール再適用
+		var px := -(defs.size() - 1) * 0.75
+		for d in defs:
+			var holder := Node3D.new()
+			proot.add_child(holder)
+			holder.position = Vector3(px, 0.0, 0.0)
+			var m: Node3D = packed.instantiate()
+			holder.add_child(m)
+			m.scale = Vector3.ONE * 0.052
+			m.position = Vector3(0.0, 0.0, 0.0)
+			m.rotation.y = PI   # 顔をカメラ(-Z前方)へ向ける
+			var ap: AnimationPlayer = m.find_child("AnimationPlayer", true, false)
+			if ap != null and ap.has_animation("Idle"):
+				ap.play("Idle")
+			var skel: Skeleton3D = m.find_child("Skeleton3D", true, false)
+			_pattern_tint(m, d["col"], d["lit"])
+			pending.append([skel, d])
+			var lbl := Label3D.new()
+			lbl.text = d["n"]
+			lbl.position = Vector3(px, 1.75, 0.0)
+			lbl.pixel_size = 0.005
+			lbl.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+			proot.add_child(lbl)
+			px += 1.5
+		var lightp := DirectionalLight3D.new()
+		lightp.rotation = Vector3(deg_to_rad(-40.0), deg_to_rad(20.0), 0.0)
+		proot.add_child(lightp)
+		var pcam := Camera3D.new()
+		add_child(pcam)
+		pcam.global_position = Vector3(0.0, 1.5, -46.5)   # 行の手前(-Z)から顔を見る
+		pcam.look_at(Vector3(0.0, 1.0, -40.0), Vector3.UP)
+		pcam.fov = 52.0
+		pcam.current = true
+		await get_tree().create_timer(0.8).timeout
+		for pr in pending:      # アニメ適用後にボーンスケールを効かせる
+			_pattern_bones(pr[0], pr[1])
+		await RenderingServer.frame_post_draw
+		_pattern_bones_all(pending)
+		await RenderingServer.frame_post_draw
+		get_viewport().get_texture().get_image().save_png("/tmp/shot_patterns.png")
 	get_tree().quit()
+
+
+func _pattern_tint(root: Node, col: Color, lit: float) -> void:
+	for n in root.find_children("*", "MeshInstance3D", true, false):
+		var mi := n as MeshInstance3D
+		var cnt := mi.mesh.get_surface_count() if mi.mesh != null else 0
+		for s in cnt:
+			var base := mi.get_active_material(s)
+			if base == null:
+				continue
+			var mm := base.duplicate() as BaseMaterial3D
+			if mm == null:
+				continue
+			mm.albedo_color = mm.albedo_color.lerp(col, 0.25).lightened(lit)
+			mi.set_surface_override_material(s, mm)
+
+
+func _pattern_bones(skel: Skeleton3D, d: Dictionary) -> void:
+	if skel == null:
+		return
+	_set_bone(skel, "mixamorig_Head", Vector3.ONE * float(d["head"]))
+	for b in ["mixamorig_LeftHand", "mixamorig_RightHand"]:
+		_set_bone(skel, b, Vector3.ONE * float(d["hand"]))
+	for b in ["mixamorig_LeftFoot", "mixamorig_RightFoot"]:
+		_set_bone(skel, b, Vector3.ONE * float(d["foot"]))
+	# 体の丸みは1ボーン(Spine1)だけ（3つに掛けると指数的に膨張して壊れる）
+	_set_bone(skel, "mixamorig_Spine1", Vector3(float(d["body"]), 1.0, float(d["body"])))
+	# 脚の短さは太もも(UpLeg)だけ
+	for b in ["mixamorig_LeftUpLeg", "mixamorig_RightUpLeg"]:
+		_set_bone(skel, b, Vector3(1.0, float(d["leg"]), 1.0))
+
+
+func _pattern_bones_all(pending: Array) -> void:
+	for pr in pending:
+		_pattern_bones(pr[0], pr[1])
+
+
+func _set_bone(skel: Skeleton3D, bone_name: String, s: Vector3) -> void:
+	var idx := skel.find_bone(bone_name)
+	if idx >= 0:
+		skel.set_bone_pose_scale(idx, s)
