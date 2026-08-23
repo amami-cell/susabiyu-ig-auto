@@ -35,6 +35,18 @@
   #splash .t { font-family: -apple-system, BlinkMacSystemFont, "Hiragino Mincho ProN", "Zen Old Mincho", serif;
     font-size: 22px; font-weight: 700; color: #1c1a16; letter-spacing: .08em; }
   #splash .s { font-size: 12px; color: #6b655a; }
+  /* 通知オンの案内バー（初回のみ・ログイン済みのとき） */
+  #pushbar {
+    position: fixed; left: 50%; transform: translateX(-50%);
+    bottom: calc(env(safe-area-inset-bottom, 0px) + 78px); z-index: 3;
+    display: none; align-items: center; gap: 8px;
+    background: #1c1a16; color: #f4efe6; padding: 9px 10px 9px 15px;
+    border-radius: 999px; box-shadow: 0 12px 28px -8px rgba(0,0,0,.5);
+    font-size: 13px; max-width: 92vw; white-space: nowrap;
+  }
+  #pushbar button { font: inherit; border: 0; border-radius: 999px; cursor: pointer; }
+  #pushbar .on { background: #3f7d4f; color: #fff; padding: 7px 14px; font-weight: 700; }
+  #pushbar .x { background: transparent; color: #cfc8ba; padding: 4px 7px; font-size: 16px; line-height: 1; }
 </style>
 </head>
 <body>
@@ -46,6 +58,11 @@
 <iframe id="app"
   allow="clipboard-write; fullscreen"
   referrerpolicy="no-referrer-when-downgrade"></iframe>
+<div id="pushbar">
+  <span>🔔 棚卸の通知を受け取る</span>
+  <button class="on" type="button">オンにする</button>
+  <button class="x" type="button" aria-label="閉じる">×</button>
+</div>
 <script>
   (function () {
     var URL = 'https://script.google.com/macros/s/AKfycbyvVFWDpXDnjDP9r7PvzlCYSycCcKtDe6fpd_lykXywETy51Y-s3kF1YoryDmpnn3621Q/exec';
@@ -88,6 +105,49 @@
         navigator.serviceWorker.register('./sw.js').catch(function () {});
       });
     }
+
+    // ── プッシュ通知の購読（この入口ページ＝ファーストパーティで行う）─────────
+    // GAS本体はiframe（別オリジン）でSW/Pushを持てないため、購読はこの入口ページで実施し、
+    // 購読情報を /exec へ POST(no-cors) して「通知購読」シートに保存する。配信はサーバ側。
+    var VAPID_PUBLIC = 'BLVsj54hjtcCedqf7MXBZO2wgyr1a27SDt0oc6mTmlikp8jcKtQCa_URZ17qBIcUSuZksT2CbQX_K57yJYS1FME';
+    function urlB64ToUint8(s) {
+      var pad = '='.repeat((4 - s.length % 4) % 4);
+      var b = (s + pad).replace(/-/g, '+').replace(/_/g, '/');
+      var raw = atob(b); var arr = new Uint8Array(raw.length);
+      for (var i = 0; i < raw.length; i++) arr[i] = raw.charCodeAt(i);
+      return arr;
+    }
+    function postSub(payload) { try { fetch(URL, { method: 'POST', mode: 'no-cors', headers: { 'Content-Type': 'text/plain' }, body: JSON.stringify(payload) }); } catch (e) {} }
+    function subscribePush() {
+      return navigator.serviceWorker.ready.then(function (reg) {
+        return Notification.requestPermission().then(function (perm) {
+          if (perm !== 'granted') return false;
+          return reg.pushManager.getSubscription().then(function (sub) {
+            if (sub) return sub;
+            return reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: urlB64ToUint8(VAPID_PUBLIC) });
+          }).then(function (sub) {
+            postSub({ action: 'subscribe', p: savedPass(), sub: sub.toJSON() });
+            return true;
+          });
+        });
+      }).catch(function () { return false; });
+    }
+    function pushEligible() {
+      return ('serviceWorker' in navigator) && ('PushManager' in window) && ('Notification' in window) && !!savedPass();
+    }
+    function maybeShowPushBar() {
+      if (!pushEligible()) return;
+      if (Notification.permission === 'granted') { subscribePush(); return; }   // 既許可なら購読を再同期
+      if (Notification.permission === 'denied') return;
+      var dismissed = false; try { dismissed = localStorage.getItem('tana_push_dismiss') === '1'; } catch (e) {}
+      if (dismissed) return;
+      var bar = document.getElementById('pushbar');
+      bar.querySelector('.on').onclick = function () { subscribePush().then(function () { bar.style.display = 'none'; }); };
+      bar.querySelector('.x').onclick = function () { try { localStorage.setItem('tana_push_dismiss', '1'); } catch (e) {} bar.style.display = 'none'; };
+      bar.style.display = 'flex';
+    }
+    // ログイン済み（パスコード保存済み）のとき、スプラッシュが消えた後に案内。
+    setTimeout(maybeShowPushBar, 3500);
   })();
 </script>
 </body>
