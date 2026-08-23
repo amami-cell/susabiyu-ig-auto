@@ -394,7 +394,159 @@ func _run_shot() -> void:
 		_pattern_bones_all(pending)
 		await RenderingServer.frame_post_draw
 		get_viewport().get_texture().get_image().save_png("/tmp/shot_patterns.png")
+	# --faces：同じチビ体型に“顔パターン”6種を乗せて撮る（目・口・ほっぺの表情ちがい）
+	if OS.get_cmdline_user_args().has("--faces") and ResourceLoader.exists("res://assets/human_base.glb"):
+		var styles := ["まる目", "キラキラ", "ジト目", "にっこり^^", "たれ目", "点目まめ"]
+		var froot := Node3D.new()
+		add_child(froot)
+		froot.global_position = Vector3(0.0, 0.0, -40.0)
+		var fpacked: PackedScene = load("res://assets/human_base.glb")
+		var body := {"head": 2.3, "hand": 1.3, "foot": 1.3, "body": 1.05, "leg": 0.95}
+		var faces_pending: Array = []   # [holder, skel, style]
+		var fx := -(styles.size() - 1) * 0.75
+		for st in styles:
+			var holder := Node3D.new()
+			froot.add_child(holder)
+			holder.position = Vector3(fx, 0.0, 0.0)
+			var m: Node3D = fpacked.instantiate()
+			holder.add_child(m)
+			m.scale = Vector3.ONE * 0.052
+			m.rotation.y = PI
+			var ap: AnimationPlayer = m.find_child("AnimationPlayer", true, false)
+			if ap != null and ap.has_animation("Idle"):
+				ap.play("Idle")
+			var skel: Skeleton3D = m.find_child("Skeleton3D", true, false)
+			var lbl := Label3D.new()
+			lbl.text = st
+			lbl.position = Vector3(fx, 1.7, 0.0)
+			lbl.pixel_size = 0.004
+			lbl.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+			froot.add_child(lbl)
+			faces_pending.append([holder, skel, st])
+			fx += 1.5
+		var flight := DirectionalLight3D.new()
+		flight.rotation = Vector3(deg_to_rad(-35.0), deg_to_rad(15.0), 0.0)
+		froot.add_child(flight)
+		var fcam2 := Camera3D.new()
+		add_child(fcam2)
+		fcam2.global_position = Vector3(0.0, 1.15, -45.4)
+		fcam2.look_at(Vector3(0.0, 1.05, -40.0), Vector3.UP)
+		fcam2.fov = 44.0
+		fcam2.current = true
+		await get_tree().create_timer(0.8).timeout
+		for fp in faces_pending:
+			_pattern_bones(fp[1], body)               # チビ体型を適用
+		await RenderingServer.frame_post_draw
+		for fp in faces_pending:
+			_pattern_bones(fp[1], body)
+			_build_overlay_face(fp[0], fp[1], fp[2])  # 頭の位置に顔パーツを乗せる
+		await RenderingServer.frame_post_draw
+		get_viewport().get_texture().get_image().save_png("/tmp/shot_faces.png")
 	get_tree().quit()
+
+
+## モデルの頭ボーン位置に、アニメ顔（目・口・ほっぺ）を world 空間で乗せる。style で表情を変える。
+func _build_overlay_face(holder: Node3D, skel: Skeleton3D, style: String) -> void:
+	if skel == null:
+		return
+	var hidx := skel.find_bone("mixamorig_Head")
+	if hidx < 0:
+		return
+	var ht: Transform3D = skel.global_transform * skel.get_bone_global_pose(hidx)
+	# holder は回転・スケールなしの平行移動のみ＝world→local は引き算でよい
+	var ho: Vector3 = ht.origin - holder.global_position
+	# 顔は -Z 側（カメラ向き）。頭の基準点から少し上・前へ。
+	var fwd := Vector3(0, 0, -1)
+	var up := Vector3(0, 1, 0)
+	var right := Vector3(1, 0, 0)
+	var eye_c := ho + up * 0.30 + fwd * 0.215         # 目の高さ・前面（頭ボーンは首元なので高めに）
+	var mouth_c := ho + up * 0.15 + fwd * 0.215
+	var cheek_c := ho + up * 0.19 + fwd * 0.2
+
+	# ほっぺ（共通・ピンク）
+	for sx in [-1.0, 1.0]:
+		_wball(holder, Color(1.0, 0.55, 0.6), 0.05, cheek_c + right * (0.13 * sx), Vector3(1.2, 0.9, 0.5), 0.15)
+
+	match style:
+		"まる目":
+			for sx in [-1.0, 1.0]:
+				var e := _wball(holder, Color(0.97, 0.97, 0.97), 0.07, eye_c + right * (0.1 * sx), Vector3(1.0, 1.2, 0.4), 0.0)
+				_wball(e, Color(0.08, 0.06, 0.07), 0.05, fwd * 0.02, Vector3(1, 1, 1), 0.0)
+				_wball(e, Color(1, 1, 1), 0.018, fwd * 0.05 + up * 0.02 + right * 0.02, Vector3.ONE, 0.6)
+			_smile(holder, mouth_c, right, up, fwd, 0.09)
+		"キラキラ":
+			for sx in [-1.0, 1.0]:
+				var e2 := _wball(holder, Color(0.98, 0.98, 1.0), 0.085, eye_c + right * (0.1 * sx), Vector3(1.0, 1.25, 0.4), 0.0)
+				_wball(e2, Color(0.15, 0.1, 0.25), 0.06, fwd * 0.02, Vector3.ONE, 0.0)
+				_wball(e2, Color(1, 1, 1), 0.032, fwd * 0.05 + up * 0.025, Vector3.ONE, 0.7)
+				_wball(e2, Color(1, 1, 1), 0.016, fwd * 0.05 - up * 0.03, Vector3.ONE, 0.7)
+			_smile(holder, mouth_c, right, up, fwd, 0.1)
+		"ジト目":
+			for sx in [-1.0, 1.0]:
+				_wbox(holder, Color(0.1, 0.08, 0.09), Vector3(0.11, 0.03, 0.02), eye_c + right * (0.1 * sx), fwd)
+			_wbox(holder, Color(0.5, 0.25, 0.25), Vector3(0.08, 0.02, 0.02), mouth_c, fwd)
+		"にっこり^^":
+			for sx in [-1.0, 1.0]:
+				# ^ 形＝2本の傾いた短い線
+				_wbox(holder, Color(0.1, 0.08, 0.09), Vector3(0.07, 0.025, 0.02), eye_c + right * (0.1 * sx) + right * 0.03, fwd, 0.6 * sx)
+				_wbox(holder, Color(0.1, 0.08, 0.09), Vector3(0.07, 0.025, 0.02), eye_c + right * (0.1 * sx) - right * 0.03, fwd, -0.6 * sx)
+			_smile(holder, mouth_c, right, up, fwd, 0.11)
+		"たれ目":
+			for sx in [-1.0, 1.0]:
+				var e3 := _wball(holder, Color(0.97, 0.97, 0.97), 0.075, eye_c + right * (0.11 * sx) - up * 0.01, Vector3(1.2, 1.0, 0.4), 0.0)
+				e3.rotation.z = 0.4 * sx
+				_wball(e3, Color(0.08, 0.06, 0.07), 0.05, fwd * 0.02 - up * 0.02, Vector3.ONE, 0.0)
+				_wball(e3, Color(1, 1, 1), 0.02, fwd * 0.05 + up * 0.01, Vector3.ONE, 0.6)
+			_smile(holder, mouth_c, right, up, fwd, 0.1)
+		"点目まめ":
+			for sx in [-1.0, 1.0]:
+				_wball(holder, Color(0.1, 0.08, 0.09), 0.035, eye_c + right * (0.09 * sx), Vector3.ONE, 0.0)
+			for sx in [-1.0, 1.0]:
+				_wball(holder, Color(1.0, 0.5, 0.55), 0.07, cheek_c + right * (0.14 * sx), Vector3(1.2, 1.0, 0.5), 0.2)
+			_wball(holder, Color(0.5, 0.25, 0.25), 0.022, mouth_c, Vector3(1.6, 1.0, 1.0), 0.0)
+
+
+## にっこりの口（口角を上げた小さな弧＝3つの点）
+func _smile(holder: Node3D, c: Vector3, right: Vector3, up: Vector3, fwd: Vector3, w: float) -> void:
+	var col := Color(0.55, 0.25, 0.28)
+	_wball(holder, col, 0.02, c, Vector3(2.2, 0.7, 0.6), 0.0)
+	_wball(holder, col, 0.016, c + right * (w * 0.5) + up * 0.02, Vector3.ONE, 0.0)
+	_wball(holder, col, 0.016, c - right * (w * 0.5) + up * 0.02, Vector3.ONE, 0.0)
+
+
+func _wball(parent: Node3D, col: Color, r: float, pos: Vector3, sc: Vector3 = Vector3.ONE, emit: float = 0.0) -> MeshInstance3D:
+	var mi := MeshInstance3D.new()
+	var sm := SphereMesh.new()
+	sm.radius = r
+	sm.height = r * 2.0
+	mi.mesh = sm
+	var mat := StandardMaterial3D.new()
+	mat.albedo_color = col
+	mat.roughness = 0.6
+	if emit > 0.0:
+		mat.emission_enabled = true
+		mat.emission = Color(1, 1, 1)
+		mat.emission_energy_multiplier = emit
+	mi.material_override = mat
+	mi.position = pos
+	mi.scale = sc
+	parent.add_child(mi)
+	return mi
+
+
+func _wbox(parent: Node3D, col: Color, size: Vector3, pos: Vector3, _fwd: Vector3, roll: float = 0.0) -> MeshInstance3D:
+	var mi := MeshInstance3D.new()
+	var bm := BoxMesh.new()
+	bm.size = size
+	mi.mesh = bm
+	var mat := StandardMaterial3D.new()
+	mat.albedo_color = col
+	mat.roughness = 0.6
+	mi.material_override = mat
+	mi.position = pos
+	mi.rotation.z = roll
+	parent.add_child(mi)
+	return mi
 
 
 func _pattern_tint(root: Node, col: Color, lit: float) -> void:
