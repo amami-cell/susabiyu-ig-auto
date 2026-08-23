@@ -102,22 +102,20 @@ static func decorate(body: MeshInstance3D, color: Color, with_weapon: bool = fal
 	hm.radius = head_r
 	hm.height = head_r * 2.0
 	head.mesh = hm
-	head.material_override = _clay(SKIN)
+	head.material_override = _skin_mat(SKIN)
 	head.position = Vector3(0.0, half * HEAD_Y, 0.0)
 	head.scale = Vector3(0.96, 1.06, 0.98)
 	body.add_child(head)
 
-	# 耳（左右）
+	# あご（丸い頭を崩して人らしい輪郭に）
+	_ball(head, SKIN, head_r * 0.34, Vector3(0.0, -head_r * 0.62, head_r * 0.52),
+		Vector3(0.95, 0.7, 0.72), _skin_mat(SKIN))
+
+	# 耳（左右・内側の影つき）
 	for sx in [-1.0, 1.0]:
-		var ear := MeshInstance3D.new()
-		var erm := SphereMesh.new()
-		erm.radius = head_r * 0.22
-		erm.height = head_r * 0.44
-		ear.mesh = erm
-		ear.material_override = _clay(SKIN)
-		ear.scale = Vector3(0.6, 1.0, 0.8)
-		ear.position = Vector3(head_r * 0.97 * sx, head_r * 0.0, -head_r * 0.05)
-		head.add_child(ear)
+		var ear := _ball(head, SKIN, head_r * 0.22, Vector3(head_r * 0.97 * sx, 0.0, -head_r * 0.05),
+			Vector3(0.6, 1.0, 0.8), _skin_mat(SKIN))
+		_ball(ear, SKIN.darkened(0.18), head_r * 0.12, Vector3(head_r * 0.06 * sx, 0.0, head_r * 0.14))
 
 	# 首
 	var neck := MeshInstance3D.new()
@@ -126,7 +124,7 @@ static func decorate(body: MeshInstance3D, color: Color, with_weapon: bool = fal
 	ncm.bottom_radius = br * 0.24
 	ncm.height = half * 0.18
 	neck.mesh = ncm
-	neck.material_override = _clay(SKIN.darkened(0.05))
+	neck.material_override = _skin_mat(SKIN.darkened(0.05))
 	neck.position = Vector3(0.0, half * (HEAD_Y - 0.18), 0.0)
 	body.add_child(neck)
 
@@ -198,13 +196,13 @@ static func _hair_color(char_name: String, role: String) -> Color:
 
 # ---- パーツ生成ヘルパ（すべてクレイ質感）----
 
-static func _cap(parent: Node3D, c: Color, radius: float, height: float, pos: Vector3, sc: Vector3 = Vector3.ONE) -> MeshInstance3D:
+static func _cap(parent: Node3D, c: Color, radius: float, height: float, pos: Vector3, sc: Vector3 = Vector3.ONE, mat: StandardMaterial3D = null) -> MeshInstance3D:
 	var mi := MeshInstance3D.new()
 	var m := CapsuleMesh.new()
 	m.radius = radius
 	m.height = height
 	mi.mesh = m
-	mi.material_override = _clay(c)
+	mi.material_override = mat if mat != null else _clay(c)
 	mi.position = pos
 	mi.scale = sc
 	parent.add_child(mi)
@@ -224,17 +222,55 @@ static func _ring(parent: Node3D, c: Color, inner: float, outer: float, pos: Vec
 	return mi
 
 
-static func _ball(parent: Node3D, c: Color, r: float, pos: Vector3, sc: Vector3 = Vector3.ONE) -> MeshInstance3D:
+static func _ball(parent: Node3D, c: Color, r: float, pos: Vector3, sc: Vector3 = Vector3.ONE, mat: StandardMaterial3D = null) -> MeshInstance3D:
 	var mi := MeshInstance3D.new()
 	var sm := SphereMesh.new()
 	sm.radius = r
 	sm.height = r * 2.0
 	mi.mesh = sm
-	mi.material_override = _clay(c)
+	mi.material_override = mat if mat != null else _clay(c)
 	mi.position = pos
 	mi.scale = sc
 	parent.add_child(mi)
 	return mi
+
+
+## 肌：表面下散乱(SSS)でやわらかく光が回り込む本物っぽい肌質感（Forward+/Mobileで有効）。
+static func _skin_mat(c: Color) -> StandardMaterial3D:
+	var m := StandardMaterial3D.new()
+	m.albedo_color = c
+	m.roughness = 0.5
+	m.metallic_specular = 0.42
+	m.subsurf_scatter_enabled = true
+	m.subsurf_scatter_strength = 0.38
+	m.rim_enabled = true
+	m.rim = 0.3
+	m.rim_tint = 0.4
+	return m
+
+
+## 濡れた質感（目・くちびる）：クリアコートの照り＋低ラフネス。
+static func _wet_mat(c: Color, rough: float) -> StandardMaterial3D:
+	var m := StandardMaterial3D.new()
+	m.albedo_color = c
+	m.roughness = rough
+	m.metallic_specular = 0.6
+	m.clearcoat_enabled = true
+	m.clearcoat = 0.9
+	m.clearcoat_roughness = 0.04
+	return m
+
+
+## 髪：絹の照り（シーン）＋適度なラフネス。
+static func _hair_mat(c: Color) -> StandardMaterial3D:
+	var m := StandardMaterial3D.new()
+	m.albedo_color = c
+	m.roughness = 0.48
+	m.metallic_specular = 0.45
+	m.rim_enabled = true
+	m.rim = 0.5
+	m.rim_tint = 0.2
+	return m
 
 
 ## 顔（髪＋眉＋リアルな目＋鼻筋/小鼻＋上下くちびる）。hr=頭の半径。
@@ -254,50 +290,65 @@ static func _build_face(head: MeshInstance3D, hr: float, hair_col: Color, eye_co
 		brow.rotation.z = -0.12 * sx
 		head.add_child(brow)
 
-	# 目（白目＋虹彩＋瞳孔＋ハイライト＋上まぶた）。まばたきは目の根＝白目をつぶす。
-	var eye_r := hr * (0.2 if adult else 0.23)
+	# 目（白目＋虹彩＋瞳孔＋二重キャッチライト＋まつげ＋上下まぶた）。少し小さめ＝大人っぽい。
+	# まばたきは目の根＝白目をつぶす（子ノードごと閉じる）。
+	var eye_r := hr * (0.17 if adult else 0.2)
+	var skin_face := _skin_mat(SKIN)
 	for sx in [-1.0, 1.0]:
-		var eye := _ball(head, Color(0.96, 0.95, 0.94), eye_r,
-			Vector3(hr * 0.4 * sx, hr * 0.12, hr * 0.82), Vector3(1.05, 0.82, 0.55))
+		var eye := _ball(head, Color(0.95, 0.94, 0.93), eye_r,
+			Vector3(hr * 0.4 * sx, hr * 0.12, hr * 0.82), Vector3(1.12, 0.72, 0.5),
+			_wet_mat(Color(0.95, 0.94, 0.93), 0.16))
 		eye.name = "Eye%s" % ("L" if sx < 0 else "R")
 		_face_eyes.append(eye)
-		# 虹彩（目の色）
-		var iris := _ball(eye, eye_col, eye_r * 0.6, Vector3(0.0, 0.0, eye_r * 0.6), Vector3(1.0, 1.2, 0.7))
+		# 虹彩（濡れた質感・目の色）
+		var iris := _ball(eye, eye_col, eye_r * 0.66, Vector3(0.0, 0.0, eye_r * 0.55),
+			Vector3(1.0, 1.1, 0.7), _wet_mat(eye_col, 0.12))
 		# 瞳孔
-		_ball(iris, Color(0.05, 0.05, 0.06), eye_r * 0.34, Vector3(0.0, 0.0, eye_r * 0.5))
-		# ハイライト（発光ぎみの白）
-		var hi := _ball(eye, Color(1, 1, 1), eye_r * 0.2, Vector3(eye_r * 0.34, eye_r * 0.4, eye_r * 0.62))
+		_ball(iris, Color(0.04, 0.04, 0.05), eye_r * 0.42, Vector3(0.0, 0.0, eye_r * 0.5))
+		# キャッチライト（大＋小）＝生きた目
+		var hi := _ball(eye, Color(1, 1, 1), eye_r * 0.22, Vector3(eye_r * 0.32, eye_r * 0.42, eye_r * 0.62))
 		var him := hi.material_override as StandardMaterial3D
 		him.emission_enabled = true
 		him.emission = Color(1, 1, 1)
-		him.emission_energy_multiplier = 0.5
-		# 上まぶた（肌色でうっすら被せる＝眠そうにならない程度）
-		var lid := _ball(eye, SKIN, eye_r * 1.02, Vector3(0.0, eye_r * 0.62, -eye_r * 0.05), Vector3(1.12, 0.7, 0.7))
-		lid.name = "Lid"
+		him.emission_energy_multiplier = 0.7
+		_ball(eye, Color(0.9, 0.95, 1.0), eye_r * 0.1, Vector3(-eye_r * 0.28, -eye_r * 0.22, eye_r * 0.6))
+		# まつげ（上ふち・こげ茶）＝目の子＝まばたきで一緒に閉じる
+		_ball(eye, Color(0.09, 0.06, 0.06), eye_r * 0.9, Vector3(0.0, eye_r * 0.5, eye_r * 0.32), Vector3(1.35, 0.16, 0.6))
+		# 上まぶた（肌）
+		_ball(eye, SKIN, eye_r * 1.05, Vector3(0.0, eye_r * 0.66, -eye_r * 0.05), Vector3(1.15, 0.62, 0.72), skin_face)
+		# 下まぶたのふくらみ（涙袋）
+		_ball(head, SKIN.darkened(0.03), eye_r * 0.5, Vector3(hr * 0.4 * sx, hr * 0.02, hr * 0.86),
+			Vector3(2.0, 0.5, 0.6), _skin_mat(SKIN.darkened(0.03)))
 
-	# ほっぺ
-	var cheek_mat := _clay(Color(1.0, 0.64, 0.62))
+	# ほっぺ（控えめ）
 	for sx in [-1.0, 1.0]:
 		var cheek := MeshInstance3D.new()
 		var cm := SphereMesh.new()
-		cm.radius = hr * 0.15
-		cm.height = hr * 0.16
+		cm.radius = hr * 0.13
+		cm.height = hr * 0.14
 		cheek.mesh = cm
-		cheek.material_override = cheek_mat
-		cheek.position = Vector3(hr * 0.56 * sx, -hr * 0.14, hr * 0.8)
+		var chm := _skin_mat(Color(0.98, 0.66, 0.62))
+		chm.subsurf_scatter_strength = 0.5
+		cheek.material_override = chm
+		cheek.position = Vector3(hr * 0.58 * sx, -hr * 0.14, hr * 0.78)
 		head.add_child(cheek)
 
-	# 鼻（鼻筋＋丸い先＋小鼻の穴）
-	_ball(head, SKIN.darkened(0.02), hr * 0.08, Vector3(0.0, hr * 0.02, hr * 0.94), Vector3(0.55, 1.5, 0.8))
-	_ball(head, SKIN.darkened(0.04), hr * 0.1, Vector3(0.0, -hr * 0.12, hr * 0.99), Vector3(1.0, 0.85, 0.9))
+	# 鼻（鼻筋＋丸い先＋小鼻＋穴）＝肌質感
+	_ball(head, SKIN, hr * 0.08, Vector3(0.0, hr * 0.02, hr * 0.94), Vector3(0.55, 1.6, 0.8), _skin_mat(SKIN))
+	_ball(head, SKIN, hr * 0.1, Vector3(0.0, -hr * 0.12, hr * 0.99), Vector3(1.0, 0.85, 0.9), _skin_mat(SKIN))
 	for sx in [-1.0, 1.0]:
-		_ball(head, Color(0.45, 0.32, 0.28), hr * 0.028, Vector3(hr * 0.07 * sx, -hr * 0.16, hr * 1.0))
+		_ball(head, SKIN.darkened(0.06), hr * 0.06, Vector3(hr * 0.1 * sx, -hr * 0.14, hr * 0.95),
+			Vector3(0.8, 0.9, 0.9), _skin_mat(SKIN.darkened(0.06)))       # 小鼻
+		_ball(head, Color(0.42, 0.3, 0.27), hr * 0.026, Vector3(hr * 0.07 * sx, -hr * 0.17, hr * 1.0))  # 穴
 
-	# 口（上下のくちびる＋口角を少し上げてにっこり）
-	_ball(head, Color(0.82, 0.42, 0.42), hr * 0.12, Vector3(0.0, -hr * 0.34, hr * 0.9), Vector3(1.5, 0.28, 0.5))
-	_ball(head, Color(0.88, 0.5, 0.5), hr * 0.13, Vector3(0.0, -hr * 0.4, hr * 0.9), Vector3(1.55, 0.36, 0.55))
+	# 口（上下くちびる＝濡れた質感＋口角上げ＋口の線）
+	_ball(head, Color(0.4, 0.2, 0.2), hr * 0.09, Vector3(0.0, -hr * 0.35, hr * 0.93), Vector3(1.6, 0.08, 0.3))  # 口の線
+	_ball(head, Color(0.76, 0.4, 0.4), hr * 0.1, Vector3(0.0, -hr * 0.32, hr * 0.9), Vector3(1.4, 0.24, 0.5),
+		_wet_mat(Color(0.76, 0.4, 0.4), 0.35))
+	_ball(head, Color(0.85, 0.5, 0.48), hr * 0.12, Vector3(0.0, -hr * 0.39, hr * 0.9), Vector3(1.5, 0.32, 0.55),
+		_wet_mat(Color(0.85, 0.5, 0.48), 0.35))
 	for sx in [-1.0, 1.0]:
-		_ball(head, Color(0.82, 0.42, 0.42), hr * 0.05, Vector3(hr * 0.2 * sx, -hr * 0.33, hr * 0.91))
+		_ball(head, Color(0.7, 0.36, 0.36), hr * 0.045, Vector3(hr * 0.2 * sx, -hr * 0.33, hr * 0.91))
 
 	# あごひげ（お年寄り）／無精ひげ（大人男性）
 	if style == "elder":
@@ -314,7 +365,7 @@ static func _build_hair(head: MeshInstance3D, hr: float, hair_col: Color, style:
 	capm.radius = hr * 1.0
 	capm.height = hr * 2.0
 	cap.mesh = capm
-	cap.material_override = _clay(hair_col)
+	cap.material_override = _hair_mat(hair_col)
 	if style == "sprout":
 		cap.scale = Vector3(1.02, 0.62, 1.02)
 		cap.position = Vector3(0.0, hr * 0.44, -hr * 0.06)
@@ -330,7 +381,7 @@ static func _build_hair(head: MeshInstance3D, hr: float, hair_col: Color, style:
 			bm.radius = hr * 0.26
 			bm.height = hr * 0.52
 			bang.mesh = bm
-			bang.material_override = _clay(hair_col)
+			bang.material_override = _hair_mat(hair_col)
 			bang.scale = Vector3(0.9, 0.7, 0.6)
 			bang.position = Vector3(hr * (0.4 * (i - 1)), hr * 0.52, hr * 0.64)
 			head.add_child(bang)
@@ -345,7 +396,7 @@ static func _build_hair(head: MeshInstance3D, hr: float, hair_col: Color, style:
 				spm.height = hr * 0.42
 				spm.radial_segments = 6
 				sp.mesh = spm
-				sp.material_override = _clay(hair_col)
+				sp.material_override = _hair_mat(hair_col)
 				var ang := -0.6 + 0.3 * i
 				sp.position = Vector3(hr * 0.5 * ang, hr * 0.95, -hr * 0.05 + hr * 0.1 * (i % 2))
 				sp.rotation = Vector3(0.2, 0.0, ang * 0.5)
@@ -357,7 +408,7 @@ static func _build_hair(head: MeshInstance3D, hr: float, hair_col: Color, style:
 				sm.radius = hr * 0.26
 				sm.height = hr * 1.3
 				side.mesh = sm
-				side.material_override = _clay(hair_col)
+				side.material_override = _hair_mat(hair_col)
 				side.scale = Vector3(0.7, 1.0, 0.7)
 				side.position = Vector3(hr * 0.9 * sx, -hr * 0.05, -hr * 0.16)
 				head.add_child(side)
@@ -368,7 +419,7 @@ static func _build_hair(head: MeshInstance3D, hr: float, hair_col: Color, style:
 				bm.radius = hr * 0.3
 				bm.height = hr * 0.6
 				bun.mesh = bm
-				bun.material_override = _clay(hair_col)
+				bun.material_override = _hair_mat(hair_col)
 				bun.position = Vector3(hr * 1.0 * sx, hr * 0.22, -hr * 0.08)
 				head.add_child(bun)
 		"sprout":
@@ -417,13 +468,13 @@ static func _make_arm(body: MeshInstance3D, color: Color, br: float, half: float
 	lean.add_child(elbow)
 
 	_cap(elbow, SKIN, br * 0.16, half * FOREARM_H,
-		Vector3(0.0, half * FOREARM_H * -0.5, 0.0))
+		Vector3(0.0, half * FOREARM_H * -0.5, 0.0), Vector3.ONE, _skin_mat(SKIN))
 
 	var hand := Node3D.new()
 	hand.name = "Hand"
 	hand.position = Vector3(0.0, half * -FOREARM_H, 0.0)
 	elbow.add_child(hand)
-	_ball(hand, SKIN.lightened(0.03), br * 0.18, Vector3.ZERO)
+	_ball(hand, SKIN.lightened(0.03), br * 0.18, Vector3.ZERO, Vector3.ONE, _skin_mat(SKIN.lightened(0.03)))
 	return pivot
 
 
@@ -435,7 +486,7 @@ static func _make_leg(body: MeshInstance3D, boots: Color, br: float, half: float
 	body.add_child(pivot)
 
 	_cap(pivot, SKIN, br * 0.22, half * THIGH_H,
-		Vector3(0.0, half * THIGH_H * -0.5, 0.0))
+		Vector3(0.0, half * THIGH_H * -0.5, 0.0), Vector3.ONE, _skin_mat(SKIN))
 
 	var knee := Node3D.new()
 	knee.name = "Knee"
