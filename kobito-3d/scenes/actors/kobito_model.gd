@@ -91,6 +91,12 @@ func _tint(root: Node, color: Color) -> void:
 			# 家族色は“ごく薄く”混ぜるだけ＝肌が緑っぽくならないように
 			m.albedo_color = m.albedo_color.lerp(color, 0.12)
 			m.roughness = maxf(m.roughness, 0.7)   # つや消し＝やわらか
+			# トゥーン（セル）シェーディング＝陰影が段階になる絵づくり（ジブリ/ディズニー寄り）
+			m.diffuse_mode = BaseMaterial3D.DIFFUSE_TOON
+			m.specular_mode = BaseMaterial3D.SPECULAR_TOON
+			m.rim_enabled = true
+			m.rim = 0.35
+			m.rim_tint = 0.3
 			mi.set_surface_override_material(s, m)
 
 
