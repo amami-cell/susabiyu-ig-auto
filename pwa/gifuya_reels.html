@@ -554,6 +554,18 @@
       .slice().sort(function(a,b){return String(a.when)<String(b.when)?-1:1;});
     return arr.slice(-n).map(function(s){return genreOf(s.name);});
   }
+  // 直近に投稿/予約した“品名”リスト（新しい順n件）。おすすめがグリッド(投稿済み)と被らないよう除外に使う。
+  function recentNames(kind,n){
+    var wantReel=(kind==="reel");
+    return SCHED.filter(function(s){ return ((s.kind||"feed")==="reel")===wantReel; })
+      .slice().sort(function(a,b){return String(a.when)>String(b.when)?-1:1;})
+      .slice(0,n||8).map(function(s){return s.name;});
+  }
+  // 直近投稿の品を除いた候補（少なすぎたら全商品にフォールバック＝おすすめが空にならない）
+  function freshPool(list,kind,n){
+    var rec=recentNames(kind,n); var f=list.filter(function(p){return rec.indexOf(p.t)<0;});
+    return f.length>=3?f:list;
+  }
   // おすすめn件：連続で同ジャンルにならないよう分散。reco優先（poolがreco先頭順）＋直近予約ジャンルを避ける。
   function pickRecos(pool,n,seedGenres){
     var picked=[],used={},lastG=(seedGenres&&seedGenres.length)?seedGenres[seedGenres.length-1]:null;
@@ -634,7 +646,7 @@
     var list = kind==="feed"?FEED:REEL;
     function renderList(){
       Array.prototype.slice.call(wrap.querySelectorAll(".seclabel,.card,.rmore")).forEach(function(x){x.remove();});
-      var recos=pickRecos(list,3,schedTailGenres(kind,2));
+      var recos=pickRecos(freshPool(list,kind,8),3,schedTailGenres(kind,2));   // 直近投稿の品は除外（グリッドと被らない）
       var lab=document.createElement("div"); lab.className="seclabel";
       lab.innerHTML=(kind==="feed"?"⭐ 次のおすすめ":"⭐ おすすめリール")+' <span class="cnt">'+recos.length+'件</span>';
       wrap.appendChild(lab);
@@ -808,7 +820,7 @@
       '<button class="rgo" id="nvGo" disabled>投稿を選んでください</button>';
     function drawPick(){
       var list=newResv.kind==="feed"?FEED:REEL;
-      var recos=pickRecos(list,3,schedTailGenres(newResv.kind,2));
+      var recos=pickRecos(freshPool(list,newResv.kind,8),3,schedTailGenres(newResv.kind,2));   // 直近投稿の品は除外
       var pool=newResv.all?list:recos;
       var el=body.querySelector("#nvPickWrap");
       var html='<div style="font-size:12px;font-weight:800;color:var(--gold);margin:6px 2px">'+(newResv.all?'全商品から選ぶ':'⭐ おすすめ（ジャンル分散）')+'</div><div class="rpick">';
