@@ -47,6 +47,8 @@ var _sync_accum := 0.0
 var _age := 0.0
 var _held_trash: Node3D = null
 var _base_color := Color.WHITE   # 被弾フラッシュから戻す元の色
+var _step_t := 0.0               # 足音の間隔タイマー
+var _was_airborne := false       # 前フレーム空中だったか（着地/ジャンプ音の判定）
 
 # 他人の小人を滑らかに寄せるための目標値
 var _net_pos := Vector3.ZERO
@@ -148,6 +150,22 @@ func _local_step(delta: float) -> void:
 		state = State.MOVE if dir.length_squared() > 0.001 else State.IDLE
 
 	move_and_slide()
+
+	# 足音・ジャンプ・着地の音（自分の小人だけ）
+	var grounded := is_on_floor()
+	var hspeed := Vector2(velocity.x, velocity.z).length()
+	if not grounded and not _was_airborne and velocity.y > 1.0:
+		Sfx.play("jump", -9.0)          # 地面を離れた瞬間＝跳んだ
+	elif grounded and _was_airborne:
+		Sfx.play("land", -12.0)         # 空中→着地
+	_was_airborne = not grounded
+	if grounded and hspeed > 1.0 and state != State.FLY:
+		_step_t -= delta
+		if _step_t <= 0.0:
+			_step_t = 0.34
+			Sfx.play("step", -22.0)
+	else:
+		_step_t = 0.0
 
 	if Input.is_action_just_pressed("act_attack"):
 		_try_attack()
@@ -305,12 +323,16 @@ func revive() -> void:
 @rpc("authority", "call_local", "reliable")
 func gain_xp(amount: int) -> void:
 	xp += amount
+	var leveled := false
 	while xp >= xp_to_next():
 		xp -= xp_to_next()
 		level += 1
 		max_hp += 8
 		attack_power += 2
 		hp = max_hp
+		leveled = true
+	if leveled:
+		Sfx.play("levelup", -3.0)
 	stats_changed.emit()
 
 
