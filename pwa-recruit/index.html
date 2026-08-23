@@ -81,6 +81,9 @@
 <script src="./config.js"></script>
 <script>
   var CFG = window.EMPOKE || {};
+  // 通知する店舗などの設定（ダッシュボードから postMessage で更新・端末に保存）
+  var lastPrefs = null;
+  try { lastPrefs = JSON.parse(localStorage.getItem('ep_notif_prefs') || 'null'); } catch(e) {}
   var frame = document.getElementById('frame');
   // 中に募集ダッシュボード(GAS /exec)を表示
   frame.src = CFG.GAS_EXEC_URL || 'about:blank';
@@ -137,8 +140,23 @@
         headers:{ 'Content-Type':'text/plain;charset=UTF-8' }, body: JSON.stringify(obj) });
     }catch(e){}
   }
-  function sendSub(sub){ post({ api:'subscribe', sub: JSON.stringify(sub), ep: sub.endpoint, ua: navigator.userAgent.slice(0,120) }); }
+  function sendSub(sub){ var o={ api:'subscribe', sub: JSON.stringify(sub), ep: sub.endpoint, ua: navigator.userAgent.slice(0,120) };
+    if(lastPrefs) o.prefs = JSON.stringify(lastPrefs); post(o); }
   function sendUnsub(sub){ post({ api:'unsubscribe', ep: sub.endpoint }); }
+
+  // ダッシュボード(iframe)から「通知する店舗」の選択を受け取り、購読のprefsを更新する
+  window.addEventListener('message', function(ev){
+    var d = ev.data; if(!d || d.type !== 'ep_notif_prefs') return;
+    if(String(ev.origin||'').indexOf('google') < 0) return;   // GAS(googleusercontent)由来のみ受理
+    var stores = d.stores || null;
+    lastPrefs = { recruit:1, stores: stores };
+    try { localStorage.setItem('ep_notif_prefs', JSON.stringify(lastPrefs)); } catch(e) {}
+    if(!pushSupported()) return;
+    navigator.serviceWorker.ready.then(function(reg){ return reg.pushManager.getSubscription(); })
+      .then(function(sub){ if(sub){ sendSub(sub); toast('通知する店舗を更新しました'); }
+        else { toast('先に🔔通知をオンにしてください'); } })
+      .catch(function(){});
+  });
 </script>
 </body>
 </html>
