@@ -58,7 +58,9 @@ func setup(body: MeshInstance3D, color: Color, _role: String = "child", _char_na
 		_add_cute_bone("mixamorig_LeftFoot", FOOT_SCALE)
 		_add_cute_bone("mixamorig_RightFoot", FOOT_SCALE)
 		_apply_cute()
-		# アニメ風の大きな目の貼り付けは廃止（ディズニー/ジブリ寄り＝モデル本来の顔を活かす）
+		# 控えめな表情リグ（眉＋口のフラットな線）を顔に置き、set_expression で切替できるように。
+		_build_expression()
+		set_expression("happy")
 
 	_ap = model.find_child("AnimationPlayer", true, false)
 	if _ap != null and _ap.has_animation("Idle"):
@@ -69,6 +71,108 @@ func _add_cute_bone(bone_name: String, s: float) -> void:
 	var idx := _skel.find_bone(bone_name)
 	if idx >= 0:
 		_cute_bones.append([idx, s])
+
+
+# ---- 表情管理（眉＋口のフラットな線を切替。トゥーンに馴染む控えめな表情）----
+
+var _brows: Array = []          # [brow_l, brow_r]
+var _mouth_mid: MeshInstance3D = null
+var _mouth_l: MeshInstance3D = null
+var _mouth_r: MeshInstance3D = null
+var _mouth_o: MeshInstance3D = null
+var _eye_c := Vector3.ZERO      # 目の高さ（表情の基準）
+var _expression := "happy"
+
+
+func _build_expression() -> void:
+	var hidx := _skel.find_bone("mixamorig_Head")
+	if hidx < 0:
+		return
+	var hc: Vector3 = to_local((_skel.global_transform * _skel.get_bone_global_pose(hidx)).origin)
+	_eye_c = hc + Vector3(0.0, 0.19, -0.14)
+	var brow_y := hc + Vector3(0.0, 0.24, -0.14)
+	var mouth_c := hc + Vector3(0.0, 0.06, -0.15)
+	# 眉（細い暗い線）
+	for sx in [-1.0, 1.0]:
+		var b := _mk_box(Vector3(0.09, 0.018, 0.02), brow_y + Vector3(0.075 * sx, 0, 0))
+		_brows.append(b)
+	# 口（中央の線＋左右の口角＋おどろき用のまる）
+	_mouth_mid = _mk_box(Vector3(0.1, 0.02, 0.02), mouth_c)
+	_mouth_l = _mk_box(Vector3(0.03, 0.02, 0.02), mouth_c + Vector3(-0.06, 0.02, 0))
+	_mouth_r = _mk_box(Vector3(0.03, 0.02, 0.02), mouth_c + Vector3(0.06, 0.02, 0))
+	_mouth_o = _mk_ball(0.035, mouth_c, Vector3(1.0, 1.2, 0.5))
+
+
+## 表情を切り替える：happy / neutral / sad / surprised / angry。
+func set_expression(name: String) -> void:
+	_expression = name
+	if _brows.size() < 2 or _mouth_mid == null:
+		return
+	var bl: MeshInstance3D = _brows[0]   # 左（x<0）
+	var br: MeshInstance3D = _brows[1]   # 右（x>0）
+	# 既定
+	_mouth_mid.visible = true
+	_mouth_o.visible = false
+	var corner_y := 0.02      # 口角の上下（＋で笑顔）
+	var brow_dy := 0.0        # 眉の上下
+	var brow_inner := 0.0     # 眉の内側の傾き（＋で内側が上がる＝困り眉）
+	match name:
+		"happy":
+			corner_y = 0.03
+			brow_dy = 0.0
+		"neutral":
+			corner_y = 0.0
+		"sad":
+			corner_y = -0.03
+			brow_inner = 0.5
+			brow_dy = 0.01
+		"surprised":
+			_mouth_mid.visible = false
+			_mouth_o.visible = true
+			brow_dy = 0.05
+		"angry":
+			corner_y = -0.01
+			brow_inner = -0.6
+			brow_dy = -0.02
+	# 眉：内側の傾き＝左右で符号反転（内側＝中央寄り）
+	bl.rotation.z = -brow_inner
+	br.rotation.z = brow_inner
+	bl.position.y = _eye_c.y + 0.05 + brow_dy
+	br.position.y = _eye_c.y + 0.05 + brow_dy
+	# 口角
+	_mouth_l.position.y = _mouth_mid.position.y + corner_y
+	_mouth_r.position.y = _mouth_mid.position.y + corner_y
+
+
+func _mk_box(size: Vector3, pos: Vector3) -> MeshInstance3D:
+	var mi := MeshInstance3D.new()
+	var bm := BoxMesh.new()
+	bm.size = size
+	mi.mesh = bm
+	mi.material_override = _face_line_mat()
+	mi.position = pos
+	add_child(mi)
+	return mi
+
+
+func _mk_ball(r: float, pos: Vector3, sc: Vector3) -> MeshInstance3D:
+	var mi := MeshInstance3D.new()
+	var sm := SphereMesh.new()
+	sm.radius = r
+	sm.height = r * 2.0
+	mi.mesh = sm
+	mi.material_override = _face_line_mat()
+	mi.position = pos
+	mi.scale = sc
+	add_child(mi)
+	return mi
+
+
+func _face_line_mat() -> StandardMaterial3D:
+	var m := StandardMaterial3D.new()
+	m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	m.albedo_color = Color(0.16, 0.12, 0.12)   # 暗い線（真っ黒すぎない）
+	return m
 
 
 func _apply_cute() -> void:
@@ -97,6 +201,14 @@ func _tint(root: Node, color: Color) -> void:
 			m.rim_enabled = true
 			m.rim = 0.35
 			m.rim_tint = 0.3
+			# 黒い輪郭線（裏面を膨らませて黒く塗る）。Vulkan/Mobile・PCきれい版で表示。
+			var ol := StandardMaterial3D.new()
+			ol.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+			ol.albedo_color = Color(0.08, 0.07, 0.08)
+			ol.cull_mode = BaseMaterial3D.CULL_FRONT
+			ol.grow = true
+			ol.grow_amount = 0.16
+			m.next_pass = ol
 			mi.set_surface_override_material(s, m)
 
 

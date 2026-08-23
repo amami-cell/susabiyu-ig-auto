@@ -544,6 +544,47 @@ func _run_shot() -> void:
 			_pattern_bones(sp[0], sp[1])
 		await RenderingServer.frame_post_draw
 		get_viewport().get_texture().get_image().save_png("/tmp/shot_stylepat.png")
+	# --exprpat：表情管理のデモ（本採用のトゥーン+輪郭線キャラで5表情）
+	if OS.get_cmdline_user_args().has("--exprpat") and KobitoModel.has_model():
+		$UI.visible = false
+		var exprs := ["happy", "neutral", "sad", "surprised", "angry"]
+		var er := Node3D.new()
+		add_child(er)
+		er.global_position = Vector3(0.0, 0.0, -40.0)
+		var exp := -(exprs.size() - 1) * 0.65
+		for ex in exprs:
+			var h := Node3D.new()
+			er.add_child(h)
+			h.position = Vector3(exp, 0.0, 0.0)
+			var body := MeshInstance3D.new()
+			var cap := CapsuleMesh.new()
+			cap.radius = 0.25
+			cap.height = 1.0
+			body.mesh = cap
+			h.add_child(body)
+			var km := KobitoModel.new()
+			body.add_child(km)
+			km.setup(body, Color(0.55, 0.72, 1.0), "adult", "")
+			km.set_expression(ex)
+			var lb := Label3D.new()
+			lb.text = ex
+			lb.position = Vector3(exp, 1.55, 0.0)
+			lb.pixel_size = 0.004
+			lb.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+			er.add_child(lb)
+			exp += 1.3
+		var el := DirectionalLight3D.new()
+		el.rotation = Vector3(deg_to_rad(-35.0), deg_to_rad(15.0), 0.0)
+		er.add_child(el)
+		var ecp := Camera3D.new()
+		add_child(ecp)
+		ecp.global_position = Vector3(0.0, 1.02, -44.6)
+		ecp.look_at(Vector3(0.0, 0.92, -40.0), Vector3.UP)
+		ecp.fov = 34.0
+		ecp.current = true
+		await get_tree().create_timer(1.0).timeout
+		await RenderingServer.frame_post_draw
+		get_viewport().get_texture().get_image().save_png("/tmp/shot_expr.png")
 	get_tree().quit()
 
 
