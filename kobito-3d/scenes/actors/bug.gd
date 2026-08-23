@@ -26,6 +26,7 @@ var _sync_accum := 0.0
 var _net_pos := Vector3.ZERO
 var _dead := false
 var _age := 0.0
+var _knockback := Vector3.ZERO   # 叩かれて弾き飛ぶ勢い（減衰する）
 
 @onready var _body: MeshInstance3D = $Body
 
@@ -104,6 +105,11 @@ func _think(delta: float) -> void:
 			if _target.has_method("apply_damage"):
 				_target.rpc("apply_damage", stats.attack_power)
 
+	# 叩かれた勢い（ノックバック）を上乗せして減衰＝弾き飛ぶ手応え
+	velocity.x += _knockback.x
+	velocity.z += _knockback.z
+	_knockback = _knockback.move_toward(Vector3.ZERO, 26.0 * delta)
+
 	move_and_slide()
 
 
@@ -128,7 +134,14 @@ func cleanse(amount: int, healer_id: int) -> void:
 		return
 	hp -= amount
 	if hp > 0:
-		rpc("_remote_hit")   # まだ倒れない＝くらった芝居
+		# 叩いた小人と反対方向へ弾き飛ばす（＝当たった手応え）
+		var src := _player_by_id(healer_id)
+		if src != null:
+			var away: Vector3 = global_position - src.global_position
+			away.y = 0.0
+			if away.length() > 0.01:
+				_knockback = away.normalized() * 5.0
+		rpc("_remote_hit", amount)   # まだ倒れない＝くらった芝居＋火花＋ダメージ数字
 		return
 
 	_dead = true
@@ -149,16 +162,70 @@ func _remote_state(pos: Vector3, remote_hp: int) -> void:
 
 
 @rpc("authority", "call_local", "unreliable")
-func _remote_hit() -> void:
-	# くらった：白くフラッシュ＋のけぞって跳ね、ぐしゃっと潰れて戻る＝当たった手応え。
+func _remote_hit(amount: int = 0) -> void:
+	# くらった：白フラッシュ＋のけぞって跳ね潰れ＋火花＋ダメージ数字＝はっきりした手応え。
 	_flash_bug(Color(1.0, 1.0, 1.0))
 	var base := Vector3.ONE * stats.body_scale
 	var tw := create_tween()
-	tw.tween_property(_body, "scale", base * Vector3(1.35, 0.65, 1.35), 0.05)
+	tw.tween_property(_body, "scale", base * Vector3(1.4, 0.6, 1.4), 0.05)
 	tw.tween_property(_body, "scale", base, 0.14)
 	var tw2 := create_tween()
-	tw2.tween_property(_body, "position:y", 0.4, 0.06)
+	tw2.tween_property(_body, "position:y", 0.45, 0.06)
 	tw2.tween_property(_body, "position:y", 0.0, 0.16)
+	_spawn_hit_spark()
+	if amount > 0:
+		_spawn_damage_number(amount)
+
+
+## ヒット火花：叩いた瞬間、白〜黄の光がパッと弾けて消える（当たった位置＝虫の中心上）。
+func _spawn_hit_spark() -> void:
+	var spark := MeshInstance3D.new()
+	var m := SphereMesh.new()
+	m.radius = 0.18
+	m.height = 0.36
+	m.radial_segments = 8
+	m.rings = 4
+	spark.mesh = m
+	var mat := StandardMaterial3D.new()
+	mat.albedo_color = Color(1.0, 1.0, 0.7)
+	mat.emission_enabled = true
+	mat.emission = Color(1.0, 0.95, 0.6)
+	mat.emission_energy_multiplier = 3.0
+	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	spark.material_override = mat
+	add_child(spark)
+	spark.position = Vector3(0.0, 0.5, 0.0)
+	var tw := create_tween()
+	tw.tween_property(spark, "scale", Vector3.ONE * 2.6, 0.12)
+	tw.parallel().tween_property(mat, "albedo_color:a", 0.0, 0.14)
+	tw.tween_callback(spark.queue_free)
+
+
+## ダメージ数字：叩いた量が「-N」でポップし、上へ浮かんで消える。
+func _spawn_damage_number(amount: int) -> void:
+	var label := Label3D.new()
+	label.text = "-%d" % amount
+	label.font_size = 64
+	label.modulate = Color(1.0, 0.95, 0.5)
+	label.outline_size = 10
+	label.outline_modulate = Color(0.1, 0.1, 0.1)
+	label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	label.no_depth_test = true
+	label.pixel_size = 0.006
+	add_child(label)
+	label.position = Vector3(randf_range(-0.2, 0.2), 0.9, 0.0)
+	var tw := create_tween()
+	tw.tween_property(label, "position:y", 1.7, 0.5)
+	tw.parallel().tween_property(label, "modulate:a", 0.0, 0.5)
+	tw.tween_callback(label.queue_free)
+
+
+func _player_by_id(id: int) -> Node3D:
+	for p in get_tree().get_nodes_in_group("player"):
+		if p.name.to_int() == id:
+			return p
+	return null
 
 
 ## 敵の攻撃モーション：振りかぶって噛みつく＋怒りの赤フラッシュ（＝これから攻撃する予告）。

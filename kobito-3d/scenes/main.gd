@@ -261,4 +261,10 @@ func _run_shot() -> void:
 		await get_tree().create_timer(1.2).timeout
 		await RenderingServer.frame_post_draw
 		get_viewport().get_texture().get_image().save_png("/tmp/shot_bugs.png")
+		# ヒット演出（火花＋ダメージ数字＋つぶれ）の確認：アリを非致死で叩く
+		for b in get_tree().get_nodes_in_group("bug"):
+			b.call("_remote_hit", 6)
+		await get_tree().create_timer(0.08).timeout
+		await RenderingServer.frame_post_draw
+		get_viewport().get_texture().get_image().save_png("/tmp/shot_hit.png")
 	get_tree().quit()
