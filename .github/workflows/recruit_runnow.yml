@@ -1,0 +1,18 @@
+name: recruit-runnow
+# 取得を今すぐ実行：更新ボタンと同じ epRun を GAS 側で走らせ、取得の可否と件数を確認する。
+# 手動実行専用（workflow_dispatch）。取得（EntryPocketログイン→CSV取り込み）を1回実行する。
+on:
+  workflow_dispatch:
+jobs:
+  runnow:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Run fetch now (?run=1)
+        env:
+          RECRUIT_EXEC_URL: ${{ secrets.RECRUIT_EXEC_URL }}
+          EP_PUSH_KEY: ${{ secrets.EP_PUSH_KEY }}
+        run: |
+          U="${RECRUIT_EXEC_URL:-https://script.google.com/macros/s/AKfycbz6i36c7UjbM3S44kl1kEcsI0CSjYo9jL-W-T4BJUAr9jmBlVXj-vnQTUwQbGoxcHYT/exec}"
+          echo "=== run now ==="
+          curl -sSL --max-time 150 "$U?run=1&key=$EP_PUSH_KEY" || echo "(curl error)"; echo
