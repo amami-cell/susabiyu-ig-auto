@@ -212,9 +212,16 @@ def gen():
     return 0
 
 
-def _looks_like_no_gpu(e):
+def _is_quota_out(e):
+    """無料ZeroGPUの1日分クォータを使い切り（=これ以上は無駄。即中断して明日に回す）。"""
     s = str(e).lower()
-    return ("no gpu" in s) or ("gpu was available" in s) or ("quota" in s) or ("queue" in s) or ("gpu task aborted" in s)
+    return "exceeded your free zerogpu quota" in s or ("quota" in s and "left" in s)
+
+
+def _is_congested(e):
+    """GPUの空き待ちで落ちただけ（クォータは消費していない＝リトライする価値あり）。"""
+    s = str(e).lower()
+    return ("no gpu was available" in s) or ("gpu was available" in s) or ("queue" in s) or ("gpu task aborted" in s)
 
 
 def _call_ltx(c, img, prompt):
@@ -230,36 +237,39 @@ def _call_svd(c, img, prompt):
     return c.predict(handle_file(img), 42, True, 127, 6, api_name="/video")
 
 
-# 生存確認済みの無料I2V。プロンプトが効くLTXを最優先、混雑時はSVD系にフォールバック。
+# 生存確認済みの無料I2V。(space, 呼び出し, リトライ回数)。
+# LTX distilled＝高速＆プロンプトが効く＝“実食”演出向き＆クォータ消費が少ない → 最優先で多めにリトライ。
+# AnimateLCM-SVD＝プロンプト無しだが軽め＝最後の保険。※180s喰う大型SVDはクォータ即枯れなので不採用。
 TARGETS = [
-    ("Lightricks/ltx-video-distilled", _call_ltx),
-    ("wangfuyun/AnimateLCM-SVD", _call_svd),
-    ("multimodalart/stable-video-diffusion", _call_svd),
+    ("Lightricks/ltx-video-distilled", _call_ltx, 4),
+    ("wangfuyun/AnimateLCM-SVD", _call_svd, 1),
 ]
 
 
 def _generate_with_fallback(img_path, prompt):
-    """無料ZeroGPUは空き待ちで落ちることがある。Space×リトライで“1本”を粘り強く狙う。"""
+    """無料ZeroGPUは“空き待ち”で落ちる。混雑はリトライ、クォータ切れは即中断（明日に回す）。"""
     import time
-    # HF_SPACE を明示指定した時はそれだけ（api_nameで呼び分け）
     if os.environ.get("HF_SPACE"):
         builder = _call_ltx if HF_API_NAME == "/image_to_video" else _call_svd
-        targets = [(HF_SPACE, builder)]
+        targets = [(HF_SPACE, builder, 4)]
     else:
         targets = TARGETS
-    for space, builder in targets:
-        for attempt in (1, 2):
+    for space, builder, tries in targets:
+        for attempt in range(1, tries + 1):
             try:
-                print("[I2V] 生成試行:", space, "(%d回目)" % attempt)
+                print("[I2V] 生成試行:", space, "(%d/%d)" % (attempt, tries))
                 c = _client(space)
                 return builder(c, img_path, prompt)
             except Exception as e:
-                if _looks_like_no_gpu(e):
-                    print("   混雑でGPU確保できず:", str(e)[:90])
-                    time.sleep(20)   # 少し待って再挑戦
+                if _is_quota_out(e):
+                    print("   本日の無料GPUクォータ切れ→中断（明日また回す）:", str(e)[:90])
+                    return None
+                if _is_congested(e):
+                    print("   混雑でGPU確保できず→少し待って再挑戦:", str(e)[:80])
+                    time.sleep(15)
                     continue
                 print("   失敗（別Spaceへ）:", type(e).__name__, str(e)[:90])
-                break   # このSpace固有のエラーは次のSpaceへ
+                break
     return None
 
 
