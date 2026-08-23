@@ -235,17 +235,40 @@ static func _ball(parent: Node3D, c: Color, r: float, pos: Vector3, sc: Vector3 
 	return mi
 
 
-## 肌：表面下散乱(SSS)でやわらかく光が回り込む本物っぽい肌質感（Forward+/Mobileで有効）。
+## 肌の微細な凹凸（毛穴風）ノーマルマップ。全機種で効く表面ディテール（1枚を共有）。
+static var _skin_normal: Texture2D = null
+static func _skin_normal_tex() -> Texture2D:
+	if _skin_normal == null:
+		var n := FastNoiseLite.new()
+		n.frequency = 0.85
+		n.fractal_octaves = 3
+		var t := NoiseTexture2D.new()
+		t.width = 128
+		t.height = 128
+		t.seamless = true
+		t.as_normal_map = true
+		t.bump_strength = 0.5
+		t.noise = n
+		_skin_normal = t
+	return _skin_normal
+
+
+## 肌：表面下散乱(SSS)＋毛穴風の微細ノーマル＋リム。やわらかい本物っぽい肌質感。
+## （SSSはForward+のPCきれい版で最大。rim/spec/ノーマルはスマホ・webでも効く）
 static func _skin_mat(c: Color) -> StandardMaterial3D:
 	var m := StandardMaterial3D.new()
 	m.albedo_color = c
 	m.roughness = 0.5
 	m.metallic_specular = 0.42
 	m.subsurf_scatter_enabled = true
-	m.subsurf_scatter_strength = 0.38
+	m.subsurf_scatter_strength = 0.4
 	m.rim_enabled = true
 	m.rim = 0.3
 	m.rim_tint = 0.4
+	m.normal_enabled = true
+	m.normal_texture = _skin_normal_tex()
+	m.normal_scale = 0.22
+	m.uv1_scale = Vector3(5.0, 5.0, 5.0)
 	return m
 
 
@@ -278,17 +301,20 @@ static func _build_face(head: MeshInstance3D, hr: float, hair_col: Color, eye_co
 	_face_eyes = []
 	_build_hair(head, hr, hair_col, style)
 
-	# 眉
-	var brow_mat := _clay(hair_col.darkened(0.1))
+	# 眉（毛束＝リアルな反り）
+	var brow_mat := _hair_mat(hair_col.darkened(0.05))
 	for sx in [-1.0, 1.0]:
-		var brow := MeshInstance3D.new()
-		var bxm := BoxMesh.new()
-		bxm.size = Vector3(hr * 0.26, hr * 0.055, hr * 0.09)
-		brow.mesh = bxm
-		brow.material_override = brow_mat
-		brow.position = Vector3(hr * 0.4 * sx, hr * 0.36, hr * 0.88)
-		brow.rotation.z = -0.12 * sx
-		head.add_child(brow)
+		for i in 4:
+			var t := float(i) / 3.0
+			var strand := MeshInstance3D.new()
+			var cm := CapsuleMesh.new()
+			cm.radius = hr * 0.022
+			cm.height = hr * 0.13
+			strand.mesh = cm
+			strand.material_override = brow_mat
+			strand.position = Vector3(hr * (0.26 + 0.12 * t) * sx, hr * (0.34 + 0.05 * t), hr * 0.9)
+			strand.rotation = Vector3(deg_to_rad(90.0), 0.0, (-0.35 - 0.25 * t) * sx)
+			head.add_child(strand)
 
 	# 目（白目＋虹彩＋瞳孔＋二重キャッチライト＋まつげ＋上下まぶた）。少し小さめ＝大人っぽい。
 	# まばたきは目の根＝白目をつぶす（子ノードごと閉じる）。
@@ -300,6 +326,8 @@ static func _build_face(head: MeshInstance3D, hr: float, hair_col: Color, eye_co
 			_wet_mat(Color(0.95, 0.94, 0.93), 0.16))
 		eye.name = "Eye%s" % ("L" if sx < 0 else "R")
 		_face_eyes.append(eye)
+		# リムバルリング（虹彩の外周を暗く＝生きた目）
+		_ball(eye, eye_col.darkened(0.6), eye_r * 0.74, Vector3(0.0, 0.0, eye_r * 0.48), Vector3(1.0, 1.12, 0.66))
 		# 虹彩（濡れた質感・目の色）
 		var iris := _ball(eye, eye_col, eye_r * 0.66, Vector3(0.0, 0.0, eye_r * 0.55),
 			Vector3(1.0, 1.1, 0.7), _wet_mat(eye_col, 0.12))
