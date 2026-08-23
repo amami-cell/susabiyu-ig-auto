@@ -1,34 +1,30 @@
 extends RefCounted
 class_name KobitoLook
-## カプセル1体型を“人型の小人”に組み直す（頭・首・肩・胴・腕(上腕+前腕)・脚(太もも+すね)＋顔）。
+## カプセル1体型を“人型の小人”に組み直す（頭・首・胸板・腹・骨盤・腕・脚＋顔）。
 ##
 ## 当たり判定のカプセル(body)は透明にして残し、見た目は人型パーツで作る。
-## 「頭小さめ・脚長め」の 4頭身くらいの子どもっぽい人型。体は分節して人体らしく：
-## 胴は前後に薄く、腕はひじで、脚はひざで軽く曲げる。絵本風の輪郭線つき。
-## プレイヤーは右手に武器（光の棒）を持つ。腕・脚は歩くと肩/股から振る（KobitoAnim）。
+## 「丸々」をやめ、体は角ばった箱(ボックス)で構成＝スリムな低ポリ人間。
+## 胴は 胸板(広)→腹(細) のV字テーパー、腕はひじ・脚はひざで軽く曲げる。
+## 頭だけは球（人の頭は丸い）。絵本風の輪郭線つき。プレイヤーは右手に武器。
 
 # --- 体つきの比率（half=カプセル半身, br=半径 を基準にする）---
-const HEAD_R := 0.58          # 頭の半径（br倍）＝小さめ
+const HEAD_R := 0.55          # 頭の半径（br倍）
 const HEAD_Y := 1.08          # 頭の高さ（half倍）
-const TORSO_R := 0.60         # 胴の太さ（br倍）
-const TORSO_H := 1.02         # 胴の縦長（half倍）
-const TORSO_Y := 0.34         # 胴の高さ（half倍）
-const TORSO_FLAT := 0.62      # 胴の前後の薄さ（Zスケール）＝板状の胸板
-const TORSO_WIDE := 1.12      # 胴の左右の広さ（Xスケール）＝肩幅
-const SHOULDER_Y := 0.66      # 肩の高さ（half倍）
-const SHOULDER_X := 0.82      # 肩の左右（br倍）
+const CHEST_Y := 0.56         # 胸板の高さ（half倍）
+const WAIST_Y := 0.18         # 腹の高さ（half倍）
+const SHOULDER_Y := 0.74      # 肩の高さ（half倍）
+const SHOULDER_X := 0.9       # 肩の左右（br倍）
 const UPPER_ARM_H := 0.50     # 上腕の長さ（half倍）
 const FOREARM_H := 0.46       # 前腕の長さ（half倍）
-const ELBOW_BEND := 0.18      # ひじの曲げ（rad・軽く前へ）
-const HIP_Y := -0.16          # 股の高さ（half倍）＝高め＝脚が長く見える
-const HIP_X := 0.34           # 股の左右間隔（br倍）
-const THIGH_H := 0.46         # 太ももの長さ（half倍）
+const ELBOW_BEND := 0.16      # ひじの曲げ（rad）
+const HIP_Y := -0.14          # 股の高さ（half倍）
+const HIP_X := 0.42           # 股の左右間隔（br倍）
+const THIGH_H := 0.48         # 太ももの長さ（half倍）
 const SHIN_H := 0.46          # すねの長さ（half倍）
-const KNEE_BEND := 0.12       # ひざの曲げ（rad・軽く）
+const KNEE_BEND := 0.10       # ひざの曲げ（rad）
 
 # --- 人らしい配色 ---
-# プレイヤーの色は「シャツ（胴・肩）」として残す＝誰が誰か分かる。
-# 顔・首・腕・手は肌色、ズボン・靴・髪は人らしい色にする。
+# プレイヤーの色は「シャツ（胴）」として残す＝誰が誰か分かる。
 const SKIN := Color(0.97, 0.80, 0.68)   # 肌色
 const PANTS := Color(0.27, 0.30, 0.42)  # ズボン（デニム調）
 const SHOES := Color(0.19, 0.15, 0.12)  # 靴
@@ -55,47 +51,21 @@ static func decorate(body: MeshInstance3D, color: Color, with_weapon: bool = fal
 	inv.albedo_color = Color(0, 0, 0, 0)
 	body.material_override = inv
 
-	# --- 胴（トルソ）：前後に薄く・肩幅広く＝板状の人の胴 ---
-	var torso := MeshInstance3D.new()
-	torso.name = "Torso"
-	var tm := CapsuleMesh.new()
-	tm.radius = br * TORSO_R
-	tm.height = half * TORSO_H
-	torso.mesh = tm
-	var torso_mat := _mat(color, 0.85)
-	torso_mat.next_pass = _outline(br)
-	torso.material_override = torso_mat
-	torso.position = Vector3(0.0, half * TORSO_Y, 0.0)
-	torso.scale = Vector3(TORSO_WIDE, 1.0, TORSO_FLAT)
-	body.add_child(torso)
+	# --- 胴：胸板(広)→腹(細) のV字テーパー＝スリムな人の胴（箱）---
+	var chest := _box(body, color, br,
+		Vector3(br * 1.5, half * 0.56, br * 0.62),
+		Vector3(0.0, half * CHEST_Y, 0.0))
+	chest.name = "Torso"   # 被弾フラッシュ・重複生成チェックの目印
+	_box(body, color, br,
+		Vector3(br * 1.12, half * 0.5, br * 0.56),
+		Vector3(0.0, half * WAIST_Y, 0.0))
 
-	# 骨盤（腰）＝ズボン色。胴と脚のつなぎ目を埋める
-	var pelvis := MeshInstance3D.new()
-	var pm := CapsuleMesh.new()
-	pm.radius = br * 0.5
-	pm.height = half * 0.4
-	pelvis.mesh = pm
-	var pelvis_mat := _mat(PANTS, 0.9)
-	pelvis_mat.next_pass = _outline(br)
-	pelvis.material_override = pelvis_mat
-	pelvis.position = Vector3(0.0, half * (HIP_Y + 0.06), 0.0)
-	pelvis.scale = Vector3(1.15, 0.7, 0.72)
-	body.add_child(pelvis)
+	# --- 骨盤（腰）＝ズボン色 ---
+	_box(body, PANTS, br,
+		Vector3(br * 1.18, half * 0.34, br * 0.58),
+		Vector3(0.0, half * (HIP_Y + 0.05), 0.0))
 
-	# 肩（左右）＝シャツ色。腕の付け根を人らしく丸める＋肩幅を出す
-	for sx in [-1.0, 1.0]:
-		var sh := MeshInstance3D.new()
-		var shm := SphereMesh.new()
-		shm.radius = br * 0.34
-		shm.height = br * 0.68
-		sh.mesh = shm
-		var sh_mat := _mat(color, 0.85)
-		sh_mat.next_pass = _outline(br)
-		sh.material_override = sh_mat
-		sh.position = Vector3(br * SHOULDER_X * sx, half * SHOULDER_Y, 0.0)
-		body.add_child(sh)
-
-	# --- 頭（小さめ・胴の上）＝肌色 ---
+	# --- 頭（球・小さめ）＝肌色 ---
 	var head := MeshInstance3D.new()
 	head.name = "Head"
 	var hm := SphereMesh.new()
@@ -111,8 +81,8 @@ static func decorate(body: MeshInstance3D, color: Color, with_weapon: bool = fal
 	# 細い首（頭と胴のつなぎ）＝肌色
 	var neck := MeshInstance3D.new()
 	var ncm := CylinderMesh.new()
-	ncm.top_radius = br * 0.22
-	ncm.bottom_radius = br * 0.26
+	ncm.top_radius = br * 0.2
+	ncm.bottom_radius = br * 0.24
 	ncm.height = half * 0.16
 	neck.mesh = ncm
 	neck.material_override = _mat(SKIN.darkened(0.05), 0.7)
@@ -121,7 +91,7 @@ static func decorate(body: MeshInstance3D, color: Color, with_weapon: bool = fal
 
 	_build_face(head, color, head_r)
 
-	# --- 腕 x2（肩ピボット→上腕→ひじ→前腕→手）---
+	# --- 腕 x2（肩ピボット→上腕→ひじ→前腕→手。すべて角ばった箱）---
 	var arm_l := _make_arm(body, color, br, half, -1.0)
 	var arm_r := _make_arm(body, color, br, half, 1.0)
 
@@ -147,6 +117,20 @@ static func decorate(body: MeshInstance3D, color: Color, with_weapon: bool = fal
 
 
 static var _face_eyes: Array[Node3D] = []
+
+
+## 箱パーツを1個作って body(または親)に付けるヘルパ（輪郭線つき）。
+static func _box(parent: Node3D, c: Color, br: float, size: Vector3, pos: Vector3) -> MeshInstance3D:
+	var mi := MeshInstance3D.new()
+	var m := BoxMesh.new()
+	m.size = size
+	mi.mesh = m
+	var mat := _mat(c, 0.85)
+	mat.next_pass = _outline(br)
+	mi.material_override = mat
+	mi.position = pos
+	parent.add_child(mi)
+	return mi
 
 
 ## 顔（髪＋大きな目＋ハイライト・ほっぺ・口・鼻）を頭に付ける。hr=頭の半径。
@@ -177,17 +161,17 @@ static func _build_face(head: MeshInstance3D, color: Color, hr: float) -> void:
 		var eye := MeshInstance3D.new()
 		eye.name = "Eye%s" % ("L" if sx < 0 else "R")
 		var em := SphereMesh.new()
-		em.radius = hr * 0.34
-		em.height = hr * 0.68
+		em.radius = hr * 0.32
+		em.height = hr * 0.64
 		eye.mesh = em
 		eye.material_override = eyemat
-		eye.position = Vector3(hr * 0.44 * sx, hr * 0.18, hr * 0.82)
+		eye.position = Vector3(hr * 0.44 * sx, hr * 0.16, hr * 0.83)
 		head.add_child(eye)
 		_face_eyes.append(eye)
 		var hi := MeshInstance3D.new()
 		var him := SphereMesh.new()
-		him.radius = hr * 0.11
-		him.height = hr * 0.22
+		him.radius = hr * 0.1
+		him.height = hr * 0.2
 		hi.mesh = him
 		hi.material_override = hi_mat
 		hi.position = Vector3(hr * 0.12, hr * 0.14, hr * 0.26)
@@ -197,50 +181,43 @@ static func _build_face(head: MeshInstance3D, color: Color, hr: float) -> void:
 	for sx in [-1.0, 1.0]:
 		var cheek := MeshInstance3D.new()
 		var cm := SphereMesh.new()
-		cm.radius = hr * 0.2
-		cm.height = hr * 0.24
+		cm.radius = hr * 0.17
+		cm.height = hr * 0.2
 		cheek.mesh = cm
 		cheek.material_override = cheek_mat
-		cheek.position = Vector3(hr * 0.66 * sx, -hr * 0.16, hr * 0.68)
+		cheek.position = Vector3(hr * 0.62 * sx, -hr * 0.18, hr * 0.7)
 		head.add_child(cheek)
 
 	var mouth := MeshInstance3D.new()
 	var mo := SphereMesh.new()
-	mo.radius = hr * 0.14
-	mo.height = hr * 0.13
+	mo.radius = hr * 0.13
+	mo.height = hr * 0.12
 	mouth.mesh = mo
 	mouth.material_override = _mat(Color(0.35, 0.14, 0.14), 0.6)
 	mouth.scale = Vector3(1.6, 0.5, 1.0)
-	mouth.position = Vector3(0.0, -hr * 0.36, hr * 0.88)
+	mouth.position = Vector3(0.0, -hr * 0.38, hr * 0.9)
 	head.add_child(mouth)
 
 	var nose := MeshInstance3D.new()
 	var nm := SphereMesh.new()
-	nm.radius = hr * 0.12
-	nm.height = hr * 0.24
+	nm.radius = hr * 0.11
+	nm.height = hr * 0.22
 	nose.mesh = nm
 	nose.material_override = _mat(SKIN.darkened(0.06), 0.6)
-	nose.position = Vector3(0.0, -hr * 0.05, hr * 0.95)
+	nose.position = Vector3(0.0, -hr * 0.06, hr * 0.96)
 	head.add_child(nose)
 
 
-## 腕：肩ピボット（ここを KobitoAnim が振る）→上腕→ひじ→前腕→手。肌色（半袖）。
+## 腕：肩ピボット（KobitoAnim が振る）→上腕→ひじ→前腕→手。角ばった箱・肌色（半袖）。
 static func _make_arm(body: MeshInstance3D, color: Color, br: float, half: float, side: float) -> Node3D:
 	var pivot := Node3D.new()
 	pivot.name = "Arm%s" % ("L" if side < 0 else "R")
 	pivot.position = Vector3(br * SHOULDER_X * side, half * SHOULDER_Y, 0.0)   # 肩
 	body.add_child(pivot)
 
-	var upper := MeshInstance3D.new()
-	var um := CapsuleMesh.new()
-	um.radius = br * 0.17
-	um.height = half * UPPER_ARM_H
-	upper.mesh = um
-	var arm_mat := _mat(SKIN, 0.7)
-	arm_mat.next_pass = _outline(br)
-	upper.material_override = arm_mat
-	upper.position = Vector3(0.0, half * UPPER_ARM_H * -0.5, 0.0)
-	pivot.add_child(upper)
+	_box(pivot, SKIN, br,
+		Vector3(br * 0.3, half * UPPER_ARM_H, br * 0.3),
+		Vector3(0.0, half * UPPER_ARM_H * -0.5, 0.0))
 
 	# ひじ（軽く前へ曲げる）
 	var elbow := Node3D.new()
@@ -249,48 +226,30 @@ static func _make_arm(body: MeshInstance3D, color: Color, br: float, half: float
 	elbow.rotation.x = ELBOW_BEND
 	pivot.add_child(elbow)
 
-	var fore := MeshInstance3D.new()
-	var fm := CapsuleMesh.new()
-	fm.radius = br * 0.15
-	fm.height = half * FOREARM_H
-	fore.mesh = fm
-	var fore_mat := _mat(SKIN, 0.7)
-	fore_mat.next_pass = _outline(br)
-	fore.material_override = fore_mat
-	fore.position = Vector3(0.0, half * FOREARM_H * -0.5, 0.0)
-	elbow.add_child(fore)
+	_box(elbow, SKIN, br,
+		Vector3(br * 0.26, half * FOREARM_H, br * 0.26),
+		Vector3(0.0, half * FOREARM_H * -0.5, 0.0))
 
 	var hand := Node3D.new()
 	hand.name = "Hand"
 	hand.position = Vector3(0.0, half * -FOREARM_H, 0.0)
 	elbow.add_child(hand)
-	var hmesh := MeshInstance3D.new()
-	var hgm := SphereMesh.new()
-	hgm.radius = br * 0.2
-	hgm.height = br * 0.4
-	hmesh.mesh = hgm
-	hmesh.material_override = _mat(SKIN.lightened(0.04), 0.7)
-	hand.add_child(hmesh)
+	_box(hand, SKIN.lightened(0.04), br,
+		Vector3(br * 0.34, br * 0.3, br * 0.3),
+		Vector3(0.0, -br * 0.12, 0.0))
 	return pivot
 
 
-## 脚：股ピボット（ここを KobitoAnim が振る）→太もも→ひざ→すね→足。ズボン＋靴。
+## 脚：股ピボット（KobitoAnim が振る）→太もも→ひざ→すね→足。角ばった箱・ズボン＋靴。
 static func _make_leg(body: MeshInstance3D, color: Color, br: float, half: float, side: float) -> Node3D:
 	var pivot := Node3D.new()
 	pivot.name = "Leg%s" % ("L" if side < 0 else "R")
 	pivot.position = Vector3(br * HIP_X * side, half * HIP_Y, 0.0)   # 股
 	body.add_child(pivot)
 
-	var thigh := MeshInstance3D.new()
-	var thm := CapsuleMesh.new()
-	thm.radius = br * 0.23
-	thm.height = half * THIGH_H
-	thigh.mesh = thm
-	var leg_mat := _mat(PANTS, 0.9)
-	leg_mat.next_pass = _outline(br)
-	thigh.material_override = leg_mat
-	thigh.position = Vector3(0.0, half * THIGH_H * -0.5, 0.0)
-	pivot.add_child(thigh)
+	_box(pivot, PANTS, br,
+		Vector3(br * 0.42, half * THIGH_H, br * 0.44),
+		Vector3(0.0, half * THIGH_H * -0.5, 0.0))
 
 	# ひざ（軽く曲げる）
 	var knee := Node3D.new()
@@ -299,26 +258,14 @@ static func _make_leg(body: MeshInstance3D, color: Color, br: float, half: float
 	knee.rotation.x = KNEE_BEND
 	pivot.add_child(knee)
 
-	var shin := MeshInstance3D.new()
-	var sm := CapsuleMesh.new()
-	sm.radius = br * 0.2
-	sm.height = half * SHIN_H
-	shin.mesh = sm
-	var shin_mat := _mat(PANTS.darkened(0.08), 0.9)
-	shin_mat.next_pass = _outline(br)
-	shin.material_override = shin_mat
-	shin.position = Vector3(0.0, half * SHIN_H * -0.5, 0.0)
-	knee.add_child(shin)
+	_box(knee, PANTS.darkened(0.08), br,
+		Vector3(br * 0.36, half * SHIN_H, br * 0.38),
+		Vector3(0.0, half * SHIN_H * -0.5, 0.0))
 
-	var foot := MeshInstance3D.new()
-	var fm := SphereMesh.new()
-	fm.radius = br * 0.28
-	fm.height = br * 0.4
-	foot.mesh = fm
-	foot.material_override = _mat(SHOES, 0.6)
-	foot.scale = Vector3(1.0, 0.7, 1.5)
-	foot.position = Vector3(0.0, half * -SHIN_H, br * 0.28)   # つま先を前へ
-	knee.add_child(foot)
+	# 足＝靴（前へ長い箱）
+	_box(knee, SHOES, br,
+		Vector3(br * 0.44, br * 0.3, br * 0.86),
+		Vector3(0.0, half * -SHIN_H - br * 0.02, br * 0.2))
 	return pivot
 
 
@@ -326,7 +273,7 @@ static func _make_leg(body: MeshInstance3D, color: Color, br: float, half: float
 static func _make_weapon(hand: Node3D, br: float) -> Node3D:
 	var holder := Node3D.new()
 	holder.name = "Weapon"
-	holder.position = Vector3(0.0, -br * 0.1, 0.0)
+	holder.position = Vector3(0.0, -br * 0.14, 0.0)
 	hand.add_child(holder)
 
 	var handle := MeshInstance3D.new()
