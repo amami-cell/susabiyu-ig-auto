@@ -20,6 +20,7 @@ var _helper: Node = null
 
 
 func _ready() -> void:
+	add_to_group("solvable")   # 章の進行が solved を見にくる
 	_plate_a = _make_plate("PlateA", Vector3(-1.6, 0.08, 0.0), _on_a)
 	_plate_b = _make_plate("PlateB", Vector3(1.6, 0.08, 0.0), _on_b)
 

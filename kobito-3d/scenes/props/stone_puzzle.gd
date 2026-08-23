@@ -20,6 +20,7 @@ var _mural: MeshInstance3D = null
 
 
 func _ready() -> void:
+	add_to_group("solvable")   # 章の進行が solved を見にくる
 	_build()
 
 

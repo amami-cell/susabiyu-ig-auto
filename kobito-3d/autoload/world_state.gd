@@ -8,6 +8,7 @@ extends Node
 signal recovery_changed(value: float)
 signal notice(text: String)
 signal powers_changed
+signal creature_healed             # 虫を1匹癒やすたび（章の進行が数える）
 
 ## 飛行を組み上げる5パーツ。癒やした空の虫がそれぞれ授ける（STORY/AREAS参照）。
 ## 5つ全部そろうと自由飛行が解禁される（＝物語の約2/3地点）。
@@ -76,6 +77,9 @@ func _apply_power(power: String) -> void:
 func add(kind: String, times: int = 1) -> void:
 	if not multiplayer.has_multiplayer_peer() or not multiplayer.is_server():
 		return
+	if kind == "bug_healed":
+		for _i in times:
+			creature_healed.emit()
 	var gain: float = GAIN.get(kind, 0.0) * times
 	if is_zero_approx(gain):
 		return

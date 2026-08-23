@@ -16,6 +16,7 @@ config/icon="res://icon.svg"
 Net="*res://autoload/net.gd"
 WorldState="*res://autoload/world_state.gd"
 Sfx="*res://autoload/sfx.gd"
+Chapter="*res://autoload/chapter.gd"
 
 [display]
 

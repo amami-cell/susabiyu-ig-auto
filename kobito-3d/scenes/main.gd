@@ -2,6 +2,7 @@ extends Node
 ## 入口。ロビー ⇄ ゲーム を切り替えるだけの薄い層。
 
 const GardenScene := preload("res://scenes/world/garden.tscn")
+const StoryUIScript := preload("res://scenes/ui/story_ui.gd")
 
 var _garden: Node3D = null
 
@@ -13,6 +14,10 @@ var _garden: Node3D = null
 func _ready() -> void:
 	_show_lobby(true)
 	_build_vignette()
+	# 物語UI（目的・会話・章クリア）を最前面に敷く
+	var story := StoryUIScript.new()
+	story.name = "StoryUI"
+	$UI.add_child(story)
 	Net.session_started.connect(_on_session_started)
 	Net.session_ended.connect(_on_session_ended)
 	Net.biome_changed.connect(func(b: String) -> void:
