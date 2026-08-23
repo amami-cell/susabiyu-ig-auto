@@ -7,6 +7,7 @@
 - 既存インスタPWAの VAPID鍵・購読者リスト（インスタ用スプシの「購読」タブ）を再利用して、
   同じアプリに category="recruit" でプッシュする（新しいアプリのインストール不要）。
 - 送信は pywebpush。失敗しても他の購読者への送信は続ける。
+- 購読者ごとの prefs（D列JSON）で「通知する店舗」を絞れる（stores 未設定＝全店舗＝従来通り）。
 
 必要な環境変数（GitHub Actions のシークレット等）:
   RECRUIT_EXEC_URL   募集GASの公開URL（.../exec）。クリック時に開く先にも使う。
@@ -88,9 +89,8 @@ def _vapid_pem(raw):
     open("vapid_private.pem", "wb").write(pem)
 
 
-def _consolidate(items):
-    """溜まった複数件を1つの通知にまとめる（店舗ごとに新規件数を合算）。
-    新規応募以外（サマリー等）の item は title を保ったまま送る。"""
+def _extract(items):
+    """溜まったitemsから 店舗別新規(merged_new)・店舗別現在数(merged_tot)・その他(fallback) を取り出す。"""
     merged_new, merged_tot, fallback = {}, {}, []
     for it in items:
         raw = it.get("data") or ""
@@ -107,6 +107,32 @@ def _consolidate(items):
                 parsed = False
         if not parsed and (it.get("body") or it.get("title")):
             fallback.append((it.get("title") or "", it.get("body") or ""))
+    return merged_new, merged_tot, fallback
+
+
+def _compose(merged_new, merged_tot, fallback):
+    """指定の店舗別新規＋その他 から (title, body) を作る。新規応募がある場合は下にその他本文も付す。"""
+    if merged_new:
+        total = sum(merged_new.values())
+        order = sorted(merged_new, key=lambda k: -merged_new[k])
+        lines = ["・%s：新規%d件%s" % (s, merged_new[s], ("（現在%d名）" % merged_tot[s]) if s in merged_tot else "")
+                 for s in order]
+        title = "🆕 新規応募 %d件" % total
+        body = "\n".join(lines)
+        fb = "\n".join(b for _, b in fallback if b)
+        if fb:
+            body = body + "\n\n" + fb
+        return title, body
+    if len(fallback) == 1:
+        return (fallback[0][0] or "お知らせ"), fallback[0][1]
+    titles = "／".join(t for t, _ in fallback if t)
+    bodies = "\n".join(b for _, b in fallback if b)
+    return (titles or "お知らせ"), bodies
+
+
+def _consolidate(items):
+    """LINE用：全店舗まとめて1通に（従来どおり）。"""
+    merged_new, merged_tot, fallback = _extract(items)
     if merged_new:
         total = sum(merged_new.values())
         order = sorted(merged_new, key=lambda k: -merged_new[k])
@@ -118,6 +144,32 @@ def _consolidate(items):
     titles = "／".join(t for t, _ in fallback if t)
     bodies = "\n".join(b for _, b in fallback if b)
     return (titles or "お知らせ"), bodies
+
+
+def _norm_store(s):
+    """店舗名の照合用に軽く正規化（前後空白と全角/半角スペース除去）。"""
+    return "".join(str(s or "").split()).replace("　", "")
+
+
+def _prefs_stores(prefs_cell):
+    """購読者の「通知する店舗」設定。None＝全店舗（従来通り）。set＝その店舗のみ。"""
+    if not prefs_cell or not str(prefs_cell).strip():
+        return None
+    try:
+        pr = json.loads(prefs_cell)
+    except Exception:
+        return None
+    st = pr.get("stores")
+    if st is None:
+        return None  # 店舗指定なし＝全店舗
+    if isinstance(st, str):
+        if st.strip().lower() in ("all", ""):
+            return None
+        st = st.split(",")
+    if isinstance(st, list):
+        out = set(_norm_store(x) for x in st if str(x).strip())
+        return out  # 空set＝新規応募の個別通知は無し（サマリー等は届く）
+    return None
 
 
 def _line_broadcast(text):
@@ -160,10 +212,11 @@ def main():
     if not items:
         return 0
 
-    # 溜まった分を1通にまとめる（1日2回＝1回につき通知1つ）
-    title, body = _consolidate(items)
+    # 店舗別の新規／その他を取り出す（購読者ごとの絞り込みに使う）
+    merged_new, merged_tot, fallback = _extract(items)
 
-    # ① LINE（まとめて1通）
+    # ① LINE（全店舗まとめて1通・従来どおり）
+    title, body = _consolidate(items)
     _line_broadcast(title + ("\n" + body if body else ""))
 
     # ② アプリ通知（Webプッシュ）→ 求人PWAの購読者へ（インスタとは別リスト）
@@ -181,16 +234,28 @@ def main():
     if not subs:
         print("[PUSH] 求人PWAの購読者がまだ0人（LINEは送信済み）"); return 0
 
-    payload = json.dumps({"title": title, "body": body, "url": exec_url,
-                          "focus": "", "category": "recruit", "tag": "recruit"})
-    sent = gone = 0
+    sent = gone = skipped = 0
     dead = []
     for s in subs:
         raw = s.get("subscription") or ""
         if not str(raw).strip():
             continue
-        if not _category_on(s.get("prefs") or "", "recruit"):
+        prefs = s.get("prefs") or ""
+        if not _category_on(prefs, "recruit"):
             continue
+        # 購読者ごとに「通知する店舗」で新規応募を絞る（未設定＝全店舗）
+        allow = _prefs_stores(prefs)
+        if allow is None:
+            sub_new = merged_new
+        else:
+            sub_new = {k: v for k, v in merged_new.items() if _norm_store(k) in allow}
+        # この購読者に送る中身が無ければスキップ（新規も その他も無し）
+        if not sub_new and not fallback:
+            skipped += 1
+            continue
+        s_title, s_body = _compose(sub_new, merged_tot, fallback)
+        payload = json.dumps({"title": s_title, "body": s_body, "url": exec_url,
+                              "focus": "", "category": "recruit", "tag": "recruit"})
         try:
             sub = json.loads(raw)
         except Exception:
@@ -209,7 +274,8 @@ def main():
                 print("[PUSH] 送信失敗(%s):" % code, str(e)[:120])
         except Exception as e:
             print("[PUSH] 送信エラー:", str(e)[:120])
-    print("[PUSH] Webプッシュ 送信 %d件 / 期限切れ %d件（まとめ %d件分）" % (sent, gone, len(items)))
+    print("[PUSH] Webプッシュ 送信 %d件 / 対象外 %d件 / 期限切れ %d件（まとめ %d件分）"
+          % (sent, skipped, gone, len(items)))
     _prune_dead(exec_url, key, dead)
     return 0
 
