@@ -89,45 +89,74 @@ def _enabled_stills():
     return _enabled_patterns()[1]
 
 
+# ---- 成績で自動重み付け（インサイト×履歴）。データ不足時は均等（＝従来挙動）に自動フォールバック ----
+_SCORES_CACHE = None
+def _scores():
+    global _SCORES_CACHE
+    if _SCORES_CACHE is None:
+        try:
+            import perf
+            _SCORES_CACHE = perf.pattern_scores(set(ALL))   # 三条パターンのみ採点
+        except Exception as e:
+            print("[PERF] スコア取得不可→均等:", e); _SCORES_CACHE = {}
+    return _SCORES_CACHE
+
+def _wpick(pool, rng):
+    """poolから“成績倍率”で重み付けして1つ選ぶ。rngは日付シード＝決定的。
+    データの無いパターンは倍率1.0＝ちゃんと出て成績を貯める（探索）。"""
+    pool = list(pool)
+    if not pool:
+        return None
+    sc = _scores()
+    ws = []
+    for p in pool:
+        try:
+            import perf
+            ws.append(perf.weight_of(p, sc))
+        except Exception:
+            ws.append(1.0)
+    tot = sum(ws) or float(len(pool))
+    x = rng.random() * tot
+    c = 0.0
+    for p, w in zip(pool, ws):
+        c += w
+        if x <= c:
+            return p
+    return pool[-1]
+
+
 def _video_for_day(d):
-    """採用中の動画パターンをなるべく均等に。N日ごとに全採用種が1回ずつ出る。
-    日付で決まるのでprepare/postで一致し、再実行しても同じ結果になる。"""
-    vids = _enabled_videos()
-    n = len(vids) or 1
-    if not vids:
-        vids = list(CORE_VIDEO)
-        n = len(vids)
+    """その日の動画パターンを“成績で重み付け”して選ぶ（日付シード＝決定的・prepare/post一致）。
+    前日と同じ動画は避ける。データ不足時は倍率1.0＝均等（従来と同等の挙動）。"""
+    vids = list(_enabled_videos() or CORE_VIDEO)
+    if len(vids) <= 1:
+        return vids[0] if vids else CORE_VIDEO[0]
     o = d.toordinal()
-    def order(b):
-        r = random.Random("vblock-%d" % b)
-        L = list(vids)
-        r.shuffle(L)
-        return L
-    cur = order(o // n)
-    # ブロック境界で前日と同じ動画にならないよう、先頭が前ブロック末尾と同じなら1つ回す
-    if n > 1 and cur[0] == order(o // n - 1)[n - 1]:
-        cur = cur[1:] + cur[:1]
-    return cur[o % n]
+    pick = _wpick(vids, random.Random("vday-%d" % o))
+    prev = _wpick(vids, random.Random("vday-%d" % (o - 1)))
+    if pick == prev:
+        rest = [v for v in vids if v != pick] or vids
+        pick = _wpick(rest, random.Random("vday2-%d" % o))
+    return pick
 
 
 def plan_day(d, open_hour):
-    """その日の3枠を割り当て。動画は採用種を均等に回す。
-    静止画は日付シードでシャッフルし、同じ日に同じテンプレが重複しないよう
-    先頭から順に使う（採用が1種しかない時だけ重複を許容）。"""
+    """その日の3枠を割り当て。1枠は動画（必ず1本以上）、残りは静止画。
+    いずれも“成績で重み付け”して選ぶ（日付シードで決定的）。同じ日に同テンプレは重複させない。"""
     slots = [open_hour, 18, 20]
     rng = random.Random(d.strftime("%Y%m%d"))
     video_slot = rng.choice(slots)
     vpat = _video_for_day(d)
-    pool = list(_enabled_stills() or CORE_STILL)
-    rng.shuffle(pool)
+    stills = list(_enabled_stills() or CORE_STILL)
     plan = {}
-    k = 0
+    used = set()
     for s in slots:
         if s == video_slot:
             plan[s] = vpat
         else:
-            plan[s] = pool[k % len(pool)]
-            k += 1
+            avail = [p for p in stills if p not in used] or stills
+            plan[s] = _wpick(avail, random.Random("still-%s-%d" % (d.strftime("%Y%m%d"), s)))
+            used.add(plan[s])
     return slots, plan
 
 def decide(dt):
