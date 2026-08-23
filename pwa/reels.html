@@ -236,7 +236,7 @@
 <script>
 (function(){
   "use strict";
-  window.__APPV = "v187";   // 画面下の版数表示用（sw.js の VER と同期・コード変更で更新）
+  window.__APPV = "v188";   // 画面下の版数表示用（sw.js の VER と同期・コード変更で更新）
   var CFG = window.SUSABIYU || {};
   var GAS = (CFG.GAS_URL||"").trim();
   // 実データ連携が有効か（config.js の GAS_URL が実物URLに置換済みか）。未置換(PASTE_)なら見本モード。
@@ -613,6 +613,73 @@
     return c;
   }
   // フィード/リールタブ：上部に「次のおすすめ3件（ジャンル分散）」＋「全商品から選ぶ」
+  /* ---------- カルーセル（複数枚フィード）ビルダー：既存カードUIとは独立 ---------- */
+  var carouselSel=[];   // 選んだフィード商品（順番＝表示順）
+  function buildCarouselPanel(){
+    // class は "card" にしない（renderListの再描画で .card は消されるため）。見た目はinlineで付与。
+    var box=document.createElement("div"); box.className="cbwrap";
+    box.style.cssText="padding:12px;background:#12151b;border:1px solid #222833;border-radius:16px;margin:10px 0";
+    box.innerHTML=
+      '<button class="cbtoggle" style="width:100%;border:0;border-radius:12px;padding:12px;font-weight:800;background:#152238;color:#cfe0ff;font-size:14px;cursor:pointer">🖼️ カルーセル投稿を作る（複数選択・2〜10枚）</button>'+
+      '<div class="cbpanel" style="display:none;margin-top:10px">'+
+        '<div style="font-size:12px;color:#8b93a2;margin:2px 2px 8px">タップで選択（番号＝並び順）。保存・滞在が伸びる複数枚投稿を作れます。</div>'+
+        '<div class="cbgrid" style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px;max-height:300px;overflow:auto"></div>'+
+        '<div style="display:flex;gap:8px;align-items:center;margin-top:10px;flex-wrap:wrap">'+
+          '<b class="cbcnt" style="font-size:13px;color:#8b93a2;flex:1;min-width:70px">0枚選択</b>'+
+          '<button class="cbnow" disabled style="border:0;border-radius:999px;padding:8px 14px;font-weight:800;background:var(--rd);color:#fff;cursor:pointer;opacity:.5">今すぐ投稿</button>'+
+          '<button class="cbresv" disabled style="border:0;border-radius:999px;padding:8px 14px;font-weight:800;background:#23262d;color:#cfe0ff;cursor:pointer;opacity:.5">日時予約</button>'+
+          '<button class="cbclear" style="border:0;border-radius:999px;padding:8px 14px;font-weight:800;background:#23262d;color:#aeb6c2;cursor:pointer">クリア</button>'+
+        '</div>'+
+        '<div class="cbresvbox" style="display:none;margin-top:8px;gap:6px;align-items:center;flex-wrap:wrap">'+
+          '<input type="date" class="cbdate"><input type="time" class="cbtime" value="18:00">'+
+          '<button class="cbgo" style="border:0;border-radius:999px;padding:8px 14px;font-weight:800;background:var(--rd);color:#fff;cursor:pointer">この日時で予約</button></div>'+
+        '<div class="cbslot" style="margin-top:8px"></div>'+
+      '</div>';
+    var panel=box.querySelector(".cbpanel"), grid=box.querySelector(".cbgrid");
+    var cnt=box.querySelector(".cbcnt"), bNow=box.querySelector(".cbnow"), bResv=box.querySelector(".cbresv");
+    var rbox=box.querySelector(".cbresvbox"), slot=box.querySelector(".cbslot");
+    function refresh(){
+      cnt.textContent=carouselSel.length+"枚選択";
+      var ok=carouselSel.length>=2 && carouselSel.length<=10;
+      [bNow,bResv].forEach(function(b){ b.disabled=!ok; b.style.opacity=ok?"1":".5"; });
+      Array.prototype.forEach.call(grid.children,function(t){
+        var i=carouselSel.indexOf(t._p); var n=t.querySelector(".cbnum");
+        if(i>=0){ t.style.borderColor="var(--rd)"; n.style.display="flex"; n.textContent=String(i+1); }
+        else { t.style.borderColor="transparent"; n.style.display="none"; }
+      });
+    }
+    FEED.filter(function(p){return !p.banner;}).forEach(function(p){
+      var t=document.createElement("button"); t.type="button"; t._p=p;
+      t.style.cssText="position:relative;border:2px solid transparent;border-radius:8px;overflow:hidden;padding:0;background:#0b0f16;cursor:pointer;aspect-ratio:1/1";
+      var src=feedImg(p);
+      t.innerHTML='<img src="'+esc(cardSrc(src))+'" onerror="this.onerror=null;this.src=\''+esc(src)+'\'" style="width:100%;height:100%;object-fit:cover" loading="lazy"><span class="cbnum" style="position:absolute;top:2px;left:2px;background:var(--rd);color:#fff;font-weight:800;font-size:11px;min-width:18px;height:18px;border-radius:9px;display:none;align-items:center;justify-content:center"></span>';
+      t.onclick=function(){ var i=carouselSel.indexOf(p);
+        if(i>=0) carouselSel.splice(i,1);
+        else { if(carouselSel.length>=10){ toast("最大10枚です"); return; } carouselSel.push(p); }
+        refresh(); };
+      grid.appendChild(t);
+    });
+    box.querySelector(".cbtoggle").onclick=function(){ var op=panel.style.display!=="none"; panel.style.display=op?"none":"block"; };
+    box.querySelector(".cbclear").onclick=function(){ carouselSel=[]; rbox.style.display="none"; slot.innerHTML=""; refresh(); };
+    function submit(when,label){
+      if(carouselSel.length<2){ toast("2枚以上選んでください"); return; }
+      var media=carouselSel.map(function(p){ return absUrl(feedImg(p)); }).join("|");
+      var caption=fullCaption("feed", carouselSel[0]);
+      var name=(carouselSel[0].t||"")+" 他"+(carouselSel.length-1)+"枚";
+      if(!LIVE){ slot.innerHTML='<div class="banner okb">✓ '+label+'（見本）</div>'; toast(label+"（見本）"); return; }
+      slot.innerHTML='<div class="banner okb">送信中…</div>';
+      gJsonp({api:"schedule", kind:"carousel", name:name, when:when, media:media, caption:caption, hashtags:""}).then(function(res){
+        if(res&&(res.ok||res.result==="ok")){ slot.innerHTML='<div class="banner okb">✓ '+label+'（'+carouselSel.length+'枚）</div>'; toast(label); carouselSel=[]; refresh(); loadSched(null,true); }
+        else { slot.innerHTML='<div class="banner ngb">送信できませんでした</div>'; toast("失敗しました"); }
+      }).catch(function(){ slot.innerHTML='<div class="banner ngb">通信エラー</div>'; toast("通信エラー"); });
+    }
+    bNow.onclick=function(){ var d=new Date(); var w=d.getFullYear()+"-"+("0"+(d.getMonth()+1)).slice(-2)+"-"+("0"+d.getDate()).slice(-2)+" "+("0"+d.getHours()).slice(-2)+":"+("0"+d.getMinutes()).slice(-2); submit(w,"投稿しました"); };
+    bResv.onclick=function(){ rbox.style.display=(rbox.style.display==="none"?"flex":"none"); };
+    box.querySelector(".cbgo").onclick=function(){ var dd=box.querySelector(".cbdate").value, tt=box.querySelector(".cbtime").value||"18:00"; if(!dd){ toast("予約日を選んでください"); return; } rbox.style.display="none"; submit(dd+" "+tt,"予約しました"); };
+    refresh();
+    return box;
+  }
+
   function render(kind){
     wrap.innerHTML=""; refreshers=[];
     var hint=document.createElement("div"); hint.className="hint";
@@ -621,6 +688,7 @@
       : "リール候補です（現在は準備中・形のみ）。<b>今すぐ投稿</b> または <b>日時を決めて予約</b>できます。")
       + "<br>※大衆寿司酒場すさび湯 三条（@susabiyu_sanjyo）" + (LIVE?"：実データ連携中。":"：現在は見本モードです。");
     wrap.appendChild(hint);
+    if(kind==="feed") wrap.appendChild(buildCarouselPanel());   // カルーセル（複数枚）ビルダー
     var list = kind==="feed"?FEED:REEL;
     function renderList(){
       Array.prototype.slice.call(wrap.querySelectorAll(".seclabel,.card,.rmore")).forEach(function(x){x.remove();});

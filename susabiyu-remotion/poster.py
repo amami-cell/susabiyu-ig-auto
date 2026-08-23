@@ -457,11 +457,60 @@ def ig_post(token, url, is_video):
     pid = p.get("id", "")
     print("[POST] done!", pid); return pid
 
+def _wait_finished(B, cid, token, tries=60):
+    for _ in range(tries):
+        s = req.get(f"{B}/{cid}", params={"fields": "status_code", "access_token": token}).json()
+        sc = s.get("status_code")
+        if sc == "FINISHED":
+            return True
+        if sc == "ERROR":
+            print("[POST] status error", s); return False
+        time.sleep(5)
+    return True   # 画像は基本すぐ。念のためタイムアウトでも公開を試みる
+
+
+def ig_post_carousel(token, urls, caption=""):
+    """複数画像を1つのカルーセル投稿にする。urls=画像URLの配列（2〜10枚）。成功でメディアID。"""
+    B = IGB
+    urls = [u for u in (urls or []) if u][:10]
+    if len(urls) < 2:
+        print("[POST] カルーセルは2枚以上必要:", len(urls)); return ""
+    me = req.get(f"{B}/me", params={"fields": "user_id,username", "access_token": token}).json()
+    if me.get("error"):
+        print("[POST] /me ERROR:", me["error"]); return ""
+    uid = me.get("user_id") or me.get("id")
+    if not uid:
+        print("[POST] uid取得失敗 me=", me); return ""
+    print("[POST] @%s (uid=%s) kind=carousel 枚数=%d" % (me.get("username"), uid, len(urls)))
+    children = []
+    for u in urls:
+        c = req.post(f"{B}/{uid}/media",
+                     data={"image_url": u, "is_carousel_item": "true", "access_token": token}).json()
+        if "error" in c:
+            print("[POST] 子メディア作成ERROR:", c["error"], "| url=", u); return ""
+        _wait_finished(B, c["id"], token)
+        children.append(c["id"])
+    data = {"media_type": "CAROUSEL", "children": ",".join(children), "access_token": token}
+    if caption:
+        data["caption"] = caption
+    parent = req.post(f"{B}/{uid}/media", data=data).json()
+    if "error" in parent:
+        print("[POST] カルーセル親作成ERROR:", parent["error"]); return ""
+    _wait_finished(B, parent["id"], token)
+    p = req.post(f"{B}/{uid}/media_publish", data={"creation_id": parent["id"], "access_token": token}).json()
+    if "error" in p:
+        print("[POST] カルーセルpublish ERROR:", p["error"]); return ""
+    pid = p.get("id", "")
+    print("[POST] カルーセル done!", pid); return pid
+
+
 def ig_post_media(token, url, kind, caption=""):
-    """フィード画像 / リール動画 / 画像ストーリーを本投稿する。
-       kind: 'feed'=画像フィード投稿 / 'reel'=リール動画投稿 / 'story'=画像ストーリー投稿。
+    """フィード画像 / リール動画 / 画像ストーリー / カルーセルを本投稿する。
+       kind: 'feed'=画像 / 'reel'=リール動画 / 'story'=画像ストーリー / 'carousel'=複数画像(url は'|'区切り)。
        成功でメディアIDを返す。※ストーリーはIG仕様上キャプション不可なので付けない。"""
     B = IGB
+    if kind == "carousel":
+        return ig_post_carousel(token, [u.strip() for u in str(url).split("|") if u.strip()], caption)
     me = req.get(f"{B}/me", params={"fields": "user_id,username", "access_token": token}).json()
     if me.get("error"):
         print("[POST] /me ERROR（トークン失効の可能性・要再発行）:", me["error"]); return ""

@@ -26,12 +26,12 @@ JST = poster.JST
 
 # ---- 純粋ロジック（ネット/シート不要・selftest対象） ----
 def _norm_kind(kind):
-    """kind を feed/reel/story のいずれかに正規化（未知や空は feed）。"""
+    """kind を feed/reel/story/carousel のいずれかに正規化（未知や空は feed）。"""
     k = (kind or "").strip().lower()
-    return k if k in ("reel", "story") else "feed"
+    return k if k in ("reel", "story", "carousel") else "feed"
 
 def _kind_label(kind):
-    return {"reel": "リール", "story": "ストーリー"}.get(kind, "フィード")
+    return {"reel": "リール", "story": "ストーリー", "carousel": "カルーセル"}.get(kind, "フィード")
 
 def parse_when(s):
     """'YYYY-MM-DD HH:MM'(JST) を aware datetime に。失敗で None。"""
@@ -91,10 +91,14 @@ def _on_cdn(url):
 
 def resolve_media(media, kind):
     """IGが確実に取得できる公開URLに解決する。
-       画像(feed)で非CDNのhttp(例:github.io)は、DL→jsDelivr/R2へ再ホスト（IG取得失敗を防ぐ）。
+       画像(feed/story)で非CDNのhttp(例:github.io)は、DL→jsDelivr/R2へ再ホスト（IG取得失敗を防ぐ）。
+       カルーセルは '|' 区切りの各URLを画像として個別に解決して再結合。
        ローカルパスも再ホスト。動画(reel)は既にCDN配信なのでそのまま。失敗時は元URL。"""
     if not media:
         return ""
+    if kind == "carousel":
+        parts = [p.strip() for p in str(media).split("|") if p.strip()]
+        return "|".join(resolve_media(p, "feed") for p in parts)
     if media.startswith("http"):
         if kind in ("feed", "story") and not _on_cdn(media):
             try:
@@ -337,7 +341,9 @@ def selftest():
     assert _norm_kind("") == "feed"
     assert _norm_kind("feed") == "feed"
     assert _norm_kind("xxx") == "feed"
+    assert _norm_kind("carousel") == "carousel"
     assert _kind_label("story") == "ストーリー" and _kind_label("reel") == "リール" and _kind_label("feed") == "フィード"
+    assert _kind_label("carousel") == "カルーセル"
     assert build_caption("本文", "#a #b") == "本文\n\n#a #b"
     assert build_caption("", "#a") == "#a"
     assert build_caption("本文", "") == "本文"
