@@ -37,6 +37,7 @@ import { TaishuCapNoren } from "./TaishuNorenImg";
 import { TaishuImgE } from "./TaishuImgEx";
 import { TaishuImgA, TaishuImgA2, TaishuImgB, TaishuImgD, TaishuImgF } from "./TaishuImgAn";
 import { TaishuBeat, TBEAT_DUR } from "./TaishuBeat";
+import { CineReel, CINEREEL_DUR } from "./CineReel";
 import { photos } from "./photoData";
 import { tempoPhotos } from "./tempoData";
 import { typoPhotos } from "./typoData";
@@ -107,6 +108,7 @@ export const RemotionRoot: React.FC = () => {
       <Composition id="TaishuImgF" component={TaishuImgF} fps={FPS} width={1080} height={1920} durationInFrames={150} defaultProps={{ handle: "@susabiyu_sanjyo" }} />
       <Composition id="TaishuImgE" component={TaishuImgE} fps={FPS} width={1080} height={1920} durationInFrames={150} defaultProps={{ handle: "@susabiyu_sanjyo" }} />
       <Composition id="TaishuBeat" component={TaishuBeat} fps={FPS} width={1080} height={1920} durationInFrames={TBEAT_DUR} defaultProps={{ storeName: "すさび湯三条", handle: "@susabiyu_sanjyo" }} />
+      <Composition id="CineReel" component={CineReel} fps={FPS} width={1080} height={1920} durationInFrames={CINEREEL_DUR} defaultProps={{ storeName: "すさび湯三条", handle: "@susabiyu_sanjyo" }} />
     </>
   );
 };
