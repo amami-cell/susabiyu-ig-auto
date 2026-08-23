@@ -64,8 +64,8 @@ var _spawn_timer := 0.0
 @onready var _sun: DirectionalLight3D = $Sun
 
 # 見た目（すべて手続き生成＝外部素材ゼロ・スマホ安全）
-const GRASS_COUNT := 1600
-const FLOWER_COUNT := 90
+const GRASS_COUNT := 5200        # グラフィック最大：芝を密に（MultiMesh 1ドローコール）
+const FLOWER_COUNT := 240
 var _sky_mat: ProceduralSkyMaterial = null
 var _ground_shader: ShaderMaterial = null
 var _grass_mm: MultiMesh = null
@@ -82,9 +82,9 @@ var _pillars: Node3D = null
 
 # 遠景（オープンワールドの“広さ”を出す背景）：山なみ・水面・木立・うねる丘。
 # すべて壁(半径24)の外＝背景専用。MultiMeshで各1ドローコール＝スマホでも軽い。
-const TREE_COUNT := 96        # 広葉樹（まるい木）
-const CONIFER_COUNT := 84     # 針葉樹（とがった木）
-const BOULDER_COUNT := 70     # 岩
+const TREE_COUNT := 150       # 広葉樹（まるい木）
+const CONIFER_COUNT := 130    # 針葉樹（とがった木）
+const BOULDER_COUNT := 110    # 岩
 var _hills: MultiMeshInstance3D = null
 var _water_mat: ShaderMaterial = null
 var _trees: Node3D = null
@@ -743,7 +743,7 @@ func _build_pebbles() -> void:
 	mm.transform_format = MultiMesh.TRANSFORM_3D
 	mm.use_colors = true
 	mm.mesh = mesh
-	mm.instance_count = 420
+	mm.instance_count = 760
 
 	var rng := RandomNumberGenerator.new()
 	rng.seed = 424242
@@ -782,7 +782,7 @@ func _build_plants() -> void:
 	mm.transform_format = MultiMesh.TRANSFORM_3D
 	mm.use_colors = true
 	mm.mesh = mesh
-	mm.instance_count = 320
+	mm.instance_count = 640
 
 	var rng := RandomNumberGenerator.new()
 	rng.seed = 71717171
@@ -874,12 +874,39 @@ func _setup_sky_fog() -> void:
 	# PC「きれい版」(Forward+/Vulkan)だけ：接触影(AO)と反射で立体感を一段上げる。
 	# スマホ(Mobile)・古いPC(gl_compatibility)では無効＝カクつかせない。写真に一番近い見た目はここ。
 	if _is_high_fidelity():
-		env.ssao_enabled = true          # 物のすき間・草の根元に自然な陰り（AAAの肝）
-		env.ssao_radius = 1.4
-		env.ssao_intensity = 2.2
-		env.ssao_detail = 1.0
-		env.ssil_enabled = true          # 面で反射した“回り込む光”（色がにじむ）
-		env.glow_bloom = 0.05
+		# === グラフィック最大（PCきれい版・Forward+）===
+		# 接触影(AO)・面反射光(SSIL)を強めに
+		env.ssao_enabled = true
+		env.ssao_radius = 2.0
+		env.ssao_intensity = 3.0
+		env.ssao_detail = 1.5
+		env.ssao_power = 2.0
+		env.ssil_enabled = true
+		env.ssil_intensity = 1.2
+		# スクリーンスペース反射（濡れた地面・水面に景色が映る）
+		env.ssr_enabled = true
+		env.ssr_max_steps = 96
+		env.ssr_fade_in = 0.2
+		env.ssr_fade_out = 4.0
+		# リアルタイム大域照明（光が回り込み・色がにじむ＝写真的な陰影）
+		env.sdfgi_enabled = true
+		env.sdfgi_use_occlusion = true
+		env.sdfgi_bounce_feedback = 0.5
+		# ボリューメトリック・フォグ（空気の立体感・光の柱／木漏れ日）
+		env.volumetric_fog_enabled = true
+		env.volumetric_fog_density = 0.018
+		env.volumetric_fog_albedo = Color(0.92, 0.88, 0.82)
+		env.volumetric_fog_length = 96.0
+		env.volumetric_fog_gi_inject = 1.0
+		env.glow_bloom = 0.06
+		# 被写界深度＋自動露出（映画的な絵）
+		var cam_attr := CameraAttributesPractical.new()
+		cam_attr.dof_blur_far_enabled = true
+		cam_attr.dof_blur_far_distance = 34.0
+		cam_attr.dof_blur_far_transition = 22.0
+		cam_attr.dof_blur_amount = 0.05
+		cam_attr.auto_exposure_enabled = true
+		_env.camera_attributes = cam_attr
 
 	_env.environment = env
 
