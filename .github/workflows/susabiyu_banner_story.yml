@@ -1,0 +1,62 @@
+name: susabiyu-banner-story
+# すさび湯三条：ドリンク170円バナー(9:16)を「週2回」ストーリーへ自動投稿。
+# 素材は作成済み画像(pwa/susabiyu/banner_XX_story.jpg)＝Remotion不要で軽い。
+# 5枚を順ローテ（日付から決定的に算出）。三条1店舗ぶんの軽い処理＝無料枠内・店舗数に比例しない。
+on:
+  schedule:
+    - cron: '0 6 * * 3'   # 毎週水 JST 15:00
+    - cron: '0 6 * * 0'   # 毎週日 JST 15:00
+  workflow_dispatch:
+    inputs:
+      dry:
+        description: "DRY (1=投稿せず選定だけ表示)"
+        required: false
+        default: "0"
+permissions:
+  contents: read
+concurrency:
+  group: susabiyu-banner-story
+  cancel-in-progress: false
+jobs:
+  post:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    defaults:
+      run:
+        working-directory: susabiyu-remotion
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install deps
+        run: pip install google-api-python-client google-auth requests boto3 Pillow
+      - name: Write creds.json
+        run: echo "$GOOGLE_CREDS_B64" | base64 -d > creds.json
+        env:
+          GOOGLE_CREDS_B64: ${{ secrets.GOOGLE_CREDS_B64 }}
+      - name: Post banner story (rotation)
+        env:
+          GOOGLE_CREDS_B64: ${{ secrets.GOOGLE_CREDS_B64 }}
+          IG_ACCESS_TOKEN: ${{ secrets.IG_ACCESS_TOKEN }}
+          SHEET_ID: ${{ secrets.SHEET_ID }}
+          LINE_CHANNEL_TOKEN: ${{ secrets.LINE_CHANNEL_TOKEN }}
+          R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          R2_BUCKET: ${{ secrets.R2_BUCKET }}
+          R2_PUBLIC_BASE: ${{ secrets.R2_PUBLIC_BASE }}
+          GH_MEDIA_TOKEN: ${{ secrets.GH_MEDIA_TOKEN }}
+          GH_MEDIA_REPO: ${{ secrets.GH_MEDIA_REPO }}
+          DRY: ${{ github.event.inputs.dry }}
+        run: python susabiyu_banner_story.py creds.json
+      - name: 失敗をLINE通知
+        if: failure()
+        env:
+          LINE_CHANNEL_TOKEN: ${{ secrets.LINE_CHANNEL_TOKEN }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          [ -z "$LINE_CHANNEL_TOKEN" ] && exit 0
+          curl -s -X POST https://api.line.me/v2/bot/message/broadcast \
+            -H "Authorization: Bearer $LINE_CHANNEL_TOKEN" -H "Content-Type: application/json" \
+            -d "{\"messages\":[{\"type\":\"text\",\"text\":\"⚠️ バナーストーリー自動投稿が失敗しました。\n確認: $RUN_URL\"}]}" >/dev/null || true

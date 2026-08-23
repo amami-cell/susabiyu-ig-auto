@@ -236,7 +236,7 @@
 <script>
 (function(){
   "use strict";
-  window.__APPV = "v182";   // 画面下の版数表示用（sw.js の VER と同期・コード変更で更新）
+  window.__APPV = "v187";   // 画面下の版数表示用（sw.js の VER と同期・コード変更で更新）
   var CFG = window.SUSABIYU || {};
   var GAS = (CFG.GAS_URL||"").trim();
   // 実データ連携が有効か（config.js の GAS_URL が実物URLに置換済みか）。未置換(PASTE_)なら見本モード。
@@ -529,6 +529,20 @@
 
   var wrap = document.getElementById("wrap");
   var showAll={feed:false,reel:false};
+  // おすすめ3に“たまに”バナーを1枠だけ混ぜる（3回に1回・料理2＋バナー1）。
+  // フィードはグリッドに残るので出しすぎない＝自然に週1くらいで表面化させる狙い。
+  var _recoBannerDecided=false, _recoBanner=null;
+  function decideRecoBanner(){
+    if(_recoBannerDecided) return;
+    var banners=FEED.filter(function(p){return p.banner;});
+    if(!banners.length) return;                 // feed.json未ロード→次のrenderで判定
+    _recoBannerDecided=true;
+    try{
+      var n=parseInt(localStorage.getItem("susv_reco_n")||"0",10)||0;
+      localStorage.setItem("susv_reco_n",String(n+1));
+      _recoBanner=(n%3===2)?banners[Math.floor(n/3)%banners.length]:null;   // 3回に1回だけ
+    }catch(e){ _recoBanner=null; }
+  }
   // 候補カードを1枚作る（おすすめ欄・全商品欄で共通利用）
   function buildCard(kind,p,noLbl){
     var c=document.createElement("div"); c.className="card"+(p.reco?" reco":"");
@@ -610,7 +624,10 @@
     var list = kind==="feed"?FEED:REEL;
     function renderList(){
       Array.prototype.slice.call(wrap.querySelectorAll(".seclabel,.card,.rmore")).forEach(function(x){x.remove();});
-      var recos=pickRecos(list.filter(function(p){return !p.banner;}),3,schedTailGenres(kind,2));  // バナーはおすすめに出さない（全商品で選ぶ）
+      if(kind==="feed") decideRecoBanner();
+      var useBn=(kind==="feed") && _recoBanner;
+      var recos=pickRecos(list.filter(function(p){return !p.banner;}),useBn?2:3,schedTailGenres(kind,2));  // 料理を先に選ぶ（バナーは別枠）
+      if(useBn) recos.splice(1,0,_recoBanner);   // 料理・バナー・料理 の並びで1枠だけ差し込む
       var lab=document.createElement("div"); lab.className="seclabel";
       lab.innerHTML=(kind==="feed"?"⭐ 次のおすすめ":"⭐ おすすめリール")+' <span class="cnt">'+recos.length+'件</span>';
       wrap.appendChild(lab);
