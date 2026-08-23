@@ -254,6 +254,20 @@ func _run_shot() -> void:
 				elapsed += 0.02
 			await RenderingServer.frame_post_draw
 			get_viewport().get_texture().get_image().save_png("/tmp/shot_attack%d.png" % i)
+	# --face を付けると、プレイヤーの正面に寄って撮る（キャラの顔・見た目確認）
+	if OS.get_cmdline_user_args().has("--face") and _garden != null:
+		var pf: Node = _garden.local_player()
+		var fc := Vector3.ZERO
+		if pf != null:
+			fc = pf.global_position
+		var fcam := Camera3D.new()
+		add_child(fcam)
+		fcam.global_position = fc + Vector3(0.35, 0.85, 1.9)   # 顔は+Z側（追従カメラと同じ向き）
+		fcam.look_at(fc + Vector3(0.0, 0.6, 0.0), Vector3.UP)
+		fcam.current = true
+		await get_tree().create_timer(0.6).timeout
+		await RenderingServer.frame_post_draw
+		get_viewport().get_texture().get_image().save_png("/tmp/shot_face.png")
 	# --bugs を付けると、アリとコガネムシを近くに出して寄りで撮る（虫の見た目確認）
 	if OS.get_cmdline_user_args().has("--bugs") and _garden != null:
 		_garden.call("_remote_spawn_bug", 901, "res://data/ant.tres", Vector3(-0.8, 0.6, -1.2))
