@@ -57,6 +57,7 @@ func setup(body: MeshInstance3D, color: Color, _role: String = "child", _char_na
 		_add_cute_bone("mixamorig_LeftFoot", FOOT_SCALE)
 		_add_cute_bone("mixamorig_RightFoot", FOOT_SCALE)
 		_apply_cute()
+		_build_cute_face(color)
 
 	_ap = model.find_child("AnimationPlayer", true, false)
 	if _ap != null and _ap.has_animation("Idle"):
@@ -67,6 +68,58 @@ func _add_cute_bone(bone_name: String, s: float) -> void:
 	var idx := _skel.find_bone(bone_name)
 	if idx >= 0:
 		_cute_bones.append([idx, s])
+
+
+## 本物モデルの顔に、大きなアニメ目＋ハイライト＋ほっぺ＋にっこり口を乗せる（可愛い顔）。
+## self(KobitoModel) の子＝キャラの向きと一緒に回る。顔は -Z 側（正面）。
+func _build_cute_face(color: Color) -> void:
+	var hidx := _skel.find_bone("mixamorig_Head")
+	if hidx < 0:
+		return
+	var ht: Transform3D = _skel.global_transform * _skel.get_bone_global_pose(hidx)
+	var hc: Vector3 = to_local(ht.origin)            # 頭の基準点（self ローカル）
+	var r := 0.12                                    # 顔パーツの基準サイズ
+	var eye_c := hc + Vector3(0.0, 0.28, -0.18)      # 頭ボーンは首元なので高めに
+	var mouth_c := hc + Vector3(0.0, 0.12, -0.2)
+	var cheek_c := hc + Vector3(0.0, 0.17, -0.18)
+
+	for sx in [-1.0, 1.0]:
+		# 白目
+		var eye := _face_ball(Color(0.98, 0.98, 0.97), r * 0.8, eye_c + Vector3(0.095 * sx, 0, 0), Vector3(1.0, 1.25, 0.5), 0.0)
+		# 黒目
+		_face_ball(Color(0.09, 0.07, 0.09), r * 0.62, Vector3(0, 0, -r * 0.35), Vector3.ONE, 0.0, eye)
+		# ハイライト（大・小）
+		_face_ball(Color(1, 1, 1), r * 0.24, Vector3(r * 0.28, r * 0.3, -r * 0.55), Vector3.ONE, 0.7, eye)
+		_face_ball(Color(0.85, 0.92, 1.0), r * 0.12, Vector3(-r * 0.24, -r * 0.24, -r * 0.5), Vector3.ONE, 0.6, eye)
+		# ほっぺ
+		_face_ball(Color(1.0, 0.56, 0.6), r * 0.42, cheek_c + Vector3(0.16 * sx, -0.04, 0.0), Vector3(1.2, 0.9, 0.5), 0.15)
+	# にっこり口（3点）
+	_face_ball(Color(0.72, 0.34, 0.36), r * 0.17, mouth_c, Vector3(2.2, 0.7, 0.6), 0.0)
+	for sx in [-1.0, 1.0]:
+		_face_ball(Color(0.72, 0.34, 0.36), r * 0.11, mouth_c + Vector3(0.07 * sx, 0.035, 0.0), Vector3.ONE, 0.0)
+
+
+func _face_ball(col: Color, rad: float, pos: Vector3, sc: Vector3, emit: float, parent: Node3D = null) -> MeshInstance3D:
+	var mi := MeshInstance3D.new()
+	var sm := SphereMesh.new()
+	sm.radius = rad
+	sm.height = rad * 2.0
+	mi.mesh = sm
+	var mat := StandardMaterial3D.new()
+	mat.albedo_color = col
+	mat.roughness = 0.55
+	if emit > 0.0:
+		mat.emission_enabled = true
+		mat.emission = Color(1, 1, 1)
+		mat.emission_energy_multiplier = emit
+	mi.material_override = mat
+	mi.position = pos
+	mi.scale = sc
+	if parent != null:
+		parent.add_child(mi)
+	else:
+		add_child(mi)
+	return mi
 
 
 func _apply_cute() -> void:
@@ -86,8 +139,8 @@ func _tint(root: Node, color: Color) -> void:
 			var m := base.duplicate() as BaseMaterial3D
 			if m == null:
 				continue
-			# パステル＝家族色を混ぜつつ明るく・やわらかく（可愛い方向）
-			m.albedo_color = m.albedo_color.lerp(color, 0.25).lightened(0.12)
+			# 家族色は“ごく薄く”混ぜるだけ＝肌が緑っぽくならないように
+			m.albedo_color = m.albedo_color.lerp(color, 0.12)
 			m.roughness = maxf(m.roughness, 0.7)   # つや消し＝やわらか
 			mi.set_surface_override_material(s, m)
 
