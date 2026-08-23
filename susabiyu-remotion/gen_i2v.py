@@ -35,28 +35,67 @@ MIN_SIDE = 800
 LIB_TAB = "リール素材"
 
 
-def _client():
+# 実在チェック用のI2V Space候補（無料ZeroGPU系）。probeでどれが生きてるか自動判定する。
+CANDIDATES = [
+    "multimodalart/stable-video-diffusion",
+    "fffiloni/stable-video-diffusion-img2vid",
+    "wangfuyun/AnimateLCM-SVD",
+    "Lightricks/ltx-video-distilled",
+    "Lightricks/LTX-Video-Playground",
+    "ali-vilab/i2vgen-xl",
+    "modelscope/i2vgen-xl",
+    "fffiloni/SVD_Keyframe_Interpolation",
+    "guoyww/AnimateDiff",
+    "TencentARC/PhotoMaker-V2",
+]
+
+
+def _client(space=None):
     from gradio_client import Client
+    sp = space or HF_SPACE
     tok = os.environ.get("HF_TOKEN", "").strip()
     if not tok:
         raise SystemExit("NG: HF_TOKEN 未設定（無料HFアカウントの read トークンを設定してください）")
     # gradio_client のバージョン差でトークン引数名が違う（hf_token / token）。両対応＋env自動認証。
-    last = None
     for kw in ("hf_token", "token"):
         try:
-            return Client(HF_SPACE, **{kw: tok})
-        except TypeError as e:
-            last = e
-    return Client(HF_SPACE)   # 最終手段：env HF_TOKEN を自動参照
+            return Client(sp, **{kw: tok})
+        except TypeError:
+            pass
+    return Client(sp)   # 最終手段：env HF_TOKEN を自動参照
+
+
+def _summarize_api(c):
+    """named_endpoints を「api_name → 引数(型)」で短く表示する。"""
+    try:
+        info = c.view_api(return_format="dict")
+    except Exception as e:
+        return "view_api失敗: %s" % e
+    eps = (info or {}).get("named_endpoints", {}) or {}
+    lines = []
+    for name, meta in eps.items():
+        ps = []
+        for p in meta.get("parameters", []):
+            pn = p.get("parameter_name") or p.get("label") or "?"
+            ty = (p.get("python_type") or {}).get("type") or p.get("type") or "?"
+            ps.append("%s:%s" % (pn, ty))
+        lines.append("   %s (%s)" % (name, ", ".join(ps)))
+    return "\n".join(lines) or "   （named_endpoints なし）"
 
 
 def probe():
-    """SpaceのAPI仕様を表示（api_name と引数を確認して HF_API_NAME を決める）。"""
-    c = _client()
-    try:
-        print(c.view_api(all_endpoints=True, print_info=True))
-    except Exception as e:
-        print("view_api失敗:", e)
+    """候補Space（or HF_SPACE指定時はそれのみ）を順に叩き、生きてるSpaceとAPI仕様を表示。"""
+    spaces = [HF_SPACE] if os.environ.get("HF_SPACE") else CANDIDATES
+    ok = 0
+    for sp in spaces:
+        try:
+            c = _client(sp)
+            print("== OK:", sp, "==")
+            print(_summarize_api(c))
+            ok += 1
+        except Exception as e:
+            print("-- NG:", sp, "|", type(e).__name__, str(e)[:100])
+    print("\n[PROBE] 生存Space %d/%d" % (ok, len(spaces)))
     return 0
 
 
