@@ -9,9 +9,12 @@ extends Node
 signal dialogue(lines: PackedStringArray)   # 会話（1行ずつ送る）
 signal objective_changed(text: String)      # 画面上の目的表示（""で消す）
 signal banner(text: String)                 # 章クリア等の大きな中央表示
+signal spawn_wave(n: int)                   # 群れ(ウェーブ)を湧かせる合図
+signal spawn_boss                           # 中ボスを湧かせる合図
 
-# 第1章「たどり着いた隙間」。しっかり遊べる長さ＝掃除→癒やし→謎解き→協力→群れ→回復。
-# goal: clean / heal(n:累計) / puzzle / switch / green(v) / clear
+# 第1章「たどり着いた隙間」。しっかり遊べる長さ＝掃除→癒やし→探索(収集)→謎解き→
+# 協力→群れ(ウェーブ)→女王アリ(中ボス)→みどり回復→クリア。
+# goal: clean / heal(n:累計) / collect(n) / puzzle / switch / wave(n)+heal / boss / green(v) / clear
 const CH1 := [
 	{
 		"goal": "clean",
@@ -33,6 +36,14 @@ const CH1 := [
 		],
 	},
 	{
+		"goal": "collect", "n": 4,
+		"lines": [
+			"つぼみ「きらきらしてる…なに これ？」",
+			"おじい「“種のかけら”じゃ。緑を 取り戻す かぎ。",
+			"　このあたりに 散らばっとる。拾っておいで」",
+		],
+	},
+	{
 		"goal": "puzzle",
 		"lines": [
 			"つぼみ「ねえ、この石…なにか もようが ある」",
@@ -49,17 +60,25 @@ const CH1 := [
 		],
 	},
 	{
-		"goal": "heal", "n": 12,
+		"goal": "heal", "n": 16, "wave": 6,
 		"lines": [
-			"——奥から ヘドロに侵された虫が どっと あふれてきた。",
-			"父「みんな、下がって！ ここは 父さんと母さんが 癒やす」",
-			"カヤ「…俺も やる。ここ、俺たちの 家に するんだろ」",
+			"——奥から ヘドロに侵された虫が どっと あふれてきた！",
+			"父「群れだ…！ みんな、癒やすんだ！」",
+			"カヤ「上等だ。ここは 俺たちの 家に するんだからな！」",
 		],
 	},
 	{
-		"goal": "green", "v": 0.55,
+		"goal": "boss", "boss": true,
 		"lines": [
-			"——掃除して 癒やすほど、茶色い地面に みどりが 差してきた。",
+			"——地ひびき。大きな影が あらわれる。",
+			"スミレ「あれは…女王アリ！ ヘドロに 一番 侵されてる」",
+			"父「いちばん 苦しんでるんだ。みんなで 癒やそう！」",
+		],
+	},
+	{
+		"goal": "green", "v": 0.6,
+		"lines": [
+			"——女王が 正気に もどり、隙間に みどりが あふれた。",
 			"つぼみ「わあ…！ みどり、ほんとに あった！」",
 			"おじい「な？　言ったろう」",
 		],
@@ -77,6 +96,8 @@ const CH1 := [
 
 var beat := -1
 var _healed := 0
+var _seeds := 0
+var _boss_cleared := false
 var _active := false
 var _last_obj := "￿"
 
@@ -85,6 +106,13 @@ func _ready() -> void:
 	Net.session_started.connect(_on_session_started)
 	Net.session_ended.connect(func(_r: String) -> void: _active = false)
 	WorldState.creature_healed.connect(_on_creature_healed)
+	WorldState.seed_collected.connect(_on_seed_collected)
+
+
+## サーバから：中ボスを癒やし終えた（bug.gd が呼ぶ）。
+func notify_boss_cleared() -> void:
+	if _is_server():
+		_boss_cleared = true
 
 
 func _on_session_started() -> void:
@@ -95,6 +123,8 @@ func _on_session_started() -> void:
 		return
 	_active = true
 	_healed = 0
+	_seeds = 0
+	_boss_cleared = false
 	beat = -1
 	_last_obj = "￿"
 	if _is_server():
@@ -115,12 +145,19 @@ func _process(_delta: float) -> void:
 			var need: int = b.get("n", 1)
 			_push_objective("あばれる虫を いやす（のこり %d）" % maxi(0, need - _healed))
 			done = _healed >= need
+		"collect":
+			var need2: int = b.get("n", 1)
+			_push_objective("種のかけらを あつめる（%d / %d）" % [_seeds, need2])
+			done = _seeds >= need2
 		"puzzle":
 			_push_objective("石版を 順番に踏んで 昔のしるしを 灯す")
 			done = _prop_solved("StonePuzzle")
 		"switch":
 			_push_objective("はなれた2つの台に 同時に乗って とびらを開く（ソロは子が手伝う）")
 			done = _prop_solved("SwitchPair")
+		"boss":
+			_push_objective("女王アリを 癒やす")
+			done = _boss_cleared
 		"green":
 			var v: float = b.get("v", 0.5)
 			_push_objective("みどりを もどす（%d%%）" % int(clampf(WorldState.recovery / v, 0.0, 1.0) * 100.0))
@@ -147,6 +184,12 @@ func _set_beat(i: int) -> void:
 	beat = i
 	var data: Dictionary = CH1[i]
 	dialogue.emit(PackedStringArray(data.get("lines", [])))
+	# このビートに入った瞬間の仕掛け（群れ・中ボス）を、サーバが湧かせる
+	if _is_server():
+		if data.has("wave"):
+			spawn_wave.emit(int(data["wave"]))
+		if data.get("boss", false):
+			spawn_boss.emit()
 	if data.get("clear", false):
 		objective_changed.emit("")
 		banner.emit("第1章 クリア  「たどり着いた隙間」")
@@ -164,6 +207,11 @@ func _set_ui_objective(text: String) -> void:
 func _on_creature_healed() -> void:
 	if _is_server():
 		_healed += 1
+
+
+func _on_seed_collected() -> void:
+	if _is_server():
+		_seeds += 1
 
 
 func _trash_count() -> int:

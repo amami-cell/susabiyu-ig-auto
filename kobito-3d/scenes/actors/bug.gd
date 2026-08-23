@@ -148,6 +148,9 @@ func cleanse(amount: int, healer_id: int) -> void:
 	WorldState.add("bug_healed")
 	# 癒やした生き物は「力」を残す（飛行5パーツなど）
 	WorldState.grant_power(stats.grants_power)
+	# 中ボス（女王アリ等）を癒やしたら章の進行へ知らせる
+	if stats.is_midboss:
+		Chapter.notify_boss_cleared()
 	for p in get_tree().get_nodes_in_group("player"):
 		if p.name.to_int() == healer_id:
 			p.rpc("gain_xp", stats.xp_reward)

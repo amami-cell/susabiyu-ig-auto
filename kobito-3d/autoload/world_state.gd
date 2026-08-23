@@ -9,6 +9,7 @@ signal recovery_changed(value: float)
 signal notice(text: String)
 signal powers_changed
 signal creature_healed             # 虫を1匹癒やすたび（章の進行が数える）
+signal seed_collected              # 種のかけらを1つ拾うたび（章の進行が数える）
 
 ## 飛行を組み上げる5パーツ。癒やした空の虫がそれぞれ授ける（STORY/AREAS参照）。
 ## 5つ全部そろうと自由飛行が解禁される（＝物語の約2/3地点）。
@@ -21,6 +22,7 @@ const GAIN := {
 	"trash_removed": 0.06,    # ゴミを排水溝から出す … しっかり
 	"drain_cleared": 0.20,    # 排水溝が1つ開通 … 大きく
 	"source_purified": 0.30,  # 汚染源を浄化 … 大きく
+	"seed": 0.03,             # 種のかけらを拾う … ちょっと
 }
 
 var recovery: float = 0.0
@@ -80,6 +82,9 @@ func add(kind: String, times: int = 1) -> void:
 	if kind == "bug_healed":
 		for _i in times:
 			creature_healed.emit()
+	elif kind == "seed":
+		for _i in times:
+			seed_collected.emit()
 	var gain: float = GAIN.get(kind, 0.0) * times
 	if is_zero_approx(gain):
 		return

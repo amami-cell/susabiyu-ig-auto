@@ -13,6 +13,7 @@ extends Node3D
 const PlayerScene := preload("res://scenes/actors/player.tscn")
 const BugScene := preload("res://scenes/actors/bug.tscn")
 const ChildScene := preload("res://scenes/actors/child.tscn")
+const SeedScene := preload("res://scenes/props/seed.tscn")
 const StonePuzzleScript := preload("res://scenes/props/stone_puzzle.gd")
 const SwitchPairScript := preload("res://scenes/props/switch_pair.gd")
 
@@ -94,11 +95,15 @@ func _ready() -> void:
 	$CleanupZone.body_entered.connect(_on_cleanup_zone_entered)
 	if multiplayer.has_multiplayer_peer():
 		multiplayer.peer_connected.connect(_on_peer_connected)
+	# 章の山場：群れ(ウェーブ)と女王アリ(中ボス)は Chapter からの合図で湧かす
+	Chapter.spawn_wave.connect(_on_chapter_wave)
+	Chapter.spawn_boss.connect(_on_chapter_boss)
 	_spawn_puzzle()
 	_on_recovery_changed(WorldState.recovery)
 	_reconcile_players()
 	if _is_server():
 		_spawn_children()
+		_spawn_seeds()
 
 
 ## 遺跡の石版パズル（順番に踏む）を庭の一角に置く。全員がローカルに組み立て、
@@ -174,6 +179,10 @@ func _on_peer_connected(id: int) -> void:
 		_puzzle.sync_to(id)
 	if _switch != null and _switch.has_method("sync_to"):
 		_switch.sync_to(id)
+	# まだ拾われていない種のかけらを配る
+	for s in get_tree().get_nodes_in_group("seed"):
+		if s.get_parent() == self:
+			rpc_id(id, "_remote_spawn_seed", int(s.name.trim_prefix("Seed")), s.global_position)
 
 
 # ------------------------------------------------------------ 子ども（追従隊列）
@@ -208,6 +217,53 @@ func _remote_spawn_child(index: int) -> void:
 	_children.add_child(child)
 	# 初期位置は巣のうしろに一列。すぐ隊列に整う。
 	child.global_position = SPAWN_POINTS[0] + Vector3(0.0, 0.0, 1.0 + index * 0.6)
+
+
+# ------------------------------------------------------------ 収集（種のかけら）
+#
+# マップの各所に散らばる“寄り道のご褒美”。集めると少し緑が戻り、章の進行が数える。
+
+const SEED_POINTS := [
+	Vector3(15.0, 0.6, 10.0),
+	Vector3(-14.0, 0.6, 12.0),
+	Vector3(16.0, 0.6, -12.0),
+	Vector3(-16.0, 0.6, -9.0),
+	Vector3(7.0, 0.6, 16.0),
+	Vector3(-6.0, 0.6, -16.0),
+]
+
+
+func _spawn_seeds() -> void:
+	for i in SEED_POINTS.size():
+		rpc("_remote_spawn_seed", i, SEED_POINTS[i])
+
+
+@rpc("authority", "call_local", "reliable")
+func _remote_spawn_seed(index: int, pos: Vector3) -> void:
+	if has_node("Seed%d" % index):
+		return
+	var s := SeedScene.instantiate()
+	s.name = "Seed%d" % index
+	add_child(s)
+	s.global_position = pos
+
+
+# ------------------------------------------------------------ 章の山場（群れ・中ボス）
+
+## 群れ（ウェーブ）：一気に敵を湧かせる。Chapter の合図で。
+func _on_chapter_wave(n: int) -> void:
+	if not _is_server():
+		return
+	for i in n:
+		_spawn_bug()
+
+
+## 中ボス（女王アリ）を舞台の奥に1体。Chapter の合図で。
+func _on_chapter_boss() -> void:
+	if not _is_server():
+		return
+	_bug_serial += 1
+	rpc("_remote_spawn_bug", _bug_serial, "res://data/queen_ant.tres", Vector3(0.0, 1.0, -15.0))
 
 
 # ------------------------------------------------------------ 敵
