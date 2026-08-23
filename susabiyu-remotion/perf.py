@@ -139,3 +139,44 @@ def best_hours_by_weekday():
         print("[PERF] best_hours失敗:", e); return {}
     _HOURS_CACHE = out
     return out
+
+
+# ---- A3: ハッシュタグ成績（キャプション内の#タグ×リーチ）。効いてる/弱いを可視化 ----
+_TAGS_CACHE = None
+MIN_TAG_USES = 3   # この回数以上使ったタグだけ評価（少数は誤差が大きい）
+
+
+def tag_performance():
+    """[(tag, 平均リーチ, 使用回数), ...] を平均リーチ降順で返す。失敗/不足時 []。
+    「インサイト投稿」の E=キャプション から #タグ を抽出し F=リーチ を突合。"""
+    global _TAGS_CACHE
+    if _TAGS_CACHE is not None:
+        return _TAGS_CACHE
+    import re
+    try:
+        import poster
+        sh = poster._sheets()
+        if not sh or not poster.SHEET_ID:
+            return []
+        posts = sh.values().get(spreadsheetId=poster.SHEET_ID, range=POST_TAB + "!A:Q").execute().get("values", [])
+        agg = {}
+        for i, r in enumerate(posts):
+            if i == 0 or len(r) < 6:
+                continue
+            cap = r[4] if len(r) > 4 else ""
+            reach = _to_int(r[5])
+            if reach is None or not cap:
+                continue
+            seen = set()
+            for t in re.findall(r"#[^\s#　]+", cap):
+                k = t.lower()
+                if k in seen:
+                    continue
+                seen.add(k)
+                agg.setdefault(t, []).append(reach)
+        ranked = [(t, sum(v) / len(v), len(v)) for t, v in agg.items() if len(v) >= MIN_TAG_USES]
+        ranked.sort(key=lambda x: -x[1])
+        _TAGS_CACHE = ranked
+    except Exception as e:
+        print("[PERF] tag_performance失敗:", e); return []
+    return _TAGS_CACHE

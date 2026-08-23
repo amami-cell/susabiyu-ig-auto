@@ -56,6 +56,14 @@ jobs:
                   print("※現状は学習のみ表示。スケジュール自動変更はデータが十分＆GOをもらってから。")
               else:
                   print("[時間帯] まだデータ不足→現状の固定時間のまま")
+              tg = perf.tag_performance()
+              if tg:
+                  print("\n==== ハッシュタグ成績(平均リーチ・上位/下位) ====")
+                  print("  ◎効いてる:", "  ".join("%s(%.0f/%d回)" % (t, a, n) for t, a, n in tg[:8]))
+                  print("  △弱い    :", "  ".join("%s(%.0f/%d回)" % (t, a, n) for t, a, n in tg[-5:]))
+                  print("※編集はアプリのハッシュタグ編集で。下位タグを差し替えるとリーチ改善が見込めます。")
+              else:
+                  print("[タグ] まだデータ不足→評価は保留")
           except Exception as e:
               print("[perf] 集計スキップ:", e)
           PY
