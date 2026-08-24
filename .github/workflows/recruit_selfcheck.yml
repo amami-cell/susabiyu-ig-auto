@@ -16,12 +16,6 @@ jobs:
           U="${RECRUIT_EXEC_URL:-https://script.google.com/macros/s/AKfycbz6i36c7UjbM3S44kl1kEcsI0CSjYo9jL-W-T4BJUAr9jmBlVXj-vnQTUwQbGoxcHYT/exec}"
           K="$EP_PUSH_KEY"
           probe(){ echo "=== $1 ==="; curl -sSL --max-time 90 "$U?$2&key=$K" || echo "(curl error)"; echo; echo; }
+          probe "diag ua(ブラウザ別到達)"  "diag=ua"
           probe "diag login(ログイン診断)"  "diag=login"
           probe "diag run(取得ログ)"      "diag=run"
-          probe "health(取得監視)"        "health=12&dry=1"
-          probe "remind(リマインド)"       "remind=1&dry=1"
-          probe "untreated(未対応)"        "untreated=6&dry=1"
-          probe "summary weekly(週次)"     "summary=weekly&dry=1"
-          probe "summary monthly(月次)"    "summary=monthly&dry=1"
-          probe "scorecard(店舗別カード)"  "scorecard=1&dry=1"
-          probe "diag agg(集計内訳)"       "diag=agg"
