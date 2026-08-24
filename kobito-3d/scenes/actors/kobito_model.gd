@@ -22,6 +22,8 @@ var _ap: AnimationPlayer = null
 var _walking := false
 var _skel: Skeleton3D = null
 var _cute_bones: Array = []     # [[bone_idx, scale], ...] 毎フレーム再適用してチビ体型を保つ
+var _face_mi: MeshInstance3D = null   # 表情モーフ(ブレンドシェイプ)を持つ顔メッシュ（あれば）
+var _blink_t := 3.0
 
 
 static func has_model() -> bool:
@@ -58,8 +60,11 @@ func setup(body: MeshInstance3D, color: Color, _role: String = "child", _char_na
 		_add_cute_bone("mixamorig_LeftFoot", FOOT_SCALE)
 		_add_cute_bone("mixamorig_RightFoot", FOOT_SCALE)
 		_apply_cute()
-		# 表情リグは用意するが、既定は非表示＝モデル本来のきれいな顔（浮いた貼り付け感を出さない）。
-		_build_expression()
+		# 表情モーフ(ブレンドシェイプ)付きモデルなら、その顔メッシュを掴んでモーフで表情管理する。
+		# 無ければ従来どおり素の顔（浮いた貼り付けはしない）。
+		_face_mi = _find_morph_mesh(model)
+		if _face_mi == null:
+			_build_expression()
 		set_expression("none")
 
 	_ap = model.find_child("AnimationPlayer", true, false)
@@ -71,6 +76,60 @@ func _add_cute_bone(bone_name: String, s: float) -> void:
 	var idx := _skel.find_bone(bone_name)
 	if idx >= 0:
 		_cute_bones.append([idx, s])
+
+
+# ---- 表情モーフ（ARKit系ブレンドシェイプ）で表情管理。モーフ付きモデルを入れると有効化 ----
+
+func _find_morph_mesh(root: Node) -> MeshInstance3D:
+	for n in root.find_children("*", "MeshInstance3D", true, false):
+		var mi := n as MeshInstance3D
+		if mi.mesh != null and mi.mesh.get_blend_shape_count() > 0:
+			return mi
+	return null
+
+
+func _set_morph(bs_name: String, v: float) -> void:
+	if _face_mi == null:
+		return
+	var idx := _face_mi.find_blend_shape_by_name(bs_name)
+	if idx >= 0:
+		_face_mi.set_blend_shape_value(idx, v)
+
+
+## ARKit系モーフ名の組み合わせで表情を作る（RPM/VRoid等の標準名）。
+func _apply_morph(name: String) -> void:
+	for nm in ["mouthSmileLeft", "mouthSmileRight", "mouthFrownLeft", "mouthFrownRight",
+			"jawOpen", "browInnerUp", "browDownLeft", "browDownRight", "eyeWideLeft", "eyeWideRight"]:
+		_set_morph(nm, 0.0)
+	match name:
+		"happy":
+			_set_morph("mouthSmileLeft", 0.85)
+			_set_morph("mouthSmileRight", 0.85)
+		"sad":
+			_set_morph("mouthFrownLeft", 0.6)
+			_set_morph("mouthFrownRight", 0.6)
+			_set_morph("browInnerUp", 0.7)
+		"surprised":
+			_set_morph("jawOpen", 0.45)
+			_set_morph("eyeWideLeft", 0.6)
+			_set_morph("eyeWideRight", 0.6)
+			_set_morph("browInnerUp", 0.7)
+		"angry":
+			_set_morph("browDownLeft", 0.7)
+			_set_morph("browDownRight", 0.7)
+			_set_morph("mouthFrownLeft", 0.3)
+			_set_morph("mouthFrownRight", 0.3)
+		_:
+			pass   # none / neutral は全部 0（素の顔）
+
+
+func _do_blink() -> void:
+	_set_morph("eyeBlinkLeft", 1.0)
+	_set_morph("eyeBlinkRight", 1.0)
+	get_tree().create_timer(0.12).timeout.connect(func() -> void:
+		if is_instance_valid(self):
+			_set_morph("eyeBlinkLeft", 0.0)
+			_set_morph("eyeBlinkRight", 0.0))
 
 
 # ---- 表情管理（眉＋口のフラットな線を切替。トゥーンに馴染む控えめな表情）----
@@ -104,8 +163,12 @@ func _build_expression() -> void:
 
 
 ## 表情を切り替える：none（素の顔）/ happy / neutral / sad / surprised / angry。
+## 表情モーフ付きモデルならモーフで、無ければ眉/口マーク（既定は none で非表示）で。
 func set_expression(name: String) -> void:
 	_expression = name
+	if _face_mi != null:
+		_apply_morph(name)
+		return
 	if _brows.size() < 2 or _mouth_mid == null:
 		return
 	# none＝すべて隠してモデル本来の顔にする
@@ -219,10 +282,16 @@ func _tint(root: Node, color: Color) -> void:
 			mi.set_surface_override_material(s, m)
 
 
-func _process(_delta: float) -> void:
+func _process(delta: float) -> void:
 	# アニメが上書きしても“チビ体型”を保つため毎フレーム再適用（スケールはアニメが触らない）
 	if _skel != null:
 		_apply_cute()
+	# 表情モーフ付きモデルなら、時々まばたき（自然さ）
+	if _face_mi != null:
+		_blink_t -= delta
+		if _blink_t <= 0.0:
+			_blink_t = randf_range(2.5, 5.0)
+			_do_blink()
 	if _actor == null or _ap == null:
 		return
 	var speed := 0.0
