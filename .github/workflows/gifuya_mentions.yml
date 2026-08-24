@@ -42,7 +42,7 @@ jobs:
       - name: Process mention queue
         env:
           DRY: ${{ github.event.inputs.dry }}
-          IG_AUTO_HOLD_MIN: "300"   # 保留付き自動の確認時間＝5時間（この間はアプリで取消/編集/即投稿できる）
+          IG_AUTO_HOLD_MIN: "120"   # 保留付き自動の確認時間＝2時間（この間はアプリで取消/編集/即投稿できる）
           STORE_ACCOUNT: ${{ github.event.inputs.store }}
           GOOGLE_CREDS_B64: ${{ secrets.GOOGLE_CREDS_B64 }}
           IG_ACCESS_TOKEN: ${{ secrets.IG_ACCESS_TOKEN }}                       # 三条（account=""）

@@ -236,7 +236,7 @@
 <script>
 (function(){
   "use strict";
-  window.__APPV = "v193";   // 画面下の版数表示用（sw.js の VER と同期・コード変更で更新）
+  window.__APPV = "v194";   // 画面下の版数表示用（sw.js の VER と同期・コード変更で更新）
   var CFG = window.SUSABIYU || {};
   var GAS = (CFG.GAS_URL||"").trim();
   // 実データ連携が有効か（config.js の GAS_URL が実物URLに置換済みか）。未置換(PASTE_)なら見本モード。
@@ -1009,7 +1009,7 @@
         var isAuto=String(it.status)==="auto";
         var remainH=(typeof it.ageH==="number")?Math.max(0,Math.floor(24-it.ageH)):null;
         var remTxt=(remainH!=null)?('<span style="font-size:11px;color:'+(remainH<=3?'#e6a4a4':'#8b93a2')+';font-weight:700;margin-left:8px">リポスト期限 残り約'+remainH+'時間</span>'):'';
-        var note=isAuto?'<div class="banner ngb" style="margin:8px 0 0">🕒 自動投稿の予定です。何もしなければ約5時間後にリポストします。それまでに文面を直して「今すぐ投稿」、やめる場合は「取り消し」。</div>':'';
+        var note=isAuto?'<div class="banner ngb" style="margin:8px 0 0">🕒 自動投稿の予定です。何もしなければ約2時間後にリポストします。それまでに文面を直して「今すぐ投稿」、やめる場合は「取り消し」。</div>':'';
         c.innerHTML=
           '<div class="chead"><span class="kind">💬 メンション</span><span class="cno">'+fmtWhen(it)+remTxt+'</span></div>'+
           mediaHtml(it)+note+
