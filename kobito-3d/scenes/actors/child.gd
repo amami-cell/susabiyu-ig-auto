@@ -50,8 +50,9 @@ func _ready() -> void:
 	mat.albedo_color = body_color
 	mat.roughness = 0.9
 	_body.material_override = mat
-	# 本物モデルがあれば差し替え（無ければ手続きのクレイ小人にフォールバック）
-	if KobitoModel.has_model():
+	# 本物モデルがあれば差し替え（無ければ手続きのクレイ小人にフォールバック）。
+	# ただし Web ではスキン計算が重いので、家族NPCは軽い簡易モデルにして“サクサク”を優先。
+	if KobitoModel.has_model() and KobitoModel.heavy_ok():
 		var mdl := KobitoModel.new()
 		mdl.name = "Model"
 		_body.add_child(mdl)

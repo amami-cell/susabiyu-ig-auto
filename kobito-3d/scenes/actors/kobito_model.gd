@@ -33,6 +33,13 @@ static func has_model() -> bool:
 	return ResourceLoader.exists(MODEL_PATH)
 
 
+## 重いスキン付きモデルを“この環境で使ってよいか”。
+## Web はスキン計算が重く、家族11人ぶんだと固まるので、NPC は軽い簡易モデルに落とす。
+## （主人公＝プレイヤーだけは本物モデルのままにして見栄えを保つ運用。）
+static func heavy_ok() -> bool:
+	return not OS.has_feature("web")
+
+
 func setup(body: MeshInstance3D, color: Color, _role: String = "child", _char_name: String = "") -> void:
 	_actor = body.get_parent()
 

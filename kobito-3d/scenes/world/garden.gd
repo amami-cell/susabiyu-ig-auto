@@ -122,7 +122,7 @@ var _bfly_n := BUTTERFLY_COUNT
 func _detect_quality() -> void:
 	var method := RenderingServer.get_current_rendering_method()
 	if OS.has_feature("web"):
-		_q = 0.18                       # ブラウザは最優先で軽く（固まり防止）
+		_q = 0.12                       # ブラウザは最優先で軽く（固まり防止）
 	elif method == "forward_plus":
 		_q = 1.0                        # PCきれい版＝フル密度
 	elif method == "mobile":
@@ -135,11 +135,15 @@ func _detect_quality() -> void:
 	_conifer_n = maxi(18, int(CONIFER_COUNT * _q))
 	_boulder_n = maxi(16, int(BOULDER_COUNT * _q))
 	_bfly_n = maxi(8, int(BUTTERFLY_COUNT * maxf(_q, 0.4)))
-	# Web は影とアンチエイリアスも落とす＝いちばん効く軽量化。
+	# Web はさらに強く軽量化＝固まり対策の本命。
+	#  ・レンダー解像度を 0.7 に（画面のピクセル数が約半分＝GPU負荷が激減。いちばん効く）
+	#  ・MSAA（アンチエイリアス）オフ
 	if OS.has_feature("web"):
 		var vp := get_viewport()
 		if vp != null:
 			vp.msaa_3d = Viewport.MSAA_DISABLED
+			vp.scaling_3d_mode = Viewport.SCALING_3D_MODE_BILINEAR
+			vp.scaling_3d_scale = 0.7
 
 
 func _ready() -> void:
