@@ -190,6 +190,60 @@ def _record_library(creds_path, url, source, prompt):
     print("[LIB] 素材ライブラリに追加:", url[:70])
 
 
+def _put_media_json(key, text):
+    """公開メディアリポの key に JSON を作成/更新（GitHub contents API）。
+    確認PWAの素材ギャラリー(gallery.html)が raw.githubusercontent 経由で読む一覧ファイル。"""
+    import base64 as _b64, requests as _rq
+    tok = os.environ.get("GH_MEDIA_TOKEN"); repo = os.environ.get("GH_MEDIA_REPO")
+    branch = os.environ.get("GH_MEDIA_BRANCH", "main")
+    if not (tok and repo):
+        print("[MANIFEST] GH_MEDIA未設定→ギャラリー一覧の書き出しスキップ"); return
+    api = "https://api.github.com/repos/%s/contents/%s" % (repo, key)
+    headers = {"Authorization": "Bearer " + tok, "Accept": "application/vnd.github+json",
+               "X-GitHub-Api-Version": "2022-11-28"}
+    sha = None
+    try:
+        g = _rq.get(api + "?ref=" + branch, headers=headers, timeout=60)
+        if g.status_code == 200:
+            sha = g.json().get("sha")
+    except Exception as e:
+        print("[MANIFEST] 既存sha取得失敗（新規作成として続行）:", e)
+    body = {"message": "update " + key, "content": _b64.b64encode(text.encode("utf-8")).decode(), "branch": branch}
+    if sha:
+        body["sha"] = sha
+    try:
+        p = _rq.put(api, headers=headers, json=body, timeout=60)
+        print("[MANIFEST] PUT %s %s" % (key, p.status_code))
+    except Exception as e:
+        print("[MANIFEST] PUT失敗:", e)
+
+
+def _write_manifest():
+    """シート「リール素材」全行を読み、メディアリポに clips/index.json を書き出す（ギャラリー用・毎回全件で自己修復）。"""
+    import poster
+    poster.SHEET_ID = os.environ.get("SHEET_ID", getattr(poster, "SHEET_ID", ""))
+    sh = poster._sheets()
+    if not sh:
+        print("[MANIFEST] シート未接続→スキップ"); return
+    vals = sh.values().get(spreadsheetId=poster.SHEET_ID, range=LIB_TAB + "!A2:E").execute().get("values", [])
+    items = []
+    for row in vals:
+        url = (row[0].strip() if len(row) > 0 and row[0] else "")
+        if not url or not url.startswith("http"):
+            continue
+        items.append({
+            "url": url,
+            "source": (row[1].strip() if len(row) > 1 and row[1] else ""),
+            "created": (row[3].strip() if len(row) > 3 and row[3] else ""),
+            "used": (row[4].strip() if len(row) > 4 and row[4] else ""),
+        })
+    items.reverse()  # 新しい順
+    data = {"updated": datetime.datetime.now(poster.JST).strftime("%Y-%m-%d %H:%M"),
+            "count": len(items), "clips": items}
+    _put_media_json("clips/index.json", json.dumps(data, ensure_ascii=False))
+    print("[MANIFEST] clips/index.json 書き出し:", len(items), "本")
+
+
 def gen():
     import poster
     prompt = os.environ.get("I2V_PROMPT") or DEFAULT_PROMPT
@@ -209,6 +263,7 @@ def gen():
         raise SystemExit("[I2V] CDNアップロード失敗")
     print("[I2V] 生成OK →", url)
     _record_library(creds_path, url, source, prompt)
+    _write_manifest()   # 素材ギャラリー用の一覧(clips/index.json)を最新化
     return 0
 
 
@@ -297,4 +352,8 @@ if __name__ == "__main__":
     mode = (sys.argv[1] if len(sys.argv) > 1 else "gen").strip()
     if mode == "probe":
         sys.exit(probe())
+    if mode == "manifest":
+        # 生成せず、既存のシート内容から素材ギャラリー一覧だけを再構築（初回バックフィル用）
+        _write_manifest()
+        sys.exit(0)
     sys.exit(gen())

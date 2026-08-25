@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
+<link rel="preconnect" href="https://raw.githubusercontent.com" crossorigin>
+<link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+<meta name="theme-color" content="#0f1115">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>すさび湯 三条 ・ 素材ギャラリー（AI動画クリップ）</title>
+<link rel="manifest" href="./manifest.webmanifest">
+<link rel="apple-touch-icon" href="./icons/icon-192.png">
+<link rel="icon" href="./icons/icon-192.png">
+<style>
+  :root{--bg:#0f1115;--card:#181c23;--line:#262c36;--fg:#eaeef2;--sub:#9aa3b2;--accent:#7fd1a0}
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:-apple-system,BlinkMacSystemFont,"Hiragino Kaku Gothic ProN","Noto Sans JP",sans-serif;
+       background:var(--bg);color:var(--fg);min-height:100vh;-webkit-font-smoothing:antialiased}
+  .wrap{max-width:680px;margin:0 auto;padding:14px 14px 40px}
+  .top{display:flex;align-items:center;gap:10px;padding:6px 2px 14px}
+  .back{color:var(--sub);text-decoration:none;font-size:14px;font-weight:700;flex:none}
+  .ttl{font-size:16px;font-weight:900;letter-spacing:.02em}
+  .ttl small{display:block;font-size:11px;color:var(--sub);font-weight:600;margin-top:3px;letter-spacing:0}
+  .meta{font-family:sans-serif;font-size:11.5px;color:var(--sub);margin:0 2px 12px;line-height:1.6}
+  .grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .clip{background:var(--card);border:1px solid var(--line);border-radius:14px;overflow:hidden}
+  .vwrap{position:relative;aspect-ratio:9/16;background:#000;overflow:hidden}
+  .vwrap video{width:100%;height:100%;object-fit:cover;display:block;background:#000}
+  .play{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+        background:rgba(0,0,0,.28);color:#fff;font-size:34px;pointer-events:none;transition:opacity .2s}
+  .vwrap.playing .play{opacity:0}
+  .cap{padding:8px 10px 10px}
+  .cap .src{font-size:12.5px;font-weight:800;line-height:1.35;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .cap .dt{font-size:10.5px;color:var(--sub);margin-top:3px}
+  .used{display:inline-block;margin-top:5px;font-size:9.5px;font-weight:800;color:#0c1a12;
+        background:var(--accent);border-radius:999px;padding:2px 7px}
+  .state{text-align:center;color:var(--sub);font-size:13px;line-height:1.9;padding:48px 16px}
+  .state b{color:var(--fg)}
+  .rl{display:inline-block;margin-top:14px;color:var(--accent);text-decoration:none;font-weight:800;font-size:13px;
+      border:1px solid #1f4d33;background:#10301f;border-radius:12px;padding:9px 16px}
+  .foot{text-align:center;color:#5b6472;font-size:11px;margin-top:22px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="top">
+    <a class="back" href="./index.html">← 戻る</a>
+    <div class="ttl">🎞 素材ギャラリー<small>AIが料理写真から自動生成した動画クリップ</small></div>
+  </div>
+  <div class="meta" id="meta">読み込み中…</div>
+  <div class="grid" id="grid"></div>
+  <div class="state" id="state" style="display:none"></div>
+  <div class="foot" id="foot"></div>
+</div>
+
+<script src="./config.js"></script>
+<script>
+(function(){
+  "use strict";
+  var CFG = window.SUSABIYU || {};
+  var REPO = (CFG.MEDIA_REPO||"").trim();
+  var grid = document.getElementById("grid");
+  var meta = document.getElementById("meta");
+  var state = document.getElementById("state");
+  var foot = document.getElementById("foot");
+  document.getElementById("foot").textContent = "すさび湯三条 ・ 素材ライブラリ";
+
+  function showState(html){ state.style.display="block"; state.innerHTML=html; meta.style.display="none"; grid.style.display="none"; }
+
+  // メディアリポジトリの clips/index.json（gen_i2v.py が毎回書き出す一覧）を取得。
+  // raw.githubusercontent は CORS 許可＆更新が速い。?t= でCDNキャッシュを回避。
+  function manifestUrl(){
+    if(!REPO || REPO.indexOf("PASTE_")===0) return "";
+    return "https://raw.githubusercontent.com/"+REPO+"/main/clips/index.json?t="+Date.now();
+  }
+
+  function fmtDate(s){ return s || ""; }
+
+  function render(data){
+    var clips = (data && data.clips) || [];
+    if(!clips.length){
+      showState("<b>まだクリップがありません</b><br>毎日 自動で1本ずつ生成され、ここに貯まっていきます。<br>（無料GPUの空き待ちの日はスキップされます）");
+      return;
+    }
+    meta.textContent = "全 "+clips.length+" 本"+(data.updated?(" ・ 更新 "+data.updated):"");
+    var frag = document.createDocumentFragment();
+    clips.forEach(function(c){
+      var card = document.createElement("div"); card.className="clip";
+      var vw = document.createElement("div"); vw.className="vwrap";
+      var v = document.createElement("video");
+      v.src = c.url; v.muted = true; v.loop = true; v.playsInline = true;
+      v.setAttribute("playsinline",""); v.setAttribute("webkit-playsinline","");
+      v.preload = "metadata";
+      var play = document.createElement("div"); play.className="play"; play.textContent="▶";
+      vw.appendChild(v); vw.appendChild(play);
+      vw.addEventListener("click", function(){
+        if(v.paused){ v.play(); vw.classList.add("playing"); }
+        else { v.pause(); vw.classList.remove("playing"); }
+      });
+      var cap = document.createElement("div"); cap.className="cap";
+      var src = document.createElement("div"); src.className="src"; src.textContent = c.source || "料理クリップ";
+      var dt = document.createElement("div"); dt.className="dt"; dt.textContent = fmtDate(c.created);
+      cap.appendChild(src); cap.appendChild(dt);
+      if(c.used){ var u=document.createElement("span"); u.className="used"; u.textContent="使用済み"; cap.appendChild(u); }
+      card.appendChild(vw); card.appendChild(cap);
+      frag.appendChild(card);
+    });
+    grid.innerHTML=""; grid.appendChild(frag);
+  }
+
+  var url = manifestUrl();
+  if(!url){
+    showState("<b>準備中です</b><br>公開設定（MEDIA_REPO）が反映されると、ここにクリップが表示されます。");
+    return;
+  }
+  fetch(url, {cache:"no-store"}).then(function(r){
+    if(!r.ok) throw new Error("HTTP "+r.status);
+    return r.json();
+  }).then(render).catch(function(e){
+    // 一覧ファイルがまだ無い（初回生成前）＝空表示にする
+    showState("<b>まだクリップがありません</b><br>最初の自動生成が走ると、ここに表示されます。<br><span style='font-size:11px'>("+String(e)+")</span>");
+  });
+})();
+</script>
+</body>
+</html>
