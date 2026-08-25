@@ -139,7 +139,7 @@ jobs:
       # 求人PWA(deploy_pwa_recruit)と同じ仕組み。app/recruit/tana には一切触れない。
       # ※シークレット未設定なら黙ってスキップ（CIは緑のまま／成果物 kobito-web は取得可）。
       # ※iPhone(Safari)版は現行の見た目（Vulkanのリアル強化は届かない）。
-      - name: テストプレイ用の公開URLへ載せる（kobito/ サブフォルダ）
+      - name: テストプレイ用の公開URLへ載せる（kobito2/ サブフォルダ＝キャッシュ回避の新URL）
         env:
           TOKEN: ${{ secrets.GH_MEDIA_TOKEN }}
           MEDIA_REPO: ${{ secrets.GH_MEDIA_REPO }}
@@ -148,21 +148,23 @@ jobs:
             echo "INFO: GH_MEDIA_TOKEN / GH_MEDIA_REPO 未設定のため公開はスキップ（成果物 kobito-web は取得可）"
             exit 0
           fi
+          # 旧URL(/kobito/)は古いサービスワーカーがキャッシュを握って更新が反映されないため、
+          # まっさらな新URL(/kobito2/)へ配信する。PWAも無効化済みなので今後は普通に更新される。
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
           git clone --depth 1 "https://x-access-token:${TOKEN}@github.com/${MEDIA_REPO}.git" _site
-          rm -rf _site/kobito
-          mkdir -p _site/kobito
-          cp -r kobito-3d/build/web/. _site/kobito/
+          rm -rf _site/kobito2
+          mkdir -p _site/kobito2
+          cp -r kobito-3d/build/web/. _site/kobito2/
           touch _site/.nojekyll
           cd _site
-          git add kobito .nojekyll
+          git add kobito2 .nojekyll
           if git diff --cached --quiet; then
             echo "変更なし"; exit 0
           fi
-          git commit -m "deploy kobito web (test play)"
+          git commit -m "deploy kobito web (test play, /kobito2/ no-PWA)"
           git push
-          echo "公開URL: https://${MEDIA_REPO%%/*}.github.io/${MEDIA_REPO#*/}/kobito/"
+          echo "公開URL: https://${MEDIA_REPO%%/*}.github.io/${MEDIA_REPO#*/}/kobito2/"
 
   # ------------------------------------------------------------------
   # 3) PC版（Windows / Linux）… ダウンロードして展開 → ダブルクリックで起動。
