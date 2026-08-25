@@ -24,6 +24,9 @@ var _skel: Skeleton3D = null
 var _cute_bones: Array = []     # [[bone_idx, scale], ...] 毎フレーム再適用してチビ体型を保つ
 var _face_mi: MeshInstance3D = null   # 表情モーフ(ブレンドシェイプ)を持つ顔メッシュ（あれば）
 var _blink_t := 3.0
+var _model: Node3D = null       # 立てている本物モデル本体（攻撃モーションで動かす）
+var _body_rest := Vector3.ZERO  # 当たり判定ボディの定位置（攻撃の踏み込み→戻り用）
+var _atk_tween: Tween = null
 
 
 static func has_model() -> bool:
@@ -44,6 +47,8 @@ func setup(body: MeshInstance3D, color: Color, _role: String = "child", _char_na
 		return
 	var model: Node3D = packed.instantiate()
 	add_child(model)
+	_model = model
+	_body_rest = body.position
 	model.scale = Vector3.ONE * BASE_SCALE
 	model.position = Vector3(0.0, FEET_Y, 0.0)
 	model.rotation.y = PI            # 追従カメラへ正面を向ける（必要なら調整）
@@ -70,6 +75,57 @@ func setup(body: MeshInstance3D, color: Color, _role: String = "child", _char_na
 	_ap = model.find_child("AnimationPlayer", true, false)
 	if _ap != null and _ap.has_animation("Idle"):
 		_ap.play("Idle")
+
+
+## 攻撃（“きれいに”）の見た目。本物モデルには攻撃クリップが無いので、
+## 体ごと「振りかぶり→前へ大きく踏み込み前傾→戻る」の芝居＋前方の斬撃アークで、
+## 何をしたかが一目で分かるようにする。当たり判定はサーバ側なので見た目専用。
+func attack() -> void:
+	var body := get_parent()
+	if not (body is Node3D):
+		return
+	if _atk_tween != null and _atk_tween.is_valid():
+		_atk_tween.kill()
+	body.rotation.x = 0.0
+	body.position = _body_rest
+	_spawn_slash(body)
+	var fwd := _body_rest + Vector3(0.0, 0.0, -0.34)   # プレイヤーの正面(-Z)へ踏み込む
+	_atk_tween = create_tween()
+	_atk_tween.set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
+	# 振りかぶり（うしろへ反る）
+	_atk_tween.tween_property(body, "rotation:x", -0.4, 0.10)
+	# 振り下ろし（前へ大きく踏み込み＋前傾）
+	_atk_tween.tween_property(body, "rotation:x", 0.7, 0.09)
+	_atk_tween.parallel().tween_property(body, "position", fwd, 0.09)
+	# 戻る
+	_atk_tween.tween_property(body, "rotation:x", 0.0, 0.26)
+	_atk_tween.parallel().tween_property(body, "position", _body_rest, 0.26)
+
+
+## 前方をなぎ払う光の弧。上→下へ振り抜けて消える、明るい加算のひとふり。
+func _spawn_slash(body: Node3D) -> void:
+	var pivot := Node3D.new()
+	body.add_child(pivot)
+	pivot.position = Vector3(0.0, 0.5, -0.1)
+	var quad := MeshInstance3D.new()
+	var qm := QuadMesh.new()
+	qm.size = Vector2(1.05, 0.2)
+	quad.mesh = qm
+	quad.position = Vector3(0.0, 0.0, -0.55)
+	var mat := StandardMaterial3D.new()
+	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	mat.blend_mode = BaseMaterial3D.BLEND_MODE_ADD
+	mat.cull_mode = BaseMaterial3D.CULL_DISABLED
+	mat.albedo_color = Color(0.75, 1.0, 0.95, 0.95)
+	quad.material_override = mat
+	pivot.add_child(quad)
+	pivot.rotation.x = -1.15
+	var t := create_tween()
+	t.set_trans(Tween.TRANS_SINE)
+	t.tween_property(pivot, "rotation:x", 1.15, 0.22)
+	t.parallel().tween_property(mat, "albedo_color:a", 0.0, 0.22)
+	t.tween_callback(pivot.queue_free)
 
 
 func _add_cute_bone(bone_name: String, s: float) -> void:

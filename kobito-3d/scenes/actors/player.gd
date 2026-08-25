@@ -234,10 +234,11 @@ func _remote_state(pos: Vector3, yaw: float, st: int) -> void:
 @rpc("any_peer", "call_local", "unreliable")
 func _remote_swing() -> void:
 	# 見た目だけの振り。当たり判定とは無関係なので取りこぼしても実害なし。
-	# 腕を大きく振り下ろす芝居＋踏み込みのつぶし＝「攻撃した」が一目で分かる。
-	var anim := _body.get_node_or_null("Anim")
-	if anim != null and anim.has_method("attack"):
-		anim.attack()
+	# 本物モデル(KobitoModel)でも手続きモデル(KobitoLook の Anim)でも、
+	# attack() を持つ子に振りを頼む＝「攻撃した」が一目で分かる大振り＋斬撃。
+	for child in _body.get_children():
+		if child.has_method("attack"):
+			child.attack()
 	Sfx.play("swing")
 	var tween := create_tween()
 	tween.tween_property(_body, "scale", Vector3(1.15, 0.9, 1.15), 0.06)

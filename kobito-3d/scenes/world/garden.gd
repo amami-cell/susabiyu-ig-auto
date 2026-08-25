@@ -105,6 +105,42 @@ var _anim_t := 0.0
 # 舞台(biome)。"garden"=庭 / "ruins"=遺跡。main が session 開始時に設定。
 var biome := "garden"
 
+# ── 画質ティア（サクサク優先）───────────────────────────────
+# 実行環境ごとに草花・木・蝶の“実際に作る数”を落とす。Web は特に軽く。
+# きれい版(Forward+/PC)だけフル密度。ドローコールは MultiMesh で各1のままなので、
+# 効くのは主に「頂点数・生成コスト・影・MSAA」＝体感のサクサクさ。
+var _q := 1.0
+var _grass_n := GRASS_COUNT
+var _flower_n := FLOWER_COUNT
+var _tree_n := TREE_COUNT
+var _conifer_n := CONIFER_COUNT
+var _boulder_n := BOULDER_COUNT
+var _bfly_n := BUTTERFLY_COUNT
+
+
+## 実行環境を見て密度スケール _q を決め、各“実数”を確定する。
+func _detect_quality() -> void:
+	var method := RenderingServer.get_current_rendering_method()
+	if OS.has_feature("web"):
+		_q = 0.18                       # ブラウザは最優先で軽く（固まり防止）
+	elif method == "forward_plus":
+		_q = 1.0                        # PCきれい版＝フル密度
+	elif method == "mobile":
+		_q = 0.4                        # スマホ/Vulkanモバイル
+	else:
+		_q = 0.5                        # その他（互換モードのPCなど）
+	_grass_n = maxi(400, int(GRASS_COUNT * _q))
+	_flower_n = maxi(24, int(FLOWER_COUNT * _q))
+	_tree_n = maxi(24, int(TREE_COUNT * _q))
+	_conifer_n = maxi(18, int(CONIFER_COUNT * _q))
+	_boulder_n = maxi(16, int(BOULDER_COUNT * _q))
+	_bfly_n = maxi(8, int(BUTTERFLY_COUNT * maxf(_q, 0.4)))
+	# Web は影とアンチエイリアスも落とす＝いちばん効く軽量化。
+	if OS.has_feature("web"):
+		var vp := get_viewport()
+		if vp != null:
+			vp.msaa_3d = Viewport.MSAA_DISABLED
+
 
 func _ready() -> void:
 	_setup_visuals()
@@ -352,6 +388,7 @@ func _on_cleanup_zone_entered(body: Node3D) -> void:
 # 草500本＋花60個も MultiMesh で各1ドローコール＝スマホでも軽い。
 
 func _setup_visuals() -> void:
+	_detect_quality()
 	_setup_sky_fog()
 	_setup_sun()
 	_build_ground()
@@ -385,7 +422,7 @@ func _apply_biome() -> void:
 		_pillars.visible = ruins
 	# 遺跡は草まばら・花なし。庭は満開まで戻る。
 	if _grass_mmi != null:
-		_grass_mmi.multimesh.visible_instance_count = int(GRASS_COUNT * (0.28 if ruins else 1.0))
+		_grass_mmi.multimesh.visible_instance_count = int(_grass_n * (0.28 if ruins else 1.0))
 	if ruins and _flower_mm != null:
 		_flower_mm.visible_instance_count = 0
 	# 地面の色（遺跡＝苔むした石）
@@ -620,7 +657,7 @@ func _build_trees() -> void:
 	tmat.albedo_color = Color(0.30, 0.22, 0.14)
 	tmat.roughness = 1.0
 	trunk.material = tmat
-	var trunk_mm := _new_mm(trunk, TREE_COUNT + CONIFER_COUNT, false)
+	var trunk_mm := _new_mm(trunk, _tree_n + _conifer_n, false)
 
 	# --- 広葉樹の葉（まるい塊） ---
 	var leaf := SphereMesh.new()
@@ -629,7 +666,7 @@ func _build_trees() -> void:
 	leaf.radial_segments = 6
 	leaf.rings = 4
 	leaf.material = _vcol_mat()
-	var leaf_mm := _new_mm(leaf, TREE_COUNT, true)
+	var leaf_mm := _new_mm(leaf, _tree_n, true)
 
 	# --- 針葉樹の葉（とがった円錐） ---
 	var cone := CylinderMesh.new()
@@ -638,11 +675,11 @@ func _build_trees() -> void:
 	cone.height = 2.6
 	cone.radial_segments = 6
 	cone.material = _vcol_mat()
-	var cone_mm := _new_mm(cone, CONIFER_COUNT, true)
+	var cone_mm := _new_mm(cone, _conifer_n, true)
 
 	var ti := 0
 	# 広葉樹
-	for i in TREE_COUNT:
+	for i in _tree_n:
 		var ang := rng.randf_range(0.0, TAU)
 		var rad := rng.randf_range(56.0, 120.0)
 		var base := _tree_base(cos(ang) * rad, sin(ang) * rad)
@@ -654,7 +691,7 @@ func _build_trees() -> void:
 		leaf_mm.set_instance_transform(i, Transform3D(Basis(Vector3.UP, yaw).scaled(Vector3(ls, ls * 1.1, ls)), base + Vector3(0.0, s + ls * 0.5, 0.0)))
 		leaf_mm.set_instance_color(i, Color(0.20, 0.38, 0.16).lerp(Color(0.34, 0.52, 0.22), rng.randf()))
 	# 針葉樹（少し外側・高地に多い＝森の奥）
-	for i in CONIFER_COUNT:
+	for i in _conifer_n:
 		var ang := rng.randf_range(0.0, TAU)
 		var rad := rng.randf_range(58.0, 125.0)
 		var base := _tree_base(cos(ang) * rad, sin(ang) * rad)
@@ -679,10 +716,10 @@ func _build_boulders() -> void:
 	rock.radial_segments = 6
 	rock.rings = 4
 	rock.material = _vcol_mat()
-	var mm := _new_mm(rock, BOULDER_COUNT, true)
+	var mm := _new_mm(rock, _boulder_n, true)
 	var rng := RandomNumberGenerator.new()
 	rng.seed = 135791
-	for i in BOULDER_COUNT:
+	for i in _boulder_n:
 		var ang := rng.randf_range(0.0, TAU)
 		var rad := rng.randf_range(54.0, 116.0)
 		var x := cos(ang) * rad
@@ -743,7 +780,7 @@ func _build_pebbles() -> void:
 	mm.transform_format = MultiMesh.TRANSFORM_3D
 	mm.use_colors = true
 	mm.mesh = mesh
-	mm.instance_count = 760
+	mm.instance_count = maxi(120, int(760 * _q))
 
 	var rng := RandomNumberGenerator.new()
 	rng.seed = 424242
@@ -782,7 +819,7 @@ func _build_plants() -> void:
 	mm.transform_format = MultiMesh.TRANSFORM_3D
 	mm.use_colors = true
 	mm.mesh = mesh
-	mm.instance_count = 640
+	mm.instance_count = maxi(120, int(640 * _q))
 
 	var rng := RandomNumberGenerator.new()
 	rng.seed = 71717171
@@ -925,9 +962,13 @@ func _setup_sun() -> void:
 	_sun.rotation_degrees = Vector3(-24.0, 128.0, 0.0)
 	_sun.light_color = Color(1.0, 0.86, 0.68)   # 金色（少しだけ白めで濁らせない）
 	_sun.light_energy = 1.12
-	_sun.shadow_enabled = true
-	_sun.directional_shadow_blend_splits = true
-	_sun.directional_shadow_mode = DirectionalLight3D.SHADOW_PARALLEL_4_SPLITS
+	# 影は重いので軽い機種では簡素化：Web=影オフ、モバイル/互換=1分割、きれい版=4分割。
+	_sun.shadow_enabled = _q >= 0.35
+	_sun.directional_shadow_blend_splits = _q >= 0.9
+	_sun.directional_shadow_mode = (
+		DirectionalLight3D.SHADOW_PARALLEL_4_SPLITS if _q >= 0.9
+		else DirectionalLight3D.SHADOW_ORTHOGONAL
+	)
 	_sun.shadow_bias = 0.04
 	_sun.shadow_normal_bias = 1.2
 	_sun.light_specular = 0.8
@@ -1031,11 +1072,11 @@ void fragment() {
 	_grass_mm.transform_format = MultiMesh.TRANSFORM_3D
 	_grass_mm.use_colors = true
 	_grass_mm.mesh = blade
-	_grass_mm.instance_count = GRASS_COUNT
+	_grass_mm.instance_count = _grass_n
 
 	var rng := RandomNumberGenerator.new()
 	rng.seed = 20260821   # 固定シード＝毎回同じ配置（クライアント間でも揃う）
-	for i in GRASS_COUNT:
+	for i in _grass_n:
 		var x := rng.randf_range(-35.0, 35.0)
 		var z := rng.randf_range(-35.0, 35.0)
 		var h := rng.randf_range(0.6, 1.5)
@@ -1075,12 +1116,12 @@ func _build_flowers() -> void:
 	_flower_mm.transform_format = MultiMesh.TRANSFORM_3D
 	_flower_mm.use_colors = true
 	_flower_mm.mesh = head
-	_flower_mm.instance_count = FLOWER_COUNT
+	_flower_mm.instance_count = _flower_n
 
 	var cols := [Color(0.98, 0.42, 0.55), Color(1.0, 0.86, 0.38), Color(0.95, 0.95, 0.98), Color(0.78, 0.56, 0.95)]
 	var rng := RandomNumberGenerator.new()
 	rng.seed = 99887766
-	for i in FLOWER_COUNT:
+	for i in _flower_n:
 		var src: Vector3 = _grass_pos[(i * 11) % _grass_pos.size()]
 		var tilt := Basis(Vector3.RIGHT, rng.randf_range(-0.2, 0.2)) * Basis(Vector3.UP, rng.randf_range(0.0, TAU))
 		var origin := src + Vector3(0.0, 0.36, 0.0)
@@ -1113,7 +1154,7 @@ func _update_flowers(r: float) -> void:
 		_flower_mm.visible_instance_count = 0   # 遺跡に花は咲かない
 		return
 	var t := clampf((r - 0.3) / 0.7, 0.0, 1.0)
-	_flower_mm.visible_instance_count = int(round(FLOWER_COUNT * t))
+	_flower_mm.visible_instance_count = int(round(_flower_n * t))
 
 
 func _update_sky_fog(r: float) -> void:
@@ -1176,7 +1217,7 @@ void fragment() {
 	_bfly_mm.use_colors = true
 	_bfly_mm.use_custom_data = true
 	_bfly_mm.mesh = wing
-	_bfly_mm.instance_count = BUTTERFLY_COUNT
+	_bfly_mm.instance_count = _bfly_n
 
 	var cols := [
 		Color(1.0, 0.85, 0.35),   # 黄
@@ -1187,7 +1228,7 @@ void fragment() {
 	]
 	var rng := RandomNumberGenerator.new()
 	rng.seed = 8008135
-	for i in BUTTERFLY_COUNT:
+	for i in _bfly_n:
 		var ang := rng.randf_range(0.0, TAU)
 		var rad := rng.randf_range(6.0, 30.0)
 		_bfly_center.append(Vector3(cos(ang) * rad, rng.randf_range(0.7, 2.0), sin(ang) * rad))
@@ -1211,7 +1252,7 @@ func _update_butterflies(delta: float) -> void:
 	_anim_t += delta
 	var vis := _bfly_mm.visible_instance_count
 	if vis < 0:
-		vis = BUTTERFLY_COUNT
+		vis = _bfly_n
 	for i in mini(vis, _bfly_center.size()):
 		var ang: float = _bfly_phase[i] + _anim_t * _bfly_speed[i]
 		var c: Vector3 = _bfly_center[i]
@@ -1227,7 +1268,7 @@ func _update_butterfly_count(r: float) -> void:
 	if _bfly_mm == null:
 		return
 	var t := clampf((r - 0.05) / 0.6, 0.0, 1.0)
-	var vis := 4 + int(round((BUTTERFLY_COUNT - 4) * t))
+	var vis := mini(_bfly_n, 4 + int(round((_bfly_n - 4) * t)))
 	if _is_ruins():
 		vis = int(vis * 0.4)   # 遺跡は命がまばら
 	_bfly_mm.visible_instance_count = vis
