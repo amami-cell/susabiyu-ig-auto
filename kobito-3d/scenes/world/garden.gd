@@ -135,17 +135,15 @@ func _detect_quality() -> void:
 	_conifer_n = maxi(18, int(CONIFER_COUNT * _q))
 	_boulder_n = maxi(16, int(BOULDER_COUNT * _q))
 	_bfly_n = maxi(8, int(BUTTERFLY_COUNT * maxf(_q, 0.4)))
-	# Web はさらに強く軽量化＝固まり対策の本命。
-	#  ・レンダー解像度を 0.55 に（描くピクセル数が約1/3＝GPU負荷が激減。いちばん効く）
-	#  ・MSAA オフ、蝶を最小、そして“揺れる草”は完全オフ（cull_disabled の頂点アニメが重い）
+	# Web の軽量化：MSAA オフ／蝶を最小／“揺れる草”は完全オフ（cull_disabled の頂点アニメが重い）。
+	# ※レンダー解像度スケーリング(scaling_3d)は互換レンダラー(Web)で3D画面が真っ黒になり
+	#   “始まらない”ように見える不具合があるため使わない。
 	if OS.has_feature("web"):
 		_grass_n = 0
 		_bfly_n = 6
 		var vp := get_viewport()
 		if vp != null:
 			vp.msaa_3d = Viewport.MSAA_DISABLED
-			vp.scaling_3d_mode = Viewport.SCALING_3D_MODE_BILINEAR
-			vp.scaling_3d_scale = 0.55
 
 
 func _ready() -> void:
