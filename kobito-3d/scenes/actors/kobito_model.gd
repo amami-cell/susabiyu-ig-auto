@@ -27,11 +27,6 @@ var _blink_t := 3.0
 var _model: Node3D = null       # 立てている本物モデル本体（攻撃モーションで動かす）
 var _body_rest := Vector3.ZERO  # 当たり判定ボディの定位置（攻撃の踏み込み→戻り用）
 var _atk_tween: Tween = null
-# 攻撃時に“腕を振る”ためのボーン。アニメを一瞬止めて右腕を大きく振り下ろす。
-const SWING_DUR := 0.42
-var _r_arm := -1
-var _r_arm_rest := Quaternion.IDENTITY
-var _swing_t := 0.0
 
 
 static func has_model() -> bool:
@@ -76,10 +71,6 @@ func setup(body: MeshInstance3D, color: Color, _role: String = "child", _char_na
 		_add_cute_bone("mixamorig_RightHand", HAND_SCALE)
 		_add_cute_bone("mixamorig_LeftFoot", FOOT_SCALE)
 		_add_cute_bone("mixamorig_RightFoot", FOOT_SCALE)
-		# 攻撃で振る右腕ボーン（無ければ体ごとの振りだけ）
-		_r_arm = _skel.find_bone("mixamorig_RightArm")
-		if _r_arm >= 0:
-			_r_arm_rest = _skel.get_bone_rest(_r_arm).basis.get_rotation_quaternion()
 		_apply_cute()
 		# 表情モーフ(ブレンドシェイプ)付きモデルなら、その顔メッシュを掴んでモーフで表情管理する。
 		# 無ければ従来どおり素の顔（浮いた貼り付けはしない）。
@@ -105,21 +96,17 @@ func attack() -> void:
 	body.rotation.x = 0.0
 	body.position = _body_rest
 	_spawn_slash(body)
-	# 右腕を大きく振る：アニメを一瞬止めて、_process で腕ボーンを振り下ろす。
-	if _r_arm >= 0 and _ap != null:
-		_ap.pause()
-		_swing_t = SWING_DUR
-	var fwd := _body_rest + Vector3(0.0, 0.0, -0.34)   # プレイヤーの正面(-Z)へ踏み込む
+	var fwd := _body_rest + Vector3(0.0, 0.0, -0.4)   # プレイヤーの正面(-Z)へ踏み込む
 	_atk_tween = create_tween()
 	_atk_tween.set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
-	# 振りかぶり（うしろへ反る）
-	_atk_tween.tween_property(body, "rotation:x", -0.4, 0.10)
-	# 振り下ろし（前へ大きく踏み込み＋前傾）
-	_atk_tween.tween_property(body, "rotation:x", 0.7, 0.09)
-	_atk_tween.parallel().tween_property(body, "position", fwd, 0.09)
+	# 振りかぶり（ほんの少しうしろへ）
+	_atk_tween.tween_property(body, "rotation:x", -0.18, 0.09)
+	# 踏み込み（前へ大きく＋軽く前傾）＝“ひと振り”がはっきり
+	_atk_tween.tween_property(body, "rotation:x", 0.3, 0.08)
+	_atk_tween.parallel().tween_property(body, "position", fwd, 0.08)
 	# 戻る
-	_atk_tween.tween_property(body, "rotation:x", 0.0, 0.26)
-	_atk_tween.parallel().tween_property(body, "position", _body_rest, 0.26)
+	_atk_tween.tween_property(body, "rotation:x", 0.0, 0.24)
+	_atk_tween.parallel().tween_property(body, "position", _body_rest, 0.24)
 
 
 ## 前方をなぎ払う光の弧。上→下へ振り抜けて消える、明るい加算のひとふり。
@@ -369,21 +356,6 @@ func _process(delta: float) -> void:
 			_blink_t = randf_range(2.5, 5.0)
 			_do_blink()
 	if _actor == null or _ap == null:
-		return
-	# 攻撃中：右腕を振り下ろすモーション（アニメは一時停止済み）。
-	if _swing_t > 0.0 and _r_arm >= 0:
-		_swing_t -= delta
-		var p := clampf(1.0 - _swing_t / SWING_DUR, 0.0, 1.0)
-		var ang := 0.0
-		if p < 0.28:
-			ang = lerpf(0.0, -1.2, p / 0.28)          # 振りかぶり（腕を上げる）
-		elif p < 0.62:
-			ang = lerpf(-1.2, 1.6, (p - 0.28) / 0.34)  # 振り下ろし（大きく前へ）
-		else:
-			ang = lerpf(1.6, 0.0, (p - 0.62) / 0.38)   # 戻す
-		_skel.set_bone_pose_rotation(_r_arm, _r_arm_rest * Quaternion(Vector3.RIGHT, ang))
-		if _swing_t <= 0.0:
-			_ap.play("Walking" if _walking else "Idle", 0.1)   # 振り終わり＝アニメ再開
 		return
 	var speed := 0.0
 	var v = _actor.get("velocity")

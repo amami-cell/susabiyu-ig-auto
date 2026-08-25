@@ -30,6 +30,9 @@ var _knockback := Vector3.ZERO   # 叩かれて弾き飛ぶ勢い（減衰する
 
 @onready var _body: MeshInstance3D = $Body
 
+var _hpbar: Node3D = null        # 頭上のHPバー（ダメージが目で分かる）
+var _hpbar_fill: Node3D = null   # 緑の残量（xスケールで減る）
+
 
 func _ready() -> void:
 	add_to_group("bug")
@@ -49,8 +52,59 @@ func _ready() -> void:
 	# 横倒しカプセル1個を“虫”に見せる（頭・目・触角・6本脚・甲羅）
 	BugLook.decorate(self, stats.body_color, stats.body_scale, stats.shell)
 
+	_build_hpbar()
+
 	# 敵の頭脳はサーバにしか無い
 	set_physics_process(true)
+
+
+## 頭上のHPバー。ダメージを受けると緑が減る＝“くらってる・HPが減ってる”が一目で分かる。
+## いつもカメラを向く（ビルボード）。満タン／癒やし済みのときは隠す。
+func _build_hpbar() -> void:
+	const W := 1.0
+	const H := 0.14
+	_hpbar = Node3D.new()
+	_hpbar.name = "HpBar"
+	_hpbar.position = Vector3(0.0, 1.15, 0.0)
+	add_child(_hpbar)
+	# 背景（濃い赤）
+	var bg := MeshInstance3D.new()
+	var bgm := QuadMesh.new()
+	bgm.size = Vector2(W, H)
+	bg.mesh = bgm
+	bg.material_override = _bar_mat(Color(0.5, 0.12, 0.12))
+	_hpbar.add_child(bg)
+	# 残量（緑）：左端を軸にして x スケールで減らす
+	_hpbar_fill = Node3D.new()
+	_hpbar_fill.position = Vector3(-W * 0.5, 0.0, 0.01)
+	_hpbar.add_child(_hpbar_fill)
+	var fill := MeshInstance3D.new()
+	var fm := QuadMesh.new()
+	fm.size = Vector2(W, H * 0.82)
+	fill.mesh = fm
+	fill.position = Vector3(W * 0.5, 0.0, 0.0)   # 左端(親原点)から右へ伸びる
+	fill.material_override = _bar_mat(Color(0.36, 0.85, 0.34))
+	_hpbar_fill.add_child(fill)
+	_hpbar.visible = false   # 満タンのうちは出さない
+
+
+func _bar_mat(col: Color) -> StandardMaterial3D:
+	var m := StandardMaterial3D.new()
+	m.albedo_color = col
+	m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	m.billboard_mode = BaseMaterial3D.BILLBOARD_ENABLED
+	m.billboard_keep_scale = true
+	m.no_depth_test = true   # 体に隠れず常に見える
+	return m
+
+
+func _update_hpbar() -> void:
+	if _hpbar == null or _hpbar_fill == null:
+		return
+	var maxhp: int = maxi(1, stats.max_hp)
+	var ratio := clampf(float(hp) / float(maxhp), 0.0, 1.0)
+	_hpbar_fill.scale.x = ratio
+	_hpbar.visible = _dead == false and hp > 0 and hp < maxhp
 
 
 func _physics_process(delta: float) -> void:
@@ -162,15 +216,20 @@ func cleanse(amount: int, healer_id: int) -> void:
 func _remote_state(pos: Vector3, remote_hp: int) -> void:
 	_net_pos = pos
 	hp = remote_hp
+	_update_hpbar()
 
 
 @rpc("authority", "call_local", "unreliable")
 func _remote_hit(amount: int = 0) -> void:
-	# くらった：ヒットストップ（一瞬止まる）＋赤白フラッシュ＋大きくのけぞって跳ね潰れ＋
-	# 火花＋ダメージ数字＋音＝はっきりした手応え。
+	# くらった：赤フラッシュ＋大きくのけぞって跳ね潰れ＋火花＋ダメージ数字＋HPバー＋音
+	# ＝はっきりした手応え。（※ヒットストップは時間停止が戻らず固まる不具合の元なので不使用）
 	Sfx.play("hit")
-	_hit_stop()
 	_flash_bug(Color(1.0, 0.5, 0.45))   # 赤めのフラッシュ＝ダメージが伝わる
+	# サーバは cleanse() で既に減算済み。クライアントは _remote_state を待たず即バーを減らす。
+	var is_server := multiplayer.has_multiplayer_peer() and multiplayer.is_server()
+	if amount > 0 and not is_server:
+		hp = maxi(0, hp - amount)
+	_update_hpbar()
 	var base := Vector3.ONE * stats.body_scale
 	var tw := create_tween()
 	tw.tween_property(_body, "scale", base * Vector3(1.7, 0.5, 1.7), 0.04)   # 大きくつぶれる
@@ -181,21 +240,6 @@ func _remote_hit(amount: int = 0) -> void:
 	_spawn_hit_spark()
 	if amount > 0:
 		_spawn_damage_number(amount)
-
-
-## ヒットストップ：当たった瞬間だけ時間をほぼ止めて“ズシッ”と手応えを出す。
-## 二重起動しないよう、進行中は無視。SceneTreeTimer は time_scale の影響を受けないので
-## 実時間できっちり戻る。
-static var _hitstop_active := false
-func _hit_stop() -> void:
-	if _hitstop_active:
-		return
-	_hitstop_active = true
-	Engine.time_scale = 0.05
-	var t := get_tree().create_timer(0.06, true, false, true)   # ignore_time_scale=true
-	t.timeout.connect(func() -> void:
-		Engine.time_scale = 1.0
-		_hitstop_active = false)
 
 
 ## ヒット火花：叩いた瞬間、白〜黄の光がパッと弾けて消える（当たった位置＝虫の中心上）。
