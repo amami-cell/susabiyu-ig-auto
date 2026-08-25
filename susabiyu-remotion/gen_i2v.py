@@ -41,6 +41,10 @@ I2V_DURATION = float(os.environ.get("I2V_DURATION", "3"))
 FOOD_FOLDER = os.environ.get("GENRE_FOOD_ID") or "14oKNgdXee2NrI7Dkmbrlbid4f0_VZ5Cv"
 MIN_SIDE = 800
 LIB_TAB = "リール素材"
+# Kling/Hailuo等で手動生成した動画を入れておくDriveフォルダ（無料枠で貯める用）。
+MANUAL_FOLDER = os.environ.get("MANUAL_CLIPS_ID", "").strip()
+DONE_TAB = "取込済み"          # 取り込んだDriveファイルIDを記録して重複取り込みを防ぐ
+VIDEO_EXT = (".mp4", ".mov", ".webm", ".m4v")
 
 
 # 実在チェック用のI2V Space候補（無料ZeroGPU系）。probeでどれが生きてるか自動判定する。
@@ -244,6 +248,73 @@ def _write_manifest():
     print("[MANIFEST] clips/index.json 書き出し:", len(items), "本")
 
 
+def _list_videos(drive, fid):
+    """フォルダ（サブフォルダ含む）から動画ファイルを再帰的に集める。"""
+    out = []
+    for f in _list(drive, fid):
+        if f["mimeType"] == "application/vnd.google-apps.folder":
+            out += _list_videos(drive, f["id"])
+        elif f["mimeType"].startswith("video/") or f["name"].lower().endswith(VIDEO_EXT):
+            out.append(f)
+    return out
+
+
+def _download_file(drive, f):
+    from googleapiclient.http import MediaIoBaseDownload
+    ext = os.path.splitext(f["name"])[1] or ".mp4"
+    tf = tempfile.NamedTemporaryFile(suffix=ext, delete=False)
+    dl = MediaIoBaseDownload(tf, drive.files().get_media(fileId=f["id"]))
+    done = False
+    while not done:
+        _, done = dl.next_chunk()
+    tf.close()
+    return tf.name
+
+
+def ingest_manual():
+    """Kling/Hailuo等で作りDriveへ入れた動画を取り込み、素材ライブラリ（＝ギャラリー）に貯める。
+    重複は「取込済み」タブのDriveファイルIDで防止。生成不要＝無料でひたすら貯められる。"""
+    import poster
+    if not MANUAL_FOLDER:
+        print("[INGEST] MANUAL_CLIPS_ID 未設定→スキップ（手動クリップ取り込みは無効）"); return 0
+    drive, creds_path = _drive()
+    poster.SHEET_ID = os.environ.get("SHEET_ID", getattr(poster, "SHEET_ID", ""))
+    sh = poster._sheets()
+    if not sh:
+        print("[INGEST] シート未接続→中断"); return 0
+    poster._ensure_tab(sh, DONE_TAB)
+    head = sh.values().get(spreadsheetId=poster.SHEET_ID, range=DONE_TAB + "!A1:D1").execute().get("values", [])
+    if not head:
+        sh.values().update(spreadsheetId=poster.SHEET_ID, range=DONE_TAB + "!A1:D1", valueInputOption="RAW",
+            body={"values": [["fileId", "name", "url", "created"]]}).execute()
+    done_rows = sh.values().get(spreadsheetId=poster.SHEET_ID, range=DONE_TAB + "!A2:A").execute().get("values", [])
+    done_ids = set(r[0] for r in done_rows if r)
+    vids = _list_videos(drive, MANUAL_FOLDER)
+    new = [f for f in vids if f["id"] not in done_ids]
+    print("[INGEST] 未取込 %d 本 / フォルダ内 %d 本" % (len(new), len(vids)))
+    added = 0
+    for f in new:
+        try:
+            path = _download_file(drive, f)
+            url = poster.up(path, cdn=True)
+            if not url:
+                print("[INGEST] アップロード失敗（次回再試行）:", f["name"]); continue
+            src = os.path.splitext(f["name"])[0]
+            now = datetime.datetime.now(poster.JST).strftime("%Y-%m-%d %H:%M")
+            sh.values().append(spreadsheetId=poster.SHEET_ID, range=LIB_TAB + "!A:E", valueInputOption="RAW",
+                insertDataOption="INSERT_ROWS", body={"values": [[url, src, "manual", now, ""]]}).execute()
+            sh.values().append(spreadsheetId=poster.SHEET_ID, range=DONE_TAB + "!A:D", valueInputOption="RAW",
+                insertDataOption="INSERT_ROWS", body={"values": [[f["id"], f["name"], url, now]]}).execute()
+            added += 1
+            print("[INGEST] 取込:", f["name"], "→", url[:60])
+        except Exception as e:
+            print("[INGEST] 失敗:", f.get("name"), type(e).__name__, str(e)[:90])
+    if added:
+        _write_manifest()
+    print("[INGEST] 新規取込 %d 本" % added)
+    return 0
+
+
 def gen():
     import poster
     prompt = os.environ.get("I2V_PROMPT") or DEFAULT_PROMPT
@@ -356,4 +427,7 @@ if __name__ == "__main__":
         # 生成せず、既存のシート内容から素材ギャラリー一覧だけを再構築（初回バックフィル用）
         _write_manifest()
         sys.exit(0)
+    if mode == "ingest":
+        # Kling/Hailuo等でDriveに入れた動画を取り込んでライブラリに貯める（生成なし）
+        sys.exit(ingest_manual())
     sys.exit(gen())

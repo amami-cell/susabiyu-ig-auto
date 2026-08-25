@@ -13,7 +13,7 @@ on:
   workflow_dispatch:
     inputs:
       mode:
-        description: "probe=API確認 / gen=生成 / manifest=ギャラリー一覧を再構築(生成なし)"
+        description: "probe=API確認 / gen=生成 / manifest=一覧再構築 / ingest=手動クリップ取込のみ"
         required: false
         default: "gen"
       space:
@@ -67,3 +67,17 @@ jobs:
           [ -z "$HF_SPACE" ] && unset HF_SPACE || true
           [ -z "$HF_API_NAME" ] && unset HF_API_NAME || true
           python gen_i2v.py "${{ github.event.inputs.mode || 'gen' }}" creds.json
+      - name: Ingest manual clips (Kling/Hailuo等をDriveから取り込み)
+        if: ${{ github.event.inputs.mode != 'probe' }}
+        env:
+          GOOGLE_CREDS_B64: ${{ secrets.GOOGLE_CREDS_B64 }}
+          SHEET_ID: ${{ secrets.SHEET_ID }}
+          MANUAL_CLIPS_ID: ${{ secrets.MANUAL_CLIPS_ID }}
+          R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          R2_BUCKET: ${{ secrets.R2_BUCKET }}
+          R2_PUBLIC_BASE: ${{ secrets.R2_PUBLIC_BASE }}
+          GH_MEDIA_TOKEN: ${{ secrets.GH_MEDIA_TOKEN }}
+          GH_MEDIA_REPO: ${{ secrets.GH_MEDIA_REPO }}
+        run: python gen_i2v.py ingest creds.json
