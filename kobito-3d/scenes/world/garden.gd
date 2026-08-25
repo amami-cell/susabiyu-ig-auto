@@ -139,7 +139,7 @@ func _detect_quality() -> void:
 	# ※レンダー解像度スケーリング(scaling_3d)は互換レンダラー(Web)で3D画面が真っ黒になり
 	#   “始まらない”ように見える不具合があるため使わない。
 	if OS.has_feature("web"):
-		_grass_n = 0
+		_grass_n = 150   # 0にすると花の配置(_grass_pos参照)がゼロ除算で庭ごと落ちる。少数で軽く保つ。
 		_bfly_n = 6
 		var vp := get_viewport()
 		if vp != null:
@@ -1122,6 +1122,17 @@ func _build_flowers() -> void:
 	_flower_mm.transform_format = MultiMesh.TRANSFORM_3D
 	_flower_mm.use_colors = true
 	_flower_mm.mesh = head
+	# 花は草の位置を再利用して置く。草が無い（_grass_pos が空）と割り算でゼロ除算になるので、
+	# その場合は花を出さない（＝安全に空で返す）。
+	if _grass_pos.is_empty():
+		_flower_n = 0
+		_flower_mm.instance_count = 0
+		var empty_mmi := MultiMeshInstance3D.new()
+		empty_mmi.name = "Flowers"
+		empty_mmi.multimesh = _flower_mm
+		_flower_mmi = empty_mmi
+		add_child(empty_mmi)
+		return
 	_flower_mm.instance_count = _flower_n
 
 	var cols := [Color(0.98, 0.42, 0.55), Color(1.0, 0.86, 0.38), Color(0.95, 0.95, 0.98), Color(0.78, 0.56, 0.95)]
