@@ -315,6 +315,59 @@ def ingest_manual():
     return 0
 
 
+def _creds_path_arg():
+    for a in sys.argv[2:]:
+        if os.path.exists(a) and a.endswith(".json"):
+            return a
+    for b in [".", ".."]:
+        for p in glob.glob(os.path.join(b, "*.json")):
+            try:
+                if json.load(open(p, encoding="utf-8")).get("type") == "service_account":
+                    return os.path.abspath(p)
+            except Exception:
+                pass
+    raise SystemExit("NG: 認証JSONが見つかりません")
+
+
+def mk_manual_folder():
+    """手動クリップ用のDriveフォルダを作成し、本人(amami@8sin.co.jp)に編集者共有してIDを表示する。
+    1回だけ実行。既存があれば再利用。ここで出たIDを MANUAL_FOLDER 既定値に固定すればSecret不要。"""
+    from google.oauth2 import service_account
+    from googleapiclient.discovery import build
+    cr = service_account.Credentials.from_service_account_file(
+        _creds_path_arg(), scopes=["https://www.googleapis.com/auth/drive"])
+    drive = build("drive", "v3", credentials=cr)
+    share_email = os.environ.get("SHARE_EMAIL", "amami@8sin.co.jp")
+    name = "手動リール素材（Kling・Hailuo）"
+    q = "name='%s' and mimeType='application/vnd.google-apps.folder' and trashed=false" % name
+    ex = drive.files().list(q=q, fields="files(id,name)", spaces="drive",
+        supportsAllDrives=True, includeItemsFromAllDrives=True).execute().get("files", [])
+    if ex:
+        fid = ex[0]["id"]; print("[MKMANUAL] 既存フォルダを再利用:", fid)
+    else:
+        parent = FOOD_FOLDER
+        try:
+            meta = drive.files().get(fileId=FOOD_FOLDER, fields="parents", supportsAllDrives=True).execute()
+            ps = meta.get("parents") or []
+            if ps:
+                parent = ps[0]   # 料理写真フォルダの“親”の下に兄弟として作る
+        except Exception as e:
+            print("[MKMANUAL] 親フォルダ特定失敗（料理写真直下に作成）:", e)
+        body = {"name": name, "mimeType": "application/vnd.google-apps.folder", "parents": [parent]}
+        fid = drive.files().create(body=body, fields="id", supportsAllDrives=True).execute()["id"]
+        print("[MKMANUAL] 作成:", fid, "(parent=%s)" % parent)
+    try:
+        drive.permissions().create(fileId=fid, sendNotificationEmail=False,
+            body={"type": "user", "role": "writer", "emailAddress": share_email},
+            supportsAllDrives=True).execute()
+        print("[MKMANUAL] 共有:", share_email, "(編集者)")
+    except Exception as e:
+        print("[MKMANUAL] 共有失敗:", e)
+    print("MANUAL_FOLDER_ID|" + fid)
+    print("URL|https://drive.google.com/drive/folders/" + fid)
+    return 0
+
+
 def gen():
     import poster
     prompt = os.environ.get("I2V_PROMPT") or DEFAULT_PROMPT
@@ -430,4 +483,7 @@ if __name__ == "__main__":
     if mode == "ingest":
         # Kling/Hailuo等でDriveに入れた動画を取り込んでライブラリに貯める（生成なし）
         sys.exit(ingest_manual())
+    if mode == "mkmanual":
+        # 手動クリップ用のDriveフォルダを作成＆本人へ共有（1回だけ）
+        sys.exit(mk_manual_folder())
     sys.exit(gen())
