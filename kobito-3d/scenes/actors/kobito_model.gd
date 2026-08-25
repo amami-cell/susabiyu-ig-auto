@@ -93,20 +93,15 @@ func attack() -> void:
 		return
 	if _atk_tween != null and _atk_tween.is_valid():
 		_atk_tween.kill()
+	# 体を傾ける動きは“倒れて見える”ので使わない。前へスッと踏み込む＋光の斬撃だけ。
 	body.rotation.x = 0.0
 	body.position = _body_rest
 	_spawn_slash(body)
-	var fwd := _body_rest + Vector3(0.0, 0.0, -0.4)   # プレイヤーの正面(-Z)へ踏み込む
+	var fwd := _body_rest + Vector3(0.0, 0.0, -0.45)   # プレイヤーの正面(-Z)へ踏み込む
 	_atk_tween = create_tween()
-	_atk_tween.set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
-	# 振りかぶり（ほんの少しうしろへ）
-	_atk_tween.tween_property(body, "rotation:x", -0.18, 0.09)
-	# 踏み込み（前へ大きく＋軽く前傾）＝“ひと振り”がはっきり
-	_atk_tween.tween_property(body, "rotation:x", 0.3, 0.08)
-	_atk_tween.parallel().tween_property(body, "position", fwd, 0.08)
-	# 戻る
-	_atk_tween.tween_property(body, "rotation:x", 0.0, 0.24)
-	_atk_tween.parallel().tween_property(body, "position", _body_rest, 0.24)
+	_atk_tween.set_trans(Tween.TRANS_CUBIC)
+	_atk_tween.tween_property(body, "position", fwd, 0.07).set_ease(Tween.EASE_OUT)
+	_atk_tween.tween_property(body, "position", _body_rest, 0.2).set_ease(Tween.EASE_IN)
 
 
 ## 前方をなぎ払う光の弧。上→下へ振り抜けて消える、明るい加算のひとふり。
@@ -116,9 +111,9 @@ func _spawn_slash(body: Node3D) -> void:
 	pivot.position = Vector3(0.0, 0.5, -0.1)
 	var quad := MeshInstance3D.new()
 	var qm := QuadMesh.new()
-	qm.size = Vector2(1.05, 0.2)
+	qm.size = Vector2(1.5, 0.32)   # 大きくはっきりした一閃
 	quad.mesh = qm
-	quad.position = Vector3(0.0, 0.0, -0.55)
+	quad.position = Vector3(0.0, 0.0, -0.6)
 	var mat := StandardMaterial3D.new()
 	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA

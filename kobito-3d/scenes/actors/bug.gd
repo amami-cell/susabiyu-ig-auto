@@ -323,15 +323,92 @@ func _flash_bug(c: Color) -> void:
 
 @rpc("authority", "call_local", "reliable")
 func _remote_healed() -> void:
-	# 癒やし完了：汚れた色 → 澄んだ色になって、光るように昇って消える。
-	# 「倒した（潰れて消える）」ではなく「救われて還っていく」見え方にする。
+	# 癒やし完了＝“浄化”：体ぜんぶが澄んだ光になり、キラキラ舞い上がり、光の輪が広がって、
+	# 救われて還っていく（昇って縮んで消える）。音つき。
 	_dead = true
 	remove_from_group("bug")
+	if _hpbar != null:
+		_hpbar.visible = false
 	Sfx.play("heal")
+	Sfx.play("levelup", -14.0)   # 澄んだ余韻
+
+	# 見えている全部品（BugLook のパーツ含む）を澄んだ光へ＝色がはっきり変わる。
+	var glow := StandardMaterial3D.new()
+	glow.albedo_color = Color(0.82, 1.0, 0.86)
+	glow.emission_enabled = true
+	glow.emission = Color(0.7, 1.0, 0.8)
+	glow.emission_energy_multiplier = 2.4
+	for mi in find_children("*", "MeshInstance3D", true, false):
+		if mi != _hpbar_fill:
+			mi.material_override = glow
+
+	_spawn_purify_ring()
+	_spawn_sparkles(16)
+
+	# 救われて還っていく：光りながら昇って縮んで消える。
 	var tween := create_tween()
-	var mat := _body.material_override as StandardMaterial3D
-	if mat != null:
-		tween.tween_property(mat, "albedo_color", Color(0.85, 1.0, 0.8), 0.2)
-	tween.parallel().tween_property(self, "global_position:y", global_position.y + 0.9, 0.55)
-	tween.parallel().tween_property(self, "scale", scale * 0.2, 0.55)
+	tween.tween_property(self, "global_position:y", global_position.y + 1.4, 0.6)
+	tween.parallel().tween_property(self, "scale", scale * 0.12, 0.6).set_ease(Tween.EASE_IN)
 	tween.tween_callback(queue_free)
+
+
+## 浄化の光の輪：足元から水平の輪がパッと広がって消える。
+## 虫本体は縮んで消えるので、輪・キラキラは“世界(親)”に置いて独立して見せる。
+func _spawn_purify_ring() -> void:
+	var world := get_parent()
+	if world == null:
+		return
+	var ring := MeshInstance3D.new()
+	var tm := TorusMesh.new()
+	tm.inner_radius = 0.22
+	tm.outer_radius = 0.32
+	tm.rings = 6
+	tm.ring_segments = 14
+	ring.mesh = tm
+	var mat := StandardMaterial3D.new()
+	mat.albedo_color = Color(0.85, 1.0, 0.88, 0.9)
+	mat.emission_enabled = true
+	mat.emission = Color(0.7, 1.0, 0.82)
+	mat.emission_energy_multiplier = 3.0
+	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	ring.material_override = mat
+	world.add_child(ring)
+	ring.global_position = global_position + Vector3(0.0, 0.35, 0.0)
+	var tw := create_tween()
+	tw.tween_property(ring, "scale", Vector3(4.5, 4.5, 4.5), 0.4)
+	tw.parallel().tween_property(mat, "albedo_color:a", 0.0, 0.45)
+	tw.tween_callback(ring.queue_free)
+
+
+## キラキラ：澄んだ光の粒がふわっと外へ舞い上がって消える。
+func _spawn_sparkles(n: int) -> void:
+	var world := get_parent()
+	if world == null:
+		return
+	var origin := global_position + Vector3(0.0, 0.5, 0.0)
+	for i in n:
+		var s := MeshInstance3D.new()
+		var m := SphereMesh.new()
+		m.radius = 0.06
+		m.height = 0.12
+		m.radial_segments = 6
+		m.rings = 3
+		s.mesh = m
+		var mat := StandardMaterial3D.new()
+		mat.albedo_color = Color(1.0, 1.0, 0.85)
+		mat.emission_enabled = true
+		mat.emission = Color(1.0, 1.0, 0.7)
+		mat.emission_energy_multiplier = 4.0
+		mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+		mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+		s.material_override = mat
+		world.add_child(s)
+		s.global_position = origin
+		var ang := TAU * float(i) / float(n) + randf_range(-0.3, 0.3)
+		var rad := randf_range(0.5, 1.2)
+		var target := origin + Vector3(cos(ang) * rad, randf_range(1.0, 2.0), sin(ang) * rad)
+		var tw := create_tween()
+		tw.tween_property(s, "global_position", target, randf_range(0.45, 0.75)).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
+		tw.parallel().tween_property(mat, "albedo_color:a", 0.0, 0.7)
+		tw.tween_callback(s.queue_free)
