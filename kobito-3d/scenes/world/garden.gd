@@ -402,8 +402,10 @@ func _setup_visuals() -> void:
 	_build_flowers()
 	_build_pillars()
 	_build_terrain_skirt()
-	_build_water()
-	_build_distant_hills()
+	# 水面・遠景の丘は重いので Web ではスキップ（サクサク優先）。
+	if not OS.has_feature("web"):
+		_build_water()
+		_build_distant_hills()
 	_build_trees()
 	_build_boulders()
 	_build_butterflies()

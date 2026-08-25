@@ -50,13 +50,17 @@ func _ready() -> void:
 	mat.albedo_color = body_color
 	mat.roughness = 0.9
 	_body.material_override = mat
-	# 本物モデルがあれば差し替え（無ければ手続きのクレイ小人にフォールバック）。
-	# ただし Web ではスキン計算が重いので、家族NPCは軽い簡易モデルにして“サクサク”を優先。
+	# 見た目の選択（サクサク優先）：
+	#  ・PC/ネイティブ … 本物のリグ付きモデル（スキン1体＝1ドローコール）
+	#  ・Web … 超軽量NPC(4部品)。フルの手続きクレイ(100部品超)だと9人で数百ドロー
+	#          コール＝固まる主因なので使わない。
 	if KobitoModel.has_model() and KobitoModel.heavy_ok():
 		var mdl := KobitoModel.new()
 		mdl.name = "Model"
 		_body.add_child(mdl)
 		mdl.setup(_body, body_color, role, child_name)
+	elif OS.has_feature("web"):
+		KobitoLook.decorate_simple(_body, body_color, role, child_name)
 	else:
 		KobitoLook.decorate(_body, body_color, false, role, child_name)
 	scale = Vector3.ONE * body_scale

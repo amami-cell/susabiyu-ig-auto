@@ -24,7 +24,7 @@ const JUMP_SPEED := 5.2
 const FLY_LIFT := 4.2          # 飛行中の上昇速度
 const FLY_CEILING := 12.0      # 上がりすぎ防止
 # 飛行の解禁は Lv ではなく「癒やして集めた5パーツ」で判定する（WorldState.has_flight）
-const ATTACK_RANGE := 1.6
+const ATTACK_RANGE := 2.3
 const ATTACK_COOLDOWN := 0.45
 const SYNC_HZ := 20.0
 
@@ -298,7 +298,7 @@ func _server_attack(from: Vector3, yaw: float) -> void:
 		to_bug.y = 0.0
 		if to_bug.length() > ATTACK_RANGE:
 			continue
-		if facing.dot(to_bug.normalized()) < 0.2:   # 背中側は当たらない
+		if facing.dot(to_bug.normalized()) < -0.1:   # ほぼ全周（真後ろだけ当たらない）＝当てやすく
 			continue
 		bug.cleanse(attack_power, name.to_int())
 

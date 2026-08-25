@@ -140,7 +140,7 @@ func cleanse(amount: int, healer_id: int) -> void:
 			var away: Vector3 = global_position - src.global_position
 			away.y = 0.0
 			if away.length() > 0.01:
-				_knockback = away.normalized() * 5.0
+				_knockback = away.normalized() * 9.0   # 強めに弾く＝当たった手応え
 		rpc("_remote_hit", amount)   # まだ倒れない＝くらった芝居＋火花＋ダメージ数字
 		return
 
@@ -166,19 +166,36 @@ func _remote_state(pos: Vector3, remote_hp: int) -> void:
 
 @rpc("authority", "call_local", "unreliable")
 func _remote_hit(amount: int = 0) -> void:
-	# くらった：白フラッシュ＋のけぞって跳ね潰れ＋火花＋ダメージ数字＋音＝はっきりした手応え。
+	# くらった：ヒットストップ（一瞬止まる）＋赤白フラッシュ＋大きくのけぞって跳ね潰れ＋
+	# 火花＋ダメージ数字＋音＝はっきりした手応え。
 	Sfx.play("hit")
-	_flash_bug(Color(1.0, 1.0, 1.0))
+	_hit_stop()
+	_flash_bug(Color(1.0, 0.5, 0.45))   # 赤めのフラッシュ＝ダメージが伝わる
 	var base := Vector3.ONE * stats.body_scale
 	var tw := create_tween()
-	tw.tween_property(_body, "scale", base * Vector3(1.4, 0.6, 1.4), 0.05)
-	tw.tween_property(_body, "scale", base, 0.14)
+	tw.tween_property(_body, "scale", base * Vector3(1.7, 0.5, 1.7), 0.04)   # 大きくつぶれる
+	tw.tween_property(_body, "scale", base, 0.18).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 	var tw2 := create_tween()
-	tw2.tween_property(_body, "position:y", 0.45, 0.06)
-	tw2.tween_property(_body, "position:y", 0.0, 0.16)
+	tw2.tween_property(_body, "position:y", 0.7, 0.06)   # 大きく跳ねる
+	tw2.tween_property(_body, "position:y", 0.0, 0.2).set_trans(Tween.TRANS_BOUNCE).set_ease(Tween.EASE_OUT)
 	_spawn_hit_spark()
 	if amount > 0:
 		_spawn_damage_number(amount)
+
+
+## ヒットストップ：当たった瞬間だけ時間をほぼ止めて“ズシッ”と手応えを出す。
+## 二重起動しないよう、進行中は無視。SceneTreeTimer は time_scale の影響を受けないので
+## 実時間できっちり戻る。
+static var _hitstop_active := false
+func _hit_stop() -> void:
+	if _hitstop_active:
+		return
+	_hitstop_active = true
+	Engine.time_scale = 0.05
+	var t := get_tree().create_timer(0.06, true, false, true)   # ignore_time_scale=true
+	t.timeout.connect(func() -> void:
+		Engine.time_scale = 1.0
+		_hitstop_active = false)
 
 
 ## ヒット火花：叩いた瞬間、白〜黄の光がパッと弾けて消える（当たった位置＝虫の中心上）。

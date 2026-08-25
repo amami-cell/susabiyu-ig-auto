@@ -46,6 +46,66 @@ const EYE_PALETTE := [
 ]
 
 
+## Web など軽い環境向けの“超軽量”NPC。部品を4つだけ（体・頭・目2）にして
+## ドローコールを激減させる（フルの手続きクレイは1体で100部品超あり、9人ぶんで
+## 数百ドローコール＝Webが固まる主因だった）。見た目は簡素だが、家族色は反映する。
+static func decorate_simple(body: MeshInstance3D, color: Color, _role: String = "child", _char_name: String = "") -> void:
+	var inv := StandardMaterial3D.new()
+	inv.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	inv.albedo_color = Color(0, 0, 0, 0)
+	body.material_override = inv
+
+	var root := Node3D.new()
+	root.name = "SimpleLook"
+	body.add_child(root)
+
+	# 体（家族色のカプセル）。足元は本物モデルと同じ y=-0.52 に合わせる。
+	var torso := MeshInstance3D.new()
+	var cap := CapsuleMesh.new()
+	cap.radius = 0.34
+	cap.height = 1.05
+	cap.radial_segments = 8
+	cap.rings = 3
+	torso.mesh = cap
+	var bmat := StandardMaterial3D.new()
+	bmat.albedo_color = color
+	bmat.roughness = 0.95
+	torso.material_override = bmat
+	torso.position = Vector3(0.0, 0.16, 0.0)
+	root.add_child(torso)
+
+	# 頭（肌色の球）
+	var head := MeshInstance3D.new()
+	var sph := SphereMesh.new()
+	sph.radius = 0.36
+	sph.height = 0.72
+	sph.radial_segments = 10
+	sph.rings = 6
+	head.mesh = sph
+	var hmat := StandardMaterial3D.new()
+	hmat.albedo_color = SKIN
+	hmat.roughness = 0.88
+	head.material_override = hmat
+	head.position = Vector3(0.0, 1.02, 0.0)
+	root.add_child(head)
+
+	# 目（黒い点2つ）＝顔があるだけで一気に“人”に見える
+	var emat := StandardMaterial3D.new()
+	emat.albedo_color = Color(0.12, 0.1, 0.1)
+	emat.roughness = 0.6
+	for sx in [-0.15, 0.15]:
+		var eye := MeshInstance3D.new()
+		var e := SphereMesh.new()
+		e.radius = 0.07
+		e.height = 0.14
+		e.radial_segments = 6
+		e.rings = 4
+		eye.mesh = e
+		eye.material_override = emat
+		eye.position = Vector3(sx, 1.08, -0.3)
+		root.add_child(eye)
+
+
 static func decorate(body: MeshInstance3D, color: Color, with_weapon: bool = false, role: String = "child", char_name: String = "") -> void:
 	if body == null or body.mesh == null:
 		return
