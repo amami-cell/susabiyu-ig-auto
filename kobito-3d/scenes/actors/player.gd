@@ -77,14 +77,21 @@ func _ready() -> void:
 	mat.roughness = 0.9
 	_body.material_override = mat
 	var pname: String = Net.roster.get(owner_id, {}).get("name", "小人")
-	# 本物モデルがあれば差し替え（無ければ手続きのクレイ小人にフォールバック）
-	if KobitoModel.has_model():
+	# 見た目の選択：
+	#  ・PC/ネイティブ … 本物のリグ付きモデル（きれい版・重い環境向け）
+	#  ・Web … 既製モデルは女性で“お父さんに見えない”ため、作り込んだクレイの父
+	#          （パーカー・ヤギひげ・パパ髪＋攻撃モーション）に。家族の簡易ドールとも自然。
+	# 名前が「母/妻」等でない限り父スタイルにする（＝この二人プレイの主役は父）。
+	if KobitoModel.has_model() and KobitoModel.heavy_ok():
 		var mdl := KobitoModel.new()
 		mdl.name = "Model"
 		_body.add_child(mdl)
 		mdl.setup(_body, _base_color, "adult", pname)
 	else:
-		KobitoLook.decorate(_body, Net.color_of(owner_id), true, "adult", pname)   # 親：武器を持つ
+		var style_name := pname
+		if not _looks_parent(pname):
+			style_name = "父"   # 名前から親と分からないときは“父”スタイルを既定に
+		KobitoLook.decorate(_body, _base_color, true, "adult", style_name)   # 親：武器を持つ
 	_label.text = pname
 
 	# カメラは自分のぶんだけ。他人の小人のカメラは切っておく。
@@ -94,6 +101,14 @@ func _ready() -> void:
 	if not is_local:
 		# 他人の小人の物理は回さない（位置は送られてくる）
 		set_physics_process(true)
+
+
+## 名前から「親（父/母）」と分かるか。分かるならその見た目を尊重し、分からなければ父を既定にする。
+func _looks_parent(nm: String) -> bool:
+	for k in ["父", "夫", "パパ", "とう", "母", "妻", "ママ", "かあ", "おかん"]:
+		if k in nm:
+			return true
+	return false
 
 
 func _physics_process(delta: float) -> void:
