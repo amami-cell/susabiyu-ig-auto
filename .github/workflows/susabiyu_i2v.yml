@@ -24,6 +24,10 @@ on:
         description: "predictのapi_name上書き（空=既定 /generate）"
         required: false
         default: ""
+      compare:
+        description: "1=固定の標準画像(中トロ)で生成＝各モデル同一条件の比較用"
+        required: false
+        default: ""
 permissions:
   contents: read
 concurrency:
@@ -52,6 +56,7 @@ jobs:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
           HF_SPACE: ${{ github.event.inputs.space }}
           HF_API_NAME: ${{ github.event.inputs.api_name }}
+          COMPARE_IMAGE: ${{ github.event.inputs.compare }}
           GOOGLE_CREDS_B64: ${{ secrets.GOOGLE_CREDS_B64 }}
           SHEET_ID: ${{ secrets.SHEET_ID }}
           GENRE_FOOD_ID: ${{ secrets.GENRE_FOOD_ID }}

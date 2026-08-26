@@ -372,7 +372,12 @@ def gen():
     import poster
     prompt = os.environ.get("I2V_PROMPT") or DEFAULT_PROMPT
     drive, creds_path = _drive()
-    img_path, source = _pick_food_photo(drive)
+    if os.environ.get("COMPARE_IMAGE"):
+        # 比較テスト：固定の標準画像（中トロ造り）を使う＝各モデルを同一条件で
+        img_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "compare", "sample_chutoro.jpg")
+        source = "中トロ造り(標準比較)"
+    else:
+        img_path, source = _pick_food_photo(drive)
     print("[I2V] 元写真:", source)
     result = _generate_with_fallback(img_path, prompt)
     if result is None:
