@@ -92,6 +92,14 @@ func add(kind: String, times: int = 1) -> void:
 	rpc("_remote_apply", recovery)
 
 
+## エンディング等でみどりを一気に満開へ。サーバが全員へ反映する。
+func set_full() -> void:
+	if not multiplayer.has_multiplayer_peer() or not multiplayer.is_server():
+		return
+	_apply(1.0)
+	rpc("_remote_apply", 1.0)
+
+
 func reset() -> void:
 	_apply(0.0)
 	powers.clear()

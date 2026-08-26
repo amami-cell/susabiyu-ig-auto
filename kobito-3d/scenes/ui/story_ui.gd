@@ -169,6 +169,9 @@ func _hide_box() -> void:
 	_box.visible = false
 	_catch.visible = false
 	_set_play_ui(true)
+	# 会話を読み終えた合図（会話だけのビート＝章の区切り/エンディングを次へ進める）。
+	if Chapter.has_method("notify_dialogue_done"):
+		Chapter.notify_dialogue_done()
 
 
 func show_banner(text: String) -> void:

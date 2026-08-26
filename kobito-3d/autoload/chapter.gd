@@ -92,14 +92,60 @@ const CH1 := [
 		],
 	},
 	{
-		"goal": "clear", "clear": true,
+		"goal": "story", "banner": "第1章 クリア  「たどり着いた隙間」", "power": "carry",
 		"lines": [
 			"父「この汚れた場所を、いつか“家”って 呼べるように」",
 			"カヤ「……まあ、少しは マシに なったかもな」",
 			"母「“おかえり”って 言える場所が できたわね」",
-			"母「……つぎは、どこへ 行こうか」",
 			"（力を授かった：押す・運ぶが 強くなった）",
-			"——第2章へ つづく",
+		],
+	},
+	# ───────────── 第2章「そとの世界へ」 ─────────────
+	{
+		"goal": "story", "banner": "第2章  「そとの世界へ」",
+		"lines": [
+			"つぼみ「ねえ、すきまの そとにも 世界が あるの？」",
+			"おじい「あるとも。じゃが 外は もっと ひどく 汚れておる…」",
+			"父「だからこそ 行くんだ。みどりを もっと 広げに」",
+			"母「みんな 一緒なら こわくない。……いきましょう」",
+		],
+	},
+	{
+		"goal": "heal", "n": 32, "wave": 8,
+		"lines": [
+			"——外の地面は 見わたすかぎり ヘドロだらけ。虫たちが うめいている。",
+			"カヤ「うわ…数が ぜんぜん ちがう」",
+			"父「ひるむな。一匹ずつ、ちゃんと 癒やしていこう」",
+			"母「あわてないで。みんなの ペースで だいじょうぶ」",
+		],
+	},
+	{
+		"goal": "boss", "boss": true,
+		"lines": [
+			"——地の底から、山のような ヘドロの主が もちあがる。",
+			"スミレ「あれが…この 汚れの おおもと！」",
+			"父「いちばん 深く 苦しんでる。……家族 ぜんぶの 力で 癒やすぞ！」",
+			"つぼみ「こわくない！ みんな いるもん！」",
+		],
+	},
+	{
+		"goal": "story", "banner": "みどりが よみがえる", "full_green": true,
+		"lines": [
+			"——主が 静かに ほどけ、地の すみずみまで みどりが 走った。",
+			"おじい「見ろ…これが “みどりのはじまり” じゃ」",
+			"母「わたしたちの 手で、世界が 息を ふきかえした」",
+		],
+	},
+	{
+		"goal": "ending", "ending": true,
+		"lines": [
+			"——花が 咲き、風が 通り、遠くの 空まで 澄んでいく。",
+			"父「ここを “家”って 呼ぼう。……いや、“世界ぜんぶ”を な」",
+			"カヤ「ふん。……悪くない ながめだ」",
+			"つぼみ「ねえ！ また 汚れた 場所が あったら、」",
+			"みんな「——みんなで、みどりを とりもどしに いこう！」",
+			"『みどりのはじまり』  〜おわり〜",
+			"あそんでくれて ありがとう。",
 		],
 	},
 ]
@@ -110,6 +156,9 @@ var _seeds := 0
 var _boss_cleared := false
 var _active := false
 var _last_obj := "￿"
+var _beat_t := 0.0        # 今のビートの経過時間（会話ビートの送り用）
+var _last_beat := -99     # ビートが変わった瞬間を検知してタイマをリセット
+var _talk_done := false   # 会話ビートで、プレイヤーが会話を読み終えたか
 
 
 func _ready() -> void:
@@ -141,13 +190,25 @@ func _on_session_started() -> void:
 		rpc("_set_beat", 0)
 
 
-func _process(_delta: float) -> void:
+func _process(delta: float) -> void:
 	if not _active or not _is_server() or beat < 0 or beat >= CH1.size():
 		return
+	if beat != _last_beat:
+		_last_beat = beat
+		_beat_t = 0.0
+		_talk_done = false
+	_beat_t += delta
 	var b: Dictionary = CH1[beat]
 	var goal: String = b.get("goal", "")
 	var done := false
 	match goal:
+		"story":
+			# 会話だけのビート。読み終えたら（または保険で25秒で）次へ。
+			_push_objective("")
+			done = _talk_done or _beat_t >= 25.0
+		"ending":
+			_push_objective("")
+			done = false   # エンディングは終端
 		"clean":
 			_push_objective("はいすいこうの ゴミを きれいに（のこり %d）" % _trash_count())
 			done = _trash_count() == 0
@@ -178,6 +239,13 @@ func _process(_delta: float) -> void:
 		rpc("_set_beat", beat + 1)
 
 
+## StoryUI から呼ばれる：会話を最後まで読み終えた。会話だけのビートを次へ進める合図。
+## サーバだけが進行を握るのでサーバ側でだけ立てる（参加者の読み終わりでは進めない）。
+func notify_dialogue_done() -> void:
+	if _is_server():
+		_talk_done = true
+
+
 func _push_objective(text: String) -> void:
 	if text == _last_obj:
 		return
@@ -194,17 +262,24 @@ func _set_beat(i: int) -> void:
 	beat = i
 	var data: Dictionary = CH1[i]
 	dialogue.emit(PackedStringArray(data.get("lines", [])))
-	# このビートに入った瞬間の仕掛け（群れ・中ボス）を、サーバが湧かせる
+	# このビートに入った瞬間の仕掛け（群れ・中ボス・力・満開）を、サーバが起こす。
 	if _is_server():
 		if data.has("wave"):
 			spawn_wave.emit(int(data["wave"]))
 		if data.get("boss", false):
+			_boss_cleared = false   # 新しいボスに備えて判定をリセット
 			spawn_boss.emit()
-	if data.get("clear", false):
+		if data.has("power"):
+			WorldState.grant_power(String(data["power"]))
+		if data.get("full_green", false) or data.get("ending", false):
+			WorldState.set_full()   # みどりを一気に満開へ
+	# 大バナー（章クリア・章タイトル・エンディング等）は全員の画面に出す。
+	if data.has("banner"):
 		objective_changed.emit("")
-		banner.emit("第1章 クリア  「たどり着いた隙間」")
-		# 章の報酬：力（押す・運ぶが強くなる）。サーバだけが実際に付与・複製する。
-		WorldState.grant_power("carry")
+		banner.emit(String(data["banner"]))
+	if data.get("ending", false):
+		objective_changed.emit("")
+		banner.emit("『みどりのはじまり』  〜おわり〜")
 
 
 @rpc("authority", "call_local", "reliable")
