@@ -13,6 +13,8 @@ extends CharacterBody3D
 
 const SYNC_HZ := 10.0
 const GRAVITY := 14.0
+const AGGRO_RANGE := 16.0   # この距離まで近づかれて初めて襲う（開始直後の平和を保つ）
+const STOP_DIST := 1.4      # プレイヤーに乗り上げないよう、少し離れて噛みつく
 
 @export var stats: EnemyStats
 
@@ -139,17 +141,24 @@ func _think(delta: float) -> void:
 	if is_on_floor():
 		velocity.y = -0.1
 
-	if _target == null:
+	var to_target := Vector3.ZERO
+	var dist := INF
+	if _target != null:
+		to_target = _target.global_position - global_position
+		to_target.y = 0.0
+		dist = to_target.length()
+
+	# 索敵範囲の外＝まだ襲わない。その場で止まる（開始直後の平和／プレイヤーが来たら戦う）。
+	if _target == null or dist > AGGRO_RANGE:
 		velocity.x = move_toward(velocity.x, 0.0, 8.0 * delta)
 		velocity.z = move_toward(velocity.z, 0.0, 8.0 * delta)
+		velocity.x += _knockback.x
+		velocity.z += _knockback.z
+		_knockback = _knockback.move_toward(Vector3.ZERO, 26.0 * delta)
 		move_and_slide()
 		return
 
-	var to_target: Vector3 = _target.global_position - global_position
-	to_target.y = 0.0
-	var dist := to_target.length()
-
-	if dist > 0.9:
+	if dist > STOP_DIST:
 		# M2ではまっすぐ寄るだけ。障害物を避けたくなったら
 		# NavigationAgent3D をここに差し込む（世界を広げる M5 で）。
 		var dir := to_target.normalized()
