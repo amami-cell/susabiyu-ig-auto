@@ -44,8 +44,14 @@ func _ready() -> void:
 	var mat := StandardMaterial3D.new()
 	mat.albedo_color = stats.body_color
 	mat.roughness = 0.8
+	# 敵が地面に溶けないよう、縁を強く光らせて（リム）シルエットを立たせる＝戦闘が分かりやすい。
 	mat.rim_enabled = true
-	mat.rim = 0.4
+	mat.rim = 0.85
+	mat.rim_tint = 0.2
+	# ヘドロに侵された“不穏さ”をほのかな発光で表現＝敵だと一目で分かる。
+	mat.emission_enabled = true
+	mat.emission = Color(0.5, 0.25, 0.55)
+	mat.emission_energy_multiplier = 0.25
 	_body.material_override = mat
 	_body.scale = Vector3.ONE * stats.body_scale
 

@@ -46,10 +46,10 @@ const EYE_PALETTE := [
 ]
 
 
-## Web など軽い環境向けの“超軽量”NPC。部品を4つだけ（体・頭・目2）にして
-## ドローコールを激減させる（フルの手続きクレイは1体で100部品超あり、9人ぶんで
-## 数百ドローコール＝Webが固まる主因だった）。見た目は簡素だが、家族色は反映する。
-static func decorate_simple(body: MeshInstance3D, color: Color, _role: String = "child", _char_name: String = "") -> void:
+## Web など軽い環境向けの“かわいい こけし人形風”の小人。部品を絞りつつ（体・頭・髪・目2・
+## ほっぺ2＝約7部品）、髪と顔をつけて「顔なしの卵」に見えないようにする。フルの手続きクレイ
+## (1体100部品超)は9人で固まる原因なので、こちらで軽さと“ちゃんと人に見える”を両立する。
+static func decorate_simple(body: MeshInstance3D, color: Color, role: String = "child", char_name: String = "") -> void:
 	var inv := StandardMaterial3D.new()
 	inv.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 	inv.albedo_color = Color(0, 0, 0, 0)
@@ -59,51 +59,83 @@ static func decorate_simple(body: MeshInstance3D, color: Color, _role: String = 
 	root.name = "SimpleLook"
 	body.add_child(root)
 
-	# 体（家族色のカプセル）。足元は本物モデルと同じ y=-0.52 に合わせる。
+	var is_adult := role == "adult"
+
+	# 体（家族色の服）。丸めのカプセルで“ぷっくり”＝かわいい。足元 y=-0.52。
 	var torso := MeshInstance3D.new()
 	var cap := CapsuleMesh.new()
-	cap.radius = 0.34
-	cap.height = 1.05
-	cap.radial_segments = 8
+	cap.radius = 0.36
+	cap.height = 1.0
+	cap.radial_segments = 10
 	cap.rings = 3
 	torso.mesh = cap
-	var bmat := StandardMaterial3D.new()
-	bmat.albedo_color = color
-	bmat.roughness = 0.95
-	torso.material_override = bmat
-	torso.position = Vector3(0.0, 0.16, 0.0)
+	torso.material_override = _flat(color, 0.95)
+	torso.position = Vector3(0.0, 0.12, 0.0)
 	root.add_child(torso)
 
-	# 頭（肌色の球）
+	# 頭（肌色）＝少し大きめでチビ可愛く
 	var head := MeshInstance3D.new()
 	var sph := SphereMesh.new()
-	sph.radius = 0.36
-	sph.height = 0.72
-	sph.radial_segments = 10
-	sph.rings = 6
+	sph.radius = 0.42
+	sph.height = 0.84
+	sph.radial_segments = 12
+	sph.rings = 7
 	head.mesh = sph
-	var hmat := StandardMaterial3D.new()
-	hmat.albedo_color = SKIN
-	hmat.roughness = 0.88
-	head.material_override = hmat
+	head.material_override = _flat(SKIN, 0.85)
 	head.position = Vector3(0.0, 1.02, 0.0)
 	root.add_child(head)
 
-	# 目（黒い点2つ）＝顔があるだけで一気に“人”に見える
-	var emat := StandardMaterial3D.new()
-	emat.albedo_color = Color(0.12, 0.1, 0.1)
-	emat.roughness = 0.6
-	for sx in [-0.15, 0.15]:
+	# 髪（こげ茶）＝頭のうしろ・上を覆うキャップ。顔(前=-Z)は出す。これで後ろ姿も“人”に見える。
+	var hair := MeshInstance3D.new()
+	var hs := SphereMesh.new()
+	hs.radius = 0.46
+	hs.height = 0.92
+	hs.radial_segments = 12
+	hs.rings = 7
+	hair.mesh = hs
+	var hair_col: Color = HAIR_WHITE if char_name == "おじい" else HAIR_PALETTE[abs(char_name.hash()) % HAIR_PALETTE.size()]
+	hair.material_override = _flat(hair_col, 0.8)
+	# うしろ・上へ寄せて、前おでこと顔を出す。大人は少し長めに下げる。
+	hair.position = Vector3(0.0, 1.06 + (0.0 if is_adult else 0.02), 0.12)
+	hair.scale = Vector3(1.0, 1.02 if is_adult else 0.92, 1.0)
+	root.add_child(hair)
+
+	# 目（黒い点2つ）
+	var emat := _flat(Color(0.12, 0.1, 0.1), 0.5)
+	for sx in [-0.16, 0.16]:
 		var eye := MeshInstance3D.new()
 		var e := SphereMesh.new()
-		e.radius = 0.07
-		e.height = 0.14
+		e.radius = 0.08
+		e.height = 0.16
 		e.radial_segments = 6
 		e.rings = 4
 		eye.mesh = e
 		eye.material_override = emat
-		eye.position = Vector3(sx, 1.08, -0.3)
+		eye.position = Vector3(sx, 1.06, -0.35)
 		root.add_child(eye)
+
+	# ほっぺ（桃色）2つ＝ぐっと可愛くなる
+	var cmat := _flat(Color(1.0, 0.66, 0.68), 0.7)
+	for cx in [-0.26, 0.26]:
+		var cheek := MeshInstance3D.new()
+		var cm := SphereMesh.new()
+		cm.radius = 0.08
+		cm.height = 0.16
+		cm.radial_segments = 6
+		cm.rings = 4
+		cheek.mesh = cm
+		cheek.material_override = cmat
+		cheek.position = Vector3(cx, 0.96, -0.3)
+		cheek.scale = Vector3(1.0, 0.7, 0.5)
+		root.add_child(cheek)
+
+
+## 単色マット材質を1つ作る小ヘルパ（簡易NPC用）。
+static func _flat(col: Color, rough: float) -> StandardMaterial3D:
+	var m := StandardMaterial3D.new()
+	m.albedo_color = col
+	m.roughness = rough
+	return m
 
 
 static func decorate(body: MeshInstance3D, color: Color, with_weapon: bool = false, role: String = "child", char_name: String = "") -> void:
