@@ -210,28 +210,28 @@ func _process(delta: float) -> void:
 			_push_objective("")
 			done = false   # エンディングは終端
 		"clean":
-			_push_objective("はいすいこうの ゴミを きれいに（のこり %d）" % _trash_count())
+			_push_objective("めあて：ゴミを「つかむ」で 外へ はこぶ（のこり %d）" % _trash_count())
 			done = _trash_count() == 0
 		"heal":
 			var need: int = b.get("n", 1)
-			_push_objective("あばれる虫を いやす（のこり %d）" % maxi(0, need - _healed))
+			_push_objective("めあて：あばれる虫を「きれいに」で いやす（のこり %d）" % maxi(0, need - _healed))
 			done = _healed >= need
 		"collect":
 			var need2: int = b.get("n", 1)
-			_push_objective("種のかけらを あつめる（%d / %d）" % [_seeds, need2])
+			_push_objective("めあて：光る“種のかけら”に ふれて あつめる（%d / %d）" % [_seeds, need2])
 			done = _seeds >= need2
 		"puzzle":
-			_push_objective("石版を 順番に踏んで 昔のしるしを 灯す")
+			_push_objective("めあて：石版を 数の順に ふんで 灯す")
 			done = _prop_solved("StonePuzzle")
 		"switch":
-			_push_objective("はなれた2つの台に 同時に乗って とびらを開く（ソロは子が手伝う）")
+			_push_objective("めあて：はなれた2つの台に 同時に のる（ソロは子が手伝う）")
 			done = _prop_solved("SwitchPair")
 		"boss":
-			_push_objective("女王アリを 癒やす")
+			_push_objective("めあて：ボスを「きれいに」で いやす")
 			done = _boss_cleared
 		"green":
 			var v: float = b.get("v", 0.5)
-			_push_objective("みどりを もどす（%d%%）" % int(clampf(WorldState.recovery / v, 0.0, 1.0) * 100.0))
+			_push_objective("めあて：虫を いやして みどりを もどす（%d%%）" % int(clampf(WorldState.recovery / v, 0.0, 1.0) * 100.0))
 			done = WorldState.recovery >= v
 		"clear":
 			done = false   # クリアビートは終端

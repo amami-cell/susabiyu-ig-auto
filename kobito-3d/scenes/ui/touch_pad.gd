@@ -39,9 +39,9 @@ func _skin_buttons() -> void:
 	var a: Button = $Buttons/BtnAttack
 	var g: Button = $Buttons/BtnGrab
 	var j: Button = $Buttons/BtnJump
-	a.text = "🧹\nきれいに"
-	g.text = "✊\nつかむ"
-	j.text = "⤴\nジャンプ"
+	a.text = "きれいに"
+	g.text = "つかむ"
+	j.text = "ジャンプ"
 	UIKit.style_button(a, UIKit.GREEN, UIKit.GREEN_DK)
 	UIKit.style_button(g, UIKit.GOLD, Color(0.82, 0.6, 0.24))
 	UIKit.style_button(j, Color(0.62, 0.8, 1.0), Color(0.42, 0.6, 0.9))

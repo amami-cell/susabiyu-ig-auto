@@ -144,6 +144,10 @@ static func decorate(body: MeshInstance3D, color: Color, with_weapon: bool = fal
 	if body.has_node("Torso"):
 		return
 
+	# このクレイは顔が +Z 側に付く。プレイヤー/NPCの前方は -Z なので、そのまま出すと
+	# 顔がカメラ側＝“後ろ向きに歩く（ムーンウォーク）”になる。体ごと180°回して前を向かせる。
+	body.rotation.y = PI
+
 	var half := 0.5
 	var br := 0.25
 	if body.mesh is CapsuleMesh:

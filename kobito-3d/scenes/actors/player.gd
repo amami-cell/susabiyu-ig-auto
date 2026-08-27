@@ -34,6 +34,10 @@ enum State { IDLE, MOVE, ATTACK, FLY, HURT, DOWN }
 
 var state: State = State.IDLE
 var hp: int = 40
+const HP_REGEN_DELAY := 2.5    # 最後に被弾してから この秒数で自然回復が始まる
+const HP_REGEN_RATE := 7.0     # 1秒あたりの自然回復量
+var _since_dmg := 999.0
+var _regen_frac := 0.0
 var level: int = 1
 var xp: int = 0
 var attack_power: int = 6
@@ -117,10 +121,36 @@ func _physics_process(delta: float) -> void:
 	_age += delta
 	if is_local:
 		_local_step(delta)
+		_regen_hp(delta)
 		_push_state(delta)
 	else:
 		_remote_step(delta)
 	_update_look()
+
+
+## HPは「しばらく攻撃を受けていないと じわっと自然回復」する（＝回復場所を探さなくていい）。
+## さらに 敵を癒やすと自分も少し回復する（heal_hp）。＝“回復が分かりにくい”を解消。
+func _regen_hp(delta: float) -> void:
+	_since_dmg += delta
+	if hp <= 0 or hp >= max_hp or state == State.DOWN or state == State.HURT:
+		return
+	if _since_dmg < HP_REGEN_DELAY:
+		return
+	_regen_frac += HP_REGEN_RATE * delta
+	var add := int(_regen_frac)
+	if add > 0:
+		_regen_frac -= float(add)
+		hp = mini(max_hp, hp + add)
+		stats_changed.emit()
+
+
+## 敵を癒やしたとき、サーバから呼ばれる：自分も少し回復（癒やす＝自分も癒やされる）。
+@rpc("authority", "call_local", "reliable")
+func heal_hp(amount: int) -> void:
+	if hp <= 0:
+		return
+	hp = mini(max_hp, hp + amount)
+	stats_changed.emit()
 
 
 # ------------------------------------------------------------ 自分の小人
@@ -334,6 +364,7 @@ func apply_damage(amount: int) -> void:
 		return
 	hp = maxi(0, hp - amount)
 	_hurt_time = 0.35
+	_since_dmg = 0.0   # 被弾したので自然回復のクールダウンをリセット
 	state = State.HURT if hp > 0 else State.DOWN
 	_play_hurt_fx()
 	stats_changed.emit()

@@ -223,6 +223,7 @@ func cleanse(amount: int, healer_id: int) -> void:
 	for p in get_tree().get_nodes_in_group("player"):
 		if p.name.to_int() == healer_id:
 			p.rpc("gain_xp", stats.xp_reward)
+			p.rpc("heal_hp", 8)   # 癒やす＝自分も少し回復（回復手段が分かりやすい）
 			break
 	rpc("_remote_healed")
 
@@ -357,11 +358,16 @@ func _remote_healed() -> void:
 		if mi != _hpbar_fill:
 			mi.material_override = glow
 
-	_spawn_purify_ring()
-	_spawn_sparkles(16)
+	# ① 倒れる芝居：ちからつきて くたっと横に倒れ、ぺしゃっと つぶれる。
+	var fall := create_tween()
+	fall.tween_property(_body, "rotation:z", PI * 0.5, 0.16).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	fall.parallel().tween_property(_body, "scale", _body.scale * Vector3(1.15, 0.55, 1.15), 0.16)
 
-	# 救われて還っていく：光りながら昇って縮んで消える。
+	# ② 少し間を置いてから浄化の演出（輪・キラキラ）＋救われて還っていく（昇って縮んで消える）。
 	var tween := create_tween()
+	tween.tween_interval(0.22)
+	tween.tween_callback(_spawn_purify_ring)
+	tween.parallel().tween_callback(_spawn_sparkles.bind(16))
 	tween.tween_property(self, "global_position:y", global_position.y + 1.4, 0.6)
 	tween.parallel().tween_property(self, "scale", scale * 0.12, 0.6).set_ease(Tween.EASE_IN)
 	tween.tween_callback(queue_free)

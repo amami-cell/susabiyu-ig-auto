@@ -71,7 +71,7 @@ func _process(_delta: float) -> void:
 			return
 	_hp_bar.max_value = _player.max_hp
 	_hp_bar.value = _player.hp
-	var fly := "　🕊 飛べる" if _player.can_fly() else ""
+	var fly := "　／ とべる！" if _player.can_fly() else ""
 	_level_label.text = "Lv.%d　XP %d/%d　HP %d/%d%s" % [
 		_player.level, _player.xp, _player.xp_to_next(), _player.hp, _player.max_hp, fly
 	]
@@ -86,7 +86,7 @@ func _find_local_player() -> Node:
 
 func _on_recovery(value: float) -> void:
 	_recovery_bar.value = value * 100.0
-	_recovery_label.text = "🌱 みどり回復　%d%%" % int(round(value * 100.0))
+	_recovery_label.text = "みどり回復　%d%%" % int(round(value * 100.0))
 
 
 func _on_roster() -> void:
