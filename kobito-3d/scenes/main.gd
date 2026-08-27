@@ -120,6 +120,9 @@ func _run_selftest() -> void:
 		bugs[0].cleanse(9999, players[0].name.to_int())
 		await get_tree().create_timer(0.5).timeout
 
+	# 虫を癒やすと「なかま虫」が生まれて一緒に戦う経路を確認する
+	var ally_ok: bool = get_tree().get_nodes_in_group("ally").size() > 0
+
 	WorldState.add("drain_cleared")
 	await get_tree().create_timer(0.5).timeout
 
@@ -168,9 +171,9 @@ func _run_selftest() -> void:
 	var mother_ok: bool = mother != null
 
 	var ok: bool = _garden != null and players.size() == 1 and bugs.size() > 0 \
-		and WorldState.recovery > 0.0 and xp_gained and flight_ok and kids_ok and mother_ok and puzzle_ok and switch_ok
-	print("[selftest] 回復度=%.2f XP=%d 経験値=%s 飛行解禁=%s 子ども=%d(最寄り%.1f) 母=%s 石版=%s 扉=%s" % [
-		WorldState.recovery, xp_now, xp_gained, flight_ok, children.size(), nearest, mother_ok, puzzle_ok, switch_ok])
+		and WorldState.recovery > 0.0 and xp_gained and flight_ok and kids_ok and mother_ok and puzzle_ok and switch_ok and ally_ok
+	print("[selftest] 回復度=%.2f XP=%d 経験値=%s 飛行解禁=%s 子ども=%d(最寄り%.1f) 母=%s 石版=%s 扉=%s なかま=%s" % [
+		WorldState.recovery, xp_now, xp_gained, flight_ok, children.size(), nearest, mother_ok, puzzle_ok, switch_ok, ally_ok])
 	print("[selftest] %s" % ("OK" if ok else "NG"))
 	get_tree().quit(0 if ok else 1)
 

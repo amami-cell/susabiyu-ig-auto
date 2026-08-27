@@ -52,9 +52,12 @@ const BUG_SPAWN_POINTS := [
 	Vector3(14.0, 0.6, 24.0),
 ]
 const MAX_BUGS := 8
+const MAX_ALLIES := 6      # 画面が味方だらけにならない上限（軽さ優先）
 
 var _bug_serial := 0
+var _ally_serial := 0
 var _spawn_timer := 0.0
+var _allies: Node3D = null   # なかま虫の入れ物（_ready で作る＝シーン編集不要）
 
 @onready var _players: Node3D = $Players
 @onready var _bugs: Node3D = $Bugs
@@ -147,6 +150,10 @@ func _detect_quality() -> void:
 
 
 func _ready() -> void:
+	add_to_group("garden")   # bug.gd が「なかま」を湧かす時に呼び出せるように
+	_allies = Node3D.new()
+	_allies.name = "Allies"
+	add_child(_allies)
 	_setup_visuals()
 	WorldState.recovery_changed.connect(_on_recovery_changed)
 	Net.roster_changed.connect(_reconcile_players)
@@ -230,6 +237,10 @@ func _on_peer_connected(id: int) -> void:
 		return
 	for bug in _bugs.get_children():
 		rpc_id(id, "_remote_spawn_bug", int(bug.name.trim_prefix("Bug")), bug.stats_path, bug.global_position)
+	# 今いる「なかま虫」も配る（後から参加した人の画面にも味方が居るように）
+	if _allies != null:
+		for ally in _allies.get_children():
+			rpc_id(id, "_remote_spawn_ally", int(ally.name.trim_prefix("Ally")), ally.owner_id, ally.tint, ally.global_position)
 	# 母＋子ども。母は専用RPC、子は番号だけ送れば相手が同じ子を組み立てられる。
 	if _children.has_node("Mother"):
 		rpc_id(id, "_remote_spawn_mother")
@@ -372,6 +383,32 @@ func _remote_spawn_bug(serial: int, stats_path: String, pos: Vector3) -> void:
 	bug.stats_path = stats_path
 	_bugs.add_child(bug)
 	bug.global_position = pos
+
+
+# ------------------------------------------------------------ なかま（浄化された虫）
+#
+# 虫を癒やしきると、その場に「なかま虫」が生まれてプレイヤーについてくる。
+# テーマ「敵は救えば味方になる」を遊びで見せる。bug.gd が cleanse 完了時に spawn_ally を呼ぶ。
+
+func spawn_ally(pos: Vector3, owner_id: int, col: Color) -> void:
+	if not _is_server():
+		return
+	if _allies == null or _allies.get_child_count() >= MAX_ALLIES:
+		return
+	_ally_serial += 1
+	rpc("_remote_spawn_ally", _ally_serial, owner_id, col, pos)
+
+
+@rpc("authority", "call_local", "reliable")
+func _remote_spawn_ally(serial: int, owner_id: int, col: Color, pos: Vector3) -> void:
+	if _allies == null or _allies.has_node("Ally%d" % serial):
+		return
+	var a := Ally.new()
+	a.name = "Ally%d" % serial
+	a.setup(owner_id, col)
+	_allies.add_child(a)
+	a.global_position = pos + Vector3(0.0, 0.4, 0.0)
+	WorldState.notice.emit("なかまが ふえた！")   # 全員の画面で同時に（call_local）
 
 
 # ------------------------------------------------------------ 掃除

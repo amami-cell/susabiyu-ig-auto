@@ -225,6 +225,12 @@ func cleanse(amount: int, healer_id: int) -> void:
 			p.rpc("gain_xp", stats.xp_reward)
 			p.rpc("heal_hp", 8)   # 癒やす＝自分も少し回復（回復手段が分かりやすい）
 			break
+	# 癒やした虫は「なかま」になって一緒に戦う（中ボスは昇天のみ＝仲間化しない）。
+	if not stats.is_midboss:
+		var garden := get_tree().get_first_node_in_group("garden")
+		if garden != null and garden.has_method("spawn_ally"):
+			var ally_col: Color = stats.body_color.lerp(Color(0.6, 1.0, 0.72), 0.6)  # 澄んだ色に
+			garden.spawn_ally(global_position, healer_id, ally_col)
 	rpc("_remote_healed")
 
 
