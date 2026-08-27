@@ -16,7 +16,7 @@ window.SUSABIYU_STORES = [
   { id: "awakurai",     name: "泡喰ライ",             full: "大衆酒場 曲ル角ニハ泡喰ライ",  short: "", icon: "icons/store_awakurai.png", initial: "泡", url: "./store.html?id=awakurai", live: false },
   { id: "umami",        name: "UMAMI",                full: "CRAFTMAN UMAMI",               short: "", icon: "icons/store_umami.png", initial: "U", url: "./store.html?id=umami", live: false },
   { id: "taidai",       name: "たいだい",             full: "料理と酒 たいだい",            short: "", icon: "icons/store_taidai.png", initial: "た", url: "./store.html?id=taidai", live: false },
-  { id: "nagagutsu",    name: "NagaGutsu",            full: "NagaGutsu",                    short: "", icon: "icons/store_nagagutsu.png", initial: "N", url: "./store.html?id=nagagutsu", live: false },
+  { id: "nagagutsu",    name: "ナガグツ",             full: "ナガグツ（イタリアン・肉バル）", short: "稼働中", icon: "icons/store_nagagutsu.png", initial: "ナ", url: "./nagagutsu.html", live: true },
   { id: "kumatori",     name: "熊の鳥焼",             full: "熊の鳥焼",                     short: "", icon: "icons/store_kumatori.png", initial: "熊", url: "./store.html?id=kumatori", live: false },
   { id: "lucua",        name: "ルクアLargo",          full: "ルクアLargo",                  short: "", icon: "icons/store_lucua.png", initial: "ル", url: "./store.html?id=lucua", live: false },
   { id: "tanukiya",     name: "味のたぬきや",         full: "味のたぬきや",                 short: "", icon: "icons/store_tanukiya.png", initial: "た", url: "./store.html?id=tanukiya", live: false },
