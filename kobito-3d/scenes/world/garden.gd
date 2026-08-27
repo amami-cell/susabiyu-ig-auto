@@ -164,6 +164,8 @@ func _ready() -> void:
 	Chapter.spawn_wave.connect(_on_chapter_wave)
 	Chapter.spawn_boss.connect(_on_chapter_boss)
 	_spawn_puzzle()
+	_build_beacon()
+	Chapter.guide_changed.connect(_on_guide_changed)
 	_on_recovery_changed(WorldState.recovery)
 	_reconcile_players()
 	if _is_server():
@@ -190,12 +192,15 @@ func _spawn_puzzle() -> void:
 
 func _process(delta: float) -> void:
 	_update_butterflies(delta)   # 見た目だけ＝全員の画面で回す（サーバ判定の前）
+	_update_beacon(delta)        # 道しるべの光の柱をふわっと動かす（見た目・全員）
 	if not _is_server():
 		return
 	_spawn_timer -= delta
 	if _spawn_timer <= 0.0:
 		_spawn_timer = WorldState.spawn_interval()
-		_spawn_bug()
+		# 掃除・会話の“静かな場面”では まわりから虫を湧かせない＝落ち着いて進められる。
+		if Chapter.ambient_spawn_ok():
+			_spawn_bug()
 
 
 # ------------------------------------------------------------ プレイヤー
@@ -280,7 +285,7 @@ func _remote_spawn_mother() -> void:
 	mom.body_scale = MOTHER["scale"]
 	mom.role = "adult"
 	mom.follows_player = true          # 母は父（いちばん近いプレイヤー）を追う
-	mom.follow_spacing = 0.7
+	mom.follow_spacing = 2.6           # 少し離れて追う＝カメラ（後方）を家族でふさがない
 	_children.add_child(mom)
 	mom.global_position = SPAWN_POINTS[0] + Vector3(0.6, 0.0, 0.8)
 
@@ -409,6 +414,104 @@ func _remote_spawn_ally(serial: int, owner_id: int, col: Color, pos: Vector3) ->
 	_allies.add_child(a)
 	a.global_position = pos + Vector3(0.0, 0.4, 0.0)
 	WorldState.notice.emit("なかまが ふえた！")   # 全員の画面で同時に（call_local）
+
+
+# ------------------------------------------------------------ 道しるべ（光の柱）
+#
+# 「次にどこへ行けばいいか」を世界の中で光の柱＋足元の輪で示す。Chapter が対象位置を配る。
+# 見た目だけ＝各自の画面で位置を追う。ふわっと上下＋ゆっくり回転で“ここだよ”と主張する。
+
+var _beacon: Node3D = null
+var _beacon_beam: MeshInstance3D = null
+var _beacon_ring: MeshInstance3D = null
+var _beacon_beam_mat: StandardMaterial3D = null
+var _beacon_ring_mat: StandardMaterial3D = null
+var _beacon_t := 0.0
+
+func _build_beacon() -> void:
+	_beacon = Node3D.new()
+	_beacon.name = "Beacon"
+	add_child(_beacon)
+	# 光の柱（ごく細く高い・発光・裏面も見える）。遠くからでも“あそこ”と分かる細い光。
+	_beacon_beam = MeshInstance3D.new()
+	var cyl := CylinderMesh.new()
+	cyl.top_radius = 0.04
+	cyl.bottom_radius = 0.09
+	cyl.height = 4.4
+	cyl.radial_segments = 8
+	_beacon_beam.mesh = cyl
+	_beacon_beam.position.y = 2.3
+	_beacon_beam_mat = StandardMaterial3D.new()
+	_beacon_beam_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	_beacon_beam_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	_beacon_beam_mat.cull_mode = BaseMaterial3D.CULL_DISABLED
+	_beacon_beam_mat.emission_enabled = true
+	_beacon_beam.material_override = _beacon_beam_mat
+	_beacon.add_child(_beacon_beam)
+	# 足元の光の輪
+	_beacon_ring = MeshInstance3D.new()
+	var tm := TorusMesh.new()
+	tm.inner_radius = 0.7
+	tm.outer_radius = 1.0
+	tm.rings = 6
+	tm.ring_segments = 20
+	_beacon_ring.mesh = tm
+	_beacon_ring.position.y = 0.12
+	_beacon_ring_mat = StandardMaterial3D.new()
+	_beacon_ring_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	_beacon_ring_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	_beacon_ring_mat.emission_enabled = true
+	_beacon_ring.material_override = _beacon_ring_mat
+	_beacon.add_child(_beacon_ring)
+	_beacon.visible = false
+
+
+func _on_guide_changed(on: bool, pos: Vector3, kind: String) -> void:
+	if _beacon == null:
+		return
+	_beacon.visible = on
+	if not on:
+		return
+	_beacon.global_position = pos
+	var col := _beacon_color(kind)
+	var beam_col := Color(col.r, col.g, col.b, 0.32)
+	_beacon_beam_mat.albedo_color = beam_col
+	_beacon_beam_mat.emission = col
+	_beacon_beam_mat.emission_energy_multiplier = 2.2
+	var ring_col := Color(col.r, col.g, col.b, 0.85)
+	_beacon_ring_mat.albedo_color = ring_col
+	_beacon_ring_mat.emission = col
+	_beacon_ring_mat.emission_energy_multiplier = 2.6
+
+
+func _beacon_color(kind: String) -> Color:
+	match kind:
+		"clean": return Color(1.0, 0.82, 0.32)     # ゴミ＝あたたかい金
+		"heal": return Color(0.62, 1.0, 0.72)      # 虫＝澄んだ緑
+		"boss": return Color(1.0, 0.5, 0.55)       # ボス＝赤
+		"collect": return Color(0.55, 0.85, 1.0)   # 種＝水色
+		"puzzle": return Color(0.75, 0.7, 1.0)     # 石版＝紫
+		"switch": return Color(0.8, 0.95, 0.5)     # スイッチ＝黄緑
+	return Color(1, 1, 1)
+
+
+func _update_beacon(delta: float) -> void:
+	if _beacon == null or not _beacon.visible:
+		return
+	_beacon_t += delta
+	_beacon_beam.position.y = 2.3 + sin(_beacon_t * 2.2) * 0.2
+	_beacon_ring.rotation.y = _beacon_t * 1.2
+	var pulse := 0.85 + sin(_beacon_t * 3.0) * 0.15
+	_beacon_ring.scale = Vector3(pulse, 1.0, pulse)
+	# 近づいたら光の柱を薄く消す＝画面を覆わない（足元の輪＋画面の矢印で足りる）。
+	# 遠いときだけ しっかり光る＝“あそこへ行く”を遠くから示す。
+	var cam := get_viewport().get_camera_3d()
+	if cam != null and _beacon_beam_mat != null:
+		var d := cam.global_position.distance_to(_beacon.global_position)
+		var f := clampf((d - 6.0) / 8.0, 0.0, 1.0)   # 6m以下=消える / 14m以上=全開
+		var base := _beacon_beam_mat.emission
+		_beacon_beam_mat.albedo_color = Color(base.r, base.g, base.b, 0.30 * f)
+		_beacon_beam.visible = f > 0.02
 
 
 # ------------------------------------------------------------ 掃除

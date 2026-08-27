@@ -154,7 +154,7 @@ func _show_line() -> void:
 		_hide_box()
 		return
 	_text.text = _lines[_idx]
-	_auto = 6.0   # タップしなくても数秒で自動送り
+	_auto = 4.0   # タップしなくても数秒で自動送り（テンポよく＝待たされ感を減らす）
 	Sfx.play("pickup", -22.0)   # 文字送りの小さな合図
 
 

@@ -11,6 +11,14 @@ signal objective_changed(text: String)      # 画面上の目的表示（""で�
 signal banner(text: String)                 # 章クリア等の大きな中央表示
 signal spawn_wave(n: int)                   # 群れ(ウェーブ)を湧かせる合図
 signal spawn_boss                           # 中ボスを湧かせる合図
+signal guide_changed(on: bool, pos: Vector3, kind: String)  # 「次にどこへ行くか」の道しるべ
+
+# 道しるべ（今この瞬間、どこへ向かえばいいか）。サーバが対象の位置を計算して全員へ配り、
+# HUDの矢印＋距離と、世界の光の柱がそこを指す。＝「何をすればいいか分からない」を無くす。
+var guide_on := false
+var guide_pos := Vector3.ZERO
+var guide_kind := ""
+var _guide_accum := 0.0
 
 # 第1章「たどり着いた隙間」。しっかり遊べる長さ＝掃除→癒やし→探索(収集)→謎解き→
 # 協力→群れ(ウェーブ)→女王アリ(中ボス)→みどり回復→クリア。
@@ -163,7 +171,10 @@ var _talk_done := false   # 会話ビートで、プレイヤーが会話を読�
 
 func _ready() -> void:
 	Net.session_started.connect(_on_session_started)
-	Net.session_ended.connect(func(_r: String) -> void: _active = false)
+	Net.session_ended.connect(func(_r: String) -> void:
+		_active = false
+		guide_on = false
+		guide_changed.emit(false, Vector3.ZERO, ""))
 	WorldState.creature_healed.connect(_on_creature_healed)
 	WorldState.seed_collected.connect(_on_seed_collected)
 
@@ -210,7 +221,7 @@ func _process(delta: float) -> void:
 			_push_objective("")
 			done = false   # エンディングは終端
 		"clean":
-			_push_objective("めあて：ゴミを「つかむ」で 外へ はこぶ（のこり %d）" % _trash_count())
+			_push_objective("めあて：光る ゴミに 近づいて「つかむ」で かたづける（のこり %d）" % _trash_count())
 			done = _trash_count() == 0
 		"heal":
 			var need: int = b.get("n", 1)
@@ -237,6 +248,77 @@ func _process(delta: float) -> void:
 			done = false   # クリアビートは終端
 	if done:
 		rpc("_set_beat", beat + 1)
+
+	# 道しるべ（次の目的地）を計算して、変化したら全員へ配る（0.2秒ごと＝軽い）。
+	_guide_accum += delta
+	if _guide_accum >= 0.2:
+		_guide_accum = 0.0
+		var g := _guide_target(goal)
+		if g["on"] != guide_on or g["kind"] != guide_kind or (g["pos"] as Vector3).distance_to(guide_pos) > 0.4:
+			rpc("_set_guide", g["on"], g["pos"], g["kind"])
+
+
+## 今のゴールに応じて「向かうべき場所」を返す。{on, pos, kind}
+## clean=いちばん近いゴミ / heal・green=いちばん近い虫 / boss=ボス / collect=近い種 /
+## puzzle=石版 / switch=スイッチ台。会話・エンディング中は道しるべ無し。
+func _guide_target(goal: String) -> Dictionary:
+	var ref := _nearest_player_pos()
+	match goal:
+		"clean":
+			var t := _nearest_in_group("trash", ref)
+			if t != null:
+				return {"on": true, "pos": t.global_position, "kind": "clean"}
+		"heal", "green":
+			var g := _nearest_in_group("bug", ref)
+			if g != null:
+				return {"on": true, "pos": g.global_position, "kind": "heal"}
+		"boss":
+			var gb := _nearest_in_group("bug", ref)
+			if gb != null:
+				return {"on": true, "pos": gb.global_position, "kind": "boss"}
+		"collect":
+			var s := _nearest_in_group("seed", ref)
+			if s != null:
+				return {"on": true, "pos": s.global_position, "kind": "collect"}
+		"puzzle":
+			var pp := _prop_pos("StonePuzzle")
+			if pp.y < 1.0e8:
+				return {"on": true, "pos": pp, "kind": "puzzle"}
+		"switch":
+			var sp := _prop_pos("SwitchPair")
+			if sp.y < 1.0e8:
+				return {"on": true, "pos": sp, "kind": "switch"}
+	return {"on": false, "pos": Vector3.ZERO, "kind": ""}
+
+
+func _nearest_player_pos() -> Vector3:
+	var players := get_tree().get_nodes_in_group("player")
+	if players.is_empty():
+		return Vector3.ZERO
+	return (players[0] as Node3D).global_position
+
+
+func _nearest_in_group(group: String, ref: Vector3) -> Node3D:
+	var best: Node3D = null
+	var bd := 1.0e18
+	for n in get_tree().get_nodes_in_group(group):
+		var n3 := n as Node3D
+		if n3 == null:
+			continue
+		var d := n3.global_position.distance_to(ref)
+		if d < bd:
+			bd = d
+			best = n3
+	return best
+
+
+func _prop_pos(node_name: String) -> Vector3:
+	var garden := get_tree().get_first_node_in_group("garden")
+	if garden != null:
+		var p := garden.get_node_or_null(node_name) as Node3D
+		if p != null:
+			return p.global_position
+	return Vector3(0, 1.0e9, 0)   # 見つからない印
 
 
 ## StoryUI から呼ばれる：会話を最後まで読み終えた。会話だけのビートを次へ進める合図。
@@ -287,6 +369,15 @@ func _set_ui_objective(text: String) -> void:
 	objective_changed.emit(text)
 
 
+## 道しるべの更新をサーバから全員へ。位置は速達でよいので unreliable。
+@rpc("authority", "call_local", "unreliable_ordered")
+func _set_guide(on: bool, pos: Vector3, kind: String) -> void:
+	guide_on = on
+	guide_pos = pos
+	guide_kind = kind
+	guide_changed.emit(on, pos, kind)
+
+
 # ---- 進行の材料 ----
 
 func _on_creature_healed() -> void:
@@ -309,6 +400,18 @@ func _prop_solved(node_name: String) -> bool:
 		if p.name == node_name:
 			return bool(p.get("solved"))
 	return false
+
+
+## 今このビートで「まわりから虫が湧いてくる（アンビエント湧き）」を許すか。
+## 掃除・会話・エンディングの場面は 静かに保つ＝虫に邪魔されず、落ち着いて進められる。
+## （群れ・ボスは Chapter の専用合図で別途湧くので、ここでは関係ない。）
+func ambient_spawn_ok() -> bool:
+	if not _active:
+		return true   # 自由プレイ（遺跡など）は従来どおり
+	if beat < 0 or beat >= CH1.size():
+		return true
+	var goal: String = CH1[beat].get("goal", "")
+	return not (goal in ["clean", "story", "ending"])
 
 
 func _is_server() -> bool:

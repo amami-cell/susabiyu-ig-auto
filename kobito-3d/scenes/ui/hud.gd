@@ -15,11 +15,19 @@ var _player: Node = null
 @onready var _roster: Label = $Roster
 
 
+const GuideArrowScript := preload("res://scenes/ui/guide_arrow.gd")
+
+
 func _ready() -> void:
 	WorldState.recovery_changed.connect(_on_recovery)
 	WorldState.notice.connect(_on_notice)
 	Net.roster_changed.connect(_on_roster)
 	Net.status_changed.connect(_on_notice)
+	# 道しるべの矢印（画面）。HUDの子＝ロビーでは一緒に隠れる。
+	var guide := Control.new()
+	guide.set_script(GuideArrowScript)
+	guide.name = "GuideArrow"
+	add_child(guide)
 	_skin()
 	_on_recovery(WorldState.recovery)
 	_on_roster()

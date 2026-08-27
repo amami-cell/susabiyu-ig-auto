@@ -108,6 +108,11 @@ func _run_selftest() -> void:
 	print("[selftest] ホスト開始")
 	Net.start_solo()
 	await get_tree().create_timer(4.0).timeout
+	# 開始直後（掃除の章）は まわりから虫が湧かない設計なので、戦闘系の確認用に手動で湧かす。
+	if _garden != null and _garden.has_method("_spawn_bug"):
+		_garden._spawn_bug()
+		_garden._spawn_bug()
+		await get_tree().create_timer(1.0).timeout
 	var players := get_tree().get_nodes_in_group("player")
 	var bugs := get_tree().get_nodes_in_group("bug")
 	print("[selftest] 庭=%s プレイヤー=%d 虫=%d" % [_garden != null, players.size(), bugs.size()])

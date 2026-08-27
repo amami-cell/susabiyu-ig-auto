@@ -223,7 +223,7 @@ func _local_step(delta: float) -> void:
 	if Input.is_action_just_pressed("act_attack"):
 		_try_attack()
 	if Input.is_action_just_pressed("act_grab"):
-		_toggle_grab()
+		_do_clean()
 
 
 func can_fly() -> bool:
@@ -237,19 +237,24 @@ func _try_attack() -> void:
 	if state != State.FLY:
 		state = State.ATTACK
 	# 当たり判定はサーバが取る。ここは「殴った」という申告だけ。
-	rpc_id(1, "_server_attack", global_position, _yaw)
+	# ソロ／ホスト（自分がサーバ）は自分宛RPCが禁止なので直接呼ぶ。参加者だけサーバへ送る。
+	if multiplayer.is_server():
+		_server_attack(global_position, _yaw)
+	else:
+		rpc_id(1, "_server_attack", global_position, _yaw)
 	rpc("_remote_swing")
 
 
-func _toggle_grab() -> void:
-	if _held_trash != null:
-		_held_trash = null
-		return
-	for area in _grab_area.get_overlapping_bodies():
-		if area.is_in_group("trash"):
-			_held_trash = area
-			rpc_id(1, "_server_grab", area.get_path())
-			return
+const CLEAN_RANGE := 2.6   # この距離内の いちばん近いゴミを「つかむ」で片づける
+
+## 「つかむ」＝近くの光るゴミに近づいて押すと、その場で きれいに片づく（運ぶ必要なし）。
+## ＝“どこへ運ぶの？”という迷いを無くす。当たり判定・実際の除去はサーバが行う。
+func _do_clean() -> void:
+	# ソロ／ホスト（自分がサーバ）は自分宛RPCが禁止なので直接呼ぶ。参加者だけサーバへ送る。
+	if multiplayer.is_server():
+		_server_clean_near(global_position)
+	else:
+		rpc_id(1, "_server_clean_near", global_position)
 
 
 # ------------------------------------------------------------ 他人の小人
@@ -349,12 +354,18 @@ func _server_attack(from: Vector3, yaw: float) -> void:
 
 
 @rpc("any_peer", "reliable")
-func _server_grab(trash_path: NodePath) -> void:
+func _server_clean_near(from: Vector3) -> void:
 	if not multiplayer.has_multiplayer_peer() or not multiplayer.is_server():
 		return
-	var trash := get_node_or_null(trash_path)
-	if trash != null and trash.has_method("grab_by"):
-		trash.grab_by(global_position)
+	var best: Node = null
+	var bd := CLEAN_RANGE
+	for t in get_tree().get_nodes_in_group("trash"):
+		var d: float = (t as Node3D).global_position.distance_to(from)
+		if d < bd:
+			bd = d
+			best = t
+	if best != null and best.has_method("mark_removed"):
+		best.mark_removed()   # その場で片づく（poof＋音）。“外へ運ぶ”は不要に。
 
 
 ## サーバから呼ばれる：被弾
