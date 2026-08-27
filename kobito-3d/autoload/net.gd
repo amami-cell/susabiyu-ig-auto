@@ -46,15 +46,38 @@ var roster: Dictionary = {}
 var _peer: MultiplayerPeer = null
 
 
+const CFG_PATH := "user://settings.cfg"
+
+
 func _ready() -> void:
 	# ブラウザで動いているなら ENet は使えないので、問答無用で WebSocket にする
 	if is_web():
 		transport = Transport.WEBSOCKET
+	_load_name()   # 前回の なまえ を思い出す（次回から入力しなくていい＝製品らしさ）
 	multiplayer.peer_connected.connect(_on_peer_connected)
 	multiplayer.peer_disconnected.connect(_on_peer_disconnected)
 	multiplayer.connected_to_server.connect(_on_connected_to_server)
 	multiplayer.connection_failed.connect(_on_connection_failed)
 	multiplayer.server_disconnected.connect(_on_server_disconnected)
+
+
+# ---------------------------------------------------------------- なまえの保存
+
+## なまえを覚える（user://settings.cfg。Webでも IndexedDB に残る）。
+func save_name(n: String) -> void:
+	my_display_name = n
+	var cfg := ConfigFile.new()
+	cfg.load(CFG_PATH)                       # 音量など他設定は残す
+	cfg.set_value("player", "name", n)
+	cfg.save(CFG_PATH)
+
+
+func _load_name() -> void:
+	var cfg := ConfigFile.new()
+	if cfg.load(CFG_PATH) == OK:
+		var n := String(cfg.get_value("player", "name", my_display_name))
+		if not n.strip_edges().is_empty():
+			my_display_name = n
 
 
 # ---------------------------------------------------------------- 開始・終了

@@ -45,6 +45,7 @@ func _build() -> void:
 	_obj.add_theme_stylebox_override("normal", UIKit.panel(Color(0.34, 0.58, 0.3, 0.92), UIKit.GREEN, 18, 3, 10))
 	UIKit.style_label(_obj, 24, Color(1, 1, 1), 4, Color(0.12, 0.24, 0.14, 0.95))
 	_obj.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_obj.visible = false   # 目的がまだ無いとき（タイトル画面など）は出さない＝空の緑バーを防ぐ
 	add_child(_obj)
 
 	_box = Panel.new()
