@@ -1,0 +1,91 @@
+name: nagagutsu-post
+# ナガグツ：承認待ち_nagagutsu の該当枠を、そのスロット時刻に本投稿する（三条方式）。
+# GitHub cron 遅延に強くするため、各cronはスロット時刻(JST)を明示して post_approved に渡す。
+# 承認/差し替え/やめる/作り直しは確認アプリ→GAS→シートに反映済みの状態を尊重して投稿する。
+on:
+  schedule:
+    - cron: '0 3 * * *'    # JST 12:00 枠
+    - cron: '0 9 * * *'    # JST 18:00 枠
+    - cron: '0 11 * * *'   # JST 20:00 枠
+  workflow_dispatch:
+    inputs:
+      datetime:
+        description: "JST 例 2026-08-10 18:00（空=cronのスロット/実行時刻）"
+        required: false
+        default: ""
+      dry:
+        description: "DRY (1=生成のみ・投稿しない)"
+        required: false
+        default: "0"
+permissions:
+  contents: read
+concurrency:
+  group: nagagutsu-post
+  cancel-in-progress: false
+jobs:
+  post:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: susabiyu-remotion
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install Python deps
+        run: pip install google-api-python-client google-auth requests jpholiday Pillow boto3 pywebpush numpy
+      - name: Install Node deps
+        run: npm ci
+      - name: Install ffmpeg
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg
+      - name: Write creds.json
+        run: echo "$GOOGLE_CREDS_B64" | base64 -d > creds.json
+        env:
+          GOOGLE_CREDS_B64: ${{ secrets.GOOGLE_CREDS_B64 }}
+      - name: Run post (nagagutsu, gated)
+        env:
+          STORE_ACCOUNT: nagagutsu
+          GOOGLE_CREDS_B64: ${{ secrets.GOOGLE_CREDS_B64 }}
+          IG_ACCESS_TOKEN_NAGAGUTSU: ${{ secrets.IG_ACCESS_TOKEN_NAGAGUTSU }}
+          SHEET_ID: ${{ secrets.SHEET_ID }}
+          LINE_CHANNEL_TOKEN: ${{ secrets.LINE_CHANNEL_TOKEN }}
+          R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          R2_BUCKET: ${{ secrets.R2_BUCKET }}
+          R2_PUBLIC_BASE: ${{ secrets.R2_PUBLIC_BASE }}
+          GH_MEDIA_TOKEN: ${{ secrets.GH_MEDIA_TOKEN }}
+          GH_MEDIA_REPO: ${{ secrets.GH_MEDIA_REPO }}
+          VAPID_PRIVATE_KEY: ${{ secrets.VAPID_PRIVATE_KEY }}
+          VAPID_SUBJECT: ${{ secrets.VAPID_SUBJECT }}
+          DRY: ${{ github.event.inputs.dry }}
+          SCHED: ${{ github.event.schedule }}
+          INPUT_DT: ${{ github.event.inputs.datetime }}
+        run: |
+          DT="$INPUT_DT"
+          if [ -z "$DT" ] && [ -n "$SCHED" ]; then
+            # cron 遅延に強いよう、UTC日付＋スロット時刻(JST)を明示（全スロットともUTC日=JST日）。
+            D=$(date -u +%F)
+            case "$SCHED" in
+              "0 3 * * *")  DT="$D 12:00" ;;
+              "0 9 * * *")  DT="$D 18:00" ;;
+              "0 11 * * *") DT="$D 20:00" ;;
+            esac
+          fi
+          echo "対象日時(JST)=$DT"
+          python post_approved.py creds.json "$DT"
+      - name: 失敗をLINE通知
+        if: failure()
+        env:
+          LINE_CHANNEL_TOKEN: ${{ secrets.LINE_CHANNEL_TOKEN }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          [ -z "$LINE_CHANNEL_TOKEN" ] && exit 0
+          curl -s -X POST https://api.line.me/v2/bot/message/broadcast \
+            -H "Authorization: Bearer $LINE_CHANNEL_TOKEN" -H "Content-Type: application/json" \
+            -d "{\"messages\":[{\"type\":\"text\",\"text\":\"⚠️ ナガグツ自動投稿(nagagutsu-post)が失敗しました。\n確認: $RUN_URL\"}]}" >/dev/null || true

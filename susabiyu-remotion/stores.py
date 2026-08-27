@@ -86,6 +86,30 @@ STORES = {
         "slots_holiday": [11, 17, 20],
         "slots_weekday": [11, 17, 20],
     },
+    # ── ナガグツ（イタリアン・肉バル）。ぎふや天神と同じ food-only 方式 ──
+    "nagagutsu": {
+        "account": "nagagutsu",
+        "store_name": "ナガグツ",
+        "handle": "@nagagutsu0427",
+        "region": "",                    # 所在地未確定＝空（region prop対応compでは非表示）。判明後に設定。
+        "sheet_id": SANJO_SHEET_ID,       # 同一スプレッドシートを接尾辞タブで共用
+        "tab_suffix": "_nagagutsu",
+        "folders": {
+            "food": "198v4GTeAMNbQJrSikPpQtFe314eUjBJU",          # ナガグツ「画像」フォルダ
+            "music_uptempo": "1t0WsEon0ZGzB1q_C_U7CtVF_0303G2l0",  # ナガグツ 音楽
+            "music_normal": "1t0WsEon0ZGzB1q_C_U7CtVF_0303G2l0",
+        },
+        "patterns": FOOD_ONLY_PATTERNS,   # 食材フォルダのみで完結＝他店フォルダ混入ゼロ
+        # 「画像」配下の非料理サブフォルダは料理として使わない（ロゴ/外観内観/コース集合/ドリンク）。
+        "exclude_cats": ["ロゴ", "外観", "内観", "音楽", "集合", "コース", "ドリンク", "飲み"],
+        # 「画像」直下は フード/ドリンク… のサブフォルダ構成。fetch_typo を再帰収集モードに。
+        "food_flat": True,
+        "phrases_file": "phrases_nagagutsu.json",
+        "fallback_phrase": "今宵は、ナガグツで乾杯を。",
+        "pwa_url": "https://amami-cell.github.io/susabiyu-media/app/nagagutsu.html",
+        "slots_holiday": [12, 18, 20],
+        "slots_weekday": [12, 18, 20],
+    },
 }
 
 # fetch_*.py が読む Drive フォルダ環境変数（未設定なら各スクリプトの既定＝三条）。

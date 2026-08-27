@@ -1,0 +1,91 @@
+name: nagagutsu-prepare
+# ナガグツ（イタリアン・肉バル）：三条方式の事前生成。2日先の各枠を「その日のDrive写真から新規レンダリング」し、
+# 承認待ち_nagagutsu タブへ pending 登録する。オーナーは確認アプリで承認/作り直し/やめるを操作。
+# stores.py の nagagutsu エントリ（Driveフォルダ・ブランドprops・food-onlyパターン・文言）で動く。
+on:
+  schedule:
+    # JST 05:15 / 06:15（＝UTC 20:15 / 21:15 前日）。prepare は冪等なので複数cronは信頼性バックアップ。
+    - cron: '15 20 * * *'
+    - cron: '15 21 * * *'
+  workflow_dispatch:
+    inputs:
+      date:
+        description: "対象日 JST 例 2026-08-12 / 'repair'=一時URL恒久化のみ（空=実行日+2日）"
+        required: false
+        default: ""
+      quiet:
+        description: "1=LINE/Push通知を送らない"
+        required: false
+        default: "0"
+permissions:
+  contents: read
+concurrency:
+  group: nagagutsu-prepare
+  cancel-in-progress: false
+jobs:
+  prepare:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    defaults:
+      run:
+        working-directory: susabiyu-remotion
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install Python deps
+        run: pip install google-api-python-client google-auth requests jpholiday Pillow boto3 pywebpush numpy
+      - name: Install Node deps
+        run: npm ci
+      - name: Install ffmpeg (faststartで即再生に)
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg
+      - name: Write creds.json
+        run: echo "$GOOGLE_CREDS_B64" | base64 -d > creds.json
+        env:
+          GOOGLE_CREDS_B64: ${{ secrets.GOOGLE_CREDS_B64 }}
+      - name: Run prepare (nagagutsu)
+        env:
+          # 店舗指定。承認待ちタブ・Driveフォルダ・ブランドprops・文言は stores.py が解決する。
+          STORE_ACCOUNT: nagagutsu
+          GOOGLE_CREDS_B64: ${{ secrets.GOOGLE_CREDS_B64 }}
+          IG_ACCESS_TOKEN_NAGAGUTSU: ${{ secrets.IG_ACCESS_TOKEN_NAGAGUTSU }}
+          SHEET_ID: ${{ secrets.SHEET_ID }}
+          LINE_CHANNEL_TOKEN: ${{ secrets.LINE_CHANNEL_TOKEN }}
+          R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          R2_BUCKET: ${{ secrets.R2_BUCKET }}
+          R2_PUBLIC_BASE: ${{ secrets.R2_PUBLIC_BASE }}
+          GH_MEDIA_TOKEN: ${{ secrets.GH_MEDIA_TOKEN }}
+          GH_MEDIA_REPO: ${{ secrets.GH_MEDIA_REPO }}
+          VAPID_PRIVATE_KEY: ${{ secrets.VAPID_PRIVATE_KEY }}
+          VAPID_SUBJECT: ${{ secrets.VAPID_SUBJECT }}
+          # PWA_URL は未設定＝stores.py の nagagutsu pwa_url を使う（確認アプリへの導線）
+          QUIET_NOTIFY: ${{ github.event.inputs.quiet }}
+          INDATE: ${{ github.event.inputs.date }}
+        run: |
+          # カンマ区切りなら複数日を1回で生成（例 2026-08-11,2026-08-12,2026-08-13）。
+          if printf '%s' "$INDATE" | grep -q ','; then
+            IFS=',' read -ra ARR <<< "$INDATE"
+            for d in "${ARR[@]}"; do
+              d="$(printf '%s' "$d" | xargs)"
+              echo "=========== 生成: $d ==========="
+              python prepare.py creds.json "$d"
+            done
+          else
+            python prepare.py creds.json "$INDATE"
+          fi
+      - name: 失敗をLINE通知
+        if: failure()
+        env:
+          LINE_CHANNEL_TOKEN: ${{ secrets.LINE_CHANNEL_TOKEN }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          [ -z "$LINE_CHANNEL_TOKEN" ] && exit 0
+          curl -s -X POST https://api.line.me/v2/bot/message/broadcast \
+            -H "Authorization: Bearer $LINE_CHANNEL_TOKEN" -H "Content-Type: application/json" \
+            -d "{\"messages\":[{\"type\":\"text\",\"text\":\"⚠️ ナガグツ動画準備(nagagutsu-prepare)が失敗しました。\n確認: $RUN_URL\"}]}" >/dev/null || true

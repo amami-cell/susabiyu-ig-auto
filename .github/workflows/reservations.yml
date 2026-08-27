@@ -44,6 +44,7 @@ jobs:
           IG_ACCESS_TOKEN: ${{ secrets.IG_ACCESS_TOKEN }}
           # 店舗別の投稿先アカウント用トークン（未登録でも既定=三条は動作。予約行のJ列account=gifuyatenjinで使用）
           IG_ACCESS_TOKEN_GIFUYATENJIN: ${{ secrets.IG_ACCESS_TOKEN_GIFUYATENJIN }}
+          IG_ACCESS_TOKEN_NAGAGUTSU: ${{ secrets.IG_ACCESS_TOKEN_NAGAGUTSU }}
           GH_MEDIA_TOKEN: ${{ secrets.GH_MEDIA_TOKEN }}
           GH_MEDIA_REPO: ${{ secrets.GH_MEDIA_REPO }}
           R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
