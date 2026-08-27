@@ -35,7 +35,7 @@ const CHILDREN := [
 
 ## 母（妻）。家族の隊列の先頭で父（プレイヤー）を追い、子どもたちは母に続く。
 ## role="adult" で大人の見た目＝ロングヘア・スカート・無精ひげなし（kobito_look）。
-const MOTHER := {"name": "母", "color": Color(0.88, 0.44, 0.52), "scale": 0.92}
+const MOTHER := {"name": "母", "color": Color(0.88, 0.44, 0.52), "scale": 0.82}
 
 const SPAWN_POINTS := [
 	Vector3(0.0, 0.6, 0.0),
@@ -285,7 +285,7 @@ func _remote_spawn_mother() -> void:
 	mom.body_scale = MOTHER["scale"]
 	mom.role = "adult"
 	mom.follows_player = true          # 母は父（いちばん近いプレイヤー）を追う
-	mom.follow_spacing = 2.6           # 少し離れて追う＝カメラ（後方）を家族でふさがない
+	mom.follow_spacing = 3.4           # しっかり離れて追う＝カメラ（後方）を家族でふさがない
 	_children.add_child(mom)
 	mom.global_position = SPAWN_POINTS[0] + Vector3(0.6, 0.0, 0.8)
 

@@ -718,36 +718,69 @@ static func _make_leg(body: MeshInstance3D, boots: Color, br: float, half: float
 	return pivot
 
 
+## 父の道具：手に持つのは“小さな掃除の杖”（短い柄＋澄んだ光の玉）。
+## 攻撃したときだけ、前方に「光のなぎ払い（三日月の弧）」がパッと出る（Trail）。
+## ＝ふだんは大げさな刃を持たず、振ったときにだけ気持ちよく光る＝“変な棒”に見えない。
 static func _make_weapon(hand: Node3D, br: float) -> Node3D:
 	var holder := Node3D.new()
 	holder.name = "Weapon"
 	holder.position = Vector3(0.0, -br * 0.14, 0.0)
 	hand.add_child(holder)
 
+	# 短い柄（木）
 	var handle := MeshInstance3D.new()
 	var hm := CylinderMesh.new()
-	hm.top_radius = br * 0.08
-	hm.bottom_radius = br * 0.08
-	hm.height = br * 0.4
+	hm.top_radius = br * 0.06
+	hm.bottom_radius = br * 0.07
+	hm.height = br * 0.75
 	hm.radial_segments = 6
 	handle.mesh = hm
 	handle.material_override = _clay(Color(0.42, 0.28, 0.16))
 	handle.rotation = Vector3(deg_to_rad(90.0), 0.0, 0.0)
-	handle.position = Vector3(0.0, 0.0, -br * 0.2)
+	handle.position = Vector3(0.0, 0.0, -br * 0.35)
 	holder.add_child(handle)
 
-	var blade := MeshInstance3D.new()
-	var bm := BoxMesh.new()
-	bm.size = Vector3(br * 0.45, br * 0.14, br * 4.2)
-	blade.mesh = bm
-	var bmat := StandardMaterial3D.new()
-	bmat.albedo_color = Color(0.85, 1.0, 0.7)
-	bmat.emission_enabled = true
-	bmat.emission = Color(0.6, 1.0, 0.55)
-	bmat.emission_energy_multiplier = 2.4
-	blade.material_override = bmat
-	blade.position = Vector3(0.0, 0.0, -br * 2.4)
-	holder.add_child(blade)
+	# 杖の先の“澄んだ光の玉”（小さく上品に光る）
+	var tip := MeshInstance3D.new()
+	var tm := SphereMesh.new()
+	tm.radius = br * 0.16
+	tm.height = br * 0.32
+	tm.radial_segments = 8
+	tm.rings = 5
+	tip.mesh = tm
+	var tmat := StandardMaterial3D.new()
+	tmat.albedo_color = Color(0.9, 1.0, 0.82)
+	tmat.emission_enabled = true
+	tmat.emission = Color(0.6, 1.0, 0.6)
+	tmat.emission_energy_multiplier = 1.6
+	tip.material_override = tmat
+	tip.position = Vector3(0.0, 0.0, -br * 0.7)
+	holder.add_child(tip)
+
+	# 振りのトレイル（三日月の弧）。ふだんは非表示、攻撃中だけ光る。
+	# 前方をなぎ払う弧を、平たい半透明の帯（TorusMeshの一部）で表す。
+	var trail := MeshInstance3D.new()
+	trail.name = "Trail"
+	var arc := TorusMesh.new()
+	arc.inner_radius = br * 0.9
+	arc.outer_radius = br * 1.7
+	arc.rings = 3
+	arc.ring_segments = 16
+	trail.mesh = arc
+	var amat := StandardMaterial3D.new()
+	amat.albedo_color = Color(0.85, 1.0, 0.72, 0.7)
+	amat.emission_enabled = true
+	amat.emission = Color(0.7, 1.0, 0.6)
+	amat.emission_energy_multiplier = 3.0
+	amat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	amat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	amat.cull_mode = BaseMaterial3D.CULL_DISABLED
+	trail.material_override = amat
+	# 手前を水平になぎ払う向きに寝かせて、体の前に置く
+	trail.rotation = Vector3(deg_to_rad(90.0), 0.0, 0.0)
+	trail.position = Vector3(0.0, 0.0, -br * 1.0)
+	trail.visible = false
+	holder.add_child(trail)
 	return holder
 
 

@@ -9,7 +9,7 @@ extends CharacterBody3D
 
 const SYNC_HZ := 10.0
 const GRAVITY := 14.0
-const SPACING := 0.95       # 前の子（親）との保つ距離（画面が家族で埋まらないよう ゆったり）
+const SPACING := 1.25       # 前の子（親）との保つ距離（画面が家族で埋まらないよう たっぷり）
 const SPEED := 4.4          # 追いつく最高速。親より少し速く、離れても追いつける
 const CATCHUP := 6.0        # 離れているほど速く追う係数
 

@@ -364,14 +364,16 @@ func _remote_healed() -> void:
 		if mi != _hpbar_fill:
 			mi.material_override = glow
 
-	# ① 倒れる芝居：ちからつきて くたっと横に倒れ、ぺしゃっと つぶれる。
-	var fall := create_tween()
-	fall.tween_property(_body, "rotation:z", PI * 0.5, 0.16).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
-	fall.parallel().tween_property(_body, "scale", _body.scale * Vector3(1.15, 0.55, 1.15), 0.16)
+	# ① 解き放たれる芝居：一瞬きゅっと縮んで“ほっ”と息をつき、ふわっと伸び上がる。
+	#    （以前の“横倒し”は変に見えたので、まっすぐ浄化される気持ちいい動きに作り直し）
+	var base := _body.scale
+	var pop := create_tween()
+	pop.tween_property(_body, "scale", base * Vector3(1.25, 0.72, 1.25), 0.08).set_ease(Tween.EASE_OUT)
+	pop.tween_property(_body, "scale", base * Vector3(0.82, 1.28, 0.82), 0.14).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 
 	# ② 少し間を置いてから浄化の演出（輪・キラキラ）＋救われて還っていく（昇って縮んで消える）。
 	var tween := create_tween()
-	tween.tween_interval(0.22)
+	tween.tween_interval(0.20)
 	tween.tween_callback(_spawn_purify_ring)
 	tween.parallel().tween_callback(_spawn_sparkles.bind(16))
 	tween.tween_property(self, "global_position:y", global_position.y + 1.4, 0.6)
