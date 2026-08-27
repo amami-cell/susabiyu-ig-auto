@@ -1001,9 +1001,9 @@ def distdump(target=None):
         title = p["title"]
         print("=== TAB[%d] '%s' (id=%s) ===" % (p.get("index", -1), title, p.get("sheetId")))
         rows = sp.values().get(spreadsheetId=sid, range="'%s'!A:L" % title).execute().get("values", [])
-        for i in range(min(7, len(rows))):
+        for i in range(len(rows)):
             r = rows[i]
-            cells = [chr(65 + j) + "=" + str(r[j]).replace("\n", " ")[:22] for j in range(len(r))]
+            cells = [chr(65 + j) + "=" + str(r[j]).replace("\n", " ") for j in range(len(r))]
             print("  R%d| %s" % (i + 1, " ｜ ".join(cells)))
         print("  (行数 %d)" % len(rows))
     print("[DUMP] 完了")
