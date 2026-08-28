@@ -3,13 +3,21 @@ on:
   workflow_dispatch:
     inputs:
       publish_lp:
-        description: "1=予約LP(pwa/sanjo.html)を amami-cell.github.io/<slug> に公開（新規リポ作成＋Pages有効化）"
+        description: "1=予約LPを <owner>.github.io/<store>/ に公開（新規リポ作成＋Pages有効化）"
         required: false
         default: "0"
-      lp_slug:
-        description: "公開先リポ名（＝URLの頭に出る文字。既定 yoyaku）"
+      lp_owner:
+        description: "公開先の GitHub 組織/ユーザー名（＝URLの頭。例 yoyaku-pocket）"
         required: false
-        default: "yoyaku"
+        default: "yoyaku-pocket"
+      lp_owner_kind:
+        description: "org（組織）/ user（個人）"
+        required: false
+        default: "org"
+      lp_store:
+        description: "店舗サブフォルダ（例 susabiyu → <owner>.github.io/susabiyu/）。空=ルート"
+        required: false
+        default: "susabiyu"
       lp_file:
         description: "公開するLPファイル（既定 pwa/sanjo.html）"
         required: false
@@ -102,20 +110,23 @@ jobs:
           git commit -m "deploy PWA app"
           git push
           echo "Deployed. Pages URL (after enabling Pages): https://${MEDIA_REPO%%/*}.github.io/${MEDIA_REPO#*/}/app/"
-      - name: 予約LPを独自スラッグのGitHub Pagesへ公開（publish_lp=1のときだけ）
-        # インスタのプロフィールリンクを「amami-cell.github.io/<slug>」に。独立リポなので
-        # 毎日のapp再デプロイで消えない（＝404の再発防止）。LPは画像を全て内蔵し自己完結。
+      - name: 予約LPを店舗中立ドメインのGitHub Pagesへ公開（publish_lp=1のときだけ）
+        # 例: yoyaku-pocket.github.io/susabiyu/ 。全店で共通の頭「yoyaku-pocket」＝予約用と分かる。
+        # 組織の user/org pages リポ <owner>.github.io に、店ごとのサブフォルダで置く。
+        # 独立リポなので毎日のapp再デプロイで消えない（404再発防止）。LPは画像内蔵の自己完結HTML。
         if: ${{ github.event.inputs.publish_lp == '1' }}
         env:
           # 新規リポ作成＋別リポへのpush＋Pages有効化には広い権限が要るため専用PATを使う。
           # GitHub Secret LP_DEPLOY_TOKEN = classic PAT（repo スコープ）。未登録なら分かるように停止。
           TOKEN: ${{ secrets.LP_DEPLOY_TOKEN }}
-          OWNER: amami-cell
-          SLUG: ${{ github.event.inputs.lp_slug }}
+          OWNER: ${{ github.event.inputs.lp_owner }}
+          KIND: ${{ github.event.inputs.lp_owner_kind }}
+          STORE: ${{ github.event.inputs.lp_store }}
           LP: ${{ github.event.inputs.lp_file }}
         run: |
           set -e
-          SLUG="${SLUG:-yoyaku}"; LP="${LP:-pwa/sanjo.html}"
+          OWNER="${OWNER:-yoyaku-pocket}"; KIND="${KIND:-org}"; LP="${LP:-pwa/sanjo.html}"
+          REPO="${OWNER}.github.io"          # user/org pages リポ（ルート配信）
           API=https://api.github.com
           if [ -z "$TOKEN" ]; then
             echo "ERROR: Secret LP_DEPLOY_TOKEN が未登録です（classic PAT・repoスコープを登録してください）"; exit 1
@@ -123,32 +134,34 @@ jobs:
           if [ ! -f "$LP" ]; then echo "ERROR: $LP が無い"; exit 1; fi
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
-          # 1) 公開先リポが無ければ public で作成
-          code=$(curl -s -o /dev/null -w "%{http_code}" -H "Authorization: token $TOKEN" "$API/repos/$OWNER/$SLUG")
+          # 1) 公開先リポ <owner>.github.io が無ければ public で作成（組織/個人で作成先を切替）
+          code=$(curl -s -o /dev/null -w "%{http_code}" -H "Authorization: token $TOKEN" "$API/repos/$OWNER/$REPO")
           if [ "$code" != "200" ]; then
-            echo "creating public repo $OWNER/$SLUG"
+            if [ "$KIND" = "user" ]; then CREATE="$API/user/repos"; else CREATE="$API/orgs/$OWNER/repos"; fi
+            echo "creating public repo $OWNER/$REPO via $CREATE"
             curl -s -X POST -H "Authorization: token $TOKEN" -H "Accept: application/vnd.github+json" \
-              "$API/user/repos" \
-              -d "{\"name\":\"$SLUG\",\"private\":false,\"description\":\"予約・アクセスLP（Instagramプロフィールリンク）\",\"auto_init\":true}" \
+              "$CREATE" \
+              -d "{\"name\":\"$REPO\",\"private\":false,\"description\":\"予約・アクセスLP（各店 Instagram プロフィールリンク）\",\"auto_init\":true}" \
               -o /tmp/repo.json -w "create repo: %{http_code}\n"
             sleep 5
           fi
-          # 2) LP を index.html として push（自己完結HTMLなので画像依存なし）
+          # 2) LP を <store>/index.html（storeが空ならルート index.html）として push
           rm -rf _lp
-          git clone --depth 1 "https://x-access-token:${TOKEN}@github.com/$OWNER/$SLUG.git" _lp
-          cp "$LP" _lp/index.html
+          git clone --depth 1 "https://x-access-token:${TOKEN}@github.com/$OWNER/$REPO.git" _lp
+          DEST="_lp"; [ -n "$STORE" ] && DEST="_lp/$STORE" && mkdir -p "$DEST"
+          cp "$LP" "$DEST/index.html"
           touch _lp/.nojekyll
           cd _lp
-          git add index.html .nojekyll
+          git add -A
           if git diff --cached --quiet; then
             echo "LP に変更なし"
           else
-            git commit -m "予約LPを公開（index.html）"
+            git commit -m "予約LPを公開（${STORE:-root}/index.html）"
             git push origin HEAD:main
           fi
           cd ..
           # 3) GitHub Pages を有効化（source=main /）。既に有効なら409＝無視。
           curl -s -X POST -H "Authorization: token $TOKEN" -H "Accept: application/vnd.github+json" \
-            "$API/repos/$OWNER/$SLUG/pages" -d '{"source":{"branch":"main","path":"/"}}' \
+            "$API/repos/$OWNER/$REPO/pages" -d '{"source":{"branch":"main","path":"/"}}' \
             -o /dev/null -w "pages enable: %{http_code}\n" || true
-          echo "==== 公開URL（数分で有効化）: https://$OWNER.github.io/$SLUG/ ===="
+          echo "==== 公開URL（数分で有効化）: https://$OWNER.github.io/${STORE:+$STORE/} ===="
