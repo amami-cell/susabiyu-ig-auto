@@ -196,7 +196,7 @@ function getStates(tokensJson, account) {
 
 // 作り直しdispatch。account 空＝三条 redo.yml。店舗別は該当ワークフローへ（ぎふや=gifuya_post.yml、
 // datetime を渡すと post_approved が redo枠を再生成する）。未登録店舗は redo_scan の定期処理に委ねる。
-const _REDO_WORKFLOW_BY_ACCOUNT = { 'gifuyatenjin': 'gifuya_post.yml', 'nagagutsu': 'nagagutsu_post.yml' };
+const _REDO_WORKFLOW_BY_ACCOUNT = { 'gifuyatenjin': 'gifuya_post.yml', 'nagagutsu': 'nagagutsu_post.yml', 'goldporta': 'goldporta_post.yml' };
 function _dispatchRedo_(datetimeStr, account) {
   if (!GH_TOKEN || GH_TOKEN === 'ここにPATを貼る') return;
   const wf = account ? (_REDO_WORKFLOW_BY_ACCOUNT[account] || '') : GH_WORKFLOW;
@@ -943,6 +943,7 @@ function _autoComment_(account) {
   if (ov) return ov;
   var tag = (account === 'gifuyatenjin') ? '#ぎふや福岡天神'
           : (account === 'nagagutsu')    ? '#ナガグツ'
+          : (account === 'goldporta')    ? '#GOLD京都ポルタ'
           : '#すさび湯三条';
   return 'ご来店ありがとうございます\n素敵な投稿に感謝です！\n' + tag;
 }
@@ -953,6 +954,7 @@ var IG_ACCOUNT_BUILTIN = {
   '17841478601852970': ''                // @susabiyu_sanjyo（三条＝account空）
   // ナガグツ(@nagagutsu0427)のIGユーザーIDが判明したら '<igid>': 'nagagutsu' を追記
   //（暫定は スクリプトプロパティ IG_ACCOUNT_MAP で {"<igid>":"nagagutsu"} を設定でも可）。
+  // GOLD京都ポルタ(@gold_kyotovolta)も同様に '<igid>': 'goldporta' を追記。
 };
 function _acctFromIgId_(igid) {
   try {

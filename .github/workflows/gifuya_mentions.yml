@@ -48,6 +48,7 @@ jobs:
           IG_ACCESS_TOKEN: ${{ secrets.IG_ACCESS_TOKEN }}                       # 三条（account=""）
           IG_ACCESS_TOKEN_GIFUYATENJIN: ${{ secrets.IG_ACCESS_TOKEN_GIFUYATENJIN }}
           IG_ACCESS_TOKEN_NAGAGUTSU: ${{ secrets.IG_ACCESS_TOKEN_NAGAGUTSU }}          # ナガグツ
+          IG_ACCESS_TOKEN_GOLDPORTA: ${{ secrets.IG_ACCESS_TOKEN_GOLDPORTA }}          # GOLD京都ポルタ
           SHEET_ID: ${{ secrets.SHEET_ID }}
           LINE_CHANNEL_TOKEN: ${{ secrets.LINE_CHANNEL_TOKEN }}
           R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
