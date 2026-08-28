@@ -12,6 +12,7 @@ var _garden: Node3D = null
 
 
 func _ready() -> void:
+	_setup_gamepad()
 	_show_lobby(true)
 	_build_vignette()
 	# 物語UI（目的・会話・章クリア）を最前面に敷く
@@ -40,6 +41,42 @@ func _ready() -> void:
 		_run_selftest_host()
 	elif args.has("--selftest-join"):
 		_run_selftest_join()
+
+
+## ゲームパッド対応：既存の操作（キーボード／タッチと同じアクション）に、
+## コントローラの入力を後付けする。コードだけ＝設定ファイルを壊さず安全。
+## 左スティック/十字＝移動、A＝ジャンプ、X＝きれいに（攻撃）、B＝つかむ、START＝ポーズ。
+## 右スティックのカメラは player 側で読む。
+func _setup_gamepad() -> void:
+	_joy_axis("move_left", JOY_AXIS_LEFT_X, -1.0)
+	_joy_axis("move_right", JOY_AXIS_LEFT_X, 1.0)
+	_joy_axis("move_forward", JOY_AXIS_LEFT_Y, -1.0)
+	_joy_axis("move_back", JOY_AXIS_LEFT_Y, 1.0)
+	_joy_btn("move_left", JOY_BUTTON_DPAD_LEFT)
+	_joy_btn("move_right", JOY_BUTTON_DPAD_RIGHT)
+	_joy_btn("move_forward", JOY_BUTTON_DPAD_UP)
+	_joy_btn("move_back", JOY_BUTTON_DPAD_DOWN)
+	_joy_btn("act_jump", JOY_BUTTON_A)
+	_joy_btn("act_attack", JOY_BUTTON_X)
+	_joy_btn("act_grab", JOY_BUTTON_B)
+	_joy_btn("ui_cancel", JOY_BUTTON_START)
+
+
+func _joy_axis(action: String, axis: int, value: float) -> void:
+	if not InputMap.has_action(action):
+		return
+	var e := InputEventJoypadMotion.new()
+	e.axis = axis
+	e.axis_value = value
+	InputMap.action_add_event(action, e)
+
+
+func _joy_btn(action: String, button: int) -> void:
+	if not InputMap.has_action(action):
+		return
+	var e := InputEventJoypadButton.new()
+	e.button_index = button
+	InputMap.action_add_event(action, e)
 
 
 ## 映画的なビネット（周辺減光）。全機種で効く軽い画面演出＝“今っぽさ”が出る。

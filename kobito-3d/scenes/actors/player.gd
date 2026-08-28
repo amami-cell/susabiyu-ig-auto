@@ -220,6 +220,11 @@ func _local_step(delta: float) -> void:
 	else:
 		_step_t = 0.0
 
+	# ゲームパッドの右スティックでカメラを回す（つないでいない時は 0＝無反応）。
+	var look_x := Input.get_joy_axis(0, JOY_AXIS_RIGHT_X)
+	if absf(look_x) > 0.2:
+		orbit_camera(-look_x * 2.6 * delta)
+
 	if Input.is_action_just_pressed("act_attack"):
 		_try_attack()
 	if Input.is_action_just_pressed("act_grab"):

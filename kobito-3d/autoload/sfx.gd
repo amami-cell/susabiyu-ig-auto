@@ -355,34 +355,67 @@ func _arp(notes: Array, note_dur: float, total: float) -> PackedFloat32Array:
 
 # --- BGM（4秒ループ・ペンタトニックでやさしく） ---
 
-## 土台のパッド：低いドローン（C+G）＋ゆっくりトレモロ。常時流れる。
+## 土台のパッド：あたたかい4つの和音をゆっくり巡る（C→G→Am→F＝I–V–vi–IV）。
+## 16秒ループ＝“同じ4秒の繰り返し”感を消して、長く遊んでも耳になじむ。
+## 各和音は「根音＋5度＋オクターブ」を重ね、境目はなめらかにクロスフェード（プチノイズ防止）。
+const _PAD_CHORDS := [
+	[130.81, 196.00, 261.63],   # C  （ド・ソ・上のド）
+	[98.00, 146.83, 196.00],    # G  （ソ・レ・上のソ）
+	[110.00, 164.81, 220.00],   # Am （ラ・ミ・上のラ）
+	[87.31, 130.81, 174.61],    # F  （ファ・ド・上のファ）
+]
+
 func _bgm_pad_wave() -> PackedFloat32Array:
-	var dur := 4.0
+	var chord_dur := 4.0
+	var dur := chord_dur * _PAD_CHORDS.size()   # 16秒
 	var n := int(RATE * dur)
 	var out := PackedFloat32Array()
 	out.resize(n)
+	var fade := 0.35   # 和音の変わり目のクロスフェード時間
 	for i in n:
 		var t := float(i) / RATE
-		var tr := 0.85 + 0.15 * sin(TAU * 0.25 * t)
-		var pad := sin(TAU * 130.81 * t) * 0.5 + sin(TAU * 196.0 * t) * 0.35 + sin(TAU * 261.63 * t) * 0.2
-		# ループ継ぎ目のプチノイズ防止に、両端を短くフェード
+		var ci := int(t / chord_dur) % _PAD_CHORDS.size()
+		var lt := t - float(int(t / chord_dur)) * chord_dur   # この和音の中の経過
+		var tr := 0.85 + 0.15 * sin(TAU * 0.18 * t)           # ゆっくりトレモロ（息づかい）
+		var s := _chord_at(_PAD_CHORDS[ci], t)
+		# 和音の頭では前の和音から、終わりでは次の和音へ、なめらかに混ぜる
+		if lt < fade:
+			var prev: Array = _PAD_CHORDS[(ci + _PAD_CHORDS.size() - 1) % _PAD_CHORDS.size()]
+			var k := lt / fade
+			s = _chord_at(prev, t) * (1.0 - k) + s * k
 		var edge := clampf(minf(t, dur - t) / 0.05, 0.0, 1.0)
-		out[i] = pad * tr * 0.5 * edge
+		out[i] = s * tr * 0.5 * edge
 	return out
 
 
-## きらめき層：やさしいオルゴール風アルペジオ。回復度で音量が上がる。
+## 和音（周波数の配列）を時刻 t で合成。根音を厚く、上の音ほど控えめ。
+func _chord_at(freqs: Array, t: float) -> float:
+	var s := 0.0
+	var w := [0.5, 0.35, 0.2]
+	for j in freqs.size():
+		s += sin(TAU * float(freqs[j]) * t) * (w[j] if j < w.size() else 0.15)
+	return s
+
+
+## きらめき層：和音の上をやさしく歌うオルゴール旋律（16秒・非反復の長いフレーズ）。
+## Cメジャー・ペンタトニックなので土台のどの和音にも自然に溶ける。回復度で音量が上がる。
 func _bgm_shine_wave() -> PackedFloat32Array:
-	var dur := 4.0
+	var dur := 16.0
 	var n := int(RATE * dur)
 	var out := PackedFloat32Array()
 	out.resize(n)
-	var notes := [523.25, 659.25, 783.99, 880.0, 783.99, 659.25, 587.33, 659.25]  # Cメジャー펜타風
+	# 24音の長い旋律（ド・レ・ミ・ソ・ラ＝ペンタトニック）。上下にゆれて“歌”に聞こえるように。
+	var notes := [
+		523.25, 587.33, 659.25, 783.99, 659.25, 587.33,   # C付近
+		783.99, 880.0, 783.99, 659.25, 587.33, 523.25,     # G付近（少し高く）
+		659.25, 587.33, 523.25, 440.0, 523.25, 587.33,     # Am付近（低め）
+		698.46, 659.25, 587.33, 523.25, 440.0, 392.0,      # F付近（やさしく降りる）
+	]
 	var step := dur / notes.size()
 	for i in n:
 		var t := float(i) / RATE
 		var idx := int(t / step) % notes.size()
-		var lt := t - float(idx) * step
+		var lt := t - float(int(t / step)) * step
 		var env := pow(clampf(1.0 - lt / step, 0.0, 1.0), 1.6)
 		var f: float = notes[idx]
 		var bell := sin(TAU * f * t) * 0.6 + sin(TAU * f * 2.0 * t) * 0.25
