@@ -19,5 +19,7 @@ window.GIFUYA = {
 // 実データ連携が有効か（GAS_URL が実物URLか）を判定するフラグ。
 window.GIFUYA_LIVE = /^https:\/\//.test((window.GIFUYA.GAS_URL || "").trim());
 
-// 見本ギャラリー。GOLD京都ポルタの動画/画像が用意でき次第ここに追加（現状は承認フローで生成・投稿）。
-window.GIFUYA.SAMPLES = [];
+// 見本ギャラリー（洋食おしゃれテンプレ YoshokuDish の試作。投稿は未実装＝確認専用）。
+window.GIFUYA.SAMPLES = [
+  {"pattern": "yoshoku_fr_1", "url": "https://cdn.jsdelivr.net/gh/amami-cell/susabiyu-media@f3e74a354406336a2706d1c358bba47a44b5a6db/preview/20260828211134_9100.mp4", "poster": "https://cdn.jsdelivr.net/gh/amami-cell/susabiyu-media@d407126bf906d7b76c725f5435ba2e81bf7f41bd/preview/20260828211133_0338.jpg", "label": "洋食おしゃれ・本日の一皿（試作/フレンチ）", "enabled": 1}
+];

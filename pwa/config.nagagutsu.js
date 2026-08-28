@@ -19,5 +19,7 @@ window.GIFUYA = {
 // 実データ連携が有効か（GAS_URL が実物URLか）を判定するフラグ。
 window.GIFUYA_LIVE = /^https:\/\//.test((window.GIFUYA.GAS_URL || "").trim());
 
-// 見本ギャラリー。ナガグツの動画/画像が用意でき次第ここに追加（現状は承認フローで生成・投稿）。
-window.GIFUYA.SAMPLES = [];
+// 見本ギャラリー（洋食おしゃれテンプレ YoshokuDish の試作。投稿は未実装＝確認専用）。
+window.GIFUYA.SAMPLES = [
+  {"pattern": "yoshoku_it_1", "url": "https://cdn.jsdelivr.net/gh/amami-cell/susabiyu-media@dea4266c76bd529b479b1c057bea6879b44decc9/preview/20260828210909_1804.mp4", "poster": "https://cdn.jsdelivr.net/gh/amami-cell/susabiyu-media@5e28b808af9de36f7e72c0bf1980ad6ab0e0045e/preview/20260828210908_4822.jpg", "label": "洋食おしゃれ・本日の一皿（試作/イタリアン）", "enabled": 1}
+];
