@@ -73,32 +73,48 @@ static func decorate_simple(body: MeshInstance3D, color: Color, role: String = "
 	torso.position = Vector3(0.0, 0.12, 0.0)
 	root.add_child(torso)
 
-	# 頭（肌色）＝少し大きめでチビ可愛く
+	# 頭（肌色）＝少し大きめでチビ可愛く（“頭でっかち卵”に見えないよう少しだけ小さく）
 	var head := MeshInstance3D.new()
 	var sph := SphereMesh.new()
-	sph.radius = 0.42
-	sph.height = 0.84
+	sph.radius = 0.40
+	sph.height = 0.80
 	sph.radial_segments = 12
 	sph.rings = 7
 	head.mesh = sph
 	head.material_override = _flat(SKIN, 0.85)
-	head.position = Vector3(0.0, 1.02, 0.0)
+	head.position = Vector3(0.0, 1.0, 0.0)
 	root.add_child(head)
 
-	# 髪（こげ茶）＝頭のうしろ・上を覆うキャップ。顔(前=-Z)は出す。これで後ろ姿も“人”に見える。
+	var hair_col: Color = HAIR_WHITE if char_name == "おじい" else HAIR_PALETTE[abs(char_name.hash()) % HAIR_PALETTE.size()]
+	var hair_mat := _flat(hair_col, 0.8)
+
+	# 髪＝頭に“ぴったり乗る”ぺたんこキャップ（前おでこ・顔は出す）。平たくして卵っぽさを消す。
 	var hair := MeshInstance3D.new()
 	var hs := SphereMesh.new()
-	hs.radius = 0.46
-	hs.height = 0.92
+	hs.radius = 0.43
+	hs.height = 0.86
 	hs.radial_segments = 12
 	hs.rings = 7
 	hair.mesh = hs
-	var hair_col: Color = HAIR_WHITE if char_name == "おじい" else HAIR_PALETTE[abs(char_name.hash()) % HAIR_PALETTE.size()]
-	hair.material_override = _flat(hair_col, 0.8)
-	# うしろ・上へ寄せて、前おでこと顔を出す。大人は少し長めに下げる。
-	hair.position = Vector3(0.0, 1.06 + (0.0 if is_adult else 0.02), 0.12)
-	hair.scale = Vector3(1.0, 1.02 if is_adult else 0.92, 1.0)
+	hair.material_override = hair_mat
+	hair.position = Vector3(0.0, 1.08 + (0.0 if is_adult else 0.02), 0.10)
+	hair.scale = Vector3(1.02, 0.80 if is_adult else 0.74, 1.02)   # 平たいキャップ＝“髪”に見える
 	root.add_child(hair)
+
+	# アホ毛（ちょこんとした毛束）＝ぐっと可愛く。おじい（白髪）以外に付ける。
+	if char_name != "おじい":
+		var tuft := MeshInstance3D.new()
+		var tm := SphereMesh.new()
+		tm.radius = 0.07
+		tm.height = 0.2
+		tm.radial_segments = 6
+		tm.rings = 4
+		tuft.mesh = tm
+		tuft.material_override = hair_mat
+		tuft.position = Vector3(0.05, 1.44, 0.06)
+		tuft.scale = Vector3(0.7, 1.4, 0.7)
+		tuft.rotation = Vector3(deg_to_rad(-18.0), 0.0, deg_to_rad(12.0))
+		root.add_child(tuft)
 
 	# 目（黒い点2つ）
 	var emat := _flat(Color(0.12, 0.1, 0.1), 0.5)
@@ -128,6 +144,19 @@ static func decorate_simple(body: MeshInstance3D, color: Color, role: String = "
 		cheek.position = Vector3(cx, 0.96, -0.3)
 		cheek.scale = Vector3(1.0, 0.7, 0.5)
 		root.add_child(cheek)
+
+	# ちいさな口（にっこり）＝顔がぐっと生きる。ほっぺの間・目の下に小さく。
+	var mouth := MeshInstance3D.new()
+	var mm := SphereMesh.new()
+	mm.radius = 0.06
+	mm.height = 0.12
+	mm.radial_segments = 6
+	mm.rings = 3
+	mouth.mesh = mm
+	mouth.material_override = _flat(Color(0.5, 0.24, 0.24), 0.6)
+	mouth.position = Vector3(0.0, 0.9, -0.37)
+	mouth.scale = Vector3(1.6, 0.5, 0.5)   # 横に広い＝にっこり
+	root.add_child(mouth)
 
 
 ## 単色マット材質を1つ作る小ヘルパ（簡易NPC用）。
