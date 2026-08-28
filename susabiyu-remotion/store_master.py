@@ -1009,6 +1009,87 @@ def distdump(target=None):
     print("[DUMP] 完了")
 
 
+def reqcols(target=None):
+    """一覧(入力用)シートに『アプリ完成形(三条/ぎふや相当)にするための追加項目』列(K〜Y)を付ける。
+    見出しは既存ヘッダー行(5行目)に合わせる。三条(6行目)・ぎふや(29行目)は既知の値を記入例として投入、
+    ナガグツ(14行目)は判明済みの表示名/業態のみ投入。他は空欄（店舗側が記入）。"""
+    import re as _re
+    sid = (target or os.environ.get("REQ_SHEET_ID", "") or "").strip()
+    m = _re.search(r"/spreadsheets/d/([a-zA-Z0-9_-]+)", sid)
+    if m:
+        sid = m.group(1)
+    if not sid:
+        print("[REQCOLS] シートID/URLが必要です"); return
+    cr = _creds(); sp = _sheets(cr)
+    metas = sp.get(spreadsheetId=sid, fields="sheets.properties(sheetId,title,index)").execute().get("sheets", [])
+    tgt = None
+    for s in metas:
+        p = s["properties"]
+        if p.get("title") == "入力用" or p.get("index") == 1:
+            tgt = p; break
+    if not tgt:
+        tgt = metas[-1]["properties"]
+    gid = tgt["sheetId"]; tab = tgt["title"]
+    HEAD_ROW = 5
+    headers = [
+        "表示名（日本語・アプリ表示用）",
+        "業態・ジャンル",
+        "エリア（地域タグ用・市＋街 例:大阪・福島）",
+        "住所（フル）",
+        "営業時間",
+        "アクセス（最寄駅・徒歩）",
+        "電話番号",
+        "予約リンク①（席・Google予約 等）",
+        "予約リンク②（コース・Resty/ホットペッパー/食べログ 等）",
+        "Googleクチコミ用リンク",
+        "公式サイト/食べログ 等URL",
+        "お店紹介文（1〜2行・投稿の締め用）",
+        "キャッチコピー（任意・見出し用）",
+        "定番ハッシュタグ（任意・カンマ区切り）",
+        "IG数値ユーザーID（分かればでOK・メンション振り分け用）",
+    ]
+    sp.values().update(spreadsheetId=sid, range="'%s'!K%d:Y%d" % (tab, HEAD_ROW, HEAD_ROW),
+        valueInputOption="RAW", body={"values": [headers]}).execute()
+    examples = {
+        6: ["すさび湯三条", "寿司・大衆酒場", "京都・河原町三条", "", "", "", "050-5597-3661", "", "",
+            "https://search.google.com/local/writereview?placeid=ChIJPZoJGgAJAWARMJ_fC185ohQ", "",
+            "", "本格寿司 × 170円均一ドリンク／何杯でも、限界突破価格で。", "", "17841478601852970"],
+        14: ["ナガグツ", "イタリアン・肉バル", "", "", "", "", "", "", "", "", "", "", "", "", ""],
+        29: ["大衆酒場 ぎふや 福岡天神店", "大衆酒場・居酒屋", "福岡・天神",
+             "福岡県福岡市中央区天神1丁目10番10号 天神ビジネスセンターⅡ B2F「イナチカ」",
+             "11:00～23:00", "地下鉄天神駅から徒歩約3分", "", "", "", "", "",
+             "名物の串かつをはじめ、新鮮なお刺身や九州の味覚、お酒に合う逸品料理を豊富にご用意しております",
+             "安くて、旨い。まずは一杯。",
+             "#ぎふや #ぎふや福岡天神店 #大衆酒場 #天神グルメ #福岡グルメ #天神居酒屋 #串かつ",
+             "17841415653304968"],
+    }
+    for row, vals in examples.items():
+        sp.values().update(spreadsheetId=sid, range="'%s'!K%d:Y%d" % (tab, row, row),
+            valueInputOption="RAW", body={"values": [vals]}).execute()
+    try:
+        reqs = [
+            {"repeatCell": {"range": {"sheetId": gid, "startRowIndex": HEAD_ROW - 1, "endRowIndex": HEAD_ROW,
+                "startColumnIndex": 10, "endColumnIndex": 25},
+                "cell": {"userEnteredFormat": {"textFormat": {"bold": True}, "wrapStrategy": "WRAP",
+                    "backgroundColor": {"red": 0.88, "green": 0.95, "blue": 0.9}}},
+                "fields": "userEnteredFormat(textFormat,wrapStrategy,backgroundColor)"}},
+            {"repeatCell": {"range": {"sheetId": gid, "startRowIndex": HEAD_ROW, "endRowIndex": 60,
+                "startColumnIndex": 10, "endColumnIndex": 25},
+                "cell": {"userEnteredFormat": {"wrapStrategy": "WRAP", "verticalAlignment": "TOP"}},
+                "fields": "userEnteredFormat(wrapStrategy,verticalAlignment)"}},
+            {"updateDimensionProperties": {"range": {"sheetId": gid, "dimension": "COLUMNS",
+                "startIndex": 10, "endIndex": 25}, "properties": {"pixelSize": 230}, "fields": "pixelSize"}},
+            {"updateCells": {"range": {"sheetId": gid, "startRowIndex": HEAD_ROW - 1, "endRowIndex": HEAD_ROW,
+                "startColumnIndex": 10, "endColumnIndex": 11},
+                "rows": [{"values": [{"note": "ここから右(K〜Y)は『三条/ぎふや相当のアプリ』にする場合の項目です。分かる範囲でOK・空欄可。6行目=三条、29行目=ぎふや は記入例。"}]}],
+                "fields": "note"}},
+        ]
+        sp.batchUpdate(spreadsheetId=sid, body={"requests": reqs}).execute()
+    except Exception as e:
+        print("[REQCOLS] 書式一部スキップ:", e)
+    print("[REQCOLS] 完了：K〜Y列を追加（見出し＋三条/ぎふや記入例）: https://docs.google.com/spreadsheets/d/%s/edit" % sid)
+
+
 def pending():
     """承認待ちタブの各枠の状態（when/status/redo回数/pattern）を出力（redo詰まり診断用）。"""
     cr = _creds(); sh = _sheets(cr)
@@ -1772,6 +1853,8 @@ if __name__ == "__main__":
         inboxget(arg)
     elif mode == "distdump":
         distdump(arg)
+    elif mode == "reqcols":
+        reqcols(arg)
     elif mode == "drivefind":
         drivefind(arg)
     elif mode == "genredump":
