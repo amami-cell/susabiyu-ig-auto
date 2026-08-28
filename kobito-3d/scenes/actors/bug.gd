@@ -61,20 +61,31 @@ func _ready() -> void:
 	BugLook.decorate(self, stats.body_color, stats.body_scale, stats.shell)
 
 	_build_hpbar()
+	_update_hpbar()   # 生成した瞬間から満タンのHPバー＋数字を出す
 
 	# 敵の頭脳はサーバにしか無い
 	set_physics_process(true)
 
 
-## 頭上のHPバー。ダメージを受けると緑が減る＝“くらってる・HPが減ってる”が一目で分かる。
-## いつもカメラを向く（ビルボード）。満タン／癒やし済みのときは隠す。
+var _hp_num: Label3D = null      # のこりHPの数字（絶対に分かるように）
+
+## 頭上のHPバー＋数字。生きている間はいつも出す＝「敵ののこりHPが不明」を無くす。
+## いつもカメラを向く（ビルボード）。大きめ＋黒フチで背景に負けない。
 func _build_hpbar() -> void:
-	const W := 1.0
-	const H := 0.14
+	const W := 1.3
+	const H := 0.2
 	_hpbar = Node3D.new()
 	_hpbar.name = "HpBar"
-	_hpbar.position = Vector3(0.0, 1.15, 0.0)
+	_hpbar.position = Vector3(0.0, 1.45, 0.0)
 	add_child(_hpbar)
+	# 外枠（黒）＝地面や体に溶けないよう縁取り
+	var frame := MeshInstance3D.new()
+	var frm := QuadMesh.new()
+	frm.size = Vector2(W + 0.08, H + 0.08)
+	frame.mesh = frm
+	frame.position = Vector3(0.0, 0.0, -0.005)
+	frame.material_override = _bar_mat(Color(0.05, 0.05, 0.05))
+	_hpbar.add_child(frame)
 	# 背景（濃い赤）
 	var bg := MeshInstance3D.new()
 	var bgm := QuadMesh.new()
@@ -93,7 +104,19 @@ func _build_hpbar() -> void:
 	fill.position = Vector3(W * 0.5, 0.0, 0.0)   # 左端(親原点)から右へ伸びる
 	fill.material_override = _bar_mat(Color(0.36, 0.85, 0.34))
 	_hpbar_fill.add_child(fill)
-	_hpbar.visible = false   # 満タンのうちは出さない
+	# のこりHPの数字（バーの上）
+	_hp_num = Label3D.new()
+	_hp_num.text = str(hp)
+	_hp_num.font_size = 48
+	_hp_num.outline_size = 12
+	_hp_num.outline_modulate = Color(0.05, 0.05, 0.05)
+	_hp_num.modulate = Color(1, 1, 1)
+	_hp_num.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	_hp_num.no_depth_test = true
+	_hp_num.pixel_size = 0.0035
+	_hp_num.position = Vector3(0.0, 0.22, 0.0)
+	_hpbar.add_child(_hp_num)
+	_hpbar.visible = false   # 出現直後(生成同期前)だけ隠す。_update_hpbar で出す。
 
 
 func _bar_mat(col: Color) -> StandardMaterial3D:
@@ -112,7 +135,10 @@ func _update_hpbar() -> void:
 	var maxhp: int = maxi(1, stats.max_hp)
 	var ratio := clampf(float(hp) / float(maxhp), 0.0, 1.0)
 	_hpbar_fill.scale.x = ratio
-	_hpbar.visible = _dead == false and hp > 0 and hp < maxhp
+	if _hp_num != null:
+		_hp_num.text = str(maxi(0, hp))
+	# 生きている間はいつも出す（満タンでも）＝のこりHPが常に分かる。
+	_hpbar.visible = _dead == false and hp > 0
 
 
 func _physics_process(delta: float) -> void:

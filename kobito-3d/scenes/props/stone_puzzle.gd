@@ -36,16 +36,18 @@ func _build() -> void:
 		add_child(plate)
 		_plates.append(plate)
 
-		# 刻み＝踏む順を表す点(i+1個)
-		for p in i + 1:
-			var pip := MeshInstance3D.new()
-			var sm := SphereMesh.new()
-			sm.radius = 0.055
-			sm.height = 0.11
-			pip.mesh = sm
-			pip.material_override = _mat(Color(0.14, 0.11, 0.09))
-			pip.position = Vector3(-0.3 + p * 0.15, 0.09, 0.28)
-			plate.add_child(pip)
+		# 踏む順の“大きな数字”（1→N）。点だけだと読めないので数字で はっきり。
+		var num := Label3D.new()
+		num.text = str(i + 1)
+		num.font_size = 90
+		num.outline_size = 16
+		num.outline_modulate = Color(0.05, 0.05, 0.05)
+		num.modulate = Color(1.0, 0.95, 0.7)
+		num.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+		num.no_depth_test = true
+		num.pixel_size = 0.006
+		num.position = Vector3(0.0, 0.8, 0.0)
+		plate.add_child(num)
 
 		# 踏み検出（プレイヤーだけ）
 		var area := Area3D.new()
@@ -69,6 +71,19 @@ func _build() -> void:
 	_mural.position = Vector3(0.0, 1.4, -1.2)
 	_mural.material_override = _mural_mat(false)
 	add_child(_mural)
+
+	# やることの案内（石版の上に大きく）。＝「何したらいいか分からん」を無くす。
+	var guide := Label3D.new()
+	guide.text = "数字の順に ふもう（1→4）"
+	guide.font_size = 40
+	guide.outline_size = 12
+	guide.outline_modulate = Color(0.05, 0.05, 0.05)
+	guide.modulate = Color(1, 1, 0.85)
+	guide.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	guide.no_depth_test = true
+	guide.pixel_size = 0.0055
+	guide.position = Vector3(0.0, 2.1, 0.0)
+	add_child(guide)
 
 
 func _on_step(body: Node, index: int) -> void:

@@ -34,6 +34,19 @@ func _ready() -> void:
 	_gate.position = Vector3(0.0, 0.8, -2.2)
 	add_child(_gate)
 
+	# やることの案内（扉の上に大きく）。ソロでも手伝いが来ることを明記。
+	var guide := Label3D.new()
+	guide.text = "2つの台に のると 扉がひらく（ソロは子が手伝う）"
+	guide.font_size = 34
+	guide.outline_size = 12
+	guide.outline_modulate = Color(0.05, 0.05, 0.05)
+	guide.modulate = Color(1, 1, 0.85)
+	guide.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	guide.no_depth_test = true
+	guide.pixel_size = 0.0055
+	guide.position = Vector3(0.0, 2.2, -2.2)
+	add_child(guide)
+
 
 func _make_plate(pname: String, pos: Vector3, bucket: Array) -> MeshInstance3D:
 	var plate := MeshInstance3D.new()
@@ -44,6 +57,19 @@ func _make_plate(pname: String, pos: Vector3, bucket: Array) -> MeshInstance3D:
 	plate.material_override = _mat(Color(0.5, 0.45, 0.3), false)
 	plate.position = pos
 	add_child(plate)
+
+	# 「ここに のる」案内（台の上に大きく）
+	var tag := Label3D.new()
+	tag.text = "のる"
+	tag.font_size = 56
+	tag.outline_size = 14
+	tag.outline_modulate = Color(0.05, 0.05, 0.05)
+	tag.modulate = Color(1, 1, 0.85)
+	tag.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	tag.no_depth_test = true
+	tag.pixel_size = 0.005
+	tag.position = Vector3(0.0, 0.9, 0.0)
+	plate.add_child(tag)
 
 	var area := Area3D.new()
 	area.collision_layer = 0

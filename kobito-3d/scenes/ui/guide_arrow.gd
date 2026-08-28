@@ -69,7 +69,7 @@ func _draw_here(sp: Vector2, col: Color, dist: float) -> void:
 		Vector2(tip.x + w - 3.0, tip.y - h + 2.0),
 	])
 	draw_colored_polygon(pts2, col)
-	_label("%dm" % int(round(dist)), Vector2(sp.x, tip.y - h - 8.0), col, true)
+	_label("%s %dm" % [_kind_label(Chapter.guide_kind), int(round(dist))], Vector2(sp.x, tip.y - h - 8.0), col, true)
 
 
 ## 目的地が画面外／後ろ：画面中央から“その方向”を指す大きな矢印＋距離。
@@ -96,7 +96,7 @@ func _draw_edge(cam: Camera3D, target: Vector3, vp: Vector2, col: Color, dist: f
 	p2 = pos + (p2 - pos) * pulse
 	draw_colored_polygon(PackedVector2Array([p0 + Vector2(0, 3), p1 + Vector2(0, 3), p2 + Vector2(0, 3)]), Color(0, 0, 0, 0.35))
 	draw_colored_polygon(PackedVector2Array([p0, p1, p2]), col)
-	_label("%dm" % int(round(dist)), pos - dir * 34.0, col, true)
+	_label("%s %dm" % [_kind_label(Chapter.guide_kind), int(round(dist))], pos - dir * 40.0, col, true)
 
 
 func _label(text: String, at: Vector2, col: Color, centered: bool) -> void:
@@ -116,6 +116,18 @@ func _local_player() -> Node:
 		if p.is_local:
 			return p
 	return null
+
+
+## 矢印の先に「何があるか」を短い言葉で（＝何しに行くのか一目で分かる）。
+func _kind_label(kind: String) -> String:
+	match kind:
+		"clean": return "ゴミ"
+		"heal": return "むし"
+		"boss": return "ボス"
+		"collect": return "たね"
+		"puzzle": return "いし"
+		"switch": return "だい"
+	return ""
 
 
 func _kind_color(kind: String) -> Color:
