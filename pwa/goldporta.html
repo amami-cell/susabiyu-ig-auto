@@ -1,0 +1,372 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0f1115">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="GOLD京都ポルタ">
+<link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+<link rel="dns-prefetch" href="https://cdn.jsdelivr.net">
+<link rel="manifest" href="./manifest.webmanifest">
+<link rel="apple-touch-icon" href="./icons/icon-192.png">
+<link rel="icon" href="./icons/icon-192.png">
+<title>GOLD京都ポルタ ・ 投稿確認</title>
+<style>
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  :root{--bg:#0f1115;--card:#181c23;--line:#262c36;--fg:#eaeef2;--sub:#9aa3b2;
+        --ok:#1f9d55;--rd:#3b6fd6;--ng:#444b57;--accent:#7fd1a0}
+  html,body{margin:0;background:var(--bg);color:var(--fg);overscroll-behavior-y:contain;
+    font-family:-apple-system,BlinkMacSystemFont,"Hiragino Kaku Gothic ProN","Noto Sans JP",sans-serif}
+  body{padding:0 0 env(safe-area-inset-bottom)}
+  /* 引っ張って更新（pull-to-refresh）のインジケーター */
+  #ptr{position:fixed;top:calc(env(safe-area-inset-top) + 6px);left:50%;margin-left:-19px;width:38px;height:38px;
+    border-radius:50%;background:#181c23;border:1px solid var(--line);display:flex;align-items:center;justify-content:center;
+    z-index:60;opacity:0;transform:translateY(-54px);box-shadow:0 6px 18px rgba(0,0,0,.45);pointer-events:none}
+  #ptr i{display:block;width:18px;height:18px;border-radius:50%;border:2px solid rgba(127,209,160,.3);border-top-color:var(--accent)}
+  #ptr.spin i{animation:sp .6s linear infinite}
+  .topbar{position:sticky;top:0;z-index:10;background:rgba(15,17,21,.86);
+    backdrop-filter:saturate(180%) blur(12px);border-bottom:1px solid var(--line)}
+  .bar{display:flex;align-items:center;gap:10px;
+    padding:calc(env(safe-area-inset-top) + 12px) 16px 8px}
+  .bar .logo{height:32px;width:auto;max-width:96px;border-radius:6px;display:block;flex:0 0 auto;object-fit:contain}
+  .bar h1{font-size:16px;margin:0;font-weight:700;letter-spacing:.2px;flex:1;
+    min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .tabs{display:flex;gap:6px;padding:0 16px 10px}
+  /* タップ遅延・ダブルタップ拡大判定を無効化＝ボタンの反応を即時に */
+  button,.tab,.seg button,.rm,.alink,.gfilter button,.npbar button,.repkpi.tap,.reppost.tap{touch-action:manipulation}
+  .tab{border:1px solid var(--line);background:#181c23;color:var(--sub);font-size:13px;font-weight:800;
+    padding:7px 16px;border-radius:999px;transition:.12s}
+  .tab.on{background:#10301f;color:var(--accent);border-color:#1f4d33}
+  .tab:active{transform:scale(.92)}
+  /* タップした瞬間の“押せた感”（弾むアニメ＋リング） */
+  .tab.tapped{animation:tabtap .45s cubic-bezier(.2,.7,.3,1)}
+  @keyframes tabtap{0%{transform:scale(.88);box-shadow:0 0 0 0 rgba(127,209,160,.6)}45%{transform:scale(1.06)}100%{transform:scale(1);box-shadow:0 0 0 10px rgba(127,209,160,0)}}
+  #app{will-change:transform}
+  /* トーストの更新中スピナー */
+  .tspin{display:inline-block;width:13px;height:13px;margin-right:8px;vertical-align:-2px;
+    border:2px solid rgba(255,255,255,.35);border-top-color:#fff;border-radius:50%;animation:sp .6s linear infinite}
+  #gallery{padding:14px 14px 28px;max-width:560px;margin:0 auto}
+  .ghint{color:var(--sub);font-size:13px;line-height:1.7;text-align:center;margin:10px 2px 16px}
+  .gstate{font-size:13px;font-weight:800;padding:3px 11px;border-radius:999px;margin-left:auto}
+  .gstate.on{color:var(--accent);background:#10301f}
+  .gstate.off{color:#aeb6c2;background:#23262d}
+  .seg{display:flex;gap:8px;margin-top:10px}
+  .seg button{flex:1;border:2px solid var(--line);background:transparent;color:var(--sub);
+    border-radius:13px;padding:13px 0;font-size:15px;font-weight:800;transition:.15s}
+  .seg button:active{transform:scale(.97)}
+  .seg .seg-on.sel{background:var(--ok);border-color:var(--ok);color:#fff;box-shadow:0 4px 14px rgba(31,157,85,.35)}
+  .seg .seg-off.sel{background:#c0473a;border-color:#c0473a;color:#fff;box-shadow:0 4px 14px rgba(192,71,58,.35)}
+  .ghintline{text-align:center;color:var(--sub);font-size:12px;margin-top:8px}
+  .gnote{text-align:center;color:var(--sub);font-size:12px;margin-top:10px}
+  /* 見本の「動画／画像」切替（ヘッダー下に固定・スクロールしても消えない） */
+  .gfilter{position:sticky;top:100px;/* 実際の値はJSがヘッダー高さから設定 */
+    z-index:9;width:max-content;margin:0 auto 14px;display:flex;gap:4px;
+    background:rgba(15,17,21,.94);backdrop-filter:saturate(180%) blur(12px);
+    border:1px solid var(--line);border-radius:999px;padding:5px;box-shadow:0 10px 30px rgba(0,0,0,.55)}
+  .gfilter button{border:none;background:transparent;color:var(--sub);font-size:14px;font-weight:800;
+    padding:11px 24px;border-radius:999px;transition:.12s;white-space:nowrap}
+  .gfilter button.sel{background:#10301f;color:var(--accent)}
+  .gfilter button:active{transform:scale(.95)}
+  /* 切替に応じてカードを出し分け（.cv=動画 .ci=画像 .cu=生成中は両方に表示） */
+  #gallery.fvid .card.ci{display:none}
+  #gallery.fimg .card.cv{display:none}
+  /* 再生中ミニバー：動画再生中に別画面へ移った時だけ画面下に出る */
+  .npbar{position:fixed;left:12px;right:12px;bottom:calc(env(safe-area-inset-bottom) + 14px);z-index:46;
+    display:flex;align-items:center;gap:10px;background:rgba(15,17,21,.96);border:1px solid var(--line);
+    border-radius:14px;padding:10px 12px;box-shadow:0 10px 30px rgba(0,0,0,.55);backdrop-filter:saturate(180%) blur(12px)}
+  .npbar .npdot{width:10px;height:10px;border-radius:50%;background:#e0483a;flex:0 0 auto;
+    box-shadow:0 0 0 0 rgba(224,72,58,.5);animation:pulse 1.6s infinite}
+  .npbar .nptxt{flex:1;font-size:13px;font-weight:700;color:var(--fg);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .npbar button{border:1px solid var(--line);background:#222835;color:var(--fg);font-size:13px;font-weight:800;
+    padding:8px 14px;border-radius:999px;flex:0 0 auto}
+  .npbar .npstop{background:#3a1d1a;border-color:#5a2b26;color:#ff9d92}
+  .npbar button:active{transform:scale(.95)}
+  /* 採用ボタン/注意書きの出し分けはクラス切替だけ（再描画なし＝カクつかない） */
+  #gallery:not(.admin) .card .seg,
+  #gallery:not(.admin) .card .ghintline{display:none}
+  #gallery.admin .card .gnote{display:none}
+  .tabs .reeltab{margin-left:auto;border:1px solid var(--line);background:#181c23;color:var(--sub);
+    font-size:12px;font-weight:800;padding:7px 13px;border-radius:999px;flex:0 0 auto}
+  .tabs .reeltab:active{transform:scale(.94)}
+  .bar .push{border:1px solid var(--line);background:#222835;color:var(--fg);
+    font-size:12px;font-weight:700;padding:6px 11px;border-radius:999px;display:none}
+  .bar .push.on{background:#10301f;color:var(--accent);border-color:#1f4d33}
+  .bar .dot{font-size:12px;color:var(--sub);display:flex;align-items:center;gap:6px;margin-left:10px}
+  .bar .dot i{width:8px;height:8px;border-radius:50%;background:#3a3f4a;display:inline-block}
+  .bar .dot.live i{background:var(--accent);box-shadow:0 0 0 0 rgba(127,209,160,.5);animation:pulse 2s infinite}
+  @keyframes pulse{0%{box-shadow:0 0 0 0 rgba(127,209,160,.5)}70%{box-shadow:0 0 0 7px rgba(127,209,160,0)}100%{box-shadow:0 0 0 0 rgba(127,209,160,0)}}
+  #feed{padding:14px 14px 28px;max-width:560px;margin:0 auto}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:12px;margin-bottom:14px;
+    transition:opacity .25s ease,transform .25s ease;scroll-margin-top:116px}
+  .card.done{opacity:.55}
+  .card.flash{animation:flash 1.1s ease 2}
+  @keyframes flash{0%,100%{box-shadow:0 0 0 0 rgba(127,209,160,0)}50%{box-shadow:0 0 0 3px rgba(127,209,160,.7)}}
+  .head{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:9px}
+  .time{font-size:13px;color:var(--sub)}
+  .pat{font-size:14px;font-weight:700;color:#fff;background:#222835;padding:2px 9px;border-radius:999px}
+  .remain{margin-left:auto;font-size:12px;font-weight:700;color:var(--accent);background:#10301f;padding:3px 9px;border-radius:999px}
+  /* 枠を“正確に9:16”で先に確保。実メディア(1080x1920=9:16)とピクセル一致するので
+     動画再生時に合わせ直し（カクッ）が起きない。高さ制限は付けない。 */
+  .mediaWrap{position:relative;border-radius:13px;overflow:hidden;background:#000;
+    width:100%;aspect-ratio:9/16}
+  .media{position:absolute;inset:0;width:100%;height:100%;display:block;object-fit:cover;
+    background:#000 center/cover no-repeat}
+  /* 画像の見本（4:5のデザイン済ポスター）はアップにならないよう全体表示。動画は9:16のまま。 */
+  .card.ci .mediaWrap{aspect-ratio:4/5}
+  .card.ci .media{object-fit:contain}
+  .badge{position:absolute;left:10px;bottom:10px;font-size:12px;color:#fff;background:rgba(0,0,0,.55);
+    padding:5px 10px;border-radius:999px;pointer-events:none}
+  .mediaWrap.mediaerr::after{content:"⟳ タップで再読み込み";position:absolute;inset:0;display:flex;
+    align-items:center;justify-content:center;background:rgba(10,12,16,.82);color:#ffcf66;font-size:14px;
+    font-weight:800;pointer-events:none}
+  .cap{font-size:14px;line-height:1.5;margin:10px 2px 2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .slot{margin-top:10px}
+  .btns{display:flex;gap:8px}
+  .btns button{flex:1;border:0;border-radius:13px;padding:13px 0;font-size:15px;font-weight:800;color:#fff;
+    transition:transform .06s,opacity .15s}
+  .ok{background:var(--ok)}.rd{background:var(--rd)}.ng{background:var(--ng)}
+  .btns button:active{transform:scale(.96);opacity:.92}
+  .btns button:disabled{opacity:.4;filter:grayscale(.4)}
+  .banner{text-align:center;font-size:15px;font-weight:800;padding:13px 0;border-radius:13px}
+  .banner.okb{background:#10301f;color:var(--accent)}
+  .banner.ngb{background:#23262d;color:#aeb6c2}
+  .redoing{display:flex;align-items:center;justify-content:center;gap:10px;font-size:14px;color:#ffcf66;
+    background:#241d10;padding:14px 0;border-radius:13px}
+  .banner.okb[data-unapprove]{cursor:pointer}
+  .banner.okb small{display:block;font-size:11px;font-weight:600;color:#6fb595;margin-top:4px}
+  .redoslow{text-align:center;font-size:12px;color:#c79a3a;margin-top:10px}
+  .redoslow .mlink{border:0;background:transparent;color:#7fd1a0;font-weight:800;font-size:12px;padding:2px 4px;text-decoration:underline}
+  .spin{width:16px;height:16px;border:3px solid #ffcf66;border-top-color:transparent;border-radius:50%;animation:sp .8s linear infinite}
+  @keyframes sp{to{transform:rotate(360deg)}}
+  .empty{text-align:center;color:var(--sub);margin-top:64px;font-size:15px;line-height:1.7}
+  .sk{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:12px;margin-bottom:14px}
+  .sk .b{background:linear-gradient(90deg,#1d222b 25%,#262c37 37%,#1d222b 63%);background-size:400% 100%;
+    animation:shim 1.3s infinite;border-radius:8px}
+  .sk .l1{height:14px;width:42%;margin-bottom:10px}.sk .img{height:230px;border-radius:13px;margin-bottom:10px}
+  .sk .l2{height:13px;width:70%}
+  @keyframes shim{0%{background-position:100% 0}100%{background-position:-100% 0}}
+  #toast{position:fixed;left:50%;bottom:calc(env(safe-area-inset-bottom) + 22px);transform:translateX(-50%);
+    background:#000;color:#fff;padding:11px 18px;border-radius:24px;font-size:14px;opacity:0;transition:.2s;
+    pointer-events:none;z-index:30;max-width:90%;text-align:center}
+  #toast.show{opacity:.96}
+  #ios{display:none;position:fixed;left:12px;right:12px;bottom:calc(env(safe-area-inset-bottom) + 14px);z-index:25;
+    background:#1b2029;border:1px solid var(--line);border-radius:14px;padding:12px 14px;font-size:13px;line-height:1.6;color:var(--fg)}
+  #ios b{color:var(--accent)}#ios .x{float:right;color:var(--sub);font-weight:800;padding:0 4px}
+  /* 管理者バー（見本ギャラリー） */
+  .adminbar{display:flex;align-items:center;justify-content:center;gap:10px;margin:0 2px 16px}
+  .adminbar .abadge{font-size:13px;font-weight:800;color:var(--accent);background:#10301f;padding:6px 13px;border-radius:999px}
+  .adminbar .alink{border:1px solid var(--line);background:#181c23;color:var(--sub);font-size:13px;font-weight:700;
+    padding:8px 15px;border-radius:999px}
+  .adminbar .alink:active{transform:scale(.97)}
+  /* モーダル（通知の個別設定など） */
+  .modalOv{position:fixed;inset:0;z-index:40;background:rgba(0,0,0,.5);display:flex;align-items:flex-end;
+    justify-content:center;opacity:0;transition:opacity .2s;pointer-events:none}
+  .modalOv.show{opacity:1;pointer-events:auto}
+  .modal{width:100%;max-width:560px;background:var(--card);border:1px solid var(--line);border-bottom:0;
+    border-radius:18px 18px 0 0;padding:4px 16px calc(env(safe-area-inset-bottom) + 18px);
+    transform:translateY(24px);transition:transform .2s}
+  .modalOv.show .modal{transform:none}
+  .mhead{display:flex;align-items:center;justify-content:space-between;padding:14px 2px 8px;font-size:16px;font-weight:800}
+  .mhead .mx{border:0;background:transparent;color:var(--sub);font-size:18px;font-weight:800;padding:4px 8px}
+  .mbody{display:flex;flex-direction:column}
+  .mlead{color:var(--sub);font-size:13px;line-height:1.6;margin:0 2px 6px}
+  .swrow{display:flex;align-items:center;gap:12px;padding:14px 4px;border-top:1px solid var(--line)}
+  .swtxt{flex:1}.swtxt b{font-size:15px;font-weight:700}.swtxt small{display:block;color:var(--sub);font-size:12px;margin-top:3px}
+  .sw{position:relative;width:50px;height:30px;flex:0 0 auto}
+  .sw input{position:absolute;inset:0;opacity:0;margin:0;z-index:2}
+  .sw i{position:absolute;inset:0;background:#3a3f4a;border-radius:999px;transition:.18s}
+  .sw i::after{content:"";position:absolute;top:3px;left:3px;width:24px;height:24px;background:#fff;border-radius:50%;transition:.18s}
+  .sw input:checked + i{background:var(--ok)}
+  .sw input:checked + i::after{transform:translateX(20px)}
+  .mbtn{margin-top:16px;border:0;border-radius:13px;padding:13px 0;font-size:15px;font-weight:800}
+  .mbtn.off{background:#23262d;color:#e2675c}
+  .mbtn:active{transform:scale(.98)}
+  /* ===== レポート（画面=モバイル最適化 / PDF=A4資料） ===== */
+  #report{padding:14px 12px 36px;max-width:560px;margin:0 auto}
+  .repbar{display:flex;gap:8px;margin:2px 2px 14px}
+  .repbar button{flex:1;border:1px solid var(--line);background:#181c23;color:var(--fg);font-size:14px;font-weight:800;
+    padding:11px 0;border-radius:12px}
+  .repbar button.pdf{background:#10301f;color:var(--accent);border-color:#1f4d33}
+  .repbar button:active{transform:scale(.98)}
+  .rephint{color:var(--sub);font-size:12px;text-align:center;margin:0 4px 14px;line-height:1.6}
+  .repdoc{background:#fff;color:#1b2433;border-radius:14px;overflow:hidden}
+  .rephd{background:linear-gradient(135deg,#1b2433,#2e3c52);color:#fff;padding:22px 22px}
+  .rephd .t{font-size:20px;font-weight:800;letter-spacing:.5px}
+  .rephd .s{font-size:13px;color:#cdd6e4;margin-top:4px}
+  .rephd .p{font-size:14px;font-weight:700;margin-top:12px}
+  .rephd .p small{display:block;font-size:12px;color:#aebbcf;font-weight:400;margin-top:3px}
+  .repsec{padding:16px 18px 4px}
+  .repsec h3{font-size:15px;font-weight:800;color:#1b2433;margin:0 0 12px;display:flex;align-items:center;gap:8px}
+  .repsec h3::before{content:"";width:6px;height:18px;background:#e0a93b;border-radius:3px}
+  .repkpis{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:8px}
+  .repkpi{background:#f4f6f9;border-radius:12px;padding:14px 14px}
+  .repkpi .l{font-size:12px;color:#6c7689;font-weight:700}
+  .repkpi .v{font-size:26px;font-weight:800;color:#1b2433;margin-top:3px;line-height:1.1}
+  .repkpi .v small{font-size:13px;color:#8a94a6;font-weight:700}
+  .repkpi .d{display:inline-block;margin-top:8px;font-size:12px;font-weight:800;padding:3px 9px;border-radius:999px}
+  .repkpi .prev{font-size:11px;color:#9aa3b2;margin-top:6px}
+  .up{color:#127a40;background:#e3f5ea}.down{color:#b23b3b;background:#fbe7e7}.flat{color:#6c7689;background:#eceff3}
+  .repchart{position:relative;touch-action:none}
+  .repbars{display:flex;align-items:flex-end;gap:3px;height:120px;background:#f4f6f9;border-radius:12px;padding:12px 12px 8px}
+  .repbars i{flex:1;background:#33507f;border-radius:3px 3px 0 0;min-height:2px;opacity:.9;transition:background .08s}
+  .repbars i.hot{background:#e0a93b;opacity:1}
+  .reptip{position:absolute;top:-6px;transform:translateX(-50%);background:#1b2433;color:#fff;font-size:12px;padding:5px 11px;border-radius:9px;display:none;white-space:nowrap;pointer-events:none;z-index:6;box-shadow:0 4px 14px rgba(0,0,0,.3)}
+  .reptip b{font-size:14.5px;margin-right:7px}
+  .reptip span{opacity:.82}
+  .repax{display:flex;justify-content:space-between;font-size:11px;color:#9aa3b2;margin:6px 4px 0}
+  .repanal{display:flex;flex-direction:column;gap:10px}
+  .repcard{background:#fff;border:1px solid #eef1f5;border-left:6px solid #ccc;border-radius:12px;padding:14px 16px}
+  .repcard.good{border-left-color:#2bb673}.repcard.warn{border-left-color:#e0a93b}.repcard.act{border-left-color:#3b6fd6}
+  .repcard h4{font-size:14px;font-weight:800;margin:0 0 8px}
+  .repcard.good h4{color:#127a40}.repcard.warn h4{color:#a9781a}.repcard.act h4{color:#2a55b0}
+  .repcard ul{margin:0;padding:0;list-style:none}
+  .repcard li{font-size:13.5px;line-height:1.65;color:#384153;padding:5px 0 5px 16px;position:relative}
+  .repcard li::before{content:"";position:absolute;left:2px;top:12px;width:7px;height:7px;border-radius:50%;background:#c4ccd8}
+  .repcard.good li::before{background:#2bb673}.repcard.warn li::before{background:#e0a93b}.repcard.act li::before{background:#3b6fd6}
+  .repcard li b{color:#1b2433;font-weight:800}
+  .repfoot{color:#9aa3b2;font-size:11px;text-align:center;padding:14px 16px 18px;line-height:1.6}
+  .repnote{font-size:11.5px;color:#8a94a6;margin:2px 2px 6px}
+  .rchips{display:flex;flex-wrap:wrap;gap:8px}
+  .rchip{font-size:13px;font-weight:800;color:#384153;background:#f4f6f9;border:1px solid #eef1f5;border-radius:999px;padding:7px 13px}
+  .rchip.good{color:#127a40;background:#e3f5ea;border-color:#bfe8cd}
+  .rchip.warn{color:#a9781a;background:#fbf2dd;border-color:#f0dcae}
+  /* 比較期間セレクタ */
+  .repmode{display:flex;gap:6px;padding:0 16px 4px;max-width:560px;margin:0 auto}
+  .repmode .rm{flex:1;border:1px solid var(--line);background:#181c23;color:var(--sub);font-size:13px;font-weight:800;padding:8px 0;border-radius:10px}
+  .repmode .rm.on{background:#10301f;color:var(--accent);border-color:#1f4d33}
+  .repmode .rm:active{transform:scale(.96)}
+  .repposts{display:flex;flex-direction:column;gap:8px}
+  .reppost{background:#f4f6f9;border-radius:12px;padding:9px 11px;display:flex;gap:11px;align-items:center}
+  .reppost .rt{width:62px;height:62px;border-radius:10px;object-fit:cover;flex:0 0 auto;background:#e7ebf1}
+  .reppost .rt.none{display:flex;align-items:center;justify-content:center;font-size:24px;color:#aeb6c2}
+  .reppost .ri{flex:1;min-width:0}
+  .reppost .rl{display:flex;align-items:center;gap:8px;margin-bottom:5px}
+  .reppost .rb{font-size:10.5px;font-weight:800;color:#fff;background:#8a94a6;border-radius:999px;padding:2px 9px}
+  .reppost .rb.story{background:#c0567f}.reppost .rb.feed{background:#3b6fd6}.reppost .rb.reel{background:#7a4fd6}
+  .reppost .rd{font-size:11.5px;color:#9aa3b2;font-weight:700}
+  .reppost .rc{font-size:13px;color:#384153;line-height:1.45;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-bottom:5px}
+  .reppost .rr{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}
+  .reppost .rr b{font-size:15px;color:#1b2433;font-weight:800}
+  .reppost .rr small{font-size:11.5px;color:#6c7689}
+  /* A4 出力モード（PDF生成時にクローンへ付与）：1枚目にダッシュボードが収まるよう余白を圧縮 */
+  .repdoc.a4{width:794px;border-radius:0}
+  .repdoc.a4 .repsec{padding:11px 26px 3px}
+  .repdoc.a4 .repsec h3{margin:0 0 8px}
+  .repdoc.a4 .rephd{padding:20px 26px}
+  .repdoc.a4 .repkpis{grid-template-columns:1fr 1fr 1fr 1fr;margin-bottom:4px}
+  .repdoc.a4 .repkpi{padding:11px 13px}
+  .repdoc.a4 .repkpi .v{font-size:23px}
+  .repdoc.a4 .repbars{height:96px}
+  .repdoc.a4 .repposts{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+  .repdoc.a4 .reppost{padding:7px 10px}
+  .repdoc.a4 .reppost .rt{width:52px;height:52px}
+  .repdoc.a4 .repnote{margin:1px 2px 3px}
+  /* 分析・まとめは必ず2枚目から（ダッシュボードと分けて綺麗に1枚へ） */
+  .repdoc.a4 .repbreak{break-before:page;page-break-before:always;padding-top:22px}
+  /* PDFが2ページに収まらない時に自動で適用される圧縮モード */
+  .repdoc.a4.a4tight{font-size:12px}
+  .repdoc.a4.a4tight .rephd{padding:13px 22px}
+  .repdoc.a4.a4tight .repsec{padding:7px 22px 2px}
+  .repdoc.a4.a4tight .repsec h3{font-size:13px;margin:0 0 5px}
+  .repdoc.a4.a4tight .repkpi{padding:7px 10px}
+  .repdoc.a4.a4tight .repkpi .v{font-size:18px}
+  .repdoc.a4.a4tight .repbars{height:72px}
+  .repdoc.a4.a4tight .reppost{padding:4px 8px}
+  .repdoc.a4.a4tight .reppost .rt{width:42px;height:42px}
+  .repdoc.a4.a4tight .repnote{font-size:10px;margin:0 2px 2px}
+  .repdoc.a4.a4tight .repbreak{padding-top:14px}
+  /* さらに収まらない時の第2段階圧縮 */
+  .repdoc.a4.a4tight2{font-size:11px}
+  .repdoc.a4.a4tight2 .repcard{padding:8px 10px}
+  .repdoc.a4.a4tight2 .repcard h4{font-size:12px;margin:0 0 4px}
+  .repdoc.a4.a4tight2 .repcard li{margin:2px 0}
+  .repdoc.a4.a4tight2 .repkpi .v{font-size:16px}
+  .repdoc.a4.a4tight2 .repbars{height:58px}
+  .repdoc.a4.a4tight2 .reppost .rt{width:36px;height:36px}
+  .repdoc.a4.a4tight2 .repsec{padding:5px 20px 2px}
+  /* 上部固定の前日/週間/月間バー（ヘッダー内＝スクロールしても見える） */
+  .rmbar{display:flex;gap:6px;padding:0 16px 10px;max-width:560px;margin:0 auto}
+  .rmbar .rm{flex:1;border:1px solid var(--line);background:#181c23;color:var(--sub);font-size:13px;font-weight:800;padding:7px 0;border-radius:999px}
+  .rmbar .rm.on{background:#10301f;color:var(--accent);border-color:#1f4d33}
+  .rmbar .rm:active{transform:scale(.96)}
+  .repkpi.tap{cursor:pointer;-webkit-tap-highlight-color:transparent;transition:box-shadow .12s,transform .08s}
+  .repkpi.tap:active{transform:scale(.98)}
+  .repkpi.tap.on{box-shadow:0 0 0 2px #e0a93b inset}
+  /* PDF(A4)では選択枠の太い縁をやめ、淡い色味だけで示す＝違和感を解消（選択中の指標はグラフ見出しで分かる） */
+  .repdoc.a4 .repkpi.tap.on{box-shadow:none;background:#fbf3df;border:1px solid #efe1bb}
+  .reppost.tap{cursor:pointer}
+  .reppost.tap:active{transform:scale(.99)}
+  .rtwrap{position:relative;flex:0 0 auto;line-height:0}
+  .rtplay{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:24px;height:24px;border-radius:50%;background:rgba(0,0,0,.55);color:#fff;font-size:11px;display:flex;align-items:center;justify-content:center}
+  /* 拡大表示（ライトボックス） */
+  .lbov{position:fixed;inset:0;z-index:50;background:rgba(0,0,0,.86);display:flex;align-items:center;justify-content:center;padding:18px;opacity:0;transition:opacity .2s}
+  .lbov.show{opacity:1}
+  .lbbox{position:relative;max-width:560px;width:100%;display:flex;flex-direction:column;align-items:center}
+  .lbm{max-width:100%;max-height:74vh;border-radius:12px;background:#000;object-fit:contain}
+  .lbx{position:absolute;top:-6px;right:-6px;width:36px;height:36px;border-radius:50%;border:none;background:#fff;color:#1b2433;font-size:17px;font-weight:800}
+  .lbmeta{color:#fff;font-size:13px;margin-top:12px;text-align:center}.lbmeta b{font-size:15px}
+  .lblink{color:#7fd1a0;font-size:13px;margin-top:10px;text-decoration:none;font-weight:800}
+  .lbnone{color:#fff;padding:40px;font-size:14px}
+</style>
+</head>
+<body>
+  <div id="ptr"><i></i></div>
+  <div id="app">
+  <header class="topbar">
+    <div class="bar">
+      <img class="logo" src="./icons/store_goldporta.png" alt="GOLD京都ポルタ">
+      <h1 id="storeName">GOLD京都ポルタ</h1>
+      <button class="push" id="pushBtn">🔔 通知ON</button>
+      <div class="dot" id="live"><i></i><span id="liveTxt">接続中…</span></div>
+    </div>
+    <div class="tabs">
+      <button class="tab on" id="tabFeed">確認</button>
+      <button class="tab" id="tabGallery">見本</button>
+      <button class="tab" id="tabReport">レポート</button>
+      <button class="reeltab" onclick="location.href='./goldporta_reels.html'">🎬 リール</button>
+    </div>
+    <div class="rmbar" id="repmodeBar" style="display:none">
+      <button class="rm" data-m="week">週間</button>
+      <button class="rm" data-m="biweek">14日間</button>
+      <button class="rm on" data-m="month">月間</button>
+    </div>
+  </header>
+  <div id="feed">
+    <div class="sk"><div class="b l1"></div><div class="b img"></div><div class="b l2"></div></div>
+    <div class="sk"><div class="b l1"></div><div class="b img"></div><div class="b l2"></div></div>
+  </div>
+  <div id="gallery" style="display:none"></div>
+  <div id="report" style="display:none"></div>
+  </div><!-- /#app -->
+  <div id="toast"></div>
+  <div id="ios">
+    <span class="x" onclick="document.getElementById('ios').style.display='none'">✕</span>
+    📲 ホーム画面に追加すると<b>一瞬で起動</b>＆<b>通知</b>が使えます。<br>
+    共有ボタン <b>⬆️</b> →「ホーム画面に追加」
+  </div>
+  <script src="./config.goldporta.js"></script>
+  <script src="./app.js"></script>
+  <script>
+    if ("serviceWorker" in navigator) {
+      var __hadCtrl = !!navigator.serviceWorker.controller;
+      var __refreshing = false;
+      // 新しいバージョンが有効化されたら一度だけ自動リロード（初回インストールは除外＝ループ防止）
+      navigator.serviceWorker.addEventListener("controllerchange", function () {
+        if (__refreshing || !__hadCtrl) return;
+        __refreshing = true; location.reload();
+      });
+      window.addEventListener("load", function () {
+        navigator.serviceWorker.register("./sw.js").then(function (reg) {
+          if (reg) { try { reg.update(); } catch (e) {} }
+          // アプリに戻ってきた時にも更新を確認（最新を取りに行く）
+          document.addEventListener("visibilitychange", function () {
+            if (document.visibilityState === "visible" && reg) { try { reg.update(); } catch (e) {} }
+          });
+        }).catch(function () {});
+      });
+    }
+  </script>
+</body>
+</html>

@@ -21,7 +21,7 @@ window.SUSABIYU_STORES = [
   { id: "lucua",        name: "ルクアLargo",          full: "ルクアLargo",                  short: "", icon: "icons/store_lucua.png", initial: "ル", url: "./store.html?id=lucua", live: false },
   { id: "tanukiya",     name: "味のたぬきや",         full: "味のたぬきや",                 short: "", icon: "icons/store_tanukiya.png", initial: "た", url: "./store.html?id=tanukiya", live: false },
   { id: "gold",         name: "GOLD梅田",             full: "フレンチ酒場GOLD",             short: "", icon: "icons/store_gold.png", initial: "G", url: "./store.html?id=gold", live: false },
-  { id: "goldporta",    name: "GOLD/京都ポルタ",      full: "GOLD京都ポルタ",               short: "", icon: "icons/store_goldporta.png", initial: "G", url: "./store.html?id=goldporta", live: false },
+  { id: "goldporta",    name: "GOLD京都ポルタ",       full: "GOLD京都ポルタ（フレンチ酒場）", short: "稼働中", icon: "icons/store_goldporta.png", initial: "G", url: "./goldporta.html", live: true },
   { id: "sannomiya",    name: "すさび湯/三宮店",      full: "すさび湯 三宮",                short: "", icon: "icons/store_susabiyu.png", initial: "湯", url: "./store.html?id=sannomiya", live: false },
   { id: "karasuma",     name: "すさび湯/京都烏丸",    full: "すさび湯 京都烏丸",            short: "", icon: "icons/store_karasuma.png", initial: "鮨", url: "./karasuma.html", live: false },
   { id: "kadoma",       name: "門真Largo",            full: "門真Largo",                    short: "", icon: "icons/store_kadoma.png", initial: "門", url: "./store.html?id=kadoma", live: false },

@@ -2,7 +2,7 @@
    ・アプリのガワ(shell)を precache → 2回目以降は“開いた瞬間”に表示
    ・jsDelivr のメディアは stale-while-revalidate でランタイムキャッシュ
    ・GAS(JSONP)などデータ通信はキャッシュしない（常に最新を取りに行く） */
-var VER = "susabiyu-v198";
+var VER = "susabiyu-v199";
 var SHELL = VER + "-shell";
 // 画像キャッシュは「アプリのバージョンに紐づけない固定名」。＝アプリを更新しても写真は消えず、
 // 一度読んだ写真は保持される（URLの ?v は画像が変わった時だけ変える運用なので古い物を掴む心配はない）。
@@ -10,8 +10,8 @@ var SHELL = VER + "-shell";
 var MEDIA = "susabiyu-media";
 var SHELL_FILES = [
   "./", "./index.html", "./app.js", "./config.js",
-  "./home.html", "./stores.js", "./store.html", "./reels.html", "./gallery.html", "./gifuyatenjin.html", "./gifuya_reels.html", "./nagagutsu.html", "./nagagutsu_reels.html",
-  "./config.gifuya.js", "./config.nagagutsu.js",
+  "./home.html", "./stores.js", "./store.html", "./reels.html", "./gallery.html", "./gifuyatenjin.html", "./gifuya_reels.html", "./nagagutsu.html", "./nagagutsu_reels.html", "./goldporta.html", "./goldporta_reels.html",
+  "./config.gifuya.js", "./config.nagagutsu.js", "./config.goldporta.js",
   "./manifest.webmanifest", "./icons/icon-192.png", "./icons/icon-512.png", "./icons/storelogo_white.png"
 ];
 
@@ -62,7 +62,7 @@ self.addEventListener("fetch", function (e) {
   }
 
   // 店舗ホーム関連は常に最新を取りに行く（更新をすぐ反映・オフライン時のみキャッシュ）
-  if (url.origin === self.location.origin && /\/(home\.html|stores\.js|store\.html|reels\.html|gallery\.html|gifuyatenjin\.html|gifuya_reels\.html|nagagutsu\.html|nagagutsu_reels\.html)$/.test(url.pathname)) {
+  if (url.origin === self.location.origin && /\/(home\.html|stores\.js|store\.html|reels\.html|gallery\.html|gifuyatenjin\.html|gifuya_reels\.html|nagagutsu\.html|nagagutsu_reels\.html|goldporta\.html|goldporta_reels\.html)$/.test(url.pathname)) {
     e.respondWith(fetch(req).then(function (res) {
       if (res && res.status === 200) {
         var cl = res.clone();
