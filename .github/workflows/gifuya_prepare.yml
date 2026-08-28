@@ -17,6 +17,10 @@ on:
         description: "1=LINE/Push通知を送らない"
         required: false
         default: "0"
+      account:
+        description: "店舗account上書き（空=gifuyatenjin）。新店の事前生成テスト用（nagagutsu / goldporta 等）"
+        required: false
+        default: ""
 permissions:
   contents: read
 concurrency:
@@ -50,9 +54,12 @@ jobs:
       - name: Run prepare (gifuyatenjin)
         env:
           # 店舗指定。承認待ちタブ・Driveフォルダ・ブランドprops・文言は stores.py が解決する。
-          STORE_ACCOUNT: gifuyatenjin
+          # accountを渡すと新店(nagagutsu/goldporta等)の事前生成テストに流用できる（prepareは投稿トークン不要）。
+          STORE_ACCOUNT: ${{ github.event.inputs.account || 'gifuyatenjin' }}
           GOOGLE_CREDS_B64: ${{ secrets.GOOGLE_CREDS_B64 }}
           IG_ACCESS_TOKEN_GIFUYATENJIN: ${{ secrets.IG_ACCESS_TOKEN_GIFUYATENJIN }}
+          IG_ACCESS_TOKEN_NAGAGUTSU: ${{ secrets.IG_ACCESS_TOKEN_NAGAGUTSU }}
+          IG_ACCESS_TOKEN_GOLDPORTA: ${{ secrets.IG_ACCESS_TOKEN_GOLDPORTA }}
           SHEET_ID: ${{ secrets.SHEET_ID }}
           LINE_CHANNEL_TOKEN: ${{ secrets.LINE_CHANNEL_TOKEN }}
           R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
