@@ -80,20 +80,109 @@ func _on_session_started() -> void:
 	_garden.biome = Net.world_biome
 	$World.add_child(_garden)
 	_show_lobby(false)
+	# 庭が組み上がったので、「つづきから」を選んでいたらここで復元する。
+	Chapter.apply_pending_continue()
 
 
 func _on_session_ended(_reason: String) -> void:
 	if _garden != null:
 		_garden.queue_free()
 		_garden = null
+	if _pause != null:
+		_pause.queue_free()
+		_pause = null
 	WorldState.reset()
 	_show_lobby(true)
 
 
 func _unhandled_input(event: InputEvent) -> void:
-	# スマホの「戻る」キー / PCの Esc で退出
-	if event.is_action_pressed("ui_cancel") and Net.is_online:
-		Net.leave("ロビーに戻りました")
+	# スマホの「戻る」キー / PCの Esc でポーズメニュー（遊んでいる間だけ）
+	if event.is_action_pressed("ui_cancel") and _garden != null:
+		_toggle_pause()
+		get_viewport().set_input_as_handled()
+
+
+# ---------------------------------------------------------------- ポーズメニュー
+#
+# 遊んでいる最中に Esc／戻る で開く。オンライン協力なので“時間は止めない”（相手は動き続ける）。
+# メニューを重ねて出すだけ＝ソロでもオンラインでも同じ挙動で安全。
+
+var _pause: Control = null
+
+func _toggle_pause() -> void:
+	if _pause == null:
+		_build_pause()
+		return
+	_pause.visible = not _pause.visible
+
+
+func _build_pause() -> void:
+	_pause = Control.new()
+	_pause.name = "PauseMenu"
+	_pause.set_anchors_preset(Control.PRESET_FULL_RECT)
+	$UI.add_child(_pause)
+
+	var dim := ColorRect.new()
+	dim.color = Color(0, 0, 0, 0.5)
+	dim.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_pause.add_child(dim)
+
+	var box := Panel.new()
+	box.anchor_left = 0.5
+	box.anchor_top = 0.5
+	box.anchor_right = 0.5
+	box.anchor_bottom = 0.5
+	box.offset_left = -220.0
+	box.offset_top = -180.0
+	box.offset_right = 220.0
+	box.offset_bottom = 180.0
+	box.add_theme_stylebox_override("panel", UIKit.panel(UIKit.CREAM, UIKit.GREEN_DK, 22, 4, 20))
+	_pause.add_child(box)
+
+	var vb := VBoxContainer.new()
+	vb.set_anchors_preset(Control.PRESET_FULL_RECT)
+	vb.offset_left = 26
+	vb.offset_top = 24
+	vb.offset_right = -26
+	vb.offset_bottom = -24
+	vb.add_theme_constant_override("separation", 14)
+	box.add_child(vb)
+
+	var title := Label.new()
+	title.text = "ポーズ"
+	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	UIKit.style_label(title, 30, UIKit.INK)
+	vb.add_child(title)
+
+	var vol_label := Label.new()
+	vol_label.text = "音量"
+	UIKit.style_label(vol_label, 18, UIKit.INK)
+	vb.add_child(vol_label)
+	var vol := HSlider.new()
+	vol.min_value = 0.0
+	vol.max_value = 1.0
+	vol.step = 0.05
+	vol.value = Sfx.get_master_volume()
+	vol.custom_minimum_size = Vector2(0, 40)
+	vb.add_child(vol)
+	vol.value_changed.connect(func(v: float) -> void: Sfx.set_master_volume(v))
+
+	var resume := Button.new()
+	resume.text = "つづける"
+	resume.custom_minimum_size = Vector2(0, 54)
+	UIKit.style_button(resume, UIKit.GREEN, UIKit.GREEN_DK)
+	vb.add_child(resume)
+	resume.pressed.connect(func() -> void: _pause.visible = false)
+
+	var quit := Button.new()
+	quit.text = "タイトルへ戻る"
+	quit.custom_minimum_size = Vector2(0, 54)
+	UIKit.style_button(quit, Color(0.95, 0.72, 0.72), Color(0.8, 0.45, 0.45))
+	quit.add_theme_color_override("font_color", UIKit.INK)
+	vb.add_child(quit)
+	quit.pressed.connect(func() -> void:
+		_pause.visible = false
+		Net.leave("タイトルに戻りました"))
 
 
 # ---------------------------------------------------------------- 自己点検
@@ -127,6 +216,11 @@ func _run_selftest() -> void:
 
 	# 虫を癒やすと「なかま虫」が生まれて一緒に戦う経路を確認する
 	var ally_ok: bool = get_tree().get_nodes_in_group("ally").size() > 0
+
+	# セーブ（つづきから）：章を進めるとチェックポイントが書かれるかを確認する
+	Chapter.rpc("_set_beat", 2)
+	await get_tree().create_timer(0.3).timeout
+	var save_ok: bool = Chapter.has_save() and Chapter.save_label() != ""
 
 	WorldState.add("drain_cleared")
 	await get_tree().create_timer(0.5).timeout
@@ -176,9 +270,9 @@ func _run_selftest() -> void:
 	var mother_ok: bool = mother != null
 
 	var ok: bool = _garden != null and players.size() == 1 and bugs.size() > 0 \
-		and WorldState.recovery > 0.0 and xp_gained and flight_ok and kids_ok and mother_ok and puzzle_ok and switch_ok and ally_ok
-	print("[selftest] 回復度=%.2f XP=%d 経験値=%s 飛行解禁=%s 子ども=%d(最寄り%.1f) 母=%s 石版=%s 扉=%s なかま=%s" % [
-		WorldState.recovery, xp_now, xp_gained, flight_ok, children.size(), nearest, mother_ok, puzzle_ok, switch_ok, ally_ok])
+		and WorldState.recovery > 0.0 and xp_gained and flight_ok and kids_ok and mother_ok and puzzle_ok and switch_ok and ally_ok and save_ok
+	print("[selftest] 回復度=%.2f XP=%d 経験値=%s 飛行解禁=%s 子ども=%d(最寄り%.1f) 母=%s 石版=%s 扉=%s なかま=%s セーブ=%s" % [
+		WorldState.recovery, xp_now, xp_gained, flight_ok, children.size(), nearest, mother_ok, puzzle_ok, switch_ok, ally_ok, save_ok])
 	print("[selftest] %s" % ("OK" if ok else "NG"))
 	get_tree().quit(0 if ok else 1)
 

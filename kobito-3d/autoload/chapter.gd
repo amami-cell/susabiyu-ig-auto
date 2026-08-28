@@ -20,6 +20,12 @@ var guide_pos := Vector3.ZERO
 var guide_kind := ""
 var _guide_accum := 0.0
 
+# セーブ（つづきから）。章の切れ目ごとに user://save.cfg へ書き、タイトルで続きを選べる。
+const SAVE_PATH := "user://save.cfg"
+var cleared := false            # 一度でも通しクリアしたか（タイトルに小さく出す）
+var _want_continue := false     # タイトルで「つづきから」を押した
+var _pending_continue := false  # セッション開始後、庭が組み上がってから復元する合図
+
 # 第1章「たどり着いた隙間」。しっかり遊べる長さ＝掃除→癒やし→探索(収集)→謎解き→
 # 協力→群れ(ウェーブ)→女王アリ(中ボス)→みどり回復→クリア。
 # goal: clean / heal(n:累計) / collect(n) / puzzle / switch / wave(n)+heal / boss / green(v) / clear
@@ -177,6 +183,7 @@ func _ready() -> void:
 		guide_changed.emit(false, Vector3.ZERO, ""))
 	WorldState.creature_healed.connect(_on_creature_healed)
 	WorldState.seed_collected.connect(_on_seed_collected)
+	_load_meta()
 
 
 ## サーバから：中ボスを癒やし終えた（bug.gd が呼ぶ）。
@@ -197,8 +204,32 @@ func _on_session_started() -> void:
 	_boss_cleared = false
 	beat = -1
 	_last_obj = "￿"
-	if _is_server():
+	if not _is_server():
+		return
+	if _want_continue and _has_progress():
+		# 「つづきから」：庭が組み上がってから復元する（wave/boss の合図を庭が受け取れるように）。
+		_pending_continue = true
+	else:
 		rpc("_set_beat", 0)
+
+
+## main が庭を組み立て終えた直後に呼ぶ：保留していた「つづきから」を実際に復元する。
+func apply_pending_continue() -> void:
+	if not _pending_continue or not _is_server():
+		return
+	_pending_continue = false
+	_want_continue = false
+	var cfg := ConfigFile.new()
+	if cfg.load(SAVE_PATH) != OK:
+		rpc("_set_beat", 0)
+		return
+	var b := int(cfg.get_value("progress", "beat", 0))
+	_healed = int(cfg.get_value("progress", "healed", 0))
+	_seeds = int(cfg.get_value("progress", "seeds", 0))
+	var rec := float(cfg.get_value("progress", "recovery", 0.0))
+	var pl: Array = cfg.get_value("progress", "powers", [])
+	WorldState.restore(rec, pl)
+	rpc("_set_beat", clampi(b, 0, CH1.size() - 1))
 
 
 func _process(delta: float) -> void:
@@ -362,6 +393,14 @@ func _set_beat(i: int) -> void:
 	if data.get("ending", false):
 		objective_changed.emit("")
 		banner.emit("『みどりのはじまり』  〜おわり〜")
+	# 章の切れ目でセーブ（サーバのみ・庭のときだけ）。エンディングまで来たら「クリア」を記録。
+	if _is_server() and Net.world_biome == "garden":
+		if data.get("ending", false):
+			cleared = true
+			_save_meta()
+			_clear_progress()   # 通しクリアしたら“つづき”は消す（また最初から遊べる）
+		else:
+			_write_checkpoint()
 
 
 @rpc("authority", "call_local", "reliable")
@@ -412,6 +451,72 @@ func ambient_spawn_ok() -> bool:
 		return true
 	var goal: String = CH1[beat].get("goal", "")
 	return not (goal in ["clean", "story", "ending"])
+
+
+# ---------------------------------------------------------------- セーブ／つづきから
+
+## タイトルの「つづきから」を押した合図（この後 Net.start_solo/host する）。
+func continue_game() -> void:
+	_want_continue = true
+
+
+func start_new() -> void:
+	_want_continue = false
+
+
+## 途中経過のセーブがあるか（タイトルで「つづきから」を出すか）。
+func has_save() -> bool:
+	return _has_progress()
+
+
+## タイトルに出す短い説明（「第2章のとちゅう」など）。
+func save_label() -> String:
+	if not _has_progress():
+		return ""
+	var cfg := ConfigFile.new()
+	cfg.load(SAVE_PATH)
+	var b := int(cfg.get_value("progress", "beat", 0))
+	var ch := 2 if b >= 9 else 1
+	return "第%d章のとちゅうから" % ch
+
+
+func _has_progress() -> bool:
+	var cfg := ConfigFile.new()
+	if cfg.load(SAVE_PATH) != OK:
+		return false
+	return cfg.has_section_key("progress", "beat")
+
+
+func _write_checkpoint() -> void:
+	var cfg := ConfigFile.new()
+	cfg.load(SAVE_PATH)   # meta（cleared）は残す
+	cfg.set_value("progress", "beat", beat)
+	cfg.set_value("progress", "healed", _healed)
+	cfg.set_value("progress", "seeds", _seeds)
+	cfg.set_value("progress", "recovery", WorldState.recovery)
+	cfg.set_value("progress", "powers", WorldState.powers_list())
+	cfg.save(SAVE_PATH)
+
+
+func _clear_progress() -> void:
+	var cfg := ConfigFile.new()
+	cfg.load(SAVE_PATH)
+	if cfg.has_section("progress"):
+		cfg.erase_section("progress")
+	cfg.save(SAVE_PATH)
+
+
+func _save_meta() -> void:
+	var cfg := ConfigFile.new()
+	cfg.load(SAVE_PATH)
+	cfg.set_value("meta", "cleared", cleared)
+	cfg.save(SAVE_PATH)
+
+
+func _load_meta() -> void:
+	var cfg := ConfigFile.new()
+	if cfg.load(SAVE_PATH) == OK:
+		cleared = bool(cfg.get_value("meta", "cleared", false))
 
 
 func _is_server() -> bool:

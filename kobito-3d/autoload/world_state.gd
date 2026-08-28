@@ -108,6 +108,22 @@ func reset() -> void:
 		rpc("_remote_apply", 0.0)
 
 
+## セーブから復元：回復度と授かった力をまとめて戻す（サーバが全員へ反映）。
+func restore(value: float, power_list: Array) -> void:
+	if not multiplayer.has_multiplayer_peer() or not multiplayer.is_server():
+		return
+	powers.clear()
+	_apply(clampf(value, 0.0, 1.0))
+	rpc("_remote_apply", recovery)
+	for p in power_list:
+		grant_power(String(p))
+
+
+## 今持っている力を配列で（セーブ用）。
+func powers_list() -> Array:
+	return powers.keys()
+
+
 ## 後から参加した人にも今の回復度と授かった力を伝える（サーバから個別に送る）
 func send_to(id: int) -> void:
 	if multiplayer.has_multiplayer_peer() and multiplayer.is_server():

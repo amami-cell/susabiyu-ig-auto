@@ -69,6 +69,9 @@ func _ready() -> void:
 	_join.pressed.connect(_on_join)
 	Net.status_changed.connect(func(t: String) -> void: _status.text = t)
 
+	_refresh_title_state()
+	# 遊び終えてタイトルへ戻ったら「つづきから」やクリア表示を出し直す。
+	Net.session_ended.connect(func(_r: String) -> void: _refresh_title_state())
 	_build_credits_button()
 
 	if Net.is_web():
@@ -206,6 +209,41 @@ func _draw_hill(baseline: float, col: Color, amp: float, freq: float) -> void:
 
 # ------------------------------------------------------------ クレジット
 
+## 「つづきから」ボタンとクリア表示を、いまのセーブ状況に合わせて出し直す（何度呼んでもOK）。
+func _refresh_title_state() -> void:
+	# つづきから（途中経過があれば「はじめから」の上に出す）
+	var existing := _vbox.get_node_or_null("ContinueButton")
+	if Chapter.has_save():
+		if existing == null:
+			var cont := Button.new()
+			cont.name = "ContinueButton"
+			cont.custom_minimum_size = Vector2(0, 56)
+			UIKit.style_button(cont, UIKit.GOLD, Color(0.82, 0.6, 0.24))
+			_vbox.add_child(cont)
+			_vbox.move_child(cont, _solo.get_index())
+			cont.pressed.connect(_on_continue)
+			existing = cont
+		(existing as Button).text = "つづきから（%s）" % Chapter.save_label()
+		_solo.text = "はじめから"
+	else:
+		if existing != null:
+			existing.queue_free()
+		_solo.text = "ひとりで始める"
+
+	# 一度でも通しクリアしていたら、小さく誇らしく表示（左上）
+	if Chapter.cleared and get_node_or_null("ClearedBadge") == null:
+		var badge := Label.new()
+		badge.name = "ClearedBadge"
+		badge.text = "★ クリア済み"
+		badge.add_theme_font_size_override("font_size", 20)
+		badge.add_theme_color_override("font_color", Color(1.0, 0.9, 0.5))
+		badge.add_theme_color_override("font_outline_color", Color(0.2, 0.16, 0.1))
+		badge.add_theme_constant_override("outline_size", 6)
+		badge.position = Vector2(20, 16)
+		badge.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		add_child(badge)
+
+
 func _build_credits_button() -> void:
 	var btn := Button.new()
 	btn.name = "CreditsButton"
@@ -309,13 +347,21 @@ func _sync_settings() -> void:
 		Net.world_biome = "ruins" if _biome.selected == 1 else "garden"
 
 
+func _on_continue() -> void:
+	_sync_settings()
+	Chapter.continue_game()
+	Net.start_solo()
+
+
 func _on_solo() -> void:
 	_sync_settings()
+	Chapter.start_new()   # 「はじめから」＝つづきを使わず最初から
 	Net.start_solo()
 
 
 func _on_host() -> void:
 	_sync_settings()
+	Chapter.start_new()
 	if Net.host() == OK:
 		_status.text = "待ち受け中。相手の端末に %s を入力してもらう" % Net.local_ip_hint()
 
