@@ -1,6 +1,19 @@
 name: deploy-pwa
 on:
   workflow_dispatch:
+    inputs:
+      publish_lp:
+        description: "1=予約LP(pwa/sanjo.html)を amami-cell.github.io/<slug> に公開（新規リポ作成＋Pages有効化）"
+        required: false
+        default: "0"
+      lp_slug:
+        description: "公開先リポ名（＝URLの頭に出る文字。既定 yoyaku）"
+        required: false
+        default: "yoyaku"
+      lp_file:
+        description: "公開するLPファイル（既定 pwa/sanjo.html）"
+        required: false
+        default: "pwa/sanjo.html"
   push:
     branches: [ main ]
     paths: [ 'pwa/**', '.github/workflows/deploy_pwa.yml' ]
@@ -89,3 +102,48 @@ jobs:
           git commit -m "deploy PWA app"
           git push
           echo "Deployed. Pages URL (after enabling Pages): https://${MEDIA_REPO%%/*}.github.io/${MEDIA_REPO#*/}/app/"
+      - name: 予約LPを独自スラッグのGitHub Pagesへ公開（publish_lp=1のときだけ）
+        # インスタのプロフィールリンクを「amami-cell.github.io/<slug>」に。独立リポなので
+        # 毎日のapp再デプロイで消えない（＝404の再発防止）。LPは画像を全て内蔵し自己完結。
+        if: ${{ github.event.inputs.publish_lp == '1' }}
+        env:
+          TOKEN: ${{ secrets.GH_MEDIA_TOKEN }}
+          OWNER: amami-cell
+          SLUG: ${{ github.event.inputs.lp_slug }}
+          LP: ${{ github.event.inputs.lp_file }}
+        run: |
+          set -e
+          SLUG="${SLUG:-yoyaku}"; LP="${LP:-pwa/sanjo.html}"
+          API=https://api.github.com
+          if [ ! -f "$LP" ]; then echo "ERROR: $LP が無い"; exit 1; fi
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          # 1) 公開先リポが無ければ public で作成
+          code=$(curl -s -o /dev/null -w "%{http_code}" -H "Authorization: token $TOKEN" "$API/repos/$OWNER/$SLUG")
+          if [ "$code" != "200" ]; then
+            echo "creating public repo $OWNER/$SLUG"
+            curl -s -X POST -H "Authorization: token $TOKEN" -H "Accept: application/vnd.github+json" \
+              "$API/user/repos" \
+              -d "{\"name\":\"$SLUG\",\"private\":false,\"description\":\"予約・アクセスLP（Instagramプロフィールリンク）\",\"auto_init\":true}" \
+              -o /tmp/repo.json -w "create repo: %{http_code}\n"
+            sleep 5
+          fi
+          # 2) LP を index.html として push（自己完結HTMLなので画像依存なし）
+          rm -rf _lp
+          git clone --depth 1 "https://x-access-token:${TOKEN}@github.com/$OWNER/$SLUG.git" _lp
+          cp "$LP" _lp/index.html
+          touch _lp/.nojekyll
+          cd _lp
+          git add index.html .nojekyll
+          if git diff --cached --quiet; then
+            echo "LP に変更なし"
+          else
+            git commit -m "予約LPを公開（index.html）"
+            git push origin HEAD:main
+          fi
+          cd ..
+          # 3) GitHub Pages を有効化（source=main /）。既に有効なら409＝無視。
+          curl -s -X POST -H "Authorization: token $TOKEN" -H "Accept: application/vnd.github+json" \
+            "$API/repos/$OWNER/$SLUG/pages" -d '{"source":{"branch":"main","path":"/"}}' \
+            -o /dev/null -w "pages enable: %{http_code}\n" || true
+          echo "==== 公開URL（数分で有効化）: https://$OWNER.github.io/$SLUG/ ===="
