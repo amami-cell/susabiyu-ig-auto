@@ -1,4 +1,5 @@
 ﻿import { Composition } from "remotion";
+import { YoshokuDish, YOSHOKU_DUR } from "./YoshokuDish";
 import { SushiStory } from "./SushiStory";
 import { SimpleStory } from "./SimpleStory";
 import { PhotoStory } from "./PhotoStory";
@@ -66,6 +67,7 @@ export const RemotionRoot: React.FC = () => {
   const oshtDur = 42 + ny * 50 + 96;   // OshinaTate(縦書き): INTRO + N*STEP + HOLD
   return (
     <>
+      <Composition id="YoshokuDish" component={YoshokuDish} fps={FPS} width={1080} height={1920} durationInFrames={YOSHOKU_DUR} defaultProps={{ storeName: STORE, handle: "@susabiyu_sanjyo", theme: "neutral" }} />
       <Composition id="SushiStory" component={SushiStory} fps={FPS} width={1080} height={1920} durationInFrames={dur} defaultProps={{ storeName: STORE, handle: "@susabiyu_sanjyo" }} />
       <Composition id="SimpleStory" component={SimpleStory} fps={FPS} width={1080} height={1920} durationInFrames={150} defaultProps={{ storeName: STORE, handle: "@susabiyu_sanjyo" }} />
       <Composition id="PhotoStory" component={PhotoStory} fps={FPS} width={1080} height={1920} durationInFrames={150} defaultProps={{ handle: "@susabiyu_sanjyo" }} />

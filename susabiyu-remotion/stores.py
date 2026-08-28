@@ -26,6 +26,7 @@ REGION_FREE_PATTERNS = [
     "taishutempo", "taishushun", "taishuhito", "taishugaku", "taishucap",
     "taishuimga", "taishuimga2", "taishuimgb", "taishuimgd", "taishuimgf",
     "oshinatate", "taishutanzaku",   # この2つは region prop 対応済み
+    "yoshokudish",                   # 洋食おしゃれ（region非依存・theme配色）
 ]
 
 # 【重要】region-free でも fetch_tempo/photostory/simple を使う comp は SAKE/内観/イベントの
@@ -42,6 +43,13 @@ FOOD_ONLY_PATTERNS = [
     "taishutanzaku", # TaishuTanzaku（壁の短冊・region prop対応）
     "oshinatate",    # OshinaTate（お品書き縦・region prop対応）
     "noren",         # NorenStory（暖簾くぐり）
+]
+
+# 洋食（イタリアン/フレンチ）向けの"おしゃれ"テンプレ集合。和の暖簾/短冊は使わず、
+# 上品なセリフ×余白×金or生成りの縁取りで料理写真を主役にする（theme で配色切替）。
+# food-only（食材フォルダのみ）で完結＝他店フォルダ混入ゼロ。
+YOSHOKU_PATTERNS = [
+    "yoshokudish",   # YoshokuDish（本日の一皿・おしゃれ）
 ]
 
 STORES = {
@@ -92,6 +100,7 @@ STORES = {
         "store_name": "ナガグツ",
         "handle": "@nagagutsu0427",
         "region": "",                    # 所在地未確定＝空（region prop対応compでは非表示）。判明後に設定。
+        "theme": "italian",              # 洋食おしゃれテンプレの配色（イタリアン＝温かみ生成り）
         "sheet_id": SANJO_SHEET_ID,       # 同一スプレッドシートを接尾辞タブで共用
         "tab_suffix": "_nagagutsu",
         "folders": {
@@ -99,7 +108,7 @@ STORES = {
             "music_uptempo": "1t0WsEon0ZGzB1q_C_U7CtVF_0303G2l0",  # ナガグツ 音楽
             "music_normal": "1t0WsEon0ZGzB1q_C_U7CtVF_0303G2l0",
         },
-        "patterns": FOOD_ONLY_PATTERNS,   # 食材フォルダのみで完結＝他店フォルダ混入ゼロ
+        "patterns": YOSHOKU_PATTERNS,     # 洋食おしゃれテンプレのみ（和の大衆テンプレは使わない）
         # 「画像」配下の非料理サブフォルダは料理として使わない（ロゴ/外観内観/コース集合/ドリンク）。
         "exclude_cats": ["ロゴ", "外観", "内観", "音楽", "集合", "コース", "ドリンク", "飲み"],
         # 「画像」直下は フード/ドリンク… のサブフォルダ構成。fetch_typo を再帰収集モードに。
@@ -116,6 +125,7 @@ STORES = {
         "store_name": "GOLD京都ポルタ",
         "handle": "@gold_kyotovolta",
         "region": "京都・ポルタ",           # 京都駅前ポルタ
+        "theme": "french",               # 洋食おしゃれテンプレの配色（フレンチ＝黒×金＝GOLD）
         "sheet_id": SANJO_SHEET_ID,       # 同一スプレッドシートを接尾辞タブで共用
         "tab_suffix": "_goldporta",
         "folders": {
@@ -123,7 +133,7 @@ STORES = {
             "music_uptempo": "1FgAPshzvZgtB4vMLrJfMOh2YGCWgEQuH",  # GOLD 音楽
             "music_normal": "1FgAPshzvZgtB4vMLrJfMOh2YGCWgEQuH",
         },
-        "patterns": FOOD_ONLY_PATTERNS,   # 食材フォルダのみで完結＝他店フォルダ混入ゼロ
+        "patterns": YOSHOKU_PATTERNS,     # 洋食おしゃれテンプレのみ（和の大衆テンプレは使わない）
         # 「画像」配下の非料理サブフォルダは料理として使わない（ロゴ/外観内観/コース集合/ドリンク）。
         "exclude_cats": ["ロゴ", "外観", "内観", "音楽", "集合", "コース", "ドリンク", "飲み"],
         # 「画像」直下は フード/ドリンク… のサブフォルダ構成。fetch_typo を再帰収集モードに。
@@ -184,11 +194,13 @@ def apply_fetch_env(store):
 
 
 def render_props(store):
-    """Remotion レンダリングに渡す店舗ブランド props（storeName/handle/region）。"""
+    """Remotion レンダリングに渡す店舗ブランド props（storeName/handle/region/theme）。
+    theme は洋食おしゃれテンプレ(YoshokuDish等)の配色切替に使う（italian/french 等・空=既定）。"""
     return {
         "storeName": store["store_name"],
         "handle": store["handle"],
         "region": store["region"],
+        "theme": store.get("theme", ""),
     }
 
 
