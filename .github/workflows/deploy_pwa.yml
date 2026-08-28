@@ -107,7 +107,9 @@ jobs:
         # 毎日のapp再デプロイで消えない（＝404の再発防止）。LPは画像を全て内蔵し自己完結。
         if: ${{ github.event.inputs.publish_lp == '1' }}
         env:
-          TOKEN: ${{ secrets.GH_MEDIA_TOKEN }}
+          # 新規リポ作成＋別リポへのpush＋Pages有効化には広い権限が要るため専用PATを使う。
+          # GitHub Secret LP_DEPLOY_TOKEN = classic PAT（repo スコープ）。未登録なら分かるように停止。
+          TOKEN: ${{ secrets.LP_DEPLOY_TOKEN }}
           OWNER: amami-cell
           SLUG: ${{ github.event.inputs.lp_slug }}
           LP: ${{ github.event.inputs.lp_file }}
@@ -115,6 +117,9 @@ jobs:
           set -e
           SLUG="${SLUG:-yoyaku}"; LP="${LP:-pwa/sanjo.html}"
           API=https://api.github.com
+          if [ -z "$TOKEN" ]; then
+            echo "ERROR: Secret LP_DEPLOY_TOKEN が未登録です（classic PAT・repoスコープを登録してください）"; exit 1
+          fi
           if [ ! -f "$LP" ]; then echo "ERROR: $LP が無い"; exit 1; fi
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
