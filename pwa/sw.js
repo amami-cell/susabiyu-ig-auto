@@ -2,7 +2,7 @@
    ・アプリのガワ(shell)を precache → 2回目以降は“開いた瞬間”に表示
    ・jsDelivr のメディアは stale-while-revalidate でランタイムキャッシュ
    ・GAS(JSONP)などデータ通信はキャッシュしない（常に最新を取りに行く） */
-var VER = "susabiyu-v205";
+var VER = "susabiyu-v206";
 var SHELL = VER + "-shell";
 // 画像キャッシュは「アプリのバージョンに紐づけない固定名」。＝アプリを更新しても写真は消えず、
 // 一度読んだ写真は保持される（URLの ?v は画像が変わった時だけ変える運用なので古い物を掴む心配はない）。
