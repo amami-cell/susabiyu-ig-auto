@@ -37,6 +37,7 @@ var hp: int = 40
 const HP_REGEN_DELAY := 2.5    # 最後に被弾してから この秒数で自然回復が始まる
 const HP_REGEN_RATE := 7.0     # 1秒あたりの自然回復量
 var _since_dmg := 999.0
+var _invuln := 0.0        # 無敵時間（被弾直後・復活直後）＝連続でハメられない＝ストレス減
 var _regen_frac := 0.0
 var level: int = 1
 var xp: int = 0
@@ -119,6 +120,7 @@ func _physics_process(delta: float) -> void:
 	if not multiplayer.has_multiplayer_peer():
 		return
 	_age += delta
+	_invuln = maxf(0.0, _invuln - delta)   # 無敵時間を減らす（全員の画面で同じに）
 	if is_local:
 		_local_step(delta)
 		_regen_hp(delta)
@@ -325,7 +327,13 @@ func _update_look() -> void:
 	if is_local:
 		_follow_camera()
 	var down := state == State.DOWN
-	_body.transparency = 0.6 if down else 0.0
+	if down:
+		_body.transparency = 0.6
+	elif _invuln > 0.0:
+		# 無敵の間は点滅＝「今は安全」が見て分かる
+		_body.transparency = 0.3 + 0.3 * (0.5 + 0.5 * sin(_age * 28.0))
+	else:
+		_body.transparency = 0.0
 
 
 func _follow_camera() -> void:
@@ -376,16 +384,17 @@ func _server_clean_near(from: Vector3) -> void:
 ## サーバから呼ばれる：被弾
 @rpc("authority", "call_local", "reliable")
 func apply_damage(amount: int) -> void:
-	if state == State.DOWN:
-		return
+	if state == State.DOWN or _invuln > 0.0:
+		return   # 無敵時間中は無効＝連続被弾でハメられない
 	hp = maxi(0, hp - amount)
 	_hurt_time = 0.35
 	_since_dmg = 0.0   # 被弾したので自然回復のクールダウンをリセット
+	_invuln = 0.7      # 被弾直後は少しだけ無敵（立て直す間）
 	state = State.HURT if hp > 0 else State.DOWN
 	_play_hurt_fx()
 	stats_changed.emit()
 	if hp == 0 and multiplayer.has_multiplayer_peer() and multiplayer.is_server():
-		get_tree().create_timer(4.0).timeout.connect(func() -> void:
+		get_tree().create_timer(2.5).timeout.connect(func() -> void:   # 待たされ感を減らす
 			if is_instance_valid(self):
 				rpc("revive"))
 
@@ -394,6 +403,7 @@ func apply_damage(amount: int) -> void:
 func revive() -> void:
 	hp = max_hp
 	state = State.IDLE
+	_invuln = 2.5   # 復活直後はしっかり無敵＝起き上がりを一方的に殴られない
 	stats_changed.emit()
 
 
