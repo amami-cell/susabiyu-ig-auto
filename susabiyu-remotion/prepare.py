@@ -7,9 +7,18 @@ import stores
 SHEET_ID = "13zKaUblOwmgZ-lgCfxylCLlW2Fqutqct5h5TvMRWv30"
 APP_TAB = "承認待ち"
 PROPS_ARG = ""   # 店舗ブランドprops（storeName/handle/region）のrenderフラグ。三条は空＝従来動作。
-PAT_JA = {"yoshokudish":"洋食・本日の一皿","sushi":"王道","tempo":"賑やか","typo":"雑誌風","photo":"全画面","simple":"額装","caption":"写真キャプション", "oshina":"お品書き","oshinatate":"お品書き(縦書き)","kaiten":"回転レーン","osusume":"店主おすすめ","gridzoom":"グリッド→ズーム","noren":"暖簾くぐり","season":"季節の旬","taishufuda":"大衆・値札チラシ","taishukaiten":"大衆・回転レーン","sanjokaiten":"回転レーン(烏丸ベース)","taishuoshi":"大衆・イチオシ","taishuodo":"大衆・王道","taishuzen":"大衆・全画面","taishushinbun":"大衆・見出し新聞","taishugrid":"大衆・グリッドズーム","taishutanzaku":"大衆・壁の短冊","taishunoren":"大衆・暖簾くぐり","taishutempo":"大衆・賑やかテンポ","taishushun":"大衆・季節の旬","taishuhito":"大衆・本日の一皿","taishuoshina":"大衆・お品書き","taishugaku":"大衆・額装（画像）","taishucap":"大衆・写真一言（画像）","taishuimga":"画像案A・提灯(寿司酒場)","taishuimga2":"画像案A2・提灯(大衆酒場)","taishuimgb":"画像案B・チラシ","taishuimgd":"画像案D・紺のれん","taishuimgf":"画像案F・白抜き文字","taishuimge":"画像案E・黄ポップ","beat":"音ハメリール（動画）","cinereel":"上品リール（AI/実写クリップ）"}
+PAT_JA = {"yoshokudish":"洋食・本日の一皿","yoshokuchalk":"洋食・黒板トラットリア","yoshokusizzle":"洋食・鉄板ジュ〜っと","yoshokumag":"洋食・雑誌エディトリアル","yoshokucine":"洋食・シネマ","yoshokuwine":"洋食・ワインと共に","yoshokutrio":"洋食・おすすめ3品","yoshokupola":"洋食・ポラロイド重ね","yoshokutype":"洋食・大見出しタイポ","yoshokuopen":"洋食・本日OPEN案内","sushi":"王道","tempo":"賑やか","typo":"雑誌風","photo":"全画面","simple":"額装","caption":"写真キャプション", "oshina":"お品書き","oshinatate":"お品書き(縦書き)","kaiten":"回転レーン","osusume":"店主おすすめ","gridzoom":"グリッド→ズーム","noren":"暖簾くぐり","season":"季節の旬","taishufuda":"大衆・値札チラシ","taishukaiten":"大衆・回転レーン","sanjokaiten":"回転レーン(烏丸ベース)","taishuoshi":"大衆・イチオシ","taishuodo":"大衆・王道","taishuzen":"大衆・全画面","taishushinbun":"大衆・見出し新聞","taishugrid":"大衆・グリッドズーム","taishutanzaku":"大衆・壁の短冊","taishunoren":"大衆・暖簾くぐり","taishutempo":"大衆・賑やかテンポ","taishushun":"大衆・季節の旬","taishuhito":"大衆・本日の一皿","taishuoshina":"大衆・お品書き","taishugaku":"大衆・額装（画像）","taishucap":"大衆・写真一言（画像）","taishuimga":"画像案A・提灯(寿司酒場)","taishuimga2":"画像案A2・提灯(大衆酒場)","taishuimgb":"画像案B・チラシ","taishuimgd":"画像案D・紺のれん","taishuimgf":"画像案F・白抜き文字","taishuimge":"画像案E・黄ポップ","beat":"音ハメリール（動画）","cinereel":"上品リール（AI/実写クリップ）"}
 REG = {
-  "yoshokudish": ("fetch_typo.py","YoshokuDish",True),   # 洋食おしゃれ（イタリアン/フレンチ）
+  "yoshokudish": ("fetch_typo.py","YoshokuDish",True),   # 洋食おしゃれ①本日の一皿（イタリアン/フレンチ）
+  "yoshokuchalk":  ("fetch_typo.py","YoshokuChalk",True),   # ②黒板トラットリア
+  "yoshokusizzle": ("fetch_typo.py","YoshokuSizzle",True),  # ③鉄板ジュ〜っと（肉）
+  "yoshokumag":    ("fetch_typo.py","YoshokuMag",True),     # ④雑誌エディトリアル
+  "yoshokucine":   ("fetch_typo.py","YoshokuCine",True),    # ⑤シネマ・フルスクリーン
+  "yoshokuwine":   ("fetch_typo.py","YoshokuWine",True),    # ⑥ワインと共に（ペアリング）
+  "yoshokutrio":   ("fetch_typo.py","YoshokuTrio",True),    # ⑦おすすめ3品スライド
+  "yoshokupola":   ("fetch_typo.py","YoshokuPola",True),    # ⑧ポラロイド重ね
+  "yoshokutype":   ("fetch_typo.py","YoshokuType",True),    # ⑨大見出しタイポ
+  "yoshokuopen":   ("fetch_typo.py","YoshokuOpen",True),    # ⑩本日OPEN案内
   "sushi":   ("fetch_drive_photos.py","SushiStory",True),
   "tempo":   ("fetch_tempo.py","TempoStory",True),
   "typo":    ("fetch_typo.py","TypoStory",True),
