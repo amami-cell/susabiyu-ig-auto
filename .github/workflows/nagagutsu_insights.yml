@@ -8,10 +8,10 @@ on:
         description: "collect / check / heal"
         required: false
         default: "collect"
-  schedule:
-    - cron: '30 15 * * *'   # 毎日 00:30 JST に日次収集（三条:00・ぎふや相当とずらす）
-    - cron: '25 * * * *'    # 毎時 heal（一時保存を永続へ昇格。三条:15・ぎふや:20 とずらして :25）
-    - cron: '30 1 * * 1'    # 毎週月曜 10:30 JST に先週のまとめを通知
+  # schedule: ここはトークン＆テンプレ確定までOFF（go-live時に復活）
+  # - cron: '30 15 * * *'   # 毎日 00:30 JST に日次収集（三条:00・ぎふや相当とずらす）
+  # - cron: '25 * * * *'    # 毎時 heal（一時保存を永続へ昇格。三条:15・ぎふや:20 とずらして :25）
+  # - cron: '30 1 * * 1'    # 毎週月曜 10:30 JST に先週のまとめを通知
 jobs:
   insights:
     runs-on: ubuntu-latest

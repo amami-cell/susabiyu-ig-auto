@@ -3,10 +3,10 @@ name: goldporta-prepare
 # 承認待ち_goldporta タブへ pending 登録する。オーナーは確認アプリで承認/作り直し/やめるを操作。
 # stores.py の goldporta エントリ（Driveフォルダ・ブランドprops・food-onlyパターン・文言）で動く。
 on:
-  schedule:
-    # JST 05:20 / 06:20（＝UTC 20:20 / 21:20 前日）。prepare は冪等なので複数cronは信頼性バックアップ。
-    - cron: '20 20 * * *'
-    - cron: '20 21 * * *'
+  # schedule: ここはトークン＆テンプレ確定までOFF（go-live時に復活）
+  # # JST 05:20 / 06:20（＝UTC 20:20 / 21:20 前日）。prepare は冪等なので複数cronは信頼性バックアップ。
+  # - cron: '20 20 * * *'
+  # - cron: '20 21 * * *'
   workflow_dispatch:
     inputs:
       date:

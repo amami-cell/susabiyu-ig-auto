@@ -3,10 +3,10 @@ name: goldporta-post
 # GitHub cron 遅延に強くするため、各cronはスロット時刻(JST)を明示して post_approved に渡す。
 # 承認/差し替え/やめる/作り直しは確認アプリ→GAS→シートに反映済みの状態を尊重して投稿する。
 on:
-  schedule:
-    - cron: '0 2 * * *'    # JST 11:00 枠
-    - cron: '0 9 * * *'    # JST 18:00 枠
-    - cron: '0 11 * * *'   # JST 20:00 枠
+  # schedule: ここはトークン＆テンプレ確定までOFF（go-live時に復活）
+  # - cron: '0 2 * * *'    # JST 11:00 枠
+  # - cron: '0 9 * * *'    # JST 18:00 枠
+  # - cron: '0 11 * * *'   # JST 20:00 枠
   workflow_dispatch:
     inputs:
       datetime:

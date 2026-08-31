@@ -2,8 +2,8 @@ name: goldporta-redo-scan
 # GOLD京都ポルタ：確認アプリで「作り直す」された枠(status=redo)を、GAS→GitHub起動に依存せず
 # 30分ごとに必ず拾って再生成する安全網（三条 redo_scan と同じ）。承認待ち_goldporta を見る。
 on:
-  schedule:
-    - cron: '*/30 * * * *'
+  # schedule: ここはトークン＆テンプレ確定までOFF（go-live時に復活）
+  # - cron: '*/30 * * * *'
   workflow_dispatch:
 permissions:
   contents: read

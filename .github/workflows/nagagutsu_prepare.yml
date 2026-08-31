@@ -3,10 +3,10 @@ name: nagagutsu-prepare
 # 承認待ち_nagagutsu タブへ pending 登録する。オーナーは確認アプリで承認/作り直し/やめるを操作。
 # stores.py の nagagutsu エントリ（Driveフォルダ・ブランドprops・food-onlyパターン・文言）で動く。
 on:
-  schedule:
-    # JST 05:15 / 06:15（＝UTC 20:15 / 21:15 前日）。prepare は冪等なので複数cronは信頼性バックアップ。
-    - cron: '15 20 * * *'
-    - cron: '15 21 * * *'
+  # schedule: ここはトークン＆テンプレ確定までOFF（go-live時に復活）
+  # # JST 05:15 / 06:15（＝UTC 20:15 / 21:15 前日）。prepare は冪等なので複数cronは信頼性バックアップ。
+  # - cron: '15 20 * * *'
+  # - cron: '15 21 * * *'
   workflow_dispatch:
     inputs:
       date:
