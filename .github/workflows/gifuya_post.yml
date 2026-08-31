@@ -66,6 +66,11 @@ jobs:
           DRY: ${{ github.event.inputs.dry }}
           SCHED: ${{ github.event.schedule }}
           INPUT_DT: ${{ github.event.inputs.datetime }}
+          # 遅延ガード：スケジュール実行(cron)時のみ有効。GitHubのcron遅延で予定枠より
+          # 大幅に遅れた(既定120分超)場合は投稿せずスキップし、深夜の自動投稿を防ぐ。
+          # 手動 workflow_dispatch（＝アプリの「即投稿」）では未設定＝従来どおり時刻不問で投稿。
+          POST_SCHED_GUARD: ${{ github.event.schedule && '1' || '' }}
+          POST_MAX_LATE_MIN: "120"
         run: |
           DT="$INPUT_DT"
           if [ -z "$DT" ] && [ -n "$SCHED" ]; then
