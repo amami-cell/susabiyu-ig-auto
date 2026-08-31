@@ -1,5 +1,14 @@
 ﻿import { Composition } from "remotion";
 import { YoshokuDish, YOSHOKU_DUR } from "./YoshokuDish";
+import { YoshokuChalk, YCHALK_DUR } from "./YoshokuChalk";
+import { YoshokuSizzle, YSIZZLE_DUR } from "./YoshokuSizzle";
+import { YoshokuMag, YMAG_DUR } from "./YoshokuMag";
+import { YoshokuCine, YCINE_DUR } from "./YoshokuCine";
+import { YoshokuWine, YWINE_DUR } from "./YoshokuWine";
+import { YoshokuTrio, YTRIO_DUR } from "./YoshokuTrio";
+import { YoshokuPola, YPOLA_DUR } from "./YoshokuPola";
+import { YoshokuType, YTYPE_DUR } from "./YoshokuType";
+import { YoshokuOpen, YOPEN_DUR } from "./YoshokuOpen";
 import { SushiStory } from "./SushiStory";
 import { SimpleStory } from "./SimpleStory";
 import { PhotoStory } from "./PhotoStory";
@@ -68,6 +77,15 @@ export const RemotionRoot: React.FC = () => {
   return (
     <>
       <Composition id="YoshokuDish" component={YoshokuDish} fps={FPS} width={1080} height={1920} durationInFrames={YOSHOKU_DUR} defaultProps={{ storeName: STORE, handle: "@susabiyu_sanjyo", theme: "neutral" }} />
+      <Composition id="YoshokuChalk" component={YoshokuChalk} fps={FPS} width={1080} height={1920} durationInFrames={YCHALK_DUR} defaultProps={{ storeName: STORE, handle: "@susabiyu_sanjyo", theme: "neutral" }} />
+      <Composition id="YoshokuSizzle" component={YoshokuSizzle} fps={FPS} width={1080} height={1920} durationInFrames={YSIZZLE_DUR} defaultProps={{ storeName: STORE, handle: "@susabiyu_sanjyo", theme: "neutral" }} />
+      <Composition id="YoshokuMag" component={YoshokuMag} fps={FPS} width={1080} height={1920} durationInFrames={YMAG_DUR} defaultProps={{ storeName: STORE, handle: "@susabiyu_sanjyo", theme: "neutral" }} />
+      <Composition id="YoshokuCine" component={YoshokuCine} fps={FPS} width={1080} height={1920} durationInFrames={YCINE_DUR} defaultProps={{ storeName: STORE, handle: "@susabiyu_sanjyo", theme: "neutral" }} />
+      <Composition id="YoshokuWine" component={YoshokuWine} fps={FPS} width={1080} height={1920} durationInFrames={YWINE_DUR} defaultProps={{ storeName: STORE, handle: "@susabiyu_sanjyo", theme: "neutral" }} />
+      <Composition id="YoshokuTrio" component={YoshokuTrio} fps={FPS} width={1080} height={1920} durationInFrames={YTRIO_DUR} defaultProps={{ storeName: STORE, handle: "@susabiyu_sanjyo", theme: "neutral" }} />
+      <Composition id="YoshokuPola" component={YoshokuPola} fps={FPS} width={1080} height={1920} durationInFrames={YPOLA_DUR} defaultProps={{ storeName: STORE, handle: "@susabiyu_sanjyo", theme: "neutral" }} />
+      <Composition id="YoshokuType" component={YoshokuType} fps={FPS} width={1080} height={1920} durationInFrames={YTYPE_DUR} defaultProps={{ storeName: STORE, handle: "@susabiyu_sanjyo", theme: "neutral" }} />
+      <Composition id="YoshokuOpen" component={YoshokuOpen} fps={FPS} width={1080} height={1920} durationInFrames={YOPEN_DUR} defaultProps={{ storeName: STORE, handle: "@susabiyu_sanjyo", theme: "neutral" }} />
       <Composition id="SushiStory" component={SushiStory} fps={FPS} width={1080} height={1920} durationInFrames={dur} defaultProps={{ storeName: STORE, handle: "@susabiyu_sanjyo" }} />
       <Composition id="SimpleStory" component={SimpleStory} fps={FPS} width={1080} height={1920} durationInFrames={150} defaultProps={{ storeName: STORE, handle: "@susabiyu_sanjyo" }} />
       <Composition id="PhotoStory" component={PhotoStory} fps={FPS} width={1080} height={1920} durationInFrames={150} defaultProps={{ handle: "@susabiyu_sanjyo" }} />

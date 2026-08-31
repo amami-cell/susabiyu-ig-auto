@@ -1,0 +1,67 @@
+name: yoshoku-samples
+# 洋食おしゃれテンプレの「見本ギャラリー」を一括レンダリングして永続CDNへ納品する（投稿しない）。
+# render_samples.py が STORE_ACCOUNT の店舗写真・theme で各テンプレを1本ずつ描き、jsDelivr/R2へ。
+# ログ末尾の window.GIFUYA.SAMPLES=... を config.<account>.js に貼るだけで確認アプリに見本が並ぶ。
+on:
+  workflow_dispatch:
+    inputs:
+      account:
+        description: "店舗アカウント（nagagutsu / goldporta）"
+        required: false
+        default: "nagagutsu"
+      patterns:
+        description: "対象パターン（カンマ区切り。空=洋食10種すべて）例 yoshokusizzle,yoshokutype"
+        required: false
+        default: ""
+permissions:
+  contents: read
+concurrency:
+  group: yoshoku-samples
+  cancel-in-progress: false
+jobs:
+  samples:
+    runs-on: ubuntu-latest
+    timeout-minutes: 55
+    defaults:
+      run:
+        working-directory: susabiyu-remotion
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install Python deps
+        run: pip install google-api-python-client google-auth requests jpholiday Pillow boto3 numpy
+      - name: Install Node deps
+        run: npm ci
+      - name: Install ffmpeg
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg
+      - name: Write creds.json
+        run: echo "$GOOGLE_CREDS_B64" | base64 -d > creds.json
+        env:
+          GOOGLE_CREDS_B64: ${{ secrets.GOOGLE_CREDS_B64 }}
+      - name: Render サンプル一括
+        env:
+          STORE_ACCOUNT: ${{ github.event.inputs.account }}
+          PATTERNS: ${{ github.event.inputs.patterns }}
+          GOOGLE_CREDS_B64: ${{ secrets.GOOGLE_CREDS_B64 }}
+          SHEET_ID: ${{ secrets.SHEET_ID }}
+          # 永続ホスト（確認アプリで何度も見るため）：jsDelivr→R2 の順でフォールバック。
+          GH_MEDIA_TOKEN: ${{ secrets.GH_MEDIA_TOKEN }}
+          GH_MEDIA_REPO: ${{ secrets.GH_MEDIA_REPO }}
+          R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          R2_BUCKET: ${{ secrets.R2_BUCKET }}
+          R2_PUBLIC_BASE: ${{ secrets.R2_PUBLIC_BASE }}
+        run: python render_samples.py creds.json
+      - name: 生成結果(SAMPLES JSON)を成果物として保存
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: yoshoku-samples-json
+          path: susabiyu-remotion/out/samples.json
+          if-no-files-found: warn

@@ -26,7 +26,9 @@ REGION_FREE_PATTERNS = [
     "taishutempo", "taishushun", "taishuhito", "taishugaku", "taishucap",
     "taishuimga", "taishuimga2", "taishuimgb", "taishuimgd", "taishuimgf",
     "oshinatate", "taishutanzaku",   # この2つは region prop 対応済み
-    "yoshokudish",                   # 洋食おしゃれ（region非依存・theme配色）
+    # 洋食おしゃれ10種（region非依存・theme配色・fetch_typoの食材写真のみで完結）
+    "yoshokudish", "yoshokuchalk", "yoshokusizzle", "yoshokumag", "yoshokucine",
+    "yoshokuwine", "yoshokutrio", "yoshokupola", "yoshokutype", "yoshokuopen",
 ]
 
 # 【重要】region-free でも fetch_tempo/photostory/simple を使う comp は SAKE/内観/イベントの
@@ -49,7 +51,16 @@ FOOD_ONLY_PATTERNS = [
 # 上品なセリフ×余白×金or生成りの縁取りで料理写真を主役にする（theme で配色切替）。
 # food-only（食材フォルダのみ）で完結＝他店フォルダ混入ゼロ。
 YOSHOKU_PATTERNS = [
-    "yoshokudish",   # YoshokuDish（本日の一皿・おしゃれ）
+    "yoshokudish",    # ①本日の一皿（主役写真＋上品セリフ）
+    "yoshokuchalk",   # ②黒板トラットリア（黒板×チョーク）
+    "yoshokusizzle",  # ③鉄板ジュ〜っと（肉・湯気パーティクル）
+    "yoshokumag",     # ④雑誌エディトリアル（縦組み見出し）
+    "yoshokucine",    # ⑤シネマ・フルスクリーン（レターボックス）
+    "yoshokuwine",    # ⑥ワインと共に（2枚ペアリング）
+    "yoshokutrio",    # ⑦おすすめ3品スライド（01/02/03）
+    "yoshokupola",    # ⑧ポラロイド重ね（4枚シェア感）
+    "yoshokutype",    # ⑨大見出しタイポ（超特大の一言）
+    "yoshokuopen",    # ⑩本日OPEN案内（集客・予約導線）
 ]
 
 STORES = {
