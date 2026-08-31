@@ -13,7 +13,7 @@ on:
   workflow_dispatch:
     inputs:
       mode:
-        description: "probe=API確認 / gen=生成"
+        description: "probe / gen / manifest / ingest=手動取込 / mkmanual=手動クリップ用Driveフォルダ作成"
         required: false
         default: "gen"
       space:
@@ -22,6 +22,10 @@ on:
         default: ""
       api_name:
         description: "predictのapi_name上書き（空=既定 /generate）"
+        required: false
+        default: ""
+      compare:
+        description: "1=固定の標準画像(中トロ)で生成＝各モデル同一条件の比較用"
         required: false
         default: ""
 permissions:
@@ -52,6 +56,7 @@ jobs:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
           HF_SPACE: ${{ github.event.inputs.space }}
           HF_API_NAME: ${{ github.event.inputs.api_name }}
+          COMPARE_IMAGE: ${{ github.event.inputs.compare }}
           GOOGLE_CREDS_B64: ${{ secrets.GOOGLE_CREDS_B64 }}
           SHEET_ID: ${{ secrets.SHEET_ID }}
           GENRE_FOOD_ID: ${{ secrets.GENRE_FOOD_ID }}
@@ -67,3 +72,17 @@ jobs:
           [ -z "$HF_SPACE" ] && unset HF_SPACE || true
           [ -z "$HF_API_NAME" ] && unset HF_API_NAME || true
           python gen_i2v.py "${{ github.event.inputs.mode || 'gen' }}" creds.json
+      - name: Ingest manual clips (Kling/Hailuo等をDriveから取り込み)
+        if: ${{ github.event.inputs.mode != 'probe' }}
+        env:
+          GOOGLE_CREDS_B64: ${{ secrets.GOOGLE_CREDS_B64 }}
+          SHEET_ID: ${{ secrets.SHEET_ID }}
+          MANUAL_CLIPS_ID: ${{ secrets.MANUAL_CLIPS_ID }}
+          R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          R2_BUCKET: ${{ secrets.R2_BUCKET }}
+          R2_PUBLIC_BASE: ${{ secrets.R2_PUBLIC_BASE }}
+          GH_MEDIA_TOKEN: ${{ secrets.GH_MEDIA_TOKEN }}
+          GH_MEDIA_REPO: ${{ secrets.GH_MEDIA_REPO }}
+        run: python gen_i2v.py ingest creds.json

@@ -10,9 +10,9 @@
 <meta name="theme-color" content="#0f1115">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<title>すさび湯 三条 ・ 投稿の確認（フィード / リール）</title>
+<title>GOLD京都ポルタ ・ 投稿の確認（フィード / リール）</title>
 <style>
-  /* ぎふや gifuya_reels.html と同一の土台デザイン。すさび湯三条用に自己完結で実装。 */
+  /* 三条 reels.html と同一の土台デザイン。GOLD京都ポルタ用に自己完結で実装。 */
   *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;margin:0;padding:0}
   :root{--bg:#0f1115;--card:#181c23;--line:#262c36;--fg:#eaeef2;--sub:#9aa3b2;
         --ok:#1f9d55;--rd:#3b6fd6;--ng:#3a414d;--accent:#7fd1a0;--gold:#e0b56e;--reel:#7a4fd6}
@@ -46,7 +46,7 @@
   .mediaWrap{position:relative;border-radius:13px;overflow:hidden;background:#000;width:100%}
   .mediaWrap.feed{aspect-ratio:4/5}
   .mediaWrap.reel{aspect-ratio:9/16}
-  /* トリミング（リール用） */
+  /* トリミング（リール用・三条と同じ） */
   .trim{margin:10px 2px 2px}
   .trimhd{display:flex;justify-content:space-between;font-size:12px;color:var(--sub);font-weight:800;margin-bottom:6px}
   .trimhd b{color:#e2d3ff}
@@ -55,7 +55,7 @@
   .rangewrap input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;pointer-events:auto;width:20px;height:20px;border-radius:50%;background:var(--reel);border:2px solid #fff;margin-top:-8px}
   .rangewrap .track{position:absolute;left:0;right:0;top:15px;height:5px;border-radius:3px;background:#2a3140}
   .rangewrap .sel{position:absolute;top:15px;height:5px;border-radius:3px;background:var(--reel)}
-  /* 最新タグ取得のパスコード・ゲート */
+  /* 最新タグ取得のパスコード・ゲート（三条と同じ） */
   .gate{position:fixed;inset:0;background:#0f1115;display:none;flex-direction:column;justify-content:center;
     align-items:center;gap:18px;padding:30px;z-index:200}
   .gate.on{display:flex}
@@ -174,7 +174,7 @@
 <body>
 <header class="topbar">
   <div class="bar">
-    <a class="back" href="./index.html">← 戻る</a>
+    <a class="back" href="./goldporta.html">← 戻る</a>
     <h1>投稿の確認</h1>
     <span class="mode" id="mode"></span>
   </div>
@@ -197,11 +197,11 @@
   <a id="pccancel">キャンセル</a>
 </div>
 
-<!-- ハッシュタグ編集モーダル -->
+<!-- ハッシュタグ編集モーダル（三条と同じ） -->
 <div class="modal" id="tagmodal">
   <div class="sheet">
     <h3>ハッシュタグを編集</h3>
-    <div class="sub">タップで選択／解除。★＝人気の目安、点線＝インバウンド向け。「今の地域のおすすめ」で河原町三条・京都の人気タグを取得できます。</div>
+    <div class="sub">タップで選択／解除。★＝人気の目安、点線＝インバウンド向け。「今の地域のおすすめ」で地域の人気タグを取得できます。</div>
     <div id="tagbody"></div>
     <button class="sheetclose" id="tagclose">この内容で決定</button>
   </div>
@@ -227,55 +227,63 @@
 </div>
 
 <div id="toast"></div>
-<div class="foot">すさび湯グループ 投稿管理 ・ 大衆寿司酒場すさび湯 三条<br>
+<div class="foot">すさび湯グループ 投稿管理 ・ GOLD京都ポルタ<br>
   <span id="verlbl" style="opacity:.7"></span>
   <a id="forceupd" style="color:#8ab4e0;text-decoration:underline;cursor:pointer;margin-left:8px">🔄 最新に更新</a>
 </div>
 
-<script src="./config.js"></script>
+<script src="./config.goldporta.js"></script>
 <script>
 (function(){
   "use strict";
-  window.__APPV = "v197";   // 画面下の版数表示用（sw.js の VER と同期・コード変更で更新）
-  var CFG = window.SUSABIYU || {};
+  var V = "?v=174";  // メディアのキャッシュ更新用
+  window.__APPV = "v" + (V.replace("?v=","")||"?");   // 画面下の版数表示用（?v=と同期）
+  var CFG = window.GIFUYA || {};
+  var LIVE = !!window.GIFUYA_LIVE;               // 専用GAS注入済みなら実データ連携
   var GAS = (CFG.GAS_URL||"").trim();
-  // 実データ連携が有効か（config.js の GAS_URL が実物URLに置換済みか）。未置換(PASTE_)なら見本モード。
-  var LIVE = /^https:\/\//.test(GAS) && GAS.indexOf("PASTE_")!==0;
-  var ACCOUNT = CFG.ACCOUNT || "";               // 三条は既定（空）＝account送らない。多店舗時のみ指定。
-  var SAMPLEVID="https://cdn.jsdelivr.net/gh/amami-cell/susabiyu-media@594980686729a6ec0fc2c41873615443d42fa9a4/preview/20260720125216_0788.mp4";
-  // 投稿キャプションのテンプレ（{NAME}に商品名）。三条は本文テンプレ自体に店舗情報まで含む。
-  var FEEDCAP="こんにちは\n河原町三条店の【大衆寿司酒場すさび湯】です🍻\n\n本日のおすすめは、{NAME}です！\n新鮮なネタのお寿司も、豊富な一品料理も、うれしい価格でご用意しています。\nドリンク全品170円で、気兼ねなく乾杯を。\n\n♨️\"すさび湯\"とは\n『遊びに来る感覚で楽しんでほしい』という想いから、“遊ぶ”の語源である“すさぶ”と、日常に溶け込んだ“銭湯”を掛け合わせて“すさび湯”と名付けました。\n価格はカジュアルに、お寿司は本格的に。\n\n▪️▪️▪️▪️▪️▪️▪️▪️▪️▪️\n#すさび湯\n・営業時間\n月〜金 16:00〜23:00\n土日祝 11:00〜23:00\n・住所\n京都市中京区河原町通三条上る恵比寿町534-16\n京阪本線 三条駅から徒歩約4分\n▪️▪️▪️▪️▪️▪️▪️▪️▪️▪️\n\n新メニューやお得な情報も投稿していきます。\nぜひフォローお願いします！";
-  var REELCAP="本日のおすすめは、{NAME}です！🍣\n河原町三条／大衆寿司酒場すさび湯 三条\n\nドリンク全品170円、気兼ねなく乾杯を。\nお寿司は本格的に、価格はカジュアルに。";
-  // 商品説明あり（feed.jsonの各品）は「商品説明＋店舗情報テンプレ」、無い候補は{NAME}差し込みテンプレ。
-  var STORE_TAIL = "▪️▪️▪️▪️▪️▪️▪️▪️▪️▪️\n#すさび湯\n・営業時間\n月〜金 16:00〜23:00\n土日祝 11:00〜23:00\n・住所\n京都市中京区河原町通三条上る恵比寿町534-16\n京阪本線 三条駅から徒歩約4分\n▪️▪️▪️▪️▪️▪️▪️▪️▪️▪️\n\nドリンク全品170円、気兼ねなく乾杯を。\nぜひフォローお願いします！";
-  function cleanName(n){ return (n||"").replace(/\s*\d+$/,"").trim(); }   // 末尾の数字を除去（例：サーモン三昧2→サーモン三昧）
-  function capFor(tmpl,name){ return tmpl.replace(/\{NAME\}/g, cleanName(name)); }
-  function bodyCap(kind,p){ if(p&&p.cap){ return p.cap + "\n\n" + STORE_TAIL; } return capFor(kind==="feed"?FEEDCAP:REELCAP, p&&p.t||""); }
-
+  var ACCOUNT = CFG.ACCOUNT || "goldporta";   // 予約投稿タブ J列 / AcctTokens と一致
+  var COMMON = "#GOLD京都ポルタ #フレンチ #フレンチ酒場 #ビストロ #ワインに合う #京都グルメ #京都駅グルメ #ディナー #デート #女子会 #frenchfood #bistro #winebar";
+  // 店舗情報テンプレ（各投稿のキャプション末尾に自動追加）。空行の見えない文字(U+2061)はInstagramで改行を保持するため。
+  // ※営業時間・住所・アクセスは店舗情報確定後に記入（phase2）。
+  var TEMPLATE = [
+    "▪️▪️▪️▪️▪️▪️▪️▪️▪️▪️▪️▪️▪️▪️▪️▪️",
+    "⁡",
+    "GOLD京都ポルタ（フレンチ酒場）",
+    "⁡",
+    "▪️▪️▪️▪️▪️▪️▪️▪️▪️▪️▪️▪️▪️▪️▪️▪️",
+    "⁡",
+    "京都駅すぐ。本格フレンチをカジュアルに、ワインと共に楽しめる一皿を豊富にご用意しております🍷"
+  ].join("\n");
   // 選択ハッシュタグは全カード共有＋端末に保存（更新すると以降の投稿にも反映）。
-  var GSEL_LS = "sb_tags_v1";
+  var GSEL_LS = "gf_tags_v1";
   var GSEL = null;
   function defaultSel(){ var s={}; for(var i=0;i<DEFAULT.length;i++) s[DEFAULT[i]]=1; return s; }
   function loadGsel(){ try{ var o=JSON.parse(localStorage.getItem(GSEL_LS)||"null"); if(o&&typeof o==="object"&&Object.keys(o).length) return o; }catch(e){} return null; }
   function saveGsel(){ try{ localStorage.setItem(GSEL_LS, JSON.stringify(GSEL)); }catch(e){} }
   function selTags(){ return Object.keys(GSEL).map(function(x){return "#"+x;}).join(" "); }
-  // 重複ハッシュタグを除いて先頭から上限本数だけ残す（大文字小文字は同一視）。
+  // 重複ハッシュタグを除いて先頭から上限本数だけ残す（大文字小文字は同一視）。dishタグ→選択タグ→共通タグの優先順。
   function dedupeTags(str, limit){
     var seen={}, out=[], m=(str||"").match(/#[^\s#]+/g)||[];
     for(var i=0;i<m.length;i++){ var k=m[i].toLowerCase(); if(!seen[k]){ seen[k]=1; out.push(m[i]); } }
     return (limit?out.slice(0,limit):out).join(" ");
   }
-  // 実際に投稿される完成キャプション＝本文テンプレ＋選択ハッシュタグ（一番下に1箇所だけ）。
-  function fullCaption(kind,p){
-    var tags = dedupeTags(((p&&p.tags)?p.tags+" ":"") + selTags(), 13);   // 料理別タグ→選択タグの順で重複除去
-    return bodyCap(kind,p) + (tags?("\n\n" + tags):"");
+  function fullCaption(cap, dishTags){
+    // ハッシュタグは「選んだ分だけ」。共通タグの大量自動付与はやめ、料理タグ＋選択タグのみ。
+    // 並び：本文 → 店舗情報テンプレ → ハッシュタグ（＝一番下に1箇所だけまとめる）。
+    var tags = dedupeTags((dishTags?dishTags+" ":"") + selTags(), 13);
+    return (cap||"") + "\n\n" + TEMPLATE + (tags?("\n\n" + tags):"");
   }
-  // プレビュー表示用：ハッシュタグは下のチップで管理するので本文には並べない（本文テンプレのみ）。
-  function previewCaption(kind,p){ return bodyCap(kind,p); }
-  // ローカルの加工済みフィード画像(pwa/susabiyu/*.jpg)だけ軽量WebPへ変換。CDN/絶対URLはそのまま（webpが無いため）。
-  // ?v= のクエリ（キャッシュ更新用）が付いていても保持して変換する。
-  function thumbSrc(u){ u=String(u||""); return /susabiyu\/[^\/?#]+\.(jpe?g|png)(\?.*)?$/i.test(u) ? u.replace(/\.(jpe?g|png)(\?.*)?$/i,".thumb.webp$2") : u; }
-  function cardSrc(u){ u=String(u||""); return /susabiyu\/[^\/?#]+\.(jpe?g|png)(\?.*)?$/i.test(u) ? u.replace(/\.(jpe?g|png)(\?.*)?$/i,".card.webp$2") : u; }
+  // プレビュー表示用：ハッシュタグは下のチップで管理するので本文には並べない（本文＋お店情報テンプレのみ）。
+  // 実際の投稿・コピーは fullCaption（タグ入り）を使うので、投稿にはちゃんとタグが付く。
+  function previewCaption(cap){
+    return (cap||"") + "\n\n" + TEMPLATE;
+  }
+  // グリッド／小サムネ用の軽いWebPサムネURL（<name>.jpg → <name>.thumb.webp）。
+  // 無ければ <img onerror> で原寸へ自動フォールバックするので表示は壊れない。
+  function thumbSrc(u){ return String(u||"").replace(/\.(jpe?g|png)(\?.*)?$/i, ".thumb.webp"); }
+  // カード本表示用の中サイズ高品質WebP（<name>.card.webp）。無ければ原寸JPEGへ自動フォールバック。
+  // ※実際のInstagram投稿には原寸JPEGを使うので投稿画質は不変。表示だけ軽くする。
+  function cardSrc(u){ return String(u||"").replace(/\.(jpe?g|png)(\?.*)?$/i, ".card.webp"); }
   var refreshers=[];  // 全カードのタグ表示を一括更新するための登録先
   function refreshAll(){ for(var i=0;i<refreshers.length;i++){ try{ refreshers[i](); }catch(e){} } }
   var toastEl=document.getElementById("toast"),toastT=null;
@@ -287,17 +295,17 @@
   mode.textContent = LIVE ? "実データ連携" : "見本モード";
   mode.className = "mode " + (LIVE ? "live" : "demo");
 
-  /* ---------- GAS(JSONP) ---------- */
+  /* ---------- 専用GAS(JSONP) ---------- */
   var jc=0;
   function gJsonp(params){
     return new Promise(function(resolve,reject){
       if(!LIVE || !GAS || GAS.indexOf("PASTE_")===0){ reject(new Error("no-backend")); return; }
-      var cb="__sb"+(++jc)+"_"+Date.now(), s=document.createElement("script");
+      var cb="__gf"+(++jc)+"_"+Date.now(), s=document.createElement("script");
       var to=setTimeout(function(){cleanup();reject(new Error("timeout"));},9000);
       function cleanup(){clearTimeout(to);delete window[cb];if(s.parentNode)s.parentNode.removeChild(s);}
       window[cb]=function(d){cleanup();resolve(d);};
-      if(ACCOUNT && params.account===undefined) params.account=ACCOUNT;   // 三条(空)は送らない＝既定店舗
-      if(!params.key){ try{ params.key=localStorage.getItem("sb_key")||"8888"; }catch(e){ params.key="8888"; } }
+      if(params.account===undefined) params.account=ACCOUNT;
+      if(!params.key){ try{ params.key=localStorage.getItem("gf_key")||"8888"; }catch(e){ params.key="8888"; } }
       var q=Object.keys(params).map(function(k){return k+"="+encodeURIComponent(params[k]);}).join("&");
       s.src=GAS+(GAS.indexOf("?")>=0?"&":"?")+q+"&cb="+cb;
       s.onerror=function(){cleanup();reject(new Error("network"));};
@@ -306,27 +314,25 @@
   }
   function absUrl(raw){ if(!raw) return ""; try{ return new URL(raw, location.href).href; }catch(e){ return raw; } }
 
-  /* ---------- ハッシュタグ辞書（京都・河原町三条／★=人気の目安・点線=インバウンド） ---------- */
+  /* ---------- ハッシュタグ辞書（フレンチ酒場／★=人気の目安・点線=インバウンド） ---------- */
   var HTAGS=[
-    {t:"京都グルメ",r:3},{t:"飯テロ",r:3},{t:"寿司",r:3},
-    {t:"京都居酒屋",r:2},{t:"すし酒場",r:2},{t:"大衆酒場",r:2},{t:"海鮮",r:2},{t:"日本酒",r:2},
-    {t:"河原町三条",r:1},{t:"三条グルメ",r:1},{t:"京都寿司",r:1},{t:"生ビール",r:1},{t:"すさび湯三条",r:1},
-    {t:"sushi",r:3,inb:1},{t:"kyoto",r:3,inb:1},{t:"japanfood",r:2,inb:1},{t:"kyotofood",r:2,inb:1},{t:"visitkyoto",r:1,inb:1},{t:"japantrip",r:1,inb:1}
+    {t:"京都グルメ",r:3},{t:"フレンチ",r:3},{t:"飯テロ",r:3},
+    {t:"フレンチ酒場",r:2},{t:"ワインに合う",r:2},{t:"ビストロ",r:2},{t:"ディナー",r:2},{t:"デート",r:2},
+    {t:"GOLD京都ポルタ",r:1},{t:"京都駅グルメ",r:1},{t:"チーズ",r:1},{t:"赤ワイン",r:1},{t:"女子会",r:1},
+    {t:"kyoto",r:3,inb:1},{t:"frenchfood",r:2,inb:1},{t:"japanfood",r:2,inb:1},{t:"winebar",r:2,inb:1},{t:"japantrip",r:1,inb:1}
   ];
-  var DEFAULT=["京都グルメ","河原町三条","京都居酒屋","すし酒場","三条グルメ","sushi","kyoto"]; // 国内5＋インバウンド2＝7
+  var DEFAULT=["京都グルメ","フレンチ","フレンチ酒場","ワインに合う","GOLD京都ポルタ","kyoto","frenchfood"]; // 国内5＋インバウンド2＝7
   var STAR={3:"★★★",2:"★★",1:"★"}, RANKTTL={3:"人気 大",2:"人気 中",1:"人気 小（上位ねらい）"};
 
-  /* ---------- 地域おすすめタグ（河原町三条・京都） ---------- */
+  /* ---------- 地域おすすめタグ（京都・ポルタ） ---------- */
   var REGIONAL=[], REG_LIVE=false, REG_UPDATED=0, REG_NEXT=0, REG_COOLDOWN_DAYS=7;
-  var REG_LS={t:"sb_reg_tags",u:"sb_reg_up",n:"sb_reg_nx",l:"sb_reg_live"};
-  var REGION_NAME="河原町三条（京都）";
+  var REG_LS={t:"gp_reg_tags",u:"gp_reg_up",n:"gp_reg_nx",l:"gp_reg_live"};
+  var REGION_NAME="京都（京都駅・ポルタ）";
   var REGION_POOL=[
-    {t:"京都ディナー",r:3},{t:"河原町グルメ",r:3},{t:"京都飲み",r:2},{t:"京都食べ歩き",r:2},
-    {t:"河原町ディナー",r:2},{t:"京都寿司",r:2},{t:"京都ランチ",r:2},{t:"三条河原町",r:1},
-    {t:"先斗町",r:1},{t:"木屋町グルメ",r:1},{t:"河原町居酒屋",r:1},{t:"京都晩ごはん",r:1},
-    {t:"kyotojapan",r:3,inb:1},{t:"kyotofood",r:3,inb:1},{t:"kyotogourmet",r:2,inb:1},
-    {t:"japanesefood",r:2,inb:1},{t:"izakaya",r:2,inb:1},{t:"kyotorestaurant",r:1,inb:1},
-    {t:"kyotonight",r:1,inb:1},{t:"visitkyoto",r:1,inb:1},{t:"kawaramachi",r:1,inb:1}
+    {t:"京都グルメ",r:3},{t:"京都ディナー",r:3},{t:"京都駅グルメ",r:2},{t:"京都ランチ",r:2},
+    {t:"京都居酒屋",r:2},{t:"京都バル",r:2},{t:"京都デート",r:1},{t:"京都女子会",r:1},
+    {t:"京都ワイン",r:1},{t:"京都駅ディナー",r:1},
+    {t:"kyotojapan",r:3,inb:1},{t:"kyotofood",r:3,inb:1},{t:"kyotogourmet",r:2,inb:1},{t:"kyototrip",r:1,inb:1}
   ];
   function fmtDT(ms){ if(!ms) return "—"; var d=new Date(ms); return (d.getMonth()+1)+"/"+d.getDate()+" "+d.getHours()+":"+("0"+d.getMinutes()).slice(-2); }
   function fmtDate(ms){ if(!ms) return "—"; var d=new Date(ms); return (d.getMonth()+1)+"/"+d.getDate(); }
@@ -336,23 +342,11 @@
   function loadRegional(){ regLoadLocal(); gJsonp({api:"regionaltags", region:REGION_NAME, peek:1}).then(function(res){ if(regApply(res,Date.now())) regSaveLocal(); }).catch(function(){}); }
 
   /* ---------- 候補データ（実データ接続時は cands で差し替え可能） ---------- */
-  // 三条：加工前のサンプル写真＝接続時にバックエンドの投稿候補(media絶対URL)で差し替える。
-  var FEED = [
-    {img:"./sample/feed1.jpg", t:"まぐろ三昧", cap:"旨い、安い、賑やかに。", reco:true},
-    {img:"./sample/feed2.jpg", t:"サーモン三昧", cap:"この安さは、ちょっと反則。"},
-    {img:"./sample/feed3.jpg", t:"トロ三昧", cap:"仕事帰りに、フラッと一杯。"}
-  ];
-  var REEL = [
-    {video:SAMPLEVID, poster:"", t:"本日のにぎり", cap:"できたてを、その場で。", dur:48, reco:true},
-    {video:SAMPLEVID, poster:"", t:"乾杯シーン", cap:"まずは一杯、いかがですか。", dur:48},
-    {video:SAMPLEVID, poster:"", t:"揚げたて天ぷら", cap:"サクッと、揚げたて。", dur:48}
-  ];
-  // 候補カードの画像/動画URL。加工済みフィード画像は中身更新時に ?v を上げてキャッシュを確実に更新。
-  var SUSV = "?v=3";   // susabiyu/ の画像の版（中身が変わった時だけ上げる）
-  function feedImg(p){ return p.img ? p.img + SUSV : ""; }
-  function storyImg(p){ return p.story ? p.story + SUSV : ""; }   // バナーの9:16版（ストーリー予約用）
-  function reelVid(p){ return p.video||SAMPLEVID; }
-  function reelPoster(p){ return p.poster||""; }
+  // フィード候補は全て「加工済みの投稿画像(feed_01〜12)」＝ロゴ＋見出しデザイン入り。生写真は出さない。
+  // GOLD京都ポルタの見本メニューは店舗の実メニュー確定後に投入（phase2）。
+  // それまでは空＝見本グリッドは非表示。実データ連携時は cands / feed.json で差し替わる。
+  var FEED = [];
+  var REEL = [];
 
   /* ---------- ハッシュタグ編集（別画面・全カード共有） ---------- */
   var activeCard=null;
@@ -360,7 +354,7 @@
   function renderTagEditor(){
     var sel=GSEL, body=document.getElementById("tagbody");
     var now=Date.now(), cd=(REG_NEXT&&now<REG_NEXT);
-    var btnTxt=cd?("🔒 取得済み（次回取得可能 "+fmtDate(REG_NEXT)+"）"):"🔄 今の河原町三条・京都のおすすめを取得";
+    var btnTxt=cd?("🔒 取得済み（次回取得可能 "+fmtDate(REG_NEXT)+"）"):"🔄 今の地域のおすすめを取得";
     var html='<div class="tebar">選択中 <b class="tesel">'+Object.keys(sel).length+'</b> 個 ／ 点線＝インバウンド</div>'+
       '<button class="fetchbtn'+(cd?" cd":"")+'" id="fetchreg">'+btnTxt+'</button>'+
       '<div class="fetchnote">※「今の人気（Instagram調べ）」はInstagram Graph APIの制限で、ハッシュタグ検索が7日で30個まで。1人が取得すると全員に共有され、次回取得可能日が出ます。'+(LIVE?"":"（見本モードでは地域おすすめを表示）")+'</div>';
@@ -380,7 +374,7 @@
     body.querySelectorAll(".chip").forEach(function(ch){ ch.onclick=function(){ var t=ch.getAttribute("data-t"); if(sel[t]){delete sel[t];ch.classList.remove("on");}else{sel[t]=1;ch.classList.add("on");} body.querySelector(".tesel").textContent=Object.keys(sel).length; }; });
     document.getElementById("fetchreg").onclick=fetchRegional;
   }
-  // 最新タグ取得のパスコード（8888）。確認画面自体はコード不要・取得の時だけ確認する。
+  // 最新タグ取得のパスコード（8888）。確認画面自体はコード不要・取得の時だけ確認する（三条と同じ）。
   var PC_HASH="2926a2731f4b312c08982cacf8061eb14bf65c1a87cc5d70e864e079c6220731"; // sha256("8888")
   function sha256(str){ return crypto.subtle.digest("SHA-256",new TextEncoder().encode(str)).then(function(h){ var a=new Uint8Array(h),s=""; for(var i=0;i<a.length;i++)s+=("0"+a[i].toString(16)).slice(-2); return s; }); }
   function requireFetchPass(cb){
@@ -412,7 +406,7 @@
       toast(LIVE?"取得できませんでした。地域おすすめを表示":"地域のおすすめタグを表示（見本）");
     });
   }
-  // リール用トリミングUI（頭0.5秒スキップから30秒を初期選択・プレビューで確認）。
+  // リール用トリミングUI（三条と同じ。頭0.5秒スキップから30秒を初期選択・プレビューで確認）。
   function fmt(t){ t=Math.max(0,Math.round(t)); var m=Math.floor(t/60),s=t%60; return m+":"+(s<10?"0":"")+s; }
   function setupTrim(card,it){
     var v=card.querySelector("video"), ts=card.querySelector(".ts"), te=card.querySelector(".te"),
@@ -426,7 +420,7 @@
       sel.style.left=ts.value+"%"; sel.style.width=(te.value-ts.value)+"%";
       lenEl.textContent=fmt(e-s); allEl.textContent=fmt(total);
       stEl.textContent="開始 "+fmt(s); enEl.textContent="終了 "+fmt(e);
-      card._trim={start:Math.round(s*10)/10, end:Math.round(e*10)/10};
+      card._trim={start:Math.round(s*10)/10, end:Math.round(e*10)/10};   // 予約時に切取位置を渡す
       try{ v.currentTime=s; }catch(x){}
     }
     function initRange(){
@@ -444,13 +438,14 @@
   document.getElementById("tagmodal").addEventListener("click",function(e){ if(e.target===this){ closeTagEditor(); } });
 
   /* ---------- 実投稿/予約（実データ接続時はGASへ、未接続は見本） ---------- */
-  function mediaFor(kind,it){ return kind==="reel"?reelVid(it):(kind==="story"?storyImg(it):feedImg(it)); }
   function doSchedule(kind,it,when,slot,label){
     var name=it.t||"";
-    // ストーリーはIG仕様でキャプション不可＝本文なしで送る（feed/reelは従来通り）。
-    var caption=(kind==="story")?"":fullCaption(kind,it);   // 本文＋ハッシュタグ（1箇所）。hashtags別枠は空＝重複防止。
-    var media=absUrl(mediaFor(kind,it));
-    var params={api:"schedule", kind:(kind==="reel"?"reel":(kind==="story"?"story":"feed")), name:name, when:when, media:media, caption:caption, hashtags:""};
+    // caption は本文＋ハッシュタグ＋店舗情報の「完成形」。ハッシュタグはこの中に1回だけ含まれる。
+    // 別枠 hashtags には入れない（投稿エンジンが再度末尾に付けて“上にも下にも”重複するのを防ぐ）。
+    var caption=fullCaption(it.cap, it.tags);
+    var media=absUrl("goldporta/"+(kind==="feed"?it.img:it.vid));
+    var params={api:"schedule", kind:(kind==="feed"?"feed":"reel"), name:name, when:when, media:media, caption:caption, hashtags:""};
+    // リールは切取位置(秒)を渡す。投稿エンジンが ffmpeg で切り出してから投稿する。
     var card=(slot&&slot.closest)?slot.closest(".card"):null;
     if(kind==="reel" && card && card._trim && (card._trim.end-card._trim.start)>=1){
       params.trimStart=card._trim.start; params.trimEnd=card._trim.end;
@@ -467,9 +462,10 @@
   }
 
   /* ---------- 予約データ（schedlist）キャッシュ＋カレンダー ---------- */
-  var SCHED=[];          // 予約一覧 [{token,when,kind,media,name,caption,hashtags,status,note}]
+  var SCHED=[];          // 予約一覧 [{token,when,kind,media,name}]
   var schedCb=null;      // 取得後の再描画コールバック（現在のタブ用）
   var schedFetchedAt=0;  // 直近取得時刻（短時間キャッシュ＝無駄な通信を省く）
+  // force=true で必ず取得。それ以外は20秒以内なら通信せず即描画（stale-while-revalidate）。
   function loadSched(cb, force){
     if(cb) schedCb=cb;
     if(!LIVE){ SCHED=[]; if(schedCb)schedCb(); return; }
@@ -477,35 +473,19 @@
     gJsonp({api:"schedlist"}).then(function(res){ SCHED=(res&&res.items)||[]; schedFetchedAt=Date.now(); if(schedCb)schedCb(); })
       .catch(function(){ if(schedCb)schedCb(); });
   }
-  /* フィード候補＝加工済みの投稿画像(pwa/susabiyu/feed_XX.jpg)。feed.jsonから全商品を読み込む。 */
-  function loadFeedJson(){
-    fetch("./susabiyu/feed.json", {cache:"no-store"}).then(function(r){ return r.ok?r.json():null; }).then(function(d){
-      if(!d||!d.items||!d.items.length) return;
-      FEED = d.items.map(function(it){ return {img:"./susabiyu/"+it.img, story:it.story?("./susabiyu/"+it.story):"", t:it.name||it.title||"", cap:it.cap||"", tags:it.tags||"", reco:!!it.reco, banner:!!it.banner}; });
-      FEED = shuffleFeed(FEED);
-      if(tF.classList.contains("on")) render("feed");
-    }).catch(function(){});
-  }
-  /* リール候補を共有ストア(GAS)から読む（接続時）。フィードはfeed.jsonが正なので上書きしない。 */
-  function loadCands(){
-    gJsonp({api:"cands"}).then(function(res){
-      if(!res||!res.ok) return;
-      if(res.reel&&res.reel.length){
-        REEL=res.reel.map(function(c){ return {video:c.media||SAMPLEVID, poster:c.poster||"", t:c.name||"", cap:c.copy||"", dur:c.dur||48, reco:!!c.reco}; });
-        if(tR.classList.contains("on")) render("reel");
-      }
-    }).catch(function(){});
-  }
 
-  /* ---------- 料理ジャンル分類（連続の偏りを避ける・寿司/海鮮向け） ---------- */
+  /* ---------- 料理ジャンル分類（連続の偏りを避ける・順番が肝） ---------- */
   function genreOf(n){ n=String(n||"");
-    if(/にぎり|握り|鮨|寿司|すし|軍艦|巻き|鉄火|手毬/.test(n)) return "寿司";
-    if(/天ぷら|天麩羅|唐揚|から揚|フライ|揚げ|串カツ|串かつ|コロッケ|天$|天1本|えび天|あなご天|キス天/.test(n)) return "揚げ物";
-    if(/つくね|ねぎま|串焼|焼き鳥|焼鳥|もも串|串|焼き|鉄板|グリル/.test(n)) return "焼き物";
-    if(/まぐろ|マグロ|サーモン|トロ|とろ|鯛|たい|ぶり|ブリ|ハマチ|はまち|いか|イカ|たこ|タコ|えび|エビ|海鮮|刺身|刺し|造り|お造り|カルパッチョ|三昧|ネタ|いくら|うに|ウニ|帆立|ほたて|かんぱち|しめ|えんがわ|漬け/.test(n)) return "刺身・海鮮";
-    if(/サラダ|枝豆|漬|野菜|冷奴|奴|トマト|なす|茄子|きゅうり|胡瓜|長芋|ピーマン/.test(n)) return "野菜・箸休め";
-    if(/ラーメン|丼|ごはん|茶漬|〆|シメ|うどん|そば/.test(n)) return "〆";
-    if(/ビール|ハイボール|日本酒|サワー|ドリンク|乾杯|酒/.test(n)) return "ドリンク";
+    if(/串か|串カツ/.test(n)) return "串かつ";
+    if(/どて|どぶ漬|どてかつ/.test(n)) return "どて";
+    if(/ラーメン|焼きそば|丼|ごはん|ライス|〆|シメ/.test(n)) return "〆";
+    if(/刺身|造り|お造り|海鮮|カルパッチョ|ユッケ|たたき|レバ刺|エイヒレ|馬刺|ごまさば|ごまサバ/.test(n)) return "刺身・海鮮";
+    if(/唐揚|から揚|フライ|天ぷら|ポテト|コロッケ|バター|ごぼ天|揚げ/.test(n)) return "揚げ物";
+    if(/餃子/.test(n)) return "餃子";
+    if(/明太|出汁巻|だし巻/.test(n)) return "卵・明太";
+    if(/とん平|鉄板|せせり|イカ下足|焼き/.test(n)) return "焼き物";
+    if(/サラダ|トマト|枝豆|なす|茄子|ピーマン|胡瓜|きゅうり|長芋|わさび|一本漬|浅漬|冷やし|チャンジャ|厚揚げ/.test(n)) return "野菜・箸休め";
+    if(/もつ|ホルモン/.test(n)) return "もつ";
     return "その他";
   }
   function schedTailGenres(kind,n){
@@ -514,18 +494,19 @@
       .slice().sort(function(a,b){return String(a.when)<String(b.when)?-1:1;});
     return arr.slice(-n).map(function(s){return genreOf(s.name);});
   }
-  // 直近に投稿/予約した“品名”（新しい順n件）＝おすすめがグリッド(投稿済み)と被らないよう除外に使う
+  // 直近に投稿/予約した“品名”リスト（新しい順n件）。おすすめがグリッド(投稿済み)と被らないよう除外に使う。
   function recentNames(kind,n){
     var wantReel=(kind==="reel");
     return SCHED.filter(function(s){ return ((s.kind||"feed")==="reel")===wantReel; })
       .slice().sort(function(a,b){return String(a.when)>String(b.when)?-1:1;})
       .slice(0,n||8).map(function(s){return s.name;});
   }
-  // 直近投稿の品を除いた候補（少なすぎたら元のリストにフォールバック＝おすすめが空にならない）
+  // 直近投稿の品を除いた候補（少なすぎたら全商品にフォールバック＝おすすめが空にならない）
   function freshPool(list,kind,n){
     var rec=recentNames(kind,n); var f=list.filter(function(p){return rec.indexOf(p.t)<0;});
     return f.length>=3?f:list;
   }
+  // おすすめn件：連続で同ジャンルにならないよう分散。reco優先（poolがreco先頭順）＋直近予約ジャンルを避ける。
   function pickRecos(pool,n,seedGenres){
     var picked=[],used={},lastG=(seedGenres&&seedGenres.length)?seedGenres[seedGenres.length-1]:null;
     function fill(strict){
@@ -541,29 +522,13 @@
 
   var wrap = document.getElementById("wrap");
   var showAll={feed:false,reel:false};
-  // おすすめ3に“たまに”バナーを1枠だけ混ぜる（3回に1回・料理2＋バナー1）。
-  // フィードはグリッドに残るので出しすぎない＝自然に週1くらいで表面化させる狙い。
-  var _recoBannerDecided=false, _recoBanner=null;
-  function decideRecoBanner(){
-    if(_recoBannerDecided) return;
-    var banners=FEED.filter(function(p){return p.banner;});
-    if(!banners.length) return;                 // feed.json未ロード→次のrenderで判定
-    _recoBannerDecided=true;
-    try{
-      var n=parseInt(localStorage.getItem("susv_reco_n")||"0",10)||0;
-      localStorage.setItem("susv_reco_n",String(n+1));
-      _recoBanner=(n%3===2)?banners[Math.floor(n/3)%banners.length]:null;   // 3回に1回だけ
-    }catch(e){ _recoBanner=null; }
-  }
   // 候補カードを1枚作る（おすすめ欄・全商品欄で共通利用）
   function buildCard(kind,p,noLbl){
     var c=document.createElement("div"); c.className="card"+(p.reco?" reco":"");
-    var isBn = (kind==="feed") && p.banner && !!p.story;   // バナー（フィード/ストーリー両対応）
-    var dest = "feed";                                     // バナーの投稿先（既定=フィード）
-    function effKind(){ return (isBn && dest==="story") ? "story" : kind; }
+    var _pv=(p.vid||"").replace(/\.mp4$/,"_poster.jpg");
     var media=kind==="feed"
-      ? '<div class="mediaWrap feed">'+(feedImg(p)?'<img loading="lazy" decoding="async" src="'+esc(cardSrc(feedImg(p)))+'" onerror="this.onerror=null;this.src=\''+esc(feedImg(p))+'\'" alt="">':'<div class="ph" style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:#3a424e">画像なし</div>')+'</div>'
-      : '<div class="mediaWrap reel"><video '+(reelPoster(p)?'poster="'+esc(reelPoster(p))+'" ':'')+'src="'+esc(reelVid(p))+'" controls playsinline preload="none" webkit-playsinline></video></div>';
+      ? '<div class="mediaWrap feed"><img loading="lazy" decoding="async" src="goldporta/'+cardSrc(p.img)+V+'" onerror="this.onerror=null;this.src=\'goldporta/'+p.img+V+'\'" alt=""></div>'
+      : '<div class="mediaWrap reel"><video poster="goldporta/'+_pv+V+'" src="goldporta/'+p.vid+V+'" controls playsinline preload="none" webkit-playsinline></video></div>';
     var trim=kind==="reel"
       ? '<div class="trim"><div class="trimhd"><span>切り取り（リール用）</span><span><b class="tlen">--</b> / 元<span class="tall">--</span></span></div>'+
         '<div class="rangewrap"><div class="track"></div><div class="sel"></div>'+
@@ -575,20 +540,16 @@
       '<div class="chead"><span class="kind'+(kind==="reel"?" reel":"")+'">'+(kind==="feed"?"フィード":"リール")+'</span>'+
         '<span class="cno">'+esc(noLbl||"")+' ・ '+esc(p.t)+' <span style="color:#6f7684">['+esc(genreOf(p.t))+']</span></span></div>'+
       media+trim+
-      '<div class="caplbl" style="font-size:11.5px;font-weight:800;color:#8b93a2;margin:11px 2px 4px">▼ 投稿される文面（本文テンプレ）／ハッシュタグは下で選んだ分が付きます</div>'+
+      '<div class="caplbl" style="font-size:11.5px;font-weight:800;color:#8b93a2;margin:11px 2px 4px">▼ 投稿される文面（本文＋お店情報テンプレ）／ハッシュタグは下で選んだ分が付きます</div>'+
       '<div class="cap"></div>'+
       '<div class="tagttl">ハッシュタグ <span class="tcnt"></span></div>'+
       '<div class="tagsel"></div><button class="tagedit">✏️ ハッシュタグを編集</button>'+
-      (isBn ? '<div class="bdst" style="display:flex;gap:8px;align-items:center;margin:10px 2px 2px;font-size:12.5px;font-weight:800;color:#8b93a2">投稿先'+
-        '<button class="bdf on" style="border:0;border-radius:999px;padding:6px 13px;font-weight:800;font-size:12.5px;cursor:pointer;background:var(--rd);color:#fff">📸 フィード</button>'+
-        '<button class="bds" style="border:0;border-radius:999px;padding:6px 13px;font-weight:800;font-size:12.5px;cursor:pointer;background:#23262d;color:#aeb6c2">📱 ストーリー</button></div>'+
-        '<div class="bdsthint" style="font-size:11px;color:#6f7684;margin:3px 2px 0">ストーリーは文面なし（画像のみ）で投稿されます。</div>' : '')+
       '<div class="acts"><button class="now">今すぐ投稿</button><button class="resv">日時を決めて予約</button></div>'+
       '<div class="resvbox"><label>予約日時</label><input type="date" class="rdate"><input type="time" class="rtime" value="18:00"><button class="go">この日時で予約</button></div>'+
       '<div class="slot"></div>'+
       '<button class="copybtn">📋 キャプションをコピー</button>';
     function refreshSel(){
-      c.querySelector(".cap").textContent = previewCaption(kind,p);
+      c.querySelector(".cap").textContent = previewCaption(p.cap);
       var w=c.querySelector(".tagsel"); w.innerHTML="";
       var keys=Object.keys(GSEL);
       if(!keys.length){ w.innerHTML='<span style="color:#7c8698;font-size:12.5px">（未選択）</span>'; }
@@ -599,115 +560,33 @@
     if(kind==="reel"){ setupTrim(c,p); }
     c.querySelector(".tagedit").onclick=function(){ openTagEditor(c); };
     var slot=c.querySelector(".slot"), rbox=c.querySelector(".resvbox");
-    // バナーの投稿先トグル（フィード⇄ストーリー）。プレビュー画像も9:16/4:5で切り替え。
-    if(isBn){
-      var bF=c.querySelector(".bdf"), bS=c.querySelector(".bds"), mimg=c.querySelector(".mediaWrap img");
-      function setDest(d){ dest=d;
-        bF.style.background=(d==="feed")?"var(--rd)":"#23262d"; bF.style.color=(d==="feed")?"#fff":"#aeb6c2";
-        bS.style.background=(d==="story")?"var(--rd)":"#23262d"; bS.style.color=(d==="story")?"#fff":"#aeb6c2";
-        // フィードはWebP(cardSrc)。ストーリーはWebP未生成なのでjpg直指定（無駄な404を出さない）。
-        if(mimg){ var src=(d==="story")?storyImg(p):feedImg(p); mimg.src=(d==="story")?src:cardSrc(src); mimg.onerror=function(){ this.onerror=null; this.src=src; }; }
-      }
-      bF.onclick=function(){ setDest("feed"); }; bS.onclick=function(){ setDest("story"); };
-    }
-    c.querySelector(".now").onclick=function(){ var d=new Date(); var when=d.getFullYear()+"-"+("0"+(d.getMonth()+1)).slice(-2)+"-"+("0"+d.getDate()).slice(-2)+" "+("0"+d.getHours()).slice(-2)+":"+("0"+d.getMinutes()).slice(-2); doSchedule(effKind(),p,when,slot,"投稿しました"); };
+    c.querySelector(".now").onclick=function(){ var d=new Date(); var when=d.getFullYear()+"-"+("0"+(d.getMonth()+1)).slice(-2)+"-"+("0"+d.getDate()).slice(-2)+" "+("0"+d.getHours()).slice(-2)+":"+("0"+d.getMinutes()).slice(-2); doSchedule(kind,p,when,slot,"投稿しました"); };
     c.querySelector(".resv").onclick=function(){ rbox.classList.toggle("open"); };
     c.querySelector(".go").onclick=function(){
       var dd=c.querySelector(".rdate").value, tt=c.querySelector(".rtime").value||"18:00";
       if(!dd){ toast("予約日を選んでください"); return; }
       rbox.classList.remove("open");
-      doSchedule(effKind(),p,dd+" "+tt,slot,"予約しました");
+      doSchedule(kind,p,dd+" "+tt,slot,"予約しました");
     };
     var cb=c.querySelector(".copybtn");
-    cb.onclick=function(){ var f = fullCaption(kind,p);
+    cb.onclick=function(){ var f = fullCaption(p.cap, p.tags);
       copy(f,function(){ cb.textContent="✓ コピーしました"; cb.classList.add("done"); toast("キャプションをコピーしました");
       setTimeout(function(){ cb.textContent="📋 キャプションをコピー"; cb.classList.remove("done"); },2200); }); };
     return c;
   }
   // フィード/リールタブ：上部に「次のおすすめ3件（ジャンル分散）」＋「全商品から選ぶ」
-  /* ---------- カルーセル（複数枚フィード）ビルダー：既存カードUIとは独立 ---------- */
-  var carouselSel=[];   // 選んだフィード商品（順番＝表示順）
-  function buildCarouselPanel(){
-    // class は "card" にしない（renderListの再描画で .card は消されるため）。見た目はinlineで付与。
-    var box=document.createElement("div"); box.className="cbwrap";
-    box.style.cssText="padding:12px;background:#12151b;border:1px solid #222833;border-radius:16px;margin:10px 0";
-    box.innerHTML=
-      '<button class="cbtoggle" style="width:100%;border:0;border-radius:12px;padding:12px;font-weight:800;background:#152238;color:#cfe0ff;font-size:14px;cursor:pointer">🖼️ カルーセル投稿を作る（複数選択・2〜10枚）</button>'+
-      '<div class="cbpanel" style="display:none;margin-top:10px">'+
-        '<div style="font-size:12px;color:#8b93a2;margin:2px 2px 8px">タップで選択（番号＝並び順）。保存・滞在が伸びる複数枚投稿を作れます。</div>'+
-        '<div class="cbgrid" style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px;max-height:300px;overflow:auto"></div>'+
-        '<div style="display:flex;gap:8px;align-items:center;margin-top:10px;flex-wrap:wrap">'+
-          '<b class="cbcnt" style="font-size:13px;color:#8b93a2;flex:1;min-width:70px">0枚選択</b>'+
-          '<button class="cbnow" disabled style="border:0;border-radius:999px;padding:8px 14px;font-weight:800;background:var(--rd);color:#fff;cursor:pointer;opacity:.5">今すぐ投稿</button>'+
-          '<button class="cbresv" disabled style="border:0;border-radius:999px;padding:8px 14px;font-weight:800;background:#23262d;color:#cfe0ff;cursor:pointer;opacity:.5">日時予約</button>'+
-          '<button class="cbclear" style="border:0;border-radius:999px;padding:8px 14px;font-weight:800;background:#23262d;color:#aeb6c2;cursor:pointer">クリア</button>'+
-        '</div>'+
-        '<div class="cbresvbox" style="display:none;margin-top:8px;gap:6px;align-items:center;flex-wrap:wrap">'+
-          '<input type="date" class="cbdate"><input type="time" class="cbtime" value="18:00">'+
-          '<button class="cbgo" style="border:0;border-radius:999px;padding:8px 14px;font-weight:800;background:var(--rd);color:#fff;cursor:pointer">この日時で予約</button></div>'+
-        '<div class="cbslot" style="margin-top:8px"></div>'+
-      '</div>';
-    var panel=box.querySelector(".cbpanel"), grid=box.querySelector(".cbgrid");
-    var cnt=box.querySelector(".cbcnt"), bNow=box.querySelector(".cbnow"), bResv=box.querySelector(".cbresv");
-    var rbox=box.querySelector(".cbresvbox"), slot=box.querySelector(".cbslot");
-    function refresh(){
-      cnt.textContent=carouselSel.length+"枚選択";
-      var ok=carouselSel.length>=2 && carouselSel.length<=10;
-      [bNow,bResv].forEach(function(b){ b.disabled=!ok; b.style.opacity=ok?"1":".5"; });
-      Array.prototype.forEach.call(grid.children,function(t){
-        var i=carouselSel.indexOf(t._p); var n=t.querySelector(".cbnum");
-        if(i>=0){ t.style.borderColor="var(--rd)"; n.style.display="flex"; n.textContent=String(i+1); }
-        else { t.style.borderColor="transparent"; n.style.display="none"; }
-      });
-    }
-    FEED.filter(function(p){return !p.banner;}).forEach(function(p){
-      var t=document.createElement("button"); t.type="button"; t._p=p;
-      t.style.cssText="position:relative;border:2px solid transparent;border-radius:8px;overflow:hidden;padding:0;background:#0b0f16;cursor:pointer;aspect-ratio:1/1";
-      var src=feedImg(p);
-      t.innerHTML='<img src="'+esc(cardSrc(src))+'" onerror="this.onerror=null;this.src=\''+esc(src)+'\'" style="width:100%;height:100%;object-fit:cover" loading="lazy"><span class="cbnum" style="position:absolute;top:2px;left:2px;background:var(--rd);color:#fff;font-weight:800;font-size:11px;min-width:18px;height:18px;border-radius:9px;display:none;align-items:center;justify-content:center"></span>';
-      t.onclick=function(){ var i=carouselSel.indexOf(p);
-        if(i>=0) carouselSel.splice(i,1);
-        else { if(carouselSel.length>=10){ toast("最大10枚です"); return; } carouselSel.push(p); }
-        refresh(); };
-      grid.appendChild(t);
-    });
-    box.querySelector(".cbtoggle").onclick=function(){ var op=panel.style.display!=="none"; panel.style.display=op?"none":"block"; };
-    box.querySelector(".cbclear").onclick=function(){ carouselSel=[]; rbox.style.display="none"; slot.innerHTML=""; refresh(); };
-    function submit(when,label){
-      if(carouselSel.length<2){ toast("2枚以上選んでください"); return; }
-      var media=carouselSel.map(function(p){ return absUrl(feedImg(p)); }).join("|");
-      var caption=fullCaption("feed", carouselSel[0]);
-      var name=(carouselSel[0].t||"")+" 他"+(carouselSel.length-1)+"枚";
-      if(!LIVE){ slot.innerHTML='<div class="banner okb">✓ '+label+'（見本）</div>'; toast(label+"（見本）"); return; }
-      slot.innerHTML='<div class="banner okb">送信中…</div>';
-      gJsonp({api:"schedule", kind:"carousel", name:name, when:when, media:media, caption:caption, hashtags:""}).then(function(res){
-        if(res&&(res.ok||res.result==="ok")){ slot.innerHTML='<div class="banner okb">✓ '+label+'（'+carouselSel.length+'枚）</div>'; toast(label); carouselSel=[]; refresh(); loadSched(null,true); }
-        else { slot.innerHTML='<div class="banner ngb">送信できませんでした</div>'; toast("失敗しました"); }
-      }).catch(function(){ slot.innerHTML='<div class="banner ngb">通信エラー</div>'; toast("通信エラー"); });
-    }
-    bNow.onclick=function(){ var d=new Date(); var w=d.getFullYear()+"-"+("0"+(d.getMonth()+1)).slice(-2)+"-"+("0"+d.getDate()).slice(-2)+" "+("0"+d.getHours()).slice(-2)+":"+("0"+d.getMinutes()).slice(-2); submit(w,"投稿しました"); };
-    bResv.onclick=function(){ rbox.style.display=(rbox.style.display==="none"?"flex":"none"); };
-    box.querySelector(".cbgo").onclick=function(){ var dd=box.querySelector(".cbdate").value, tt=box.querySelector(".cbtime").value||"18:00"; if(!dd){ toast("予約日を選んでください"); return; } rbox.style.display="none"; submit(dd+" "+tt,"予約しました"); };
-    refresh();
-    return box;
-  }
-
   function render(kind){
     wrap.innerHTML=""; refreshers=[];
     var hint=document.createElement("div"); hint.className="hint";
     hint.innerHTML = (kind==="feed"
-      ? "次に投稿する<b>おすすめを3つ</b>だけ表示（同じジャンル＝寿司・海鮮などが続かないよう自動で分散）。他の料理は「全商品から選ぶ」で。"
+      ? "次に投稿する<b>おすすめを3つ</b>だけ表示（同じジャンル＝串かつ・どて焼きなどが続かないよう自動で分散）。他の料理は「全商品から選ぶ」で。"
       : "リール候補です（現在は準備中・形のみ）。<b>今すぐ投稿</b> または <b>日時を決めて予約</b>できます。")
-      + "<br>※大衆寿司酒場すさび湯 三条（@susabiyu_sanjyo）" + (LIVE?"：実データ連携中。":"：現在は見本モードです。");
+      + "<br>※GOLD京都ポルタ（@gold_kyotovolta）" + (LIVE?"：実データ連携中。":"：現在は見本モードです。") + "投稿は毎日11時・18時・20時に自動投稿予定。";
     wrap.appendChild(hint);
-    if(kind==="feed") wrap.appendChild(buildCarouselPanel());   // カルーセル（複数枚）ビルダー
     var list = kind==="feed"?FEED:REEL;
     function renderList(){
       Array.prototype.slice.call(wrap.querySelectorAll(".seclabel,.card,.rmore")).forEach(function(x){x.remove();});
-      if(kind==="feed") decideRecoBanner();
-      var useBn=(kind==="feed") && _recoBanner;
-      var recos=pickRecos(freshPool(list.filter(function(p){return !p.banner;}),kind,8),useBn?2:3,schedTailGenres(kind,2));  // 料理を先に選ぶ（バナー除外＋直近投稿の品も除外）
-      if(useBn) recos.splice(1,0,_recoBanner);   // 料理・バナー・料理 の並びで1枠だけ差し込む
+      var recos=pickRecos(freshPool(list,kind,8),3,schedTailGenres(kind,2));   // 直近投稿の品は除外（グリッドと被らない）
       var lab=document.createElement("div"); lab.className="seclabel";
       lab.innerHTML=(kind==="feed"?"⭐ 次のおすすめ":"⭐ おすすめリール")+' <span class="cnt">'+recos.length+'件</span>';
       wrap.appendChild(lab);
@@ -724,9 +603,10 @@
       }
       more.onclick=function(){ showAll[kind]=!showAll[kind]; renderList(); if(!showAll[kind]) window.scrollTo({top:0,behavior:"smooth"}); };
     }
+    // 予約状況を取得してから、直近予約ジャンルを避けたおすすめで描画（未接続でも描画する）
     schedCb=function(){ if((kind==="feed"&&tF.classList.contains("on"))||(kind==="reel"&&tR.classList.contains("on"))) renderList(); };
-    renderList();
-    if(LIVE) loadSched();
+    renderList();          // まず即描画（キャッシュがあれば反映）
+    if(LIVE) loadSched();  // 取得後にジャンル分散を更新
   }
 
   /* ---------- 予約カレンダー（当月＋来月・時間表示・タップで確認/新規） ---------- */
@@ -765,7 +645,7 @@
         for(var d=1;d<=days;d++){
           var dd=new Date(m.getFullYear(),m.getMonth(),d); var k=_ymd(dd); var wd=dd.getDay();
           var isPast=k<todK; var items=byDate[k]||[];
-          var tap=(!isPast)||items.length>0;
+          var tap=(!isPast)||items.length>0;   // 過去でも投稿履歴があればタップで確認可
           var cls="cday"+(wd===0?" sun":wd===6?" sat":"")+(k===todK?" today":"")+(isPast?" past":"")+(items.length?" donesol":"")+(tap?" tapable":"");
           var inner='<div class="dn">'+d+'</div>';
           items.slice(0,2).forEach(function(s){ inner+='<span class="ct '+chipCls(s)+'">'+chipMark(s)+esc(String(s.when||"").slice(11,16))+'</span>'; });
@@ -775,6 +655,7 @@
         }
         html+='</div></div>';
       });
+      // 投稿済み・履歴（直近）
       if(done.length){
         var hist=done.slice().sort(function(a,b){return String(a.when)>String(b.when)?-1:1;}).slice(0,20);
         html+='<div class="seclabel" style="margin-top:6px">✅ 投稿済み・履歴 <span class="cnt">直近'+done.length+'件</span></div>';
@@ -782,7 +663,7 @@
           var ok=s.status==='posted';
           var badge=ok?'<span style="color:#7fd1a0;font-weight:800">✓ 投稿済</span>':(s.status==='failed'?'<span style="color:#e6a4a4;font-weight:800">✕ 失敗</span>':'<span style="color:#c9a06a;font-weight:800">期限切れ</span>');
           html+='<div class="rrow histrow" data-tok="'+esc(s.token)+'" style="cursor:pointer;margin-bottom:8px">'+
-            (s.media?'<img loading="lazy" src="'+esc(thumbSrc(s.media))+'" data-full="'+esc(s.media)+'" onerror="this.onerror=null;this.src=this.getAttribute(\'data-full\')" alt="">':'<div class="noimg">🍣</div>')+
+            (s.media?'<img loading="lazy" src="'+esc(thumbSrc(s.media))+'" data-full="'+esc(s.media)+'" onerror="this.onerror=null;this.src=this.getAttribute(\'data-full\')" alt="">':'<div class="noimg">🍶</div>')+
             '<div style="flex:1;min-width:0"><div class="rt">'+((s.kind||'feed')==='reel'?'🎬 リール':'📸 フィード')+' '+esc(String(s.when||"").slice(5,16))+'　'+badge+'</div>'+
             '<div class="rn">'+esc(s.name||"")+'</div>'+
             '<div style="font-size:10.5px;color:#7c8698;font-weight:700;margin-top:2px">▼ タップで投稿内容を表示</div></div>'+
@@ -794,6 +675,7 @@
         cell.onclick=function(){ var k=cell.getAttribute("data-k"); var items=byDate[k]||[];
           if(items.length) openDayDetail(k,items); else openNewResv(k); };
       });
+      // 履歴行タップ＝その予約の詳細（投稿内容）を単体表示。「消す」＝履歴から非表示。
       cal.querySelectorAll(".histrow").forEach(function(row){
         row.onclick=function(e){ if(e.target.closest(".histhide"))return; var tok=row.getAttribute("data-tok"); var s=SCHED.filter(function(x){return x.token===tok;})[0]; if(s) openDayDetail(String(s.when||"").slice(0,10),[s]); };
       });
@@ -804,12 +686,13 @@
   function openDayDetail(k,items){
     var m=document.getElementById("resvmodal"), body=document.getElementById("resvbody");
     var todK=_ymd(new Date());
+    var anyPending=items.some(function(s){return (s.status||"scheduled")==="scheduled";});
     document.getElementById("resvttl").textContent=fmtDateJ(k)+" の予約・投稿";
     document.getElementById("resvsub").textContent="タップで投稿内容を表示。予約中の分は取り消せます。";
     var h="";
     items.forEach(function(s,idx){
       var st=s.status||"scheduled";
-      var thumb=s.media?'<img class="zoomimg" loading="lazy" src="'+esc(thumbSrc(s.media))+'" data-full="'+esc(s.media)+'" onerror="this.onerror=null;this.src=this.getAttribute(\'data-full\')" alt="">':'<div class="noimg">🍣</div>';
+      var thumb=s.media?'<img class="zoomimg" loading="lazy" src="'+esc(thumbSrc(s.media))+'" data-full="'+esc(s.media)+'" onerror="this.onerror=null;this.src=this.getAttribute(\'data-full\')" alt="">':'<div class="noimg">🍶</div>';
       var cap=s.caption||"";
       var detLbl=(st==="scheduled")?"📝 実際に投稿される内容":"📝 投稿した内容";
       var detail=
@@ -820,6 +703,7 @@
           (s.hashtags?('<div style="font-size:11.5px;color:#8ab4e0;margin-top:7px;word-break:break-word">'+esc(s.hashtags)+'</div>'):'')+
           (st!=="scheduled"&&s.note?('<div style="font-size:10.5px;color:#7c8698;margin-top:6px">'+esc(s.note)+'</div>'):'')+
         '</div>';
+      // 右側：予約中は取消ボタン、投稿済/失敗/期限切れは状態バッジ＋「履歴から消す」
       var right = (st==="scheduled")
         ? '<button class="rcancel" data-tok="'+esc(s.token)+'">取消</button>'
         : '<div style="flex:none;display:flex;flex-direction:column;gap:5px;align-items:flex-end">'+
@@ -833,8 +717,10 @@
            right+'</div>'+
          detail;
     });
+    // 追加予約ボタンは「今日以降」だけ
     if(k>=todK) h+='<button class="rmore" id="rAddDay" style="margin-top:4px">＋ この日に追加で予約する</button>';
     body.innerHTML=h;
+    // 行タップ＝投稿内容の開閉（取消ボタンは除外）
     body.querySelectorAll(".rtap").forEach(function(row){
       row.onclick=function(e){ if(e.target.closest(".rcancel")||e.target.closest(".histhide2")||e.target.closest(".zoomimg"))return;
         var i=row.getAttribute("data-i");
@@ -843,8 +729,10 @@
           var hint=row.querySelector('div[style*="タップ"]'); if(hint) hint.textContent=open?"▼ タップで投稿内容を表示":"▲ 閉じる"; }
       };
     });
+    // 画像タップ＝投稿画像を大きく表示（原寸で確認）
     body.querySelectorAll(".zoomimg").forEach(function(im){ im.style.cursor="zoom-in"; im.onclick=function(ev){ ev.stopPropagation(); openImg(im.getAttribute("data-full")||im.src); }; });
     body.querySelectorAll(".rcancel").forEach(function(b){ b.onclick=function(ev){ ev.stopPropagation(); var tok=b.getAttribute("data-tok"); if(!confirm("この予約を取り消しますか？"))return;
+      // 楽観的：即カレンダーから消して閉じる→裏で確定→失敗時のみ戻す
       var removed=_schedRemove(tok); if(schedCb) schedCb(); closeResv(); toast("予約を取り消しました");
       gJsonp({api:"schedcancel",token:tok}).then(function(r){ if(!(r&&r.ok)&&removed){ SCHED.push(removed); if(schedCb)schedCb(); toast("取り消せませんでした（戻しました）"); } })
         .catch(function(){ if(removed){ SCHED.push(removed); if(schedCb)schedCb(); } toast("通信エラー（戻しました）"); }); }; });
@@ -877,10 +765,11 @@
       var el=body.querySelector("#nvPickWrap");
       var html='<div style="font-size:12px;font-weight:800;color:var(--gold);margin:6px 2px">'+(newResv.all?'全商品から選ぶ':'⭐ おすすめ（ジャンル分散）')+'</div><div class="rpick">';
       pool.forEach(function(p){
-        var base=newResv.kind==="feed"? feedImg(p) : (reelPoster(p)||"");
+        var base=newResv.kind==="feed"? p.img : ((p.vid||"").replace(/\.mp4$/,"_poster.jpg"));
+        var full='goldporta/'+base+V;                 // 原寸（フォールバック用）
+        var th='goldporta/'+thumbSrc(base)+V;         // 軽いWebPサムネ
         var on=(newResv.pick&&newResv.pick.t===p.t)?" on":"";
-        var img=base?'<img class="th'+(newResv.kind==="feed"?" contain":"")+'" loading="lazy" src="'+esc(thumbSrc(base))+'" onerror="this.onerror=null;this.src=\''+esc(base)+'\'">':'<div class="th" style="display:flex;align-items:center;justify-content:center;color:#3a424e;font-size:22px">'+(newResv.kind==="feed"?"🍣":"🎬")+'</div>';
-        html+='<button class="pk'+on+'" data-t="'+esc(p.t)+'">'+img+'<div class="nm">'+esc(p.t)+'</div><div class="gtag">'+esc(genreOf(p.t))+'</div></button>';
+        html+='<button class="pk'+on+'" data-t="'+esc(p.t)+'"><img class="th'+(newResv.kind==="feed"?" contain":"")+'" loading="lazy" src="'+th+'" onerror="this.onerror=null;this.src=\''+full+'\'"><div class="nm">'+esc(p.t)+'</div><div class="gtag">'+esc(genreOf(p.t))+'</div></button>';
       });
       html+='</div><button class="rmore" id="nvMore">'+(newResv.all?"▲ おすすめだけ":"▼ 全商品から選ぶ（全"+list.length+"品）")+'</button>';
       el.innerHTML=html;
@@ -890,7 +779,7 @@
     function drawDetail(){
       var el=body.querySelector("#nvDetail"); if(!el) return;
       if(!newResv.pick){ el.innerHTML=""; return; }
-      var p=newResv.pick, full=fullCaption(newResv.kind,p);
+      var p=newResv.pick, full=fullCaption(p.cap,p.tags);
       el.innerHTML='<div style="border:1px solid var(--line);border-radius:12px;background:#0f1319;padding:11px;margin:2px 0 10px">'+
         '<div style="font-size:11px;font-weight:800;color:var(--gold);margin-bottom:5px">📝 実際に投稿される内容（'+esc(p.t)+' ['+esc(genreOf(p.t))+']）</div>'+
         '<div style="font-size:13px;line-height:1.6;white-space:pre-wrap;color:#dfe5ee">'+esc(full)+'</div>'+
@@ -901,7 +790,7 @@
       var gp=body.querySelector("#nvGridPrev");
       if(newResv.kind!=="feed"){ gp.innerHTML=""; return; }
       var feeds=SCHED.filter(function(s){return (s.kind||'feed')!=='reel';}).slice().sort(function(a,b){return String(a.when)>String(b.when)?-1:1;});
-      var cells=[]; if(newResv.pick) cells.push({media:feedImg(newResv.pick),me:1});
+      var cells=[]; if(newResv.pick) cells.push({media:"goldporta/"+newResv.pick.img+V,me:1});
       feeds.forEach(function(s){ cells.push({media:s.media}); });
       var h='<div style="font-size:11px;color:var(--sub);font-weight:800;margin:2px 2px 4px">プロフィールのグリッド見え方（新→旧・9枠）</div><div class="rgridprev">';
       for(var i=0;i<9;i++){ if(cells[i]&&cells[i].media) h+='<img src="'+esc(cells[i].media)+'"'+(cells[i].me?' style="outline:2px solid var(--gold);outline-offset:-2px"':'')+'>'; else h+='<div class="ph">—</div>'; }
@@ -913,13 +802,14 @@
     body.querySelector("#nvTime").oninput=updateGo;
     body.querySelector("#nvGo").onclick=function(){ if(!newResv.pick)return;
       var tt=body.querySelector("#nvTime").value||"18:00"; var it=newResv.pick, kind=newResv.kind, when=k+" "+tt;
-      var caption=fullCaption(kind,it);
-      var media=absUrl(kind==="feed"?feedImg(it):reelVid(it));
+      var caption=fullCaption(it.cap, it.tags);
+      var media=absUrl("goldporta/"+(kind==="feed"?it.img:it.vid));
+      // 楽観的：即カレンダーに反映＆閉じる→裏で保存→成功で整合／失敗でロールバック
       var opt={token:"tmp"+Date.now(), when:when, kind:kind, media:media, name:it.t||"", caption:caption, hashtags:"", status:"scheduled"};
       SCHED.push(opt); if(schedCb) schedCb(); closeResv(); toast("予約しました（予定時刻に自動投稿）");
       if(!LIVE) return;
       gJsonp({api:"schedule", kind:(kind==="feed"?"feed":"reel"), name:it.t||"", when:when, media:media, caption:caption, hashtags:""}).then(function(res){
-        if(res&&(res.ok||res.result==="ok")){ loadSched(null,true); }
+        if(res&&(res.ok||res.result==="ok")){ loadSched(null,true); }                 // 実トークンで整合（強制取得）
         else { _schedRemove(opt.token); if(schedCb)schedCb(); toast("予約に失敗しました。もう一度お試しください"); }
       }).catch(function(){ _schedRemove(opt.token); if(schedCb)schedCb(); toast("通信エラー。予約できませんでした"); });
     };
@@ -927,26 +817,29 @@
     m.classList.add("open");
   }
   function closeResv(){ document.getElementById("resvmodal").classList.remove("open"); }
+  // ローカルSCHEDからtokenの1件を取り除く（見つかれば戻り値に退避、無ければnull）
   function _schedRemove(token){ for(var i=0;i<SCHED.length;i++){ if(SCHED[i].token===token){ return SCHED.splice(i,1)[0]; } } return null; }
+  // 投稿済み/失敗の履歴をカレンダーから非表示（Instagram側で削除した等）。記録は残す。
+  // 楽観的更新：先に画面から消して即反映→裏で確定→失敗時のみ戻す。
   function hideHist(token){
     if(!confirm("この投稿をカレンダーの履歴から消しますか？\n（Instagram側の投稿には影響しません）")) return;
     var removed=_schedRemove(token); if(schedCb) schedCb(); toast("履歴から消しました");
     gJsonp({api:"schedhide", token:token}).then(function(r){ if(!(r&&r.ok)&&removed){ SCHED.push(removed); if(schedCb)schedCb(); toast("消せませんでした（元に戻しました）"); } })
       .catch(function(){ if(removed){ SCHED.push(removed); if(schedCb)schedCb(); } toast("通信エラー（元に戻しました）"); });
   }
-
   /* ===== ストーリーメンション（確認→リポスト＋シェアコメント） ===== */
-  var MENTION_DEFAULT="ご来店ありがとうございます\n素敵な投稿に感謝です！\n#すさび湯三条";
+  var MENTION_DEFAULT="ご来店ありがとうございます\n素敵な投稿に感謝です！\n#GOLD京都ポルタ";  // 規定＝1
   var MENTION_STORY_TPL=[
-    "ご紹介ありがとうございます\n三条で乾杯、またぜひ！\n#すさび湯三条",
-    "ご投稿ありがとうございます\n河原町三条でお待ちしています\n#すさび湯三条",
-    "素敵な投稿ありがとうございます\nまた京都・三条で\n#すさび湯三条",
-    "ありがとうございます\nまたのご来店お待ちしております\n#すさび湯三条"
+    "ご紹介ありがとうございます\nまた乾杯しましょう！\n#GOLD京都ポルタ",
+    "ご投稿ありがとうございます\nまたのお越しをお待ちしています\n#GOLD京都ポルタ",
+    "素敵な投稿ありがとうございます\nまたぜひ、GOLDで\n#GOLD京都ポルタ",
+    "ありがとうございます\nまたのご来店お待ちしております\n#GOLD京都ポルタ"
   ];
-  var MENTION_DM_DEFAULT="メンションありがとうございます！ご投稿とても嬉しいです😊 またのお越しをお待ちしています🍣";
+  // お礼DMは「投稿に焼く文」とは別。ハッシュタグ無しの会話文を既定に。
+  var MENTION_DM_DEFAULT="メンションありがとうございます！ご投稿とても嬉しいです😊 またのお越しをお待ちしています🍷";
   var MENTION_DM_TPL=[
-    "メンションありがとうございます！ご投稿とても嬉しいです😊 またのお越しをお待ちしています🍣",
-    "ご紹介ありがとうございます！京都・三条でのご来店、心よりお待ちしております🍶",
+    "メンションありがとうございます！ご投稿とても嬉しいです😊 またのお越しをお待ちしています🍷",
+    "ご紹介ありがとうございます！心よりご来店をお待ちしております🍷",
     "投稿していただきありがとうございます😊 スタッフ一同、またのご来店をお待ちしています！"
   ];
   function mentAct(mid,action,text,btn){
@@ -959,14 +852,16 @@
                  : action==="reply" ? {t:"✓ お礼DM 送信済み",                     bg:"#101f2e", bd:"#274063", fg:"#a9cbff"}
                  :                     {t:"— 無視しました（一覧から除外）",         bg:"#241c24", bd:"#3a2a3a", fg:"#c9a9c9"};
         toast(action==="story"?"店ストーリーに追加します（数分以内に投稿）":action==="reply"?"お礼DMを送ります":"無視しました");
+        // カードは消さず「投稿済み」バッジを付けて残し、下（済み欄）へ移動して区分する。
         card.classList.add("mdone"); card.style.opacity=".72";
         card.querySelectorAll(".acts,.tplrow").forEach(function(x){ x.style.display="none"; });
         var badge=document.createElement("div");
         badge.style.cssText="margin:8px 0 2px;padding:9px 11px;border-radius:10px;font-weight:800;font-size:13px;background:"+done.bg+";border:1px solid "+done.bd+";color:"+done.fg;
         badge.textContent=done.t;
         card.insertBefore(badge, card.firstChild);
-        ensureDoneLabel(); wrap.appendChild(card);
+        ensureDoneLabel(); wrap.appendChild(card);   // 済みは末尾へ寄せる
       } else if(r&&r.result==="expired"){
+        // 送信の直前に期限切れ（24h経過）→ リポスト不可を明示して一覧を再取得
         toast("ストーリーの公開期限が過ぎたためリポストできません");
         card.querySelectorAll(".acts,.tplrow").forEach(function(x){ x.style.display="none"; });
         var xb=document.createElement("div");
@@ -990,6 +885,7 @@
     var lab=document.createElement("div"); lab.className="seclabel"; lab.innerHTML='💬 メンション <span class="cnt">読み込み中…</span>'; wrap.appendChild(lab);
     gJsonp({api:"mentions"}).then(function(res){
       var items=(res&&res.items)||[];
+      // リポスト可能（期限内・生存）とリポスト不可（期限切れ・削除済み）に仕分け
       var live=items.filter(function(it){ return it.repostable!==false; });
       var dead=items.filter(function(it){ return it.repostable===false; });
       lab.innerHTML='💬 メンション <span class="cnt">'+items.length+'件</span>'+(dead.length?' <span style="font-size:12px;color:#e6a4a4;font-weight:700">（リポスト不可 '+dead.length+'件）</span>':'');
@@ -1007,6 +903,7 @@
         var dmChips=MENTION_DM_TPL.map(function(t,i){ return '<button class="tpl" data-d="'+esc(t)+'">DM例'+(i+1)+'</button>'; }).join("")
           + '<button class="tpl" data-reset="dm">↩ 規定に戻す</button>';
         var isAuto=String(it.status)==="auto";
+        // 残り時間（24h窓）を表示：期限が近いほど早めの対応を促す
         var remainH=(typeof it.ageH==="number")?Math.max(0,Math.floor(24-it.ageH)):null;
         var remTxt=(remainH!=null)?('<span style="font-size:11px;color:'+(remainH<=3?'#e6a4a4':'#8b93a2')+';font-weight:700;margin-left:8px">リポスト期限 残り約'+remainH+'時間</span>'):'';
         var note=isAuto?'<div class="banner ngb" style="margin:8px 0 0">🕒 自動投稿の予定です。何もしなければ約2時間後にリポストします。それまでに文面を直して「今すぐ投稿」、やめる場合は「取り消し」。</div>':'';
@@ -1083,20 +980,33 @@
   document.getElementById("imgboxClose").onclick=function(){ _imgbox.style.display="none"; document.getElementById("imgboxImg").src=""; };
   _imgbox.addEventListener("click",function(e){ if(e.target===_imgbox||e.target.id==="imgboxImg"){ _imgbox.style.display="none"; document.getElementById("imgboxImg").src=""; } });
   window.openImg=function(url){ if(!url)return; document.getElementById("imgboxImg").src=url; _imgbox.style.display="flex"; };
-
-  // seedから決まる順列（日替わり・当日内は安定）。おすすめ先頭固定、それ以外は日ごとにシャッフル。
+  GSEL = loadGsel() || defaultSel();
+  loadRegional();
+  FEED = shuffleFeed(FEED);   // 厳選12枚（加工済み）を日替わり順に
+  render("feed");   // ← 内部で loadSched() が走り、予約データも起動時に温まる（予約タブ初回が即開く）。
+  // ※以前ここに別途 schedlist を先読みしていたが render 内の loadSched と二重だったので削除（通信を1本に）。
+  // seedから決まる順列（Fisher-Yates+LCG）。サーバ側ローテと同一式。
   function seededOrder(n, seed){ var a=[],i,s=(seed>>>0)||1; for(i=0;i<n;i++)a.push(i);
     for(i=n-1;i>0;i--){ s=(s*1664525+1013904223)>>>0; var j=s%(i+1),t=a[i];a[i]=a[j];a[j]=t; } return a; }
+  // 写真もランダム：おすすめ先頭固定、それ以外はその日のseedでシャッフル（日替わり・当日内は安定）。
   function shuffleFeed(items){ var day=Math.floor(Date.now()/864e5);
     var reco=items.filter(function(x){return x.reco;}), rest=items.filter(function(x){return !x.reco;});
     var out=reco.slice(); seededOrder(rest.length, day+1).forEach(function(j){ out.push(rest[j]); }); return out; }
-
-  GSEL = loadGsel() || defaultSel();
-  loadRegional();
-  FEED = shuffleFeed(FEED);
-  render("feed");   // 内部で loadSched() が走り、予約データも起動時に温まる。
-  loadFeedJson();   // 全商品（加工済みフィード画像）を読み込む＝「全商品から選ぶ」に約30品並ぶ
-  loadCands();      // リール候補を共有ストアから読み込む（接続時）
+  // 毎日同期の全料理を追加：feed.json の「加工済み画像(design)＋生成キャプション」を統合。
+  //   ・design付き(=加工済み)だけを候補に入れる（生写真は出さない）。
+  //   ・厳選12枚と重複する看板料理は除外。おすすめ→先頭。
+  var HERO_KEYS=["どぶ漬け","どてかつ","どて焼き","炊き餃子","明太出汁巻","出汁巻",
+    "串かつ10種","牛串","唐揚","馬刺し","マルシン","ラーメン","生ハムポテト"];
+  (function loadFeedJson(){
+    fetch("./goldporta/feed.json"+V, {cache:"no-store"}).then(function(r){ return r.ok?r.json():null; }).then(function(d){
+      if(!d || !d.items || !d.items.length) return;
+      var extras=d.items.filter(function(it){ return it.design && !HERO_KEYS.some(function(k){return String(it.name||"").indexOf(k)>=0;}); })
+        .map(function(it){ return {img: it.design, t: it.title||it.name, cap: it.cap||"", tags: it.tags||"", reco: !!it.reco}; });
+      if(!extras.length) return;
+      FEED = shuffleFeed(FEED.concat(extras));   // 厳選＋加工済み全料理を日替わり順で
+      if(tF.classList.contains("on")) render("feed");
+    }).catch(function(){});
+  })();
 })();
 </script>
 <script>
@@ -1104,9 +1014,11 @@
     window.addEventListener("load", function(){
       navigator.serviceWorker.register("./sw.js").then(function(reg){ if(reg&&reg.update) try{ reg.update(); }catch(e){} }).catch(function(){});
     });
+    // 新しいSWが有効化されたら自動で一度だけリロード（＝更新の取りこぼしを防ぐ）
     var _reloaded=false;
     navigator.serviceWorker.addEventListener("controllerchange", function(){ if(_reloaded)return; _reloaded=true; location.reload(); });
   }
+  // 画面下：現在の版数表示＋「最新に更新」（SW解除＋キャッシュ全消去＋再取得）
   (function(){
     var vl=document.getElementById("verlbl"); if(vl){ vl.textContent="バージョン "+(window.__APPV||"v?"); }
     var fu=document.getElementById("forceupd");
@@ -1117,7 +1029,7 @@
       if(window.caches&&caches.keys) jobs.push(caches.keys().then(function(ks){ return Promise.all(ks.map(function(k){return caches.delete(k);})); }));
       if(navigator.serviceWorker&&navigator.serviceWorker.getRegistrations) jobs.push(navigator.serviceWorker.getRegistrations().then(function(rs){ return Promise.all(rs.map(function(r){return r.unregister();})); }));
       Promise.all(jobs).then(done).catch(done);
-      setTimeout(done, 2500);
+      setTimeout(done, 2500);   // 念のため
     };
   })();
 </script>

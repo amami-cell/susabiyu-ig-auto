@@ -41,6 +41,10 @@ I2V_DURATION = float(os.environ.get("I2V_DURATION", "3"))
 FOOD_FOLDER = os.environ.get("GENRE_FOOD_ID") or "14oKNgdXee2NrI7Dkmbrlbid4f0_VZ5Cv"
 MIN_SIDE = 800
 LIB_TAB = "リール素材"
+# Kling/Hailuo等で手動生成した動画を入れておくDriveフォルダ（無料枠で貯める用）。
+MANUAL_FOLDER = os.environ.get("MANUAL_CLIPS_ID", "").strip()
+DONE_TAB = "取込済み"          # 取り込んだDriveファイルIDを記録して重複取り込みを防ぐ
+VIDEO_EXT = (".mp4", ".mov", ".webm", ".m4v")
 
 
 # 実在チェック用のI2V Space候補（無料ZeroGPU系）。probeでどれが生きてるか自動判定する。
@@ -190,11 +194,190 @@ def _record_library(creds_path, url, source, prompt):
     print("[LIB] 素材ライブラリに追加:", url[:70])
 
 
+def _put_media_json(key, text):
+    """公開メディアリポの key に JSON を作成/更新（GitHub contents API）。
+    確認PWAの素材ギャラリー(gallery.html)が raw.githubusercontent 経由で読む一覧ファイル。"""
+    import base64 as _b64, requests as _rq
+    tok = os.environ.get("GH_MEDIA_TOKEN"); repo = os.environ.get("GH_MEDIA_REPO")
+    branch = os.environ.get("GH_MEDIA_BRANCH", "main")
+    if not (tok and repo):
+        print("[MANIFEST] GH_MEDIA未設定→ギャラリー一覧の書き出しスキップ"); return
+    api = "https://api.github.com/repos/%s/contents/%s" % (repo, key)
+    headers = {"Authorization": "Bearer " + tok, "Accept": "application/vnd.github+json",
+               "X-GitHub-Api-Version": "2022-11-28"}
+    sha = None
+    try:
+        g = _rq.get(api + "?ref=" + branch, headers=headers, timeout=60)
+        if g.status_code == 200:
+            sha = g.json().get("sha")
+    except Exception as e:
+        print("[MANIFEST] 既存sha取得失敗（新規作成として続行）:", e)
+    body = {"message": "update " + key, "content": _b64.b64encode(text.encode("utf-8")).decode(), "branch": branch}
+    if sha:
+        body["sha"] = sha
+    try:
+        p = _rq.put(api, headers=headers, json=body, timeout=60)
+        print("[MANIFEST] PUT %s %s" % (key, p.status_code))
+    except Exception as e:
+        print("[MANIFEST] PUT失敗:", e)
+
+
+def _write_manifest():
+    """シート「リール素材」全行を読み、メディアリポに clips/index.json を書き出す（ギャラリー用・毎回全件で自己修復）。"""
+    import poster
+    poster.SHEET_ID = os.environ.get("SHEET_ID", getattr(poster, "SHEET_ID", ""))
+    sh = poster._sheets()
+    if not sh:
+        print("[MANIFEST] シート未接続→スキップ"); return
+    vals = sh.values().get(spreadsheetId=poster.SHEET_ID, range=LIB_TAB + "!A2:E").execute().get("values", [])
+    items = []
+    for row in vals:
+        url = (row[0].strip() if len(row) > 0 and row[0] else "")
+        if not url or not url.startswith("http"):
+            continue
+        items.append({
+            "url": url,
+            "source": (row[1].strip() if len(row) > 1 and row[1] else ""),
+            "created": (row[3].strip() if len(row) > 3 and row[3] else ""),
+            "used": (row[4].strip() if len(row) > 4 and row[4] else ""),
+        })
+    items.reverse()  # 新しい順
+    data = {"updated": datetime.datetime.now(poster.JST).strftime("%Y-%m-%d %H:%M"),
+            "count": len(items), "clips": items}
+    _put_media_json("clips/index.json", json.dumps(data, ensure_ascii=False))
+    print("[MANIFEST] clips/index.json 書き出し:", len(items), "本")
+
+
+def _list_videos(drive, fid):
+    """フォルダ（サブフォルダ含む）から動画ファイルを再帰的に集める。"""
+    out = []
+    for f in _list(drive, fid):
+        if f["mimeType"] == "application/vnd.google-apps.folder":
+            out += _list_videos(drive, f["id"])
+        elif f["mimeType"].startswith("video/") or f["name"].lower().endswith(VIDEO_EXT):
+            out.append(f)
+    return out
+
+
+def _download_file(drive, f):
+    from googleapiclient.http import MediaIoBaseDownload
+    ext = os.path.splitext(f["name"])[1] or ".mp4"
+    tf = tempfile.NamedTemporaryFile(suffix=ext, delete=False)
+    dl = MediaIoBaseDownload(tf, drive.files().get_media(fileId=f["id"]))
+    done = False
+    while not done:
+        _, done = dl.next_chunk()
+    tf.close()
+    return tf.name
+
+
+def ingest_manual():
+    """Kling/Hailuo等で作りDriveへ入れた動画を取り込み、素材ライブラリ（＝ギャラリー）に貯める。
+    重複は「取込済み」タブのDriveファイルIDで防止。生成不要＝無料でひたすら貯められる。"""
+    import poster
+    if not MANUAL_FOLDER:
+        print("[INGEST] MANUAL_CLIPS_ID 未設定→スキップ（手動クリップ取り込みは無効）"); return 0
+    drive, creds_path = _drive()
+    poster.SHEET_ID = os.environ.get("SHEET_ID", getattr(poster, "SHEET_ID", ""))
+    sh = poster._sheets()
+    if not sh:
+        print("[INGEST] シート未接続→中断"); return 0
+    poster._ensure_tab(sh, DONE_TAB)
+    head = sh.values().get(spreadsheetId=poster.SHEET_ID, range=DONE_TAB + "!A1:D1").execute().get("values", [])
+    if not head:
+        sh.values().update(spreadsheetId=poster.SHEET_ID, range=DONE_TAB + "!A1:D1", valueInputOption="RAW",
+            body={"values": [["fileId", "name", "url", "created"]]}).execute()
+    done_rows = sh.values().get(spreadsheetId=poster.SHEET_ID, range=DONE_TAB + "!A2:A").execute().get("values", [])
+    done_ids = set(r[0] for r in done_rows if r)
+    vids = _list_videos(drive, MANUAL_FOLDER)
+    new = [f for f in vids if f["id"] not in done_ids]
+    print("[INGEST] 未取込 %d 本 / フォルダ内 %d 本" % (len(new), len(vids)))
+    added = 0
+    for f in new:
+        try:
+            path = _download_file(drive, f)
+            url = poster.up(path, cdn=True)
+            if not url:
+                print("[INGEST] アップロード失敗（次回再試行）:", f["name"]); continue
+            src = os.path.splitext(f["name"])[0]
+            now = datetime.datetime.now(poster.JST).strftime("%Y-%m-%d %H:%M")
+            sh.values().append(spreadsheetId=poster.SHEET_ID, range=LIB_TAB + "!A:E", valueInputOption="RAW",
+                insertDataOption="INSERT_ROWS", body={"values": [[url, src, "manual", now, ""]]}).execute()
+            sh.values().append(spreadsheetId=poster.SHEET_ID, range=DONE_TAB + "!A:D", valueInputOption="RAW",
+                insertDataOption="INSERT_ROWS", body={"values": [[f["id"], f["name"], url, now]]}).execute()
+            added += 1
+            print("[INGEST] 取込:", f["name"], "→", url[:60])
+        except Exception as e:
+            print("[INGEST] 失敗:", f.get("name"), type(e).__name__, str(e)[:90])
+    if added:
+        _write_manifest()
+    print("[INGEST] 新規取込 %d 本" % added)
+    return 0
+
+
+def _creds_path_arg():
+    for a in sys.argv[2:]:
+        if os.path.exists(a) and a.endswith(".json"):
+            return a
+    for b in [".", ".."]:
+        for p in glob.glob(os.path.join(b, "*.json")):
+            try:
+                if json.load(open(p, encoding="utf-8")).get("type") == "service_account":
+                    return os.path.abspath(p)
+            except Exception:
+                pass
+    raise SystemExit("NG: 認証JSONが見つかりません")
+
+
+def mk_manual_folder():
+    """手動クリップ用のDriveフォルダを作成し、本人(amami@8sin.co.jp)に編集者共有してIDを表示する。
+    1回だけ実行。既存があれば再利用。ここで出たIDを MANUAL_FOLDER 既定値に固定すればSecret不要。"""
+    from google.oauth2 import service_account
+    from googleapiclient.discovery import build
+    cr = service_account.Credentials.from_service_account_file(
+        _creds_path_arg(), scopes=["https://www.googleapis.com/auth/drive"])
+    drive = build("drive", "v3", credentials=cr)
+    share_email = os.environ.get("SHARE_EMAIL", "amami@8sin.co.jp")
+    name = "手動リール素材（Kling・Hailuo）"
+    q = "name='%s' and mimeType='application/vnd.google-apps.folder' and trashed=false" % name
+    ex = drive.files().list(q=q, fields="files(id,name)", spaces="drive",
+        supportsAllDrives=True, includeItemsFromAllDrives=True).execute().get("files", [])
+    if ex:
+        fid = ex[0]["id"]; print("[MKMANUAL] 既存フォルダを再利用:", fid)
+    else:
+        parent = FOOD_FOLDER
+        try:
+            meta = drive.files().get(fileId=FOOD_FOLDER, fields="parents", supportsAllDrives=True).execute()
+            ps = meta.get("parents") or []
+            if ps:
+                parent = ps[0]   # 料理写真フォルダの“親”の下に兄弟として作る
+        except Exception as e:
+            print("[MKMANUAL] 親フォルダ特定失敗（料理写真直下に作成）:", e)
+        body = {"name": name, "mimeType": "application/vnd.google-apps.folder", "parents": [parent]}
+        fid = drive.files().create(body=body, fields="id", supportsAllDrives=True).execute()["id"]
+        print("[MKMANUAL] 作成:", fid, "(parent=%s)" % parent)
+    try:
+        drive.permissions().create(fileId=fid, sendNotificationEmail=False,
+            body={"type": "user", "role": "writer", "emailAddress": share_email},
+            supportsAllDrives=True).execute()
+        print("[MKMANUAL] 共有:", share_email, "(編集者)")
+    except Exception as e:
+        print("[MKMANUAL] 共有失敗:", e)
+    print("MANUAL_FOLDER_ID|" + fid)
+    print("URL|https://drive.google.com/drive/folders/" + fid)
+    return 0
+
+
 def gen():
     import poster
     prompt = os.environ.get("I2V_PROMPT") or DEFAULT_PROMPT
     drive, creds_path = _drive()
-    img_path, source = _pick_food_photo(drive)
+    if os.environ.get("COMPARE_IMAGE"):
+        # 比較テスト：固定の標準画像（中トロ造り）を使う＝各モデルを同一条件で
+        img_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "compare", "sample_chutoro.jpg")
+        source = "中トロ造り(標準比較)"
+    else:
+        img_path, source = _pick_food_photo(drive)
     print("[I2V] 元写真:", source)
     result = _generate_with_fallback(img_path, prompt)
     if result is None:
@@ -209,6 +392,7 @@ def gen():
         raise SystemExit("[I2V] CDNアップロード失敗")
     print("[I2V] 生成OK →", url)
     _record_library(creds_path, url, source, prompt)
+    _write_manifest()   # 素材ギャラリー用の一覧(clips/index.json)を最新化
     return 0
 
 
@@ -297,4 +481,14 @@ if __name__ == "__main__":
     mode = (sys.argv[1] if len(sys.argv) > 1 else "gen").strip()
     if mode == "probe":
         sys.exit(probe())
+    if mode == "manifest":
+        # 生成せず、既存のシート内容から素材ギャラリー一覧だけを再構築（初回バックフィル用）
+        _write_manifest()
+        sys.exit(0)
+    if mode == "ingest":
+        # Kling/Hailuo等でDriveに入れた動画を取り込んでライブラリに貯める（生成なし）
+        sys.exit(ingest_manual())
+    if mode == "mkmanual":
+        # 手動クリップ用のDriveフォルダを作成＆本人へ共有（1回だけ）
+        sys.exit(mk_manual_folder())
     sys.exit(gen())

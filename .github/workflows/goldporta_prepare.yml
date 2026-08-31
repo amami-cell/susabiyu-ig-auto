@@ -1,12 +1,12 @@
-name: gifuya-prepare
-# ぎふや福岡天神：三条方式の事前生成。2日先の各枠を「その日のDrive写真から新規レンダリング」し、
-# 承認待ち_gifuyatenjin タブへ pending 登録する。オーナーは確認アプリで承認/作り直し/やめるを操作。
-# stores.py の gifuyatenjin エントリ（Driveフォルダ・ブランドprops・food-onlyパターン・文言）で動く。
+name: goldporta-prepare
+# GOLD京都ポルタ（フレンチ酒場）：三条方式の事前生成。2日先の各枠を「その日のDrive写真から新規レンダリング」し、
+# 承認待ち_goldporta タブへ pending 登録する。オーナーは確認アプリで承認/作り直し/やめるを操作。
+# stores.py の goldporta エントリ（Driveフォルダ・ブランドprops・food-onlyパターン・文言）で動く。
 on:
-  schedule:
-    # JST 05:10 / 06:10（＝UTC 20:10 / 21:10 前日）。prepare は冪等なので複数cronは信頼性バックアップ。
-    - cron: '10 20 * * *'
-    - cron: '10 21 * * *'
+  # schedule: ここはトークン＆テンプレ確定までOFF（go-live時に復活）
+  # # JST 05:20 / 06:20（＝UTC 20:20 / 21:20 前日）。prepare は冪等なので複数cronは信頼性バックアップ。
+  # - cron: '20 20 * * *'
+  # - cron: '20 21 * * *'
   workflow_dispatch:
     inputs:
       date:
@@ -17,14 +17,10 @@ on:
         description: "1=LINE/Push通知を送らない"
         required: false
         default: "0"
-      account:
-        description: "店舗account上書き（空=gifuyatenjin）。新店の事前生成テスト用（nagagutsu / goldporta 等）"
-        required: false
-        default: ""
 permissions:
   contents: read
 concurrency:
-  group: gifuya-prepare
+  group: goldporta-prepare
   cancel-in-progress: false
 jobs:
   prepare:
@@ -51,14 +47,11 @@ jobs:
         run: echo "$GOOGLE_CREDS_B64" | base64 -d > creds.json
         env:
           GOOGLE_CREDS_B64: ${{ secrets.GOOGLE_CREDS_B64 }}
-      - name: Run prepare (gifuyatenjin)
+      - name: Run prepare (goldporta)
         env:
           # 店舗指定。承認待ちタブ・Driveフォルダ・ブランドprops・文言は stores.py が解決する。
-          # accountを渡すと新店(nagagutsu/goldporta等)の事前生成テストに流用できる（prepareは投稿トークン不要）。
-          STORE_ACCOUNT: ${{ github.event.inputs.account || 'gifuyatenjin' }}
+          STORE_ACCOUNT: goldporta
           GOOGLE_CREDS_B64: ${{ secrets.GOOGLE_CREDS_B64 }}
-          IG_ACCESS_TOKEN_GIFUYATENJIN: ${{ secrets.IG_ACCESS_TOKEN_GIFUYATENJIN }}
-          IG_ACCESS_TOKEN_NAGAGUTSU: ${{ secrets.IG_ACCESS_TOKEN_NAGAGUTSU }}
           IG_ACCESS_TOKEN_GOLDPORTA: ${{ secrets.IG_ACCESS_TOKEN_GOLDPORTA }}
           SHEET_ID: ${{ secrets.SHEET_ID }}
           LINE_CHANNEL_TOKEN: ${{ secrets.LINE_CHANNEL_TOKEN }}
@@ -71,7 +64,7 @@ jobs:
           GH_MEDIA_REPO: ${{ secrets.GH_MEDIA_REPO }}
           VAPID_PRIVATE_KEY: ${{ secrets.VAPID_PRIVATE_KEY }}
           VAPID_SUBJECT: ${{ secrets.VAPID_SUBJECT }}
-          # PWA_URL は未設定＝stores.py の gifuyatenjin pwa_url を使う（確認アプリへの導線）
+          # PWA_URL は未設定＝stores.py の goldporta pwa_url を使う（確認アプリへの導線）
           QUIET_NOTIFY: ${{ github.event.inputs.quiet }}
           INDATE: ${{ github.event.inputs.date }}
         run: |
@@ -95,4 +88,4 @@ jobs:
           [ -z "$LINE_CHANNEL_TOKEN" ] && exit 0
           curl -s -X POST https://api.line.me/v2/bot/message/broadcast \
             -H "Authorization: Bearer $LINE_CHANNEL_TOKEN" -H "Content-Type: application/json" \
-            -d "{\"messages\":[{\"type\":\"text\",\"text\":\"⚠️ ぎふや動画準備(gifuya-prepare)が失敗しました。\n確認: $RUN_URL\"}]}" >/dev/null || true
+            -d "{\"messages\":[{\"type\":\"text\",\"text\":\"⚠️ GOLD京都ポルタ動画準備(goldporta-prepare)が失敗しました。\n確認: $RUN_URL\"}]}" >/dev/null || true

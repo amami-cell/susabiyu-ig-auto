@@ -1,0 +1,63 @@
+name: goldporta-redo-scan
+# GOLD京都ポルタ：確認アプリで「作り直す」された枠(status=redo)を、GAS→GitHub起動に依存せず
+# 30分ごとに必ず拾って再生成する安全網（三条 redo_scan と同じ）。承認待ち_goldporta を見る。
+on:
+  # schedule: ここはトークン＆テンプレ確定までOFF（go-live時に復活）
+  # - cron: '*/30 * * * *'
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: goldporta-redo-scan
+  cancel-in-progress: false
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    defaults:
+      run:
+        working-directory: susabiyu-remotion
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Write creds.json
+        run: echo "$GOOGLE_CREDS_B64" | base64 -d > creds.json
+        env:
+          GOOGLE_CREDS_B64: ${{ secrets.GOOGLE_CREDS_B64 }}
+      - name: Install Python deps (gate only)
+        run: pip install google-api-python-client google-auth requests
+      - name: redo 件数ゲート
+        id: gate
+        env:
+          STORE_ACCOUNT: goldporta
+          GOOGLE_CREDS_B64: ${{ secrets.GOOGLE_CREDS_B64 }}
+          SHEET_ID: ${{ secrets.SHEET_ID }}
+        run: python post_approved.py creds.json redo-check
+      - uses: actions/setup-node@v4
+        if: steps.gate.outputs.redo != '0' && steps.gate.outputs.redo != ''
+        with:
+          node-version: '20'
+      - name: Install full deps (redoがある時だけ)
+        if: steps.gate.outputs.redo != '0' && steps.gate.outputs.redo != ''
+        run: |
+          pip install google-api-python-client google-auth requests jpholiday Pillow boto3 pywebpush numpy
+          npm ci
+          sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg
+      - name: redo 枠を再生成
+        if: steps.gate.outputs.redo != '0' && steps.gate.outputs.redo != ''
+        env:
+          STORE_ACCOUNT: goldporta
+          GOOGLE_CREDS_B64: ${{ secrets.GOOGLE_CREDS_B64 }}
+          IG_ACCESS_TOKEN_GOLDPORTA: ${{ secrets.IG_ACCESS_TOKEN_GOLDPORTA }}
+          SHEET_ID: ${{ secrets.SHEET_ID }}
+          LINE_CHANNEL_TOKEN: ${{ secrets.LINE_CHANNEL_TOKEN }}
+          R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          R2_BUCKET: ${{ secrets.R2_BUCKET }}
+          R2_PUBLIC_BASE: ${{ secrets.R2_PUBLIC_BASE }}
+          GH_MEDIA_TOKEN: ${{ secrets.GH_MEDIA_TOKEN }}
+          GH_MEDIA_REPO: ${{ secrets.GH_MEDIA_REPO }}
+        run: python post_approved.py creds.json redo-scan

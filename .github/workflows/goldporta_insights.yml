@@ -1,0 +1,59 @@
+name: goldporta-insights
+# GOLD京都ポルタのInstagramインサイトを日次収集（アカウント別タブ インサイト日次_goldporta 等）。
+# アプリのレポートタブ（api=report&account=goldporta）がこのデータを表示する。
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: "collect / check / heal"
+        required: false
+        default: "collect"
+  # schedule: ここはトークン＆テンプレ確定までOFF（go-live時に復活）
+  # - cron: '45 15 * * *'   # 毎日 00:45 JST に日次収集（他店とずらす）
+  # - cron: '30 * * * *'    # 毎時 heal（一時保存を永続へ昇格。三条:15・ぎふや:20・ナガグツ:25 とずらして :30）
+  # - cron: '45 1 * * 1'    # 毎週月曜 10:45 JST に先週のまとめを通知
+jobs:
+  insights:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: susabiyu-remotion
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install Python deps
+        # pywebpush/cryptography は週次まとめのWeb Push送信に必要。
+        run: pip install google-api-python-client google-auth requests Pillow boto3 pywebpush cryptography
+      - name: Write creds.json
+        run: echo "$GOOGLE_CREDS_B64" | base64 -d > creds.json
+        env:
+          GOOGLE_CREDS_B64: ${{ secrets.GOOGLE_CREDS_B64 }}
+      - name: Run goldporta insights
+        env:
+          STORE_ACCOUNT: goldporta
+          GOOGLE_CREDS_B64: ${{ secrets.GOOGLE_CREDS_B64 }}
+          IG_ACCESS_TOKEN_GOLDPORTA: ${{ secrets.IG_ACCESS_TOKEN_GOLDPORTA }}
+          SHEET_ID: ${{ secrets.SHEET_ID }}
+          GH_MEDIA_TOKEN: ${{ secrets.GH_MEDIA_TOKEN }}
+          GH_MEDIA_REPO: ${{ secrets.GH_MEDIA_REPO }}
+          R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          R2_BUCKET: ${{ secrets.R2_BUCKET }}
+          R2_PUBLIC_BASE: ${{ secrets.R2_PUBLIC_BASE }}
+          LINE_CHANNEL_TOKEN: ${{ secrets.LINE_CHANNEL_TOKEN }}
+          # 週次まとめのWeb Push（三条と同じVAPID鍵を共用）。宛先は購読_goldportaタブ。
+          VAPID_PRIVATE_KEY: ${{ secrets.VAPID_PRIVATE_KEY }}
+          VAPID_SUBJECT: ${{ secrets.VAPID_SUBJECT }}
+          # まとめ通知の「レポートで↓」リンクはGOLDの確認アプリへ。
+          PWA_URL: https://amami-cell.github.io/susabiyu-media/app/goldporta.html
+        run: |
+          MODE="${{ github.event.inputs.mode }}"
+          SCHED="${{ github.event.schedule }}"
+          if [ -n "$MODE" ]; then python insights.py "$MODE"; fi
+          if [ "$SCHED" = "45 15 * * *" ]; then python insights.py collect; fi
+          if [ "$SCHED" = "45 1 * * 1" ]; then python insights.py weekly; fi
+          if [ "$SCHED" = "30 * * * *" ]; then python insights.py heal; fi
