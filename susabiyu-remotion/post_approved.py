@@ -303,6 +303,17 @@ def main():
         dt = datetime.datetime.now(JST)
     when_str = dt.strftime("%Y-%m-%d %H:%M")
 
+    # 遅延ガード：GitHubのcron遅延で「予定枠(dt)」より大幅に遅れて実行された場合、
+    # 深夜など迷惑な時刻に自動投稿してしまうのを防ぐ。枠はpendingのまま残し、投稿も通知もしない。
+    # スケジュール実行時のみ有効（POST_SCHED_GUARD=1）。手動の「即投稿」は時刻に関係なく従来どおり投稿。
+    if os.environ.get("POST_SCHED_GUARD") == "1":
+        max_late = int(os.environ.get("POST_MAX_LATE_MIN", "120"))   # 予定枠からの許容遅延（分）
+        late_min = (datetime.datetime.now(JST) - dt).total_seconds() / 60.0
+        if late_min > max_late:
+            print("[GUARD] 予定枠 %s より %.0f分 遅延（許容 %d分 超）→ 遅延投稿を回避してスキップ（枠はpendingのまま／通知なし）"
+                  % (when_str, late_min, max_late))
+            return
+
     sh = poster._sheets()
     rownum, row = find_row(sh, when_str)
     if not rownum:
