@@ -24,6 +24,11 @@ UTC = datetime.timezone.utc
 SW, SH = 1080, 1920                      # ストーリー解像度
 DRY = os.environ.get("DRY") == "1"
 HOLD_MIN = float(os.environ.get("IG_AUTO_HOLD_MIN", "10"))   # 保留付き自動：受信からこの分数は投稿を待つ
+# 深夜ガード：保留経過の「自動」リポストは、迷惑な時間帯に発火させない（＝この時間帯だけ投稿する）。
+# 既定 8:00〜22:00 JST。範囲外（深夜〜早朝）に保留が切れても、翌朝この窓に入るまで待つ。
+# ※店主が確認アプリで明示「承認」した分（status=approved）は時間帯に関係なく従来どおり投稿する。
+AUTO_POST_FROM = int(os.environ.get("IG_AUTO_POST_FROM", "8"))   # 何時から自動投稿してよいか（JST時）
+AUTO_POST_TO = int(os.environ.get("IG_AUTO_POST_TO", "22"))      # 何時まで（この時刻以降は翌朝へ）
 _HERE = os.path.dirname(os.path.abspath(__file__))
 _REPLY = "メンションありがとうございます！ご投稿とても嬉しいです😊 またのお越しをお待ちしています🍶"
 
@@ -225,6 +230,11 @@ def _process(store, sh):
             age = _age_min(_dt)
             if age < HOLD_MIN:
                 print("[%s][ROW %d] auto保留中（%.1f/%.0f分）" % (name, i, age, HOLD_MIN)); continue
+            # 深夜ガード：保留が切れても、迷惑な時間帯(既定22:00〜翌8:00 JST)は自動投稿しない＝朝まで待つ。
+            # （店主が明示「承認」した status=approved はこのガードを通らず従来どおり即投稿）
+            nowh = datetime.datetime.now(JST).hour
+            if not (AUTO_POST_FROM <= nowh < AUTO_POST_TO):
+                print("[%s][ROW %d] auto深夜待機（%d時・%d-%d時のみ自動投稿）" % (name, i, nowh, AUTO_POST_FROM, AUTO_POST_TO)); continue
         comment = (comment or "").strip()
         print("[%s][ROW %d] status=%s sender=%s" % (name, i, status, sender))
         try:
