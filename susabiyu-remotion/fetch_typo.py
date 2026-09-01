@@ -225,7 +225,8 @@ lines.append('export const typoMusic = "%s";' % esc(music))
 
 
 def _music_start_sec(path):
-    """音源ファイル名から再生開始秒を読む。例「曲名 30秒.mp3」「曲名 1:05〜.mp3」「name_30s.mp3」→ 秒。
+    """音源ファイル名から再生開始秒を読む。対応：
+      「1分23秒〜」→83 / 「30秒」→30 / 「2分」→120 / 「1:05」→65 / 「name_30s」→30。
     見つからなければ0（先頭から）。数字を含まない曲名でも安全に0に倒れる。"""
     import re as _re2
     base = _po.path.splitext(_po.path.basename(path or ""))[0]
@@ -233,9 +234,15 @@ def _music_start_sec(path):
     if m:
         a, b, c = int(m.group(1)), int(m.group(2)), m.group(3)
         return a * 3600 + b * 60 + int(c) if c else a * 60 + b
-    m = _re2.search(r'(\d{1,3})\s*(?:秒|s\b|sec)', base, _re2.I)   # 「30秒」「30s」「30sec」
-    if m:
-        return int(m.group(1))
+    jm = _re2.search(r'(?:(\d+)\s*分)?\s*(\d+)\s*秒', base)     # 「1分23秒」「23秒」
+    if jm and (jm.group(1) or jm.group(2)):
+        return (int(jm.group(1)) if jm.group(1) else 0) * 60 + (int(jm.group(2)) if jm.group(2) else 0)
+    jm2 = _re2.search(r'(\d+)\s*分', base)                      # 「2分」だけ
+    if jm2:
+        return int(jm2.group(1)) * 60
+    m2 = _re2.search(r'(\d{1,3})\s*(?:s\b|sec)', base, _re2.I)  # 「30s」「30sec」
+    if m2:
+        return int(m2.group(1))
     return 0
 
 
