@@ -36,7 +36,7 @@ jobs:
         with:
           python-version: '3.12'
       - name: Install deps
-        run: pip install google-api-python-client google-auth requests Pillow boto3
+        run: pip install google-api-python-client google-auth requests Pillow boto3 pywebpush cryptography
       - name: Install 日本語フォント
         run: sudo apt-get update -qq && sudo apt-get install -y -qq fonts-noto-cjk
       - name: Process mention queue
@@ -61,4 +61,20 @@ jobs:
         run: |
           echo "$GOOGLE_CREDS_B64" | base64 -d > creds.json || true
           python mention_repost.py
+          rm -f creds.json
+      - name: DM新着を検知してアプリへ通知（全店・相乗り＝新cronなし）
+        env:
+          STORE_ACCOUNT: ${{ github.event.inputs.store }}
+          GOOGLE_CREDS_B64: ${{ secrets.GOOGLE_CREDS_B64 }}
+          IG_ACCESS_TOKEN: ${{ secrets.IG_ACCESS_TOKEN }}
+          IG_ACCESS_TOKEN_GIFUYATENJIN: ${{ secrets.IG_ACCESS_TOKEN_GIFUYATENJIN }}
+          IG_ACCESS_TOKEN_NAGAGUTSU: ${{ secrets.IG_ACCESS_TOKEN_NAGAGUTSU }}
+          IG_ACCESS_TOKEN_GOLDPORTA: ${{ secrets.IG_ACCESS_TOKEN_GOLDPORTA }}
+          SHEET_ID: ${{ secrets.SHEET_ID }}
+          # Web Push（アプリ通知）用。三条と同じVAPID鍵を共用。宛先は各店の購読_<account>。
+          VAPID_PRIVATE_KEY: ${{ secrets.VAPID_PRIVATE_KEY }}
+          VAPID_SUBJECT: ${{ secrets.VAPID_SUBJECT }}
+        run: |
+          echo "$GOOGLE_CREDS_B64" | base64 -d > creds.json || true
+          python dm_notify.py creds.json run || true
           rm -f creds.json

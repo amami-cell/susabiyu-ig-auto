@@ -28,6 +28,11 @@ QUIET_FROM = int(os.environ.get("DM_QUIET_FROM", "8"))   # 何時から通知し
 QUIET_TO = int(os.environ.get("DM_QUIET_TO", "22"))      # 何時まで
 
 
+def _now_iso():
+    # IGの created_time はISO8601(+0000)。基準化フォールバック用に現在UTCを同形式で返す。
+    return datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%S+0000")
+
+
 def _accounts():
     a = os.environ.get("STORE_ACCOUNT", "").strip()
     if a:
@@ -89,6 +94,12 @@ def _list_tab(acct):
     return "DM" + ("_" + acct if acct else "")
 
 
+def _app_url(acct):
+    # 通知タップ時に開く、その店の確認アプリのページ。
+    return {"": "./", "gifuyatenjin": "./gifuyatenjin.html",
+            "nagagutsu": "./nagagutsu.html", "goldporta": "./goldporta.html"}.get(acct, "./")
+
+
 def run_account(acct, mode):
     name = _stores.get_store(acct).get("store_name") or acct or "三条"
     try:
@@ -110,65 +121,92 @@ def run_account(acct, mode):
     stab = _state_tab(acct); ltab = _list_tab(acct)
     poster._ensure_tab(sh, stab); poster._ensure_tab(sh, ltab)
 
-    # 既読の最終時刻を state から読む（A1セル）
-    last_seen = ""
+    # state: A1=既読の最終時刻(last_seen) / B1=夜間などで通知保留した件数(pending)
+    last_seen = ""; pending = 0
     try:
-        v = sh.values().get(spreadsheetId=poster.SHEET_ID, range=stab + "!A1").execute().get("values", [])
-        last_seen = (v[0][0] if v and v[0] else "") or ""
+        v = sh.values().get(spreadsheetId=poster.SHEET_ID, range=stab + "!A1:B1").execute().get("values", [])
+        if v and v[0]:
+            last_seen = (v[0][0] if len(v[0]) > 0 else "") or ""
+            try: pending = int(v[0][1]) if len(v[0]) > 1 and v[0][1] != "" else 0
+            except Exception: pending = 0
     except Exception:
         pass
 
+    # 初回（stateなし）は「基準化」だけ：過去DMを大量通知しないよう、最新時刻を記録して終了。
+    first_run = (last_seen == "")
     newest = last_seen
     new_rows = []
+    # 更新のあった会話だけメッセージ取得（API呼び出し削減）。updated_time は新しい順。
     for c in convs:
+        ut = c.get("updated_time", "")
+        if last_seen and ut and ut <= last_seen:
+            continue
         for m in _messages(token, c.get("id")):
+            ct = m.get("created_time", "")
+            if ct and ct > newest:
+                newest = ct
             frm = str((m.get("from") or {}).get("id") or "")
             if frm == uid:
                 continue  # 自分（店）の送信は除外＝受信DMだけ
-            ct = m.get("created_time", "")
             if last_seen and ct <= last_seen:
                 continue
+            if first_run:
+                continue  # 初回は記録も通知もしない（基準化のみ）
             sender = (m.get("from") or {}).get("username") or frm
             text = (m.get("message") or "").strip()
             new_rows.append([ct, sender, text, m.get("id", "")])
-            if ct > newest:
-                newest = ct
 
-    if not new_rows:
-        print("[%s][DM] 新着なし" % name); return
+    if first_run:
+        try:
+            sh.values().update(spreadsheetId=poster.SHEET_ID, range=stab + "!A1:B1",
+                               valueInputOption="RAW", body={"values": [[newest or _now_iso(), 0]]}).execute()
+        except Exception as e:
+            print("[%s][DM] 初回基準化の保存に失敗:" % name, e)
+        print("[%s][DM] 初回基準化（以後の新着から通知します）" % name); return
 
-    # 一覧タブへ追記（アプリが読む）
-    new_rows.sort(key=lambda r: r[0])
+    # 新着を一覧タブへ追記（アプリが読む）
+    if new_rows:
+        new_rows.sort(key=lambda r: r[0])
+        try:
+            sh.values().append(spreadsheetId=poster.SHEET_ID, range=ltab + "!A:D",
+                               valueInputOption="RAW", insertDataOption="INSERT_ROWS",
+                               body={"values": new_rows}).execute()
+        except Exception as e:
+            print("[%s][DM] 一覧追記に失敗:" % name, e)
+
+    nowh = datetime.datetime.now(JST).hour
+    in_window = (QUIET_FROM <= nowh < QUIET_TO)
+    to_notify = len(new_rows) + (pending if in_window else 0)
+
+    if in_window and to_notify > 0:
+        try:
+            import prepare
+            if new_rows:
+                latest = new_rows[-1]
+                head = "%s さんからDM: %s" % (latest[1], (latest[2][:40] + "…") if len(latest[2]) > 40 else latest[2])
+            else:
+                head = "夜間に届いたDMがあります"
+            title = "%s 新着DM（%d件）" % (name, to_notify)
+            prepare.SHEET_ID = poster.SHEET_ID
+            prepare.send_push(sh, title, head, _app_url(acct), focus="dm", category="dm", account=acct)
+            print("[%s][DM] %d件を通知しました" % (name, to_notify))
+            pending = 0
+        except Exception as e:
+            print("[%s][DM] 通知に失敗:" % name, e)
+    elif not in_window:
+        pending += len(new_rows)
+        if new_rows:
+            print("[%s][DM] 新着%d件（%d時＝静音帯%d-%d時のため通知保留・一覧は反映済み・翌朝まとめて通知）"
+                  % (name, len(new_rows), nowh, QUIET_FROM, QUIET_TO))
+    else:
+        print("[%s][DM] 新着なし" % name)
+
+    # state を保存（last_seen前進＋pending件数）
     try:
-        sh.values().append(spreadsheetId=poster.SHEET_ID, range=ltab + "!A:D",
-                           valueInputOption="RAW", insertDataOption="INSERT_ROWS",
-                           body={"values": new_rows}).execute()
-    except Exception as e:
-        print("[%s][DM] 一覧追記に失敗:" % name, e)
-
-    # state を進める
-    try:
-        sh.values().update(spreadsheetId=poster.SHEET_ID, range=stab + "!A1",
-                           valueInputOption="RAW", body={"values": [[newest]]}).execute()
+        sh.values().update(spreadsheetId=poster.SHEET_ID, range=stab + "!A1:B1",
+                           valueInputOption="RAW", body={"values": [[newest, pending]]}).execute()
     except Exception as e:
         print("[%s][DM] state更新に失敗:" % name, e)
-
-    # 通知（静音時間帯は出さない＝深夜に鳴らさない。一覧には既に反映済み）
-    nowh = datetime.datetime.now(JST).hour
-    if not (QUIET_FROM <= nowh < QUIET_TO):
-        print("[%s][DM] 新着%d件（%d時＝静音帯 %d-%d時のため通知は保留・一覧には反映済み）"
-              % (name, len(new_rows), nowh, QUIET_FROM, QUIET_TO))
-        return
-    try:
-        import prepare
-        latest = new_rows[-1]
-        body = "%s さんからDM: %s" % (latest[1], (latest[2][:40] + "…") if len(latest[2]) > 40 else latest[2])
-        title = "%s 新着DM（%d件）" % (name, len(new_rows))
-        prepare.SHEET_ID = poster.SHEET_ID
-        prepare.send_push(sh, title, body, "./" + (acct or "") , focus="dm", category="dm", account=acct)
-        print("[%s][DM] 新着%d件を通知しました" % (name, len(new_rows)))
-    except Exception as e:
-        print("[%s][DM] 通知に失敗:" % name, e)
 
 
 def main():
