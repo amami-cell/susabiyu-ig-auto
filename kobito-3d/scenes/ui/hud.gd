@@ -7,6 +7,13 @@ extends Control
 
 var _player: Node = null
 
+# 「やられた→復活」をはっきり見せるための表示
+const REVIVE_SECS := 2.5     # player.gd のダウン→復活の時間に合わせる
+var _was_downed := false
+var _down_t := 0.0
+var _downed_dim: ColorRect = null
+var _downed_lbl: Label = null
+
 @onready var _recovery_bar: ProgressBar = $Top/RecoveryBar
 @onready var _recovery_label: Label = $Top/RecoveryLabel
 @onready var _hp_bar: ProgressBar = $Bottom/HpBar
@@ -28,6 +35,7 @@ func _ready() -> void:
 	guide.set_script(GuideArrowScript)
 	guide.name = "GuideArrow"
 	add_child(guide)
+	_build_downed()
 	_skin()
 	_on_recovery(WorldState.recovery)
 	_on_roster()
@@ -72,10 +80,41 @@ func _panel_behind(target: Control, bg: Color, border: Color, radius: int) -> Pa
 	return p
 
 
-func _process(_delta: float) -> void:
+## 「やられた…／もうすぐ 起きあがる（数字）」の中央表示。復活したら「ふっかつ！」。
+func _build_downed() -> void:
+	_downed_dim = ColorRect.new()
+	_downed_dim.color = Color(0.45, 0.06, 0.06, 0.4)   # 画面を赤く沈める＝“やられた”が一目で
+	_downed_dim.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_downed_dim.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_downed_dim.visible = false
+	add_child(_downed_dim)
+	move_child(_downed_dim, 0)   # いちばん後ろ（他のUIは上に出す）
+
+	_downed_lbl = Label.new()
+	_downed_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_downed_lbl.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	_downed_lbl.set_anchors_preset(Control.PRESET_CENTER)
+	_downed_lbl.offset_left = -420
+	_downed_lbl.offset_right = 420
+	_downed_lbl.offset_top = -80
+	_downed_lbl.offset_bottom = 80
+	_downed_lbl.add_theme_font_size_override("font_size", 46)
+	_downed_lbl.add_theme_color_override("font_color", Color(1, 1, 1))
+	_downed_lbl.add_theme_color_override("font_outline_color", Color(0.2, 0.05, 0.05))
+	_downed_lbl.add_theme_constant_override("outline_size", 12)
+	_downed_lbl.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_downed_lbl.visible = false
+	add_child(_downed_lbl)
+
+
+func _process(delta: float) -> void:
 	if _player == null or not is_instance_valid(_player):
 		_player = _find_local_player()
 		if _player == null:
+			if _downed_dim != null:
+				_downed_dim.visible = false
+			if _downed_lbl != null:
+				_downed_lbl.visible = false
 			return
 	_hp_bar.max_value = _player.max_hp
 	_hp_bar.value = _player.hp
@@ -83,6 +122,36 @@ func _process(_delta: float) -> void:
 	_level_label.text = "Lv.%d　XP %d/%d　HP %d/%d%s" % [
 		_player.level, _player.xp, _player.xp_to_next(), _player.hp, _player.max_hp, fly
 	]
+
+	# 死んだとき＝はっきり見せる（赤く沈める＋「たおれた…」＋復活までの数字）。
+	var downed: bool = _player.hp <= 0
+	if downed:
+		_down_t += delta
+		var remain := maxf(0.0, REVIVE_SECS - _down_t)
+		_downed_dim.visible = true
+		_downed_lbl.visible = true
+		_downed_lbl.text = "たおれた…\nもうすぐ 起きあがる（%d）" % int(ceil(remain))
+		# ゆっくり点滅させて“待ち”を伝える
+		_downed_lbl.modulate.a = 0.75 + 0.25 * sin(_down_t * 5.0)
+	else:
+		if _was_downed:
+			# 復活した瞬間：はっきり「ふっかつ！」
+			_down_t = 0.0
+			_downed_dim.visible = false
+			_downed_lbl.visible = false
+			_flash_center("ふっかつ！", Color(0.6, 1.0, 0.7))
+		_down_t = 0.0
+	_was_downed = downed
+
+
+## 中央に一瞬 大きく出して すっと消す（復活・大事な合図用）。
+func _flash_center(text: String, col: Color) -> void:
+	_notice.text = text
+	_notice.add_theme_color_override("font_color", col)
+	_notice.modulate.a = 1.0
+	var tween := create_tween()
+	tween.tween_interval(0.7)
+	tween.tween_property(_notice, "modulate:a", 0.0, 0.6)
 
 
 func _find_local_player() -> Node:
@@ -107,6 +176,7 @@ func _on_roster() -> void:
 
 func _on_notice(text: String) -> void:
 	_notice.text = text
+	_notice.add_theme_color_override("font_color", Color(1, 1, 0.9))   # 通常色に戻す（復活の緑を残さない）
 	_notice.modulate.a = 1.0
 	var tween := create_tween()
 	tween.tween_interval(2.0)
