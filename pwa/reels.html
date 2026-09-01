@@ -183,6 +183,7 @@
     <button class="tab reel" id="tReel">🎬 リール</button>
     <button class="tab sched" id="tSched">📅 予約済</button>
     <button class="tab" id="tMention">💬 メンション</button>
+    <button class="tab" id="tDM">📨 DM</button>
   </div>
 </header>
 
@@ -1068,12 +1069,39 @@
     }).catch(function(){ lab.innerHTML='💬 メンション <span class="cnt">取得エラー（実データ連携時のみ）</span>'; });
   }
 
-  var tF=document.getElementById("tFeed"), tR=document.getElementById("tReel"), tS=document.getElementById("tSched"), tM=document.getElementById("tMention");
-  function _seltab(el){ [tF,tR,tS,tM].forEach(function(x){ x.classList.remove("on"); }); el.classList.add("on"); window.scrollTo({top:0}); }
+  var tF=document.getElementById("tFeed"), tR=document.getElementById("tReel"), tS=document.getElementById("tSched"), tM=document.getElementById("tMention"), tDM=document.getElementById("tDM");
+  function _seltab(el){ [tF,tR,tS,tM,tDM].forEach(function(x){ x.classList.remove("on"); }); el.classList.add("on"); window.scrollTo({top:0}); }
   tF.onclick=function(){ _seltab(tF); render("feed"); };
   tR.onclick=function(){ _seltab(tR); render("reel"); };
   tS.onclick=function(){ _seltab(tS); renderSched(); };
+  function renderDM(){
+    wrap.innerHTML=""; refreshers=[];
+    var hint=document.createElement("div"); hint.className="hint";
+    hint.innerHTML="お客様から届いたInstagramのDMです（新しい順）。返信は各件の「Instagramで開く」から。<br>※通知は10〜22時。深夜に届いた分は翌朝まとめて通知します。";
+    wrap.appendChild(hint);
+    var lab=document.createElement("div"); lab.className="seclabel"; lab.innerHTML='\u{1F4E8} DM <span class="cnt">読み込み中…</span>'; wrap.appendChild(lab);
+    gJsonp({api:"dm"}).then(function(res){
+      var items=(res&&res.items)||[];
+      lab.innerHTML='\u{1F4E8} DM <span class="cnt">'+items.length+'件</span>';
+      if(!items.length){ var e=document.createElement("div"); e.className="hint"; e.textContent="まだ新着DMはありません。"; wrap.appendChild(e); return; }
+      function fmt(t){ var d=t?new Date(t):null; if(!d||isNaN(d))return esc(String(t||"")); var mo=("0"+(d.getMonth()+1)).slice(-2),da=("0"+d.getDate()).slice(-2),hh=("0"+d.getHours()).slice(-2),mm=("0"+d.getMinutes()).slice(-2); return mo+"/"+da+" "+hh+":"+mm; }
+      items.forEach(function(it){
+        var c=document.createElement("div"); c.className="card";
+        var u=String(it.sender||""); var isName=u && !/^[0-9]+$/.test(u);
+        var link=isName?("https://ig.me/m/"+encodeURIComponent(u)):"https://www.instagram.com/direct/inbox/";
+        var who=isName?("@"+u):"お客様";
+        c.innerHTML=
+          '<div class="chead"><span class="kind">\u{1F4E8} DM</span><span class="cno">'+fmt(it.time)+'</span></div>'+
+          '<div style="font-weight:800;margin:6px 2px 2px;color:#cfe4ff">'+esc(who)+'</div>'+
+          '<div style="white-space:pre-wrap;background:#12161d;border:1px solid #262c36;border-radius:12px;padding:10px;color:#eaeef2;font-size:14px">'+(it.text?esc(it.text):'<span style="color:#8b93a2">（本文なし・画像/スタンプ等）</span>')+'</div>'+
+          '<div class="acts"><a class="now" href="'+link+'" target="_blank" rel="noopener" style="text-align:center;text-decoration:none;display:block">Instagramで開く</a></div>';
+        wrap.appendChild(c);
+      });
+    }).catch(function(){ lab.innerHTML='\u{1F4E8} DM <span class="cnt">取得エラー（実データ連携時のみ）</span>'; });
+  }
+
   tM.onclick=function(){ _seltab(tM); renderMentions(); };
+  tDM.onclick=function(){ _seltab(tDM); renderDM(); };
   // 予約シートの閉じる（ボタン／背景タップ）
   document.getElementById("resvclose").onclick=closeResv;
   document.getElementById("resvback").onclick=closeResv;

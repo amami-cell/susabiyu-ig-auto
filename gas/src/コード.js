@@ -528,6 +528,7 @@ function _api_(p) {
     if (p.api === "storyset")     return _jsonp_(cb, storySet_(p.account || "", p.slot || "", p.action || "", p.file || ""));
     if (p.api === "storyplan")    return _jsonp_(cb, storyPlan_(p.account || ""));
     if (p.api === "mentions")     return _jsonp_(cb, _apiMentions_(p.account || ""));
+    if (p.api === "dm")           return _jsonp_(cb, _apiDM_(p.account || ""));
     if (p.api === "mentionact")   return _jsonp_(cb, { result: _mentionAct_(p.mid || "", p.action || "", p.text || "", p.account || "") });
     return _jsonp_(cb, { error: "unknown api" });
   } catch (err) {
@@ -1037,6 +1038,27 @@ function _mediaAlive_(url) {
     return !(code === 404 || code === 410);
   } catch (e) { return true; }
 }
+// 受信DM一覧（dm_notify.py が「DM_<account>」タブに記録：A=時刻,B=送信者,C=本文,D=msgid）。
+// お客様の個人情報のため公開リポには置かず、このGAS経由でのみ確認アプリに返す。新しい順・最大60件。
+function _apiDM_(account) {
+  var suf = account ? ("_" + String(account).trim()) : "";
+  var sh = ss.getSheetByName("DM" + suf);
+  if (!sh) return { items: [] };
+  var last = sh.getLastRow();
+  if (last < 1) return { items: [] };
+  var n = Math.min(last, 60);
+  var rows = sh.getRange(last - n + 1, 1, n, 4).getValues();
+  var items = [];
+  for (var i = 0; i < rows.length; i++) {
+    var t = String(rows[i][0] || '');
+    if (!t) continue;
+    items.push({ time: t, sender: String(rows[i][1] || ''),
+                 text: String(rows[i][2] || ''), id: String(rows[i][3] || '') });
+  }
+  items.reverse();   // 新しい順
+  return { items: items };
+}
+
 function _apiMentions_(account) {
   var ck = "ment_" + String(account || "").trim();
   var hit = _cacheGet_(ck); if (hit) return hit;     // 数秒キャッシュ（操作時は消える）
