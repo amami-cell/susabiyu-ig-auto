@@ -222,6 +222,26 @@ for it in items:
 lines.append("];")
 lines.append('export const typoHeadline = "%s";' % esc(headline))
 lines.append('export const typoMusic = "%s";' % esc(music))
+
+
+def _music_start_sec(path):
+    """音源ファイル名から再生開始秒を読む。例「曲名 30秒.mp3」「曲名 1:05〜.mp3」「name_30s.mp3」→ 秒。
+    見つからなければ0（先頭から）。数字を含まない曲名でも安全に0に倒れる。"""
+    import re as _re2
+    base = _po.path.splitext(_po.path.basename(path or ""))[0]
+    m = _re2.search(r'(\d{1,2}):(\d{2})(?::(\d{2}))?', base)   # m:ss / h:mm:ss
+    if m:
+        a, b, c = int(m.group(1)), int(m.group(2)), m.group(3)
+        return a * 3600 + b * 60 + int(c) if c else a * 60 + b
+    m = _re2.search(r'(\d{1,3})\s*(?:秒|s\b|sec)', base, _re2.I)   # 「30秒」「30s」「30sec」
+    if m:
+        return int(m.group(1))
+    return 0
+
+
+_mstart = _music_start_sec(music)
+print("MUSIC_START:", _mstart, "秒（ファイル名から）")
+lines.append('export const typoMusicStart = %d;' % _mstart)
 _up = music
 _updir = os.path.join("public", "music", "uptempo")
 sync_music_from_drive(os.environ.get("GENRE_MUSIC_UPTEMPO_ID"), _updir)

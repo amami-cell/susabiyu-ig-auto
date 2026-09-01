@@ -3,7 +3,7 @@
 import { AbsoluteFill, Img, Audio, staticFile, useCurrentFrame, interpolate, Easing, random } from "remotion";
 import { loadFont as loadMincho } from "@remotion/google-fonts/ShipporiMincho";
 import { loadFont as loadSerif } from "@remotion/google-fonts/Cormorant";
-import { typoPhotos, typoHeadline, typoMusic } from "./typoData";
+import { typoPhotos, typoHeadline, typoMusic, typoMusicStart } from "./typoData";
 import { oneLineFont } from "./fit";
 import { ytheme, yclamp as clamp, Y_DUR } from "./yoshokuTheme";
 
@@ -41,7 +41,7 @@ export const YoshokuSizzle: React.FC<{ storeName?: string; handle?: string; them
 
   return (
     <AbsoluteFill style={{ backgroundColor: "#0b0806", fontFamily: mincho }}>
-      <Audio src={staticFile(typoMusic)} volume={(ff) => interpolate(ff, [0, 14, DUR - 20, DUR], [0, 0.85, 0.85, 0], clamp)} />
+      <Audio src={staticFile(typoMusic)} startFrom={Math.round((typoMusicStart||0)*30)} volume={(ff) => interpolate(ff, [0, 14, DUR - 20, DUR], [0, 0.85, 0.85, 0], clamp)} />
 
       {/* 主役：肉写真をほぼ全画面（引きズーム） */}
       <AbsoluteFill style={{ opacity: heroO }}>
