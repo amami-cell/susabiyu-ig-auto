@@ -1,0 +1,51 @@
+name: dm-notify
+# 全店：InstagramのDM（受信メッセージ）を検知して確認アプリへ通知＋一覧に貯める。
+# まず diag で「会話一覧が読めるか（権限があるか）」を確認する。読めれば run で通知運用。
+# 投稿系とは独立。将来は mentions-repost の15分巡回に相乗り予定（新cronは増やさない）。
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: "diag（可否確認・件数のみ）/ run（新着DMを通知＋一覧記録）"
+        required: false
+        default: "diag"
+      account:
+        description: "対象店舗（空=全店）例 gifuyatenjin"
+        required: false
+        default: ""
+permissions:
+  contents: read
+concurrency:
+  group: dm-notify
+  cancel-in-progress: false
+jobs:
+  dm:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    defaults:
+      run:
+        working-directory: susabiyu-remotion
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install deps
+        run: pip install google-api-python-client google-auth requests pywebpush cryptography
+      - name: Write creds.json
+        run: echo "$GOOGLE_CREDS_B64" | base64 -d > creds.json
+        env:
+          GOOGLE_CREDS_B64: ${{ secrets.GOOGLE_CREDS_B64 }}
+      - name: DM check / notify
+        env:
+          STORE_ACCOUNT: ${{ github.event.inputs.account }}
+          GOOGLE_CREDS_B64: ${{ secrets.GOOGLE_CREDS_B64 }}
+          SHEET_ID: ${{ secrets.SHEET_ID }}
+          IG_ACCESS_TOKEN: ${{ secrets.IG_ACCESS_TOKEN }}                       # 三条（account=""）
+          IG_ACCESS_TOKEN_GIFUYATENJIN: ${{ secrets.IG_ACCESS_TOKEN_GIFUYATENJIN }}
+          IG_ACCESS_TOKEN_NAGAGUTSU: ${{ secrets.IG_ACCESS_TOKEN_NAGAGUTSU }}
+          IG_ACCESS_TOKEN_GOLDPORTA: ${{ secrets.IG_ACCESS_TOKEN_GOLDPORTA }}
+          # 通知（Web Push）用。三条と同じVAPID鍵を共用。
+          VAPID_PRIVATE_KEY: ${{ secrets.VAPID_PRIVATE_KEY }}
+          VAPID_SUBJECT: ${{ secrets.VAPID_SUBJECT }}
+        run: python dm_notify.py creds.json "${{ github.event.inputs.mode }}"
