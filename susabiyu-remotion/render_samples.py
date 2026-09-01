@@ -93,8 +93,14 @@ def main():
         if m:
             a, b, c = int(m.group(1)), int(m.group(2)), m.group(3)
             return a * 3600 + b * 60 + int(c) if c else a * 60 + b
-        m = _re.search(r'(\d{1,3})\s*(?:秒|s\b|sec)', base, _re.I)
-        return int(m.group(1)) if m else 0
+        jm = _re.search(r'(?:(\d+)\s*分)?\s*(\d+)\s*秒', base)   # 「1分23秒」「23秒」
+        if jm and (jm.group(1) or jm.group(2)):
+            return (int(jm.group(1)) if jm.group(1) else 0) * 60 + (int(jm.group(2)) if jm.group(2) else 0)
+        jm2 = _re.search(r'(\d+)\s*分', base)
+        if jm2:
+            return int(jm2.group(1)) * 60
+        m2 = _re.search(r'(\d{1,3})\s*(?:s\b|sec)', base, _re.I)
+        return int(m2.group(1)) if m2 else 0
 
     def _set_typo(cap, music_path):
         # 写真はそのまま、typoData.ts の headline / music / musicStart だけ書き換える。
