@@ -315,16 +315,21 @@
         '<button data-fs="l" onclick="setFs(\'l\')">大</button></div></div>'+
         '<div class="setrow"><div class="setlab">通知</div><div class="setbtns">'+
         '<button onclick="notifStoresOpen()">🔔 通知設定（店舗・種類）</button></div></div>'+
-        (STORE_SCOPE?'':'<div class="setrow"><div class="setlab">データ更新</div><div class="setbtns">'+
-        '<button onclick="openEpPage()">📱 スマホで取り込む</button>'+
-        '<button onclick="doImportCsv()">📥 CSVファイルから</button></div>'+
-        '<div style="font-size:10.5px;color:var(--muted);margin-top:4px;line-height:1.5">通常はPCが自動取得します。手動でやる時：「📱スマホで取り込む」を押す→開いたEntryPocketの画面でブックマーク「求人取り込み」を1タップ。／「📥CSVファイルから」はDL済みCSVを選んで取り込み。</div></div>')+
-        (STORE_SCOPE?'':'<div class="setrow"><div class="setlab">他媒体</div><div class="setbtns">'+
-        '<button onclick="openMediaPage()">📋 他媒体の応募者を見る</button></div>'+
-        '<div class="setbtns" style="margin-top:6px">'+
-        '<button onclick="doImportCsv(\'inshoku\')">📥 飲食店ドットコムCSV</button>'+
-        '<button onclick="doImportCsv(\'gourmet\')">📥 グルメキャリーCSV</button></div>'+
-        '<div style="font-size:10.5px;color:var(--muted);margin-top:4px;line-height:1.5">飲食店ドットコム/グルメキャリーの応募者を別ページで一覧表示。各CSVを取り込むと反映され、新着は通知されます（PC自動取得は準備中）。</div></div>')+
+        (STORE_SCOPE?'':(function(){ var H='font-size:10.5px;color:var(--muted);margin-top:4px;line-height:1.5';
+          return '<div class="setrow"><div class="setlab">取込：エントリーポケット</div><div class="setbtns">'+
+          '<button onclick="openEpPage()">📱 スマホで取り込む</button>'+
+          '<button onclick="doImportCsv()">📥 CSVファイル</button></div>'+
+          '<div style="'+H+'">通常はPC起動時に自動取得。手動は「📱スマホで取り込む」→開いたEntryPocket画面でブックマーク「求人取り込み」を1タップ。</div></div>'+
+          '<div class="setrow"><div class="setlab">取込：飲食店ドットコム</div><div class="setbtns">'+
+          '<button onclick="openInshokuPage()">📱 スマホで取り込む</button>'+
+          '<button onclick="doImportCsv(\'inshoku\')">📥 CSVファイル</button></div>'+
+          '<div style="'+H+'">通常はPC起動時に自動取得。手動は「📱スマホで取り込む」→開いた応募者一覧でブックマーク「飲食店com取り込み」を1タップ。</div></div>'+
+          '<div class="setrow"><div class="setlab">取込：グルメキャリー</div><div class="setbtns">'+
+          '<button onclick="doGourmetRun()">🔄 今すぐ取得（クラウド）</button>'+
+          '<button onclick="doImportCsv(\'gourmet\')">📥 CSVファイル</button></div>'+
+          '<div style="'+H+'">毎日7:00/13:00にクラウドで自動取得（PC不要）。「🔄今すぐ取得」で今すぐクラウド実行→1〜2分で反映。</div></div>'+
+          '<div class="setrow"><div class="setlab">他媒体の一覧</div><div class="setbtns">'+
+          '<button onclick="openMediaPage()">📋 飲食店/グルメの応募者を見る</button></div></div>'; })())+
         '<div class="setrow"><div class="setlab">ヘルプ</div><div class="setbtns">'+
         '<button onclick="openHelp()">❓ 使い方ガイド</button></div></div>';
       document.body.appendChild(p); _setSync(); }
@@ -335,6 +340,38 @@
     function openEpPage(){
       try{ window.open('https://manage.entrypocket.jp/web/8sin-saiyo/applicant','_blank'); }catch(e){}
       toast('EntryPocketを開きました。そのページで、ブックマーク「求人取り込み」を1タップしてください（数十秒後にこのアプリで最新化）。');
+    }
+    // スマホ保険：飲食店ドットコムの応募者一覧を開く→ブックマークレット「飲食店com取り込み」を1タップ
+    function openInshokuPage(){
+      try{ window.open('https://www.inshokuten.com/mypage/recruit/entry/list/','_blank'); }catch(e){}
+      toast('飲食店ドットコムを開きました。その応募者一覧ページで、ブックマーク「飲食店com取り込み」を1タップしてください（数十秒後に最新化）。');
+    }
+    // グルメキャリー：クラウド(GitHub Actions)に取得を即時依頼（この場でワンタップ）
+    function doGourmetRun(){
+      var run=function(){
+        toast('クラウドに取得を依頼中…');
+        google.script.run.withSuccessHandler(function(res){
+          if(res&&res.ok){ toast('✅ クラウドで取得を開始しました。1〜2分後にこのアプリへ反映されます（自動で最新化）。'); setTimeout(load, 90000); }
+          else if(res&&(res.error==='no_token'||res.error==='token_invalid')){ askGhToken(res.error); }
+          else if(res&&res.error==='workflow_not_found'){ toast('ワークフローが見つかりません（gourmet_fetch がmainに無い可能性）。'); }
+          else { toast('依頼に失敗: '+((res&&res.error)||'unknown')); }
+        }).withFailureHandler(function(e){ toast('通信エラー: '+(e&&e.message||'')); }).epGourmetDispatch();
+      };
+      run();
+    }
+    // 初回のみ：GitHubトークンを1回だけ登録（クラウド即時実行の権限。保存のみ・表示はしない）
+    function askGhToken(reason){
+      var msg=(reason==='token_invalid')
+        ? 'GitHubトークンが無効/期限切れのようです。新しいトークンを貼り付けてください。'
+        : '「今すぐ取得」を使うには、初回だけGitHubトークンの登録が必要です（1回だけ・無料）。\n作り方は使い方ガイドの「クラウド即時取得の設定」を参照。\n\nトークン(ghp_ または github_pat_ で始まる文字列)を貼り付け：';
+      var t=window.prompt(msg,'');
+      if(t==null) return;
+      t=(''+t).trim(); if(!t){ toast('トークンが空です'); return; }
+      toast('トークンを保存中…');
+      google.script.run.withSuccessHandler(function(res){
+        if(res&&res.ok){ toast('保存しました。もう一度「🔄今すぐ取得」を押してください。'); }
+        else { toast('保存に失敗: '+((res&&res.error)||'unknown')); }
+      }).withFailureHandler(function(e){ toast('通信エラー: '+(e&&e.message||'')); }).epSetGhToken(t);
     }
     // 手動CSV取り込み（自動取得が止まっている時の代替。DLしたCSVをアップロード→蓄積して最新化）
     // media: 未指定/'ep'=エンポケ, 'inshoku'=飲食店ドットコム, 'gourmet'=グルメキャリー
@@ -374,6 +411,8 @@
         sec('📅 面接タブ','面接予定をカレンダー/リストで表示。日付をタップでその日の面接一覧。📅カレンダーボタンで各自のGoogleカレンダーへ追加。')+
         sec('📊 集計タブ','上部の「目次」で見たい分析へジャンプ、見出しタップで折りたたみ。経営KPI・要注意店・データ品質・採用単価(加重/単純/中央値)・媒体別/店舗別・リスティング効果・リードタイム・定着率などを、年・地域フィルタ連動で確認。🖨レポート/⬇CSVで共有。')+
         sec('🔔 通知','⚙→通知する店舗で自店だけ通知にできます（ホーム画面アプリで有効）。新規応募・本日リマインド・週次の店舗スコアカードが届きます。')+
+        sec('📥 取込（媒体別）','エンポケ・飲食店ドットコムは<b>PC起動時に自動取得</b>（PCの RecruitAuto.bat）。グルメキャリーは<b>毎日7:00/13:00にクラウド自動</b>。⚙の「取込」から手動もできます：エンポケ/飲食店＝「📱スマホで取り込む」（サイトを開いてブックマーク1タップ）、グルメ＝「🔄今すぐ取得（クラウド）」。どの媒体もDL済みCSVを選ぶ「📥CSVファイル」も可。')+
+        sec('🔄 クラウド即時取得の設定（グルメキャリーのみ・初回1回）','「🔄今すぐ取得」を初めて押すとトークン貼り付け画面が出ます。GitHubトークンの作り方：<br>① GitHub → 右上アイコン → Settings → 一番下 Developer settings → Personal access tokens → <b>Fine-grained tokens</b> → Generate new token。<br>② Repository access＝Only select repositories で <b>susabiyu-ig-auto</b> を選択。<br>③ Permissions → Repository permissions → <b>Actions</b> を <b>Read and write</b> に。<br>④ Generate して表示された文字列(ghp_ または github_pat_ で始まる)をコピー → アプリの貼り付け画面へ。<br>※保存はこのアプリ内のみ。無料・1回だけでOK（期限切れ時は再登録）。使わない場合はPC/CSVでも取り込めます。')+
         sec('⚙ 表示設定','テーマ（ダーク/ライト）と文字サイズを変更できます（端末に保存）。')+
         sec('✅ データを正しく保つ','結果入力は 採用>応募 などの矛盾を保存前に警告。集計タブの「要マッピング」でスプシに無い店舗名（名寄せ漏れ）を確認できます。数値の正はスプレッドシートです。');
       document.getElementById('modalTitle').textContent='❓ 使い方ガイド';

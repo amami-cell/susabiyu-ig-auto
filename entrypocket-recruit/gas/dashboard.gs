@@ -867,3 +867,58 @@ function epProbeListing_() {
   var topDist = {}; keys.forEach(function (k) { topDist[k] = top(dist[k]); });
   return { ok: true, rows: v.length - 1, headers: h, dist: topDist, costTop: top(costDist), samples: samples };
 }
+
+// =============================================================================
+// アプリ内「今すぐ取得」：グルメキャリーの取得を GitHub Actions に即時依頼する。
+// グルメキャリーはデータセンターIPを拒否しないため、クラウド(Actions)で実行できる。
+// EntryPocket / 飲食店ドットコムは403で拒否されるため、この方式は使えない（PC/ブラウザ担当）。
+// トークンは Script Properties(GH_DISPATCH_TOKEN) に保存。読み出しては返さない（書き込み専用API）。
+// =============================================================================
+var EP_GH_OWNER = 'amami-cell';
+var EP_GH_REPO = 'susabiyu-ig-auto';
+var EP_GH_WORKFLOW = 'gourmet_fetch.yml';
+
+// トークンが登録済みか（値は返さない）
+function epHasGhToken() {
+  try {
+    var t = PropertiesService.getScriptProperties().getProperty('GH_DISPATCH_TOKEN');
+    return { ok: true, has: !!(t && String(t).trim()) };
+  } catch (e) { return { ok: false, error: String(e) }; }
+}
+
+// トークンを保存（アプリの設定から1回だけ貼り付け）。値は保存のみ・返さない。
+function epSetGhToken(token) {
+  try {
+    var t = (token == null ? '' : String(token)).trim();
+    if (!t) return { ok: false, error: 'empty' };
+    PropertiesService.getScriptProperties().setProperty('GH_DISPATCH_TOKEN', t);
+    return { ok: true };
+  } catch (e) { return { ok: false, error: String(e) }; }
+}
+
+// グルメキャリー取得ワークフローを即時起動（workflow_dispatch, ref=main）
+function epGourmetDispatch() {
+  try {
+    var tok = PropertiesService.getScriptProperties().getProperty('GH_DISPATCH_TOKEN');
+    if (!tok || !String(tok).trim()) return { ok: false, error: 'no_token' };
+    var url = 'https://api.github.com/repos/' + EP_GH_OWNER + '/' + EP_GH_REPO +
+      '/actions/workflows/' + EP_GH_WORKFLOW + '/dispatches';
+    var res = UrlFetchApp.fetch(url, {
+      method: 'post',
+      contentType: 'application/json',
+      headers: {
+        'Authorization': 'Bearer ' + String(tok).trim(),
+        'Accept': 'application/vnd.github+json',
+        'X-GitHub-Api-Version': '2022-11-28',
+        'User-Agent': 'susabiyu-recruit-app'
+      },
+      payload: JSON.stringify({ ref: 'main' }),
+      muteHttpExceptions: true
+    });
+    var code = res.getResponseCode();
+    if (code === 204 || code === 201 || code === 200) return { ok: true };
+    if (code === 401 || code === 403) return { ok: false, error: 'token_invalid', code: code, body: res.getContentText().slice(0, 160) };
+    if (code === 404) return { ok: false, error: 'workflow_not_found', code: code, body: res.getContentText().slice(0, 160) };
+    return { ok: false, error: 'github_' + code, body: res.getContentText().slice(0, 200) };
+  } catch (e) { return { ok: false, error: String(e) }; }
+}
