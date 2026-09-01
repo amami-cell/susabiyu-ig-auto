@@ -3,7 +3,7 @@
 import { AbsoluteFill, Img, Audio, staticFile, useCurrentFrame, interpolate, Easing } from "remotion";
 import { loadFont as loadMincho } from "@remotion/google-fonts/ShipporiMincho";
 import { loadFont as loadSerif } from "@remotion/google-fonts/Cormorant";
-import { typoPhotos, typoHeadline, typoMusic } from "./typoData";
+import { typoPhotos, typoHeadline, typoMusic, typoMusicStart } from "./typoData";
 import { oneLineFont } from "./fit";
 import { ytheme, yclamp as clamp, Y_DUR } from "./yoshokuTheme";
 
@@ -31,7 +31,7 @@ export const YoshokuChalk: React.FC<{ storeName?: string; handle?: string; theme
 
   return (
     <AbsoluteFill style={{ backgroundColor: "#14181a", fontFamily: mincho }}>
-      <Audio src={staticFile(typoMusic)} volume={(ff) => interpolate(ff, [0, 14, DUR - 20, DUR], [0, 0.8, 0.8, 0], clamp)} />
+      <Audio src={staticFile(typoMusic)} startFrom={Math.round((typoMusicStart||0)*30)} volume={(ff) => interpolate(ff, [0, 14, DUR - 20, DUR], [0, 0.8, 0.8, 0], clamp)} />
       {/* 黒板テクスチャ（濃緑〜黒のグラデ＋粉っぽいノイズ影） */}
       <AbsoluteFill style={{ background: "radial-gradient(120% 90% at 50% 30%, #1f2a26 0%, #12181a 55%, #0b0f10 100%)" }} />
       <AbsoluteFill style={{ opacity: 0.06, background: "repeating-linear-gradient(115deg, #ffffff 0 1px, transparent 1px 6px)" }} />

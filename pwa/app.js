@@ -600,6 +600,10 @@
       '<div class="head"><span class="pat">' + esc(it.label || it.pattern) + '</span>' +
       '<span class="gstate ' + (on ? "on" : "off") + '">' + (on ? "採用中" : "無し") + '</span></div>' +
       media +
+      ((it.caption || it.music) ? '<div class="gcap" style="margin:8px 2px 0;font-size:12.5px;color:#c9d2e0;line-height:1.5">' +
+        (it.caption ? '💬 ' + esc(it.caption) : '') +
+        (it.music ? '<span style="color:#9aa3b2">' + (it.caption ? '　／　' : '') + '🎵 ' + esc(it.music) + '</span>' : '') +
+        '</div>' : '') +
       '<div class="seg"><button class="seg-on">採用する</button><button class="seg-off">無しにする</button></div>' +
       '<div class="ghintline">「採用する」を選んだパターンだけが投稿に使われます</div>' +
       '<div class="gnote">採用／無しの変更は管理者のみです。再生して確認できます。</div>';
@@ -711,7 +715,7 @@
   }
   // カード1枚ぶんの内容署名（enabledは含めない＝採用切替では作り直さずその場で塗り替える）
   function cardSig(it) {
-    return JSON.stringify([it.pattern, it.url || "", it.label || "", it.poster || "", it.blur || ""]);
+    return JSON.stringify([it.pattern, it.url || "", it.label || "", it.poster || "", it.blur || "", it.caption || "", it.music || ""]);
   }
   var lastGallerySig = "";
   function patternsCacheGet() { try { return JSON.parse(localStorage.getItem("sb_patterns") || "null"); } catch (e) { return null; } }

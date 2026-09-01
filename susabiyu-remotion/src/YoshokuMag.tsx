@@ -3,7 +3,7 @@
 import { AbsoluteFill, Img, Audio, staticFile, useCurrentFrame, interpolate, Easing } from "remotion";
 import { loadFont as loadMincho } from "@remotion/google-fonts/ShipporiMincho";
 import { loadFont as loadSerif } from "@remotion/google-fonts/Cormorant";
-import { typoPhotos, typoHeadline, typoMusic } from "./typoData";
+import { typoPhotos, typoHeadline, typoMusic, typoMusicStart } from "./typoData";
 import { oneLineFont } from "./fit";
 import { ytheme, yclamp as clamp, Y_DUR } from "./yoshokuTheme";
 
@@ -32,7 +32,7 @@ export const YoshokuMag: React.FC<{ storeName?: string; handle?: string; theme?:
 
   return (
     <AbsoluteFill style={{ backgroundColor: T.base, fontFamily: mincho }}>
-      <Audio src={staticFile(typoMusic)} volume={(ff) => interpolate(ff, [0, 14, DUR - 20, DUR], [0, 0.8, 0.8, 0], clamp)} />
+      <Audio src={staticFile(typoMusic)} startFrom={Math.round((typoMusicStart||0)*30)} volume={(ff) => interpolate(ff, [0, 14, DUR - 20, DUR], [0, 0.8, 0.8, 0], clamp)} />
       {/* 生成りの紙面ベース */}
       <AbsoluteFill style={{ background: "linear-gradient(160deg, " + T.base + " 0%, " + T.footBase + " 100%)" }} />
 
