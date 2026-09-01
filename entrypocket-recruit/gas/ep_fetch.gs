@@ -61,7 +61,18 @@ var EP_STORE_ALIAS = {
   "たぬき屋": "味のたぬきや",
   "たぬきや": "味のたぬきや",
   "お初天神GOLD": "フレンチ酒場GOLD お初天神店",
-  "Itarian Bar NagaGutsu": "NagaGutsu"
+  "Itarian Bar NagaGutsu": "NagaGutsu",
+  // 同一店舗の表記ゆれを代表名へ寄せる（名寄せ）
+  "ラルゴ 門真": "largo門真店",
+  "門真largo": "largo門真店",
+  "ルクア Largo": "largoルクア店",
+  "大衆酒場 ぎふや 天満橋店": "ぎふや天満橋店",
+  "すさび湯三ノ宮": "すさび湯三宮",
+  "フレンチ酒場GOLD 京都ポルタ店": "京都GOLDポルタ",
+  "曲ル角ニハ泡喰ライ": "泡くらい",
+  "たいだい": "料理と酒 たいだい",
+  "烏丸すさび湯": "鮨処すさび湯 京都烏丸店",
+  "鮨処 すさび湯": "鮨処すさび湯 京都烏丸店"
 };
 // 別名照合用の正規化（空白・中黒を除去し、全角英数を半角化して小文字化）。表記ゆれを吸収する。
 function epAliasNorm_(s) {
@@ -100,7 +111,7 @@ function epDate_(v) {
 // 取得元：スクリプトプロパティに NOTION_TOKEN / NOTION_DB_ID があれば Notion を直読み。
 //   無ければ下のスプレッドシート(Notionのミラー)を読む（フォールバック）。
 var NOTION_POSTINGS_SHEET_ID = "1Oh1mxj5Jjn5wB5fTtW4GJrepA6cFDwQRhE9mK2QbxFw";
-var POSTING_KEEP_DAYS = 365;   // 掲載終了からこの日数を過ぎた打ち出しは取り込まない（古い分は自動で捨てる）
+var POSTING_KEEP_DAYS = 3650;  // 掲載終了からこの日数を過ぎた打ち出しは取り込まない。年別集計で過去年(2024等)も残すため約10年分を保持。
 
 // シートの全項目を蓄積する（この順で「求人打ち出し」シートに書く）
 // 末尾の「元シート」「元行」は、アプリからの結果書き戻し先を特定するための控え。
@@ -284,7 +295,7 @@ function epRun() {
     Logger.log("✓ ① ログイン成功");
 
     var csv = epDownloadCsv_(jar);
-    if (!csv) { throw new Error("CSVダウンロード先を特定できず"); }
+    if (!csv) { throw new Error("CSVダウンロード先を特定できず｜" + (EP_CSV_DIAG || "(詳細なし)")); }
     Logger.log("✓ ② CSV取得 (" + csv.length + "字)");
 
     var parsed = epParseCsv_(csv);
@@ -361,6 +372,58 @@ function epLogin_() {
   return null;
 }
 
+/** 【診断・読み取りのみ】いろんなブラウザ(User-Agent)でログイン画面へアクセスし、どれが通るか(HTTP)を返す。 */
+function epDiagUA_() {
+  var uas = {
+    "Chrome_Win": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36",
+    "Safari_iPhone": "Mozilla/5.0 (iPhone; CPU iPhone OS 17_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.5 Mobile/15E148 Safari/604.1",
+    "Safari_Mac": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.4 Safari/605.1.15",
+    "Firefox_Win": "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:127.0) Gecko/20100101 Firefox/127.0",
+    "Edge_Win": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36 Edg/126.0.0.0",
+    "Chrome_Android": "Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Mobile Safari/537.36",
+    "empty": ""
+  };
+  var out = {};
+  Object.keys(uas).forEach(function (k) {
+    try {
+      var h = { "Accept-Language": "ja-JP,ja;q=0.9", "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8" };
+      if (uas[k]) h["User-Agent"] = uas[k];
+      var res = UrlFetchApp.fetch(EP_LOGIN_URL, { method: "get", muteHttpExceptions: true, followRedirects: false, headers: h });
+      out[k] = { http: res.getResponseCode(), len: (res.getContentText() || "").length };
+    } catch (e) { out[k] = { error: String(e).slice(0, 80) }; }
+  });
+  return out;
+}
+
+/** 【診断・読み取りのみ】ログインの各段階をステータスコード付きで返す＝どこで403になるか切り分け。 */
+function epDiagLogin_() {
+  var out = {};
+  try {
+    var p = PropertiesService.getScriptProperties();
+    var user = p.getProperty("EP_USER"), pass = p.getProperty("EP_PASS");
+    out.hasCreds = !!(user && pass);
+    var jar = {};
+    var lp = epFetch_(EP_LOGIN_URL, { method: "get", followRedirects: false }, jar);
+    var lh = lp.getContentText();
+    out.loginPage = { http: lp.getResponseCode(), len: lh.length, hasForm: /_58_password|name=["']?login/i.test(lh), is403: /403 Forbidden|don't have permission/i.test(lh) };
+    jar["COOKIE_SUPPORT"] = "true"; jar["GUEST_LANGUAGE_ID"] = "ja_JP";
+    var pauth = (lh.match(/Liferay\.authToken\s*=\s*['"]([^'"]+)['"]/) || [])[1] || "";
+    out.pauthOnLogin = pauth ? "有" : "無";
+    if (out.hasCreds) {
+      var payload = { login: user, password: pass, rememberMe: "false" };
+      if (pauth) payload["p_auth"] = pauth;
+      var r2 = epFetch_("https://manage.entrypocket.jp/c/portal/login", { method: "post", payload: payload, followRedirects: false, headers: { "Referer": EP_LOGIN_URL } }, jar);
+      var loc = r2.getAllHeaders()["Location"] || "";
+      out.loginPost = { http: r2.getResponseCode(), location: String(loc).slice(0, 140) };
+      if (loc) { var rd = epFetch_(epAbsUrl_(loc, EP_LOGIN_URL), { method: "get", followRedirects: false }, jar); out.afterRedirect = { http: rd.getResponseCode() }; }
+    }
+    var app = epFetch_(EP_APPLICANT_URL, { method: "get", followRedirects: true }, jar);
+    var ah = app.getContentText();
+    out.applicantPage = { http: app.getResponseCode(), len: ah.length, hasPasswordField: /_58_password/i.test(ah), is403: /403 Forbidden|don't have permission/i.test(ah), head: ah.replace(/\s+/g, " ").slice(0, 120) };
+  } catch (e) { out.error = String(e); }
+  return out;
+}
+
 // ========================= CSVダウンロード =========================
 
 // downloadCSV() が叩く Liferay リソースURL（p_p_lifecycle=2 = serveResource）
@@ -368,18 +431,45 @@ var EP_CSV_RES = "https://manage.entrypocket.jp/web/8sin-saiyo/applicant" +
   "?p_p_id=applycontrol_WAR_MYNApplyControlportlet&p_p_lifecycle=2&p_p_state=normal" +
   "&p_p_mode=view&p_p_cacheability=cacheLevelPage&p_p_col_id=column-1&p_p_col_count=1";
 var EP_CSV_NS = "_applycontrol_WAR_MYNApplyControlportlet_";
+var EP_CSV_DIAG = "";   // 直近の取得失敗の内訳（診断用・エラーメッセージに載せる）
 
 function epDownloadCsv_(jar) {
-  var hdr = { "Referer": EP_APPLICANT_URL, "X-Requested-With": "XMLHttpRequest" };
+  // 本物のブラウザXHRに近いヘッダ一式（WAFがヘッダ不足で403を返すケースへの対策）
+  var hdr = {
+    "Referer": EP_APPLICANT_URL,
+    "X-Requested-With": "XMLHttpRequest",
+    "Origin": "https://manage.entrypocket.jp",
+    "Accept": "application/json, text/javascript, */*; q=0.01",
+    "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8",
+    "Sec-Fetch-Site": "same-origin",
+    "Sec-Fetch-Mode": "cors",
+    "Sec-Fetch-Dest": "empty"
+  };
+
+  // 0) Liferayの p_auth（CSRFトークン）を応募者ページから抽出し、要求に付ける（CSRF必須化への対策）
+  var pauth = "", pageLen = 0;
+  try {
+    var pg = epFetch_(EP_APPLICANT_URL, { method: "get" }, jar).getContentText(); pageLen = pg.length;
+    var mm = pg.match(/Liferay\.authToken\s*=\s*['"]([^'"]+)['"]/)
+          || pg.match(/[?&;]p_auth=([0-9A-Za-z]+)/)
+          || pg.match(/name=["']p_auth["']\s+value=["']([^"']+)["']/)
+          || pg.match(/["']p_auth["']\s*:\s*["']([^"']+)["']/);
+    if (mm) pauth = mm[1];
+  } catch (e) { }
+  var authQ = pauth ? ("&p_auth=" + encodeURIComponent(pauth)) : "";
 
   // 1) 事前チェック（応募者0件だと value:ERROR が返る）
-  var chk = epFetch_(EP_CSV_RES, { method: "post", payload: epKv_(EP_CSV_NS + "part", "downloadCSVCheck"), headers: hdr }, jar).getContentText();
+  var chk = epFetch_(EP_CSV_RES + authQ, { method: "post", payload: epKv_(EP_CSV_NS + "part", "downloadCSVCheck"), headers: hdr }, jar).getContentText();
   Logger.log("  CSVチェック応答: " + chk.replace(/\s+/g, " ").slice(0, 150));
-  if (/["']value["']\s*:\s*["']ERROR["']/i.test(chk) || /検索結果が0件/.test(chk)) { Logger.log("  応募者0件のためCSVなし"); return null; }
+  if (/["']value["']\s*:\s*["']ERROR["']/i.test(chk) || /検索結果が0件/.test(chk)) {
+    Logger.log("  応募者0件のためCSVなし");
+    EP_CSV_DIAG = "check=ERROR/0件系(p_auth=" + (pauth ? "有" : "無") + "): " + chk.replace(/\s+/g, " ").slice(0, 140);
+    return null;
+  }
 
   // 2) 本家 downloadFile() と同一：part=downloadCSV をURL末尾に付けて POST
   //    （changeStatus 等の他 part は絶対に叩かない＝ダウンロード専用に限定）
-  var url = EP_CSV_RES + "&" + EP_CSV_NS + "part=downloadCSV";
+  var url = EP_CSV_RES + authQ + "&" + EP_CSV_NS + "part=downloadCSV";
   var res = epFetch_(url, { method: "post", payload: "", headers: hdr }, jar);
   var ct = String(res.getAllHeaders()["Content-Type"] || "");
   var cd = String(res.getAllHeaders()["Content-Disposition"] || "");
@@ -390,11 +480,47 @@ function epDownloadCsv_(jar) {
     Logger.log("  → CSV取得成功 / 先頭: " + text.replace(/\s+/g, " ").slice(0, 80));
     return text;
   }
-  Logger.log("  CSV応答冒頭: " + epDecode_(res, ct).replace(/\s+/g, " ").slice(0, 200));
+  var body = epDecode_(res, ct).replace(/\s+/g, " ").slice(0, 180);
+  Logger.log("  CSV応答冒頭: " + body);
+  EP_CSV_DIAG = "DL http=" + res.getResponseCode() + " p_auth=" + (pauth ? "有" : "無(pageLen=" + pageLen + ")") + " ct=" + ct + " cd=" + cd + " body=" + body;
   return null;
 }
 
 function epKv_(k, v) { var o = {}; o[k] = v; return o; }
+
+/* ===== 手動CSV取り込み（自動取得が使えない時の代替。DLしたCSVをアップロードして最新化）=====
+ * 解析・蓄積・通知・キャッシュ再作成は自動取得(epRun)と同じ処理を使い回す。
+ * ※掲載中店舗(ライブ)はログインが要るためここでは更新しない（応募者データは全て更新される）。 */
+function epImportCsvText(csvText) {
+  try {
+    var csv = String(csvText || "");
+    if (csv.replace(/\s/g, "").length < 20) return { ok: false, error: "CSVが空、または短すぎます" };
+    var parsed = epParseCsv_(csv);
+    var n = parsed.rows.length;
+    if (!n) return { ok: false, error: "CSVから応募者を読めませんでした（EntryPocketの応募者CSVかご確認ください）" };
+    var chg = epWriteSheets_(parsed) || { added: 0, changed: 0 };
+    try { epNotifyNewApps_(chg); } catch (e) { }
+    try {
+      var ss = SpreadsheetApp.getActiveSpreadsheet(), log = ss.getSheetByName("_実行ログ");
+      if (log) log.appendRow([new Date(), "手動CSV", "success", n, 0, "新規" + chg.added + "件 / ステータス変更" + chg.changed + "件（手動取り込み）"]);
+    } catch (e) { }
+    try { dashStoreCache_(); } catch (e) { }
+    return { ok: true, rows: n, added: chg.added, changed: chg.changed };
+  } catch (e) { return { ok: false, error: String(e) }; }
+}
+/** アップロードされたCSV（base64・生バイト）を文字コード判定して取り込む。クライアントから google.script.run で呼ぶ。 */
+function epImportCsvB64(b64) {
+  try {
+    var bytes = Utilities.base64Decode(String(b64 || ""));
+    var csv = "";
+    try { csv = Utilities.newBlob(bytes).getDataAsString("UTF-8"); } catch (e) { csv = ""; }
+    // 文字化け(置換文字)が多い＝Shift_JISの可能性 → 読み直す
+    if (!csv || (csv.match(/�/g) || []).length > 5) {
+      try { var s = Utilities.newBlob(bytes).getDataAsString("Shift_JIS"); if (s) csv = s; } catch (e) { }
+    }
+    return epImportCsvText(csv);
+  } catch (e) { return { ok: false, error: String(e) }; }
+}
 
 // ========================= CSVパース =========================
 

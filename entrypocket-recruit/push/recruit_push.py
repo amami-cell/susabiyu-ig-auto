@@ -209,6 +209,21 @@ def _prefs_stores(prefs_cell):
     return None
 
 
+def _type_on(prefs_cell, key):
+    """購読者の「通知の種類」設定（prefs.types.<key>）。未設定は既定ON。
+    key: 'new'(新着応募) / 'general'(お知らせ・リマインド) / 'scorecard'(週次スコアカード)"""
+    if not prefs_cell or not str(prefs_cell).strip():
+        return True
+    try:
+        pr = json.loads(prefs_cell)
+    except Exception:
+        return True
+    ty = pr.get("types")
+    if not isinstance(ty, dict):
+        return True
+    return str(ty.get(key, 1)).lower() not in ("0", "false", "off", "no", "なし")
+
+
 def main():
     exec_url = (os.environ.get("RECRUIT_EXEC_URL") or "").strip()
     key = (os.environ.get("EP_PUSH_KEY") or "").strip()
@@ -260,7 +275,13 @@ def main():
         else:
             sub_new = {k: v for k, v in merged_new.items() if _norm_store(k) in allow}
             sub_store_fb = [tb for sk, lst in store_fb.items() if sk in allow for tb in lst]
-        sub_fb = general_fb + sub_store_fb
+        # 「通知の種類」フィルタ（未設定は全ONで従来通り）
+        if not _type_on(prefs, "new"):
+            sub_new = {}
+        if not _type_on(prefs, "scorecard"):
+            sub_store_fb = []
+        sub_general = general_fb if _type_on(prefs, "general") else []
+        sub_fb = sub_general + sub_store_fb
         # 送る中身が無ければスキップ
         if not sub_new and not sub_fb:
             skipped += 1

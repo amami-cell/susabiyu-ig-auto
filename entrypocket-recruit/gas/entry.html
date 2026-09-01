@@ -80,6 +80,13 @@
   el('cost').value = v(ENTRY.cost);
   el('start').value = ENTRY.start || '';
   el('end').value = ENTRY.end || '';
+  // 媒体の標準週数で連載終了日を自動セット（開始日＋週数）。媒体や開始日を変えると再計算。手動上書きも可。
+  var MW={}; (ENTRY.mediaWeeks||[]).forEach(function(o){ if(o&&o.media) MW[String(o.media).trim()]=+o.weeks; });
+  function toD_(s){ var m=String(s||'').match(/(\d{4})\D+(\d{1,2})\D+(\d{1,2})/); return m?new Date(+m[1],+m[2]-1,+m[3]):null; }
+  function ymd_(d){ return d.getFullYear()+'-'+('0'+(d.getMonth()+1)).slice(-2)+'-'+('0'+d.getDate()).slice(-2); }
+  function endFromMedia(){ var w=MW[String(el('media').value||'').trim()], d=toD_(el('start').value); if(!(w>0)||!d) return; el('end').value=ymd_(new Date(d.getTime()+Math.round(w*7)*86400000)); }
+  el('media').addEventListener('input', endFromMedia); el('media').addEventListener('change', endFromMedia); el('start').addEventListener('change', endFromMedia);
+  if(!el('end').value) endFromMedia();
   if(ENTRY.autoApps!=='' && ENTRY.autoApps!=null) el('hint').textContent = 'CSV自動集計 → 応募 '+ENTRY.autoApps+' / 採用 '+ENTRY.autoHires+'（必要なら打ち換え可）';
   el('apps').value  = (v(ENTRY.apps)!=='') ? ENTRY.apps  : (ENTRY.autoApps!=null?ENTRY.autoApps:'');
   el('hires').value = (v(ENTRY.hires)!=='')? ENTRY.hires : (ENTRY.autoHires!=null?ENTRY.autoHires:'');
@@ -92,6 +99,14 @@
       apps:el('apps').value, hires:el('hires').value, quit:el('quit').value, note:el('note').value,
       reporter:el('reporter').value, media:el('media').value, plan:el('plan').value,
       area1:el('area1').value, area2:el('area2').value, line1:el('line1').value, line2:el('line2').value, cost:el('cost').value };
+    var w=[], a=parseInt(o.apps,10), hh=parseInt(o.hires,10), qq=parseInt(o.quit,10);
+    if(!isNaN(a)&&!isNaN(hh)&&hh>a) w.push('採用('+hh+')が応募('+a+')より多い');
+    if(!isNaN(hh)&&!isNaN(qq)&&qq>hh) w.push('退職('+qq+')が採用('+hh+')より多い');
+    if((o.apps!==''||o.hires!=='')&&String(o.cost||'').replace(/[^\d.]/g,'')==='') w.push('求人費が未入力');
+    if(!String(o.media||'').trim()) w.push('求人媒体が未入力');
+    var toD=function(s){ var m=String(s||'').match(/(\d{4})\D+(\d{1,2})\D+(\d{1,2})/); return m?new Date(+m[1],+m[2]-1,+m[3]):null; };
+    var ds=toD(o.start), de=toD(o.end); if(ds&&de&&ds.getTime()>de.getTime()) w.push('連載開始が連載終了より後');
+    if(w.length && !confirm('入力に注意点があります:\n\n'+w.map(function(x){return '・'+x;}).join('\n')+'\n\nこのまま保存しますか？')){ btn.disabled=false; btn.textContent='保存する'; return; }
     google.script.run.withSuccessHandler(function(res){
       if(res&&res.ok){ el('msg').className='ok'; el('msg').textContent='✅ 保存しました。ありがとうございます。'; btn.textContent='保存済み'; }
       else { btn.disabled=false; btn.textContent='保存する'; el('msg').className='err'; el('msg').textContent='保存できませんでした: '+((res&&res.error)||''); }

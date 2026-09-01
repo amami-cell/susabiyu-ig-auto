@@ -150,10 +150,11 @@
     if(String(ev.origin||'').indexOf('google') < 0) return;   // GAS(googleusercontent)由来のみ受理
     var stores = d.stores || null;
     lastPrefs = { recruit:1, stores: stores };
+    if(d.types) lastPrefs.types = d.types;      // 通知の種類（new/general/scorecard）
     try { localStorage.setItem('ep_notif_prefs', JSON.stringify(lastPrefs)); } catch(e) {}
     if(!pushSupported()) return;
     navigator.serviceWorker.ready.then(function(reg){ return reg.pushManager.getSubscription(); })
-      .then(function(sub){ if(sub){ sendSub(sub); toast('通知する店舗を更新しました'); }
+      .then(function(sub){ if(sub){ sendSub(sub); toast('通知設定を更新しました'); }
         else { toast('先に🔔通知をオンにしてください'); } })
       .catch(function(){});
   });

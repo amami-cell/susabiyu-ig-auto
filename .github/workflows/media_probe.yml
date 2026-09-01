@@ -1,0 +1,61 @@
+name: media-probe
+# 手動実行専用。飲食店ドットコム/グルメキャリーに GitHub Actions から到達＆ログインできるか、
+# 応募者CSVの書き出し導線がどこかを調べる（後で自動取得ワークフローを組むための下調べ）。
+on:
+  workflow_dispatch:
+  push:
+    branches: [claude/entrypocket-recruit-system-zklr9u]
+    paths:
+      - 'entrypocket-recruit/scripts/media_login_probe.py'
+      - '.github/workflows/media_probe.yml'
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: 到達性チェック（データセンターIPが拒否されないか）
+        continue-on-error: true
+        run: |
+          echo "===== このランナーのIP/国 ====="
+          curl -sS --max-time 20 https://ipinfo.io/json || true
+          echo
+          UA="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36"
+          for u in \
+            "https://www.inshokuten.com/" \
+            "https://www.inshokuten.com/mypage/recruit/" \
+            "https://kanri.gourmetcaree.jp/" \
+            "https://kanri.gourmetcaree.jp/shop-pc/top/menu/" ; do
+            code=$(curl -sS -o /dev/null -w "%{http_code}" -L --max-time 30 -A "$UA" -H "Accept-Language: ja-JP,ja;q=0.9" "$u" 2>/dev/null || echo ERR)
+            echo "  [$code] $u"
+          done
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Playwright(Chromium)導入
+        run: |
+          python -m pip install --upgrade pip
+          pip install playwright
+          python -m playwright install --with-deps chromium
+
+      - name: ログイン＆CSV導線の調査
+        env:
+          INSHOKU_USER: ${{ secrets.INSHOKU_USER }}
+          INSHOKU_PASS: ${{ secrets.INSHOKU_PASS }}
+          GOURMET_USER: ${{ secrets.GOURMET_USER }}
+          GOURMET_PASS: ${{ secrets.GOURMET_PASS }}
+          RECRUIT_EXEC_URL: ${{ secrets.RECRUIT_EXEC_URL }}
+        run: python entrypocket-recruit/scripts/media_login_probe.py
+
+      - name: 調査結果（スクショ/HTML）を保存
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: media-probe-${{ github.run_id }}
+          path: entrypocket-recruit/artifacts/
+          if-no-files-found: ignore
+          retention-days: 7
