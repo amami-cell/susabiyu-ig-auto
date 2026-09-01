@@ -303,14 +303,23 @@ def main():
         dt = datetime.datetime.now(JST)
     when_str = dt.strftime("%Y-%m-%d %H:%M")
 
-    # 遅延ガード：GitHubのcron遅延で「予定枠(dt)」より大幅に遅れて実行された場合、
-    # 深夜など迷惑な時刻に自動投稿してしまうのを防ぐ。枠はpendingのまま残し、投稿も通知もしない。
-    # スケジュール実行時のみ有効（POST_SCHED_GUARD=1）。手動の「即投稿」は時刻に関係なく従来どおり投稿。
+    # 深夜投稿ガード：GitHubのcron遅延で自動投稿が迷惑な時刻に発火するのを防ぐ。
+    # スケジュール実行時のみ有効（POST_SCHED_GUARD=1）。手動の「即投稿」は時刻不問で従来どおり投稿。
+    # ① 現在時刻が投稿許容窓（既定 10:00〜22:00 JST）の外なら投稿しない＝深夜は絶対に出さない。
+    # ② 窓内でも、予定枠(dt)から大幅遅延（既定120分超）なら投稿しない（枠が大きくズレた遅延投稿を回避）。
+    # いずれもスキップ時は枠をpendingのまま残し、投稿も通知もしない。
     if os.environ.get("POST_SCHED_GUARD") == "1":
-        max_late = int(os.environ.get("POST_MAX_LATE_MIN", "120"))   # 予定枠からの許容遅延（分）
-        late_min = (datetime.datetime.now(JST) - dt).total_seconds() / 60.0
+        win_from = int(os.environ.get("POST_WINDOW_FROM", "10"))   # 何時から自動投稿してよいか（JST時）
+        win_to = int(os.environ.get("POST_WINDOW_TO", "22"))       # 何時まで（この時刻以降は投稿しない）
+        max_late = int(os.environ.get("POST_MAX_LATE_MIN", "120")) # 予定枠からの許容遅延（分）
+        nowj = datetime.datetime.now(JST)
+        if not (win_from <= nowj.hour < win_to):
+            print("[GUARD] 現在 %d時（自動投稿は %d-%d時のみ）→ 深夜等の自動投稿を回避してスキップ（枠pendingのまま／通知なし）"
+                  % (nowj.hour, win_from, win_to))
+            return
+        late_min = (nowj - dt).total_seconds() / 60.0
         if late_min > max_late:
-            print("[GUARD] 予定枠 %s より %.0f分 遅延（許容 %d分 超）→ 遅延投稿を回避してスキップ（枠はpendingのまま／通知なし）"
+            print("[GUARD] 予定枠 %s より %.0f分 遅延（許容 %d分 超）→ 遅延投稿を回避してスキップ（枠pendingのまま／通知なし）"
                   % (when_str, late_min, max_late))
             return
 
