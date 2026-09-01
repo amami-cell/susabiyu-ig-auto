@@ -95,7 +95,7 @@ function epBuildAutoResult_(ss, key, disp, lastLive) {
         if (cGone != null && String(v[i][cGone] || "") !== "") continue;   // 消失は除外
         apps++;
         var sc = String(v[i][cCode] || ""), sn = String(v[i][cStat] || "");
-        if (sc === "80" || sn.indexOf("採用") >= 0) hires++;
+        if (sc === "80" || (sn.indexOf("採用") >= 0 && sn.indexOf("不採用") < 0)) hires++;
         if (cApp != null) { var d = epDate_(v[i][cApp]); if (d) { var t = d.getTime(); if (!minT || t < minT) minT = t; } }
       }
     }

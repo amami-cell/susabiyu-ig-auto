@@ -2,11 +2,12 @@
    ・アプリのガワ(shell)を軽くキャッシュ（2回目以降すぐ起動）
    ・Web Push を受信して通知を表示（タップでアプリを開く）
    ・GAS(script.google) のデータ通信はキャッシュしない（常に最新） */
-var VER = "empoke-recruit-v3";
+var VER = "empoke-recruit-v4";
 var SHELL = VER + "-shell";
 var SHELL_FILES = [
   "./", "./index.html", "./config.js", "./manifest.webmanifest",
-  "./icons/icon-192.png", "./icons/icon-512.png"
+  "./icons/icon-192.png", "./icons/icon-512.png",
+  "./icons/apple-touch-icon-180.png", "./icons/favicon-32.png"
 ];
 
 self.addEventListener("install", function (e) {
@@ -27,13 +28,14 @@ self.addEventListener("fetch", function (e) {
   var url = new URL(req.url);
   // GAS等のデータは素通し（キャッシュしない）
   if (url.hostname.indexOf("script.google") >= 0 || url.hostname.indexOf("googleusercontent") >= 0) return;
-  // 自オリジンのガワは「ネット優先」で（更新をすぐ反映。失敗時のみキャッシュ）
+  // 自オリジンのガワは stale-while-revalidate（キャッシュ即返し＋裏で更新＝2回目以降は一瞬で起動）
   if (url.origin === self.location.origin) {
-    e.respondWith(fetch(req).then(function (res) {
-      if (res && res.status === 200) { var cp = res.clone(); caches.open(SHELL).then(function (c) { c.put(req, cp); }); }
-      return res;
-    }).catch(function () {
-      return caches.match(req).then(function (hit) { return hit || caches.match("./index.html"); });
+    e.respondWith(caches.match(req).then(function (hit) {
+      var net = fetch(req).then(function (res) {
+        if (res && res.status === 200) { var cp = res.clone(); caches.open(SHELL).then(function (c) { c.put(req, cp); }); }
+        return res;
+      }).catch(function () { return hit || caches.match("./index.html"); });
+      return hit || net;   // キャッシュがあれば即表示、無ければネット
     }));
   }
 });

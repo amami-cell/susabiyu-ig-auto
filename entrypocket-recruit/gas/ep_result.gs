@@ -170,9 +170,53 @@ function epEndRecruit(o) {
   try { epSetStoreManual_(o.store || store, "終了"); } catch (e) { }
 
   epLogResult_(store, row, o);
+  try { epClearDraft_(o.store || store); } catch (e) { }   // 本登録できたので一時保存(下書き)は消す
   // auto はバッチ側(epAutoEndExpired_)でまとめて取り込むので、ここでは再取込しない。
   if (!o.auto) { try { var ss = SpreadsheetApp.getActiveSpreadsheet(); epImportPostings_(ss); dashStoreCache_(); } catch (e) { } }
   return { ok: true, row: row, store: store, created: created };
+}
+
+/* ===== 一時保存（下書き）: 本登録せずに入力途中を保存。共有入力URLにも反映される ===== */
+var EP_DRAFT_SHEET = "_下書き";
+function epDraftKey_(store) { return epNormStore_(epCleanStore_(String(store || "").replace(/\s+/g, " ").trim())); }
+function epDraftSheet_() {
+  var ss = SpreadsheetApp.getActiveSpreadsheet(), sh = ss.getSheetByName(EP_DRAFT_SHEET);
+  if (!sh) { sh = ss.insertSheet(EP_DRAFT_SHEET); sh.appendRow(["key", "store", "json", "updatedAt"]); try { sh.hideSheet(); } catch (e) { } }
+  return sh;
+}
+/** 入力途中を保存（店舗キーでupsert）。クライアントから google.script.run で呼ぶ。 */
+function epSaveDraft(o) {
+  o = o || {};
+  var store = String(o.store || "").trim(), key = epDraftKey_(store);
+  if (!key) return { ok: false, error: "店舗不明" };
+  var fields = ["reporter", "media", "plan", "area1", "area2", "line1", "line2", "cost", "start", "end", "apps", "hires", "quit", "note"];
+  var data = {}; fields.forEach(function (f) { if (o[f] != null) data[f] = o[f]; });
+  var sh = epDraftSheet_(), v = sh.getDataRange().getValues();
+  var now = Utilities.formatDate(new Date(), "Asia/Tokyo", "yyyy-MM-dd HH:mm:ss");
+  for (var i = 1; i < v.length; i++) { if (String(v[i][0]) === key) { sh.getRange(i + 1, 2, 1, 3).setValues([[store, JSON.stringify(data), now]]); return { ok: true, updated: true, at: now }; } }
+  sh.appendRow([key, store, JSON.stringify(data), now]);
+  return { ok: true, added: true, at: now };
+}
+/** 下書きを取得（モーダル復元用）。 */
+function epGetDraft(store) {
+  try {
+    var key = epDraftKey_(store); if (!key) return { ok: true, draft: null };
+    var sh = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(EP_DRAFT_SHEET);
+    if (!sh || sh.getLastRow() < 2) return { ok: true, draft: null };
+    var v = sh.getDataRange().getValues();
+    for (var i = 1; i < v.length; i++) { if (String(v[i][0]) === key) { var d = {}; try { d = JSON.parse(String(v[i][2] || "{}")); } catch (e) { } return { ok: true, draft: d, at: String(v[i][3] || "") }; } }
+    return { ok: true, draft: null };
+  } catch (e) { return { ok: false, error: String(e) }; }
+}
+/** 下書きを消す（本登録時など）。 */
+function epClearDraft_(store) {
+  try {
+    var key = epDraftKey_(store); if (!key) return;
+    var sh = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(EP_DRAFT_SHEET);
+    if (!sh || sh.getLastRow() < 2) return;
+    var v = sh.getDataRange().getValues();
+    for (var i = v.length - 1; i >= 1; i--) if (String(v[i][0]) === key) sh.deleteRow(i + 1);
+  } catch (e) { }
 }
 
 /**
@@ -314,6 +358,12 @@ function epEntryData_(o) {
     }
   } catch (e) { }
   try { var ac = epEntryAutoCounts_(store, out.start, out.end); out.autoApps = ac.apps; out.autoHires = ac.hires; } catch (e2) { }
+  try { out.mediaWeeks = (typeof epMediaWeeks_ === 'function') ? epMediaWeeks_(SpreadsheetApp.getActiveSpreadsheet()) : []; } catch (e3b) { out.mediaWeeks = []; }
+  // 一時保存（下書き）があれば上書きで反映（＝共有先の人にも入力済みが見える）
+  try {
+    var dg = epGetDraft(out.store || store); var dr = dg && dg.draft;
+    if (dr) { ["reporter", "media", "plan", "area1", "area2", "line1", "line2", "cost", "start", "end", "apps", "hires", "quit", "note"].forEach(function (f) { if (dr[f] != null && String(dr[f]) !== "") out[f] = dr[f]; }); out.draftAt = dg.at || ""; }
+  } catch (e4) { }
   out.ok = !!store;   // 店舗が分かれば入力可（既存行が無ければ保存時に新規作成）
   return out;
 }
@@ -332,7 +382,7 @@ function epEntryAutoCounts_(store, start, end) {
       if (cG != null && String(v[i][cG] || "") !== "") continue;
       var d = cA != null ? epDate_(v[i][cA]) : null;
       if (st && (!d || d < st)) continue; if (endEx && d && d >= endEx) continue;
-      a++; var sc = String(v[i][cC] || ""), sn = String(v[i][cN] || ""); if (sc === "80" || sn.indexOf("採用") >= 0) h++;
+      a++; var sc = String(v[i][cC] || ""), sn = String(v[i][cN] || ""); if (sc === "80" || (sn.indexOf("採用") >= 0 && sn.indexOf("不採用") < 0)) h++;
     }
   }
   return { apps: a, hires: h };
