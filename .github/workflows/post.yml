@@ -1,10 +1,12 @@
 ﻿name: susabiyu-post
 on:
   schedule:
-    - cron: '0 2 * * *'
-    - cron: '0 7 * * *'
-    - cron: '0 9 * * *'
-    - cron: '0 11 * * *'
+    # 【根本対策】cron分を「00分」から外す（GitHubは毎時00分が最混雑で遅延しやすい）。
+    # 遅延で分がズレても、下のcaseで枠時刻(JST)へ明示マップするので投稿枠は不変。
+    - cron: '9 2 * * *'    # JST 11:00 枠（02:09 UTC・祝日）
+    - cron: '31 7 * * *'   # JST 16:00 枠（07:31 UTC・平日）
+    - cron: '21 9 * * *'   # JST 18:00 枠（09:21 UTC）
+    - cron: '51 11 * * *'  # JST 20:00 枠（11:51 UTC）
   workflow_dispatch:
     inputs:
       datetime:
@@ -63,7 +65,22 @@ jobs:
           POST_SCHED_GUARD: ${{ github.event.schedule && '1' || '' }}
           POST_WINDOW_FROM: "10"
           POST_WINDOW_TO: "22"
-        run: python post_approved.py creds.json "${{ github.event.inputs.datetime }}"
+          SCHED: ${{ github.event.schedule }}
+          INPUT_DT: ${{ github.event.inputs.datetime }}
+        run: |
+          # 手動datetime優先。スケジュールはcron→枠時刻(JST)へ明示マップ（cron分がズレても枠は不変）。
+          DT="$INPUT_DT"
+          if [ -z "$DT" ] && [ -n "$SCHED" ]; then
+            D=$(date -u +%F)   # 全枠ともUTC日=JST日
+            case "$SCHED" in
+              "9 2 * * *")   DT="$D 11:00" ;;
+              "31 7 * * *")  DT="$D 16:00" ;;
+              "21 9 * * *")  DT="$D 18:00" ;;
+              "51 11 * * *") DT="$D 20:00" ;;
+            esac
+          fi
+          echo "対象日時(JST)=$DT"
+          python post_approved.py creds.json "$DT"
       - name: 失敗をLINE通知
         if: failure()
         env:
