@@ -22,10 +22,10 @@ import stores as _stores
 JST = datetime.timezone(datetime.timedelta(hours=9))
 IGB = getattr(poster, "IGB", "https://graph.instagram.com/v23.0")
 
-# 通知の静音時間帯（既定 22:00〜翌8:00 は通知を出さない＝深夜に鳴らさない）。
-# 深夜に届いたDMは翌朝この窓に入ってから通知する（記録＝一覧には即時反映）。
-QUIET_FROM = int(os.environ.get("DM_QUIET_FROM", "8"))   # 何時から通知してよいか（JST時）
-QUIET_TO = int(os.environ.get("DM_QUIET_TO", "22"))      # 何時まで
+# 通知を出す時間帯（既定 10:00〜22:00 JST）。この窓の外（22:00〜翌10:00）は鳴らさない。
+# 窓外に届いたDMは翌朝この窓に入ってからまとめて通知する（記録＝一覧には即時反映）。
+QUIET_FROM = int(os.environ.get("DM_QUIET_FROM", "10"))   # 何時から通知してよいか（JST時）
+QUIET_TO = int(os.environ.get("DM_QUIET_TO", "22"))       # 何時まで
 
 
 def _now_iso():
