@@ -65,7 +65,34 @@ func _ready() -> void:
 		KobitoLook.decorate(_body, body_color, false, role, child_name)
 	scale = Vector3.ONE * body_scale
 	_label.text = child_name
+	# 見た目のパーツを覚えておく（カメラに近づいたら薄く消す＝家族が視界をふさがない）
+	_visual_parts = find_children("*", "MeshInstance3D", true, false)
+	set_process(true)
 	set_physics_process(true)
+
+
+var _visual_parts: Array = []
+
+## 「プレイヤーとカメラの間」にいる家族は消す（＝後ろに続く家族が視界をふさがない）。
+## カメラ距離ではなく“プレイヤーより手前か”で判定＝カメラの遠近に自動で合う。確実な非表示で。
+## 家族が横や前に回れば、また出る。見た目だけ・各自の画面で判定。
+func _process(_dt: float) -> void:
+	if _visual_parts.is_empty():
+		return
+	var cam := get_viewport().get_camera_3d()
+	if cam == null:
+		return
+	var pl := _nearest_player()
+	if pl == null:
+		return
+	var pd := cam.global_position.distance_to(pl.global_position)   # プレイヤー→カメラ
+	var d := cam.global_position.distance_to(global_position)       # この家族→カメラ
+	var hide := d < pd - 0.4   # プレイヤーより“カメラ側（手前）”にいる＝視界をふさぐので消す
+	for m in _visual_parts:
+		if is_instance_valid(m):
+			m.visible = not hide
+	if _label != null:
+		_label.visible = not hide
 
 
 func _physics_process(delta: float) -> void:
