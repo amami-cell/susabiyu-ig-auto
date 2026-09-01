@@ -72,11 +72,15 @@ var _hp_num: Label3D = null      # のこりHPの数字（絶対に分かるよ�
 ## 頭上のHPバー＋数字。生きている間はいつも出す＝「敵ののこりHPが不明」を無くす。
 ## いつもカメラを向く（ビルボード）。大きめ＋黒フチで背景に負けない。
 func _build_hpbar() -> void:
-	const W := 1.3
-	const H := 0.2
+	# 大きい敵（中ボス級）ほどバーを大きく・高い位置に＝威圧感と「のこりHP」の見やすさ。
+	var s: float = stats.body_scale
+	var big := s >= 1.6
+	var W: float = 1.3 * (1.7 if big else 1.0)
+	var H: float = 0.2 * (1.5 if big else 1.0)
+	var bar_y: float = (1.1 + s * 0.35) if big else 1.45   # 女王アリ(2.4)→約1.94
 	_hpbar = Node3D.new()
 	_hpbar.name = "HpBar"
-	_hpbar.position = Vector3(0.0, 1.45, 0.0)
+	_hpbar.position = Vector3(0.0, bar_y, 0.0)
 	add_child(_hpbar)
 	# 外枠（黒）＝地面や体に溶けないよう縁取り
 	var frame := MeshInstance3D.new()
@@ -113,9 +117,22 @@ func _build_hpbar() -> void:
 	_hp_num.modulate = Color(1, 1, 1)
 	_hp_num.billboard = BaseMaterial3D.BILLBOARD_ENABLED
 	_hp_num.no_depth_test = true
-	_hp_num.pixel_size = 0.0035
-	_hp_num.position = Vector3(0.0, 0.22, 0.0)
+	_hp_num.pixel_size = 0.006 if big else 0.0035   # ボスの数字は大きく＝遠くても読める
+	_hp_num.position = Vector3(0.0, H * 0.5 + 0.12, 0.0)
 	_hpbar.add_child(_hp_num)
+	# 中ボス級は名前も出す＝「これがボスだ」と一目で分かる。
+	if big:
+		var name_lbl := Label3D.new()
+		name_lbl.text = "★ %s ★" % stats.display_name
+		name_lbl.font_size = 40
+		name_lbl.outline_size = 12
+		name_lbl.outline_modulate = Color(0.05, 0.05, 0.05)
+		name_lbl.modulate = Color(1.0, 0.86, 0.5)
+		name_lbl.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+		name_lbl.no_depth_test = true
+		name_lbl.pixel_size = 0.006
+		name_lbl.position = Vector3(0.0, H * 0.5 + 0.42, 0.0)
+		_hpbar.add_child(name_lbl)
 	_hpbar.visible = false   # 出現直後(生成同期前)だけ隠す。_update_hpbar で出す。
 
 
