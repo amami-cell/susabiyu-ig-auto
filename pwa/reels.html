@@ -1102,28 +1102,60 @@
   }
 
   tM.onclick=function(){ _seltab(tM); renderMentions(); };
+  var lpDays=7;
   function renderLP(){
     wrap.innerHTML=""; refreshers=[];
     var hint=document.createElement("div"); hint.className="hint";
-    hint.innerHTML="プロフィールの予約LP（yoyaku-pocket.github.io/susabiyu/）のアクセス状況です。<br>※「予約成立」は外部サイト(Google/Resty)側のため取得できません。ここは<b>予約ボタンのクリック率＝予約意図(CV近似)</b>を表示します。";
+    hint.innerHTML="予約LP（yoyaku-pocket.github.io/susabiyu/）のアクセス推移です。<br>※「予約成立」は外部(Google/Resty)側のため取得できません。ここは<b>予約ボタンのクリック率＝予約意図(CV近似)</b>です。";
     wrap.appendChild(hint);
+    var pr=document.createElement("div"); pr.style.cssText="display:flex;gap:8px;margin:8px 2px 12px";
+    [[7,"週間"],[14,"14日間"],[30,"月間"]].forEach(function(p){
+      var b=document.createElement("button"); b.textContent=p[1]; var on=(lpDays===p[0]);
+      b.style.cssText="flex:1;padding:9px;border-radius:10px;border:1px solid "+(on?"#2f5a8f":"#262c36")+";background:"+(on?"#12263a":"#141922")+";color:"+(on?"#cfe4ff":"#9aa3b2")+";font-weight:800;font-size:13px";
+      b.onclick=function(){ lpDays=p[0]; renderLP(); };
+      pr.appendChild(b);
+    });
+    wrap.appendChild(pr);
     var lab=document.createElement("div"); lab.className="seclabel"; lab.innerHTML='\u{1F4C8} LPレポート <span class="cnt">読み込み中…</span>'; wrap.appendChild(lab);
-    gJsonp({api:"lpreport", store:"susabiyu"}).then(function(r){
-      r=r||{};
-      lab.innerHTML='\u{1F4C8} LPレポート <span class="cnt">累計PV '+(r.views||0)+'</span>';
-      function stat(t,v,sub){ return '<div style="flex:1;min-width:120px;background:#12161d;border:1px solid #262c36;border-radius:12px;padding:12px 14px"><div style="font-size:12px;color:#9aa3b2">'+t+'</div><div style="font-size:22px;font-weight:800;color:#eaeef2;margin-top:2px">'+v+'</div>'+(sub?'<div style="font-size:11px;color:#8b93a2;margin-top:2px">'+sub+'</div>':'')+'</div>'; }
-      var g=document.createElement("div"); g.style.cssText="display:flex;gap:10px;flex-wrap:wrap;margin:6px 2px 12px";
+    gJsonp({api:"lpreport", store:"susabiyu", days:lpDays}).then(function(r){
+      r=r||{}; var cur=r.cur||{}, prev=r.prev||{}, ser=r.series||[];
+      lab.innerHTML='\u{1F4C8} LPレポート <span class="cnt">直近'+(r.days||lpDays)+'日（前期比つき）</span>';
+      function delta(a,b,suf){ a=+a||0; b=+b||0; suf=suf||""; if(!b) return a?('<span style="color:#7fd0a0">＋'+a+suf+'（前期0）</span>'):'<span style="color:#8b93a2">前期0</span>'; var d=a-b, pct=Math.round(d/b*100), col=d>=0?"#7fd0a0":"#e6a4a4"; return '<span style="color:'+col+'">'+(d>=0?"▲":"▼")+Math.abs(pct)+'%</span><span style="color:#8b93a2"> 前期'+b+suf+'</span>'; }
+      function stat(t,v,cmp){ return '<div style="flex:1;min-width:140px;background:#12161d;border:1px solid #262c36;border-radius:12px;padding:12px 14px"><div style="font-size:12px;color:#9aa3b2">'+t+'</div><div style="font-size:22px;font-weight:800;color:#eaeef2;margin-top:2px">'+v+'</div><div style="font-size:11px;margin-top:3px">'+cmp+'</div></div>'; }
+      var g=document.createElement("div"); g.style.cssText="display:flex;gap:10px;flex-wrap:wrap;margin:2px 2px 14px";
       g.innerHTML=
-        stat("PV（今日）", (r.today||0), "累計 "+(r.views||0))+
-        stat("PV（7日間）", (r.views7||0), "30日 "+(r.views30||0))+
-        stat("ユニーク訪問", (r.uniq||0), "7日 "+(r.uniq7||0))+
-        stat("予約クリック率", (r.cvr||0)+"%", "7日 "+(r.cvr7||0)+"% ／ 予約クリック "+(r.resv||0)+"件");
+        stat("PV", cur.pv||0, delta(cur.pv,prev.pv))+
+        stat("ユニーク", cur.uniq||0, delta(cur.uniq,prev.uniq))+
+        stat("予約クリック", cur.resv||0, delta(cur.resv,prev.resv))+
+        stat("予約クリック率(CV近似)", (cur.cvr||0)+"%", delta(cur.cvr,prev.cvr,"%"));
       wrap.appendChild(g);
-      var ll=document.createElement("div"); ll.className="seclabel"; ll.innerHTML='ボタン別クリック（関与）<span class="cnt">計 '+(r.clicks||0)+'</span>'; wrap.appendChild(ll);
-      var labels=r.labels||{}; var keys=Object.keys(labels).sort(function(a,b){return labels[b]-labels[a];});
-      if(!keys.length){ var e=document.createElement("div"); e.className="hint"; e.textContent="まだクリックの記録がありません（LP公開後、数分〜のアクセスから記録されます）。"; wrap.appendChild(e); }
-      else { keys.forEach(function(k){ var row=document.createElement("div"); row.style.cssText="display:flex;justify-content:space-between;align-items:center;background:#12161d;border:1px solid #262c36;border-radius:10px;padding:10px 12px;margin:6px 2px"; row.innerHTML='<span style="color:#cfe4ff;font-weight:700">'+esc(k)+'</span><span style="color:#eaeef2;font-weight:800">'+labels[k]+'</span>'; wrap.appendChild(row); }); }
+      wrap.appendChild(chartBlock("PV 推移", ser, "pv", "#5aa0ff", ""));
+      wrap.appendChild(chartBlock("予約クリック率(CV近似) 推移", ser, "cvr", "#e7c873", "%"));
+      var dbtn=document.createElement("button"); dbtn.textContent="詳細（ボタン別クリック）▶";
+      dbtn.style.cssText="width:100%;margin:4px 2px 0;padding:11px;border-radius:10px;border:1px solid #262c36;background:#141922;color:#cfe4ff;font-weight:800;font-size:13px";
+      var dbox=document.createElement("div"); dbox.style.display="none"; dbox.style.margin="8px 2px 0"; var op=false;
+      dbtn.onclick=function(){ op=!op; dbox.style.display=op?"block":"none"; dbtn.textContent=op?"詳細（ボタン別クリック）▼":"詳細（ボタン別クリック）▶"; if(op&&!dbox.dataset.built){ buildDetail(dbox, r.labels||{}); dbox.dataset.built="1"; } };
+      wrap.appendChild(dbtn); wrap.appendChild(dbox);
     }).catch(function(){ lab.innerHTML='\u{1F4C8} LPレポート <span class="cnt">取得エラー（実データ連携時のみ）</span>'; });
+
+    function chartBlock(title, ser, key, color, suf){
+      suf=suf||""; var box=document.createElement("div"); box.style.cssText="background:#12161d;border:1px solid #262c36;border-radius:12px;padding:12px;margin:0 2px 10px";
+      var max=0; ser.forEach(function(d){ var v=+d[key]||0; if(v>max)max=v; }); if(max<=0)max=1;
+      var n=Math.max(ser.length,1), bw=Math.max(6,Math.min(26,Math.floor(300/n))-4), gap=4, W=n*(bw+gap), H=90;
+      var bars=ser.map(function(d,i){ var v=+d[key]||0, h=Math.round(v/max*H), x=i*(bw+gap); return '<rect x="'+x+'" y="'+(H-h)+'" width="'+bw+'" height="'+Math.max(h,1)+'" rx="2" fill="'+color+'"><title>'+d.date+'：'+v+suf+'</title></rect>'; }).join("");
+      var lastv=ser.length?(+ser[ser.length-1][key]||0):0;
+      box.innerHTML='<div style="font-size:12.5px;color:#cfe4ff;font-weight:700;margin-bottom:8px">'+title+' <span style="color:#8b93a2;font-weight:400">（最新 '+lastv+suf+'／最大 '+max+suf+'）</span></div>'+
+        '<div style="overflow-x:auto"><svg width="'+W+'" height="'+(H+16)+'" style="display:block;min-width:100%">'+bars+
+        '<text x="0" y="'+(H+13)+'" fill="#8b93a2" font-size="10">'+(ser[0]?ser[0].date:"")+'</text>'+
+        '<text x="'+W+'" y="'+(H+13)+'" text-anchor="end" fill="#8b93a2" font-size="10">'+(ser.length?ser[ser.length-1].date:"")+'</text>'+
+        '</svg></div>';
+      return box;
+    }
+    function buildDetail(box, labels){
+      var keys=Object.keys(labels).sort(function(a,b){return labels[b]-labels[a];});
+      if(!keys.length){ box.innerHTML='<div class="hint">まだクリックの記録がありません（LP公開後のアクセスから記録されます）。</div>'; return; }
+      box.innerHTML=keys.map(function(k){ return '<div style="display:flex;justify-content:space-between;align-items:center;background:#12161d;border:1px solid #262c36;border-radius:10px;padding:9px 12px;margin:6px 0"><span style="color:#cfe4ff;font-weight:700">'+esc(k)+'</span><span style="color:#eaeef2;font-weight:800">'+labels[k]+'</span></div>'; }).join("");
+    }
   }
 
   tDM.onclick=function(){ _seltab(tDM); renderDM(); };

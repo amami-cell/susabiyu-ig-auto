@@ -505,7 +505,7 @@ function _api_(p) {
     // 予約LPの計測ビーコンは鍵を持たない（外部ドメインの静的LPから飛ぶ）→ APP_KEYゲートの前に処理する。
     if (p.api === "track") return _track_(p);
     if (APP_KEY && String(p.key || "") !== APP_KEY) return _jsonp_(cb, { error: "auth" });
-    if (p.api === "lpreport") return _jsonp_(cb, _lpreport_(p.store || p.account || ""));
+    if (p.api === "lpreport") return _jsonp_(cb, _lpreport_(p.store || p.account || "", p.days));
     if (p.api === "list") return _jsonp_(cb, _apiList_(p.account || ""));
     if (p.api === "act") {
       if (String(p.action) === "unapprove" && OWNER_KEY && String(p.owner || "") !== OWNER_KEY) return _jsonp_(cb, { error: "owner" });
@@ -1065,36 +1065,57 @@ function _track_(p) {
   } catch (e) {}
   return _jsonp_(p.cb || p.callback || "", { ok: 1 });
 }
-function _lpreport_(store) {
-  var out = { views: 0, views7: 0, views30: 0, today: 0, uniq: 0, uniq7: 0, clicks: 0, resv: 0, resv7: 0, labels: {}, cvr: 0, cvr7: 0 };
+function _lpreport_(store, days) {
+  days = parseInt(days, 10); if (!(days > 0)) days = 7;
+  var out = { days: days, today: 0, series: [],
+              cur: { pv: 0, uniq: 0, clicks: 0, resv: 0, cvr: 0 },
+              prev: { pv: 0, uniq: 0, clicks: 0, resv: 0, cvr: 0 },
+              labels: {} };
   var sh = ss.getSheetByName("LPアクセス");
   if (!sh) return out;
   var last = sh.getLastRow();
   if (last < 2) return out;
   var rows = sh.getRange(2, 1, last - 1, 7).getValues();
-  var now = Date.now(), D = 86400000, TZ = "Asia/Tokyo";
-  var todayStr = Utilities.formatDate(new Date(), TZ, "yyyy-MM-dd");
-  var seen = {}, seen7 = {};
+  var TZ = "Asia/Tokyo", DAY = 86400000, now = new Date();
+  var todayStr = Utilities.formatDate(now, TZ, "yyyy-MM-dd");
+  function dstr(t) { return Utilities.formatDate(new Date(t), TZ, "yyyy-MM-dd"); }
+  // 直近 days*2 日ぶんの日別バケツ（今期＝新しい days 日／前期＝その前の days 日）
+  var buckets = {};
+  for (var d = 0; d < days * 2; d++) {
+    var k = Utilities.formatDate(new Date(now.getTime() - d * DAY), TZ, "yyyy-MM-dd");
+    buckets[k] = { pv: 0, resv: 0 };
+  }
+  var curUniq = {}, prevUniq = {};
   for (var i = 0; i < rows.length; i++) {
     var r = rows[i];
     if (store && String(r[1]) !== store) continue;
-    var t = 0; try { t = new Date(r[0]).getTime(); } catch (e) {}
-    var ageD = (now - t) / D;
+    var t = 0; try { t = new Date(r[0]).getTime(); } catch (e) { continue; }
+    var k = dstr(t), b = buckets[k];
+    var ageD = Math.floor((now.getTime() - t) / DAY);
+    var isCur = ageD >= 0 && ageD < days;
+    var isPrev = ageD >= days && ageD < days * 2;
     var ev = String(r[2] || ""), label = String(r[3] || ""), vid = String(r[4] || "");
     if (ev === "view") {
-      out.views++;
-      if (ageD <= 7) out.views7++;
-      if (ageD <= 30) out.views30++;
-      if (Utilities.formatDate(new Date(t), TZ, "yyyy-MM-dd") === todayStr) out.today++;
-      if (vid) { if (!seen[vid]) { seen[vid] = 1; out.uniq++; } if (ageD <= 7 && !seen7[vid]) { seen7[vid] = 1; out.uniq7++; } }
+      if (b) b.pv++;
+      if (k === todayStr) out.today++;
+      if (isCur) { out.cur.pv++; if (vid) curUniq[vid] = 1; }
+      else if (isPrev) { out.prev.pv++; if (vid) prevUniq[vid] = 1; }
     } else if (ev === "click") {
-      out.clicks++;
-      out.labels[label] = (out.labels[label] || 0) + 1;
-      if (label.indexOf("予約") >= 0) { out.resv++; if (ageD <= 7) out.resv7++; }
+      var isResv = label.indexOf("予約") >= 0;
+      if (isCur) { out.cur.clicks++; out.labels[label] = (out.labels[label] || 0) + 1; if (isResv) { out.cur.resv++; if (b) b.resv++; } }
+      else if (isPrev) { out.prev.clicks++; if (isResv) out.prev.resv++; }
     }
   }
-  out.cvr = out.views ? Math.round(out.resv / out.views * 1000) / 10 : 0;    // 予約クリック率(近似CVR) %
-  out.cvr7 = out.views7 ? Math.round(out.resv7 / out.views7 * 1000) / 10 : 0;
+  out.cur.uniq = Object.keys(curUniq).length;
+  out.prev.uniq = Object.keys(prevUniq).length;
+  out.cur.cvr = out.cur.pv ? Math.round(out.cur.resv / out.cur.pv * 1000) / 10 : 0;
+  out.prev.cvr = out.prev.pv ? Math.round(out.prev.resv / out.prev.pv * 1000) / 10 : 0;
+  // 日別シリーズ（今期・古い→新しい）：チャート用
+  for (var d2 = days - 1; d2 >= 0; d2--) {
+    var kk = Utilities.formatDate(new Date(now.getTime() - d2 * DAY), TZ, "yyyy-MM-dd");
+    var bb = buckets[kk] || { pv: 0, resv: 0 };
+    out.series.push({ date: kk.slice(5), pv: bb.pv, resv: bb.resv, cvr: (bb.pv ? Math.round(bb.resv / bb.pv * 1000) / 10 : 0) });
+  }
   return out;
 }
 
