@@ -1,15 +1,17 @@
-// 洋食⑤シネマ・フルスクリーン：写真を全画面＋上下シネマバー、ゆっくりパン。中央に一行キャッチ。
-// ワイン・前菜など「雰囲気」を売る回。和風要素なし。
-import { AbsoluteFill, Img, Audio, staticFile, useCurrentFrame, interpolate, Easing } from "remotion";
-import { loadFont as loadMincho } from "@remotion/google-fonts/ShipporiMincho";
-import { loadFont as loadSerif } from "@remotion/google-fonts/Cormorant";
+// 洋食⑤シネマ：レターボックス＋ゆっくりパンの“映画”。最初にタイトル(フック)、以降は各カットに字幕。
+// 役割＝世界観・雰囲気を売る。静かなカメラ移動で高級感、字幕で品を一つずつ見せる。
+// 変更点: 1品→4品クロスフェード／ズーム抑制(寄りすぎ解消)／タイトル→シーンの流れ設計／16秒。
+//         好評だったパン＆キャプションの質感は踏襲。
+import { AbsoluteFill, Audio, staticFile, useCurrentFrame, interpolate } from "remotion";
 import { typoPhotos, typoHeadline, typoMusic, typoMusicStart } from "./typoData";
-import { oneLineFont } from "./fit";
-import { ytheme, yclamp as clamp, Y_DUR } from "./yoshokuTheme";
+import { ytheme } from "./yoshokuTheme";
+import {
+  mincho, serif, clamp, SAFE, EASE, rise, drawW, fade,
+  Grain, PhotoLayer, Slides, splitLines, heroSize, StoreLogo,
+} from "./yoshokuDesign";
 
-const { fontFamily: mincho } = loadMincho();
-const { fontFamily: serif } = loadSerif();
-export const YCINE_DUR = Y_DUR;
+export const YCINE_DUR = 480; // 16s
+const BAR = 200;
 
 export const YoshokuCine: React.FC<{ storeName?: string; handle?: string; theme?: string }> = ({
   storeName = "ナガグツ", handle = "@nagagutsu0427", theme = "italian",
@@ -17,48 +19,59 @@ export const YoshokuCine: React.FC<{ storeName?: string; handle?: string; theme?
   const f = useCurrentFrame();
   const DUR = YCINE_DUR;
   const T = ytheme(theme);
-  const hero = typoPhotos[0] || { src: "", caption: "" };
+  const p = typoPhotos.length ? typoPhotos : [{ src: "", caption: "" }];
+  const items = [0, 1, 2, 3].map((i) => p[i] || p[p.length - 1]);
 
-  // シネマバーが上下から入り（レターボックス）→ ゆっくり横パン
-  const barH = interpolate(f, [0, 24], [0, 210], { ...clamp, easing: Easing.out(Easing.cubic) });
-  const panX = interpolate(f, [0, DUR], [-40, 40], clamp);
-  const zoom = interpolate(f, [0, DUR], [1.14, 1.2], clamp);
-  const keyO = interpolate(f, [40, 62], [0, 1], clamp);
-  const keyY = interpolate(f, [40, 64], [24, 0], { ...clamp, easing: Easing.out(Easing.cubic) });
-  const lineW = interpolate(f, [60, 90], [0, 260], { ...clamp, easing: Easing.out(Easing.cubic) });
-  const nameO = interpolate(f, [96, 116], [0, 1], clamp);
-  const footO = interpolate(f, [DUR - 40, DUR - 24], [0, 1], clamp);
-  const nameSize = oneLineFont(hero.caption, 900, 60, 3, 36);
+  const barH = interpolate(f, [0, 24], [0, BAR], { ...clamp, easing: EASE });
+  // タイトル(フック)は導入で主役→静かに退場。以降はシーンの字幕が主役。
+  const titleO = interpolate(f, [30, 52, 108, 130], [0, 1, 1, 0], clamp);
+  const titleY = interpolate(f, [30, 52], [22, 0], { ...clamp, easing: EASE });
+  const lineW = drawW(f, 54, 240, 30);
 
   return (
     <AbsoluteFill style={{ backgroundColor: "#000", fontFamily: mincho }}>
-      <Audio src={staticFile(typoMusic)} startFrom={Math.round((typoMusicStart||0)*30)} volume={(ff) => interpolate(ff, [0, 16, DUR - 20, DUR], [0, 0.82, 0.82, 0], clamp)} />
+      <Audio src={staticFile(typoMusic)} startFrom={Math.round((typoMusicStart || 0) * 30)} volume={(ff) => interpolate(ff, [0, 18, DUR - 24, DUR], [0, 0.82, 0.82, 0], clamp)} />
 
-      {/* 全画面写真（ゆっくり横パン＋微ズーム） */}
+      {/* 全画面：4品をクロスフェード＋ゆっくりパン（寄りすぎない） */}
       <AbsoluteFill>
-        <Img src={staticFile(hero.src)} style={{ width: "100%", height: "100%", objectFit: "cover", transform: "translateX(" + panX + "px) scale(" + zoom + ")", filter: "saturate(1.05) contrast(1.04)" }} />
+        <Slides count={4} total={DUR} render={(i, local, seg) => (
+          <PhotoLayer src={items[i].src} frame={local} dur={seg} from={1.05} to={1.10} panX={28} sat={1.05} brightness={1.0} />
+        )} />
       </AbsoluteFill>
-      <AbsoluteFill style={{ background: "linear-gradient(180deg, rgba(0,0,0,0.35) 0%, rgba(0,0,0,0) 35%, rgba(0,0,0,0) 62%, rgba(0,0,0,0.55) 100%)" }} />
+      <AbsoluteFill style={{ background: "linear-gradient(180deg, rgba(0,0,0,0.4) 0%, rgba(0,0,0,0) 34%, rgba(0,0,0,0) 60%, rgba(0,0,0,0.6) 100%)" }} />
+      <Grain opacity={0.05} />
 
-      {/* 上下シネマバー */}
+      {/* レターボックス */}
       <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: barH, background: "#000" }} />
       <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, height: barH, background: "#000" }} />
 
-      {/* 中央：一行キャッチ */}
-      <AbsoluteFill style={{ display: "flex", alignItems: "center", justifyContent: "center", flexDirection: "column", opacity: keyO, transform: "translateY(" + keyY + "px)" }}>
-        <div style={{ fontFamily: serif, color: T.accent, fontSize: 30, letterSpacing: 10, marginBottom: 22 }}>{T.label}</div>
-        <div style={{ fontFamily: mincho, color: "#FFFFFF", fontSize: 56, fontWeight: 600, letterSpacing: 6, textAlign: "center", textShadow: "0 2px 24px rgba(0,0,0,0.7)" }}>{typoHeadline}</div>
-        <div style={{ marginTop: 26, width: lineW, height: 2, background: T.accent, opacity: 0.9 }} />
+      {/* 導入タイトル（中央・フック） */}
+      <AbsoluteFill style={{ display: "flex", alignItems: "center", justifyContent: "center", flexDirection: "column", opacity: titleO, transform: "translateY(" + titleY + "px)" }}>
+        <div style={{ fontFamily: serif, color: T.accent, fontSize: 30, letterSpacing: 12, marginBottom: 22 }}>{T.label}</div>
+        <div style={{ fontFamily: mincho, color: "#FFFFFF", fontSize: heroSize(typoHeadline, 72, 52), fontWeight: 700, letterSpacing: 5, textAlign: "center", lineHeight: 1.3, textShadow: "0 3px 26px rgba(0,0,0,0.7)", padding: "0 " + SAFE.side + "px" }}>
+          {splitLines(typoHeadline).length ? splitLines(typoHeadline).map((ln, i) => <div key={i}>{ln}</div>) : typoHeadline}
+        </div>
+        <div style={{ marginTop: 24, width: lineW, height: 2, background: T.accent, opacity: 0.9 }} />
       </AbsoluteFill>
 
-      {/* 下バーの上：料理名（小・字幕風） */}
-      <div style={{ position: "absolute", bottom: barH + 26, left: 0, right: 0, textAlign: "center", opacity: nameO }}>
-        <div style={{ fontFamily: mincho, color: "#F2ECDD", fontSize: nameSize, letterSpacing: 3, textShadow: "0 2px 14px rgba(0,0,0,0.8)" }}>{hero.caption}</div>
-      </div>
+      {/* 各シーンの字幕（料理名・下バー上）。タイトル退場後から前面に。 */}
+      <Slides count={4} total={DUR} fade={16} render={(i, local) => {
+        if (i === 0 && f < 120) return null; // 1カット目はタイトル優先
+        const lines = splitLines(items[i].caption);
+        const sz = heroSize(items[i].caption, 60, 42);
+        return (
+          <div style={{ position: "absolute", left: SAFE.side, right: SAFE.side, bottom: BAR + 44, textAlign: "center", ...rise(local, 8, { dist: 16 }) }}>
+            <div style={{ fontFamily: mincho, color: "#F4ECDD", fontSize: sz, fontWeight: 600, letterSpacing: 3, lineHeight: 1.24, textShadow: "0 2px 16px rgba(0,0,0,0.85)" }}>
+              {lines.length ? lines.map((ln, k) => <div key={k}>{ln}</div>) : items[i].caption}
+            </div>
+          </div>
+        );
+      }} />
 
-      {/* 下バー内：店名 */}
-      <div style={{ position: "absolute", bottom: Math.max(30, (barH - 60) / 2), left: 0, right: 0, textAlign: "center", opacity: footO }}>
-        <div style={{ fontFamily: serif, color: T.accent, fontSize: 28, letterSpacing: 6 }}>{storeName} · {handle}</div>
+      {/* 下バー内：店舗ロゴ＋ハンドル */}
+      <div style={{ position: "absolute", bottom: (BAR - 92) / 2, left: 0, right: 0, display: "flex", flexDirection: "column", alignItems: "center", gap: 6, opacity: interpolate(f, [DUR - 60, DUR - 40], [0, 1], clamp) }}>
+        <StoreLogo storeName={storeName} height={40} />
+        <div style={{ fontFamily: serif, color: T.accent, fontSize: 22, letterSpacing: 5 }}>{handle}</div>
       </div>
     </AbsoluteFill>
   );

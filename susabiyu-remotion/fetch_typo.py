@@ -249,6 +249,108 @@ def _music_start_sec(path):
 _mstart = _music_start_sec(music)
 print("MUSIC_START:", _mstart, "秒（ファイル名から）")
 lines.append('export const typoMusicStart = %d;' % _mstart)
+
+
+def _fetch_store_logo():
+    """店舗の「ロゴ」フォルダから横型ロゴを1枚取得し、暗背景で映える生成り透過PNGにして
+    public/store_logo.png へ保存。相対パス "store_logo.png" を返す（見つからなければ ""）。
+    ・ロゴフォルダ：FOOD_FOLDER 直下の名前に「ロゴ」or「logo」を含むサブフォルダを再帰的に探索。
+    ・横型優先：ファイル名に 横/wide/white/白 を含む＞アスペクト比が横長（幅/高≧1.4）＞先頭。
+    """
+    try:
+        def _find_logo_folder(fid, depth=0):
+            for f in list_children(fid):
+                if f.get("mimeType") == "application/vnd.google-apps.folder":
+                    nm = str(f.get("name", ""))
+                    if ("ロゴ" in nm) or ("logo" in nm.lower()):
+                        return f["id"]
+                    if depth < 2:
+                        sub = _find_logo_folder(f["id"], depth + 1)
+                        if sub:
+                            return sub
+            return None
+
+        lf = _find_logo_folder(FOOD_FOLDER)
+        if not lf:
+            print("[LOGO] ロゴフォルダが見つからず（文字ロゴにフォールバック）"); return ""
+        imgs = [f for f in list_children(lf) if str(f.get("mimeType", "")).startswith("image/")]
+        if not imgs:
+            print("[LOGO] ロゴフォルダに画像なし"); return ""
+
+        def _score(f):
+            nm = str(f.get("name", "")).lower()
+            m = f.get("imageMediaMetadata") or {}
+            w, h = m.get("width", 0) or 0, m.get("height", 0) or 0
+            ar = (w / h) if h else 0
+            s = 0
+            if any(k in nm for k in ("横", "wide", "yoko")):
+                s += 100
+            if any(k in nm for k in ("white", "白", "透過", "trans")):
+                s += 40
+            if ar >= 1.4:
+                s += 30
+            s += min(ar, 6) * 5   # 横長ほど加点
+            return s
+
+        pick = sorted(imgs, key=_score, reverse=True)[0]
+        print("[LOGO] 採用:", pick.get("name"))
+        raw = os.path.join(OUT_DIR, "_logo_raw")
+        req = drive.files().get_media(fileId=pick["id"])
+        buf = io.FileIO(raw, "wb")
+        dl = MediaIoBaseDownload(buf, req)
+        done = False
+        while not done:
+            _, done = dl.next_chunk()
+        buf.close()
+
+        # 白背景を透過に→暗ロゴは生成りに整える→余白トリム（setup_logo.py と同じ考え方）。
+        try:
+            from PIL import Image
+        except ImportError:
+            print("[LOGO] Pillow未導入のため無加工でコピー")
+            import shutil; shutil.copyfile(raw, os.path.join("public", "store_logo.png")); return "store_logo.png"
+        im = Image.open(raw).convert("RGBA")
+        px = im.load(); W, H = im.size
+        HI, LO = 244, 210; lum_sum = 0; lum_cnt = 0
+        for y in range(H):
+            for x in range(W):
+                r, g, b, a = px[x, y]
+                mn = min(r, g, b)
+                if a == 0:
+                    continue
+                if mn >= HI:
+                    px[x, y] = (r, g, b, 0)
+                else:
+                    na = int(255 * (HI - mn) / (HI - LO)) if mn > LO else 255
+                    na = min(na, a)
+                    px[x, y] = (r, g, b, na)
+                    if na > 60:
+                        lum_sum += (r * 299 + g * 587 + b * 114) // 1000; lum_cnt += 1
+        avg = (lum_sum / lum_cnt) if lum_cnt else 255
+        if avg < 150:   # 暗いロゴは暗背景で見えない→暖かい生成りへ
+            CR, CG, CB = 0xF3, 0xEA, 0xD8
+            for y in range(H):
+                for x in range(W):
+                    r, g, b, a = px[x, y]
+                    if a > 0:
+                        px[x, y] = (CR, CG, CB, a)
+            print("[LOGO] 暗ロゴ→生成りに整えました (avg=%.0f)" % avg)
+        bbox = im.getbbox()
+        if bbox:
+            im = im.crop(bbox)
+        im.save(os.path.join("public", "store_logo.png"))
+        try:
+            os.remove(raw)
+        except Exception:
+            pass
+        print("[LOGO] public/store_logo.png 保存完了", im.size)
+        return "store_logo.png"
+    except Exception as e:
+        print("[LOGO] 取得スキップ:", e); return ""
+
+
+_logo = _fetch_store_logo()
+lines.append('export const typoLogo = "%s";' % esc(_logo))
 _up = music
 _updir = os.path.join("public", "music", "uptempo")
 sync_music_from_drive(os.environ.get("GENRE_MUSIC_UPTEMPO_ID"), _updir)

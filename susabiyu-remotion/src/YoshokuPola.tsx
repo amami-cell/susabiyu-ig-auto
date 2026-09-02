@@ -1,15 +1,15 @@
-// 洋食⑧ポラロイド重ね：複数の料理をポラロイド風に少しずつ回転・重ねて登場。
-// カジュアルで「みんなでシェア」な肉バルの賑わい感。写真が足りなければ先頭を流用。和風要素なし。
+// 洋食⑧ポラロイド：卓上に写真を重ねる“みんなでシェア”の賑わい。カジュアルな肉バルの体温。
+// 役割＝距離を縮める中盤〜締め前。堅くなりすぎた高級感を、あえて崩して親しみに変える。
+// 変更点: 背景を温かい卓上トーンへ(黒すぎ解消)＋地紋／写真を大きく密度よく配置／上の2行を大きく／フッターは店舗ロゴ。
 import { AbsoluteFill, Img, Audio, staticFile, useCurrentFrame, interpolate, Easing } from "remotion";
-import { loadFont as loadMincho } from "@remotion/google-fonts/ShipporiMincho";
-import { loadFont as loadSerif } from "@remotion/google-fonts/Cormorant";
 import { typoPhotos, typoHeadline, typoMusic, typoMusicStart } from "./typoData";
-import { oneLineFont } from "./fit";
-import { ytheme, yclamp as clamp, Y_DUR } from "./yoshokuTheme";
+import { ytheme } from "./yoshokuTheme";
+import {
+  mincho, serif, clamp, SAFE, fade,
+  Grain, Vignette, StoreLogo, splitLines, heroSize,
+} from "./yoshokuDesign";
 
-const { fontFamily: mincho } = loadMincho();
-const { fontFamily: serif } = loadSerif();
-export const YPOLA_DUR = Y_DUR;
+export const YPOLA_DUR = 300; // 10s
 
 export const YoshokuPola: React.FC<{ storeName?: string; handle?: string; theme?: string }> = ({
   storeName = "ナガグツ", handle = "@nagagutsu0427", theme = "italian",
@@ -19,43 +19,48 @@ export const YoshokuPola: React.FC<{ storeName?: string; handle?: string; theme?
   const T = ytheme(theme);
   const p0 = typoPhotos[0] || { src: "", caption: "" };
   const cards = [p0, typoPhotos[1] || p0, typoPhotos[2] || p0, typoPhotos[3] || p0];
-  // 4枚をずらして重ねる（位置・回転・登場タイミング）
+  // 2x2の密なクラスタ。空きを減らし写真を大きく。回転は控えめ＝上品。
   const layout = [
-    { x: -150, y: -260, rot: -8, cap: cards[0] },
-    { x: 165, y: -120, rot: 7, cap: cards[1] },
-    { x: -120, y: 210, rot: 5, cap: cards[2] },
-    { x: 175, y: 360, rot: -6, cap: cards[3] },
+    { x: -232, y: -256, rot: -4, cap: cards[0] },
+    { x: 232, y: -232, rot: 3.5, cap: cards[1] },
+    { x: -232, y: 258, rot: 3, cap: cards[2] },
+    { x: 232, y: 282, rot: -3.5, cap: cards[3] },
   ];
-  const headO = interpolate(f, [4, 22], [0, 1], clamp);
-  const footO = interpolate(f, [DUR - 42, DUR - 26], [0, 1], clamp);
 
   return (
-    <AbsoluteFill style={{ backgroundColor: T.base, fontFamily: mincho }}>
-      <Audio src={staticFile(typoMusic)} startFrom={Math.round((typoMusicStart||0)*30)} volume={(ff) => interpolate(ff, [0, 14, DUR - 20, DUR], [0, 0.8, 0.8, 0], clamp)} />
-      <AbsoluteFill style={{ background: "radial-gradient(120% 80% at 50% 40%, " + T.base + " 0%, " + T.footBase + " 100%)" }} />
+    <AbsoluteFill style={{ fontFamily: mincho }}>
+      <Audio src={staticFile(typoMusic)} startFrom={Math.round((typoMusicStart || 0) * 30)} volume={(ff) => interpolate(ff, [0, 16, DUR - 24, DUR], [0, 0.8, 0.8, 0], clamp)} />
 
-      {/* 上部ラベル */}
-      <div style={{ position: "absolute", top: 130, left: 0, right: 0, textAlign: "center", opacity: headO }}>
-        <div style={{ fontFamily: serif, color: T.accent, fontSize: 34, letterSpacing: 10, fontWeight: 600 }}>{T.label}</div>
-        <div style={{ marginTop: 10, fontFamily: mincho, color: T.sub, fontSize: 30, letterSpacing: 3 }}>{typoHeadline}</div>
+      {/* 背景：温かい卓上（木/クラフト）＋地紋。真っ黒を避ける。 */}
+      <AbsoluteFill style={{ background: "radial-gradient(120% 90% at 50% 42%, #3c2e22 0%, #2a2016 52%, #1c150e 100%)" }} />
+      <AbsoluteFill style={{ opacity: 0.05, backgroundImage: "repeating-linear-gradient(90deg, rgba(255,240,220,0.5) 0 1px, transparent 1px 30px)" }} />
+      <Grain opacity={0.09} />
+      <Vignette strength={0.5} />
+
+      {/* 上：ラベル＋フック（2行・大きく） */}
+      <div style={{ position: "absolute", top: SAFE.top - 40, left: SAFE.side, right: SAFE.side, textAlign: "center", opacity: fade(f, 6) }}>
+        <div style={{ fontFamily: serif, color: T.accent, fontSize: 42, letterSpacing: 10, fontWeight: 600 }}>{T.label}</div>
+        <div style={{ marginTop: 12, fontFamily: mincho, color: "#F1E7D6", fontSize: heroSize(typoHeadline, 44, 34), fontWeight: 600, letterSpacing: 3, lineHeight: 1.3 }}>
+          {splitLines(typoHeadline).length ? splitLines(typoHeadline).map((ln, i) => <div key={i}>{ln}</div>) : typoHeadline}
+        </div>
       </div>
 
-      {/* ポラロイド4枚 */}
-      <AbsoluteFill style={{ display: "flex", alignItems: "center", justifyContent: "center" }}>
+      {/* ポラロイド4枚（大きめ・密） */}
+      <AbsoluteFill style={{ display: "flex", alignItems: "center", justifyContent: "center", transform: "translateY(70px)" }}>
         {layout.map((L, i) => {
-          const start = 18 + i * 16;
-          const o = interpolate(f, [start, start + 16], [0, 1], clamp);
-          const pop = interpolate(f, [start, start + 18], [0.7, 1], { ...clamp, easing: Easing.out(Easing.back(1.6)) });
-          const yy = interpolate(f, [start, start + 20], [40, 0], { ...clamp, easing: Easing.out(Easing.cubic) });
-          const nameSize = oneLineFont(L.cap.caption, 380, 30, 1, 22);
+          const start = 20 + i * 14;
+          const o = fade(f, start, 16);
+          const pop = interpolate(f, [start, start + 20], [0.82, 1], { ...clamp, easing: Easing.out(Easing.back(1.3)) });
+          const yy = interpolate(f, [start, start + 22], [34, 0], { ...clamp, easing: Easing.out(Easing.cubic) });
+          const sz = heroSize(L.cap.caption, 32, 24);
           return (
             <div key={i} style={{ position: "absolute", transform: "translate(" + L.x + "px," + (L.y + yy) + "px) rotate(" + L.rot + "deg) scale(" + pop + ")", opacity: o }}>
-              <div style={{ width: 440, background: "#FBF7EE", padding: "18px 18px 0", borderRadius: 4, boxShadow: "0 24px 50px rgba(0,0,0,0.55)" }}>
-                <div style={{ width: 404, height: 404, overflow: "hidden", background: "#000" }}>
+              <div style={{ width: 500, background: "#FBF7EE", padding: "20px 20px 0", borderRadius: 5, boxShadow: "0 28px 60px rgba(0,0,0,0.6)" }}>
+                <div style={{ width: 460, height: 460, overflow: "hidden", background: "#000" }}>
                   <Img src={staticFile(L.cap.src)} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
                 </div>
-                <div style={{ height: 92, display: "flex", alignItems: "center", justifyContent: "center" }}>
-                  <div style={{ fontFamily: mincho, color: "#2a2420", fontSize: nameSize, fontWeight: 600, letterSpacing: 1 }}>{L.cap.caption}</div>
+                <div style={{ height: 100, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                  <div style={{ fontFamily: mincho, color: "#2a2420", fontSize: sz, fontWeight: 600, letterSpacing: 1, textAlign: "center", padding: "0 10px" }}>{L.cap.caption}</div>
                 </div>
               </div>
             </div>
@@ -63,10 +68,10 @@ export const YoshokuPola: React.FC<{ storeName?: string; handle?: string; theme?
         })}
       </AbsoluteFill>
 
-      {/* フッター */}
-      <div style={{ position: "absolute", bottom: 96, left: 0, right: 0, textAlign: "center", opacity: footO }}>
-        <div style={{ fontFamily: mincho, color: T.ink, fontSize: 36, letterSpacing: 6, fontWeight: 600 }}>{storeName}</div>
-        <div style={{ marginTop: 6, fontFamily: serif, color: T.accent, fontSize: 28, letterSpacing: 4 }}>{handle}</div>
+      {/* フッター：店舗ロゴ＋ハンドル */}
+      <div style={{ position: "absolute", left: 0, right: 0, bottom: SAFE.bottom - 150, display: "flex", flexDirection: "column", alignItems: "center", gap: 8, ...(function () { const o = fade(f, DUR - 60); return { opacity: o }; })() }}>
+        <StoreLogo storeName={storeName} height={46} />
+        <div style={{ fontFamily: serif, color: T.accent, fontSize: 24, letterSpacing: 5 }}>{handle}</div>
       </div>
     </AbsoluteFill>
   );
