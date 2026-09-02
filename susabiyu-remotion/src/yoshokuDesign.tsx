@@ -62,13 +62,13 @@ const _grain =
   "<rect width='100%' height='100%' filter='url(#n)'/></svg>";
 export const GRAIN = "url(\"data:image/svg+xml;utf8," + encodeURIComponent(_grain) + "\")";
 
-export const Grain: React.FC<{ opacity?: number }> = ({ opacity = 0.06 }) => (
+export const Grain: React.FC<{ opacity?: number }> = ({ opacity = 0.045 }) => (
   <AbsoluteFill style={{ backgroundImage: GRAIN, backgroundSize: "220px 220px", opacity, mixBlendMode: "overlay", pointerEvents: "none" }} />
 );
 
-// エッジを締めるビネット（視線を中央へ）。
-export const Vignette: React.FC<{ strength?: number }> = ({ strength = 0.5 }) => (
-  <AbsoluteFill style={{ background: "radial-gradient(125% 95% at 50% 42%, rgba(0,0,0,0) 45%, rgba(0,0,0," + strength + ") 100%)", pointerEvents: "none" }} />
+// エッジを締めるビネット（視線を中央へ）。強すぎると安っぽいので控えめ既定。
+export const Vignette: React.FC<{ strength?: number }> = ({ strength = 0.42 }) => (
+  <AbsoluteFill style={{ background: "radial-gradient(130% 100% at 50% 40%, rgba(0,0,0,0) 48%, rgba(0,0,0," + strength + ") 100%)", pointerEvents: "none" }} />
 );
 
 // 上からの暖色ライトリーク（ビストロの灯り。ごく薄く）。
@@ -150,36 +150,43 @@ export const StoreLogo: React.FC<{ storeName: string; height?: number; tint?: st
   );
 };
 
-// フッター（ロゴ＋ハンドル）。全テンプレ共通の“締め”。セーフエリア内に収める。
-export const BrandFooter: React.FC<{ storeName: string; handle: string; accent: string; f: number; start: number; logoH?: number }> = ({
-  storeName, handle, accent, f, start, logoH = 50,
+// ラテンのキッカー（罫なし・控えめ）。上部の小さなブランドサイン。中央寄せは使わず既定は左。
+export const Kicker: React.FC<{ text: string; color: string; f: number; start: number; size?: number; align?: "left" | "center" }> = ({
+  text, color, f, start, size = 24, align = "left",
 }) => (
-  <div style={{ position: "absolute", left: 0, right: 0, bottom: SAFE.bottom - 96, display: "flex", flexDirection: "column", alignItems: "center", gap: 12, ...rise(f, start, { dist: 16 }) }}>
-    <StoreLogo storeName={storeName} height={logoH} />
-    <div style={{ fontFamily: serif, color: accent, fontSize: 27, letterSpacing: 5, opacity: 0.92 }}>{handle}</div>
+  <div style={{ display: "flex", justifyContent: align === "center" ? "center" : "flex-start", ...rise(f, start, { dist: 10 }) }}>
+    <div style={{ fontFamily: serif, color, fontSize: size, letterSpacing: 5, fontWeight: 600, textTransform: "uppercase", opacity: 0.9, whiteSpace: "nowrap" }}>{text}</div>
   </div>
 );
 
-// ラテンのキッカー（両脇に細い罫）。上部の小さなブランドサイン。
-export const Kicker: React.FC<{ text: string; color: string; f: number; start: number; size?: number; ruleTo?: number }> = ({
-  text, color, f, start, size = 30, ruleTo = 60,
-}) => {
-  const w = drawW(f, start + 4, ruleTo);
-  return (
-    <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 22, opacity: fade(f, start) }}>
-      <div style={{ width: w, height: 1, background: color, opacity: 0.75 }} />
-      <div style={{ fontFamily: serif, color, fontSize: size, letterSpacing: 12, fontWeight: 600, whiteSpace: "nowrap" }}>{text}</div>
-      <div style={{ width: w, height: 1, background: color, opacity: 0.75 }} />
-    </div>
-  );
-};
+// マストヘッド（左上）：店舗ロゴを主役サイズで置き、その下に小さなラテンのキッカー。
+// エディトリアルの“表紙の頭”。全テンプレでロゴ位置を左上に統一＝ブランドの一貫性。
+export const Masthead: React.FC<{ storeName: string; f: number; kicker?: string; accent: string; tint?: string; logoH?: number }> = ({
+  storeName, f, kicker, accent, tint, logoH = 78,
+}) => (
+  <div style={{ position: "absolute", top: SAFE.top - 74, left: SAFE.side, ...rise(f, 6, { dist: 12 }) }}>
+    <StoreLogo storeName={storeName} height={logoH} tint={tint} />
+    {kicker ? (
+      <div style={{ marginTop: 12, fontFamily: serif, color: accent, fontSize: 23, letterSpacing: 5, fontWeight: 600, textTransform: "uppercase", opacity: 0.88 }}>{kicker}</div>
+    ) : null}
+  </div>
+);
+
+// フッター（左下・小）：ハンドルのみの控えめな締め。ロゴはマストヘッドに置くので重複させない。
+export const HandleMark: React.FC<{ handle: string; accent: string; f: number; start: number; align?: "left" | "center" }> = ({
+  handle, accent, f, start, align = "left",
+}) => (
+  <div style={{ position: "absolute", left: SAFE.side, right: SAFE.side, bottom: SAFE.bottom - 150, textAlign: align, ...rise(f, start, { dist: 10 }) }}>
+    <span style={{ fontFamily: serif, color: accent, fontSize: 26, letterSpacing: 4, opacity: 0.85 }}>{handle}</span>
+  </div>
+);
 
 // 料理写真を主役にする“ステージ”：同じ写真の暗ぼかしを全面に敷き、中央に額装カードで全体を見せる。
 // フルブリードだと料理が寄りすぎるため、カード表示で一皿の全体像を上品に見せる（バル×エディトリアル）。
 export const DishStage: React.FC<{
-  srcs: string[]; total: number; base: string; accent: string; line: string;
+  srcs: string[]; total: number; base: string; accent: string; line?: string;
   cardW?: number; cardH?: number; cardTop?: number; radius?: number;
-}> = ({ srcs, total, base, accent, line, cardW = 900, cardH = 1140, cardTop = 360, radius = 14 }) => {
+}> = ({ srcs, total, base, accent, cardW = 900, cardH = 1140, cardTop = 360, radius = 14 }) => {
   const n = Math.max(1, srcs.length);
   const left = (1080 - cardW) / 2;
   return (
@@ -191,16 +198,13 @@ export const DishStage: React.FC<{
         )} />
       </AbsoluteFill>
       <AbsoluteFill style={{ background: "linear-gradient(180deg, " + base + "F0 0%, " + base + "44 26%, " + base + "55 66%, " + base + "F7 100%)" }} />
-      {/* 主役：額装カード（薄い金枠＋やわらかい影） */}
+      {/* 主役：額装カード（極細の金ヘアライン＋やわらかい影。装飾は足さない） */}
       <div style={{ position: "absolute", top: cardTop, left, width: cardW, height: cardH }}>
-        <div style={{ position: "absolute", inset: 0, borderRadius: radius, overflow: "hidden", border: "1.5px solid " + line, boxShadow: "0 40px 90px rgba(0,0,0,0.6)" }}>
+        <div style={{ position: "absolute", inset: 0, borderRadius: radius, overflow: "hidden", border: "1px solid " + accent + "55", boxShadow: "0 40px 100px rgba(0,0,0,0.62)" }}>
           <Slides count={n} total={total} render={(i, local, seg) => (
             <PhotoLayer src={srcs[i]} frame={local} dur={seg} from={1.03} to={1.09} sat={1.08} />
           )} />
         </div>
-        {/* 角のさりげない金アクセント */}
-        <div style={{ position: "absolute", top: -9, left: -9, width: 42, height: 42, borderTop: "2px solid " + accent, borderLeft: "2px solid " + accent, opacity: 0.85 }} />
-        <div style={{ position: "absolute", bottom: -9, right: -9, width: 42, height: 42, borderBottom: "2px solid " + accent, borderRight: "2px solid " + accent, opacity: 0.85 }} />
       </div>
     </>
   );

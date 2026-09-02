@@ -39,10 +39,10 @@ export const YoshokuOpen: React.FC<{ storeName?: string; handle?: string; theme?
       <Vignette strength={0.5} />
       <Grain />
 
-      {/* 金の細枠＋上ラベル */}
-      <div style={{ position: "absolute", inset: 70, border: "1.5px solid " + T.accent, borderRadius: 10, opacity: fade(f, 16) * 0.8 }} />
+      {/* 金のヘアライン枠＋上ラベル（控えめに） */}
+      <div style={{ position: "absolute", inset: 74, border: "1px solid " + T.accent + "55", borderRadius: 8, opacity: fade(f, 16) * 0.75 }} />
       <div style={{ position: "absolute", top: SAFE.top - 20, left: 0, right: 0, textAlign: "center", opacity: fade(f, 18) }}>
-        <div style={{ fontFamily: serif, color: T.accent, fontSize: 34, letterSpacing: 14, fontWeight: 600 }}>{T.label}</div>
+        <div style={{ fontFamily: serif, color: T.accent, fontSize: 30, letterSpacing: 6, fontWeight: 600, textTransform: "uppercase" }}>{T.label}</div>
       </div>
 
       {/* 中央：OPEN（実データ or 中立）＋ 情緒コピー */}
