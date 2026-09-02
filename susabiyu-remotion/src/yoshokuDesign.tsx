@@ -219,6 +219,14 @@ export function splitLines(s: string): string[] {
   return (s || "").split(/[｜\n]/).map((x) => x.trim()).filter((x) => x.length > 0);
 }
 
+// いま表示すべきカット番号と、そのカット内相対フレームを返す（テキストは常に“1件だけ”描く用）。
+// 写真はクロスディゾルブ(Slides)でも、文字は重ねない＝カット単位でハードに切替えて二重表示を防ぐ。
+export function segNow(total: number, count: number, f: number): { i: number; local: number; seg: number } {
+  const seg = total / count;
+  const i = Math.min(count - 1, Math.max(0, Math.floor(f / seg)));
+  return { i, local: f - i * seg, seg };
+}
+
 // 文字数から見出しサイズを決める（2行前提・スマホでも読める下限を確保）。
 export function heroSize(text: string, big: number, small: number): number {
   const n = Array.from(text || "").length;

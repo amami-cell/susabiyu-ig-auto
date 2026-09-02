@@ -6,7 +6,7 @@ import { typoPhotos, typoMusic, typoMusicStart } from "./typoData";
 import { ytheme } from "./yoshokuTheme";
 import {
   mincho, serif, clamp, SAFE, rise, fade,
-  Grain, Vignette, PhotoLayer, Slides, StoreLogo, splitLines, heroSize,
+  Grain, Vignette, PhotoLayer, Slides, StoreLogo, splitLines, heroSize, segNow,
 } from "./yoshokuDesign";
 
 export const YTRIO_DUR = 330; // 11s（1品 ≒ 3.6s）
@@ -25,32 +25,37 @@ export const YoshokuTrio: React.FC<{ storeName?: string; handle?: string; theme?
     <AbsoluteFill style={{ backgroundColor: "#000", fontFamily: mincho }}>
       <Audio src={staticFile(typoMusic)} startFrom={Math.round((typoMusicStart || 0) * 30)} volume={(ff) => interpolate(ff, [0, 16, DUR - 24, DUR], [0, 0.82, 0.82, 0], clamp)} />
 
-      {/* 写真＋番号＋料理名（3カットのクロスフェード） */}
-      <Slides count={3} total={DUR} fade={18} render={(i, local, seg) => {
-        const lines = splitLines(items[i].caption);
-        const sz = heroSize(items[i].caption, 72, 50);
+      {/* 写真だけ3カットのクロスフェード（文字は重ねない＝別レイヤーで1件だけ描く） */}
+      <Slides count={3} total={DUR} fade={18} render={(i, local, seg) => (
+        <>
+          <AbsoluteFill>
+            <PhotoLayer src={items[i].src} frame={local} dur={seg} from={1.03} to={1.08} sat={1.08} />
+          </AbsoluteFill>
+          <AbsoluteFill style={{ background: "linear-gradient(180deg, rgba(0,0,0,0.5) 0%, rgba(0,0,0,0) 30%, rgba(0,0,0,0.12) 58%, rgba(0,0,0,0.86) 100%)" }} />
+        </>
+      )} />
+      <Vignette strength={0.42} />
+      <Grain opacity={0.05} />
+
+      {/* 番号＋料理名＝カットごとに“1件だけ”表示 */}
+      {(() => {
+        const { i, local } = segNow(DUR, 3, f);
+        const it = items[i]; const lines = splitLines(it.caption);
+        const sz = heroSize(it.caption, 72, 50);
         return (
-          <>
-            <AbsoluteFill>
-              <PhotoLayer src={items[i].src} frame={local} dur={seg} from={1.03} to={1.08} sat={1.08} />
-            </AbsoluteFill>
-            <AbsoluteFill style={{ background: "linear-gradient(180deg, rgba(0,0,0,0.5) 0%, rgba(0,0,0,0) 30%, rgba(0,0,0,0.12) 58%, rgba(0,0,0,0.86) 100%)" }} />
-            {/* 大きな番号 */}
+          <div key={i}>
             <div style={{ position: "absolute", top: SAFE.top + 20, left: SAFE.side, ...rise(local, 4, { dist: 18 }) }}>
               <div style={{ fontFamily: serif, color: T.accent, fontSize: 168, fontWeight: 600, lineHeight: 1, textShadow: "0 3px 22px rgba(0,0,0,0.6)" }}>{nos[i]}</div>
               <div style={{ marginTop: 8, width: 96, height: 3, background: T.accent }} />
             </div>
-            {/* 料理名（下・大） */}
             <div style={{ position: "absolute", left: SAFE.side, right: SAFE.side, bottom: SAFE.bottom + 20, ...rise(local, 10, { dist: 20, blur: 6 }) }}>
               <div style={{ fontFamily: mincho, color: "#FFF8EC", fontSize: sz, fontWeight: 700, letterSpacing: 3, lineHeight: 1.22, textShadow: "0 2px 20px rgba(0,0,0,0.75)" }}>
-                {lines.length ? lines.map((ln, k) => <div key={k}>{ln}</div>) : items[i].caption}
+                {lines.length ? lines.map((ln, k) => <div key={k}>{ln}</div>) : it.caption}
               </div>
             </div>
-          </>
+          </div>
         );
-      }} />
-      <Vignette strength={0.42} />
-      <Grain opacity={0.05} />
+      })()}
 
       {/* 常時：右上ラベル（2行・大きく） */}
       <div style={{ position: "absolute", top: SAFE.top + 6, right: SAFE.side, textAlign: "right", opacity: fade(f, 8) }}>

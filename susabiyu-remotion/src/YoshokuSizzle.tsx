@@ -7,7 +7,7 @@ import { typoPhotos, typoMusic, typoMusicStart } from "./typoData";
 import { ytheme } from "./yoshokuTheme";
 import {
   mincho, serif, clamp, SAFE, rise, drawW,
-  Grain, Vignette, StoreLogo, PhotoLayer, Slides, Kicker, splitLines, heroSize,
+  Grain, Vignette, StoreLogo, PhotoLayer, Slides, Kicker, splitLines, heroSize, segNow,
 } from "./yoshokuDesign";
 
 export const YSIZZLE_DUR = 480; // 16s
@@ -54,19 +54,20 @@ export const YoshokuSizzle: React.FC<{ storeName?: string; handle?: string; them
         <Kicker text="SIZZLE · 焼きたて" color={T.accent} f={f} start={14} />
       </div>
 
-      {/* 主役：料理名（下・大・最大2行）＝カットごとに入れ替え */}
-      <Slides count={4} total={DUR} fade={16} render={(i, local) => {
-        const lines = splitLines(items[i].caption);
-        const sz = heroSize(items[i].caption, 88, 56);
+      {/* 主役：料理名（下・大・最大2行）＝カットごとに“1件だけ”表示（文字は重ねない） */}
+      {(() => {
+        const { i, local } = segNow(DUR, 4, f);
+        const it = items[i]; const lines = splitLines(it.caption);
+        const sz = heroSize(it.caption, 88, 56);
         return (
-          <div style={{ position: "absolute", left: SAFE.side, right: SAFE.side, bottom: SAFE.bottom + 30, textAlign: "center", ...rise(local, 6, { dist: 22, blur: 6 }) }}>
+          <div key={i} style={{ position: "absolute", left: SAFE.side, right: SAFE.side, bottom: SAFE.bottom + 30, textAlign: "center", ...rise(local, 6, { dist: 22, blur: 6 }) }}>
             <div style={{ fontFamily: mincho, color: "#FFF6E6", fontSize: sz, fontWeight: 700, letterSpacing: 3, lineHeight: 1.22, textShadow: "0 3px 24px rgba(0,0,0,0.75)" }}>
-              {lines.length ? lines.map((ln, k) => <div key={k}>{ln}</div>) : items[i].caption}
+              {lines.length ? lines.map((ln, k) => <div key={k}>{ln}</div>) : it.caption}
             </div>
             <div style={{ margin: "22px auto 0", width: drawW(local, 14, 200, 26), height: 3, background: T.accent }} />
           </div>
         );
-      }} />
+      })()}
 
       {/* フッター：店舗ロゴ＋ハンドル */}
       <div style={{ position: "absolute", left: 0, right: 0, bottom: SAFE.bottom - 140, display: "flex", flexDirection: "column", alignItems: "center", gap: 8, opacity: interpolate(f, [DUR - 60, DUR - 40], [0, 1], clamp) }}>
