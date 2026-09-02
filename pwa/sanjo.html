@@ -229,10 +229,13 @@
       else { new Image().src=u; }
     }catch(e){}
   }
-  function labelOf(h){
-    h=(h||"").toLowerCase();
+  function labelOf(a){
+    var h=(a.getAttribute("href")||"").toLowerCase();
     if(h.indexOf("google.com/maps/reserve")>=0) return "席予約(Google)";
-    if(h.indexOf("booking.resty.jp")>=0) return "コース予約(Resty)";
+    if(h.indexOf("booking.resty.jp")>=0){
+      var nm=""; try{ var c=a.closest(".course"); if(c){ var t=c.querySelector(".ctt"); if(t) nm=(t.textContent||"").replace(/\s+/g," ").trim(); } }catch(e){}
+      return nm ? ("コース予約："+nm) : "コース予約(Resty)";
+    }
     if(h.indexOf("writereview")>=0) return "口コミ";
     if(h.indexOf("instagram.com")>=0) return "Instagram";
     if(h.indexOf("maps.app.goo.gl")>=0 || h.indexOf("google.com/maps")>=0) return "地図";
@@ -243,7 +246,7 @@
   document.addEventListener("click",function(e){
     var a=e.target && e.target.closest ? e.target.closest("a[href]") : null;
     if(!a) return;
-    var lb=labelOf(a.getAttribute("href")||"");
+    var lb=labelOf(a);
     if(lb) send("click",lb);
   }, true);
 })();</script></body></html>
