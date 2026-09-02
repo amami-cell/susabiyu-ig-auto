@@ -39,9 +39,8 @@ export const YoshokuChalk: React.FC<{ storeName?: string; handle?: string; theme
       <AbsoluteFill style={{ opacity: 0.04, backgroundImage: "radial-gradient(rgba(255,255,255,0.9) 1px, transparent 1.4px)", backgroundSize: "26px 26px" }} />
       <Grain opacity={0.08} />
 
-      {/* 木枠風の外枠（生成り＋金の二重ライン） */}
-      <div style={{ position: "absolute", inset: 50, border: "2px solid " + T.line, borderRadius: 10, opacity: fade(f, 4) * 0.85 }} />
-      <div style={{ position: "absolute", inset: 66, border: "1px solid " + T.accent, borderRadius: 8, opacity: fade(f, 8) * 0.45 }} />
+      {/* 外枠は金のヘアライン一本のみ（二重枠は野暮なので廃止） */}
+      <div style={{ position: "absolute", inset: 54, border: "1px solid " + T.accent + "66", borderRadius: 8, opacity: fade(f, 4) * 0.8 }} />
 
       {/* 上：Oggi ＋ 当日日付 */}
       <div style={{ position: "absolute", top: SAFE.top - 20, left: 0, right: 0, textAlign: "center", opacity: fade(f, 16) }}>
@@ -51,7 +50,7 @@ export const YoshokuChalk: React.FC<{ storeName?: string; handle?: string; theme
 
       {/* 主役：料理名（白チョーク風・大・最大2行） */}
       <div style={{ position: "absolute", top: 470, left: SAFE.side, right: SAFE.side, textAlign: "center", ...rise(f, 42, { dist: 22, blur: 6 }) }}>
-        <div style={{ fontFamily: mincho, color: "#F4F2EA", fontSize: nameSize, fontWeight: 700, letterSpacing: 4, lineHeight: 1.24, textShadow: "0 1px 0 rgba(255,255,255,0.22), 0 4px 18px rgba(0,0,0,0.5)" }}>
+        <div style={{ fontFamily: mincho, color: "#F4F2EA", fontSize: nameSize, fontWeight: 700, letterSpacing: 2, lineHeight: 1.2, textShadow: "0 1px 0 rgba(255,255,255,0.22), 0 4px 18px rgba(0,0,0,0.5)" }}>
           {lines.length ? lines.map((ln, i) => <div key={i}>{ln}</div>) : hero.caption}
         </div>
       </div>

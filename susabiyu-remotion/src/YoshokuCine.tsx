@@ -47,8 +47,8 @@ export const YoshokuCine: React.FC<{ storeName?: string; handle?: string; theme?
 
       {/* 導入タイトル（中央・フック） */}
       <AbsoluteFill style={{ display: "flex", alignItems: "center", justifyContent: "center", flexDirection: "column", opacity: titleO, transform: "translateY(" + titleY + "px)" }}>
-        <div style={{ fontFamily: serif, color: T.accent, fontSize: 30, letterSpacing: 12, marginBottom: 22 }}>{T.label}</div>
-        <div style={{ fontFamily: mincho, color: "#FFFFFF", fontSize: heroSize(typoHeadline, 72, 52), fontWeight: 700, letterSpacing: 5, textAlign: "center", lineHeight: 1.3, textShadow: "0 3px 26px rgba(0,0,0,0.7)", padding: "0 " + SAFE.side + "px" }}>
+        <div style={{ fontFamily: serif, color: T.accent, fontSize: 26, letterSpacing: 7, marginBottom: 22, textTransform: "uppercase", opacity: 0.9 }}>{T.label}</div>
+        <div style={{ fontFamily: mincho, color: "#FFFFFF", fontSize: heroSize(typoHeadline, 74, 54), fontWeight: 700, letterSpacing: 2, textAlign: "center", lineHeight: 1.24, textShadow: "0 3px 26px rgba(0,0,0,0.7)", padding: "0 " + SAFE.side + "px" }}>
           {splitLines(typoHeadline).length ? splitLines(typoHeadline).map((ln, i) => <div key={i}>{ln}</div>) : typoHeadline}
         </div>
         <div style={{ marginTop: 24, width: lineW, height: 2, background: T.accent, opacity: 0.9 }} />
@@ -62,7 +62,7 @@ export const YoshokuCine: React.FC<{ storeName?: string; handle?: string; theme?
         const sz = heroSize(it.caption, 60, 42);
         return (
           <div key={i} style={{ position: "absolute", left: SAFE.side, right: SAFE.side, bottom: BAR + 44, textAlign: "center", ...rise(local, 8, { dist: 16 }) }}>
-            <div style={{ fontFamily: mincho, color: "#F4ECDD", fontSize: sz, fontWeight: 600, letterSpacing: 3, lineHeight: 1.24, textShadow: "0 2px 16px rgba(0,0,0,0.85)" }}>
+            <div style={{ fontFamily: mincho, color: "#F4ECDD", fontSize: sz, fontWeight: 600, letterSpacing: 1, lineHeight: 1.2, textShadow: "0 2px 16px rgba(0,0,0,0.85)" }}>
               {lines.length ? lines.map((ln, k) => <div key={k}>{ln}</div>) : it.caption}
             </div>
           </div>
