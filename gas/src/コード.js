@@ -502,7 +502,10 @@ function _apiReport_(account) {
 function _api_(p) {
   var cb = p.cb || p.callback || "";
   try {
+    // 予約LPの計測ビーコンは鍵を持たない（外部ドメインの静的LPから飛ぶ）→ APP_KEYゲートの前に処理する。
+    if (p.api === "track") return _track_(p);
     if (APP_KEY && String(p.key || "") !== APP_KEY) return _jsonp_(cb, { error: "auth" });
+    if (p.api === "lpreport") return _jsonp_(cb, _lpreport_(p.store || p.account || ""));
     if (p.api === "list") return _jsonp_(cb, _apiList_(p.account || ""));
     if (p.api === "act") {
       if (String(p.action) === "unapprove" && OWNER_KEY && String(p.owner || "") !== OWNER_KEY) return _jsonp_(cb, { error: "owner" });
@@ -1038,6 +1041,63 @@ function _mediaAlive_(url) {
     return !(code === 404 || code === 410);
   } catch (e) { return true; }
 }
+// ===== 予約LPのアクセス計測（PV/関与クリック/予約クリック=CV近似）=====
+// LP(sanjo.html等・外部ドメイン)から <img>/fetch(no-cors,keepalive) のGETビーコンで飛んでくる。
+// お客様の個人情報は保存しない（訪問IDは端末内発行のランダム値のみ）。タブ「LPアクセス」に追記。
+function _lpSheet_() {
+  var sh = ss.getSheetByName("LPアクセス");
+  if (!sh) {
+    sh = ss.insertSheet("LPアクセス");
+    sh.appendRow(["時刻", "店", "イベント", "ラベル", "訪問ID", "参照元", "UA"]);
+  }
+  return sh;
+}
+function _track_(p) {
+  try {
+    var sh = _lpSheet_();
+    sh.appendRow([new Date(),
+      String(p.store || "").slice(0, 40),
+      String(p.ev || "view").slice(0, 20),
+      String(p.label || "").slice(0, 120),
+      String(p.vid || "").slice(0, 40),
+      String(p.ref || "").slice(0, 300),
+      String(p.ua || "").slice(0, 200)]);
+  } catch (e) {}
+  return _jsonp_(p.cb || p.callback || "", { ok: 1 });
+}
+function _lpreport_(store) {
+  var out = { views: 0, views7: 0, views30: 0, today: 0, uniq: 0, uniq7: 0, clicks: 0, resv: 0, resv7: 0, labels: {}, cvr: 0, cvr7: 0 };
+  var sh = ss.getSheetByName("LPアクセス");
+  if (!sh) return out;
+  var last = sh.getLastRow();
+  if (last < 2) return out;
+  var rows = sh.getRange(2, 1, last - 1, 7).getValues();
+  var now = Date.now(), D = 86400000, TZ = "Asia/Tokyo";
+  var todayStr = Utilities.formatDate(new Date(), TZ, "yyyy-MM-dd");
+  var seen = {}, seen7 = {};
+  for (var i = 0; i < rows.length; i++) {
+    var r = rows[i];
+    if (store && String(r[1]) !== store) continue;
+    var t = 0; try { t = new Date(r[0]).getTime(); } catch (e) {}
+    var ageD = (now - t) / D;
+    var ev = String(r[2] || ""), label = String(r[3] || ""), vid = String(r[4] || "");
+    if (ev === "view") {
+      out.views++;
+      if (ageD <= 7) out.views7++;
+      if (ageD <= 30) out.views30++;
+      if (Utilities.formatDate(new Date(t), TZ, "yyyy-MM-dd") === todayStr) out.today++;
+      if (vid) { if (!seen[vid]) { seen[vid] = 1; out.uniq++; } if (ageD <= 7 && !seen7[vid]) { seen7[vid] = 1; out.uniq7++; } }
+    } else if (ev === "click") {
+      out.clicks++;
+      out.labels[label] = (out.labels[label] || 0) + 1;
+      if (label.indexOf("予約") >= 0) { out.resv++; if (ageD <= 7) out.resv7++; }
+    }
+  }
+  out.cvr = out.views ? Math.round(out.resv / out.views * 1000) / 10 : 0;    // 予約クリック率(近似CVR) %
+  out.cvr7 = out.views7 ? Math.round(out.resv7 / out.views7 * 1000) / 10 : 0;
+  return out;
+}
+
 // 受信DM一覧（dm_notify.py が「DM_<account>」タブに記録：A=時刻,B=送信者,C=本文,D=msgid）。
 // お客様の個人情報のため公開リポには置かず、このGAS経由でのみ確認アプリに返す。新しい順・最大60件。
 function _apiDM_(account) {

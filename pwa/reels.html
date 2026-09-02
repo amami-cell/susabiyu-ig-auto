@@ -184,6 +184,7 @@
     <button class="tab sched" id="tSched">📅 予約済</button>
     <button class="tab" id="tMention">💬 メンション</button>
     <button class="tab" id="tDM">📨 DM</button>
+    <button class="tab" id="tLP">📈 LP</button>
   </div>
 </header>
 
@@ -1069,8 +1070,8 @@
     }).catch(function(){ lab.innerHTML='💬 メンション <span class="cnt">取得エラー（実データ連携時のみ）</span>'; });
   }
 
-  var tF=document.getElementById("tFeed"), tR=document.getElementById("tReel"), tS=document.getElementById("tSched"), tM=document.getElementById("tMention"), tDM=document.getElementById("tDM");
-  function _seltab(el){ [tF,tR,tS,tM,tDM].forEach(function(x){ x.classList.remove("on"); }); el.classList.add("on"); window.scrollTo({top:0}); }
+  var tF=document.getElementById("tFeed"), tR=document.getElementById("tReel"), tS=document.getElementById("tSched"), tM=document.getElementById("tMention"), tDM=document.getElementById("tDM"), tLP=document.getElementById("tLP");
+  function _seltab(el){ [tF,tR,tS,tM,tDM,tLP].forEach(function(x){ x.classList.remove("on"); }); el.classList.add("on"); window.scrollTo({top:0}); }
   tF.onclick=function(){ _seltab(tF); render("feed"); };
   tR.onclick=function(){ _seltab(tR); render("reel"); };
   tS.onclick=function(){ _seltab(tS); renderSched(); };
@@ -1101,7 +1102,32 @@
   }
 
   tM.onclick=function(){ _seltab(tM); renderMentions(); };
+  function renderLP(){
+    wrap.innerHTML=""; refreshers=[];
+    var hint=document.createElement("div"); hint.className="hint";
+    hint.innerHTML="プロフィールの予約LP（yoyaku-pocket.github.io/susabiyu/）のアクセス状況です。<br>※「予約成立」は外部サイト(Google/Resty)側のため取得できません。ここは<b>予約ボタンのクリック率＝予約意図(CV近似)</b>を表示します。";
+    wrap.appendChild(hint);
+    var lab=document.createElement("div"); lab.className="seclabel"; lab.innerHTML='\u{1F4C8} LPレポート <span class="cnt">読み込み中…</span>'; wrap.appendChild(lab);
+    gJsonp({api:"lpreport", store:"susabiyu"}).then(function(r){
+      r=r||{};
+      lab.innerHTML='\u{1F4C8} LPレポート <span class="cnt">累計PV '+(r.views||0)+'</span>';
+      function stat(t,v,sub){ return '<div style="flex:1;min-width:120px;background:#12161d;border:1px solid #262c36;border-radius:12px;padding:12px 14px"><div style="font-size:12px;color:#9aa3b2">'+t+'</div><div style="font-size:22px;font-weight:800;color:#eaeef2;margin-top:2px">'+v+'</div>'+(sub?'<div style="font-size:11px;color:#8b93a2;margin-top:2px">'+sub+'</div>':'')+'</div>'; }
+      var g=document.createElement("div"); g.style.cssText="display:flex;gap:10px;flex-wrap:wrap;margin:6px 2px 12px";
+      g.innerHTML=
+        stat("PV（今日）", (r.today||0), "累計 "+(r.views||0))+
+        stat("PV（7日間）", (r.views7||0), "30日 "+(r.views30||0))+
+        stat("ユニーク訪問", (r.uniq||0), "7日 "+(r.uniq7||0))+
+        stat("予約クリック率", (r.cvr||0)+"%", "7日 "+(r.cvr7||0)+"% ／ 予約クリック "+(r.resv||0)+"件");
+      wrap.appendChild(g);
+      var ll=document.createElement("div"); ll.className="seclabel"; ll.innerHTML='ボタン別クリック（関与）<span class="cnt">計 '+(r.clicks||0)+'</span>'; wrap.appendChild(ll);
+      var labels=r.labels||{}; var keys=Object.keys(labels).sort(function(a,b){return labels[b]-labels[a];});
+      if(!keys.length){ var e=document.createElement("div"); e.className="hint"; e.textContent="まだクリックの記録がありません（LP公開後、数分〜のアクセスから記録されます）。"; wrap.appendChild(e); }
+      else { keys.forEach(function(k){ var row=document.createElement("div"); row.style.cssText="display:flex;justify-content:space-between;align-items:center;background:#12161d;border:1px solid #262c36;border-radius:10px;padding:10px 12px;margin:6px 2px"; row.innerHTML='<span style="color:#cfe4ff;font-weight:700">'+esc(k)+'</span><span style="color:#eaeef2;font-weight:800">'+labels[k]+'</span>'; wrap.appendChild(row); }); }
+    }).catch(function(){ lab.innerHTML='\u{1F4C8} LPレポート <span class="cnt">取得エラー（実データ連携時のみ）</span>'; });
+  }
+
   tDM.onclick=function(){ _seltab(tDM); renderDM(); };
+  tLP.onclick=function(){ _seltab(tLP); renderLP(); };
   // 予約シートの閉じる（ボタン／背景タップ）
   document.getElementById("resvclose").onclick=closeResv;
   document.getElementById("resvback").onclick=closeResv;
