@@ -71,7 +71,7 @@ export const YoshokuCine: React.FC<{ storeName?: string; handle?: string; theme?
 
       {/* 下バー内：店舗ロゴ＋ハンドル（返信バーに隠れない高さへ） */}
       <div style={{ position: "absolute", bottom: 116, left: 0, right: 0, display: "flex", flexDirection: "column", alignItems: "center", gap: 6, opacity: interpolate(f, [DUR - 60, DUR - 40], [0, 1], clamp) }}>
-        <StoreLogo storeName={storeName} height={40} />
+        <StoreLogo storeName={storeName} height={64} />
         <div style={{ fontFamily: serif, color: T.accent, fontSize: 22, letterSpacing: 5 }}>{handle}</div>
       </div>
     </AbsoluteFill>

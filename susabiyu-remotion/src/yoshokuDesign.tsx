@@ -133,18 +133,18 @@ export const Slides: React.FC<{
 // Drive由来の横ロゴ(typoLogo)があれば画像で表示。無ければ明朝の文字ロゴにフォールバック。
 // 暗背景前提なので drop-shadow で浮かせる。
 export const StoreLogo: React.FC<{ storeName: string; height?: number; tint?: string }> = ({
-  storeName, height = 54, tint = "#F4EFE4",
+  storeName, height = 88, tint = "#F4EFE4",
 }) => {
   if (typoLogo) {
     return (
       <Img src={staticFile(typoLogo)} style={{
-        height, width: "auto", maxWidth: 720, objectFit: "contain",
+        height, width: "auto", maxWidth: 960, objectFit: "contain",
         filter: "drop-shadow(0 3px 14px rgba(0,0,0,0.55))",
       }} />
     );
   }
   return (
-    <div style={{ fontFamily: mincho, color: tint, fontSize: height, fontWeight: 700, letterSpacing: height * 0.14, lineHeight: 1, textShadow: "0 3px 16px rgba(0,0,0,0.5)" }}>
+    <div style={{ fontFamily: mincho, color: tint, fontSize: height, fontWeight: 700, letterSpacing: height * 0.12, lineHeight: 1, textShadow: "0 3px 16px rgba(0,0,0,0.5)" }}>
       {storeName}
     </div>
   );

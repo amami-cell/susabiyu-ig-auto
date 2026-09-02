@@ -75,7 +75,7 @@ export const YoshokuType: React.FC<{ storeName?: string; handle?: string; theme?
 
       {/* フッター：店舗ロゴ＋ハンドル */}
       <div style={{ position: "absolute", left: 0, right: 0, bottom: SAFE.bottom - 150, display: "flex", flexDirection: "column", alignItems: "center", gap: 8, opacity: interpolate(f, [DUR - 60, DUR - 40], [0, 1], clamp) }}>
-        <StoreLogo storeName={storeName} height={46} tint="#FFF6E6" />
+        <StoreLogo storeName={storeName} height={78} tint="#FFF6E6" />
         <div style={{ fontFamily: serif, color: T.accent, fontSize: 24, letterSpacing: 5 }}>{handle}</div>
       </div>
     </AbsoluteFill>
