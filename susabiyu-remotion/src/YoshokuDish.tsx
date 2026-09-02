@@ -27,30 +27,27 @@ export const YoshokuDish: React.FC<{ storeName?: string; handle?: string; theme?
       <Audio src={staticFile(typoMusic)} startFrom={Math.round((typoMusicStart || 0) * 30)} volume={(ff) => interpolate(ff, [0, 16, DUR - 24, DUR], [0, 0.8, 0.8, 0], clamp)} />
 
       {/* 主役ステージ（額装カード＋暗ぼかし背景） */}
-      <DishStage srcs={[hero.src]} total={DUR} base={T.base} accent={T.accent} line={T.line} cardW={862} cardH={980} cardTop={452} />
+      <DishStage srcs={[hero.src]} total={DUR} base={T.base} accent={T.accent} line={T.line} cardW={848} cardH={868} cardTop={440} />
       <Vignette strength={0.42} />
       <WarmGlow />
       <Grain />
 
       {/* 上：店舗ロゴ（横型）＋ラテンのキッカー */}
       <div style={{ position: "absolute", top: SAFE.top - 96, left: 0, right: 0, display: "flex", justifyContent: "center", ...rise(f, 8, { dist: 14 }) }}>
-        <StoreLogo storeName={storeName} height={58} />
+        <StoreLogo storeName={storeName} height={56} />
       </div>
-      <div style={{ position: "absolute", top: SAFE.top + 6, left: 0, right: 0 }}>
+      <div style={{ position: "absolute", top: SAFE.top + 2, left: 0, right: 0 }}>
         <Kicker text={T.label} color={T.accent} f={f} start={18} />
       </div>
 
-      {/* 主役：料理名（明朝・大・最大2行）＋短い金の下線 */}
-      <div style={{ position: "absolute", top: 1500, left: SAFE.side, right: SAFE.side, textAlign: "center", ...rise(f, 52, { dist: 26, blur: 8 }) }}>
-        <div style={{ fontFamily: mincho, color: T.ink, fontSize: nameSize, fontWeight: 700, letterSpacing: 3, lineHeight: 1.24, textShadow: "0 3px 22px rgba(0,0,0,0.55)" }}>
+      {/* 主役：料理名（明朝・大・最大2行）＋短い金の下線／ハンドル。
+          下から積み上げる配置＝2行になっても下のセーフエリアを割らない。 */}
+      <div style={{ position: "absolute", left: SAFE.side, right: SAFE.side, bottom: SAFE.bottom - 60, textAlign: "center", ...rise(f, 52, { dist: 26, blur: 8 }) }}>
+        <div style={{ fontFamily: mincho, color: T.ink, fontSize: nameSize, fontWeight: 700, letterSpacing: 3, lineHeight: 1.22, textShadow: "0 3px 22px rgba(0,0,0,0.55)" }}>
           {lines.length ? lines.map((ln, i) => <div key={i}>{ln}</div>) : hero.caption}
         </div>
-        <div style={{ margin: "28px auto 0", width: underW, height: 2, background: T.accent, opacity: 0.95 }} />
-      </div>
-
-      {/* 締め：ハンドルのみ（ロゴは上に置いたので重複させない） */}
-      <div style={{ position: "absolute", left: 0, right: 0, bottom: SAFE.bottom - 128, textAlign: "center", opacity: fade(f, DUR - 70) }}>
-        <div style={{ fontFamily: serif, color: T.accent, fontSize: 28, letterSpacing: 6 }}>{handle}</div>
+        <div style={{ margin: "26px auto 20px", width: underW, height: 2, background: T.accent, opacity: 0.95 }} />
+        <div style={{ fontFamily: serif, color: T.accent, fontSize: 27, letterSpacing: 6, opacity: fade(f, 84) }}>{handle}</div>
       </div>
     </AbsoluteFill>
   );

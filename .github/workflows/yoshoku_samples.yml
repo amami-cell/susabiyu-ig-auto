@@ -49,6 +49,8 @@ jobs:
           PATTERNS: ${{ github.event.inputs.patterns }}
           GOOGLE_CREDS_B64: ${{ secrets.GOOGLE_CREDS_B64 }}
           SHEET_ID: ${{ secrets.SHEET_ID }}
+          # 営業時間(入力用シート)を OPENテンプレの openText に反映するため。未登録なら中立表示にフォールバック。
+          REQ_SHEET_ID: ${{ secrets.REQ_SHEET_ID }}
           # 永続ホスト（確認アプリで何度も見るため）：jsDelivr→R2 の順でフォールバック。
           GH_MEDIA_TOKEN: ${{ secrets.GH_MEDIA_TOKEN }}
           GH_MEDIA_REPO: ${{ secrets.GH_MEDIA_REPO }}
