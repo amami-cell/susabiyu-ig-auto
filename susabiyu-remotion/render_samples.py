@@ -77,13 +77,21 @@ def main():
 
     # キャプション文言と音源を「パターンごとに変える」ため、店舗の文言プールと音源一覧を用意。
     import re as _re, glob as _glob, io as _io
-    import captions as _caps
-    _pool = []
-    try:
-        _ph = _caps.load(); _pool = list(_ph.get("generic", [])) + list(_ph.get("sushi", []))
-    except Exception:
-        pass
-    _pool = [p for p in _pool if p] or [store.get("fallback_phrase", "")]
+    # SNSで一瞬で目を止めるフック。改行位置は「｜」で明示（テンプレ側が2行に割る）。
+    # 説明文ではなく“映像の一部”としての短いコピー＝高級感と勢いを両立。
+    HOOKS = {
+        "italian": [
+            "今夜は、肉。", "この一皿に｜乾杯を。", "肉と、赤と、｜いい夜と。", "旨いを、遠慮なく。",
+            "腹ペコ、｜集合。", "日常に、｜ひと皿の贅沢。", "〆まで、旨い。", "肉バルの、実力。",
+            "いい夜の、｜はじまり。", "〜コスパ良く｜日常に贅沢を〜",
+        ],
+        "french": [
+            "今宵は、贅沢に。", "この一皿に｜金の一杯を。", "夜と、金と、｜フレンチと。", "本物を、気軽に。",
+            "今夜のごちそう。", "駅前で、｜ちょっと贅沢。", "〆まで、美しい。", "ビストロの、実力。",
+            "いい夜の、｜幕開け。", "〜日常に、｜上質なひと皿を〜",
+        ],
+    }
+    _pool = HOOKS.get(store.get("theme", ""), HOOKS["italian"])
     _tracks = sorted(_glob.glob("public/music/normal/*.mp3") + _glob.glob("public/music/normal/*.m4a") + _glob.glob("public/music/normal/*.wav"))
     print("[SAMPLE] 文言 %d / 音源 %d 種" % (len(_pool), len(_tracks)))
 
@@ -139,7 +147,7 @@ def main():
                 print("[SAMPLE] URL取得できず スキップ:", pattern); continue
             samples.append({"pattern": pattern, "url": url, "poster": purl,
                             "label": "洋食おしゃれ・" + label.replace("洋食・", ""),
-                            "caption": cap, "music": music_name, "enabled": 1})
+                            "caption": cap.replace("｜", " "), "music": music_name, "enabled": 1})
             print("[SAMPLE] OK", pattern, "->", url[:70])
         except Exception as e:
             print("[SAMPLE] 失敗（継続）:", pattern, e)
