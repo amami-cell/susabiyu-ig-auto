@@ -112,13 +112,23 @@ jobs:
             echo "No changes to deploy."; exit 0
           fi
           git commit -m "deploy PWA app"
-          git push
+          # メディアリポは他デプロイ(写真同期等)が頻繁にpushするため、rejected時は取り込み直して再試行。
+          pushed=""
+          for i in 1 2 3 4 5; do
+            if git push; then pushed=1; break; fi
+            echo "push rejected → fetch+rebase して再試行 ($i)"
+            git fetch origin main || true
+            git rebase origin/main || { git rebase --abort || true; }
+            sleep $((2*i))
+          done
+          [ -n "$pushed" ] || { echo "ERROR: push retried but still failing"; exit 1; }
           echo "Deployed. Pages URL (after enabling Pages): https://${MEDIA_REPO%%/*}.github.io/${MEDIA_REPO#*/}/app/"
       - name: 予約LPを店舗中立ドメインのGitHub Pagesへ公開（publish_lp=1のときだけ）
         # 例: yoyaku-pocket.github.io/susabiyu/ 。全店で共通の頭「yoyaku-pocket」＝予約用と分かる。
         # 組織の user/org pages リポ <owner>.github.io に、店ごとのサブフォルダで置く。
         # 独立リポなので毎日のapp再デプロイで消えない（404再発防止）。LPは画像内蔵の自己完結HTML。
-        if: ${{ github.event.inputs.publish_lp == '1' }}
+        # 別リポ(yoyaku)への公開なので、前段のapp公開が失敗しても独立して実行する。
+        if: ${{ always() && github.event.inputs.publish_lp == '1' }}
         env:
           # 新規リポ作成＋別リポへのpush＋Pages有効化には広い権限が要るため専用PATを使う。
           # GitHub Secret LP_DEPLOY_TOKEN = classic PAT（repo スコープ）。未登録なら分かるように停止。
