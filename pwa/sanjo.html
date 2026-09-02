@@ -217,4 +217,33 @@
  </div>
  <div class="contact"><a href="tel:0757446706">お問い合わせ：075-744-6706</a></div>
  <div class="foot">© 大衆酒場すさび湯 河原町三条店</div>
-</div><script>(function(){var ua=navigator.userAgent||"";var inApp=/Instagram|FBAN|FBAV|FB_IAB|Line\/|Twitter|; wv\)/i.test(ua);if(inApp){var b=document.getElementById("iabbar");if(b)b.style.display="block";}window.openExternal=function(){var url=location.href;var host=url.replace(/^https?:\/\//,"");if(/Android/i.test(ua)){location.href="intent://"+host+"#Intent;scheme=https;package=com.android.chrome;end";}else if(/iPhone|iPad|iPod/i.test(ua)){var hn=document.getElementById("iabhint");if(hn)hn.style.display="block";try{window.location.href="googlechromes://"+host;}catch(x){}}else{window.open(url,"_blank");}};})();</script></body></html>
+</div><script>(function(){var ua=navigator.userAgent||"";var inApp=/Instagram|FBAN|FBAV|FB_IAB|Line\/|Twitter|; wv\)/i.test(ua);if(inApp){var b=document.getElementById("iabbar");if(b)b.style.display="block";}window.openExternal=function(){var url=location.href;var host=url.replace(/^https?:\/\//,"");if(/Android/i.test(ua)){location.href="intent://"+host+"#Intent;scheme=https;package=com.android.chrome;end";}else if(/iPhone|iPad|iPod/i.test(ua)){var hn=document.getElementById("iabhint");if(hn)hn.style.display="block";try{window.location.href="googlechromes://"+host;}catch(x){}}else{window.open(url,"_blank");}};})();</script><script>/* 予約LP アクセス計測（PV・関与クリック・予約クリック=CV近似）。個人情報は保存しない＝訪問IDは端末内発行のランダム値のみ。 */
+(function(){
+  var GAS="https://script.google.com/macros/s/AKfycbxKn_MUfPgJ0nA8LJPp6YGb2Jehp9G8CpckV5bOAhe3M53eBC3Kle3O3Bf7mFzUJ2TMQw/exec";
+  var STORE="susabiyu";
+  function vid(){ try{ var k=localStorage.getItem("lp_vid"); if(!k){ k=Date.now().toString(36)+Math.random().toString(36).slice(2,8); localStorage.setItem("lp_vid",k);} return k; }catch(e){ return ""; } }
+  function send(ev,label){
+    try{
+      var u=GAS+"?api=track&ev="+encodeURIComponent(ev)+"&label="+encodeURIComponent(label||"")+"&store="+STORE+"&vid="+encodeURIComponent(vid())+"&ref="+encodeURIComponent((document.referrer||"").slice(0,200))+"&ua="+encodeURIComponent((navigator.userAgent||"").slice(0,120))+"&t="+Date.now();
+      if(window.fetch){ fetch(u,{mode:"no-cors",keepalive:true}).catch(function(){ new Image().src=u; }); }
+      else { new Image().src=u; }
+    }catch(e){}
+  }
+  function labelOf(h){
+    h=(h||"").toLowerCase();
+    if(h.indexOf("google.com/maps/reserve")>=0) return "席予約(Google)";
+    if(h.indexOf("booking.resty.jp")>=0) return "コース予約(Resty)";
+    if(h.indexOf("writereview")>=0) return "口コミ";
+    if(h.indexOf("instagram.com")>=0) return "Instagram";
+    if(h.indexOf("maps.app.goo.gl")>=0 || h.indexOf("google.com/maps")>=0) return "地図";
+    if(h.indexOf("tel:")===0) return "電話";
+    return "";
+  }
+  send("view","");   // PV
+  document.addEventListener("click",function(e){
+    var a=e.target && e.target.closest ? e.target.closest("a[href]") : null;
+    if(!a) return;
+    var lb=labelOf(a.getAttribute("href")||"");
+    if(lb) send("click",lb);
+  }, true);
+})();</script></body></html>
