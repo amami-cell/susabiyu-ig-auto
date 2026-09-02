@@ -7,7 +7,7 @@ import { typoPhotos, typoHeadline, typoMusic, typoMusicStart } from "./typoData"
 import { ytheme } from "./yoshokuTheme";
 import {
   mincho, serif, clamp, SAFE, EASE, rise, drawW, fade,
-  Grain, Vignette, PhotoLayer, Slides, StoreLogo, splitLines, heroSize,
+  Grain, Vignette, PhotoLayer, Slides, StoreLogo, splitLines, heroSize, segNow,
 } from "./yoshokuDesign";
 
 export const YTYPE_DUR = 480; // 16s
@@ -58,23 +58,24 @@ export const YoshokuType: React.FC<{ storeName?: string; handle?: string; theme?
         <div style={{ marginTop: 28, width: drawW(f, 40, 300, 30), height: 3, background: T.accent, opacity: bigO }} />
       </AbsoluteFill>
 
-      {/* 明転後：料理名（下・大・カットごと） */}
-      <Slides count={4} total={DUR} fade={16} render={(i, local) => {
+      {/* 明転後：料理名（下・大）＝“1件だけ”表示 */}
+      {(() => {
+        const { i, local } = segNow(DUR, 4, f);
         if (i === 0 && f < 130) return null;
-        const lines = splitLines(items[i].caption);
-        const sz = heroSize(items[i].caption, 80, 52);
+        const it = items[i]; const lines = splitLines(it.caption);
+        const sz = heroSize(it.caption, 80, 52);
         return (
-          <div style={{ position: "absolute", left: SAFE.side, right: SAFE.side, bottom: SAFE.bottom + 20, textAlign: "center", ...rise(local, 8, { dist: 20, blur: 6 }) }}>
+          <div key={i} style={{ position: "absolute", left: SAFE.side, right: SAFE.side, bottom: SAFE.bottom + 20, textAlign: "center", ...rise(local, 8, { dist: 20, blur: 6 }) }}>
             <div style={{ fontFamily: mincho, color: "#FFF6E6", fontSize: sz, fontWeight: 700, letterSpacing: 3, lineHeight: 1.22, textShadow: "0 2px 20px rgba(0,0,0,0.8)" }}>
-              {lines.length ? lines.map((ln, k) => <div key={k}>{ln}</div>) : items[i].caption}
+              {lines.length ? lines.map((ln, k) => <div key={k}>{ln}</div>) : it.caption}
             </div>
           </div>
         );
-      }} />
+      })()}
 
       {/* フッター：店舗ロゴ＋ハンドル */}
       <div style={{ position: "absolute", left: 0, right: 0, bottom: SAFE.bottom - 150, display: "flex", flexDirection: "column", alignItems: "center", gap: 8, opacity: interpolate(f, [DUR - 60, DUR - 40], [0, 1], clamp) }}>
-        <StoreLogo storeName={storeName} height={46} tint="#FFF6E6" />
+        <StoreLogo storeName={storeName} height={78} tint="#FFF6E6" />
         <div style={{ fontFamily: serif, color: T.accent, fontSize: 24, letterSpacing: 5 }}>{handle}</div>
       </div>
     </AbsoluteFill>

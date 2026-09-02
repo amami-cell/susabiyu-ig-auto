@@ -34,7 +34,7 @@ export const YoshokuDish: React.FC<{ storeName?: string; handle?: string; theme?
 
       {/* 上：店舗ロゴ（横型）＋ラテンのキッカー */}
       <div style={{ position: "absolute", top: SAFE.top - 96, left: 0, right: 0, display: "flex", justifyContent: "center", ...rise(f, 8, { dist: 14 }) }}>
-        <StoreLogo storeName={storeName} height={56} />
+        <StoreLogo storeName={storeName} height={104} />
       </div>
       <div style={{ position: "absolute", top: SAFE.top + 2, left: 0, right: 0 }}>
         <Kicker text={T.label} color={T.accent} f={f} start={18} />

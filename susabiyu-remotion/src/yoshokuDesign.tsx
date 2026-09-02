@@ -133,18 +133,18 @@ export const Slides: React.FC<{
 // Drive由来の横ロゴ(typoLogo)があれば画像で表示。無ければ明朝の文字ロゴにフォールバック。
 // 暗背景前提なので drop-shadow で浮かせる。
 export const StoreLogo: React.FC<{ storeName: string; height?: number; tint?: string }> = ({
-  storeName, height = 54, tint = "#F4EFE4",
+  storeName, height = 88, tint = "#F4EFE4",
 }) => {
   if (typoLogo) {
     return (
       <Img src={staticFile(typoLogo)} style={{
-        height, width: "auto", maxWidth: 720, objectFit: "contain",
+        height, width: "auto", maxWidth: 960, objectFit: "contain",
         filter: "drop-shadow(0 3px 14px rgba(0,0,0,0.55))",
       }} />
     );
   }
   return (
-    <div style={{ fontFamily: mincho, color: tint, fontSize: height, fontWeight: 700, letterSpacing: height * 0.14, lineHeight: 1, textShadow: "0 3px 16px rgba(0,0,0,0.5)" }}>
+    <div style={{ fontFamily: mincho, color: tint, fontSize: height, fontWeight: 700, letterSpacing: height * 0.12, lineHeight: 1, textShadow: "0 3px 16px rgba(0,0,0,0.5)" }}>
       {storeName}
     </div>
   );
@@ -217,6 +217,14 @@ export function dishAt(srcs: { caption: string }[], f: number, total: number): s
 // キャプション（フック）の改行位置は「｜」または改行で明示制御する。無ければ1行。
 export function splitLines(s: string): string[] {
   return (s || "").split(/[｜\n]/).map((x) => x.trim()).filter((x) => x.length > 0);
+}
+
+// いま表示すべきカット番号と、そのカット内相対フレームを返す（テキストは常に“1件だけ”描く用）。
+// 写真はクロスディゾルブ(Slides)でも、文字は重ねない＝カット単位でハードに切替えて二重表示を防ぐ。
+export function segNow(total: number, count: number, f: number): { i: number; local: number; seg: number } {
+  const seg = total / count;
+  const i = Math.min(count - 1, Math.max(0, Math.floor(f / seg)));
+  return { i, local: f - i * seg, seg };
 }
 
 // 文字数から見出しサイズを決める（2行前提・スマホでも読める下限を確保）。

@@ -6,7 +6,7 @@ import { typoPhotos, typoHeadline, typoMusic, typoMusicStart } from "./typoData"
 import { ytheme } from "./yoshokuTheme";
 import {
   mincho, serif, clamp, SAFE, rise, drawW, fade,
-  Grain, StoreLogo, PhotoLayer, Slides, splitLines, heroSize,
+  Grain, StoreLogo, PhotoLayer, Slides, splitLines, heroSize, segNow,
 } from "./yoshokuDesign";
 
 export const YMAG_DUR = 480; // 16s
@@ -44,18 +44,19 @@ export const YoshokuMag: React.FC<{ storeName?: string; handle?: string; theme?:
       {/* 下：見出し（横組み・大・最大2行）＝表紙の主役コピー */}
       <div style={{ position: "absolute", left: SAFE.side, right: SAFE.side, bottom: 470 }}>
         <div style={{ width: 3, height: barH, background: T.accent, marginBottom: 22 }} />
-        <Slides count={4} total={DUR} fade={16} render={(i, local) => {
-          const lines = splitLines(items[i].caption);
-          const sz = heroSize(items[i].caption, 90, 56);
+        {(() => {
+          const { i, local } = segNow(DUR, 4, f);
+          const it = items[i]; const lines = splitLines(it.caption);
+          const sz = heroSize(it.caption, 90, 56);
           return (
-            <div style={{ ...rise(local, 6, { dist: 24, blur: 6 }) }}>
+            <div key={i} style={{ ...rise(local, 6, { dist: 24, blur: 6 }) }}>
               <div style={{ fontFamily: serif, color: T.accent, fontSize: 24, letterSpacing: 6, marginBottom: 12 }}>{"No.0" + (i + 1)}</div>
               <div style={{ fontFamily: mincho, color: T.ink, fontSize: sz, fontWeight: 700, letterSpacing: 3, lineHeight: 1.26, textShadow: "0 2px 16px rgba(0,0,0,0.45)" }}>
-                {lines.length ? lines.map((ln, k) => <div key={k}>{ln}</div>) : items[i].caption}
+                {lines.length ? lines.map((ln, k) => <div key={k}>{ln}</div>) : it.caption}
               </div>
             </div>
           );
-        }} />
+        })()}
       </div>
 
       {/* 下：一言（フック・小・上品に添える） */}
@@ -65,7 +66,7 @@ export const YoshokuMag: React.FC<{ storeName?: string; handle?: string; theme?:
 
       {/* フッター：店舗ロゴ＋ハンドル */}
       <div style={{ position: "absolute", left: 0, right: 0, bottom: SAFE.bottom - 150, display: "flex", flexDirection: "column", alignItems: "center", gap: 8, ...rise(f, DUR - 70, { dist: 14 }) }}>
-        <StoreLogo storeName={storeName} height={48} />
+        <StoreLogo storeName={storeName} height={82} />
         <div style={{ fontFamily: serif, color: T.accent, fontSize: 25, letterSpacing: 5 }}>{handle}</div>
       </div>
     </AbsoluteFill>

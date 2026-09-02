@@ -160,6 +160,26 @@ if not cats:
     print("NG: 条件を満たす画像が見つかりません。")
     raise SystemExit
 
+import re as _re_cap
+def _clean_caption(nm):
+    """ファイル名から“ちゃんとした料理名”を作る（ぎふやの _dish_name と同じ思想＋汎用の除去）。
+    カメラ/書き出しの機械的な連番・日付・コピー・おすすめ印・拡張子・区切り記号を除去し、
+    アンダースコアは全角スペースへ。空になったら元の名前に戻す（＝最低限は表示）。"""
+    import os as _o
+    n = _o.path.splitext(str(nm or ""))[0]
+    for h in ("おすすめ", "オススメ", "お勧め", "オススメ料理", "★", "☆"):
+        n = n.replace(h, "")
+    n = _re_cap.sub(r'(?:IMG|DSC|DSCN|DCIM|PXL|MVIMG|GFY|MOV|VID)[-_ ]?\d+', '', n, flags=_re_cap.I)
+    n = _re_cap.sub(r'\d{6,}', '', n)                    # 日付・タイムスタンプ等の長い数字列
+    n = n.replace("のコピー", "").replace("コピー", "")
+    n = _re_cap.sub(r'[\-_ ]?(?:min|scaled|edit|編集|加工|完成|新|new)$', '', n, flags=_re_cap.I)
+    n = _re_cap.sub(r'\(\s*\d+\s*\)\s*$', '', n)         # 末尾 (1) (2)
+    n = _re_cap.sub(r'[\-_ ]\d{1,3}$', '', n)            # 末尾の連番 _1 -2 等
+    n = n.replace("_", "　").replace("＿", "　")
+    n = _re_cap.sub(r'[ 　]{2,}', "　", n).strip(" 　_-★☆[]（）()【】｜|・")
+    return n or _o.path.splitext(str(nm or ""))[0]
+
+
 import usage
 cats = usage.prefer_cats(cats, creds_path) or cats
 names = list(cats.keys())
@@ -192,7 +212,7 @@ for idx, f in enumerate(picked):
     while not done:
         _, done = dl.next_chunk()
     buf.close()
-    caption = os.path.splitext(f["name"])[0]
+    caption = _clean_caption(f["name"])
     items.append({"src": "typo/" + local, "caption": caption})
     print("PHOTO %d:" % idx, f["name"], "(短辺", short_side(f), "px)")
 
