@@ -6,7 +6,7 @@ import { typoPhotos, typoMusic, typoMusicStart } from "./typoData";
 import { ytheme } from "./yoshokuTheme";
 import {
   mincho, serif, clamp, SAFE, EASE, drawW, fade,
-  Grain, PhotoLayer, StoreLogo, heroSize,
+  Grain, PhotoLayer, heroSize,
 } from "./yoshokuDesign";
 
 export const YWINE_DUR = 300; // 10s
@@ -60,13 +60,9 @@ export const YoshokuWine: React.FC<{ storeName?: string; handle?: string; theme?
         </div>
         <div style={{ width: rule, height: 1, background: T.line, marginTop: 20 }} />
         <div style={{ marginTop: 20, fontFamily: mincho, color: T.ink, fontSize: 46, fontWeight: 700, letterSpacing: 6, textShadow: "0 2px 16px rgba(0,0,0,0.6)" }}>本日のおすすめ</div>
+        {/* ブランドは安全な中央に添える（下端はIG返信バーに隠れるため置かない） */}
+        <div style={{ marginTop: 16, fontFamily: serif, color: T.accent, fontSize: 26, letterSpacing: 5, opacity: fade(f, 70) }}>{storeName} · {handle}</div>
       </AbsoluteFill>
-
-      {/* フッター */}
-      <div style={{ position: "absolute", left: 0, right: 0, bottom: 46, display: "flex", flexDirection: "column", alignItems: "center", gap: 6, opacity: interpolate(f, [DUR - 54, DUR - 36], [0, 1], clamp) }}>
-        <StoreLogo storeName={storeName} height={40} />
-        <div style={{ fontFamily: serif, color: T.accent, fontSize: 22, letterSpacing: 5 }}>{handle}</div>
-      </div>
     </AbsoluteFill>
   );
 };

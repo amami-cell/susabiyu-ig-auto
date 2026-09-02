@@ -62,8 +62,19 @@ def main():
     # ブランドprops（storeName/handle/region/theme）を注入。theme で洋食の配色が切り替わる。
     props_arg = ""
     if account:
-        open("out/_props.json", "w", encoding="utf-8").write(
-            json.dumps(stores.render_props(store), ensure_ascii=False))
+        props = stores.render_props(store)
+        # 営業時間はスプレッドシート(入力用)が正。OPENテンプレの openText を実データで差し替える。
+        try:
+            import store_hours
+            ot, hours = store_hours.read(store, creds)
+            if ot:
+                props["openText"] = ot
+                print("[HOURS] openText=%s (営業時間=%s)" % (ot, hours))
+            else:
+                print("[HOURS] 営業時間が空/未取得＝OPENは中立表示にフォールバック")
+        except Exception as _e:
+            print("[HOURS] スキップ:", _e)
+        open("out/_props.json", "w", encoding="utf-8").write(json.dumps(props, ensure_ascii=False))
         props_arg = " --props=out/_props.json"
     stores.apply_fetch_env(store)   # 店舗のDriveフォルダ（food等）を GENRE_*_ID env へ
     os.environ["SHEET_ID"] = os.environ.get("STORE_SHEET_ID") or store["sheet_id"]
