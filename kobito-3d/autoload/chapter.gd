@@ -79,7 +79,7 @@ const CH1 := [
 		],
 	},
 	{
-		"goal": "heal", "n": 16, "wave": 6,
+		"goal": "heal", "n": 10, "wave": 6,
 		"lines": [
 			"——奥から ヘドロに侵された虫が どっと あふれてきた！",
 			"父「群れだ…！ みんな、癒やすんだ！」",
@@ -125,7 +125,7 @@ const CH1 := [
 		],
 	},
 	{
-		"goal": "heal", "n": 32, "wave": 8,
+		"goal": "heal", "n": 18, "wave": 8,
 		"lines": [
 			"——外の地面は 見わたすかぎり ヘドロだらけ。虫たちが うめいている。",
 			"カヤ「うわ…数が ぜんぜん ちがう」",
@@ -304,7 +304,11 @@ func _guide_target(goal: String) -> Dictionary:
 			if g != null:
 				return {"on": true, "pos": g.global_position, "kind": "heal"}
 		"boss":
-			var gb := _nearest_in_group("bug", ref)
+			# ★ボスだけを指す★ まわりの雑魚ではなく、中ボス本体へ矢印を向ける
+			# （以前は最寄りの虫を指し、プレイヤーがボスから離れてしまっていた）。
+			var gb := _find_boss()
+			if gb == null:
+				gb = _nearest_in_group("bug", ref)   # 保険：まだ出ていない一瞬など
 			if gb != null:
 				return {"on": true, "pos": gb.global_position, "kind": "boss"}
 		"collect":
@@ -327,6 +331,18 @@ func _nearest_player_pos() -> Vector3:
 	if players.is_empty():
 		return Vector3.ZERO
 	return (players[0] as Node3D).global_position
+
+
+## 中ボス本体（EnemyStats.is_midboss）を1体さがす。道しるべをボスへ向けるため。
+func _find_boss() -> Node3D:
+	for n in get_tree().get_nodes_in_group("bug"):
+		var n3 := n as Node3D
+		if n3 == null:
+			continue
+		var st: Variant = n3.get("stats")
+		if st != null and st.is_midboss:
+			return n3
+	return null
 
 
 func _nearest_in_group(group: String, ref: Vector3) -> Node3D:

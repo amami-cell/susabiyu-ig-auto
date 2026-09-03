@@ -357,12 +357,32 @@ func _on_chapter_wave(n: int) -> void:
 		_spawn_bug()
 
 
-## 中ボス（女王アリ）を舞台の奥に1体。Chapter の合図で。
+## ボス（女王アリ）を1体。Chapter の合図で。
+## ★プレイヤーの目の前に出す★ 以前は舞台の奥(z=-30／北の壁ぎわ)に湧いていたため
+## 「ラスボスが出てこない」ように見えていた。必ず視界に入る手前へ、迫り上がるように出す。
 func _on_chapter_boss() -> void:
 	if not _is_server():
 		return
 	_bug_serial += 1
-	rpc("_remote_spawn_bug", _bug_serial, "res://data/queen_ant.tres", Vector3(0.0, 1.0, -30.0))
+	var pos := Vector3(0.0, 1.0, -14.0)   # 保険（プレイヤーが取れないとき）
+	var pl := _any_player()
+	if pl != null:
+		var fwd: Vector3 = -pl.global_transform.basis.z   # プレイヤーが向いている前方
+		fwd.y = 0.0
+		if fwd.length() < 0.1:
+			fwd = Vector3(0.0, 0.0, -1.0)
+		pos = pl.global_position + fwd.normalized() * 9.0
+		pos.y = 1.0
+		pos.x = clampf(pos.x, -30.0, 30.0)   # 壁にめり込まない範囲へ
+		pos.z = clampf(pos.z, -30.0, 30.0)
+	rpc("_remote_spawn_bug", _bug_serial, "res://data/queen_ant.tres", pos)
+
+
+## サーバ側で「誰か1人」のプレイヤーを返す（ボスの出現位置決め用）。
+func _any_player() -> Node3D:
+	for p in get_tree().get_nodes_in_group("player"):
+		return p as Node3D
+	return null
 
 
 # ------------------------------------------------------------ 敵
