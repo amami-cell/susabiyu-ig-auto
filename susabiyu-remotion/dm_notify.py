@@ -58,17 +58,38 @@ def _get(url, params):
 
 
 def _conversations(token, limit=25):
-    """会話一覧（新しい順）。graph.instagram.com は platform=instagram 前提。"""
+    """会話一覧（新しい順）を取得。
+    重要：通常の受信箱(primary)だけでなく『メッセージリクエスト』も拾う。
+    Instagramのリクエストは別フォルダ扱いのため、folder 指定でも取得を試み、会話IDでマージする。
+    （未対応のfolder指定はエラーになるが握りつぶし、取れた分だけ使う＝取りこぼし防止）。"""
     fields = "id,updated_time,participants"
-    for params in (
-        {"fields": fields, "limit": limit, "access_token": token},
-        {"platform": "instagram", "fields": fields, "limit": limit, "access_token": token},
-    ):
+    base = {"platform": "instagram", "fields": fields, "limit": limit, "access_token": token}
+    # 素の呼び出し（primary）＋リクエスト相当のフォルダ違いを順に試す。
+    attempts = [
+        dict(base),
+        {"fields": fields, "limit": limit, "access_token": token},           # platform無し版（後方互換）
+        dict(base, folder="requests"),
+        dict(base, folder="pending"),
+        dict(base, folder="page"),
+    ]
+    merged = {}; anyok = False; last = None; got = []
+    for params in attempts:
         code, j = _get(IGB + "/me/conversations", params)
-        if code == 200 and "data" in j:
-            return True, j.get("data", []), None
-        err = (j.get("error") or {}) if isinstance(j, dict) else {}
-        last = err.get("message") or j.get("_raw") or str(code)
+        if code == 200 and isinstance(j, dict) and "data" in j:
+            anyok = True
+            n0 = len(merged)
+            for c in (j.get("data") or []):
+                cid = c.get("id")
+                if cid and cid not in merged:
+                    merged[cid] = c
+            got.append("%s:+%d" % (params.get("folder", "primary"), len(merged) - n0))
+        else:
+            err = (j.get("error") or {}) if isinstance(j, dict) else {}
+            last = err.get("message") or (j.get("_raw") if isinstance(j, dict) else None) or str(code)
+    if anyok:
+        data = sorted(merged.values(), key=lambda c: c.get("updated_time", ""), reverse=True)
+        print("[DM] 会話ソース内訳:", ", ".join(got))
+        return True, data, None
     return False, [], last
 
 
