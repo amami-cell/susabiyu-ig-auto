@@ -123,6 +123,24 @@ def _app_url(acct):
 
 def run_account(acct, mode):
     name = _stores.get_store(acct).get("store_name") or acct or "三条"
+    # 名前付き店舗は「自前トークン」必須。無いと account_base_token が既定(三条)トークンへ
+    # フォールバックし、他店の受信箱を読んで DM_<acct> に誤って書き込む（＝誤配線）。
+    # 自前トークンが無い店舗はDM処理をスキップし、過去に誤配線で書かれた行があれば掃除する。
+    if acct:
+        own = (os.environ.get("IG_ACCESS_TOKEN_" + acct.upper(), "") or "").strip()
+        if not own:
+            print("[%s][DM][SKIP] 自前トークン未設定＝既定トークンへの誤配線を避けてスキップ" % name)
+            if mode == "run":
+                try:
+                    sh0 = poster._sheets(); ltab0 = _list_tab(acct); stab0 = _state_tab(acct)
+                    v0 = sh0.values().get(spreadsheetId=poster.SHEET_ID, range=ltab0 + "!A1:D1").execute().get("values", [])
+                    if v0:  # 誤配線で書かれた行がある時だけクリア（無ければAPIも呼ばない）
+                        sh0.values().clear(spreadsheetId=poster.SHEET_ID, range=ltab0).execute()
+                        sh0.values().clear(spreadsheetId=poster.SHEET_ID, range=stab0).execute()
+                        print("[%s][DM] 誤配線行をクリア（%s / %s）" % (name, ltab0, stab0))
+                except Exception as _e:
+                    print("[%s][DM] 掃除スキップ:" % name, _e)
+            return
     try:
         token = (poster.fresh_token_for(acct) or "").strip()
     except Exception as e:
