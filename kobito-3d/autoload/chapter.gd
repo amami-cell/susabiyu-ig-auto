@@ -460,6 +460,15 @@ func _prop_solved(node_name: String) -> bool:
 ## 今このビートで「まわりから虫が湧いてくる（アンビエント湧き）」を許すか。
 ## 掃除・会話・エンディングの場面は 静かに保つ＝虫に邪魔されず、落ち着いて進められる。
 ## （群れ・ボスは Chapter の専用合図で別途湧くので、ここでは関係ない。）
+## 今このビートは「虫を癒やして減らすのが目的」か（heal/green/wave）。
+## ＝敵がいないと進めないので、庭は“詰み防止”に敵を切らさないようにする。
+## ボスは専用に沸かせ続けるので含めない。
+func wants_enemies() -> bool:
+	if not _active or beat < 0 or beat >= CH1.size():
+		return false
+	return CH1[beat].get("goal", "") in ["heal", "green", "wave"]
+
+
 func ambient_spawn_ok() -> bool:
 	if not _active:
 		return true   # 自由プレイ（遺跡など）は従来どおり

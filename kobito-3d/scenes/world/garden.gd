@@ -57,6 +57,7 @@ const MAX_ALLIES := 6      # 画面が味方だらけにならない上限（軽
 var _bug_serial := 0
 var _ally_serial := 0
 var _spawn_timer := 0.0
+var _antisoftlock_t := 0.0   # 詰み防止の即湧きクールダウン
 var _allies: Node3D = null   # なかま虫の入れ物（_ready で作る＝シーン編集不要）
 
 @onready var _players: Node3D = $Players
@@ -201,6 +202,16 @@ func _process(delta: float) -> void:
 		# 掃除・会話の“静かな場面”では まわりから虫を湧かせない＝落ち着いて進められる。
 		if Chapter.ambient_spawn_ok():
 			_spawn_bug()
+
+	# ★詰み防止★「虫を癒やす目的」なのに敵がほぼ居ない → プレイヤーの近くへ即湧き。
+	# 以前は遠い固定地点にゆっくり湧き、最後の数体が見つからず“詰んだ”ように見えた。
+	if Chapter.wants_enemies() and _live_bug_count() < 2:
+		_antisoftlock_t -= delta
+		if _antisoftlock_t <= 0.0:
+			_antisoftlock_t = 1.5
+			_spawn_bug_near_player()
+	else:
+		_antisoftlock_t = 0.0
 
 
 # ------------------------------------------------------------ プレイヤー
@@ -415,9 +426,41 @@ func _spawn_bug() -> void:
 	var stats_path := "res://data/ant.tres"
 	if randf() > 0.35 + WorldState.recovery * 0.5:
 		stats_path = "res://data/beetle.tres"
-	var pos: Vector3 = BUG_SPAWN_POINTS[_bug_serial % BUG_SPAWN_POINTS.size()]
-	pos += Vector3(randf_range(-1.5, 1.5), 0.0, randf_range(-1.5, 1.5))
+	# ★プレイヤーの周りに湧かせる★（遠い固定地点だと最後の数体が見つからず“詰み”に見えた）。
+	var pos := _ring_pos_near_player(10.0, 16.0)
 	rpc("_remote_spawn_bug", _bug_serial, stats_path, pos)
+
+
+## 詰み防止：プレイヤーのすぐ近くにアリを1体。すぐ見つかる距離に出す。
+func _spawn_bug_near_player() -> void:
+	if _live_bug_count() >= MAX_BUGS:
+		return
+	_bug_serial += 1
+	rpc("_remote_spawn_bug", _bug_serial, "res://data/ant.tres", _ring_pos_near_player(7.0, 11.0))
+
+
+## プレイヤーを中心にした円周上の湧き位置（壁の内側にclamp）。プレイヤーが居なければ中央。
+func _ring_pos_near_player(min_r: float, max_r: float) -> Vector3:
+	var center := Vector3.ZERO
+	var pl := _any_player()
+	if pl != null:
+		center = pl.global_position
+	var a := randf() * TAU
+	var r := randf_range(min_r, max_r)
+	var p := center + Vector3(cos(a) * r, 0.6, sin(a) * r)
+	p.x = clampf(p.x, -33.0, 33.0)
+	p.z = clampf(p.z, -33.0, 33.0)
+	return p
+
+
+## 中ボス以外（＝ふつうの虫）の生存数。
+func _live_bug_count() -> int:
+	var n := 0
+	for b in _bugs.get_children():
+		var st: Variant = b.get("stats")
+		if st != null and not st.is_midboss:
+			n += 1
+	return n
 
 
 @rpc("authority", "call_local", "reliable")
