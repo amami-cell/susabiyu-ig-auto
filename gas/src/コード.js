@@ -987,11 +987,52 @@ function _mentionSheet_(account) {
 function doPost(e) {
   try {
     var body = JSON.parse((e && e.postData && e.postData.contents) || '{}');
-    var n = _ingestMentions_(body);
-    return ContentService.createTextOutput('EVENT_RECEIVED:' + n);
+    var n = _ingestMentions_(body);   // ストーリーメンション（リポスト用）
+    var d = _ingestDMs_(body);        // 受信DM本文（＝メッセージリクエストも含む）を一覧タブへ
+    return ContentService.createTextOutput('EVENT_RECEIVED:' + n + '/' + d);
   } catch (err) {
     return ContentService.createTextOutput('ERR:' + err);
   }
+}
+// 受信DM(本文あり)を「DM_<account>」タブへ記録。Webhook経由なので“メッセージリクエスト”も
+// 相手からの初回メッセージとして届く＝ポーリングで取れない内容もアプリで確認できる。
+// タブ列は dm_notify.py と同一: A=時刻(JST) / B=送信者ID / C=本文 / D=msgid。
+function _dmTab_(account) {
+  var suf = account ? ("_" + String(account).trim()) : "";
+  var name = "DM" + suf;
+  var sh = ss.getSheetByName(name);
+  if (!sh) sh = ss.insertSheet(name);
+  return sh;
+}
+function _dmExists_(sh, mid) {
+  var last = sh.getLastRow();
+  if (last < 1 || !mid) return false;
+  var col = sh.getRange(1, 4, last, 1).getValues();   // D列(msgid)
+  for (var i = 0; i < col.length; i++) { if (String(col[i][0]) === String(mid)) return true; }
+  return false;
+}
+function _ingestDMs_(body) {
+  var count = 0, entries = (body && body.entry) || [];
+  for (var i = 0; i < entries.length; i++) {
+    var msgs = entries[i].messaging || [];
+    for (var j = 0; j < msgs.length; j++) {
+      var ev = msgs[j] || {};
+      var msg = ev.message || {};
+      if (msg.is_echo) continue;                          // 店側(自分)の送信は除外＝受信のみ
+      var text = String(msg.text || '').trim();
+      if (!text) continue;                                // 本文のあるDMだけ（画像/メンションは別処理）
+      var recip = String((ev.recipient && ev.recipient.id) || '');
+      var account = _acctFromIgId_(recip);
+      var mid = String(msg.mid || ((ev.timestamp || Date.now()) + '_' + ((ev.sender && ev.sender.id) || '')));
+      var sh = _dmTab_(account);
+      if (_dmExists_(sh, mid)) continue;                  // 重複防止（Webhookの再送・ポーリングとの二重も防ぐ）
+      var when = Utilities.formatDate(new Date(ev.timestamp ? Number(ev.timestamp) : Date.now()), "Asia/Tokyo", "yyyy-MM-dd HH:mm");
+      var sender = String((ev.sender && ev.sender.id) || '');
+      sh.appendRow([when, sender, text, mid]);
+      count++;
+    }
+  }
+  return count;
 }
 function _ingestMentions_(body) {
   var count = 0;
