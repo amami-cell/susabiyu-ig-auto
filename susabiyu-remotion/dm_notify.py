@@ -135,6 +135,28 @@ def run_account(acct, mode):
         print("[%s][DM] 会話一覧が取得できません（権限/設定不足の可能性）: %s" % (name, err)); return
     print("[%s][DM] 会話 %d 件 取得OK" % (name, len(convs)))
     if mode == "diag":
+        # リクエスト監視用：DM一覧タブ（Webhookが書くリクエスト本文も含む）の件数と最新時刻・24h内件数を出す。
+        try:
+            sh = poster._sheets(); ltab = _list_tab(acct)
+            vals = sh.values().get(spreadsheetId=poster.SHEET_ID, range=ltab + "!A:D").execute().get("values", [])
+            rows = [r for r in vals if r and len(r) > 0 and str(r[0]).strip()]
+            newest = rows[-1][0] if rows else "-"
+            cutoff = (datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(hours=24))
+            recent = 0
+            for r in rows:
+                try:
+                    ts = str(r[0]).strip().replace(" ", "T")
+                    dtv = datetime.datetime.fromisoformat(ts)
+                    if dtv.tzinfo is None:
+                        dtv = dtv.replace(tzinfo=JST)
+                    if dtv.astimezone(datetime.timezone.utc) >= cutoff:
+                        recent += 1
+                except Exception:
+                    pass
+            print("[%s][DM][MON] 一覧タブ=%s 累計%d件 / 直近24h %d件 / 最新=%s"
+                  % (name, ltab, len(rows), recent, newest))
+        except Exception as e:
+            print("[%s][DM][MON] 一覧タブ読取スキップ:" % name, e)
         return  # 件数のみ。本文・通知は出さない
 
     uid, uname = _me_uid(token)
