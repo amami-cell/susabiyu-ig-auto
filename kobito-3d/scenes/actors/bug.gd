@@ -32,9 +32,9 @@ var _knockback := Vector3.ZERO   # 叩かれて弾き飛ぶ勢い（減衰する
 
 # ボス（中ボス）だけの「召喚」：戦闘中、周りに小さな虫を生み出す。
 # ＝2人プレイで「ひとりはボス、ひとりは雑魚」と役割分担できる。
-const BOSS_SUMMON_INTERVAL := 6.0   # 何秒ごとに生み出すか
+const BOSS_SUMMON_INTERVAL := 3.0   # 何秒ごとに生み出すか（短め＝“生み出し続ける”流れ）
 const BOSS_SUMMON_COUNT := 2        # 一度に生み出す数
-var _summon_cd := 3.5               # 最初の召喚までの間（出現直後にいきなりは出さない）
+var _summon_cd := 2.5               # 最初の召喚までの間（出現直後にいきなりは出さない）
 
 @onready var _body: MeshInstance3D = $Body
 

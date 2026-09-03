@@ -387,7 +387,7 @@ func _any_player() -> Node3D:
 
 ## ボスが生み出す小さな虫（アリ）。戦闘を賑やかにしつつ、増えすぎて理不尽/重く
 ## ならないよう「雑魚の数」に上限を設ける。指定位置(ボスの周り)に1体湧かせる。
-const MAX_BOSS_MINIONS := 9
+const MAX_BOSS_MINIONS := 14
 func spawn_minion(pos: Vector3) -> bool:
 	if not _is_server():
 		return false
