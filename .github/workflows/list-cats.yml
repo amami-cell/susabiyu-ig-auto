@@ -21,3 +21,7 @@ jobs:
           GOOGLE_CREDS_B64: ${{ secrets.GOOGLE_CREDS_B64 }}
       - name: List categories
         run: python list_cats.py creds.json
+      - name: List dishes (nagagutsu)
+        env:
+          STORE_ACCOUNT: nagagutsu
+        run: python list_dishes.py creds.json
