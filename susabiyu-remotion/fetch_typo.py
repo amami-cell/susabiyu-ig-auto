@@ -262,6 +262,19 @@ for it in items:
 lines.append("];")
 # サンプル番号（0=本番＝バッジ非表示）。見本レンダリング(render_samples)がテンプレ毎に上書きする。
 lines.append('export const typoSampleNo = 0;')
+# 投稿本文（Instagramキャプション）。ナガグツは料理体系から自動生成、他店は空（従来どおり）。
+_post_cap = ""
+try:
+    if os.environ.get("STORE_ACCOUNT", "").strip().lower() == "nagagutsu":
+        import nagagutsu_captions as _ncp
+        import stores as _st
+        _handle = (_st.get_store("nagagutsu") or {}).get("handle", "")
+        _post_cap = _ncp.post_caption([it["caption"] for it in items], handle=_handle)
+        print("[POST-CAP] 投稿本文を生成:", _post_cap.replace("\n", " / ")[:80], "...")
+except Exception as _e:
+    print("[POST-CAP] スキップ:", _e)
+# 複数行の投稿本文はTS文字列リテラル用に改行を \n へエスケープ（生の改行は構文エラーになる）。
+lines.append('export const typoPostCaption = "%s";' % esc(_post_cap).replace("\n", "\\n"))
 lines.append('export const typoHeadline = "%s";' % esc(headline))
 lines.append('export const typoMusic = "%s";' % esc(music))
 

@@ -330,6 +330,35 @@ def story_for(name):
     return caption_for(name)["story"]
 
 
+def post_caption(names, handle=""):
+    """投稿本文（Instagramキャプション）を組み立てる。動画に映る料理名リスト(names)から、
+    先頭料理の本文＋（複数なら）本日のメニュー列挙＋集約ハッシュタグを1本の文字列に。
+    ＝ぎふや同様「一発で全料理に、それっぽい投稿本文」が付く。"""
+    names = [str(n).strip() for n in (names or []) if str(n).strip()]
+    if not names:
+        return ""
+    lead = caption_for(names[0])
+    # メニュー列挙（重複除去・順序維持・最大6品）
+    titles = []
+    for n in names:
+        t = caption_for(n)["title"]
+        if t and t not in titles:
+            titles.append(t)
+    # タグ集約（各品のタグ＋BASE、重複除去、上限15）
+    tags = []
+    for n in names:
+        for t in caption_for(n)["tags"].split():
+            if t and t not in tags:
+                tags.append(t)
+    parts = [lead["cap"]]
+    if len(titles) > 1:
+        parts.append("▼本日のメニュー\n" + "\n".join("・" + t for t in titles[:6]))
+    if handle:
+        parts.append(handle)
+    parts.append(" ".join(tags[:15]))
+    return "\n\n".join([p for p in parts if p])
+
+
 if __name__ == "__main__":
     # 全55品の生成結果を確認（story / cap / tags）。
     import sys

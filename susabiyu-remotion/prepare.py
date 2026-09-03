@@ -73,6 +73,18 @@ CAP_VAR = {
   "taishushun":("typoData.ts","typoHeadline"),
   "taishuhito":("typoData.ts","typoHeadline"),
   "taishuoshina":("typoData.ts","typoHeadline"),
+  # 洋食おしゃれ10種：投稿本文は fetch_typo が料理体系から生成した typoPostCaption を正とし、
+  # 空のとき（体系未整備の店など）は typoHeadline（フック）にフォールバックする。
+  "yoshokudish":("typoData.ts","typoPostCaption"),
+  "yoshokuchalk":("typoData.ts","typoPostCaption"),
+  "yoshokusizzle":("typoData.ts","typoPostCaption"),
+  "yoshokumag":("typoData.ts","typoPostCaption"),
+  "yoshokucine":("typoData.ts","typoPostCaption"),
+  "yoshokuwine":("typoData.ts","typoPostCaption"),
+  "yoshokutrio":("typoData.ts","typoPostCaption"),
+  "yoshokupola":("typoData.ts","typoPostCaption"),
+  "yoshokutype":("typoData.ts","typoPostCaption"),
+  "yoshokuopen":("typoData.ts","typoPostCaption"),
 }
 
 def run(cmd):
@@ -90,8 +102,16 @@ def caption_of(pattern):
         txt = open(os.path.join("src", fn), encoding="utf-8").read()
     except Exception:
         return ""
-    m = re.search(r'export const ' + var + r'\s*=\s*"((?:[^"\\]|\\.)*)"', txt)
-    return m.group(1).replace('\\"', '"').replace('\\\\', '\\') if m else ""
+    def _read(v):
+        mm = re.search(r'export const ' + v + r'\s*=\s*"((?:[^"\\]|\\.)*)"', txt)
+        if not mm:
+            return ""
+        # TS文字列リテラルのエスケープを復元（\n を実改行に、\" と \\ を戻す）。
+        return mm.group(1).replace('\\n', '\n').replace('\\"', '"').replace('\\\\', '\\')
+    cap = _read(var)
+    if not cap and var == "typoPostCaption":
+        cap = _read("typoHeadline")   # 投稿本文が空なら見出し(フック)にフォールバック
+    return cap
 
 def _blur_uri(png):
     """極小ぼかしプレースホルダ（即時表示用のデータ・URI）。
