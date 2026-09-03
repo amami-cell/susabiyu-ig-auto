@@ -151,7 +151,9 @@ def main():
               % (pattern, comp, cap, music_name or "既定", _mstart(mp)))
         try:
             if is_video:
-                run("npx remotion render " + comp + " out/post.mp4 --crf 26 --timeout 180000 --concurrency 1" + props_arg)
+                # 見本は一度に10本描くので直列(concurrency 1)だと遅い＆遅延ランナーで詰まりやすい。
+                # 2並列にして体感2倍速に（1080x1920×2タブ≒2GB、標準ランナー16GBで安全）。
+                run("npx remotion render " + comp + " out/post.mp4 --crf 26 --timeout 180000 --concurrency 2" + props_arg)
                 url = poster.up("out/post.mp4", cdn=True)
             else:
                 url = ""
