@@ -30,6 +30,12 @@ var _dead := false
 var _age := 0.0
 var _knockback := Vector3.ZERO   # 叩かれて弾き飛ぶ勢い（減衰する）
 
+# ボス（中ボス）だけの「召喚」：戦闘中、周りに小さな虫を生み出す。
+# ＝2人プレイで「ひとりはボス、ひとりは雑魚」と役割分担できる。
+const BOSS_SUMMON_INTERVAL := 6.0   # 何秒ごとに生み出すか
+const BOSS_SUMMON_COUNT := 2        # 一度に生み出す数
+var _summon_cd := 3.5               # 最初の召喚までの間（出現直後にいきなりは出さない）
+
 @onready var _body: MeshInstance3D = $Body
 
 var _hpbar: Node3D = null        # 頭上のHPバー（ダメージが目で分かる）
@@ -201,6 +207,13 @@ func _think(delta: float) -> void:
 		move_and_slide()
 		return
 
+	# ★ボスは戦闘中、周りに小さな虫を生み出す★（役割分担が生きる）
+	if stats.is_midboss:
+		_summon_cd -= delta
+		if _summon_cd <= 0.0:
+			_summon_cd = BOSS_SUMMON_INTERVAL
+			_summon_minions()
+
 	if dist > STOP_DIST:
 		# M2ではまっすぐ寄るだけ。障害物を避けたくなったら
 		# NavigationAgent3D をここに差し込む（世界を広げる M5 で）。
@@ -236,6 +249,54 @@ func _nearest_player() -> Node3D:
 			best_dist = d
 			best = p
 	return best
+
+
+## ボスが小さな虫を生み出す（サーバのみ）。庭に頼んで自分の周りに湧かせる。
+## 増えすぎないよう上限は庭側(spawn_minion)で管理。生み出したら全員に演出を配る。
+func _summon_minions() -> void:
+	var garden := get_tree().get_first_node_in_group("garden")
+	if garden == null or not garden.has_method("spawn_minion"):
+		return
+	var made := 0
+	for i in BOSS_SUMMON_COUNT:
+		var a := TAU * randf()
+		var off := Vector3(cos(a), 0.0, sin(a)) * randf_range(1.8, 3.0)
+		if garden.spawn_minion(global_position + off + Vector3(0.0, 0.4, 0.0)):
+			made += 1
+	if made > 0:
+		rpc("_remote_summon")
+
+
+## 生み出す演出（全員の画面）：ボスが紫に強く光り、ブワッと膨らんで衝撃の輪を出す。
+@rpc("authority", "call_local", "reliable")
+func _remote_summon() -> void:
+	# 体をひと呼吸ふくらませる
+	var s0 := _body.scale
+	var tw := create_tween()
+	tw.tween_property(_body, "scale", s0 * 1.18, 0.14)
+	tw.tween_property(_body, "scale", s0, 0.22)
+	# 足元から紫の輪が広がって消える＝「生み出した」合図
+	var ring := MeshInstance3D.new()
+	var tm := TorusMesh.new()
+	tm.inner_radius = 0.5
+	tm.outer_radius = 0.72
+	ring.mesh = tm
+	var rm := StandardMaterial3D.new()
+	rm.albedo_color = Color(0.7, 0.35, 0.85, 0.85)
+	rm.emission_enabled = true
+	rm.emission = Color(0.7, 0.35, 0.9)
+	rm.emission_energy_multiplier = 2.2
+	rm.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	rm.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	ring.material_override = rm
+	ring.rotation_degrees.x = 90.0
+	add_child(ring)
+	ring.position = Vector3(0.0, 0.15, 0.0)
+	var rt := create_tween()
+	rt.tween_property(ring, "scale", Vector3(4.2, 4.2, 4.2), 0.5)
+	rt.parallel().tween_property(rm, "albedo_color:a", 0.0, 0.5)
+	rt.tween_callback(ring.queue_free)
+	Sfx.play("pickup", -6.0)
 
 
 ## サーバ側でのみ意味を持つ。amount ぶん「汚れ」を落とす。

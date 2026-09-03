@@ -306,12 +306,37 @@ func _run_selftest() -> void:
 	var mother: Node = _garden.get_node_or_null("Children/Mother") if _garden != null else null
 	var mother_ok: bool = mother != null
 
+	# ボスが「小さな虫を生み出す」経路を確認する（2人プレイの役割分担のキモ）。
+	# ボスを目の前に出し→交戦→召喚で雑魚が増えることを見る。
+	var boss_ok := false
+	if _garden != null and _garden.has_method("_on_chapter_boss") and not players.is_empty():
+		var ants_before := _count_minions()
+		_garden._on_chapter_boss()
+		await get_tree().create_timer(5.5).timeout   # 召喚(初回3.5s)＋余裕
+		var has_boss := false
+		for b in get_tree().get_nodes_in_group("bug"):
+			var st: Variant = b.get("stats")
+			if st != null and st.is_midboss:
+				has_boss = true
+				break
+		boss_ok = has_boss and _count_minions() > ants_before
+
 	var ok: bool = _garden != null and players.size() == 1 and bugs.size() > 0 \
-		and WorldState.recovery > 0.0 and xp_gained and flight_ok and kids_ok and mother_ok and puzzle_ok and switch_ok and ally_ok and save_ok
-	print("[selftest] 回復度=%.2f XP=%d 経験値=%s 飛行解禁=%s 子ども=%d(最寄り%.1f) 母=%s 石版=%s 扉=%s なかま=%s セーブ=%s" % [
-		WorldState.recovery, xp_now, xp_gained, flight_ok, children.size(), nearest, mother_ok, puzzle_ok, switch_ok, ally_ok, save_ok])
+		and WorldState.recovery > 0.0 and xp_gained and flight_ok and kids_ok and mother_ok and puzzle_ok and switch_ok and ally_ok and save_ok and boss_ok
+	print("[selftest] 回復度=%.2f XP=%d 経験値=%s 飛行解禁=%s 子ども=%d(最寄り%.1f) 母=%s 石版=%s 扉=%s なかま=%s セーブ=%s ボス召喚=%s" % [
+		WorldState.recovery, xp_now, xp_gained, flight_ok, children.size(), nearest, mother_ok, puzzle_ok, switch_ok, ally_ok, save_ok, boss_ok])
 	print("[selftest] %s" % ("OK" if ok else "NG"))
 	get_tree().quit(0 if ok else 1)
+
+
+## 中ボス以外（＝ボスが生み出す小さな虫）の数を数える。
+func _count_minions() -> int:
+	var n := 0
+	for b in get_tree().get_nodes_in_group("bug"):
+		var st: Variant = b.get("stats")
+		if st != null and not st.is_midboss:
+			n += 1
+	return n
 
 
 func _run_selftest_host() -> void:
