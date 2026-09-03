@@ -769,8 +769,11 @@ function schedCreate_(p) {
   var ts = (p.trimStart === undefined || p.trimStart === "") ? "" : Number(p.trimStart);
   var te = (p.trimEnd === undefined || p.trimEnd === "") ? "" : Number(p.trimEnd);
   var whenTxt = String(p.when || "").slice(0, 16);
+  // M列: 品名(name)。アプリの「おすすめ3」重複除外がキャプション先頭行(=毎回同じ挨拶文)ではなく
+  //   実際の品名で効くように保存する（列A〜Lは既存の投稿エンジンと互換のまま末尾に追加）。
+  var dishName = String(p.name || "").slice(0, 40);
   sh.appendRow([token, whenTxt, kind, p.media || "", p.caption || "", p.hashtags || "",
-    "scheduled", Utilities.formatDate(new Date(), "Asia/Tokyo", "yyyy-MM-dd HH:mm"), "", account, ts, te]);
+    "scheduled", Utilities.formatDate(new Date(), "Asia/Tokyo", "yyyy-MM-dd HH:mm"), "", account, ts, te, dishName]);
   // when列(B)は「文字列」固定にする。Sheetsが日時セルへ自動変換するとUTCずれ（18:00→09:00）で
   // 表示・JSON化されるため、テキスト書式にして literal "YYYY-MM-DD HH:MM"(JST) を保持する。
   try { var r = sh.getLastRow(), c = sh.getRange(r, 2); c.setNumberFormat('@'); c.setValue(whenTxt); } catch (e) {}
@@ -796,8 +799,10 @@ function schedList_(account) {
     var whenStr = _whenStr_(v[i][1]);
     // scheduled は常に。posted/failed/expired/posting は直近14日ぶんだけ履歴表示。
     if (st !== "scheduled" && whenStr.slice(0, 10) < cutoff) continue;
+    // 品名は M列(index12) を正とする。未保存の旧行はキャプション先頭行にフォールバック（毎回同じ挨拶文＝重複除外は効かないが過去分のみ）。
+    var dish = String(v[i][12] || "").trim() || (v[i][4] || "").split("\n")[0].slice(0, 24);
     out.push({ token: v[i][0], when: whenStr, kind: v[i][2], media: v[i][3],
-               name: (v[i][4] || "").split("\n")[0].slice(0, 24),
+               name: dish,
                caption: String(v[i][4] || ""), hashtags: String(v[i][5] || ""),
                status: st || "scheduled", note: String(v[i][8] || "") });
   }
