@@ -6,7 +6,7 @@ import { typoPhotos, typoHeadline, typoMusic, typoMusicStart } from "./typoData"
 import { ytheme } from "./yoshokuTheme";
 import {
   mincho, serif, clamp, SAFE, rise, drawW, fade,
-  Grain, StoreLogo, PhotoLayer, Slides, splitLines, heroSize, segNow,
+  Grain, StoreLogo, PhotoLayer, Slides, SampleBadge, splitLines, heroSize, segNow,
 } from "./yoshokuDesign";
 
 export const YMAG_DUR = 480; // 16s
@@ -17,14 +17,18 @@ export const YoshokuMag: React.FC<{ storeName?: string; handle?: string; theme?:
   const f = useCurrentFrame();
   const DUR = YMAG_DUR;
   const T = ytheme(theme);
-  const p = typoPhotos.length ? typoPhotos : [{ src: "", caption: "" }];
+  const p = typoPhotos.length ? typoPhotos : [{ src: "", caption: "", story: "" }];
   const items = [0, 1, 2, 3].map((i) => p[i] || p[p.length - 1]);
   const barH = drawW(f, 26, 220, 34);
+  const sub = items[segNow(DUR, 4, f).i].story || typoHeadline;
 
   return (
     <AbsoluteFill style={{ backgroundColor: T.base, fontFamily: mincho }}>
       <Audio src={staticFile(typoMusic)} startFrom={Math.round((typoMusicStart || 0) * 30)} volume={(ff) => interpolate(ff, [0, 16, DUR - 24, DUR], [0, 0.8, 0.8, 0], clamp)} />
       <AbsoluteFill style={{ background: "linear-gradient(180deg, " + T.base + " 0%, " + T.footBase + " 100%)" }} />
+
+      {/* 右上：見本番号（本番投稿では非表示） */}
+      <SampleBadge accent={T.accent} f={f} />
 
       {/* 上：写真（4品クロスフェード・表紙のメイン） */}
       <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: 1230, overflow: "hidden" }}>
@@ -59,9 +63,9 @@ export const YoshokuMag: React.FC<{ storeName?: string; handle?: string; theme?:
         })()}
       </div>
 
-      {/* 下：一言（フック・小・上品に添える） */}
+      {/* 下：一言（各料理のストーリー用の短い一言。無ければ全体フック） */}
       <div style={{ position: "absolute", left: SAFE.side, right: SAFE.side, bottom: 388, opacity: fade(f, 74) }}>
-        <div style={{ fontFamily: mincho, color: T.sub, fontSize: 30, letterSpacing: 2, lineHeight: 1.6 }}>{typoHeadline}</div>
+        <div style={{ fontFamily: mincho, color: T.sub, fontSize: 30, letterSpacing: 2, lineHeight: 1.6 }}>{sub}</div>
       </div>
 
       {/* フッター：店舗ロゴ＋ハンドル */}

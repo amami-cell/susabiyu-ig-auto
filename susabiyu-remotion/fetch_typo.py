@@ -160,6 +160,25 @@ if not cats:
     print("NG: 条件を満たす画像が見つかりません。")
     raise SystemExit
 
+# 店舗のキャプション体系（料理名→ストーリー用の短い一言）。ナガグツ等のみ。三条/ぎふやは空("")＝従来どおり。
+_STORY_FN = None
+def _story_for(caption):
+    global _STORY_FN
+    if _STORY_FN is None:
+        acct = os.environ.get("STORE_ACCOUNT", "").strip().lower()
+        _STORY_FN = (lambda _nm: "")
+        try:
+            if acct == "nagagutsu":
+                import nagagutsu_captions as _nc
+                _STORY_FN = _nc.story_for
+        except Exception as _e:
+            print("[STORY] キャプション体系スキップ:", _e)
+    try:
+        return _STORY_FN(caption) or ""
+    except Exception:
+        return ""
+
+
 import re as _re_cap
 def _clean_caption(nm):
     """ファイル名から“ちゃんとした料理名”を作る（ぎふやの _dish_name と同じ思想＋汎用の除去）。
@@ -213,7 +232,7 @@ for idx, f in enumerate(picked):
         _, done = dl.next_chunk()
     buf.close()
     caption = _clean_caption(f["name"])
-    items.append({"src": "typo/" + local, "caption": caption})
+    items.append({"src": "typo/" + local, "caption": caption, "story": _story_for(caption)})
     print("PHOTO %d:" % idx, f["name"], "(短辺", short_side(f), "px)")
 
 import captions
@@ -238,8 +257,11 @@ print("PICKED ->", "out/picked.json")
 music = os.environ.get("FIXED_MUSIC") or music
 lines = ["export const typoPhotos = ["]
 for it in items:
-    lines.append('  { src: "%s", caption: "%s" },' % (esc(it["src"]), esc(it["caption"])))
+    lines.append('  { src: "%s", caption: "%s", story: "%s" },'
+                 % (esc(it["src"]), esc(it["caption"]), esc(it.get("story", ""))))
 lines.append("];")
+# サンプル番号（0=本番＝バッジ非表示）。見本レンダリング(render_samples)がテンプレ毎に上書きする。
+lines.append('export const typoSampleNo = 0;')
 lines.append('export const typoHeadline = "%s";' % esc(headline))
 lines.append('export const typoMusic = "%s";' % esc(music))
 

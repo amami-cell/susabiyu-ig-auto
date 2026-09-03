@@ -11,7 +11,7 @@
 import { AbsoluteFill, Img, staticFile, useCurrentFrame, interpolate, Easing } from "remotion";
 import { loadFont as loadMincho } from "@remotion/google-fonts/ShipporiMincho";
 import { loadFont as loadSerif } from "@remotion/google-fonts/Cormorant";
-import { typoLogo } from "./typoData";
+import { typoLogo, typoSampleNo } from "./typoData";
 
 export const mincho = loadMincho().fontFamily;
 export const serif = loadSerif().fontFamily;
@@ -217,6 +217,33 @@ export function dishAt(srcs: { caption: string }[], f: number, total: number): s
   const i = Math.min(n - 1, Math.floor(f / seg));
   return srcs[i]?.caption || "";
 }
+
+// 現在の料理の「ストーリー用の短い一言（story）」を返す。無ければ空。
+export function storyAt(srcs: { story?: string }[], f: number, total: number): string {
+  const n = Math.max(1, srcs.length);
+  const seg = total / n;
+  const i = Math.min(n - 1, Math.floor(f / seg));
+  return srcs[i]?.story || "";
+}
+
+// 見本ギャラリー専用の番号バッジ（右上・小）。typoSampleNo>0 の時だけ表示＝本番投稿には出ない。
+// 「どの動画のことか」を指して修正指示を出せるように、控えめだが視認できるタグにする。
+export const SampleBadge: React.FC<{ accent?: string; f?: number }> = ({ accent = "#E7DCC4", f = 999 }) => {
+  if (!typoSampleNo || typoSampleNo <= 0) return null;
+  const o = fade(f, 2, 12);
+  return (
+    <div style={{
+      position: "absolute", top: 40, right: 40, zIndex: 50, opacity: o,
+      display: "flex", alignItems: "baseline", gap: 6,
+      padding: "10px 18px", borderRadius: 999,
+      background: "rgba(10,10,12,0.62)", border: "1px solid " + accent + "88",
+      boxShadow: "0 6px 20px rgba(0,0,0,0.45)", backdropFilter: "blur(2px)",
+    }}>
+      <span style={{ fontFamily: serif, color: accent, fontSize: 22, letterSpacing: 3, textTransform: "uppercase", opacity: 0.9 }}>No.</span>
+      <span style={{ fontFamily: serif, color: "#F6EFE0", fontSize: 40, fontWeight: 700, lineHeight: 1 }}>{typoSampleNo}</span>
+    </div>
+  );
+};
 
 // キャプション（フック）の改行位置は「｜」または改行で明示制御する。無ければ1行。
 export function splitLines(s: string): string[] {

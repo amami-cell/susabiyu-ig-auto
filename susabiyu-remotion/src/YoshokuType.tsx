@@ -5,7 +5,7 @@ import { typoPhotos, typoHeadline, typoMusic, typoMusicStart } from "./typoData"
 import { ytheme } from "./yoshokuTheme";
 import {
   mincho, serif, clamp, SAFE, EASE, rise, drawW, fade,
-  Grain, Vignette, PhotoLayer, Slides, Masthead, splitLines, heroSize, segNow,
+  Grain, Vignette, PhotoLayer, Slides, Masthead, SampleBadge, splitLines, heroSize, segNow,
 } from "./yoshokuDesign";
 
 export const YTYPE_DUR = 480; // 16s
@@ -42,6 +42,9 @@ export const YoshokuType: React.FC<{ storeName?: string; handle?: string; theme?
       <AbsoluteFill style={{ background: "linear-gradient(180deg, rgba(0,0,0,0.4) 0%, rgba(0,0,0,0) 32%, rgba(0,0,0,0.12) 60%, rgba(0,0,0,0.8) 100%)" }} />
       <Vignette strength={0.44} />
       <Grain />
+
+      {/* 右上：見本番号（本番投稿では非表示） */}
+      <SampleBadge accent={T.accent} f={f} />
 
       {/* 導入：超特大タイポ（中央・タイトルカード） */}
       <AbsoluteFill style={{ display: "flex", alignItems: "center", justifyContent: "center", flexDirection: "column" }}>

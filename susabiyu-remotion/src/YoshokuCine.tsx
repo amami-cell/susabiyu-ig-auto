@@ -6,8 +6,8 @@ import { AbsoluteFill, Audio, staticFile, useCurrentFrame, interpolate } from "r
 import { typoPhotos, typoHeadline, typoMusic, typoMusicStart } from "./typoData";
 import { ytheme } from "./yoshokuTheme";
 import {
-  mincho, serif, clamp, SAFE, EASE, rise, drawW, fade,
-  Grain, PhotoLayer, Slides, splitLines, heroSize, StoreLogo, segNow,
+  mincho, serif, clamp, SAFE, EASE, rise, drawW,
+  Grain, PhotoLayer, Slides, SampleBadge, splitLines, heroSize, StoreLogo, segNow,
 } from "./yoshokuDesign";
 
 export const YCINE_DUR = 480; // 16s
@@ -44,6 +44,9 @@ export const YoshokuCine: React.FC<{ storeName?: string; handle?: string; theme?
       {/* レターボックス */}
       <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: barH, background: "#000" }} />
       <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, height: barH, background: "#000" }} />
+
+      {/* 右上：見本番号（本番投稿では非表示） */}
+      <SampleBadge accent={T.accent} f={f} />
 
       {/* 導入タイトル（中央・フック） */}
       <AbsoluteFill style={{ display: "flex", alignItems: "center", justifyContent: "center", flexDirection: "column", opacity: titleO, transform: "translateY(" + titleY + "px)" }}>

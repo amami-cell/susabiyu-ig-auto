@@ -6,7 +6,7 @@ import { typoPhotos, typoMusic, typoMusicStart } from "./typoData";
 import { ytheme } from "./yoshokuTheme";
 import {
   mincho, serif, clamp, SAFE, rise, fade,
-  Grain, Vignette, PhotoLayer, Slides, StoreLogo, splitLines, heroSize, segNow,
+  Grain, Vignette, PhotoLayer, Slides, SampleBadge, StoreLogo, splitLines, heroSize, segNow,
 } from "./yoshokuDesign";
 
 export const YTRIO_DUR = 330; // 11s（1品 ≒ 3.6s）
@@ -36,6 +36,9 @@ export const YoshokuTrio: React.FC<{ storeName?: string; handle?: string; theme?
       )} />
       <Vignette strength={0.42} />
       <Grain opacity={0.05} />
+
+      {/* 右上：見本番号（本番投稿では非表示） */}
+      <SampleBadge accent={T.accent} f={f} />
 
       {/* 番号＋料理名＝カットごとに“1件だけ”表示 */}
       {(() => {

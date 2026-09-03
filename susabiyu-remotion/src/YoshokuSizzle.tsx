@@ -5,7 +5,7 @@ import { typoPhotos, typoMusic, typoMusicStart } from "./typoData";
 import { ytheme } from "./yoshokuTheme";
 import {
   mincho, serif, clamp, SAFE, rise, drawW,
-  Grain, Vignette, Masthead, PhotoLayer, Slides, splitLines, heroSize, segNow,
+  Grain, Vignette, Masthead, PhotoLayer, Slides, SampleBadge, splitLines, heroSize, segNow,
 } from "./yoshokuDesign";
 
 export const YSIZZLE_DUR = 480; // 16s
@@ -16,7 +16,7 @@ export const YoshokuSizzle: React.FC<{ storeName?: string; handle?: string; them
   const f = useCurrentFrame();
   const DUR = YSIZZLE_DUR;
   const T = ytheme(theme);
-  const p = typoPhotos.length ? typoPhotos : [{ src: "", caption: "" }];
+  const p = typoPhotos.length ? typoPhotos : [{ src: "", caption: "", story: "" }];
   const items = [0, 1, 2, 3].map((i) => p[i] || p[p.length - 1]);
 
   // 控えめな火の粉（決定的乱数）
@@ -50,6 +50,9 @@ export const YoshokuSizzle: React.FC<{ storeName?: string; handle?: string; them
       {/* 左上：ロゴのマストヘッド */}
       <Masthead storeName={storeName} kicker={T.label} accent={T.accent} tint="#FFF6E6" f={f} />
 
+      {/* 右上：見本番号（本番投稿では非表示） */}
+      <SampleBadge accent={T.accent} f={f} />
+
       {/* 左下：料理名＝カットごとに“1件だけ”表示（左揃え・重ねない） */}
       {(() => {
         const { i, local } = segNow(DUR, 4, f);
@@ -61,6 +64,9 @@ export const YoshokuSizzle: React.FC<{ storeName?: string; handle?: string; them
             <div style={{ fontFamily: mincho, color: "#FFF6E6", fontSize: sz, fontWeight: 700, letterSpacing: 1, lineHeight: 1.16, textShadow: "0 3px 24px rgba(0,0,0,0.75)" }}>
               {lines.length ? lines.map((ln, k) => <div key={k}>{ln}</div>) : it.caption}
             </div>
+            {it.story ? (
+              <div style={{ marginTop: 12, fontFamily: mincho, color: "#F3E7CF", fontSize: 33, letterSpacing: 2, opacity: 0.96, textShadow: "0 2px 16px rgba(0,0,0,0.7)" }}>{it.story}</div>
+            ) : null}
             <div style={{ marginTop: 16, fontFamily: serif, color: T.accent, fontSize: 25, letterSpacing: 4, opacity: 0.85 }}>{handle}</div>
           </div>
         );

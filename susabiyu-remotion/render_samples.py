@@ -121,11 +121,16 @@ def main():
         m2 = _re.search(r'(\d{1,3})\s*(?:s\b|sec)', base, _re.I)
         return int(m2.group(1)) if m2 else 0
 
-    def _set_typo(cap, music_path):
-        # 写真はそのまま、typoData.ts の headline / music / musicStart だけ書き換える。
+    def _set_typo(cap, music_path, sample_no=0):
+        # 写真はそのまま、typoData.ts の headline / music / musicStart / sampleNo だけ書き換える。
         s = _io.open("src/typoData.ts", encoding="utf-8").read()
         s = _re.sub(r'export const typoHeadline = ".*?";',
                     'export const typoHeadline = "%s";' % cap.replace('\\', '\\\\').replace('"', '\\"'), s)
+        # 見本には「No.N」バッジを焼く（本番投稿は fetch_typo が 0 を書くので非表示）。
+        if _re.search(r'export const typoSampleNo = \d+;', s):
+            s = _re.sub(r'export const typoSampleNo = \d+;', 'export const typoSampleNo = %d;' % sample_no, s)
+        else:
+            s = s.rstrip("\n") + ("\nexport const typoSampleNo = %d;\n" % sample_no)
         if music_path:
             rel = "music/normal/" + os.path.basename(music_path)
             s = _re.sub(r'export const typoMusic = ".*?";', 'export const typoMusic = "%s";' % rel, s)
@@ -141,7 +146,7 @@ def main():
         cap = _pool[idx % len(_pool)] if _pool else ""
         mp = _tracks[idx % len(_tracks)] if _tracks else ""
         music_name = os.path.splitext(os.path.basename(mp))[0] if mp else ""
-        _set_typo(cap, mp)   # このパターン用にキャプション＆音源を差し込む
+        _set_typo(cap, mp, idx + 1)   # このパターン用にキャプション＆音源＆見本番号(No.idx+1)を差し込む
         print("\n=========== 見本レンダリング: %s (%s) | 文言=%s | 音源=%s(+%ds) ==========="
               % (pattern, comp, cap, music_name or "既定", _mstart(mp)))
         try:

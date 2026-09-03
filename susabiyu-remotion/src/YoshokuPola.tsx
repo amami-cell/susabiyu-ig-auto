@@ -6,7 +6,7 @@ import { typoPhotos, typoHeadline, typoMusic, typoMusicStart } from "./typoData"
 import { ytheme } from "./yoshokuTheme";
 import {
   mincho, serif, clamp, SAFE, fade,
-  Grain, Vignette, StoreLogo, splitLines, heroSize,
+  Grain, Vignette, SampleBadge, StoreLogo, splitLines, heroSize,
 } from "./yoshokuDesign";
 
 export const YPOLA_DUR = 300; // 10s
@@ -36,6 +36,9 @@ export const YoshokuPola: React.FC<{ storeName?: string; handle?: string; theme?
       <AbsoluteFill style={{ opacity: 0.05, backgroundImage: "repeating-linear-gradient(90deg, rgba(255,240,220,0.5) 0 1px, transparent 1px 30px)" }} />
       <Grain opacity={0.09} />
       <Vignette strength={0.5} />
+
+      {/* 右上：見本番号（本番投稿では非表示） */}
+      <SampleBadge accent={T.accent} f={f} />
 
       {/* 上：ラベル＋フック（2行・大きく） */}
       <div style={{ position: "absolute", top: SAFE.top - 40, left: SAFE.side, right: SAFE.side, textAlign: "center", opacity: fade(f, 6) }}>

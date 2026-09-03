@@ -6,7 +6,7 @@ import { typoPhotos, typoMusic, typoMusicStart } from "./typoData";
 import { ytheme } from "./yoshokuTheme";
 import {
   mincho, serif, clamp, SAFE, rise, drawW, fade,
-  Grain, Vignette, PhotoLayer, StoreLogo, heroSize,
+  Grain, Vignette, PhotoLayer, StoreLogo, SampleBadge, heroSize,
 } from "./yoshokuDesign";
 
 export const YOPEN_DUR = 300; // 10s
@@ -38,6 +38,9 @@ export const YoshokuOpen: React.FC<{ storeName?: string; handle?: string; theme?
       <AbsoluteFill style={{ background: "linear-gradient(180deg, " + T.base + "CC 0%, " + T.base + "4D 34%, " + T.base + "66 60%, " + T.base + "F2 100%)" }} />
       <Vignette strength={0.5} />
       <Grain />
+
+      {/* 右上：見本番号（本番投稿では非表示） */}
+      <SampleBadge accent={T.accent} f={f} />
 
       {/* 金のヘアライン枠＋上ラベル（控えめに） */}
       <div style={{ position: "absolute", inset: 74, border: "1px solid " + T.accent + "55", borderRadius: 8, opacity: fade(f, 16) * 0.75 }} />

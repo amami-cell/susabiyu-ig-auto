@@ -6,7 +6,7 @@ import { typoPhotos, typoMusic, typoMusicStart } from "./typoData";
 import { ytheme } from "./yoshokuTheme";
 import {
   mincho, serif, clamp, SAFE, EASE, drawW, fade,
-  Grain, PhotoLayer, heroSize,
+  Grain, PhotoLayer, SampleBadge, heroSize,
 } from "./yoshokuDesign";
 
 export const YWINE_DUR = 300; // 10s
@@ -51,6 +51,9 @@ export const YoshokuWine: React.FC<{ storeName?: string; handle?: string; theme?
       </div>
 
       <Grain opacity={0.05} />
+
+      {/* 右上：見本番号（本番投稿では非表示） */}
+      <SampleBadge accent={T.accent} f={f} />
 
       {/* 中央：大きめメダリオン＋「本日のおすすめ」 */}
       <AbsoluteFill style={{ display: "flex", alignItems: "center", justifyContent: "center", flexDirection: "column", opacity: midO }}>
