@@ -185,6 +185,14 @@ def run_account(acct, mode):
             print("[%s][DM] 初回基準化の保存に失敗:" % name, e)
         print("[%s][DM] 初回基準化（以後の新着から通知します）" % name); return
 
+    # Webhook(GAS)が既に同じDMを一覧に書いている場合があるので、msgid重複を除外してから追記する。
+    if new_rows:
+        try:
+            ex = sh.values().get(spreadsheetId=poster.SHEET_ID, range=ltab + "!D:D").execute().get("values", [])
+            seen_mid = set(r[0] for r in ex if r and r[0])
+            new_rows = [r for r in new_rows if str(r[3]) not in seen_mid]
+        except Exception:
+            pass
     # 新着を一覧タブへ追記（アプリが読む）
     if new_rows:
         new_rows.sort(key=lambda r: r[0])

@@ -39,6 +39,7 @@
   .rpick .pk{content-visibility:auto;contain-intrinsic-size:auto 170px}
   .card.reco{border-color:var(--gold);box-shadow:0 0 0 1px rgba(224,181,110,.35)}
   .reco-badge{position:absolute;top:-11px;left:14px;background:linear-gradient(90deg,#e0b56e,#caa14e);color:#241c08;font-size:11.5px;font-weight:900;padding:4px 11px;border-radius:999px}
+  .dmbadge{display:none;min-width:19px;height:19px;line-height:19px;padding:0 5px;margin-left:6px;border-radius:999px;background:#e5484d;color:#fff;font-size:11px;font-weight:900;vertical-align:middle;text-align:center}
   .chead{display:flex;align-items:center;gap:8px;margin-bottom:10px}
   .kind{font-size:12px;font-weight:800;color:#fff;background:var(--rd);padding:3px 10px;border-radius:999px}
   .kind.reel{background:var(--reel)}
@@ -183,7 +184,7 @@
     <button class="tab reel" id="tReel">🎬 リール</button>
     <button class="tab sched" id="tSched">📅 予約済</button>
     <button class="tab" id="tMention">💬 メンション</button>
-    <button class="tab" id="tDM">📨 DM</button>
+    <button class="tab" id="tDM">📨 DM<span id="dmbadge" class="dmbadge"></span></button>
   </div>
 </header>
 
@@ -1039,6 +1040,8 @@
     var lab=document.createElement("div"); lab.className="seclabel"; lab.innerHTML='\u{1F4E8} DM <span class="cnt">読み込み中…</span>'; wrap.appendChild(lab);
     gJsonp({api:"dm"}).then(function(res){
       var items=(res&&res.items)||[];
+      if(items.length){ try{localStorage.setItem(DMSEEN,String(items[0].id||items[0].time||""));}catch(e){} }
+      setDMBadge(0);   // 開いた＝既読
       lab.innerHTML='\u{1F4E8} DM <span class="cnt">'+items.length+'件</span>';
       if(!items.length){ var e=document.createElement("div"); e.className="hint"; e.textContent="まだ新着DMはありません。"; wrap.appendChild(e); return; }
       function fmt(t){ var d=t?new Date(t):null; if(!d||isNaN(d))return esc(String(t||"")); var mo=("0"+(d.getMonth()+1)).slice(-2),da=("0"+d.getDate()).slice(-2),hh=("0"+d.getHours()).slice(-2),mm=("0"+d.getMinutes()).slice(-2); return mo+"/"+da+" "+hh+":"+mm; }
@@ -1059,6 +1062,11 @@
 
   tM.onclick=function(){ _seltab(tM); renderMentions(); };
   tDM.onclick=function(){ _seltab(tDM); renderDM(); };
+  // 📨DMタブの未読バッジ（最後に開いた以降に届いた件数）。開くと消える。
+  var DMSEEN="dmseen_gifuyatenjin";
+  function setDMBadge(n){ var b=document.getElementById("dmbadge"); if(!b)return; if(n>0){ b.textContent=(n>9?"9+":String(n)); b.style.display="inline-block"; } else { b.style.display="none"; } }
+  function refreshDMBadge(){ gJsonp({api:"dm"}).then(function(res){ var items=(res&&res.items)||[]; if(!items.length){ setDMBadge(0); return; } var seen=""; try{ seen=localStorage.getItem(DMSEEN)||""; }catch(e){} var n=0; for(var i=0;i<items.length;i++){ var id=String(items[i].id||items[i].time||""); if(id&&id===seen) break; n++; } setDMBadge(n); }).catch(function(){}); }
+  try{ refreshDMBadge(); setInterval(refreshDMBadge, 60000); }catch(e){}
   // 予約シートの閉じる（ボタン／背景タップ）
   document.getElementById("resvclose").onclick=closeResv;
   document.getElementById("resvback").onclick=closeResv;
