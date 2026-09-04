@@ -141,7 +141,8 @@ def main():
         )
 
     now = datetime.datetime.now(datetime.timezone(datetime.timedelta(hours=9))).strftime("%Y-%m-%d %H:%M")
-    doc = """<!doctype html><html lang="ja"><head><meta charset="utf-8">
+    # CSSに % や { } を含むため、%書式や .format は使わず placeholder を .replace で差し込む。
+    template = """<!doctype html><html lang="ja"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>ナガグツ 料理キャプション一覧</title>
 <style>
@@ -164,10 +165,13 @@ h2.cat{font-size:14px;letter-spacing:3px;color:var(--acc);border-left:3px solid 
 .tags{margin-top:8px;color:var(--sub);font-size:11px;line-height:1.5;word-break:break-all}
 </style></head><body>
 <header><h1>ナガグツ 料理キャプション一覧</h1>
-<div class="sub">全%d品 ／ 各料理：写真＋ストーリー短句＋投稿本文＋タグ ／ %s 時点</div></header>
+<div class="sub">全__COUNT__品 ／ 各料理：写真＋ストーリー短句＋投稿本文＋タグ ／ __NOW__ 時点</div></header>
 <div class="wrap"><div class="grid">
-%s
-</div></div></body></html>""" % (len(cards), now, "\n".join(body))
+__BODY__
+</div></div></body></html>"""
+    doc = (template.replace("__COUNT__", str(len(cards)))
+                   .replace("__NOW__", now)
+                   .replace("__BODY__", "\n".join(body)))
 
     os.makedirs("out", exist_ok=True)
     outp = "out/nagagutsu_menu.html"
