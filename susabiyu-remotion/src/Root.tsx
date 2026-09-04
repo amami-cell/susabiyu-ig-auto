@@ -9,6 +9,7 @@ import { YoshokuTrio, YTRIO_DUR } from "./YoshokuTrio";
 import { YoshokuPola, YPOLA_DUR } from "./YoshokuPola";
 import { YoshokuType, YTYPE_DUR } from "./YoshokuType";
 import { YoshokuOpen, YOPEN_DUR } from "./YoshokuOpen";
+import { FEED_COMPS, FEED_W, FEED_H, FEED_DUR } from "./YoshokuFeed";
 import { SushiStory } from "./SushiStory";
 import { SimpleStory } from "./SimpleStory";
 import { PhotoStory } from "./PhotoStory";
@@ -86,6 +87,10 @@ export const RemotionRoot: React.FC = () => {
       <Composition id="YoshokuPola" component={YoshokuPola} fps={FPS} width={1080} height={1920} durationInFrames={YPOLA_DUR} defaultProps={{ storeName: STORE, handle: "@susabiyu_sanjyo", theme: "neutral" }} />
       <Composition id="YoshokuType" component={YoshokuType} fps={FPS} width={1080} height={1920} durationInFrames={YTYPE_DUR} defaultProps={{ storeName: STORE, handle: "@susabiyu_sanjyo", theme: "neutral" }} />
       <Composition id="YoshokuOpen" component={YoshokuOpen} fps={FPS} width={1080} height={1920} durationInFrames={YOPEN_DUR} defaultProps={{ storeName: STORE, handle: "@susabiyu_sanjyo", theme: "neutral" }} />
+      {/* フィード投稿画像テンプレ（4:5・静止画）。デザイン候補を複数パターン。 */}
+      {FEED_COMPS.map((f) => (
+        <Composition key={f.id} id={f.id} component={f.comp} fps={FPS} width={FEED_W} height={FEED_H} durationInFrames={FEED_DUR} defaultProps={{ storeName: STORE, handle: "@susabiyu_sanjyo", theme: "neutral" }} />
+      ))}
       <Composition id="SushiStory" component={SushiStory} fps={FPS} width={1080} height={1920} durationInFrames={dur} defaultProps={{ storeName: STORE, handle: "@susabiyu_sanjyo" }} />
       <Composition id="SimpleStory" component={SimpleStory} fps={FPS} width={1080} height={1920} durationInFrames={150} defaultProps={{ storeName: STORE, handle: "@susabiyu_sanjyo" }} />
       <Composition id="PhotoStory" component={PhotoStory} fps={FPS} width={1080} height={1920} durationInFrames={150} defaultProps={{ handle: "@susabiyu_sanjyo" }} />
