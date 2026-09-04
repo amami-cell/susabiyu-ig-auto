@@ -17,7 +17,7 @@ export const YoshokuTrio: React.FC<{ storeName?: string; handle?: string; theme?
   const f = useCurrentFrame();
   const DUR = YTRIO_DUR;
   const T = ytheme(theme);
-  const p = typoPhotos.length ? typoPhotos : [{ src: "", caption: "" }];
+  const p = typoPhotos.length ? typoPhotos : [{ src: "", caption: "", story: "" }];
   const items = [0, 1, 2].map((i) => p[i] || p[p.length - 1]);
   const nos = ["01", "02", "03"];
 
@@ -55,6 +55,7 @@ export const YoshokuTrio: React.FC<{ storeName?: string; handle?: string; theme?
               <div style={{ fontFamily: mincho, color: "#FFF8EC", fontSize: sz, fontWeight: 700, letterSpacing: 3, lineHeight: 1.22, textShadow: "0 2px 20px rgba(0,0,0,0.75)" }}>
                 {lines.length ? lines.map((ln, k) => <div key={k}>{ln}</div>) : it.caption}
               </div>
+              {it.story ? <div style={{ marginTop: 10, fontFamily: serif, fontStyle: "italic", color: T.accent, fontSize: 30, letterSpacing: 2, textShadow: "0 2px 14px rgba(0,0,0,0.7)" }}>{it.story}</div> : null}
             </div>
           </div>
         );

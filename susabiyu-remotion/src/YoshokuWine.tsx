@@ -17,7 +17,7 @@ export const YoshokuWine: React.FC<{ storeName?: string; handle?: string; theme?
   const f = useCurrentFrame();
   const DUR = YWINE_DUR;
   const T = ytheme(theme);
-  const a = typoPhotos[0] || { src: "", caption: "" };
+  const a = typoPhotos[0] || { src: "", caption: "", story: "" };
   const b = typoPhotos[1] || a;
 
   const topY = interpolate(f, [4, 26], [-36, 0], { ...clamp, easing: EASE });
@@ -37,6 +37,7 @@ export const YoshokuWine: React.FC<{ storeName?: string; handle?: string; theme?
         <div style={{ position: "absolute", left: SAFE.side, bottom: 60, opacity: fade(f, 60) }}>
           <div style={{ fontFamily: serif, color: T.accent, fontSize: 24, letterSpacing: 6, marginBottom: 6 }}>DISH</div>
           <div style={{ fontFamily: mincho, color: T.ink, fontSize: heroSize(a.caption, 56, 40), fontWeight: 600, letterSpacing: 2 }}>{a.caption}</div>
+          {a.story ? <div style={{ marginTop: 6, fontFamily: mincho, color: T.sub, fontSize: 28, letterSpacing: 1 }}>{a.story}</div> : null}
         </div>
       </div>
 
@@ -47,6 +48,7 @@ export const YoshokuWine: React.FC<{ storeName?: string; handle?: string; theme?
         <div style={{ position: "absolute", left: SAFE.side, bottom: SAFE.bottom - 96, opacity: fade(f, 70) }}>
           <div style={{ fontFamily: serif, color: T.accent, fontSize: 24, letterSpacing: 6, marginBottom: 6 }}>PAIRING</div>
           <div style={{ fontFamily: mincho, color: T.ink, fontSize: heroSize(b.caption, 56, 40), fontWeight: 600, letterSpacing: 2 }}>{b.caption}</div>
+          {b.story ? <div style={{ marginTop: 6, fontFamily: mincho, color: T.sub, fontSize: 28, letterSpacing: 1 }}>{b.story}</div> : null}
         </div>
       </div>
 

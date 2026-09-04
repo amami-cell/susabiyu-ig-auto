@@ -250,6 +250,19 @@ export function splitLines(s: string): string[] {
   return (s || "").split(/[｜\n]/).map((x) => x.trim()).filter((x) => x.length > 0);
 }
 
+// 大きな中央見出し用：｜/改行があればそれで、無ければ日本語の読点「、」で自然に2行へ割る。
+// （超特大タイポが幅に収まらず語中で不格好に折れるのを防ぐ。短い語はそのまま1行。）
+export function phraseLines(s: string): string[] {
+  const hard = (s || "").split(/[｜\n]/).map((x) => x.trim()).filter((x) => x.length > 0);
+  if (hard.length > 1) return hard;
+  const t = (s || "").trim();
+  if (Array.from(t).length >= 8 && t.indexOf("、") >= 0) {
+    const i = t.indexOf("、");
+    return [t.slice(0, i + 1), t.slice(i + 1)].map((x) => x.trim()).filter((x) => x.length > 0);
+  }
+  return t ? [t] : [];
+}
+
 // いま表示すべきカット番号と、そのカット内相対フレームを返す（テキストは常に“1件だけ”描く用）。
 // 写真はクロスディゾルブ(Slides)でも、文字は重ねない＝カット単位でハードに切替えて二重表示を防ぐ。
 export function segNow(total: number, count: number, f: number): { i: number; local: number; seg: number } {

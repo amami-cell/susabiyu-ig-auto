@@ -5,7 +5,7 @@ import { typoPhotos, typoHeadline, typoMusic, typoMusicStart } from "./typoData"
 import { ytheme } from "./yoshokuTheme";
 import {
   mincho, serif, clamp, SAFE, EASE, rise, drawW, fade,
-  Grain, Vignette, PhotoLayer, Slides, Masthead, SampleBadge, splitLines, heroSize, segNow,
+  Grain, Vignette, PhotoLayer, Slides, Masthead, SampleBadge, splitLines, phraseLines, heroSize, segNow,
 } from "./yoshokuDesign";
 
 export const YTYPE_DUR = 480; // 16s
@@ -48,8 +48,8 @@ export const YoshokuType: React.FC<{ storeName?: string; handle?: string; theme?
 
       {/* 導入：超特大タイポ（中央・タイトルカード） */}
       <AbsoluteFill style={{ display: "flex", alignItems: "center", justifyContent: "center", flexDirection: "column" }}>
-        <div style={{ fontFamily: mincho, color: "#F7F1E4", fontSize: bigSize, fontWeight: 700, letterSpacing: bigLS, textAlign: "center", lineHeight: 1.14, opacity: bigO, transform: "translateY(" + bigY + "px)", filter: "blur(" + bigBlur + "px)", textShadow: "0 4px 32px rgba(0,0,0,0.7)", padding: "0 " + SAFE.side + "px" }}>
-          {splitLines(typoHeadline).length ? splitLines(typoHeadline).map((ln, i) => <div key={i}>{ln}</div>) : typoHeadline}
+        <div style={{ fontFamily: mincho, color: "#F7F1E4", fontSize: bigSize, fontWeight: 700, letterSpacing: bigLS, textAlign: "center", lineHeight: 1.2, opacity: bigO, transform: "translateY(" + bigY + "px)", filter: "blur(" + bigBlur + "px)", textShadow: "0 4px 32px rgba(0,0,0,0.7)", padding: "0 " + SAFE.side + "px" }}>
+          {phraseLines(typoHeadline).map((ln, i) => <div key={i} style={{ whiteSpace: "nowrap" }}>{ln}</div>)}
         </div>
         <div style={{ marginTop: 26, width: drawW(f, 40, 260, 30), height: 2, background: T.accent, opacity: bigO }} />
       </AbsoluteFill>
