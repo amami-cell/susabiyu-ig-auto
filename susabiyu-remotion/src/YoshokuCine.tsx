@@ -61,8 +61,8 @@ export const YoshokuCine: React.FC<{ storeName?: string; handle?: string; theme?
       {(() => {
         const { i, local } = segNow(DUR, 4, f);
         if (i === 0 && f < 120) return null; // 1カット目はタイトル優先
-        const it = items[i]; const lines = splitLines(it.caption);
-        const sz = heroSize(it.caption, 60, 42);
+        const it = items[i]; const _nm = (it.disp && it.disp.length) ? it.disp : it.caption; const lines = splitLines(_nm);
+        const sz = heroSize(_nm, 80, 52);
         return (
           <div key={i} style={{ position: "absolute", left: SAFE.side, right: SAFE.side, bottom: BAR + 44, textAlign: "center", ...rise(local, 8, { dist: 16 }) }}>
             <div style={{ fontFamily: mincho, color: "#F4ECDD", fontSize: sz, fontWeight: 600, letterSpacing: 1, lineHeight: 1.2, textShadow: "0 2px 16px rgba(0,0,0,0.85)" }}>

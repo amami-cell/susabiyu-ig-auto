@@ -12,7 +12,7 @@ import { AbsoluteFill, Img, staticFile, useCurrentFrame, interpolate, Easing } f
 import { loadFont as loadMincho } from "@remotion/google-fonts/ShipporiMincho";
 import { loadFont as loadSerif } from "@remotion/google-fonts/Cormorant";
 import { loadFont as loadMinchoBlack } from "@remotion/google-fonts/NotoSerifJP";
-import { typoLogo, typoSampleNo } from "./typoData";
+import { typoLogo, typoLogoRound, typoSampleNo } from "./typoData";
 
 export const mincho = loadMincho().fontFamily;
 export const serif = loadSerif().fontFamily;
@@ -250,6 +250,57 @@ export const SampleBadge: React.FC<{ accent?: string; f?: number }> = ({ accent 
 };
 
 // キャプション（フック）の改行位置は「｜」または改行で明示制御する。無ければ1行。
+// ── 共通オープニング／エンドロール（No.1〜4のストーリーに前後付け）──────────────
+// ブランドの“顔”を最初と最後に見せる。丸ロゴ(typoLogoRound)があれば色付きで、無ければ横ロゴ/店名。
+// アニメは useCurrentFrame/interpolate のみ（CSSトランジション禁止）。各Sequence内で相対フレーム。
+export const STORY_OPEN = 42;   // オープニング 1.4s
+export const STORY_END = 72;    // エンドロール 2.4s
+
+const _BrandMark: React.FC<{ storeName: string; ink: string; size?: number }> = ({ storeName, ink, size = 300 }) => (
+  typoLogoRound
+    ? <Img src={staticFile(typoLogoRound)} style={{ width: size, height: size, objectFit: "contain", filter: "drop-shadow(0 8px 30px rgba(0,0,0,0.55))" }} />
+    : (typoLogo
+      ? <Img src={staticFile(typoLogo)} style={{ height: Math.round(size * 0.5), width: "auto", maxWidth: 820, objectFit: "contain" }} />
+      : <div style={{ fontFamily: mincho, color: ink, fontSize: Math.round(size * 0.4), fontWeight: 700, letterSpacing: 2 }}>{storeName}</div>)
+);
+
+export const StoryOpening: React.FC<{ storeName?: string; theme?: string }> = ({ storeName = "ナガグツ", theme = "italian" }) => {
+  const f = useCurrentFrame();
+  const T = ytheme(theme);
+  const o = Math.min(interpolate(f, [0, 10], [0, 1], clamp), interpolate(f, [STORY_OPEN - 9, STORY_OPEN], [1, 0], clamp));
+  const s = interpolate(f, [0, 18], [0.84, 1], { ...clamp, easing: EASE });
+  const ruleW = interpolate(f, [8, 30], [0, 260], { ...clamp, easing: EASE });
+  return (
+    <AbsoluteFill style={{ backgroundColor: T.base }}>
+      <WarmGlow /><Grain />
+      <AbsoluteFill style={{ display: "flex", alignItems: "center", justifyContent: "center", flexDirection: "column", opacity: o }}>
+        <div style={{ transform: "scale(" + s + ")", display: "flex", flexDirection: "column", alignItems: "center", gap: 20 }}>
+          <_BrandMark storeName={storeName} ink={T.ink} size={300} />
+          <div style={{ width: ruleW, height: 2, background: T.accent, opacity: 0.9 }} />
+          <div style={{ fontFamily: serif, color: T.accent, fontSize: 40, letterSpacing: 14, textTransform: "uppercase", fontWeight: 600 }}>{T.label}</div>
+        </div>
+      </AbsoluteFill>
+    </AbsoluteFill>
+  );
+};
+
+export const StoryEndroll: React.FC<{ storeName?: string; handle?: string; theme?: string }> = ({ storeName = "ナガグツ", handle = "@nagagutsu0427", theme = "italian" }) => {
+  const f = useCurrentFrame();
+  const T = ytheme(theme);
+  const o = interpolate(f, [0, 14], [0, 1], clamp);
+  const y = interpolate(f, [0, 22], [24, 0], { ...clamp, easing: EASE });
+  return (
+    <AbsoluteFill style={{ backgroundColor: T.base }}>
+      <WarmGlow /><Grain />
+      <AbsoluteFill style={{ display: "flex", alignItems: "center", justifyContent: "center", flexDirection: "column", opacity: o, transform: "translateY(" + y + "px)", textAlign: "center", gap: 18 }}>
+        <_BrandMark storeName={storeName} ink={T.ink} size={230} />
+        <div style={{ fontFamily: mincho, color: T.ink, fontSize: 56, fontWeight: 700, letterSpacing: 3 }}>ご来店をお待ちしています</div>
+        <div style={{ fontFamily: serif, color: T.accent, fontSize: 34, letterSpacing: 6 }}>{storeName}　{handle}</div>
+      </AbsoluteFill>
+    </AbsoluteFill>
+  );
+};
+
 export function splitLines(s: string): string[] {
   return (s || "").split(/[｜\n]/).map((x) => x.trim()).filter((x) => x.length > 0);
 }

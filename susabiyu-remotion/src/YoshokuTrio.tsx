@@ -43,8 +43,8 @@ export const YoshokuTrio: React.FC<{ storeName?: string; handle?: string; theme?
       {/* 番号＋料理名＝カットごとに“1件だけ”表示 */}
       {(() => {
         const { i, local } = segNow(DUR, 3, f);
-        const it = items[i]; const lines = splitLines(it.caption);
-        const sz = heroSize(it.caption, 72, 50);
+        const it = items[i]; const _nm = (it.disp && it.disp.length) ? it.disp : it.caption; const lines = splitLines(_nm);
+        const sz = heroSize(_nm, 90, 60);
         return (
           <div key={i}>
             <div style={{ position: "absolute", top: SAFE.top + 20, left: SAFE.side, ...rise(local, 4, { dist: 18 }) }}>

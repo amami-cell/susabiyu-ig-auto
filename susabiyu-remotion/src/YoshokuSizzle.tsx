@@ -1,22 +1,24 @@
-// 洋食③焼きたて：主菜を主役に4品をゆっくりクロスフェード。熱の“気配”だけをごく薄く重ねる。
-// エディトリアル・グリッド（左上ロゴ／左下料理名）。寄りすぎない画で一皿の全体を見せる中盤。
-import { AbsoluteFill, Audio, staticFile, useCurrentFrame, interpolate, random } from "remotion";
+// 洋食③焼きたて：主菜を主役に4品をゆっくりクロスフェード。熱の“気配”をごく薄く重ねる。
+// 左上ロゴ／左下に料理名(disp＝承認済み改行)＋欧文サブ＋短句。オープニング＋本編＋エンドロールを連結。
+import { AbsoluteFill, Audio, Sequence, staticFile, useCurrentFrame, interpolate, random } from "remotion";
 import { typoPhotos, typoMusic, typoMusicStart } from "./typoData";
 import { ytheme } from "./yoshokuTheme";
 import {
   mincho, serif, clamp, SAFE, rise, drawW,
   Grain, Vignette, Masthead, PhotoLayer, Slides, SampleBadge, splitLines, heroSize, segNow,
+  StoryOpening, StoryEndroll, STORY_OPEN, STORY_END,
 } from "./yoshokuDesign";
 
-export const YSIZZLE_DUR = 480; // 16s
+const SIZZLE_BODY = 480; // 16s
+export const YSIZZLE_DUR = STORY_OPEN + SIZZLE_BODY + STORY_END;
 
-export const YoshokuSizzle: React.FC<{ storeName?: string; handle?: string; theme?: string }> = ({
+const SizzleBody: React.FC<{ storeName?: string; handle?: string; theme?: string }> = ({
   storeName = "ナガグツ", handle = "@nagagutsu0427", theme = "italian",
 }) => {
   const f = useCurrentFrame();
-  const DUR = YSIZZLE_DUR;
+  const DUR = SIZZLE_BODY;
   const T = ytheme(theme);
-  const p = typoPhotos.length ? typoPhotos : [{ src: "", caption: "", story: "" }];
+  const p = typoPhotos.length ? typoPhotos : [{ src: "", caption: "", story: "", sub: "", disp: "" }];
   const items = [0, 1, 2, 3].map((i) => p[i] || p[p.length - 1]);
 
   // 控えめな火の粉（決定的乱数）
@@ -53,24 +55,40 @@ export const YoshokuSizzle: React.FC<{ storeName?: string; handle?: string; them
       {/* 右上：見本番号（本番投稿では非表示） */}
       <SampleBadge accent={T.accent} f={f} />
 
-      {/* 左下：料理名＝カットごとに“1件だけ”表示（左揃え・重ねない） */}
+      {/* 左下：欧文サブ＋料理名＝カットごとに“1件だけ”表示（左揃え・重ねない） */}
       {(() => {
         const { i, local } = segNow(DUR, 4, f);
-        const it = items[i]; const lines = splitLines(it.caption);
-        const sz = heroSize(it.caption, 90, 58);
+        const it = items[i];
+        const nm = (it.disp && it.disp.length) ? it.disp : it.caption;
+        const lines = splitLines(nm);
+        const sz = heroSize(nm, 104, 66);
         return (
           <div key={i} style={{ position: "absolute", left: SAFE.side, right: SAFE.side, bottom: SAFE.bottom - 44, textAlign: "left", ...rise(local, 6, { dist: 22, blur: 6 }) }}>
-            <div style={{ width: drawW(local, 12, 100, 24), height: 2, background: T.accent, marginBottom: 20 }} />
+            <div style={{ width: drawW(local, 12, 100, 24), height: 2, background: T.accent, marginBottom: 18 }} />
+            {it.sub ? <div style={{ fontFamily: serif, color: T.accent, fontSize: 30, letterSpacing: 4, textTransform: "uppercase", fontWeight: 600, marginBottom: 8 }}>{it.sub}</div> : null}
             <div style={{ fontFamily: mincho, color: "#FFF6E6", fontSize: sz, fontWeight: 700, letterSpacing: 1, lineHeight: 1.16, textShadow: "0 3px 24px rgba(0,0,0,0.75)" }}>
               {lines.length ? lines.map((ln, k) => <div key={k}>{ln}</div>) : it.caption}
             </div>
             {it.story ? (
-              <div style={{ marginTop: 12, fontFamily: mincho, color: "#F3E7CF", fontSize: 33, letterSpacing: 2, opacity: 0.96, textShadow: "0 2px 16px rgba(0,0,0,0.7)" }}>{it.story}</div>
+              <div style={{ marginTop: 12, fontFamily: mincho, color: "#F3E7CF", fontSize: 35, letterSpacing: 2, opacity: 0.96, textShadow: "0 2px 16px rgba(0,0,0,0.7)" }}>{it.story}</div>
             ) : null}
             <div style={{ marginTop: 16, fontFamily: serif, color: T.accent, fontSize: 25, letterSpacing: 4, opacity: 0.85 }}>{handle}</div>
           </div>
         );
       })()}
+    </AbsoluteFill>
+  );
+};
+
+export const YoshokuSizzle: React.FC<{ storeName?: string; handle?: string; theme?: string }> = ({
+  storeName = "ナガグツ", handle = "@nagagutsu0427", theme = "italian",
+}) => {
+  const T = ytheme(theme);
+  return (
+    <AbsoluteFill style={{ backgroundColor: "#0b0806" }}>
+      <Sequence durationInFrames={STORY_OPEN}><StoryOpening storeName={storeName} theme={theme} /></Sequence>
+      <Sequence from={STORY_OPEN} durationInFrames={SIZZLE_BODY}><SizzleBody storeName={storeName} handle={handle} theme={theme} /></Sequence>
+      <Sequence from={STORY_OPEN + SIZZLE_BODY} durationInFrames={STORY_END}><StoryEndroll storeName={storeName} handle={handle} theme={theme} /></Sequence>
     </AbsoluteFill>
   );
 };

@@ -57,7 +57,7 @@ export const YoshokuOpen: React.FC<{ storeName?: string; handle?: string; theme?
 
       {/* 下：料理名＋予約CTA（フッターと干渉しない高さに） */}
       <div style={{ position: "absolute", left: SAFE.side, right: SAFE.side, bottom: SAFE.bottom + 96, textAlign: "center", opacity: fade(f, 84) }}>
-        <div style={{ fontFamily: mincho, color: T.sub, fontSize: heroSize(hero.caption, 42, 32), letterSpacing: 3, marginBottom: 18 }}>本日の一皿：{hero.caption}</div>
+        <div style={{ fontFamily: mincho, color: T.sub, fontSize: heroSize(hero.caption, 54, 40), letterSpacing: 3, marginBottom: 18 }}>本日の一皿：{hero.caption}</div>
         <div style={{ display: "inline-block", padding: "13px 32px", border: "1px solid " + T.line, borderRadius: 999 }}>
           <span style={{ fontFamily: mincho, color: T.accent, fontSize: 30, letterSpacing: 2 }}>{reserveText}</span>
         </div>

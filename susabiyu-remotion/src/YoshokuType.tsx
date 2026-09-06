@@ -63,8 +63,8 @@ export const YoshokuType: React.FC<{ storeName?: string; handle?: string; theme?
       {(() => {
         const { i, local } = segNow(DUR, 4, f);
         if (i === 0 && f < 130) return null;
-        const it = items[i]; const lines = splitLines(it.caption);
-        const sz = heroSize(it.caption, 82, 54);
+        const it = items[i]; const _nm = (it.disp && it.disp.length) ? it.disp : it.caption; const lines = splitLines(_nm);
+        const sz = heroSize(_nm, 98, 64);
         return (
           <div key={i} style={{ position: "absolute", left: SAFE.side, right: SAFE.side, bottom: SAFE.bottom - 44, textAlign: "left", ...rise(local, 8, { dist: 20, blur: 6 }) }}>
             <div style={{ width: drawW(local, 14, 100, 24), height: 2, background: T.accent, marginBottom: 18 }} />

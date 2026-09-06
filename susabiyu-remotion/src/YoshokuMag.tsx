@@ -1,26 +1,27 @@
 // 洋食④エディトリアル：雑誌の表紙の作法。上に写真(4品クロスフェード)、下の余白に大きな見出し。
-// 役割＝“特集号”の格を出す。縦組みの窮屈さ(旧版の違和感)をやめ、横組みで堂々と読ませる。
-// 変更点: 左右分割の窮屈レイアウト→上下の表紙型／1品→4品／文字を大きく読みやすく／No.は現在のカット連動。
-import { AbsoluteFill, Audio, staticFile, useCurrentFrame, interpolate } from "remotion";
+// 見出し＝料理名(disp＝承認済み改行)、その上に欧文サブ。オープニング＋本編＋エンドロールを連結。
+import { AbsoluteFill, Audio, Sequence, staticFile, useCurrentFrame, interpolate } from "remotion";
 import { typoPhotos, typoHeadline, typoMusic, typoMusicStart } from "./typoData";
 import { ytheme } from "./yoshokuTheme";
 import {
   mincho, serif, clamp, SAFE, rise, drawW, fade,
   Grain, StoreLogo, PhotoLayer, Slides, SampleBadge, splitLines, heroSize, segNow,
+  StoryOpening, StoryEndroll, STORY_OPEN, STORY_END,
 } from "./yoshokuDesign";
 
-export const YMAG_DUR = 480; // 16s
+const MAG_BODY = 480; // 16s
+export const YMAG_DUR = STORY_OPEN + MAG_BODY + STORY_END;
 
-export const YoshokuMag: React.FC<{ storeName?: string; handle?: string; theme?: string }> = ({
+const MagBody: React.FC<{ storeName?: string; handle?: string; theme?: string }> = ({
   storeName = "ナガグツ", handle = "@nagagutsu0427", theme = "italian",
 }) => {
   const f = useCurrentFrame();
-  const DUR = YMAG_DUR;
+  const DUR = MAG_BODY;
   const T = ytheme(theme);
-  const p = typoPhotos.length ? typoPhotos : [{ src: "", caption: "", story: "" }];
+  const p = typoPhotos.length ? typoPhotos : [{ src: "", caption: "", story: "", sub: "", disp: "" }];
   const items = [0, 1, 2, 3].map((i) => p[i] || p[p.length - 1]);
   const barH = drawW(f, 26, 220, 34);
-  const sub = items[segNow(DUR, 4, f).i].story || typoHeadline;
+  const oneLiner = items[segNow(DUR, 4, f).i].story || typoHeadline;
 
   return (
     <AbsoluteFill style={{ backgroundColor: T.base, fontFamily: mincho }}>
@@ -45,17 +46,19 @@ export const YoshokuMag: React.FC<{ storeName?: string; handle?: string; theme?:
         <div style={{ fontFamily: serif, color: "#FFFFFF", fontSize: 26, letterSpacing: 6, opacity: 0.9 }}>SIGNATURE</div>
       </div>
 
-      {/* 下：見出し（横組み・大・最大2行）＝表紙の主役コピー */}
+      {/* 下：見出し（横組み・特大・最大2行）＝表紙の主役＝料理名。上に欧文サブ。 */}
       <div style={{ position: "absolute", left: SAFE.side, right: SAFE.side, bottom: 470 }}>
         <div style={{ width: 3, height: barH, background: T.accent, marginBottom: 22 }} />
         {(() => {
           const { i, local } = segNow(DUR, 4, f);
-          const it = items[i]; const lines = splitLines(it.caption);
-          const sz = heroSize(it.caption, 90, 56);
+          const it = items[i];
+          const nm = (it.disp && it.disp.length) ? it.disp : it.caption;
+          const lines = splitLines(nm);
+          const sz = heroSize(nm, 104, 64);
           return (
             <div key={i} style={{ ...rise(local, 6, { dist: 24, blur: 6 }) }}>
-              <div style={{ fontFamily: serif, color: T.accent, fontSize: 24, letterSpacing: 6, marginBottom: 12 }}>{"No.0" + (i + 1)}</div>
-              <div style={{ fontFamily: mincho, color: T.ink, fontSize: sz, fontWeight: 700, letterSpacing: 3, lineHeight: 1.26, textShadow: "0 2px 16px rgba(0,0,0,0.45)" }}>
+              <div style={{ fontFamily: serif, color: T.accent, fontSize: 26, letterSpacing: 5, marginBottom: 12, textTransform: "uppercase", fontWeight: 600 }}>{it.sub || ("No.0" + (i + 1))}</div>
+              <div style={{ fontFamily: mincho, color: T.ink, fontSize: sz, fontWeight: 700, letterSpacing: 2, lineHeight: 1.22, textShadow: "0 2px 16px rgba(0,0,0,0.45)" }}>
                 {lines.length ? lines.map((ln, k) => <div key={k}>{ln}</div>) : it.caption}
               </div>
             </div>
@@ -65,7 +68,7 @@ export const YoshokuMag: React.FC<{ storeName?: string; handle?: string; theme?:
 
       {/* 下：一言（各料理のストーリー用の短い一言。無ければ全体フック） */}
       <div style={{ position: "absolute", left: SAFE.side, right: SAFE.side, bottom: 388, opacity: fade(f, 74) }}>
-        <div style={{ fontFamily: mincho, color: T.sub, fontSize: 30, letterSpacing: 2, lineHeight: 1.6 }}>{sub}</div>
+        <div style={{ fontFamily: mincho, color: T.sub, fontSize: 32, letterSpacing: 2, lineHeight: 1.6 }}>{oneLiner}</div>
       </div>
 
       {/* フッター：店舗ロゴ＋ハンドル */}
@@ -73,6 +76,19 @@ export const YoshokuMag: React.FC<{ storeName?: string; handle?: string; theme?:
         <StoreLogo storeName={storeName} height={82} />
         <div style={{ fontFamily: serif, color: T.accent, fontSize: 25, letterSpacing: 5 }}>{handle}</div>
       </div>
+    </AbsoluteFill>
+  );
+};
+
+export const YoshokuMag: React.FC<{ storeName?: string; handle?: string; theme?: string }> = ({
+  storeName = "ナガグツ", handle = "@nagagutsu0427", theme = "italian",
+}) => {
+  const T = ytheme(theme);
+  return (
+    <AbsoluteFill style={{ backgroundColor: T.base }}>
+      <Sequence durationInFrames={STORY_OPEN}><StoryOpening storeName={storeName} theme={theme} /></Sequence>
+      <Sequence from={STORY_OPEN} durationInFrames={MAG_BODY}><MagBody storeName={storeName} handle={handle} theme={theme} /></Sequence>
+      <Sequence from={STORY_OPEN + MAG_BODY} durationInFrames={STORY_END}><StoryEndroll storeName={storeName} handle={handle} theme={theme} /></Sequence>
     </AbsoluteFill>
   );
 };
