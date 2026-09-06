@@ -345,3 +345,39 @@ jobs:
           name: kobito-apk
           path: kobito-3d/build/android/*.apk
           retention-days: 14
+
+  # 恒久ダウンロード：Web zip / Windows / Linux / APK を GitHub Release "latest" に載せる。
+  # artifact は14日で消える＝家族に配るリンクが切れる問題を、消えない直リンクで解消する。
+  # 失敗しても他ジョブ/Web配信は止めない（continue-on-error）。
+  release:
+    runs-on: ubuntu-latest
+    needs: [web, desktop, android]
+    continue-on-error: true
+    permissions:
+      contents: write
+    steps:
+      - name: 成果物をまとめて取得
+        uses: actions/download-artifact@v4
+        with:
+          path: dist
+      - name: Web を1ファイルの zip にまとめる
+        run: |
+          if [ -d dist/kobito-web ]; then (cd dist/kobito-web && zip -r ../kobito-web.zip .); fi
+          ls -la dist || true
+      - name: 恒久ダウンロード（GitHub Release "latest" を上書き）
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: latest
+          name: みどりのはじまり（最新ビルド）
+          body: |
+            倒さない。癒やすと、なかまになる。ふたりで遊ぶ 無料の協力絵本ゲーム。
+
+            ・ブラウザですぐ遊ぶ： https://amami-cell.github.io/susabiyu-media/kobito2/
+            ・Windows / Linux / Android(APK) は下の Assets から。
+            ※APKはテスト用のデバッグ署名です（「提供元不明のアプリ」の許可が必要）。
+          prerelease: true
+          files: |
+            dist/kobito-web.zip
+            dist/kobito-windows/*
+            dist/kobito-linux/*
+            dist/kobito-apk/*.apk
