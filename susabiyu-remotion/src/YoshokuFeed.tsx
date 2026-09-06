@@ -8,9 +8,9 @@
 //  ⑥ 料理写真は contrast/saturate を足してシズルを立てる。
 // 料理名＝disp（16文字以上のみ ｜ で2行、15文字以下は自動フィットで1行）、欧文サブ＝sub（伊語優先）。
 import { AbsoluteFill, Img, staticFile } from "remotion";
-import { typoPhotos } from "./typoData";
+import { typoPhotos, typoLogoColor } from "./typoData";
 import { ytheme } from "./yoshokuTheme";
-import { mincho, minchoBlack, serif, Grain, Vignette, WarmGlow, StoreLogo, splitLines } from "./yoshokuDesign";
+import { mincho, minchoBlack, serif, Grain, Vignette, WarmGlow, splitLines } from "./yoshokuDesign";
 
 export const FEED_W = 1080;
 export const FEED_H = 1350;
@@ -58,7 +58,7 @@ const HeroName: React.FC<{
       {sub ? (
         <div style={{ fontFamily: serif, color: subColor, fontSize: subSize, letterSpacing: 4, textTransform: "uppercase", fontWeight: 600, lineHeight: 1.1, marginBottom: Math.round(size * 0.12), textShadow: shadow }}>{sub}</div>
       ) : null}
-      <div style={{ fontFamily: minchoBlack, fontWeight: 900, color, fontSize: size, lineHeight: 1.06, letterSpacing: -2, textShadow: shadow }}>
+      <div style={{ fontFamily: minchoBlack, fontWeight: 900, color, fontSize: size, lineHeight: 1.08, letterSpacing: -1, textShadow: shadow }}>
         {lines.map((l, i) => <div key={i}>{l}</div>)}
       </div>
     </div>
@@ -80,11 +80,18 @@ const VName: React.FC<{ text: string; color: string; maxPx: number; availH: numb
     );
   };
 
-// ブランド・ロックアップ（左上・安全帯内）。ロゴ画像があれば横ロゴ、無ければ明朝で店名（＝和文serifバグ回避）。
+// 店ロゴ（色付き文字ロゴ typoLogoColor があれば大きめに表示。無ければ明朝の店名＝和文serifバグ回避）。
+const Logo: React.FC<{ storeName: string; tint?: string; h?: number }> = ({ storeName, tint = "#F6EFE0", h = 100 }) => (
+  typoLogoColor
+    ? <Img src={staticFile(typoLogoColor)} style={{ height: h, width: "auto", maxWidth: 680, objectFit: "contain", filter: "drop-shadow(0 3px 16px rgba(0,0,0,0.6))" }} />
+    : <div style={{ fontFamily: mincho, color: tint, fontSize: Math.round(h * 0.72), fontWeight: 700, letterSpacing: 2, lineHeight: 1, textShadow: "0 3px 16px rgba(0,0,0,0.5)" }}>{storeName}</div>
+);
+
+// ブランド・ロックアップ（左上・安全帯内）＝大きめ色付きロゴ＋その下に小さなラテンのキッカー。
 const Brand: React.FC<{ storeName: string; accent: string; tint?: string; logoH?: number; kicker?: string; shadow?: string; center?: boolean }> =
-  ({ storeName, accent, tint = "#F6EFE0", logoH = 66, kicker = "MEAT BAR", shadow, center = false }) => (
-    <div style={{ display: "flex", flexDirection: "column", alignItems: center ? "center" : "flex-start", gap: 8 }}>
-      <StoreLogo storeName={storeName} height={logoH} tint={tint} />
+  ({ storeName, accent, tint = "#F6EFE0", logoH = 100, kicker = "MEAT BAR", shadow, center = false }) => (
+    <div style={{ display: "flex", flexDirection: "column", alignItems: center ? "center" : "flex-start", gap: 10 }}>
+      <Logo storeName={storeName} tint={tint} h={logoH} />
       <div style={{ fontFamily: serif, color: accent, fontSize: 20, letterSpacing: 6, textTransform: "uppercase", fontWeight: 600, textShadow: shadow }}>{kicker}</div>
     </div>
   );
@@ -180,8 +187,11 @@ export const YoshokuFeedD: React.FC<P> = ({ storeName = D.storeName, handle = D.
   );
 };
 
-// ⑤E サイドレール・ブランド（全面写真＋左のテラコッタ縦帯＝グリッドの統一シグネチャ）
-export const YoshokuFeedE: React.FC<P> = ({ storeName = D.storeName, handle = D.handle, theme = D.theme }) => {
+// ⑤E サイドレール・ブランド（全面写真＋左の縦帯＝グリッドの統一シグネチャ）。
+// 左オビの色は rail で差し替え可（テラコッタ/オリーブ/ゴールドのパターンを用意）。
+const EBase: React.FC<P & { rail: string; railText?: string }> = ({
+  storeName = D.storeName, handle = D.handle, theme = D.theme, rail, railText = "#FDF6EA",
+}) => {
   const T = ytheme(theme); const d = dish(); const RAIL = 74;
   return (
     <AbsoluteFill style={{ backgroundColor: T.base }}>
@@ -189,11 +199,11 @@ export const YoshokuFeedE: React.FC<P> = ({ storeName = D.storeName, handle = D.
         <Photo src={d.src} />
         <AbsoluteFill style={{ background: "linear-gradient(180deg, rgba(0,0,0,0.3) 0%, rgba(0,0,0,0) 30%, rgba(18,13,8,0.9) 92%, " + T.footBase + " 100%)" }} />
       </div>
-      <div style={{ position: "absolute", top: 0, bottom: 0, left: 0, width: RAIL, background: T.slab, display: "flex", alignItems: "center", justifyContent: "center" }}>
-        <div style={{ writingMode: "vertical-rl", fontFamily: serif, color: "#FDF6EA", fontSize: 22, letterSpacing: 10, textTransform: "uppercase", fontWeight: 600 }}>NAGAGUTSU&nbsp;·&nbsp;MEAT&nbsp;BAR</div>
+      <div style={{ position: "absolute", top: 0, bottom: 0, left: 0, width: RAIL, background: rail, display: "flex", alignItems: "center", justifyContent: "center" }}>
+        <div style={{ writingMode: "vertical-rl", fontFamily: serif, color: railText, fontSize: 22, letterSpacing: 10, textTransform: "uppercase", fontWeight: 600 }}>NAGAGUTSU&nbsp;·&nbsp;MEAT&nbsp;BAR</div>
       </div>
       <div style={{ position: "absolute", top: 150, left: RAIL + 40 }}>
-        <StoreLogo storeName={storeName} height={60} tint="#F6EFE0" />
+        <Logo storeName={storeName} h={92} />
       </div>
       <div style={{ position: "absolute", left: RAIL + 40, right: SIDE, bottom: 150 }}>
         <HeroName text={dispName(d)} sub={d.sub} maxPx={140} usableW={FEED_W - RAIL - 40 - SIDE} color={T.ink} subColor="#F0DFC6" shadow={NAME_SHADOW} />
@@ -203,6 +213,9 @@ export const YoshokuFeedE: React.FC<P> = ({ storeName = D.storeName, handle = D.
     </AbsoluteFill>
   );
 };
+export const YoshokuFeedE: React.FC<P> = (p) => <EBase {...p} rail={ytheme(p.theme || D.theme).slab} />;               // テラコッタ
+export const YoshokuFeedE2: React.FC<P> = (p) => <EBase {...p} rail="#4E7A3A" />;                                      // オリーブ/イタリアングリーン
+export const YoshokuFeedE3: React.FC<P> = (p) => <EBase {...p} rail="#B58A2E" />;                                      // 深めゴールド
 
 // ⑥F テラコッタ・リボン販促（全面写真＋「本日のおすすめ」ベタ帯＝集客の顔）
 export const YoshokuFeedF: React.FC<P> = ({ storeName = D.storeName, handle = D.handle, theme = D.theme }) => {
@@ -275,7 +288,9 @@ export const FEED_COMPS: { id: string; label: string; comp: React.FC<P> }[] = [
   { id: "YoshokuFeedB", label: "フィード案B・ボトムバンド・エディトリアル", comp: YoshokuFeedB },
   { id: "YoshokuFeedC", label: "フィード案C・カラースラブ分割(テラコッタ面)", comp: YoshokuFeedC },
   { id: "YoshokuFeedD", label: "フィード案D・縦組み特大明朝", comp: YoshokuFeedD },
-  { id: "YoshokuFeedE", label: "フィード案E・サイドレール・ブランド", comp: YoshokuFeedE },
+  { id: "YoshokuFeedE", label: "フィード案E・サイドレール(テラコッタ帯)", comp: YoshokuFeedE },
+  { id: "YoshokuFeedE2", label: "フィード案E2・サイドレール(オリーブ帯)", comp: YoshokuFeedE2 },
+  { id: "YoshokuFeedE3", label: "フィード案E3・サイドレール(ゴールド帯)", comp: YoshokuFeedE3 },
   { id: "YoshokuFeedF", label: "フィード案F・テラコッタ帯(本日のおすすめ)", comp: YoshokuFeedF },
   { id: "YoshokuFeedG", label: "フィード案G・マガジン・エディトリアル", comp: YoshokuFeedG },
   { id: "YoshokuFeedH", label: "フィード案H・大タイポ・カバー", comp: YoshokuFeedH },
