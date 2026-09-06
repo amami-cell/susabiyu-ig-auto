@@ -116,7 +116,7 @@ const CH1 := [
 	},
 	# ───────────── 第2章「そとの世界へ」 ─────────────
 	{
-		"goal": "story", "banner": "第2章  「そとの世界へ」",
+		"goal": "story", "banner": "第2章  「そとの世界へ」", "reset_recovery": 0.3,
 		"lines": [
 			"つぼみ「ねえ、すきまの そとにも 世界が あるの？」",
 			"おじい「あるとも。じゃが 外は もっと ひどく 汚れておる…」",
@@ -168,6 +168,7 @@ var beat := -1
 var _healed := 0
 var _beat_heal_base := 0   # 今のhealビートに入った時点の累計。ビート内の達成数を測る基準
 var _seeds := 0
+var _beat_seed_base := 0   # 今のcollectビートに入った時点の累計（種の事前達成スキップ防止）
 var _boss_cleared := false
 var _active := false
 var _last_obj := "￿"
@@ -194,10 +195,10 @@ func notify_boss_cleared() -> void:
 
 
 func _on_session_started() -> void:
-	# 庭(ハブ)＝第1章の舞台のときだけ物語を回す（遺跡は今は自由プレイ）
+	# 庭(ハブ)＝第1章の舞台のときだけ物語を回す。遺跡は自由あそび（目的だけ出す＝空に見えない）。
 	if Net.world_biome != "garden":
 		_active = false
-		objective_changed.emit("")
+		objective_changed.emit("じゆうあそび：虫を「きれいに」で いやして なかまを ふやそう")
 		return
 	_active = true
 	_healed = 0
@@ -211,7 +212,7 @@ func _on_session_started() -> void:
 		# 「つづきから」：庭が組み上がってから復元する（wave/boss の合図を庭が受け取れるように）。
 		_pending_continue = true
 	else:
-		rpc("_set_beat", 0)
+		rpc("_set_beat", 0, false)
 
 
 ## main が庭を組み立て終えた直後に呼ぶ：保留していた「つづきから」を実際に復元する。
@@ -222,7 +223,7 @@ func apply_pending_continue() -> void:
 	_want_continue = false
 	var cfg := ConfigFile.new()
 	if cfg.load(SAVE_PATH) != OK:
-		rpc("_set_beat", 0)
+		rpc("_set_beat", 0, false)
 		return
 	var b := int(cfg.get_value("progress", "beat", 0))
 	_healed = int(cfg.get_value("progress", "healed", 0))
@@ -230,7 +231,7 @@ func apply_pending_continue() -> void:
 	var rec := float(cfg.get_value("progress", "recovery", 0.0))
 	var pl: Array = cfg.get_value("progress", "powers", [])
 	WorldState.restore(rec, pl)
-	rpc("_set_beat", clampi(b, 0, CH1.size() - 1))
+	rpc("_set_beat", clampi(b, 0, CH1.size() - 1), true)
 
 
 func _process(delta: float) -> void:
@@ -241,6 +242,7 @@ func _process(delta: float) -> void:
 		_beat_t = 0.0
 		_talk_done = false
 		_beat_heal_base = _healed   # このビートに入ってから癒やした数で判定する
+		_beat_seed_base = _seeds    # 種も同様＝寄り道で先に拾ってもcollectビートが即完了しない
 	_beat_t += delta
 	var b: Dictionary = CH1[beat]
 	var goal: String = b.get("goal", "")
@@ -263,8 +265,9 @@ func _process(delta: float) -> void:
 			done = done_here >= need
 		"collect":
 			var need2: int = b.get("n", 1)
-			_push_objective("めあて：光る“種のかけら”に ふれて あつめる（%d / %d）" % [_seeds, need2])
-			done = _seeds >= need2
+			var got: int = _seeds - _beat_seed_base   # このビートで拾った数
+			_push_objective("めあて：光る“種のかけら”に ふれて あつめる（%d / %d）" % [mini(got, need2), need2])
+			done = got >= need2
 		"puzzle":
 			_push_objective("めあて：石版を 数の順に ふんで 灯す")
 			done = _prop_solved("StonePuzzle")
@@ -281,7 +284,7 @@ func _process(delta: float) -> void:
 		"clear":
 			done = false   # クリアビートは終端
 	if done:
-		rpc("_set_beat", beat + 1)
+		rpc("_set_beat", beat + 1, false)
 
 	# 道しるべ（次の目的地）を計算して、変化したら全員へ配る（0.2秒ごと＝軽い）。
 	_guide_accum += delta
@@ -399,37 +402,45 @@ func send_to(id: int) -> void:
 # ---- サーバ → 全員 ----
 
 @rpc("authority", "call_local", "reliable")
-func _set_beat(i: int) -> void:
+func _set_beat(i: int, silent: bool = false) -> void:
 	if i < 0 or i >= CH1.size():
 		return
 	beat = i
 	var data: Dictionary = CH1[i]
-	dialogue.emit(PackedStringArray(data.get("lines", [])))
-	# このビートに入った瞬間の仕掛け（群れ・中ボス・力・満開）を、サーバが起こす。
+	# silent=つづきから復元。会話・バナー・力通知・満開・wave・セーブを再発火させない
+	# （＝二重演出の防止）。ただしボスは“居ないと倒せない”ので復元でも湧かせる。
+	if not silent:
+		dialogue.emit(PackedStringArray(data.get("lines", [])))
 	if _is_server():
-		if data.has("wave"):
-			spawn_wave.emit(int(data["wave"]))
 		if data.get("boss", false):
 			_boss_cleared = false   # 新しいボスに備えて判定をリセット
 			spawn_boss.emit()
-		if data.has("power"):
-			WorldState.grant_power(String(data["power"]))
-		if data.get("full_green", false) or data.get("ending", false):
-			WorldState.set_full()   # みどりを一気に満開へ
+		if not silent:
+			if data.has("wave"):
+				spawn_wave.emit(int(data["wave"]))
+			if data.has("power"):
+				WorldState.grant_power(String(data["power"]))
+			if data.get("full_green", false) or data.get("ending", false):
+				WorldState.set_full()   # みどりを一気に満開へ
+			if data.has("reset_recovery"):
+				# 第2章＝“新しい汚れた世界”。回復を落として、また緑に戻す payoff を作る。
+				WorldState.set_recovery(float(data["reset_recovery"]))
 	# 大バナー（章クリア・章タイトル・エンディング等）は全員の画面に出す。
-	if data.has("banner"):
-		objective_changed.emit("")
-		banner.emit(String(data["banner"]))
-	if data.get("ending", false):
-		objective_changed.emit("")
-		banner.emit("『みどりのはじまり』  〜おわり〜")
+	if not silent:
+		if data.has("banner"):
+			objective_changed.emit("")
+			banner.emit(String(data["banner"]))
+		if data.get("ending", false):
+			objective_changed.emit("")
+			banner.emit("『みどりのはじまり』  〜おわり〜")
 	# 章の切れ目でセーブ（サーバのみ・庭のときだけ）。エンディングまで来たら「クリア」を記録。
-	if _is_server() and Net.world_biome == "garden":
+	# ★R2★ beat0（＝はじめから直後）では書かない＝「はじめから」で旧セーブを即消ししない。
+	if _is_server() and Net.world_biome == "garden" and not silent:
 		if data.get("ending", false):
 			cleared = true
 			_save_meta()
 			_clear_progress()   # 通しクリアしたら“つづき”は消す（また最初から遊べる）
-		else:
+		elif i >= 1:
 			_write_checkpoint()
 
 

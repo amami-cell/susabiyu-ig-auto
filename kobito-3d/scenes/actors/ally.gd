@@ -169,6 +169,10 @@ func _nearest_bug() -> Node3D:
 	var best: Node3D = null
 	var bd := 1.0e9
 	for b in get_tree().get_nodes_in_group("bug"):
+		# 中ボスは手伝わない＝ボスの見せ場はプレイヤー主体で（なかま6体で勝手に浄化されない）。
+		var st: Variant = b.get("stats")
+		if st != null and st.is_midboss:
+			continue
 		var dd: float = b.global_position.distance_to(global_position)
 		if dd < bd:
 			bd = dd

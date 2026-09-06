@@ -39,6 +39,7 @@ const HP_REGEN_RATE := 7.0     # 1秒あたりの自然回復量
 var _since_dmg := 999.0
 var _invuln := 0.0        # 無敵時間（被弾直後・復活直後）＝連続でハメられない＝ストレス減
 var revive_time := 2.5    # ダウン→復活までの秒数（家族が近いと短くなる）。HUDのカウント表示にも使う
+var _last_ground := Vector3.ZERO   # 直近で地面に居た位置（場外落下からの復帰用）
 var _regen_frac := 0.0
 var level: int = 1
 var xp: int = 0
@@ -97,7 +98,13 @@ func _ready() -> void:
 		var style_name := pname
 		if not _looks_parent(pname):
 			style_name = "父"   # 名前から親と分からないときは“父”スタイルを既定に
-		KobitoLook.decorate(_body, _base_color, true, "adult", style_name)   # 親：武器を持つ
+		# ★Webは超軽量ドールに★ 子ども・敵は簡易化済みなのにプレイヤーだけフルクレイ
+		# (約90部品)で、Web描画の約4割を主役2体が食っていた。攻撃は _remote_swing の
+		# スケールtweenフォールバックで成立するので見た目上も問題なし。きれい版(PC)はフル。
+		if OS.has_feature("web"):
+			KobitoLook.decorate_simple(_body, _base_color, "adult", style_name)
+		else:
+			KobitoLook.decorate(_body, _base_color, true, "adult", style_name)   # 親：武器を持つ
 	_label.text = pname
 
 	# カメラは自分のぶんだけ。他人の小人のカメラは切っておく。
@@ -171,6 +178,14 @@ func heal_hp(amount: int) -> void:
 
 func _local_step(delta: float) -> void:
 	_attack_cd = maxf(0.0, _attack_cd - delta)
+	# ★場外落下の詰み防止★ 何かの拍子に世界の外へ落ちたら、最後に地面に居た場所へ戻す。
+	if global_position.y < -8.0:
+		global_position = _last_ground + Vector3(0.0, 1.0, 0.0)
+		velocity = Vector3.ZERO
+		state = State.IDLE
+		return
+	if is_on_floor():
+		_last_ground = global_position   # 直近の安全地点を覚えておく
 	if state == State.DOWN:
 		return
 
@@ -433,9 +448,11 @@ func apply_damage(amount: int) -> void:
 					rpc("revive"))
 
 
-## 近くに 家族／別のプレイヤー／なかま が居るか（ダウン時の復活速度に使う）。
+## 近くに 別のプレイヤー か なかま が居るか（ダウン時の復活速度に使う）。
+## 家族(child/母)は常に追従して必ず近くに居るため“助け”に数えない＝
+## ソロでも「なかまを増やす／相方とはぐれない」動機が実際に働く。
 func _help_near() -> bool:
-	for grp in ["player", "family", "ally"]:
+	for grp in ["player", "ally"]:
 		for n in get_tree().get_nodes_in_group(grp):
 			if n == self or not is_instance_valid(n):
 				continue

@@ -103,6 +103,14 @@ func set_full() -> void:
 	rpc("_remote_apply", 1.0)
 
 
+## みどり回復度を指定値へ（第2章開始で“新しい汚れた世界”に落とす等）。サーバが全員へ反映。
+func set_recovery(value: float) -> void:
+	if not multiplayer.has_multiplayer_peer() or not multiplayer.is_server():
+		return
+	_apply(clampf(value, 0.0, 1.0))
+	rpc("_remote_apply", clampf(value, 0.0, 1.0))
+
+
 func reset() -> void:
 	_apply(0.0)
 	powers.clear()

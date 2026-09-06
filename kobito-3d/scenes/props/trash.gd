@@ -102,7 +102,7 @@ func _remote_xform(xform: Transform3D) -> void:
 @rpc("authority", "call_local", "reliable")
 func _remote_removed() -> void:
 	_removed = true
-	remove_from_group("trash")
+	remove_from_group("trash")   # 目的判定(trash)からは外す。trash_all には残す
 	Sfx.play("heal")            # 片づいた合図（気持ちいい音）
 	if _marker != null:
 		_marker.queue_free()
@@ -110,7 +110,18 @@ func _remote_removed() -> void:
 	_spawn_poof()               # ぽん、と光の粒がはじけて消える
 	var tween := create_tween()
 	tween.tween_property(self, "scale", Vector3.ZERO, 0.3).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_IN)
-	tween.tween_callback(queue_free)
+	# ★後発参加の亡霊ゴミ対策★ サーバはノードを破棄せず「隠して当たり判定を切る」だけにする。
+	# こうすると _on_peer_connected の sync_to が、片づけ済みゴミを列挙して新規参加者へ
+	# 「もう無い」と伝えられる（queue_free してしまうと列挙できず、参加者側で5個復活していた）。
+	if multiplayer.has_multiplayer_peer() and multiplayer.is_server():
+		freeze = true
+		tween.tween_callback(func() -> void:
+			visible = false
+			for c in get_children():
+				if c is CollisionShape3D:
+					c.disabled = true)
+	else:
+		tween.tween_callback(queue_free)
 
 
 ## 片づけたときの ぱっと弾ける光（金色）。

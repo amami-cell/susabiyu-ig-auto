@@ -349,6 +349,7 @@ func _sync_settings() -> void:
 
 func _on_continue() -> void:
 	_sync_settings()
+	Net.world_biome = "garden"   # つづきは庭専用＝遺跡が選ばれていても庭に戻して復元する
 	Chapter.continue_game()
 	Net.start_solo()
 
