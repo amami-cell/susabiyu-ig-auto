@@ -347,6 +347,32 @@ func _remote_swing() -> void:
 	var tween := create_tween()
 	tween.tween_property(_body, "scale", Vector3(1.15, 0.9, 1.15), 0.06)
 	tween.tween_property(_body, "scale", Vector3.ONE, 0.14)
+	_spawn_slash()   # モデル種別に依存しない斬撃＝Web簡易版でも「振った」が分かる
+
+
+## 前方に三日月の光の斬撃を一瞬。攻撃=金色。1メッシュ・unshaded＝どの機種でも軽く読める。
+func _spawn_slash() -> void:
+	var arc := MeshInstance3D.new()
+	var tm := TorusMesh.new()
+	tm.inner_radius = 0.9
+	tm.outer_radius = 1.25
+	arc.mesh = tm
+	var m := StandardMaterial3D.new()
+	m.albedo_color = Color(1.0, 0.92, 0.5, 0.9)
+	m.emission_enabled = true
+	m.emission = Color(1.0, 0.88, 0.45)
+	m.emission_energy_multiplier = 2.4
+	m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	arc.material_override = m
+	add_child(arc)
+	# 体の前方(-Z)に、地面と平行の弧を寝かせて出す
+	arc.position = -global_transform.basis.z * 1.1 + Vector3(0.0, 0.9, 0.0)
+	arc.rotation = Vector3(deg_to_rad(90.0), rotation.y, 0.0)
+	var tw := create_tween()
+	tw.tween_property(arc, "scale", Vector3(1.6, 1.6, 1.6), 0.16)
+	tw.parallel().tween_property(m, "albedo_color:a", 0.0, 0.16)
+	tw.tween_callback(arc.queue_free)
 
 
 ## 被弾の見た目：赤フラッシュ＋のけぞり。apply_damage(全員で実行)から呼ぶ。

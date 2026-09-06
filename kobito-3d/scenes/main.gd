@@ -24,6 +24,10 @@ func _ready() -> void:
 	Net.biome_changed.connect(func(b: String) -> void:
 		if _garden != null and _garden.has_method("set_biome"):
 			_garden.set_biome(b))
+	# 章クリア・環境回復の節目に、画面全体を一瞬 緑にフラッシュ＝“世界が応える”達成の一撃。
+	_build_green_flash()
+	WorldState.notice.connect(func(_t: String) -> void: _flash_green(0.2))
+	Chapter.banner.connect(func(_t: String) -> void: _flash_green(0.3))
 
 	var args := OS.get_cmdline_user_args()
 	if args.has("--ws"):
@@ -77,6 +81,25 @@ func _joy_btn(action: String, button: int) -> void:
 	var e := InputEventJoypadButton.new()
 	e.button_index = button
 	InputMap.action_add_event(action, e)
+
+
+## 章クリア・回復の節目に一瞬みどりが満ちる全画面フラッシュ。ColorRect1枚＝ほぼ無負荷・全機種。
+var _green_flash: ColorRect = null
+func _build_green_flash() -> void:
+	_green_flash = ColorRect.new()
+	_green_flash.name = "GreenFlash"
+	_green_flash.color = Color(0.45, 1.0, 0.6, 0.0)
+	_green_flash.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_green_flash.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	$UI.add_child(_green_flash)
+
+
+func _flash_green(peak: float) -> void:
+	if _green_flash == null:
+		return
+	_green_flash.color.a = peak
+	var tw := create_tween()
+	tw.tween_property(_green_flash, "color:a", 0.0, 0.7)
 
 
 ## 映画的なビネット（周辺減光）。全機種で効く軽い画面演出＝“今っぽさ”が出る。

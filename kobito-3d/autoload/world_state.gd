@@ -157,13 +157,14 @@ func _apply(value: float) -> void:
 			notice.emit("環境回復 %d%%" % int(step * 100.0))
 
 
-## 地面の色。茶(汚)→緑(回復) を補間するだけ。シェーダーを書く前の“見えるフィードバック”。
+## 地面の色。汚れ側は“下水の茶”ではなく“くすんだ青緑（ヘドロ）”＝絵本の汚れに。
+## 回復で みずみずしい緑へ。シェーダーを書く前の“見えるフィードバック”。
 func ground_color() -> Color:
-	return Color(0.35, 0.28, 0.20).lerp(Color(0.30, 0.55, 0.25), recovery)
+	return Color(0.30, 0.31, 0.26).lerp(Color(0.30, 0.55, 0.25), recovery)
 
 
 func sky_color() -> Color:
-	return Color(0.55, 0.50, 0.42).lerp(Color(0.45, 0.70, 0.95), recovery)
+	return Color(0.54, 0.55, 0.54).lerp(Color(0.45, 0.70, 0.95), recovery)
 
 
 ## 回復するほど敵の湧きは遅くなる（＝掃除の報酬）。

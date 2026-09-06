@@ -1278,7 +1278,7 @@ func _build_ground() -> void:
 shader_type spatial;
 uniform sampler2D noisetex : filter_linear_mipmap, repeat_enable;
 uniform sampler2D normaltex : hint_normal, filter_linear_mipmap, repeat_enable;
-uniform vec3 soil : source_color = vec3(0.34, 0.27, 0.19);
+uniform vec3 soil : source_color = vec3(0.30, 0.31, 0.26);
 uniform vec3 grass : source_color = vec3(0.30, 0.55, 0.25);
 uniform float greenness = 0.0;
 void fragment() {
@@ -1448,8 +1448,8 @@ func _update_sky_fog(r: float) -> void:
 		return
 	if _sky_mat != null:
 		# 汚: くすんだ曇天 → 回復: 夕方のマジックアワー（上は青紫、地平は金/桃）
-		_sky_mat.sky_top_color = Color(0.30, 0.30, 0.36).lerp(Color(0.20, 0.34, 0.62), r)
-		_sky_mat.sky_horizon_color = Color(0.55, 0.50, 0.46).lerp(Color(0.95, 0.66, 0.45), r)
+		_sky_mat.sky_top_color = Color(0.34, 0.38, 0.44).lerp(Color(0.20, 0.34, 0.62), r)
+		_sky_mat.sky_horizon_color = Color(0.58, 0.58, 0.56).lerp(Color(0.95, 0.66, 0.45), r)
 		_sky_mat.sun_angle_max = 22.0
 		_sky_mat.sky_energy_multiplier = 1.0
 		_sky_mat.ground_horizon_color = WorldState.ground_color()
@@ -1457,8 +1457,8 @@ func _update_sky_fog(r: float) -> void:
 	var env := _env.environment
 	if env != null:
 		# 遠景に金色のもや（大気遠近）で奥行きを出す。回復で澄んで遠くまで見える。
-		env.fog_light_color = Color(0.54, 0.5, 0.46).lerp(Color(0.95, 0.8, 0.66), r)
-		env.fog_density = lerpf(0.05, 0.006, r)
+		env.fog_light_color = Color(0.56, 0.58, 0.57).lerp(Color(0.95, 0.8, 0.66), r)
+		env.fog_density = lerpf(0.028, 0.006, r)   # 濃い茶霧を薄め、手前の濁りを抜く
 
 
 ## 蝶。回復するほど数が増える“命”。羽ばたきは頂点シェーダ、飛行はCPUで軽く。
@@ -1553,7 +1553,12 @@ func _update_butterfly_count(r: float) -> void:
 func _on_recovery_changed(_value: float) -> void:
 	var r := WorldState.recovery
 	if _ground_shader != null:
-		_ground_shader.set_shader_parameter("greenness", r)
+		# 開始(r=0)でも わずかに緑の気配を残す＝“泥”に見えない。回復でぐっと緑へ。
+		_ground_shader.set_shader_parameter("greenness", clampf(r * 0.86 + 0.12, 0.0, 1.0))
+	# 太陽も回復で“晴れて”いく：汚れ時は白茶けて弱く、満開で金色マジックアワー＝payoffが跳ねる。
+	if _sun != null and Net.world_biome != "ruins":
+		_sun.light_color = Color(0.86, 0.85, 0.82).lerp(Color(1.0, 0.86, 0.62), r)
+		_sun.light_energy = lerpf(0.95, 1.25, r)
 	_update_butterfly_count(r)
 	if _water_mat != null:
 		_water_mat.set_shader_parameter("clarity", r)   # 回復ほど水が澄む
