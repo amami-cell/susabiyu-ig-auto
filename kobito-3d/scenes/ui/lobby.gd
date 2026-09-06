@@ -47,7 +47,8 @@ func _ready() -> void:
 	_difficulty.add_item("やさしい（のんびり）", 0)
 	_difficulty.add_item("ふつう", 1)
 	_difficulty.add_item("つよい（歯ごたえ）", 2)
-	_difficulty.selected = 1
+	# 初回は やさしい を既定に（低ストレスが売り＝初見の離脱を防ぐ）。あとで変更可。
+	_difficulty.selected = 0 if Net.is_web() else 1
 	_vbox.add_child(_difficulty)
 	_vbox.move_child(_difficulty, 3)
 

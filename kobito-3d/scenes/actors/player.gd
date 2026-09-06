@@ -473,7 +473,9 @@ func _server_clean_near(from: Vector3) -> void:
 	if not multiplayer.has_multiplayer_peer() or not multiplayer.is_server():
 		return
 	var best: Node = null
-	var bd := CLEAN_RANGE
+	# ★carry の力を“本物”に★ 授かると 片づけの届く範囲が広がる（＝押す・運ぶが強い）。
+	# 以前は付与されるだけで効果ゼロの死に報酬だった（物語の約束と機構の不一致を解消）。
+	var bd := CLEAN_RANGE * (1.5 if WorldState.has_power("carry") else 1.0)
 	for t in get_tree().get_nodes_in_group("trash"):
 		var d: float = (t as Node3D).global_position.distance_to(from)
 		if d < bd:

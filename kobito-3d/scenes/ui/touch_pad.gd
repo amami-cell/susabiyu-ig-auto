@@ -41,8 +41,8 @@ func _ready() -> void:
 	_bind_button($Buttons/BtnGrab, "act_grab")
 	_bind_button($Buttons/BtnJump, "act_jump")
 	_skin_buttons()
-	# オンボーディングはタッチ環境のみ（PC/パッドでは「スティックで動く」は嘘になる）。
-	if DisplayServer.is_touchscreen_available() and not _tutorial_done():
+	# 初回オンボーディング（操作の指し示し）。タッチでもPCでも出す＝文言を環境で切替。
+	if not _tutorial_done():
 		_build_tutorial()
 		_tut_armed = true
 		set_process(true)
@@ -97,8 +97,13 @@ func _mark_tutorial_done() -> void:
 
 
 func _build_tutorial() -> void:
-	_tut_move = _hint_label("① スティックで うごく")
-	_tut_act = _hint_label("② 虫は「きれいに」／ ゴミは「つかむ」")
+	# 文言は環境で切替：タッチ＝スティック、PC＝キーボード/マウス。
+	if DisplayServer.is_touchscreen_available():
+		_tut_move = _hint_label("① スティックで うごく")
+		_tut_act = _hint_label("② 虫は「きれいに」／ ゴミは「つかむ」")
+	else:
+		_tut_move = _hint_label("① WASD／やじるしで うごく（右ドラッグでカメラ）")
+		_tut_act = _hint_label("② J＝きれいに（癒やす）／ E＝つかむ")
 
 
 func _hint_label(text: String) -> Label:
