@@ -203,6 +203,7 @@ function doPost(e) {
     else if (o.api === 'importcsv') out = (typeof epImportCsvB64 === 'function') ? epImportCsvB64(o.b64 || '', o.key || '') : { ok: false, error: 'import未対応' };
     else if (o.api === 'media_importcsv') out = (typeof mediaImportCsvB64 === 'function') ? mediaImportCsvB64(o.media || '', o.b64 || '', o.key || '') : { ok: false, error: 'media import未対応' };
     else if (o.api === 'pc_alert') out = epPcAlert_(o);
+    else if (o.api === 'inshoku_msgs') out = epInshokuMsgs_(o);
     else out = { ok: false, error: 'unknown api' };
   } catch (err) { out = { ok: false, error: String(err) }; }
   return ContentService.createTextOutput(JSON.stringify(out)).setMimeType(ContentService.MimeType.JSON);
@@ -1005,6 +1006,46 @@ function epClearIngestKey(pass) {
   if (!admin || String(pass || '') !== admin) return { ok: false, error: '管理キーが違います（未設定なら無効）' };
   p.deleteProperty('EP_INGEST_KEY');
   return { ok: true };
+}
+
+// 飲食店ドットコムのメッセージ/スカウト一覧（/mypage/message/）の新着を受けて蓄積＋責任者へ通知。
+// スカウト一覧にはCSVが無いため、PC側でHTMLから抽出した {t:本文, at:ISO日時} の配列を受け取る。
+// 重複は key(=at|本文先頭) で排除。相対時刻はPC側で絶対時刻(ISO)に変換済みなので日付跨ぎでも安定。
+function epInshokuMsgs_(o) {
+  try {
+    if (typeof epIngestOk_ === 'function' && !epIngestOk_(o && o.key)) return { ok: false, error: 'forbidden' };
+    var items = (o && o.items) || [];
+    if (!items.length) return { ok: true, added: 0 };
+    var ss = SpreadsheetApp.getActiveSpreadsheet();
+    var HDR = ['媒体', '店舗', '種別', '本文', '日時', '取得日時', 'key'];
+    var sh = epSheet_(ss, '他媒体_メッセージ', HDR);
+    var existing = {};
+    if (sh.getLastRow() > 1) {
+      var kv = sh.getRange(2, HDR.length, sh.getLastRow() - 1, 1).getValues();
+      for (var i = 0; i < kv.length; i++) existing[String(kv[i][0])] = 1;
+    }
+    var now = Utilities.formatDate(new Date(), 'Asia/Tokyo', 'yyyy-MM-dd HH:mm:ss');
+    var add = [], newByStore = {};
+    items.forEach(function (m) {
+      var text = String((m && m.t) || '').trim(); if (!text) return;
+      var at = String((m && m.at) || '').trim();
+      var key = 'inshokumsg|' + at + '|' + text.slice(0, 60);
+      if (existing[key]) return; existing[key] = 1;
+      var store = ''; var mm = text.match(/^(.*?)(?:でスカウトした|への応募者|への|の応募者)/); if (mm) store = mm[1].trim();
+      try { if (store && typeof epCleanStore_ === 'function') store = epCleanStore_(store); } catch (e) { }
+      var kind = /スカウト|返答/.test(text) ? 'スカウト' : '応募メッセージ';
+      add.push(['飲食店ドットコム', store, kind, text, at, now, key]);
+      if (store) newByStore[store] = (newByStore[store] || 0) + 1;
+    });
+    if (add.length) {
+      sh.getRange(sh.getLastRow() + 1, 1, add.length, HDR.length).setValues(add.map(function (r) { return r.map(csvGuard_); }));
+      try {
+        var lines = add.slice(0, 8).map(function (r) { return '・' + (r[1] || '（店舗不明）') + '：' + r[3]; });
+        epEnqueuePush_('🆕【飲食店ドットコム】新着メッセージ ' + add.length + '件', lines.join('\n'), 'recruit', JSON.stringify({ newByStore: newByStore, media: '飲食店ドットコム' }));
+      } catch (e) { }
+    }
+    return { ok: true, added: add.length };
+  } catch (e) { return { ok: false, error: String(e) }; }
 }
 
 // PC取得スクリプトからの「取得失敗」通知を受けて責任者へプッシュ（媒体別に1時間1回まで＝スパム防止）。
