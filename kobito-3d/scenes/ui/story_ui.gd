@@ -14,6 +14,8 @@ var _catch: Button
 var _banner: Label
 var _banner_t := 0.0
 var _title_btn: Button = null   # エンディング後の「タイトルへ」
+var _result_card: Panel = null  # クリア結果カード
+var _start_msec := 0            # プレイ開始時刻（結果の「じかん」用）
 
 
 func _ready() -> void:
@@ -28,8 +30,13 @@ func _ready() -> void:
 	Chapter.dialogue.connect(show_dialogue)
 	Chapter.objective_changed.connect(set_objective)
 	Chapter.banner.connect(show_banner)
-	# セッション終了（タイトルへ戻る）時に、エンディングボタンが残らないよう片づける。
+	# プレイ時間の起点（結果カードで「じかん」を出す）。
+	Net.session_started.connect(func() -> void: _start_msec = Time.get_ticks_msec())
+	# セッション終了（タイトルへ戻る）時に、結果カード/ボタンが残らないよう片づける。
 	Net.session_ended.connect(func(_r: String) -> void:
+		if _result_card != null:
+			_result_card.queue_free()
+			_result_card = null
 		if _title_btn != null:
 			_title_btn.queue_free()
 			_title_btn = null)
@@ -188,29 +195,99 @@ func show_banner(text: String) -> void:
 	_banner_t = 3.2
 	var tw := create_tween()
 	tw.tween_property(_banner, "modulate:a", 1.0, 0.4)
-	# エンディングのバナーには「タイトルへ」導線を出す（余韻を壊さず、いつでも戻れる）。
+	# エンディングのバナーには「結果カード」を出す（余韻の後にふわっと・共有の起点）。
 	if "おわり" in text:
-		_show_title_button()
+		_show_result_card()
 
 
-## エンディング後にだけ出す「タイトルへ ▶」ボタン。押すとタイトルへ戻る。
-func _show_title_button() -> void:
-	if _title_btn != null:
+## エンディング後だけ出すクリア結果カード：なかま数・みどり%・じかん・なまえ＋共有／タイトル。
+func _show_result_card() -> void:
+	if _result_card != null:
 		return
-	_title_btn = Button.new()
-	_title_btn.text = "タイトルへ ▶"
-	_title_btn.set_anchors_preset(Control.PRESET_CENTER_BOTTOM)
-	_title_btn.offset_left = -120
-	_title_btn.offset_right = 120
-	_title_btn.offset_top = -140
-	_title_btn.offset_bottom = -84
-	UIKit.style_button(_title_btn, UIKit.GREEN, UIKit.GREEN_DK)
-	_title_btn.modulate = Color(1, 1, 1, 0)
-	add_child(_title_btn)
-	_title_btn.pressed.connect(func() -> void: Net.leave("タイトルに戻りました"))
+	var allies := get_tree().get_nodes_in_group("ally").size()
+	var green := int(round(WorldState.recovery * 100.0))
+	var secs := (Time.get_ticks_msec() - _start_msec) / 1000 if _start_msec > 0 else 0
+	var names: Array[String] = []
+	for id in Net.roster:
+		names.append(str(Net.roster[id]["name"]))
+	var who := "・".join(names) if not names.is_empty() else Net.my_display_name
+
+	_result_card = Panel.new()
+	_result_card.set_anchors_preset(Control.PRESET_CENTER)
+	_result_card.offset_left = -260
+	_result_card.offset_right = 260
+	_result_card.offset_top = -180
+	_result_card.offset_bottom = 190
+	_result_card.add_theme_stylebox_override("panel", UIKit.panel(UIKit.CREAM, UIKit.GREEN_DK, 24, 4, 22))
+	_result_card.modulate = Color(1, 1, 1, 0)
+	add_child(_result_card)
+
+	var vb := VBoxContainer.new()
+	vb.set_anchors_preset(Control.PRESET_FULL_RECT)
+	vb.offset_left = 26
+	vb.offset_top = 22
+	vb.offset_right = -26
+	vb.offset_bottom = -22
+	vb.add_theme_constant_override("separation", 10)
+	_result_card.add_child(vb)
+
+	var ttl := Label.new()
+	ttl.text = "クリア！ ありがとう"
+	ttl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	UIKit.style_label(ttl, 30, UIKit.GREEN_DK)
+	vb.add_child(ttl)
+
+	var stat := Label.new()
+	stat.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	stat.text = "なかま ●×%d　　みどり %d%%\nじかん %d:%02d　　%s" % [allies, green, secs / 60, secs % 60, who]
+	UIKit.style_label(stat, 22, UIKit.INK)
+	vb.add_child(stat)
+
+	var msg := Label.new()
+	msg.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	msg.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	msg.text = "倒さず、みどりを とりもどした。\nこの絵本を だれかに 教えてね。"
+	UIKit.style_label(msg, 18, UIKit.GREEN_DK)
+	vb.add_child(msg)
+
+	var row := HBoxContainer.new()
+	row.alignment = BoxContainer.ALIGNMENT_CENTER
+	row.add_theme_constant_override("separation", 14)
+	vb.add_child(row)
+
+	if Net.is_web():
+		var share := Button.new()
+		share.text = "みんなに 教える"
+		share.custom_minimum_size = Vector2(0, 50)
+		UIKit.style_button(share, UIKit.GOLD, Color(0.82, 0.6, 0.24))
+		row.add_child(share)
+		share.pressed.connect(_on_share)
+
+	var back := Button.new()
+	back.text = "タイトルへ ▶"
+	back.custom_minimum_size = Vector2(0, 50)
+	UIKit.style_button(back, UIKit.GREEN, UIKit.GREEN_DK)
+	row.add_child(back)
+	back.pressed.connect(func() -> void: Net.leave("タイトルに戻りました"))
+
 	var tw := create_tween()
 	tw.tween_interval(2.0)   # 余韻のあとに ふわっと出す
-	tw.tween_property(_title_btn, "modulate:a", 1.0, 0.6)
+	tw.tween_property(_result_card, "modulate:a", 1.0, 0.6)
+
+
+## Web：この作品を共有（対応端末はネイティブ共有、無ければURLをコピー）。
+func _on_share() -> void:
+	if not Net.is_web():
+		return
+	JavaScriptBridge.eval("""
+		(function(){
+			var u = location.href;
+			var t = 'みどりのはじまり — 倒さない。癒やすと、なかまになる。無料の協力絵本ゲーム';
+			if (navigator.share) { navigator.share({title:'みどりのはじまり', text:t, url:u}); }
+			else if (navigator.clipboard) { navigator.clipboard.writeText(u); }
+		})();
+	""", true)
+	set_objective("URLを コピー／共有しました！")
 
 
 func _process(delta: float) -> void:

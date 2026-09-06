@@ -169,10 +169,11 @@ func _process(delta: float) -> void:
 func _draw() -> void:
 	var w := size.x
 	var h := size.y
-	# 空（縦グラデを帯で）：上＝朝焼けの桃 → 中＝暖色 → 下＝みどり
-	var top := Color(0.36, 0.45, 0.55)
-	var mid := Color(0.78, 0.68, 0.55)
-	var bot := Color(0.62, 0.72, 0.5)
+	# 空（縦グラデを帯で）：本編のマジックアワー配色に合わせる＝“同じ1冊の絵本”に見せる。
+	# 上＝青紫、中＝金桃、下＝みどり（garden の sky_top/horizon と同系）。
+	var top := Color(0.24, 0.36, 0.60)
+	var mid := Color(0.96, 0.72, 0.46)
+	var bot := Color(0.42, 0.62, 0.40)
 	var bands := 48
 	for i in bands:
 		var t0 := float(i) / float(bands)
@@ -343,10 +344,13 @@ func _setup_for_browser() -> void:
 	_host.visible = false
 	if _biome != null:
 		_biome.visible = false
-	_solo.text = "ひとりで始める（通信なし）"
-	_join.text = "ホストに参加する"
+	# ★参加を1タップに★ 接続先はページ配信元から自動補完されるので、IP入力欄は隠す。
+	# （同じURLを開いた2台なら、住所を打たずに「参加する」だけでつながる。）
 	_addr_edit.text = Net.web_default_address()
-	_status.text = "ブラウザ版は参加専用です。PCかAndroid側で「みんなで遊ぶ」を押してもらってください。"
+	_addr_edit.visible = false
+	_solo.text = "ひとりで始める（通信なし）"
+	_join.text = "ふたりで遊ぶ（ホストに参加）"
+	_status.text = "ふたりで遊ぶには、同じ画面（このURL）を開いたPC/Android側で先に\n「みんなで遊ぶ」を押してもらってください。あとは「参加する」だけ。"
 
 
 func _sync_settings() -> void:
