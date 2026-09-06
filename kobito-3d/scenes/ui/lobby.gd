@@ -19,6 +19,7 @@ extends Control
 @onready var _title_lbl: Label = $Panel/VBox/Title
 
 var _biome: OptionButton = null
+var _difficulty: OptionButton = null
 var _credits: Control = null
 var _t := 0.0
 var _seeds: Array[Vector2] = []
@@ -40,6 +41,15 @@ func _ready() -> void:
 	_biome.add_item("遺跡（薄暗い石の世界・石版パズル）", 1)
 	_vbox.add_child(_biome)
 	_vbox.move_child(_biome, 2)
+
+	# むずかしさ（敵の強さ）。やさしい=お子さん向け / つよい=クリア後の遊び直し。
+	_difficulty = OptionButton.new()
+	_difficulty.add_item("やさしい（のんびり）", 0)
+	_difficulty.add_item("ふつう", 1)
+	_difficulty.add_item("つよい（歯ごたえ）", 2)
+	_difficulty.selected = 1
+	_vbox.add_child(_difficulty)
+	_vbox.move_child(_difficulty, 3)
 
 	# 音量スライダー（保存される）
 	var vol_label := Label.new()
@@ -345,6 +355,8 @@ func _sync_settings() -> void:
 		Net.transport = _transport.get_item_id(_transport.selected) as Net.Transport
 	if _biome != null:
 		Net.world_biome = "ruins" if _biome.selected == 1 else "garden"
+	if _difficulty != null:
+		Net.difficulty = [0.6, 1.0, 1.5][_difficulty.selected]
 
 
 func _on_continue() -> void:

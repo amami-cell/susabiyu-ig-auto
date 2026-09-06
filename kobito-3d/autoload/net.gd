@@ -38,6 +38,7 @@ var transport: Transport = Transport.ENET
 var force_offline := false
 var my_display_name := "夫"
 var world_biome := "garden"   # 舞台。ロビーで選ぶ（庭/遺跡）。ホストが決めて全員に配る
+var difficulty := 1.0         # 敵の攻撃力の倍率（やさしい0.6/ふつう1.0/つよい1.5）。サーバ基準
 var is_online := false
 
 ## peer_id -> { "name": String, "role": int }

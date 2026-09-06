@@ -232,7 +232,10 @@ func _think(delta: float) -> void:
 			_attack_cd = stats.attack_interval
 			rpc("_remote_lunge")   # 見た目：噛みつきの予備動作＋赤フラッシュ
 			if _target.has_method("apply_damage"):
-				_target.rpc("apply_damage", stats.attack_power)
+				# 難易度で敵の攻撃力を調整（やさしい=弱く/つよい=強く）。HPは据え置き＝
+				# バー表示が壊れない。サーバ権威なので Net.difficulty はサーバ基準でよい。
+				var dmg := maxi(1, int(round(stats.attack_power * Net.difficulty)))
+				_target.rpc("apply_damage", dmg)
 
 	# 叩かれた勢い（ノックバック）を上乗せして減衰＝弾き飛ぶ手応え
 	velocity.x += _knockback.x

@@ -63,6 +63,7 @@ var _net_yaw := 0.0
 
 @onready var _body: MeshInstance3D = $Body
 @onready var _label: Label3D = $NameLabel
+var _help_label: Label3D = null   # ダウン中の「たすけて！」
 @onready var _cam_rig: Node3D = $CamRig
 @onready var _camera: Camera3D = $CamRig/Camera3D
 @onready var _grab_area: Area3D = $GrabArea
@@ -106,6 +107,22 @@ func _ready() -> void:
 		else:
 			KobitoLook.decorate(_body, _base_color, true, "adult", style_name)   # 親：武器を持つ
 	_label.text = pname
+
+	# ダウン中に頭上へ出す「たすけて！」ビーコン＝相方/なかまが近づくと復活が速まる
+	# （＝協力の合図）。全員の画面で見える。
+	_help_label = Label3D.new()
+	_help_label.name = "HelpLabel"
+	_help_label.text = "たすけて！"
+	_help_label.font_size = 44
+	_help_label.outline_size = 14
+	_help_label.outline_modulate = Color(0.2, 0.05, 0.05)
+	_help_label.modulate = Color(1.0, 0.85, 0.3)
+	_help_label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	_help_label.no_depth_test = true
+	_help_label.pixel_size = 0.006
+	_help_label.position = Vector3(0.0, 1.6, 0.0)
+	_help_label.visible = false
+	add_child(_help_label)
 
 	# カメラは自分のぶんだけ。他人の小人のカメラは切っておく。
 	_camera.current = is_local
@@ -357,6 +374,10 @@ func _update_look() -> void:
 	if is_local:
 		_follow_camera()
 	var down := state == State.DOWN
+	if _help_label != null:
+		_help_label.visible = down
+		if down:
+			_help_label.position.y = 1.6 + 0.08 * sin(_age * 5.0)   # ふわふわ＝目を引く
 	if down:
 		_body.transparency = 0.6
 	elif _invuln > 0.0:
