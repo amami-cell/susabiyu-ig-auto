@@ -13,6 +13,7 @@ import { loadFont as loadMincho } from "@remotion/google-fonts/ShipporiMincho";
 import { loadFont as loadSerif } from "@remotion/google-fonts/Cormorant";
 import { loadFont as loadMinchoBlack } from "@remotion/google-fonts/NotoSerifJP";
 import { typoLogo, typoLogoRound, typoSampleNo } from "./typoData";
+import { ytheme } from "./yoshokuTheme";
 
 export const mincho = loadMincho().fontFamily;
 export const serif = loadSerif().fontFamily;
