@@ -166,6 +166,7 @@ const CH1 := [
 
 var beat := -1
 var _healed := 0
+var _beat_heal_base := 0   # 今のhealビートに入った時点の累計。ビート内の達成数を測る基準
 var _seeds := 0
 var _boss_cleared := false
 var _active := false
@@ -239,6 +240,7 @@ func _process(delta: float) -> void:
 		_last_beat = beat
 		_beat_t = 0.0
 		_talk_done = false
+		_beat_heal_base = _healed   # このビートに入ってから癒やした数で判定する
 	_beat_t += delta
 	var b: Dictionary = CH1[beat]
 	var goal: String = b.get("goal", "")
@@ -256,8 +258,9 @@ func _process(delta: float) -> void:
 			done = _trash_count() == 0
 		"heal":
 			var need: int = b.get("n", 1)
-			_push_objective("めあて：あばれる虫を「きれいに」で いやす（のこり %d）" % maxi(0, need - _healed))
-			done = _healed >= need
+			var done_here: int = _healed - _beat_heal_base   # このビートで癒やした数
+			_push_objective("めあて：あばれる虫を「きれいに」で いやす（のこり %d）" % maxi(0, need - done_here))
+			done = done_here >= need
 		"collect":
 			var need2: int = b.get("n", 1)
 			_push_objective("めあて：光る“種のかけら”に ふれて あつめる（%d / %d）" % [_seeds, need2])
@@ -382,6 +385,17 @@ func _push_objective(text: String) -> void:
 	rpc("_set_ui_objective", text)
 
 
+## 後から参加した人へ「今の目的・道しるべ」を配る（サーバのみ）。
+## _set_beat 全体は wave/boss の合図を再発火させてしまうので、演出を起こさない
+## 「現状配布」だけに絞る。
+func send_to(id: int) -> void:
+	if not _is_server():
+		return
+	var obj := _last_obj if _last_obj != "￿" else ""
+	rpc_id(id, "_set_ui_objective", obj)
+	rpc_id(id, "_set_guide", guide_on, guide_pos, guide_kind)
+
+
 # ---- サーバ → 全員 ----
 
 @rpc("authority", "call_local", "reliable")
@@ -475,7 +489,9 @@ func ambient_spawn_ok() -> bool:
 	if beat < 0 or beat >= CH1.size():
 		return true
 	var goal: String = CH1[beat].get("goal", "")
-	return not (goal in ["clean", "story", "ending"])
+	# boss はボス本体＋召喚minionで敵を供給するので、周辺アンビエント湧きは止める
+	# （でないとボス＋雑魚8＋召喚14でソロが理不尽になる）。
+	return not (goal in ["clean", "story", "ending", "boss"])
 
 
 # ---------------------------------------------------------------- セーブ／つづきから

@@ -13,6 +13,8 @@ var _was_downed := false
 var _down_t := 0.0
 var _downed_dim: ColorRect = null
 var _downed_lbl: Label = null
+var _hurt_flash: ColorRect = null   # 被弾の赤フラッシュ
+var _last_hp := -1                   # 前フレームのHP（減少検知用）
 
 @onready var _recovery_bar: ProgressBar = $Top/RecoveryBar
 @onready var _recovery_label: Label = $Top/RecoveryLabel
@@ -106,6 +108,15 @@ func _build_downed() -> void:
 	_downed_lbl.visible = false
 	add_child(_downed_lbl)
 
+	# 被弾した瞬間、画面をパッと赤くする＝「今ダメージを受けた」が中央視界で分かる
+	# （HPバーは左下で、戦闘中は減りに気づきにくい）。
+	_hurt_flash = ColorRect.new()
+	_hurt_flash.color = Color(0.8, 0.1, 0.1, 0.0)
+	_hurt_flash.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_hurt_flash.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(_hurt_flash)
+	move_child(_hurt_flash, 1)   # ダウン暗転の上・他UIの下
+
 
 func _process(delta: float) -> void:
 	if _player == null or not is_instance_valid(_player):
@@ -118,6 +129,16 @@ func _process(delta: float) -> void:
 			return
 	_hp_bar.max_value = _player.max_hp
 	_hp_bar.value = _player.hp
+	# HPが減った瞬間＝赤フラッシュ（中央視界で被弾が分かる）。復活での回復は無視。
+	if _last_hp >= 0 and _player.hp < _last_hp and _player.hp > 0 and _hurt_flash != null:
+		_hurt_flash.color.a = 0.32
+		var tw := create_tween()
+		tw.tween_property(_hurt_flash, "color:a", 0.0, 0.35)
+	_last_hp = _player.hp
+	# HPが3割以下は枠を脈打たせて「危ない」を伝える
+	if _hurt_flash != null and _player.hp > 0:
+		var low := float(_player.hp) / float(maxi(1, _player.max_hp)) < 0.3
+		_hp_bar.modulate = Color(1, 0.6, 0.6) if low else Color(1, 1, 1)
 	var fly := "　／ とべる！" if _player.can_fly() else ""
 	_level_label.text = "Lv.%d　XP %d/%d　HP %d/%d%s" % [
 		_player.level, _player.xp, _player.xp_to_next(), _player.hp, _player.max_hp, fly

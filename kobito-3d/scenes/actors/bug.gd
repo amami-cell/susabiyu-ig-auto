@@ -63,8 +63,11 @@ func _ready() -> void:
 	_body.material_override = mat
 	_body.scale = Vector3.ONE * stats.body_scale
 
-	# 横倒しカプセル1個を“虫”に見せる（頭・目・触角・6本脚・甲羅）
-	BugLook.decorate(self, stats.body_color, stats.body_scale, stats.shell)
+	# 横倒しカプセル1個を“虫”に見せる。Webは超軽量版（頭＋目のみ）でドローコールを抑える。
+	if OS.has_feature("web"):
+		BugLook.decorate_simple(self, stats.body_color, stats.body_scale, stats.shell)
+	else:
+		BugLook.decorate(self, stats.body_color, stats.body_scale, stats.shell)
 
 	_build_hpbar()
 	_update_hpbar()   # 生成した瞬間から満タンのHPバー＋数字を出す

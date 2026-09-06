@@ -37,7 +37,8 @@ func _ready() -> void:
 ## プニコンの中心を左下に固定。画面サイズが変わっても置き直す。
 func _update_home() -> void:
 	var vp := get_viewport_rect().size
-	_stick_home = Vector2(STICK_RADIUS + 60.0, vp.y - STICK_RADIUS - 90.0)
+	# 下端(ホームバー/ジェスチャ帯)を避けて少し上げる＝誤爆しにくい
+	_stick_home = Vector2(STICK_RADIUS + 60.0, vp.y - STICK_RADIUS - 120.0)
 	queue_redraw()
 
 

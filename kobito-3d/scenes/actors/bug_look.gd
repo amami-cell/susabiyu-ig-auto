@@ -70,6 +70,28 @@ static func decorate(bug_root: Node3D, color: Color, scale_v: float, shell: bool
 	anim.setup(legs, antennae)
 
 
+## Web用の超軽量版：頭＋目2（＋甲羅）だけ。脚6・触角2・BugAnim を省いてドローコールを
+## 約12→約4に激減。gl_compatibility(Web)は1部品=1ドローコールなので、ボス戦で敵が
+## 十数体出ると効く。見た目は「目のある小さな虫」で成立する。
+static func decorate_simple(bug_root: Node3D, color: Color, scale_v: float, shell: bool) -> void:
+	if bug_root.has_node("InsectRig"):
+		return
+	var rig := Node3D.new()
+	rig.name = "InsectRig"
+	rig.scale = Vector3.ONE * scale_v
+	bug_root.add_child(rig)
+	var skin := color.darkened(0.15)
+	var head := _sphere(rig, "Head", 0.16, skin)
+	head.position = Vector3(0.0, 0.24, -0.28)
+	for sx in [-1.0, 1.0]:
+		var eye := _sphere(head, "Eye", 0.06, Color(0.05, 0.04, 0.04))
+		eye.position = Vector3(0.08 * sx, 0.03, -0.10)
+	if shell:
+		var sh := _sphere(rig, "Shell", 0.3, color.darkened(0.05))
+		sh.scale = Vector3(1.05, 0.62, 1.35)
+		sh.position = Vector3(0.0, 0.28, 0.04)
+
+
 static func _sphere(parent: Node, node_name: String, r: float, c: Color) -> MeshInstance3D:
 	var mi := MeshInstance3D.new()
 	mi.name = node_name

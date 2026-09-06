@@ -146,9 +146,20 @@ func _regen_hp(delta: float) -> void:
 		stats_changed.emit()
 
 
+## このRPCが「サーバ発（またはローカルのcall_local）」かを確かめる。
+## HP・XP・復活はサーバ権威。プレイヤーノードの権威は所有クライアントなので、
+## @rpc("authority") だとサーバ→ゲスト宛が権限違反で落ちる（＝2人プレイでゲストが
+## 被弾・XP・復活しない不具合の原因）。any_peer にして、ここで送信元を1(サーバ)/0(ローカル)に限定する。
+func _from_server() -> bool:
+	var sender := multiplayer.get_remote_sender_id()
+	return sender == 0 or sender == 1
+
+
 ## 敵を癒やしたとき、サーバから呼ばれる：自分も少し回復（癒やす＝自分も癒やされる）。
-@rpc("authority", "call_local", "reliable")
+@rpc("any_peer", "call_local", "reliable")
 func heal_hp(amount: int) -> void:
+	if not _from_server():
+		return
 	if hp <= 0:
 		return
 	hp = mini(max_hp, hp + amount)
@@ -382,8 +393,10 @@ func _server_clean_near(from: Vector3) -> void:
 
 
 ## サーバから呼ばれる：被弾
-@rpc("authority", "call_local", "reliable")
+@rpc("any_peer", "call_local", "reliable")
 func apply_damage(amount: int) -> void:
+	if not _from_server():
+		return
 	if state == State.DOWN or _invuln > 0.0:
 		return   # 無敵時間中は無効＝連続被弾でハメられない
 	hp = maxi(0, hp - amount)
@@ -399,8 +412,10 @@ func apply_damage(amount: int) -> void:
 				rpc("revive"))
 
 
-@rpc("authority", "call_local", "reliable")
+@rpc("any_peer", "call_local", "reliable")
 func revive() -> void:
+	if not _from_server():
+		return
 	hp = max_hp
 	state = State.IDLE
 	_invuln = 2.5   # 復活直後はしっかり無敵＝起き上がりを一方的に殴られない
@@ -408,8 +423,10 @@ func revive() -> void:
 
 
 ## サーバから呼ばれる：経験値
-@rpc("authority", "call_local", "reliable")
+@rpc("any_peer", "call_local", "reliable")
 func gain_xp(amount: int) -> void:
+	if not _from_server():
+		return
 	xp += amount
 	var leveled := false
 	while xp >= xp_to_next():

@@ -273,6 +273,13 @@ func _on_peer_connected(id: int) -> void:
 	for s in get_tree().get_nodes_in_group("seed"):
 		if s.get_parent() == self:
 			rpc_id(id, "_remote_spawn_seed", int(s.name.trim_prefix("Seed")), s.global_position)
+	# 片づけ済みのゴミを「もう無い」と伝える（新規ロードの庭には5個とも復活しているため）
+	for t in get_tree().get_nodes_in_group("trash_all"):
+		if t.has_method("sync_to"):
+			t.sync_to(id)
+	# 今の章の目的・道しるべを配る（後発参加者にも「何をすべきか」を出す）
+	if Chapter.has_method("send_to"):
+		Chapter.send_to(id)
 
 
 # ------------------------------------------------------------ 子ども（追従隊列）
@@ -399,15 +406,12 @@ func _any_player() -> Node3D:
 ## ボスが生み出す小さな虫（アリ）。戦闘を賑やかにしつつ、増えすぎて理不尽/重く
 ## ならないよう「雑魚の数」に上限を設ける。指定位置(ボスの周り)に1体湧かせる。
 const MAX_BOSS_MINIONS := 14
+const MAX_BOSS_MINIONS_WEB := 9   # Webは描画負荷を抑えるため少なめ
 func spawn_minion(pos: Vector3) -> bool:
 	if not _is_server():
 		return false
-	var small := 0
-	for b in _bugs.get_children():
-		var st: Variant = b.get("stats")
-		if st != null and not st.is_midboss:
-			small += 1
-	if small >= MAX_BOSS_MINIONS:
+	var cap := MAX_BOSS_MINIONS_WEB if OS.has_feature("web") else MAX_BOSS_MINIONS
+	if _live_bug_count() >= cap:
 		return false
 	_bug_serial += 1
 	pos.x = clampf(pos.x, -33.0, 33.0)
@@ -422,13 +426,31 @@ func _spawn_bug() -> void:
 	if _bugs.get_child_count() >= MAX_BUGS:
 		return
 	_bug_serial += 1
-	# 回復が進むほどコガネムシ（強いほう）が減る＝掃除の手応え
-	var stats_path := "res://data/ant.tres"
-	if randf() > 0.35 + WorldState.recovery * 0.5:
-		stats_path = "res://data/beetle.tres"
 	# ★プレイヤーの周りに湧かせる★（遠い固定地点だと最後の数体が見つからず“詰み”に見えた）。
 	var pos := _ring_pos_near_player(10.0, 16.0)
-	rpc("_remote_spawn_bug", _bug_serial, stats_path, pos)
+	rpc("_remote_spawn_bug", _bug_serial, _pick_stats_path(), pos)
+
+
+## 湧かせる虫の種類を選ぶ。
+## ★まだ授かっていない「飛行パーツ」を持つ虫を優先的に混ぜる★
+## ＝バッタ/テントウ/チョウ/トンボ/ハチ を癒やすと飛行が段階解禁される（以前は
+## アリ/コガネムシしか湧かず、飛行が永久に解禁されない死にコードだった）。
+const PART_BUGS := {
+	"hop": "batta", "float": "tentou", "glide": "chou", "hover": "tonbo", "lift": "hachi",
+}
+func _pick_stats_path() -> String:
+	var missing: Array = []
+	for part in PART_BUGS:
+		if not WorldState.has_power(part):
+			missing.append(PART_BUGS[part])
+	# まだ飛行が揃っていないうちは、4割で「パーツ持ちの虫」を出す
+	if not missing.is_empty() and randf() < 0.4:
+		return "res://data/%s.tres" % missing[randi() % missing.size()]
+	# それ以外は“汚れの雑魚”。回復が進むほど硬いコガネムシは減る＝掃除の手応え。
+	# 序盤(recovery<0.2)はアリ固定で優しく。
+	if WorldState.recovery >= 0.2 and randf() > 0.35 + WorldState.recovery * 0.5:
+		return "res://data/beetle.tres"
+	return "res://data/ant.tres"
 
 
 ## 詰み防止：プレイヤーのすぐ近くにアリを1体。すぐ見つかる距離に出す。

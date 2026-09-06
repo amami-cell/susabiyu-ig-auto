@@ -19,6 +19,7 @@ var _marker_t := 0.0
 
 func _ready() -> void:
 	add_to_group("trash")
+	add_to_group("trash_all")   # 片づけ後も残す＝後発参加者へ「もう無い」と伝えるため
 	_net_xform = global_transform
 	# サーバ以外は物理を止めて、届いた姿勢に従うだけにする
 	freeze = not (multiplayer.has_multiplayer_peer() and multiplayer.is_server())
@@ -85,6 +86,12 @@ func mark_removed() -> void:
 	_removed = true
 	WorldState.add("trash_removed")
 	rpc("_remote_removed")
+
+
+## 後から参加した人へ「このゴミはもう片づけ済み」を伝える（サーバのみ）。
+func sync_to(id: int) -> void:
+	if _removed:
+		rpc_id(id, "_remote_removed")
 
 
 @rpc("authority", "unreliable_ordered")
