@@ -179,6 +179,44 @@ def _story_for(caption):
         return ""
 
 
+# 料理名の欧文サブ（イタリア語優先）。ナガグツのみ。他店は空。
+_SUB_FN = None
+def _sub_for(caption):
+    global _SUB_FN
+    if _SUB_FN is None:
+        acct = os.environ.get("STORE_ACCOUNT", "").strip().lower()
+        _SUB_FN = (lambda _nm: "")
+        try:
+            if acct == "nagagutsu":
+                import nagagutsu_captions as _nc
+                _SUB_FN = _nc.sub_for
+        except Exception as _e:
+            print("[SUB] 欧文サブ体系スキップ:", _e)
+    try:
+        return _SUB_FN(caption) or ""
+    except Exception:
+        return ""
+
+
+# 表示用の料理名（16文字以上のみ承認済み位置に ｜ 改行マーカーを入れる）。ナガグツのみ。
+_DISP_FN = None
+def _name_disp(caption):
+    global _DISP_FN
+    if _DISP_FN is None:
+        acct = os.environ.get("STORE_ACCOUNT", "").strip().lower()
+        _DISP_FN = (lambda _nm: _nm)
+        try:
+            if acct == "nagagutsu":
+                import nagagutsu_captions as _nc
+                _DISP_FN = _nc.name_broken
+        except Exception as _e:
+            print("[DISP] 改行体系スキップ:", _e)
+    try:
+        return _DISP_FN(caption) or caption
+    except Exception:
+        return caption
+
+
 import re as _re_cap
 def _clean_caption(nm):
     """ファイル名から“ちゃんとした料理名”を作る（ぎふやの _dish_name と同じ思想＋汎用の除去）。
@@ -232,7 +270,8 @@ for idx, f in enumerate(picked):
         _, done = dl.next_chunk()
     buf.close()
     caption = _clean_caption(f["name"])
-    items.append({"src": "typo/" + local, "caption": caption, "story": _story_for(caption)})
+    items.append({"src": "typo/" + local, "caption": caption, "story": _story_for(caption),
+                  "sub": _sub_for(caption), "disp": _name_disp(caption)})
     print("PHOTO %d:" % idx, f["name"], "(短辺", short_side(f), "px)")
 
 import captions
@@ -257,8 +296,9 @@ print("PICKED ->", "out/picked.json")
 music = os.environ.get("FIXED_MUSIC") or music
 lines = ["export const typoPhotos = ["]
 for it in items:
-    lines.append('  { src: "%s", caption: "%s", story: "%s" },'
-                 % (esc(it["src"]), esc(it["caption"]), esc(it.get("story", ""))))
+    lines.append('  { src: "%s", caption: "%s", sub: "%s", story: "%s", disp: "%s" },'
+                 % (esc(it["src"]), esc(it["caption"]), esc(it.get("sub", "")),
+                    esc(it.get("story", "")), esc(it.get("disp", it["caption"]))))
 lines.append("];")
 # サンプル番号（0=本番＝バッジ非表示）。見本レンダリング(render_samples)がテンプレ毎に上書きする。
 lines.append('export const typoSampleNo = 0;')

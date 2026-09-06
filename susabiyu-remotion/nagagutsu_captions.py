@@ -36,6 +36,124 @@ def catch(seed=""):
     return CATCHES[h % len(CATCHES)]
 
 
+# 料理名の上に小さく添える欧文サブ（イタリア語優先／和風メニューは英語）。
+# 大文字・字間広めの欧文セリフ(Cormorant)で"メニュー表"の品を出す。全55品を手書き。
+SUBS = {
+    "MIXアヒージョ": "AJILLO MISTO",
+    "マッシュルーム・ドライトマトのアヒージョ": "AJILLO FUNGHI E POMODORI",
+    "海老とブロッコリーのアヒージョ": "AJILLO GAMBERI E BROCCOLI",
+    "蛸とポテトのアヒージョ": "AJILLO POLPO E PATATE",
+    "たっぷりガーリックのポモドーロ": "POMODORO ALL'AGLIO",
+    "アーリオ・オーリオ・エ・ペペロンチーノ": "AGLIO OLIO E PEPERONCINO",
+    "カチョエペペ": "CACIO E PEPE",
+    "カルボナーラ": "CARBONARA",
+    "ペスカトーレ": "PESCATORE",
+    "ペンネゴルゴンゾーラ": "PENNE AL GORGONZOLA",
+    "ワタリガニのビスクソースパスタ": "PASTA ALLA BISQUE DI GRANCHIO",
+    "淡路牛のボロネーゼ": "BOLOGNESE DI MANZO AWAJI",
+    "海老ジェノベーゼニョッキ": "GNOCCHI GENOVESE E GAMBERI",
+    "揚げニョッキ　アンチョビバターソース": "GNOCCHI FRITTI, BURRO E ACCIUGHE",
+    "和牛すね肉の赤ワイン煮込み": "BRASATO DI WAGYU AL VINO ROSSO",
+    "牛肩ロースのステーキ　バルサミコソース": "BISTECCA DI MANZO AL BALSAMICO",
+    "豚肩ロースのソテー　トマトソース": "MAIALE AL POMODORO",
+    "グリルケバブ": "KEBAB ALLA GRIGLIA",
+    "ケバブポテト": "PATATE KEBAB",
+    "サーモンカルパッチョ　サラダ仕立て": "CARPACCIO DI SALMONE",
+    "蛸とセロリのマリネ　シチリア風": "POLPO E SEDANO ALLA SICILIANA",
+    "ブロッコリーのしらすのマリナート": "BROCCOLI E SHIRASU MARINATI",
+    "ムール貝白ワイン蒸し": "COZZE AL VINO BIANCO",
+    "オイルサーディン": "SARDINE SOTT'OLIO",
+    "エビフリット": "GAMBERI FRITTI",
+    "タコフリット": "POLPO FRITTO",
+    "山芋フリット": "YAMAIMO FRITTO",
+    "イカスミリゾットのアランチーニ": "ARANCINI AL NERO DI SEPPIA",
+    "ポテトフライ": "PATATINE FRITTE",
+    "きゅうりピクルス": "CETRIOLI SOTT'ACETO",
+    "アンチョビキャベツ": "CAVOLO E ACCIUGHE",
+    "クミン香るキャロットラペ": "CAROTE AL CUMINO",
+    "グリーンサラダ": "INSALATA VERDE",
+    "カプレーゼ": "CAPRESE",
+    "枝豆ペペロンチーノ": "EDAMAME AL PEPERONCINO",
+    "茄子のハーブトマト焼き": "MELANZANE AL POMODORO E ERBE",
+    "エリンギのソテーガーリックバターソース": "FUNGHI ERINGI, BURRO E AGLIO",
+    "玉ねぎ　キャラメルオニオンバター": "CIPOLLA CARAMELLATA AL BURRO",
+    "山芋チーズグラタン": "GRATIN DI YAMAIMO E FORMAGGIO",
+    "スペイン風オムレツ": "FRITTATA SPAGNOLA",
+    "前菜盛り合わせ": "ANTIPASTO MISTO",
+    "チーズ盛り合わせ": "TAGLIERE DI FORMAGGI",
+    "生ハム切り落とし": "PROSCIUTTO CRUDO",
+    "オリーブ盛り合わせ": "OLIVE MISTE",
+    "ミックスナッツ": "NOCI MISTE",
+    "レーズンバター": "BURRO E UVETTA",
+    "ポテトサラダ": "INSALATA DI PATATE",
+    "バケット": "BAGUETTE",
+    "カタラーナ": "CREMA CATALANA",
+    "ティラミス": "TIRAMISÙ",
+    "ジェラート": "GELATO",
+    "ブラウニー": "BROWNIE",
+    "ミルクレープ": "MILLE CRÊPE",
+    "本日のタルト": "TORTA DEL GIORNO",
+    "蜜揚げさつまいも　ハニーバター": "PATATA DOLCE AL MIELE",
+}
+
+# カテゴリ別フォールバック（表に無い新メニュー用）。
+_SUB_CATS = [
+    ("アヒージョ", "AJILLO"), ("ペペロンチーノ", "PEPERONCINO"), ("パスタ", "PASTA"),
+    ("ニョッキ", "GNOCCHI"), ("リゾット", "RISOTTO"), ("ステーキ", "BISTECCA"),
+    ("ソテー", "SALTATO"), ("カルパッチョ", "CARPACCIO"), ("マリネ", "MARINATO"),
+    ("フリット", "FRITTO"), ("フライ", "FRITTO"), ("サラダ", "INSALATA"),
+    ("ピクルス", "SOTT'ACETO"), ("グラタン", "GRATIN"), ("オムレツ", "FRITTATA"),
+    ("盛り合わせ", "MISTO"), ("チーズ", "FORMAGGIO"), ("生ハム", "PROSCIUTTO"),
+    ("タルト", "TORTA"), ("ケバブ", "KEBAB"),
+]
+
+
+# clean() は全角スペースを半角に正規化するため、キーも clean() 済みで引く（＝取りこぼし防止）。
+# clean はこの位置より下で定義されるので遅延構築する。
+_SUBS_N = None
+
+
+def sub_for(name):
+    global _SUBS_N
+    if _SUBS_N is None:
+        _SUBS_N = {clean(k): v for k, v in SUBS.items()}
+    d = clean(name)
+    if d in _SUBS_N:
+        return _SUBS_N[d]
+    for kw, en in _SUB_CATS:
+        if kw in d:
+            return en
+    return "MEAT BAR"
+
+
+# 2行にせざるを得ない“長い料理名（16文字以上）”の区切り位置（承認済み）。
+# ｜が改行位置。15文字以下は区切らず、描画側の自動フィットで1行に収める。
+BREAKS = {
+    "マッシュルーム・ドライトマトのアヒージョ": "マッシュルーム・｜ドライトマトのアヒージョ",
+    "アーリオ・オーリオ・エ・ペペロンチーノ": "アーリオ・オーリオ・｜エ・ペペロンチーノ",
+    "牛肩ロースのステーキ　バルサミコソース": "牛肩ロースのステーキ｜バルサミコソース",
+    "エリンギのソテーガーリックバターソース": "エリンギのソテー｜ガーリックバターソース",
+    "揚げニョッキ　アンチョビバターソース": "揚げニョッキ｜アンチョビバターソース",
+    "サーモンカルパッチョ　サラダ仕立て": "サーモンカルパッチョ｜サラダ仕立て",
+    "豚肩ロースのソテー　トマトソース": "豚肩ロースのソテー｜トマトソース",
+    "玉ねぎ　キャラメルオニオンバター": "玉ねぎ｜キャラメルオニオンバター",
+    "ブロッコリーのしらすのマリナート": "ブロッコリーの｜しらすのマリナート",
+}
+
+
+_BREAKS_N = None
+
+
+def name_broken(name):
+    """表示用の料理名。16文字以上の長い名前だけ承認済みの位置に ｜（改行マーカー）を入れて返す。
+    15文字以下は ｜ を入れず、描画側の自動フィットで1行に収める（全角スペースはそのまま空白）。"""
+    global _BREAKS_N
+    if _BREAKS_N is None:
+        _BREAKS_N = {clean(k): v for k, v in BREAKS.items()}
+    d = clean(name)
+    return _BREAKS_N.get(d, d)
+
+
 def clean(name):
     return re.sub(r"\s+", " ", re.sub(r"[_＿]", "　", str(name or ""))).strip()
 

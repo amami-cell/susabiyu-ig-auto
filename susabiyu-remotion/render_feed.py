@@ -15,14 +15,14 @@ import stores, poster
 
 # YoshokuFeed.tsx の FEED_COMPS と一致させる（id・ラベル）。
 FEED_COMPS = [
-    ("YoshokuFeedA", "フィード案A・エディトリアル(上写真＋下パネル)"),
-    ("YoshokuFeedB", "フィード案B・シネマ(全面写真＋大見出し)"),
-    ("YoshokuFeedC", "フィード案C・黒板トラットリア(額装)"),
-    ("YoshokuFeedD", "フィード案D・金枠ミニマル(中央写真)"),
-    ("YoshokuFeedE", "フィード案E・スプリット(左写真右テキスト)"),
-    ("YoshokuFeedF", "フィード案F・ポラロイド(卓上)"),
-    ("YoshokuFeedG", "フィード案G・本日のおすすめ帯(販促)"),
-    ("YoshokuFeedH", "フィード案H・大タイポ＋インセット写真"),
+    ("YoshokuFeedA", "フィード案A・フルブリード×ボトム暗幕(定番)"),
+    ("YoshokuFeedB", "フィード案B・ボトムバンド・エディトリアル"),
+    ("YoshokuFeedC", "フィード案C・カラースラブ分割(テラコッタ面)"),
+    ("YoshokuFeedD", "フィード案D・縦組み特大明朝"),
+    ("YoshokuFeedE", "フィード案E・サイドレール・ブランド"),
+    ("YoshokuFeedF", "フィード案F・テラコッタ帯(本日のおすすめ)"),
+    ("YoshokuFeedG", "フィード案G・マガジン・エディトリアル"),
+    ("YoshokuFeedH", "フィード案H・大タイポ・カバー"),
 ]
 
 

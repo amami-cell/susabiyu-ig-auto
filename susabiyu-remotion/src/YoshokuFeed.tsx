@@ -1,11 +1,16 @@
-// 洋食フィード投稿画像テンプレ集（4:5＝1080×1350・静止画）。
-// ストーリー(9:16)とは別に、フィード投稿1枚絵の“デザイン候補”を複数パターン用意する。
-// 静止画なので入場アニメは使わず「完成状態」で組む（どのフレームでも同じ見た目）。
-// 料理写真＝typoPhotos[0]、料理名＝caption、短句＝story を各パターンが別レイアウトで見せる。
+// 洋食フィード投稿画像テンプレ集（4:5＝1080×1350・静止画）を全面刷新。
+// 3人のプロ監査（インフルエンサー／F&B AD／タイポデザイナー）の一致点を反映：
+//  ① 料理を主役に（フルブリード or 74%）。料理を小さく額装しない。
+//  ② 文字は“ベタ下地の上”で極太（Noto Serif JP Black=minchoBlack）。薄いグラデ頼みにしない。
+//  ③ テラコッタは「1枚1焦点」。大面積の塗りは深い #C9542E(slab)、小焦点は #E0673A(accent)。
+//  ④ IGグリッドは4:5を中央1:1にクロップ→主役は安全帯 y[150,1200] に収める（上端/下端に核を置かない）。
+//  ⑤ 和文＝明朝、ラテン/数字＝Cormorant（欧文専用）。和文をserifで描かない（従来バグの修正）。
+//  ⑥ 料理写真は contrast/saturate を足してシズルを立てる。
+// 料理名＝disp（16文字以上のみ ｜ で2行、15文字以下は自動フィットで1行）、欧文サブ＝sub（伊語優先）。
 import { AbsoluteFill, Img, staticFile } from "remotion";
-import { typoPhotos, typoCatch } from "./typoData";
+import { typoPhotos } from "./typoData";
 import { ytheme } from "./yoshokuTheme";
-import { mincho, serif, Grain, Vignette, StoreLogo, splitLines, heroSize } from "./yoshokuDesign";
+import { mincho, minchoBlack, serif, Grain, Vignette, WarmGlow, StoreLogo, splitLines } from "./yoshokuDesign";
 
 export const FEED_W = 1080;
 export const FEED_H = 1350;
@@ -13,209 +18,265 @@ export const FEED_DUR = 1; // 静止画（stillで1フレーム抜く）
 
 type P = { storeName?: string; handle?: string; theme?: string };
 const D = { storeName: "ナガグツ", handle: "@nagagutsu0427", theme: "italian" };
+const SIDE = 64;
 
 function dish() {
-  return typoPhotos[0] || { src: "", caption: "", story: "" };
+  return typoPhotos[0] || { src: "", caption: "", sub: "", story: "", disp: "" };
 }
-const Photo: React.FC<{ src: string; pos?: string; bri?: number; sat?: number; style?: React.CSSProperties }> = ({ src, pos, bri = 1, sat = 1.06, style }) => (
-  <Img src={staticFile(src)} style={{ width: "100%", height: "100%", objectFit: "cover", objectPosition: pos || "center", filter: "brightness(" + bri + ") saturate(" + sat + ")", ...style }} />
-);
-function Name({ text, size, color, ls = 1, lh = 1.16, shadow }: { text: string; size: number; color: string; ls?: number; lh?: number; shadow?: string }) {
-  const lines = splitLines(text);
+function dispName(d: { disp?: string; caption?: string }) {
+  return (d.disp && d.disp.length ? d.disp : (d.caption || ""));
+}
+function jlen(s: string) { return Array.from(s || "").length; }
+
+// 料理写真（肉のシズル用に contrast/saturate を付与）。
+const Photo: React.FC<{ src: string; pos?: string; bri?: number; sat?: number; con?: number; style?: React.CSSProperties }> =
+  ({ src, pos, bri = 1.02, sat = 1.15, con = 1.10, style }) => (
+    <Img src={staticFile(src)} style={{
+      width: "100%", height: "100%", objectFit: "cover", objectPosition: pos || "center",
+      filter: "brightness(" + bri + ") saturate(" + sat + ") contrast(" + con + ")", ...style,
+    }} />
+  );
+
+// 幅に合わせて1行に収まるフォントサイズを自動決定（＝“大きさは保ちつつ長い名前は少し詰める”）。
+// ｜がある名前は2行として一番長い行で計算する。minPx未満にはしない。
+function fitSize(text: string, maxPx: number, usableW: number, minPx = 46) {
+  const arr = splitLines(text); const lines = arr.length ? arr : [text];
+  const longest = Math.max(1, ...lines.map(jlen));
+  return Math.max(minPx, Math.min(maxPx, Math.floor(usableW / longest)));
+}
+
+// 欧文サブ（小・Cormorant・大文字）＋極太明朝の料理名。横組み。
+const HeroName: React.FC<{
+  text: string; sub?: string; maxPx: number; usableW: number; color: string;
+  subColor: string; align?: "left" | "center"; shadow?: string; minPx?: number;
+}> = ({ text, sub, maxPx, usableW, color, subColor, align = "left", shadow, minPx = 46 }) => {
+  const arr = splitLines(text); const lines = arr.length ? arr : [text];
+  const size = fitSize(text, maxPx, usableW, minPx);
+  const subSize = Math.max(20, Math.min(30, Math.round(size * 0.24)));
   return (
-    <div style={{ fontFamily: mincho, color, fontSize: size, fontWeight: 700, letterSpacing: ls, lineHeight: lh, textShadow: shadow }}>
-      {lines.length ? lines.map((l, i) => <div key={i}>{l}</div>) : text}
+    <div style={{ textAlign: align }}>
+      {sub ? (
+        <div style={{ fontFamily: serif, color: subColor, fontSize: subSize, letterSpacing: 4, textTransform: "uppercase", fontWeight: 600, lineHeight: 1.1, marginBottom: Math.round(size * 0.12), textShadow: shadow }}>{sub}</div>
+      ) : null}
+      <div style={{ fontFamily: minchoBlack, fontWeight: 900, color, fontSize: size, lineHeight: 1.06, letterSpacing: -2, textShadow: shadow }}>
+        {lines.map((l, i) => <div key={i}>{l}</div>)}
+      </div>
     </div>
   );
-}
-// ブランドの一言キャッチ（typoCatch）。料理名とは別軸の店の世界観コピーを小さく添える。空なら何も描かない。
-function Catch({ color, size = 30, center, mb = 0, mt = 0, shadow }: { color: string; size?: number; center?: boolean; mb?: number; mt?: number; shadow?: string }) {
-  if (!typoCatch) return null;
-  return <div style={{ fontFamily: serif, fontStyle: "italic", color, fontSize: size, letterSpacing: 3, textAlign: center ? "center" : "left", marginBottom: mb, marginTop: mt, textShadow: shadow }}>{typoCatch}</div>;
-}
+};
 
-// ①エディトリアル：上に写真、下は生成りパネルに料理名＋短句＋ロゴ（王道・清潔）
+// 縦組みの極太明朝（案D用）。availHに合わせてサイズを決め、｜は2列（右→左）で描く。
+const VName: React.FC<{ text: string; color: string; maxPx: number; availH: number; shadow?: string }> =
+  ({ text, color, maxPx, availH, shadow }) => {
+    const arr = splitLines(text); const lines = arr.length ? arr : [text];
+    const longest = Math.max(1, ...lines.map(jlen));
+    const size = Math.max(48, Math.min(maxPx, Math.floor(availH / longest)));
+    return (
+      <div style={{ display: "flex", flexDirection: "row-reverse", gap: Math.round(size * 0.1) }}>
+        {lines.map((l, i) => (
+          <div key={i} style={{ writingMode: "vertical-rl", fontFamily: minchoBlack, fontWeight: 900, color, fontSize: size, letterSpacing: -2, lineHeight: 1, textShadow: shadow }}>{l}</div>
+        ))}
+      </div>
+    );
+  };
+
+// ブランド・ロックアップ（左上・安全帯内）。ロゴ画像があれば横ロゴ、無ければ明朝で店名（＝和文serifバグ回避）。
+const Brand: React.FC<{ storeName: string; accent: string; tint?: string; logoH?: number; kicker?: string; shadow?: string; center?: boolean }> =
+  ({ storeName, accent, tint = "#F6EFE0", logoH = 66, kicker = "MEAT BAR", shadow, center = false }) => (
+    <div style={{ display: "flex", flexDirection: "column", alignItems: center ? "center" : "flex-start", gap: 8 }}>
+      <StoreLogo storeName={storeName} height={logoH} tint={tint} />
+      <div style={{ fontFamily: serif, color: accent, fontSize: 20, letterSpacing: 6, textTransform: "uppercase", fontWeight: 600, textShadow: shadow }}>{kicker}</div>
+    </div>
+  );
+
+const Handle: React.FC<{ handle: string; color: string; shadow?: string }> = ({ handle, color, shadow }) => (
+  <div style={{ position: "absolute", right: SIDE, bottom: 54, fontFamily: serif, color, fontSize: 24, letterSpacing: 3, textShadow: shadow }}>{handle}</div>
+);
+
+const NAME_SHADOW = "0 3px 22px rgba(0,0,0,0.85)";
+
+// ①A フルブリード×ボトム暗幕（定番・最強のデフォルト）
 export const YoshokuFeedA: React.FC<P> = ({ storeName = D.storeName, handle = D.handle, theme = D.theme }) => {
-  const T = ytheme(theme); const d = dish(); const sz = heroSize(d.caption, 78, 52);
+  const T = ytheme(theme); const d = dish();
   return (
     <AbsoluteFill style={{ backgroundColor: T.base }}>
-      <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: 858, overflow: "hidden" }}>
-        <Photo src={d.src} />
-        <AbsoluteFill style={{ background: "linear-gradient(180deg, rgba(0,0,0,0.18) 0%, rgba(0,0,0,0) 30%)" }} />
+      <Photo src={d.src} />
+      <AbsoluteFill style={{ background: "linear-gradient(180deg, rgba(0,0,0,0.42) 0%, rgba(0,0,0,0) 22%, rgba(0,0,0,0) 46%, rgba(18,13,8,0.92) 88%, " + T.footBase + " 100%)" }} />
+      <div style={{ position: "absolute", top: 150, left: SIDE }}>
+        <Brand storeName={storeName} accent={T.accent} shadow={NAME_SHADOW} />
       </div>
-      <div style={{ position: "absolute", top: 30, left: 40, fontFamily: serif, color: "#fff", fontSize: 26, letterSpacing: 6, textShadow: "0 2px 10px rgba(0,0,0,0.5)" }}>{T.label}</div>
-      <div style={{ position: "absolute", top: 858, left: 0, right: 0, bottom: 0, padding: "44px 56px", display: "flex", flexDirection: "column", justifyContent: "center" }}>
-        <div style={{ width: 92, height: 3, background: T.accent, marginBottom: 18 }} />
-        <Catch color={T.accent} size={30} mb={12} />
-        <Name text={d.caption} size={sz} color={T.ink} />
-        {d.story ? <div style={{ marginTop: 14, fontFamily: mincho, color: T.sub, fontSize: 34, letterSpacing: 2 }}>{d.story}</div> : null}
-        <div style={{ marginTop: 22, fontFamily: serif, color: T.accent, fontSize: 26, letterSpacing: 4 }}>{storeName}　{handle}</div>
+      <div style={{ position: "absolute", left: SIDE, right: SIDE, bottom: 150 }}>
+        <div style={{ width: 84, height: 6, background: T.accent, marginBottom: 20 }} />
+        <HeroName text={dispName(d)} sub={d.sub} maxPx={150} usableW={FEED_W - SIDE * 2} color={T.ink} subColor={T.accent} shadow={NAME_SHADOW} />
       </div>
-      <Grain opacity={0.04} />
+      <Handle handle={handle} color={T.sub} shadow={NAME_SHADOW} />
+      <WarmGlow /><Vignette strength={0.34} /><Grain opacity={0.05} />
     </AbsoluteFill>
   );
 };
 
-// ②シネマ：全面写真＋下グラデに大きな料理名（写真主役・迫力）
+// ②B ボトムバンド・エディトリアル（写真74%＋ベタ帯・清潔で読みやすい）
 export const YoshokuFeedB: React.FC<P> = ({ storeName = D.storeName, handle = D.handle, theme = D.theme }) => {
-  const T = ytheme(theme); const d = dish(); const sz = heroSize(d.caption, 92, 58);
-  return (
-    <AbsoluteFill style={{ backgroundColor: "#000" }}>
-      <Photo src={d.src} bri={1.0} />
-      <AbsoluteFill style={{ background: "linear-gradient(180deg, rgba(0,0,0,0.4) 0%, rgba(0,0,0,0) 30%, rgba(0,0,0,0.05) 55%, rgba(0,0,0,0.85) 100%)" }} />
-      <div style={{ position: "absolute", top: 34, left: 44, display: "flex", alignItems: "center", gap: 14 }}>
-        <StoreLogo storeName={storeName} height={58} tint="#fff" />
-      </div>
-      <div style={{ position: "absolute", left: 56, right: 56, bottom: 60 }}>
-        <div style={{ width: 84, height: 3, background: T.accent, marginBottom: 16 }} />
-        <Catch color={T.accent} size={30} mb={12} shadow="0 2px 16px rgba(0,0,0,0.85)" />
-        <Name text={d.caption} size={sz} color="#fff" shadow="0 3px 24px rgba(0,0,0,0.8)" />
-        {d.story ? <div style={{ marginTop: 12, fontFamily: mincho, color: "#F3E7CF", fontSize: 34, letterSpacing: 2, textShadow: "0 2px 16px rgba(0,0,0,0.8)" }}>{d.story}</div> : null}
-        <div style={{ marginTop: 18, fontFamily: serif, color: T.accent, fontSize: 25, letterSpacing: 4 }}>{handle}</div>
-      </div>
-      <Vignette strength={0.4} />
-      <Grain opacity={0.05} />
-    </AbsoluteFill>
-  );
-};
-
-// ③黒板トラットリア：濃緑の黒板に額装写真＋白チョーク文字（親しみ×高級）
-export const YoshokuFeedC: React.FC<P> = ({ storeName = D.storeName, handle = D.handle, theme = D.theme }) => {
-  const T = ytheme(theme); const d = dish(); const sz = heroSize(d.caption, 76, 50);
-  return (
-    <AbsoluteFill style={{ backgroundColor: "#12181a" }}>
-      <AbsoluteFill style={{ background: "radial-gradient(120% 90% at 50% 22%, #223029 0%, #141c1d 55%, #0a0f10 100%)" }} />
-      <AbsoluteFill style={{ opacity: 0.05, backgroundImage: "repeating-linear-gradient(135deg, rgba(255,255,255,0.5) 0 1px, transparent 1px 22px)" }} />
-      <div style={{ position: "absolute", inset: 40, border: "1px solid " + T.accent + "66", borderRadius: 8 }} />
-      <div style={{ position: "absolute", top: 66, left: 0, right: 0, textAlign: "center", fontFamily: serif, fontStyle: "italic", color: "#EFEDE4", fontSize: 40, letterSpacing: 6 }}>{T.label}</div>
-      <div style={{ position: "absolute", top: 150, left: 0, right: 0, textAlign: "center", padding: "0 70px" }}>
-        <div style={{ display: "inline-block" }}><Name text={d.caption} size={sz} color="#F4F2EA" ls={2} shadow="0 1px 0 rgba(255,255,255,0.2),0 4px 18px rgba(0,0,0,0.5)" /></div>
-        {d.story ? <div style={{ marginTop: 12, fontFamily: serif, fontStyle: "italic", color: T.accent, fontSize: 32, letterSpacing: 3 }}>{d.story}</div> : null}
-        <Catch color={T.accent} size={28} center mt={10} />
-      </div>
-      <div style={{ position: "absolute", top: 470, left: 165, width: 750, height: 640 }}>
-        <div style={{ position: "absolute", inset: 0, background: "#F3EEE2", borderRadius: 6, padding: 16, boxShadow: "0 30px 66px rgba(0,0,0,0.6)" }}>
-          <div style={{ position: "absolute", inset: 16, border: "1px solid rgba(150,120,60,0.55)", borderRadius: 3, overflow: "hidden" }}><Photo src={d.src} /></div>
-        </div>
-      </div>
-      <div style={{ position: "absolute", left: 0, right: 0, bottom: 66, textAlign: "center", fontFamily: serif, color: T.accent, fontSize: 26, letterSpacing: 5 }}>{storeName}　{handle}</div>
-      <Grain opacity={0.08} />
-    </AbsoluteFill>
-  );
-};
-
-// ④金枠ミニマル：中央に写真、細い金枠、上下に料理名＋短句（上品・静か）
-export const YoshokuFeedD: React.FC<P> = ({ storeName = D.storeName, handle = D.handle, theme = D.theme }) => {
-  const T = ytheme(theme); const d = dish(); const sz = heroSize(d.caption, 70, 48);
+  const T = ytheme(theme); const d = dish();
   return (
     <AbsoluteFill style={{ backgroundColor: T.footBase }}>
-      <div style={{ position: "absolute", inset: 46, border: "1px solid " + T.accent + "55" }} />
-      <div style={{ position: "absolute", top: 96, left: 0, right: 0, textAlign: "center", fontFamily: serif, color: T.accent, fontSize: 26, letterSpacing: 8 }}>{T.label}</div>
-      <div style={{ position: "absolute", top: 175, left: 150, width: 780, height: 780 }}>
-        <div style={{ position: "absolute", inset: 0, border: "1px solid " + T.accent + "aa", overflow: "hidden" }}><Photo src={d.src} /></div>
+      <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: 1000, overflow: "hidden" }}>
+        <Photo src={d.src} />
+        <AbsoluteFill style={{ background: "linear-gradient(180deg, rgba(0,0,0,0.35) 0%, rgba(0,0,0,0) 26%)" }} />
       </div>
-      <div style={{ position: "absolute", top: 1000, left: 0, right: 0, textAlign: "center", padding: "0 80px" }}>
-        <Catch color={T.accent} size={28} center mb={10} />
-        <div style={{ display: "inline-block" }}><Name text={d.caption} size={sz} color={T.ink} ls={2} /></div>
-        {d.story ? <div style={{ marginTop: 12, fontFamily: mincho, color: T.sub, fontSize: 30, letterSpacing: 2 }}>{d.story}</div> : null}
+      <div style={{ position: "absolute", top: 150, left: SIDE }}>
+        <Brand storeName={storeName} accent={T.accent} shadow={NAME_SHADOW} />
       </div>
-      <div style={{ position: "absolute", left: 0, right: 0, bottom: 70, textAlign: "center", fontFamily: serif, color: T.accent, fontSize: 24, letterSpacing: 5 }}>{handle}</div>
-      <Grain opacity={0.04} />
-    </AbsoluteFill>
-  );
-};
-
-// ⑤スプリット：左に写真／右に生成りパネルで料理名＋短句（雑誌の見開き風）
-export const YoshokuFeedE: React.FC<P> = ({ storeName = D.storeName, handle = D.handle, theme = D.theme }) => {
-  const T = ytheme(theme); const d = dish(); const sz = heroSize(d.caption, 64, 46);
-  return (
-    <AbsoluteFill style={{ backgroundColor: T.base }}>
-      <div style={{ position: "absolute", top: 0, bottom: 0, left: 0, width: 620, overflow: "hidden" }}><Photo src={d.src} /></div>
-      <div style={{ position: "absolute", top: 0, bottom: 0, left: 620, right: 0, padding: "0 46px", display: "flex", flexDirection: "column", justifyContent: "center" }}>
-        <div style={{ fontFamily: serif, color: T.accent, fontSize: 24, letterSpacing: 6, marginBottom: 18 }}>{T.label}</div>
-        <Name text={d.caption} size={sz} color={T.ink} ls={1} lh={1.24} />
-        {d.story ? <div style={{ marginTop: 16, fontFamily: mincho, color: T.sub, fontSize: 30, letterSpacing: 1 }}>{d.story}</div> : null}
-        <Catch color={T.accent} size={28} mt={16} />
-        <div style={{ marginTop: 22, width: 70, height: 3, background: T.accent }} />
-        <div style={{ marginTop: 22, fontFamily: serif, color: T.accent, fontSize: 24, letterSpacing: 4 }}>{storeName}</div>
-        <div style={{ marginTop: 4, fontFamily: serif, color: T.sub, fontSize: 22, letterSpacing: 3 }}>{handle}</div>
-      </div>
-      <Grain opacity={0.04} />
-    </AbsoluteFill>
-  );
-};
-
-// ⑥ポラロイド：温かい卓上に1枚のポラロイド（親しみ・SNS映え）
-export const YoshokuFeedF: React.FC<P> = ({ storeName = D.storeName, handle = D.handle, theme = D.theme }) => {
-  const T = ytheme(theme); const d = dish(); const sz = heroSize(d.caption, 52, 40);
-  return (
-    <AbsoluteFill>
-      <AbsoluteFill style={{ background: "radial-gradient(120% 90% at 50% 42%, #3c2e22 0%, #2a2016 52%, #1c150e 100%)" }} />
-      <AbsoluteFill style={{ opacity: 0.05, backgroundImage: "repeating-linear-gradient(90deg, rgba(255,240,220,0.5) 0 1px, transparent 1px 30px)" }} />
-      <div style={{ position: "absolute", top: 70, left: 0, right: 0, textAlign: "center", fontFamily: serif, color: T.accent, fontSize: 30, letterSpacing: 8 }}>{T.label}</div>
-      <div style={{ position: "absolute", left: "50%", top: 150, transform: "translateX(-50%) rotate(-2.5deg)", width: 760, background: "#FBF7EE", padding: "26px 26px 0", borderRadius: 6, boxShadow: "0 30px 70px rgba(0,0,0,0.6)" }}>
-        <div style={{ width: 708, height: 708, overflow: "hidden", background: "#000" }}><Photo src={d.src} /></div>
-        <div style={{ minHeight: 150, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 8, padding: "10px 16px" }}>
-          <div style={{ fontFamily: mincho, color: "#2a2420", fontSize: sz, fontWeight: 700, textAlign: "center", letterSpacing: 1 }}>{d.caption}</div>
-          {d.story ? <div style={{ fontFamily: mincho, color: "#7a6748", fontSize: 26, letterSpacing: 1 }}>{d.story}</div> : null}
-          <Catch color="#B0481F" size={24} center mt={2} />
+      <div style={{ position: "absolute", left: SIDE, right: SIDE, top: 1000, bottom: 0, display: "flex", alignItems: "center" }}>
+        <div style={{ width: 6, alignSelf: "stretch", background: T.accent, margin: "44px 0" }} />
+        <div style={{ marginLeft: 30, flex: 1 }}>
+          <HeroName text={dispName(d)} sub={d.sub} maxPx={92} usableW={FEED_W - SIDE * 2 - 36} color={T.ink} subColor={T.accent} />
         </div>
       </div>
-      <div style={{ position: "absolute", left: 0, right: 0, bottom: 56, textAlign: "center", fontFamily: serif, color: "#EFE3CE", fontSize: 26, letterSpacing: 5 }}>{storeName}　{handle}</div>
-      <Grain opacity={0.09} />
+      <Handle handle={handle} color={T.sub} />
+      <Grain opacity={0.04} />
     </AbsoluteFill>
   );
 };
 
-// ⑦販促「本日のおすすめ」：上に帯、写真主役、下に料理名＋短句（集客向き）
-export const YoshokuFeedG: React.FC<P> = ({ storeName = D.storeName, handle = D.handle, theme = D.theme }) => {
-  const T = ytheme(theme); const d = dish(); const sz = heroSize(d.caption, 80, 54);
+// ③C カラースラブ分割（テラコッタのベタ面＋ノックアウト特大料理名／グリッドで色が殴る）
+export const YoshokuFeedC: React.FC<P> = ({ storeName = D.storeName, handle = D.handle, theme = D.theme }) => {
+  const T = ytheme(theme); const d = dish(); const SLAB = 486;
   return (
-    <AbsoluteFill style={{ backgroundColor: "#000" }}>
-      <Photo src={d.src} />
-      <AbsoluteFill style={{ background: "linear-gradient(180deg, rgba(0,0,0,0.55) 0%, rgba(0,0,0,0) 34%, rgba(0,0,0,0.1) 58%, rgba(0,0,0,0.86) 100%)" }} />
-      <div style={{ position: "absolute", top: 54, left: "50%", transform: "translateX(-50%)", padding: "12px 34px", border: "1px solid " + T.accent, borderRadius: 999, background: "rgba(10,10,12,0.4)" }}>
-        <span style={{ fontFamily: mincho, color: "#fff", fontSize: 34, fontWeight: 700, letterSpacing: 6 }}>本日のおすすめ</span>
+    <AbsoluteFill style={{ backgroundColor: T.slab }}>
+      <div style={{ position: "absolute", top: 0, bottom: 0, left: SLAB, right: 0, overflow: "hidden" }}>
+        <Photo src={d.src} />
       </div>
-      <div style={{ position: "absolute", left: 56, right: 56, bottom: 66, textAlign: "center" }}>
-        <Catch color={T.accent} size={30} center mb={10} shadow="0 2px 16px rgba(0,0,0,0.85)" />
-        <div style={{ display: "inline-block" }}><Name text={d.caption} size={sz} color="#fff" ls={1} shadow="0 3px 22px rgba(0,0,0,0.8)" /></div>
-        {d.story ? <div style={{ marginTop: 12, fontFamily: serif, fontStyle: "italic", color: T.accent, fontSize: 34, letterSpacing: 2 }}>{d.story}</div> : null}
-        <div style={{ marginTop: 16, fontFamily: serif, color: "#EDE4D2", fontSize: 25, letterSpacing: 4 }}>{storeName}　{handle}</div>
+      <div style={{ position: "absolute", top: 0, bottom: 0, left: 0, width: SLAB, background: T.slab }} />
+      <div style={{ position: "absolute", top: 150, left: 48 }}>
+        <Brand storeName={storeName} accent="#F6EFE0" tint="#F6EFE0" kicker="MEAT BAR" />
       </div>
-      <Vignette strength={0.44} />
+      <div style={{ position: "absolute", left: 48, width: SLAB - 84, top: 320 }}>
+        <HeroName text={dispName(d)} sub={d.sub} maxPx={118} usableW={SLAB - 96} color="#FDF6EA" subColor="rgba(253,246,234,0.85)" />
+      </div>
+      <div style={{ position: "absolute", left: 48, bottom: 60, fontFamily: serif, color: "rgba(253,246,234,0.9)", fontSize: 24, letterSpacing: 3 }}>{handle}</div>
       <Grain opacity={0.05} />
     </AbsoluteFill>
   );
 };
 
-// ⑧大タイポ＋インセット写真：上にキャッチ大、下に小さめ写真枠（雑誌カバー風）
+// ④D 縦組み特大明朝×半身シズル（フィードで珍しい縦組み＝パターン割り込み）
+export const YoshokuFeedD: React.FC<P> = ({ storeName = D.storeName, handle = D.handle, theme = D.theme }) => {
+  const T = ytheme(theme); const d = dish();
+  return (
+    <AbsoluteFill style={{ backgroundColor: T.base }}>
+      <Photo src={d.src} pos="70% 50%" />
+      <AbsoluteFill style={{ background: "linear-gradient(90deg, " + T.base + "F2 0%, " + T.base + "99 30%, rgba(0,0,0,0) 58%)" }} />
+      <div style={{ position: "absolute", top: 150, left: SIDE }}>
+        <Brand storeName={storeName} accent={T.accent} shadow={NAME_SHADOW} />
+      </div>
+      {d.sub ? <div style={{ position: "absolute", top: 300, left: SIDE, fontFamily: serif, color: T.accent, fontSize: 26, letterSpacing: 5, textTransform: "uppercase", fontWeight: 600, maxWidth: 360, textShadow: NAME_SHADOW }}>{d.sub}</div> : null}
+      <div style={{ position: "absolute", top: 360, left: SIDE, height: 800 }}>
+        <VName text={dispName(d)} color={T.ink} maxPx={132} availH={800} shadow={NAME_SHADOW} />
+      </div>
+      <Handle handle={handle} color={T.sub} shadow={NAME_SHADOW} />
+      <Vignette strength={0.4} /><Grain opacity={0.05} />
+    </AbsoluteFill>
+  );
+};
+
+// ⑤E サイドレール・ブランド（全面写真＋左のテラコッタ縦帯＝グリッドの統一シグネチャ）
+export const YoshokuFeedE: React.FC<P> = ({ storeName = D.storeName, handle = D.handle, theme = D.theme }) => {
+  const T = ytheme(theme); const d = dish(); const RAIL = 74;
+  return (
+    <AbsoluteFill style={{ backgroundColor: T.base }}>
+      <div style={{ position: "absolute", top: 0, bottom: 0, left: RAIL, right: 0, overflow: "hidden" }}>
+        <Photo src={d.src} />
+        <AbsoluteFill style={{ background: "linear-gradient(180deg, rgba(0,0,0,0.3) 0%, rgba(0,0,0,0) 30%, rgba(18,13,8,0.9) 92%, " + T.footBase + " 100%)" }} />
+      </div>
+      <div style={{ position: "absolute", top: 0, bottom: 0, left: 0, width: RAIL, background: T.slab, display: "flex", alignItems: "center", justifyContent: "center" }}>
+        <div style={{ writingMode: "vertical-rl", fontFamily: serif, color: "#FDF6EA", fontSize: 22, letterSpacing: 10, textTransform: "uppercase", fontWeight: 600 }}>NAGAGUTSU&nbsp;·&nbsp;MEAT&nbsp;BAR</div>
+      </div>
+      <div style={{ position: "absolute", top: 150, left: RAIL + 40 }}>
+        <StoreLogo storeName={storeName} height={60} tint="#F6EFE0" />
+      </div>
+      <div style={{ position: "absolute", left: RAIL + 40, right: SIDE, bottom: 150 }}>
+        <HeroName text={dispName(d)} sub={d.sub} maxPx={140} usableW={FEED_W - RAIL - 40 - SIDE} color={T.ink} subColor="#F0DFC6" shadow={NAME_SHADOW} />
+      </div>
+      <Handle handle={handle} color={T.sub} shadow={NAME_SHADOW} />
+      <Grain opacity={0.05} />
+    </AbsoluteFill>
+  );
+};
+
+// ⑥F テラコッタ・リボン販促（全面写真＋「本日のおすすめ」ベタ帯＝集客の顔）
+export const YoshokuFeedF: React.FC<P> = ({ storeName = D.storeName, handle = D.handle, theme = D.theme }) => {
+  const T = ytheme(theme); const d = dish();
+  return (
+    <AbsoluteFill style={{ backgroundColor: T.base }}>
+      <Photo src={d.src} />
+      <AbsoluteFill style={{ background: "linear-gradient(180deg, rgba(0,0,0,0.4) 0%, rgba(0,0,0,0) 24%, rgba(0,0,0,0) 55%, rgba(18,13,8,0.92) 92%, " + T.footBase + " 100%)" }} />
+      <div style={{ position: "absolute", top: 150, left: SIDE }}>
+        <Brand storeName={storeName} accent={T.accent} shadow={NAME_SHADOW} />
+      </div>
+      <div style={{ position: "absolute", left: 0, right: 0, top: 930, height: 104, background: T.slab, display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 14px 40px rgba(0,0,0,0.45)" }}>
+        <span style={{ fontFamily: mincho, color: "#FDF6EA", fontSize: 46, fontWeight: 700, letterSpacing: 8 }}>本日のおすすめ</span>
+      </div>
+      <div style={{ position: "absolute", left: SIDE, right: SIDE, top: 1070 }}>
+        <HeroName text={dispName(d)} sub={d.sub} maxPx={92} usableW={FEED_W - SIDE * 2} color={T.ink} subColor="#F0DFC6" align="center" shadow={NAME_SHADOW} />
+      </div>
+      <Vignette strength={0.36} /><Grain opacity={0.05} />
+    </AbsoluteFill>
+  );
+};
+
+// ⑦G マガジン・エディトリアル（写真74%＋親子罫＋特大料理名・品よく強い）
+export const YoshokuFeedG: React.FC<P> = ({ storeName = D.storeName, handle = D.handle, theme = D.theme }) => {
+  const T = ytheme(theme); const d = dish();
+  return (
+    <AbsoluteFill style={{ backgroundColor: T.footBase }}>
+      <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: 940, overflow: "hidden" }}>
+        <Photo src={d.src} />
+        <AbsoluteFill style={{ background: "linear-gradient(180deg, rgba(0,0,0,0.32) 0%, rgba(0,0,0,0) 24%, rgba(0,0,0,0) 62%, " + T.footBase + " 100%)" }} />
+      </div>
+      <div style={{ position: "absolute", top: 150, left: SIDE }}>
+        <Brand storeName={storeName} accent={T.accent} shadow={NAME_SHADOW} />
+      </div>
+      <div style={{ position: "absolute", left: SIDE, right: SIDE, top: 966 }}>
+        <div style={{ height: 3, background: T.accent, marginBottom: 4 }} />
+        <div style={{ height: 1, background: T.line, marginBottom: 20, opacity: 0.7 }} />
+        <HeroName text={dispName(d)} sub={d.sub} maxPx={96} usableW={FEED_W - SIDE * 2} color={T.ink} subColor={T.accent} />
+      </div>
+      <Handle handle={handle} color={T.sub} />
+      <Grain opacity={0.04} />
+    </AbsoluteFill>
+  );
+};
+
+// ⑧H 大タイポ・カバー（巨大ゴースト欧文＋中央写真バンド＋鋭い明朝）
 export const YoshokuFeedH: React.FC<P> = ({ storeName = D.storeName, handle = D.handle, theme = D.theme }) => {
-  const T = ytheme(theme); const d = dish(); const sz = heroSize(d.caption, 92, 60);
+  const T = ytheme(theme); const d = dish();
+  const ghost = (d.sub || "MEAT BAR").split(" ")[0];
   return (
     <AbsoluteFill style={{ background: "linear-gradient(180deg, " + T.base + " 0%, " + T.footBase + " 100%)" }}>
-      <div style={{ position: "absolute", top: 70, left: 56, right: 56 }}>
-        <div style={{ fontFamily: serif, color: T.accent, fontSize: 26, letterSpacing: 8, marginBottom: 14 }}>{T.label}</div>
-        <Catch color={T.sub} size={32} mb={14} />
-        <Name text={d.caption} size={sz} color={T.ink} ls={2} lh={1.2} shadow="0 2px 14px rgba(0,0,0,0.4)" />
-        {d.story ? <div style={{ marginTop: 16, fontFamily: mincho, color: T.sub, fontSize: 34, letterSpacing: 2 }}>{d.story}</div> : null}
+      <div style={{ position: "absolute", top: 250, left: -20, right: -20, textAlign: "center", fontFamily: serif, fontStyle: "italic", fontWeight: 600, color: T.accent, opacity: 0.12, fontSize: 300, lineHeight: 1, whiteSpace: "nowrap", overflow: "hidden" }}>{ghost}</div>
+      <div style={{ position: "absolute", top: 150, left: SIDE }}>
+        <Brand storeName={storeName} accent={T.accent} />
       </div>
-      <div style={{ position: "absolute", left: 90, right: 90, bottom: 96, height: 620, overflow: "hidden", borderRadius: 10, border: "1px solid " + T.accent + "55", boxShadow: "0 30px 70px rgba(0,0,0,0.5)" }}>
+      <div style={{ position: "absolute", left: 80, right: 80, top: 430, height: 520, overflow: "hidden", boxShadow: "0 30px 70px rgba(0,0,0,0.55)" }}>
         <Photo src={d.src} />
       </div>
-      <div style={{ position: "absolute", left: 0, right: 0, bottom: 44, textAlign: "center", fontFamily: serif, color: T.accent, fontSize: 24, letterSpacing: 5 }}>{storeName}　{handle}</div>
+      <div style={{ position: "absolute", left: SIDE, right: SIDE, top: 1000 }}>
+        <HeroName text={dispName(d)} sub={d.sub} maxPx={88} usableW={FEED_W - SIDE * 2} color={T.ink} subColor={T.accent} align="center" />
+      </div>
+      <Handle handle={handle} color={T.sub} />
       <Grain opacity={0.04} />
     </AbsoluteFill>
   );
 };
 
 export const FEED_COMPS: { id: string; label: string; comp: React.FC<P> }[] = [
-  { id: "YoshokuFeedA", label: "フィード案A・エディトリアル(上写真＋下パネル)", comp: YoshokuFeedA },
-  { id: "YoshokuFeedB", label: "フィード案B・シネマ(全面写真＋大見出し)", comp: YoshokuFeedB },
-  { id: "YoshokuFeedC", label: "フィード案C・黒板トラットリア(額装)", comp: YoshokuFeedC },
-  { id: "YoshokuFeedD", label: "フィード案D・金枠ミニマル(中央写真)", comp: YoshokuFeedD },
-  { id: "YoshokuFeedE", label: "フィード案E・スプリット(左写真右テキスト)", comp: YoshokuFeedE },
-  { id: "YoshokuFeedF", label: "フィード案F・ポラロイド(卓上)", comp: YoshokuFeedF },
-  { id: "YoshokuFeedG", label: "フィード案G・本日のおすすめ帯(販促)", comp: YoshokuFeedG },
-  { id: "YoshokuFeedH", label: "フィード案H・大タイポ＋インセット写真", comp: YoshokuFeedH },
+  { id: "YoshokuFeedA", label: "フィード案A・フルブリード×ボトム暗幕(定番)", comp: YoshokuFeedA },
+  { id: "YoshokuFeedB", label: "フィード案B・ボトムバンド・エディトリアル", comp: YoshokuFeedB },
+  { id: "YoshokuFeedC", label: "フィード案C・カラースラブ分割(テラコッタ面)", comp: YoshokuFeedC },
+  { id: "YoshokuFeedD", label: "フィード案D・縦組み特大明朝", comp: YoshokuFeedD },
+  { id: "YoshokuFeedE", label: "フィード案E・サイドレール・ブランド", comp: YoshokuFeedE },
+  { id: "YoshokuFeedF", label: "フィード案F・テラコッタ帯(本日のおすすめ)", comp: YoshokuFeedF },
+  { id: "YoshokuFeedG", label: "フィード案G・マガジン・エディトリアル", comp: YoshokuFeedG },
+  { id: "YoshokuFeedH", label: "フィード案H・大タイポ・カバー", comp: YoshokuFeedH },
 ];

@@ -11,10 +11,14 @@
 import { AbsoluteFill, Img, staticFile, useCurrentFrame, interpolate, Easing } from "remotion";
 import { loadFont as loadMincho } from "@remotion/google-fonts/ShipporiMincho";
 import { loadFont as loadSerif } from "@remotion/google-fonts/Cormorant";
+import { loadFont as loadMinchoBlack } from "@remotion/google-fonts/NotoSerifJP";
 import { typoLogo, typoSampleNo } from "./typoData";
 
 export const mincho = loadMincho().fontFamily;
 export const serif = loadSerif().fontFamily;
+// 極太明朝（Noto Serif JP Black=weight 900）。フィードの巨大料理名など“質量で殴る”見出し用。
+// 明朝の語彙のまま真の極太にできるのでブランド（トラットリア/肉バル）を崩さない。fontWeight:900 で使う。
+export const minchoBlack = loadMinchoBlack().fontFamily;
 
 // 上品な減速（out-expo系）。全テンプレでこの1本に統一＝動きの質感が揃う。
 export const EASE = Easing.bezier(0.16, 1, 0.3, 1);
