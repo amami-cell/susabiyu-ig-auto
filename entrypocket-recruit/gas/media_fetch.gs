@@ -13,9 +13,11 @@ var MEDIA_HDR = ["媒体", "店舗", "氏名", "カナ", "応募日時", "雇用
   "電話", "メール", "住所", "状況/資格", "自己PR", "取得日時", "key"];
 var MEDIA_LABEL = { inshoku: "飲食店ドットコム", gourmet: "グルメキャリー" };
 
-/** base64(CSV) を受け取り、文字コードを判定して取り込む。 */
-function mediaImportCsvB64(media, b64) {
+/** base64(CSV) を受け取り、文字コードを判定して取り込む。
+ *  key: 取込キー。EP_INGEST_KEY が設定済みなら一致必須（未設定なら従来通り誰でも可）。 */
+function mediaImportCsvB64(media, b64, key) {
   try {
+    if (typeof epIngestOk_ === "function" && !epIngestOk_(key)) return { ok: false, error: "forbidden" };
     media = String(media || "").toLowerCase();
     if (!MEDIA_LABEL[media]) return { ok: false, error: "unknown media: " + media };
     var bytes = Utilities.base64Decode(String(b64 || ""));

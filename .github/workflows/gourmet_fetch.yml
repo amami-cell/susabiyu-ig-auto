@@ -34,6 +34,7 @@ jobs:
           GOURMET_USER: ${{ secrets.GOURMET_USER }}
           GOURMET_PASS: ${{ secrets.GOURMET_PASS }}
           RECRUIT_EXEC_URL: ${{ secrets.RECRUIT_EXEC_URL }}
+          RECRUIT_INGEST_KEY: ${{ secrets.RECRUIT_INGEST_KEY }}
         run: python entrypocket-recruit/scripts/gourmet_fetch.py
       - name: 失敗時の調査用スクショ保存
         if: always()

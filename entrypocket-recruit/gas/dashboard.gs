@@ -200,8 +200,8 @@ function doPost(e) {
     var o = {}; try { o = JSON.parse(body); } catch (x) { o = {}; }
     if (o.api === 'subscribe') out = epSubRegister_(o);
     else if (o.api === 'unsubscribe') out = epSubUnregister_(o.ep);
-    else if (o.api === 'importcsv') out = (typeof epImportCsvB64 === 'function') ? epImportCsvB64(o.b64 || '') : { ok: false, error: 'import未対応' };
-    else if (o.api === 'media_importcsv') out = (typeof mediaImportCsvB64 === 'function') ? mediaImportCsvB64(o.media || '', o.b64 || '') : { ok: false, error: 'media import未対応' };
+    else if (o.api === 'importcsv') out = (typeof epImportCsvB64 === 'function') ? epImportCsvB64(o.b64 || '', o.key || '') : { ok: false, error: 'import未対応' };
+    else if (o.api === 'media_importcsv') out = (typeof mediaImportCsvB64 === 'function') ? mediaImportCsvB64(o.media || '', o.b64 || '', o.key || '') : { ok: false, error: 'media import未対応' };
     else if (o.api === 'pc_alert') out = epPcAlert_(o);
     else out = { ok: false, error: 'unknown api' };
   } catch (err) { out = { ok: false, error: String(err) }; }
@@ -973,6 +973,38 @@ function jsonForScript_(obj) {
     .replace(/</g, '\\u003c').replace(/>/g, '\\u003e')
     .replace(/&/g, '\\u0026')
     .replace(/\u2028/g, '\\u2028').replace(/\u2029/g, '\\u2029');
+}
+
+// 取込キー（EP_INGEST_KEY）の検証。未設定なら許可(＝従来通り無停止)、設定済みなら一致必須。
+// これで匿名者による応募DBへのCSV注入/破壊を防ぐ（鍵は PC/クラウド/アプリ の取込元だけが持つ）。
+function epIngestOk_(key) {
+  var need = PropertiesService.getScriptProperties().getProperty('EP_INGEST_KEY') || '';
+  if (!need) return true;              // 未設定＝まだarmしていない → 従来通り許可
+  return String(key || '') === need;   // 設定済み＝一致必須
+}
+// 取込キーが登録済みか（値は返さない）
+function epHasIngestKey() {
+  var v = PropertiesService.getScriptProperties().getProperty('EP_INGEST_KEY') || '';
+  return { ok: true, has: !!v };
+}
+// 取込キーを登録（TOFU：未設定時のみ）。6文字以上。値は保存のみ・返さない。
+function epSetIngestKey(key) {
+  var p = PropertiesService.getScriptProperties();
+  var cur = p.getProperty('EP_INGEST_KEY');
+  if (cur && String(cur).trim()) return { ok: false, error: 'already_set' };
+  var t = String(key || '').trim();
+  if (!t) return { ok: false, error: 'empty' };
+  if (t.length < 6) return { ok: false, error: 'too_short' };
+  p.setProperty('EP_INGEST_KEY', t);
+  return { ok: true };
+}
+// 取込キーを消す（差し替え用）。管理キー必須・未設定なら無効（fail-closed）。
+function epClearIngestKey(pass) {
+  var p = PropertiesService.getScriptProperties();
+  var admin = p.getProperty('EP_ADMIN_KEY') || '';
+  if (!admin || String(pass || '') !== admin) return { ok: false, error: '管理キーが違います（未設定なら無効）' };
+  p.deleteProperty('EP_INGEST_KEY');
+  return { ok: true };
 }
 
 // PC取得スクリプトからの「取得失敗」通知を受けて責任者へプッシュ（媒体別に1時間1回まで＝スパム防止）。

@@ -508,9 +508,11 @@ function epImportCsvText(csvText) {
     return { ok: true, rows: n, added: chg.added, changed: chg.changed };
   } catch (e) { return { ok: false, error: String(e) }; }
 }
-/** アップロードされたCSV（base64・生バイト）を文字コード判定して取り込む。クライアントから google.script.run で呼ぶ。 */
-function epImportCsvB64(b64) {
+/** アップロードされたCSV（base64・生バイト）を文字コード判定して取り込む。クライアントから google.script.run で呼ぶ。
+ *  key: 取込キー。EP_INGEST_KEY が設定済みなら一致必須（未設定なら従来通り誰でも可）。 */
+function epImportCsvB64(b64, key) {
   try {
+    if (typeof epIngestOk_ === "function" && !epIngestOk_(key)) return { ok: false, error: "forbidden" };
     var bytes = Utilities.base64Decode(String(b64 || ""));
     var csv = "";
     try { csv = Utilities.newBlob(bytes).getDataAsString("UTF-8"); } catch (e) { csv = ""; }

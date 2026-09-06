@@ -329,7 +329,10 @@
           '<button onclick="doImportCsv(\'gourmet\')">📥 CSVファイル</button></div>'+
           '<div style="'+H+'">毎日7:00/13:00にクラウドで自動取得（PC不要）。「🔄今すぐ取得」で今すぐクラウド実行→1〜2分で反映。</div></div>'+
           '<div class="setrow"><div class="setlab">他媒体の一覧</div><div class="setbtns">'+
-          '<button onclick="openMediaPage()">📋 飲食店/グルメの応募者を見る</button></div></div>'; })())+
+          '<button onclick="openMediaPage()">📋 飲食店/グルメの応募者を見る</button></div></div>'+
+          '<div class="setrow"><div class="setlab">セキュリティ</div><div class="setbtns">'+
+          '<button onclick="armIngest()">🔐 取込を保護（上級・初回のみ）</button></div>'+
+          '<div style="'+H+'">取込に合言葉を必須化し、外部からの不正なデータ投入を防ぎます。設定後は GitHub と PC にも同じ合言葉が必要（手順は使い方ガイドの「取込の保護」）。未設定なら今まで通り動きます。</div></div>'; })())+
         '<div class="setrow"><div class="setlab">ヘルプ</div><div class="setbtns">'+
         '<button onclick="openHelp()">❓ 使い方ガイド</button></div></div>';
       document.body.appendChild(p); _setSync(); }
@@ -377,6 +380,28 @@
         else { toast('保存に失敗: '+((res&&res.error)||'unknown')); }
       }).withFailureHandler(function(e){ toast('通信エラー: '+(e&&e.message||'')); }).epSetGhToken(t);
     }
+    // 取込を保護（初回のみ）：サーバに取込キーを登録し、この端末にも保存。以後は外部からの不正投入を拒否。
+    function armIngest(){
+      var t=window.prompt('取込を保護します。合言葉(6文字以上・英数字)を決めて入力してください。\n\n※この後、同じ合言葉を GitHub Secret「RECRUIT_INGEST_KEY」と、PCの RecruitAuto.bat（初回に聞かれます）にも入れてください。手順は使い方ガイドへ。','');
+      if(t==null) return; t=(''+t).trim();
+      if(t.length<6){ toast('6文字以上にしてください'); return; }
+      toast('保護を設定中…');
+      google.script.run.withSuccessHandler(function(res){
+        if(res&&res.ok){ try{localStorage.setItem('ep_ingest_key',t);}catch(e){} toast('✅ アプリ側を保護しました。次に GitHub Secret と PC(bat) に同じ合言葉を入れてください（入れるまで自動取得が止まります）。'); }
+        else if(res&&res.error==='already_set'){ toast('すでに保護は設定済みです。差し替えは担当へご連絡ください。'); }
+        else if(res&&res.error==='too_short'){ toast('6文字以上にしてください'); }
+        else { toast('設定に失敗: '+((res&&res.error)||'unknown')); }
+      }).withFailureHandler(function(e){ toast('通信エラー: '+(e&&e.message||'')); }).epSetIngestKey(t);
+    }
+    // 取込キー（この端末にのみ保存）。EP_INGEST_KEY をarm済みの時だけ必要。
+    function _ingestKey(){ try{ return localStorage.getItem('ep_ingest_key')||''; }catch(e){ return ''; } }
+    function askIngestKey(){
+      var t=window.prompt('取込キーを入力してください（責任者が決めた合言葉。PC・GitHub・アプリで同じもの）：','');
+      if(t==null) return false;
+      t=(''+t).trim(); if(!t){ toast('キーが空です'); return false; }
+      try{ localStorage.setItem('ep_ingest_key',t); }catch(e){}
+      return true;
+    }
     // 手動CSV取り込み（自動取得が止まっている時の代替。DLしたCSVをアップロード→蓄積して最新化）
     // media: 未指定/'ep'=エンポケ, 'inshoku'=飲食店ドットコム, 'gourmet'=グルメキャリー
     function doImportCsv(media){
@@ -389,16 +414,21 @@
           try{
             var bytes=new Uint8Array(fr.result), bin=''; for(var i=0;i<bytes.length;i++) bin+=String.fromCharCode(bytes[i]);
             var b64=btoa(bin);
-            var ok=function(res){
-              if(res&&res.ok){ toast('取り込み完了：応募'+res.rows+'件（新規'+(res.added!=null?res.added:0)+(res.changed!=null?'／変更'+res.changed:'')+'）'); var pp=document.getElementById('setPop'); if(pp)pp.parentNode.removeChild(pp); load(); }
-              else toast('取り込み失敗'+(res&&res.error?': '+res.error:''));
+            var send=function(){
+              var key=_ingestKey();
+              var ok=function(res){
+                if(res&&res.ok){ toast('取り込み完了：応募'+res.rows+'件（新規'+(res.added!=null?res.added:0)+(res.changed!=null?'／変更'+res.changed:'')+'）'); var pp=document.getElementById('setPop'); if(pp)pp.parentNode.removeChild(pp); load(); }
+                else if(res&&res.error==='forbidden'){ if(askIngestKey()){ send(); } else { toast('取込キーが必要です（設定で登録できます）'); } }
+                else toast('取り込み失敗'+(res&&res.error?': '+res.error:''));
+              };
+              var fail=function(e){ toast('通信エラー: '+(e&&e.message||'')); };
+              if(media==='inshoku'||media==='gourmet'){
+                google.script.run.withSuccessHandler(ok).withFailureHandler(fail).mediaImportCsvB64(media,b64,key);
+              } else {
+                google.script.run.withSuccessHandler(ok).withFailureHandler(fail).epImportCsvB64(b64,key);
+              }
             };
-            var fail=function(e){ toast('通信エラー: '+(e&&e.message||'')); };
-            if(media==='inshoku'||media==='gourmet'){
-              google.script.run.withSuccessHandler(ok).withFailureHandler(fail).mediaImportCsvB64(media,b64);
-            } else {
-              google.script.run.withSuccessHandler(ok).withFailureHandler(fail).epImportCsvB64(b64);
-            }
+            send();
           }catch(x){ toast('読み込みエラー: '+(x&&x.message||'')); }
         };
         fr.readAsArrayBuffer(f);
@@ -416,6 +446,7 @@
         sec('📊 集計タブ','上部の「目次」で見たい分析へジャンプ、見出しタップで折りたたみ。経営KPI・要注意店・データ品質・採用単価(加重/単純/中央値)・媒体別/店舗別・リスティング効果・リードタイム・定着率などを、年・地域フィルタ連動で確認。🖨レポート/⬇CSVで共有。')+
         sec('🔔 通知','⚙→通知する店舗で自店だけ通知にできます（ホーム画面アプリで有効）。新規応募・本日リマインド・週次の店舗スコアカードが届きます。')+
         sec('📥 取込（媒体別）','エンポケ・飲食店ドットコムは<b>PC起動時に自動取得</b>（PCの RecruitAuto.bat）。グルメキャリーは<b>毎日7:00/13:00にクラウド自動</b>。⚙の「取込」から手動もできます：エンポケ/飲食店＝「📱スマホで取り込む」（サイトを開いてブックマーク1タップ）、グルメ＝「🔄今すぐ取得（クラウド）」。どの媒体もDL済みCSVを選ぶ「📥CSVファイル」も可。')+
+        sec('🔐 取込の保護（上級・任意）','外部からの不正なCSV投入を防ぎたい時に。⚙→セキュリティ→「🔐取込を保護」で合言葉(6文字以上)を決めると、以後その合言葉が無い取込は拒否されます。<b>設定したら、同じ合言葉を必ず次の2か所にも入れてください</b>（入れるまで自動取得が止まります）：<br>① GitHub → リポジトリ → Settings → Secrets and variables → Actions → New secret：名前 <b>RECRUIT_INGEST_KEY</b>、値＝その合言葉。<br>② PCの <b>RecruitAuto.bat</b> を一度ダブルクリック → 「Enter app ingest key」で同じ合言葉を入力。<br>※未設定なら今まで通り動きます（保護は任意）。差し替え・解除は担当へ。')+
         sec('🔄 クラウド即時取得の設定（グルメキャリーのみ・初回1回）','「🔄今すぐ取得」を初めて押すとトークン貼り付け画面が出ます。GitHubトークンの作り方：<br>① GitHub → 右上アイコン → Settings → 一番下 Developer settings → Personal access tokens → <b>Fine-grained tokens</b> → Generate new token。<br>② Repository access＝Only select repositories で <b>susabiyu-ig-auto</b> を選択。<br>③ Permissions → Repository permissions → <b>Actions</b> を <b>Read and write</b> に。<br>④ Generate して表示された文字列(github_pat_ で始まる Fine-grained トークン)をコピー → アプリの貼り付け画面へ。<br>※<b>権限は当該リポジトリのActionsのみ</b>の最小権限で。classic(ghp_)や広い権限のトークンは使わないでください。<br>※保存はこのアプリ内のみ・1回だけ（登録後の上書きは安全のため不可＝差し替えは担当へ）。使わない場合はPC/CSVでも取り込めます。')+
         sec('⚙ 表示設定','テーマ（ダーク/ライト）と文字サイズを変更できます（端末に保存）。')+
         sec('✅ データを正しく保つ','結果入力は 採用>応募 などの矛盾を保存前に警告。集計タブの「要マッピング」でスプシに無い店舗名（名寄せ漏れ）を確認できます。数値の正はスプレッドシートです。');

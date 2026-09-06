@@ -31,7 +31,11 @@ def log(*a):
 
 def post_csv(media, data: bytes) -> str:
     b64 = base64.b64encode(data).decode()
-    body = json.dumps({"api": "media_importcsv", "media": media, "b64": b64}).encode()
+    payload = {"api": "media_importcsv", "media": media, "b64": b64}
+    ingest = (os.environ.get("RECRUIT_INGEST_KEY") or "").strip()
+    if ingest:
+        payload["key"] = ingest   # EP_INGEST_KEY をarmしている場合に必要（未設定なら無くても通る）
+    body = json.dumps(payload).encode()
     req = urllib.request.Request(EXEC, data=body,
                                  headers={"Content-Type": "text/plain;charset=utf-8"}, method="POST")
     with urllib.request.urlopen(req, timeout=120) as r:
