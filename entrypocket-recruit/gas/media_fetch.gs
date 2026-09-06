@@ -178,11 +178,14 @@ function mediaListData_() {
   return { ok: true, items: items };
 }
 
-// 応募日時（Date or "yyyy/MM/dd HH:mm" 等の文字列）を比較可能なミリ秒に。解釈不能は0。
+// 応募日時を比較可能なミリ秒に。Date/スラッシュ形式/和文形式(2026年8月24日　20:12)いずれも対応。解釈不能は0。
 function mediaTs_(v) {
   if (v instanceof Date) return v.getTime();
   var s = String(v == null ? "" : v).trim();
   if (!s) return 0;
+  // 年・月・日（＋任意で 時・分）を数字として拾う。区切りが / 年月日 全角空白 いずれでも可。
+  var m = s.match(/(\d{4})\D+(\d{1,2})\D+(\d{1,2})(?:\D+(\d{1,2})\D+(\d{1,2}))?/);
+  if (m) return new Date(+m[1], +m[2] - 1, +m[3], +(m[4] || 0), +(m[5] || 0)).getTime();
   var t = new Date(s.replace(/\//g, "-").replace(" ", "T")).getTime();
   return isNaN(t) ? 0 : t;
 }
