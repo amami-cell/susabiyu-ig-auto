@@ -1,0 +1,16 @@
+[gd_resource type="Resource" script_class="EnemyStats" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://data/enemy_stats.gd" id="1_stats"]
+
+[resource]
+script = ExtResource("1_stats")
+display_name = "ハチ"
+max_hp = 24
+move_speed = 2.4
+attack_power = 6
+attack_interval = 1.2
+detect_range = 8.0
+xp_reward = 11
+body_color = Color(0.9, 0.8, 0.2, 1)
+body_scale = 0.9
+grants_power = "lift"

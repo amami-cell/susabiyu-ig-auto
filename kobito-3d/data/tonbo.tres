@@ -1,0 +1,16 @@
+[gd_resource type="Resource" script_class="EnemyStats" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://data/enemy_stats.gd" id="1_stats"]
+
+[resource]
+script = ExtResource("1_stats")
+display_name = "トンボ"
+max_hp = 22
+move_speed = 2.6
+attack_power = 5
+attack_interval = 1.2
+detect_range = 8.0
+xp_reward = 10
+body_color = Color(0.3, 0.7, 0.7, 1)
+body_scale = 1.1
+grants_power = "hover"

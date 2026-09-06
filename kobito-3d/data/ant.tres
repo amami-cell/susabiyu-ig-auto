@@ -1,0 +1,15 @@
+[gd_resource type="Resource" script_class="EnemyStats" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://data/enemy_stats.gd" id="1_stats"]
+
+[resource]
+script = ExtResource("1_stats")
+display_name = "アリ"
+max_hp = 16
+move_speed = 1.8
+attack_power = 4
+attack_interval = 1.1
+detect_range = 9.0
+xp_reward = 5
+body_color = Color(0.25, 0.16, 0.12, 1)
+body_scale = 0.8

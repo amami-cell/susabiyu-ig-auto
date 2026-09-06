@@ -1,0 +1,17 @@
+[gd_resource type="Resource" script_class="EnemyStats" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://data/enemy_stats.gd" id="1_stats"]
+
+[resource]
+script = ExtResource("1_stats")
+display_name = "ヘドロの主"
+max_hp = 240
+move_speed = 1.1
+attack_power = 9
+attack_interval = 1.4
+detect_range = 14.0
+xp_reward = 80
+body_color = Color(0.2, 0.26, 0.19, 1)
+body_scale = 3.2
+grants_power = "dig"
+is_midboss = true
