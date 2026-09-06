@@ -312,14 +312,19 @@ func _run_selftest() -> void:
 	if _garden != null and _garden.has_method("_on_chapter_boss") and not players.is_empty():
 		var ants_before := _count_minions()
 		_garden._on_chapter_boss()
-		await get_tree().create_timer(5.5).timeout   # 召喚(初回3.5s)＋余裕
-		var has_boss := false
-		for b in get_tree().get_nodes_in_group("bug"):
-			var st: Variant = b.get("stats")
-			if st != null and st.is_midboss:
-				has_boss = true
+		# 0.5秒ごとに最大14秒ポーリング＝CIランナーが遅くても取りこぼさない
+		# （固定待ちだと、ヘッドレス物理が実時間より遅い環境で召喚前に判定してしまう）。
+		for _i in 28:
+			await get_tree().create_timer(0.5).timeout
+			var has_boss := false
+			for b in get_tree().get_nodes_in_group("bug"):
+				var st: Variant = b.get("stats")
+				if st != null and st.is_midboss:
+					has_boss = true
+					break
+			if has_boss and _count_minions() > ants_before:
+				boss_ok = true
 				break
-		boss_ok = has_boss and _count_minions() > ants_before
 
 	var ok: bool = _garden != null and players.size() == 1 and bugs.size() > 0 \
 		and WorldState.recovery > 0.0 and xp_gained and flight_ok and kids_ok and mother_ok and puzzle_ok and switch_ok and ally_ok and save_ok and boss_ok
