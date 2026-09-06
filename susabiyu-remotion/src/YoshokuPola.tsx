@@ -6,7 +6,7 @@ import { typoPhotos, typoHeadline, typoMusic, typoMusicStart } from "./typoData"
 import { ytheme } from "./yoshokuTheme";
 import {
   mincho, serif, clamp, SAFE, fade,
-  Grain, Vignette, StoreLogo, splitLines, heroSize,
+  Grain, Vignette, SampleBadge, StoreLogo, phraseLines, heroSize,
 } from "./yoshokuDesign";
 
 export const YPOLA_DUR = 300; // 10s
@@ -17,14 +17,15 @@ export const YoshokuPola: React.FC<{ storeName?: string; handle?: string; theme?
   const f = useCurrentFrame();
   const DUR = YPOLA_DUR;
   const T = ytheme(theme);
-  const p0 = typoPhotos[0] || { src: "", caption: "" };
+  const p0 = typoPhotos[0] || { src: "", caption: "", story: "", disp: "" };
   const cards = [p0, typoPhotos[1] || p0, typoPhotos[2] || p0, typoPhotos[3] || p0];
-  // 2x2の密なクラスタ。空きを減らし写真を大きく。回転は控えめ＝上品。
+  // 2x2クラスタ。カードが重なると下段が上段のキャプション（商品名）を隠すため、
+  // カードを少し小さく＋上下左右の間隔を広げて“商品名の被り”を解消（回転も控えめに）。
   const layout = [
-    { x: -232, y: -256, rot: -4, cap: cards[0] },
-    { x: 232, y: -232, rot: 3.5, cap: cards[1] },
-    { x: -232, y: 258, rot: 3, cap: cards[2] },
-    { x: 232, y: 282, rot: -3.5, cap: cards[3] },
+    { x: -240, y: -300, rot: -3, cap: cards[0] },
+    { x: 240, y: -300, rot: 3, cap: cards[1] },
+    { x: -240, y: 300, rot: 3, cap: cards[2] },
+    { x: 240, y: 300, rot: -3, cap: cards[3] },
   ];
 
   return (
@@ -37,30 +38,38 @@ export const YoshokuPola: React.FC<{ storeName?: string; handle?: string; theme?
       <Grain opacity={0.09} />
       <Vignette strength={0.5} />
 
+      {/* 右上：見本番号（本番投稿では非表示） */}
+      <SampleBadge accent={T.accent} f={f} />
+
       {/* 上：ラベル＋フック（2行・大きく） */}
       <div style={{ position: "absolute", top: SAFE.top - 40, left: SAFE.side, right: SAFE.side, textAlign: "center", opacity: fade(f, 6) }}>
         <div style={{ fontFamily: serif, color: T.accent, fontSize: 42, letterSpacing: 10, fontWeight: 600 }}>{T.label}</div>
         <div style={{ marginTop: 12, fontFamily: mincho, color: "#F1E7D6", fontSize: heroSize(typoHeadline, 44, 34), fontWeight: 600, letterSpacing: 3, lineHeight: 1.3 }}>
-          {splitLines(typoHeadline).length ? splitLines(typoHeadline).map((ln, i) => <div key={i}>{ln}</div>) : typoHeadline}
+          {phraseLines(typoHeadline).map((ln, i) => <div key={i}>{ln}</div>)}
         </div>
       </div>
 
       {/* ポラロイド4枚（大きめ・密） */}
-      <AbsoluteFill style={{ display: "flex", alignItems: "center", justifyContent: "center", transform: "translateY(70px)" }}>
+      <AbsoluteFill style={{ display: "flex", alignItems: "center", justifyContent: "center", transform: "translateY(30px)" }}>
         {layout.map((L, i) => {
           const start = 20 + i * 14;
           const o = fade(f, start, 16);
           const pop = interpolate(f, [start, start + 20], [0.82, 1], { ...clamp, easing: Easing.out(Easing.back(1.3)) });
           const yy = interpolate(f, [start, start + 22], [34, 0], { ...clamp, easing: Easing.out(Easing.cubic) });
-          const sz = heroSize(L.cap.caption, 32, 24);
+          const nm = (L.cap.disp && L.cap.disp.length) ? L.cap.disp : L.cap.caption;
+          const nmLines = phraseLines(nm); const nml = nmLines.length ? nmLines : [nm];
+          const sz = heroSize(nm, 34, 24);
           return (
             <div key={i} style={{ position: "absolute", transform: "translate(" + L.x + "px," + (L.y + yy) + "px) rotate(" + L.rot + "deg) scale(" + pop + ")", opacity: o }}>
-              <div style={{ width: 500, background: "#FBF7EE", padding: "20px 20px 0", borderRadius: 5, boxShadow: "0 28px 60px rgba(0,0,0,0.6)" }}>
-                <div style={{ width: 460, height: 460, overflow: "hidden", background: "#000" }}>
+              <div style={{ width: 440, background: "#FBF7EE", padding: "18px 18px 0", borderRadius: 5, boxShadow: "0 28px 60px rgba(0,0,0,0.6)" }}>
+                <div style={{ width: 404, height: 404, overflow: "hidden", background: "#000" }}>
                   <Img src={staticFile(L.cap.src)} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
                 </div>
-                <div style={{ height: 100, display: "flex", alignItems: "center", justifyContent: "center" }}>
-                  <div style={{ fontFamily: mincho, color: "#2a2420", fontSize: sz, fontWeight: 600, letterSpacing: 1, textAlign: "center", padding: "0 10px" }}>{L.cap.caption}</div>
+                <div style={{ minHeight: 104, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 3, padding: "10px 12px" }}>
+                  <div style={{ fontFamily: mincho, color: "#2a2420", fontSize: sz, fontWeight: 700, letterSpacing: 1, lineHeight: 1.14, textAlign: "center" }}>
+                    {nml.map((ln, k) => <div key={k}>{ln}</div>)}
+                  </div>
+                  {L.cap.story ? <div style={{ fontFamily: mincho, color: "#7a6748", fontSize: 21, letterSpacing: 1, textAlign: "center" }}>{L.cap.story}</div> : null}
                 </div>
               </div>
             </div>

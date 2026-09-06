@@ -11,10 +11,15 @@
 import { AbsoluteFill, Img, staticFile, useCurrentFrame, interpolate, Easing } from "remotion";
 import { loadFont as loadMincho } from "@remotion/google-fonts/ShipporiMincho";
 import { loadFont as loadSerif } from "@remotion/google-fonts/Cormorant";
-import { typoLogo } from "./typoData";
+import { loadFont as loadMinchoBlack } from "@remotion/google-fonts/NotoSerifJP";
+import { typoLogo, typoLogoRound, typoSampleNo } from "./typoData";
+import { ytheme } from "./yoshokuTheme";
 
 export const mincho = loadMincho().fontFamily;
 export const serif = loadSerif().fontFamily;
+// 極太明朝（Noto Serif JP Black=weight 900）。フィードの巨大料理名など“質量で殴る”見出し用。
+// 明朝の語彙のまま真の極太にできるのでブランド（トラットリア/肉バル）を崩さない。fontWeight:900 で使う。
+export const minchoBlack = loadMinchoBlack().fontFamily;
 
 // 上品な減速（out-expo系）。全テンプレでこの1本に統一＝動きの質感が揃う。
 export const EASE = Easing.bezier(0.16, 1, 0.3, 1);
@@ -218,9 +223,100 @@ export function dishAt(srcs: { caption: string }[], f: number, total: number): s
   return srcs[i]?.caption || "";
 }
 
+// 現在の料理の「ストーリー用の短い一言（story）」を返す。無ければ空。
+export function storyAt(srcs: { story?: string }[], f: number, total: number): string {
+  const n = Math.max(1, srcs.length);
+  const seg = total / n;
+  const i = Math.min(n - 1, Math.floor(f / seg));
+  return srcs[i]?.story || "";
+}
+
+// 見本ギャラリー専用の番号バッジ（右上・小）。typoSampleNo>0 の時だけ表示＝本番投稿には出ない。
+// 「どの動画のことか」を指して修正指示を出せるように、控えめだが視認できるタグにする。
+export const SampleBadge: React.FC<{ accent?: string; f?: number }> = ({ accent = "#E7DCC4", f = 999 }) => {
+  if (!typoSampleNo || typoSampleNo <= 0) return null;
+  const o = fade(f, 2, 12);
+  return (
+    <div style={{
+      position: "absolute", top: 40, right: 40, zIndex: 50, opacity: o,
+      display: "flex", alignItems: "baseline", gap: 6,
+      padding: "10px 18px", borderRadius: 999,
+      background: "rgba(10,10,12,0.62)", border: "1px solid " + accent + "88",
+      boxShadow: "0 6px 20px rgba(0,0,0,0.45)", backdropFilter: "blur(2px)",
+    }}>
+      <span style={{ fontFamily: serif, color: accent, fontSize: 22, letterSpacing: 3, textTransform: "uppercase", opacity: 0.9 }}>No.</span>
+      <span style={{ fontFamily: serif, color: "#F6EFE0", fontSize: 40, fontWeight: 700, lineHeight: 1 }}>{typoSampleNo}</span>
+    </div>
+  );
+};
+
 // キャプション（フック）の改行位置は「｜」または改行で明示制御する。無ければ1行。
+// ── 共通オープニング／エンドロール（No.1〜4のストーリーに前後付け）──────────────
+// ブランドの“顔”を最初と最後に見せる。丸ロゴ(typoLogoRound)があれば色付きで、無ければ横ロゴ/店名。
+// アニメは useCurrentFrame/interpolate のみ（CSSトランジション禁止）。各Sequence内で相対フレーム。
+export const STORY_OPEN = 42;   // オープニング 1.4s
+export const STORY_END = 72;    // エンドロール 2.4s
+
+const _BrandMark: React.FC<{ storeName: string; ink: string; size?: number }> = ({ storeName, ink, size = 300 }) => (
+  typoLogoRound
+    ? <Img src={staticFile(typoLogoRound)} style={{ width: size, height: size, objectFit: "contain", filter: "drop-shadow(0 8px 30px rgba(0,0,0,0.55))" }} />
+    : (typoLogo
+      ? <Img src={staticFile(typoLogo)} style={{ height: Math.round(size * 0.5), width: "auto", maxWidth: 820, objectFit: "contain" }} />
+      : <div style={{ fontFamily: mincho, color: ink, fontSize: Math.round(size * 0.4), fontWeight: 700, letterSpacing: 2 }}>{storeName}</div>)
+);
+
+export const StoryOpening: React.FC<{ storeName?: string; theme?: string }> = ({ storeName = "ナガグツ", theme = "italian" }) => {
+  const f = useCurrentFrame();
+  const T = ytheme(theme);
+  const o = Math.min(interpolate(f, [0, 10], [0, 1], clamp), interpolate(f, [STORY_OPEN - 9, STORY_OPEN], [1, 0], clamp));
+  const s = interpolate(f, [0, 18], [0.84, 1], { ...clamp, easing: EASE });
+  const ruleW = interpolate(f, [8, 30], [0, 260], { ...clamp, easing: EASE });
+  return (
+    <AbsoluteFill style={{ backgroundColor: T.base }}>
+      <WarmGlow /><Grain />
+      <AbsoluteFill style={{ display: "flex", alignItems: "center", justifyContent: "center", flexDirection: "column", opacity: o }}>
+        <div style={{ transform: "scale(" + s + ")", display: "flex", flexDirection: "column", alignItems: "center", gap: 20 }}>
+          <_BrandMark storeName={storeName} ink={T.ink} size={300} />
+          <div style={{ width: ruleW, height: 2, background: T.accent, opacity: 0.9 }} />
+          <div style={{ fontFamily: serif, color: T.accent, fontSize: 40, letterSpacing: 14, textTransform: "uppercase", fontWeight: 600 }}>{T.label}</div>
+        </div>
+      </AbsoluteFill>
+    </AbsoluteFill>
+  );
+};
+
+export const StoryEndroll: React.FC<{ storeName?: string; handle?: string; theme?: string }> = ({ storeName = "ナガグツ", handle = "@nagagutsu0427", theme = "italian" }) => {
+  const f = useCurrentFrame();
+  const T = ytheme(theme);
+  const o = interpolate(f, [0, 14], [0, 1], clamp);
+  const y = interpolate(f, [0, 22], [24, 0], { ...clamp, easing: EASE });
+  return (
+    <AbsoluteFill style={{ backgroundColor: T.base }}>
+      <WarmGlow /><Grain />
+      <AbsoluteFill style={{ display: "flex", alignItems: "center", justifyContent: "center", flexDirection: "column", opacity: o, transform: "translateY(" + y + "px)", textAlign: "center", gap: 18 }}>
+        <_BrandMark storeName={storeName} ink={T.ink} size={230} />
+        <div style={{ fontFamily: mincho, color: T.ink, fontSize: 56, fontWeight: 700, letterSpacing: 3 }}>ご来店をお待ちしています</div>
+        <div style={{ fontFamily: serif, color: T.accent, fontSize: 34, letterSpacing: 6 }}>{storeName}　{handle}</div>
+      </AbsoluteFill>
+    </AbsoluteFill>
+  );
+};
+
 export function splitLines(s: string): string[] {
   return (s || "").split(/[｜\n]/).map((x) => x.trim()).filter((x) => x.length > 0);
+}
+
+// 大きな中央見出し用：｜/改行があればそれで、無ければ日本語の読点「、」で自然に2行へ割る。
+// （超特大タイポが幅に収まらず語中で不格好に折れるのを防ぐ。短い語はそのまま1行。）
+export function phraseLines(s: string): string[] {
+  const hard = (s || "").split(/[｜\n]/).map((x) => x.trim()).filter((x) => x.length > 0);
+  if (hard.length > 1) return hard;
+  const t = (s || "").trim();
+  if (Array.from(t).length >= 8 && t.indexOf("、") >= 0) {
+    const i = t.indexOf("、");
+    return [t.slice(0, i + 1), t.slice(i + 1)].map((x) => x.trim()).filter((x) => x.length > 0);
+  }
+  return t ? [t] : [];
 }
 
 // いま表示すべきカット番号と、そのカット内相対フレームを返す（テキストは常に“1件だけ”描く用）。

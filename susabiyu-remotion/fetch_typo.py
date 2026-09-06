@@ -160,6 +160,63 @@ if not cats:
     print("NG: 条件を満たす画像が見つかりません。")
     raise SystemExit
 
+# 店舗のキャプション体系（料理名→ストーリー用の短い一言）。ナガグツ等のみ。三条/ぎふやは空("")＝従来どおり。
+_STORY_FN = None
+def _story_for(caption):
+    global _STORY_FN
+    if _STORY_FN is None:
+        acct = os.environ.get("STORE_ACCOUNT", "").strip().lower()
+        _STORY_FN = (lambda _nm: "")
+        try:
+            if acct == "nagagutsu":
+                import nagagutsu_captions as _nc
+                _STORY_FN = _nc.story_for
+        except Exception as _e:
+            print("[STORY] キャプション体系スキップ:", _e)
+    try:
+        return _STORY_FN(caption) or ""
+    except Exception:
+        return ""
+
+
+# 料理名の欧文サブ（イタリア語優先）。ナガグツのみ。他店は空。
+_SUB_FN = None
+def _sub_for(caption):
+    global _SUB_FN
+    if _SUB_FN is None:
+        acct = os.environ.get("STORE_ACCOUNT", "").strip().lower()
+        _SUB_FN = (lambda _nm: "")
+        try:
+            if acct == "nagagutsu":
+                import nagagutsu_captions as _nc
+                _SUB_FN = _nc.sub_for
+        except Exception as _e:
+            print("[SUB] 欧文サブ体系スキップ:", _e)
+    try:
+        return _SUB_FN(caption) or ""
+    except Exception:
+        return ""
+
+
+# 表示用の料理名（16文字以上のみ承認済み位置に ｜ 改行マーカーを入れる）。ナガグツのみ。
+_DISP_FN = None
+def _name_disp(caption):
+    global _DISP_FN
+    if _DISP_FN is None:
+        acct = os.environ.get("STORE_ACCOUNT", "").strip().lower()
+        _DISP_FN = (lambda _nm: _nm)
+        try:
+            if acct == "nagagutsu":
+                import nagagutsu_captions as _nc
+                _DISP_FN = _nc.name_broken
+        except Exception as _e:
+            print("[DISP] 改行体系スキップ:", _e)
+    try:
+        return _DISP_FN(caption) or caption
+    except Exception:
+        return caption
+
+
 import re as _re_cap
 def _clean_caption(nm):
     """ファイル名から“ちゃんとした料理名”を作る（ぎふやの _dish_name と同じ思想＋汎用の除去）。
@@ -213,7 +270,8 @@ for idx, f in enumerate(picked):
         _, done = dl.next_chunk()
     buf.close()
     caption = _clean_caption(f["name"])
-    items.append({"src": "typo/" + local, "caption": caption})
+    items.append({"src": "typo/" + local, "caption": caption, "story": _story_for(caption),
+                  "sub": _sub_for(caption), "disp": _name_disp(caption)})
     print("PHOTO %d:" % idx, f["name"], "(短辺", short_side(f), "px)")
 
 import captions
@@ -238,9 +296,36 @@ print("PICKED ->", "out/picked.json")
 music = os.environ.get("FIXED_MUSIC") or music
 lines = ["export const typoPhotos = ["]
 for it in items:
-    lines.append('  { src: "%s", caption: "%s" },' % (esc(it["src"]), esc(it["caption"])))
+    lines.append('  { src: "%s", caption: "%s", sub: "%s", story: "%s", disp: "%s" },'
+                 % (esc(it["src"]), esc(it["caption"]), esc(it.get("sub", "")),
+                    esc(it.get("story", "")), esc(it.get("disp", it["caption"]))))
 lines.append("];")
+# サンプル番号（0=本番＝バッジ非表示）。見本レンダリング(render_samples)がテンプレ毎に上書きする。
+lines.append('export const typoSampleNo = 0;')
+# 投稿本文（Instagramキャプション）。ナガグツは料理体系から自動生成、他店は空（従来どおり）。
+_post_cap = ""
+try:
+    if os.environ.get("STORE_ACCOUNT", "").strip().lower() == "nagagutsu":
+        import nagagutsu_captions as _ncp
+        import stores as _st
+        _handle = (_st.get_store("nagagutsu") or {}).get("handle", "")
+        _post_cap = _ncp.post_caption([it["caption"] for it in items], handle=_handle)
+        print("[POST-CAP] 投稿本文を生成:", _post_cap.replace("\n", " / ")[:80], "...")
+except Exception as _e:
+    print("[POST-CAP] スキップ:", _e)
+# 複数行の投稿本文はTS文字列リテラル用に改行を \n へエスケープ（生の改行は構文エラーになる）。
+lines.append('export const typoPostCaption = "%s";' % esc(_post_cap).replace("\n", "\\n"))
 lines.append('export const typoHeadline = "%s";' % esc(headline))
+# フィード画像に小さく添えるブランドの一言キャッチ（ナガグツのみ／他店は空）。
+_catch = ""
+try:
+    if os.environ.get("STORE_ACCOUNT", "").strip().lower() == "nagagutsu" and items:
+        import nagagutsu_captions as _ncc
+        _catch = _ncc.catch(items[0].get("caption", ""))
+        print("[CATCH] フィード用キャッチ:", _catch)
+except Exception as _e:
+    print("[CATCH] スキップ:", _e)
+lines.append('export const typoCatch = "%s";' % esc(_catch))
 lines.append('export const typoMusic = "%s";' % esc(music))
 
 
@@ -347,30 +432,108 @@ def _fetch_store_logo():
                     if na > 60:
                         lum_sum += (r * 299 + g * 587 + b * 114) // 1000; lum_cnt += 1
         avg = (lum_sum / lum_cnt) if lum_cnt else 255
-        if avg < 150:   # 暗いロゴは暗背景で見えない→暖かい生成りへ
-            CR, CG, CB = 0xF3, 0xEA, 0xD8
-            for y in range(H):
-                for x in range(W):
-                    r, g, b, a = px[x, y]
-                    if a > 0:
-                        px[x, y] = (CR, CG, CB, a)
-            print("[LOGO] 暗ロゴ→生成りに整えました (avg=%.0f)" % avg)
         bbox = im.getbbox()
-        if bbox:
-            im = im.crop(bbox)
-        im.save(os.path.join("public", "store_logo.png"))
+        im_c = im.crop(bbox) if bbox else im
+        # ① カラー版（白のみ透過・色はそのまま）＝フィードのブランド用「色付き文字ロゴ」。
+        im_c.save(os.path.join("public", "store_logo_color.png"))
+        global _LOGO_COLOR
+        _LOGO_COLOR = "store_logo_color.png"
+        print("[LOGO] public/store_logo_color.png 保存(カラー)", im_c.size)
+        # ② 生成り版（暗背景の動画テンプレ用）＝暗いロゴはクリーム単色化して視認性を確保。
+        im_k = im_c.copy()
+        if avg < 150:
+            CR, CG, CB = 0xF3, 0xEA, 0xD8
+            pk = im_k.load(); w2, h2 = im_k.size
+            for y in range(h2):
+                for x in range(w2):
+                    r, g, b, a = pk[x, y]
+                    if a > 0:
+                        pk[x, y] = (CR, CG, CB, a)
+            print("[LOGO] 暗ロゴ→生成りに整えました (avg=%.0f)" % avg)
+        im_k.save(os.path.join("public", "store_logo.png"))
         try:
             os.remove(raw)
         except Exception:
             pass
-        print("[LOGO] public/store_logo.png 保存完了", im.size)
+        print("[LOGO] public/store_logo.png 保存完了", im_k.size)
         return "store_logo.png"
     except Exception as e:
         print("[LOGO] 取得スキップ:", e); return ""
 
 
+def _fetch_round_logo():
+    """ロゴフォルダから「正方形に近い＝丸ロゴ（ブーツロゴ）」を1枚取得し、色そのままで
+    public/store_logo_round.png に保存（白のみ透過）。相対パス "store_logo_round.png" を返す。
+    動画No.6の中央メダリオンに“色付きの丸ロゴ”として入れる用（横ワードマークとは別軸で選別）。"""
+    try:
+        def _find(fid, depth=0):
+            for f in list_children(fid):
+                if f.get("mimeType") == "application/vnd.google-apps.folder":
+                    nm = str(f.get("name", ""))
+                    if ("ロゴ" in nm) or ("logo" in nm.lower()):
+                        return f["id"]
+                    if depth < 2:
+                        s = _find(f["id"], depth + 1)
+                        if s:
+                            return s
+            return None
+        lf = _find(FOOD_FOLDER)
+        if not lf:
+            return ""
+        imgs = [f for f in list_children(lf) if str(f.get("mimeType", "")).startswith("image/")]
+        if not imgs:
+            return ""
+
+        def _sq(f):
+            nm = str(f.get("name", "")).lower()
+            m = f.get("imageMediaMetadata") or {}
+            w, h = m.get("width", 0) or 0, m.get("height", 0) or 0
+            ar = (w / h) if h else 999
+            s = -abs(ar - 1.0) * 100         # 1:1 に近いほど高得点＝丸ロゴ
+            if any(k in nm for k in ("丸", "round", "circle", "マーク", "mark", "icon")):
+                s += 50
+            return s
+        pick = sorted(imgs, key=_sq, reverse=True)[0]
+        print("[LOGO-ROUND] 採用:", pick.get("name"))
+        raw = os.path.join(OUT_DIR, "_logo_round_raw")
+        req = drive.files().get_media(fileId=pick["id"])
+        buf = io.FileIO(raw, "wb"); dl = MediaIoBaseDownload(buf, req)
+        done = False
+        while not done:
+            _, done = dl.next_chunk()
+        buf.close()
+        try:
+            from PIL import Image
+        except ImportError:
+            import shutil; shutil.copyfile(raw, os.path.join("public", "store_logo_round.png")); return "store_logo_round.png"
+        im = Image.open(raw).convert("RGBA")
+        px = im.load(); W, H = im.size
+        HI = 246
+        for y in range(H):
+            for x in range(W):
+                r, g, b, a = px[x, y]
+                if a and min(r, g, b) >= HI:     # ほぼ白＝背景→透過（色はそのまま保持）
+                    px[x, y] = (r, g, b, 0)
+        bbox = im.getbbox()
+        if bbox:
+            im = im.crop(bbox)
+        im.save(os.path.join("public", "store_logo_round.png"))
+        try:
+            os.remove(raw)
+        except Exception:
+            pass
+        print("[LOGO-ROUND] public/store_logo_round.png 保存(カラー丸)", im.size)
+        return "store_logo_round.png"
+    except Exception as e:
+        print("[LOGO-ROUND] 取得スキップ:", e); return ""
+
+
+_LOGO_COLOR = ""   # カラー版ロゴ（フィードのブランド用）。_fetch_store_logo が副作用でセット。
 _logo = _fetch_store_logo()
+_logo_round = _fetch_round_logo()
 lines.append('export const typoLogo = "%s";' % esc(_logo))
+lines.append('export const typoLogoColor = "%s";' % esc(_LOGO_COLOR))
+lines.append('export const typoLogoRound = "%s";' % esc(_logo_round))
 _up = music
 _updir = os.path.join("public", "music", "uptempo")
 sync_music_from_drive(os.environ.get("GENRE_MUSIC_UPTEMPO_ID"), _updir)

@@ -6,7 +6,7 @@ import { typoPhotos, typoMusic, typoMusicStart } from "./typoData";
 import { ytheme } from "./yoshokuTheme";
 import {
   mincho, serif, clamp, SAFE, rise, drawW, fade,
-  Grain, Vignette, PhotoLayer, StoreLogo, heroSize,
+  Grain, Vignette, PhotoLayer, StoreLogo, SampleBadge, heroSize,
 } from "./yoshokuDesign";
 
 export const YOPEN_DUR = 300; // 10s
@@ -39,6 +39,9 @@ export const YoshokuOpen: React.FC<{ storeName?: string; handle?: string; theme?
       <Vignette strength={0.5} />
       <Grain />
 
+      {/* 右上：見本番号（本番投稿では非表示） */}
+      <SampleBadge accent={T.accent} f={f} />
+
       {/* 金のヘアライン枠＋上ラベル（控えめに） */}
       <div style={{ position: "absolute", inset: 74, border: "1px solid " + T.accent + "55", borderRadius: 8, opacity: fade(f, 16) * 0.75 }} />
       <div style={{ position: "absolute", top: SAFE.top - 20, left: 0, right: 0, textAlign: "center", opacity: fade(f, 18) }}>
@@ -54,7 +57,7 @@ export const YoshokuOpen: React.FC<{ storeName?: string; handle?: string; theme?
 
       {/* 下：料理名＋予約CTA（フッターと干渉しない高さに） */}
       <div style={{ position: "absolute", left: SAFE.side, right: SAFE.side, bottom: SAFE.bottom + 96, textAlign: "center", opacity: fade(f, 84) }}>
-        <div style={{ fontFamily: mincho, color: T.sub, fontSize: heroSize(hero.caption, 42, 32), letterSpacing: 3, marginBottom: 18 }}>本日の一皿：{hero.caption}</div>
+        <div style={{ fontFamily: mincho, color: T.sub, fontSize: heroSize(hero.caption, 54, 40), letterSpacing: 3, marginBottom: 18 }}>本日の一皿：{hero.caption}</div>
         <div style={{ display: "inline-block", padding: "13px 32px", border: "1px solid " + T.line, borderRadius: 999 }}>
           <span style={{ fontFamily: mincho, color: T.accent, fontSize: 30, letterSpacing: 2 }}>{reserveText}</span>
         </div>

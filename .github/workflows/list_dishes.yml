@@ -1,0 +1,34 @@
+name: list-dishes
+# 店舗のDrive「画像(FOOD)」フォルダ配下の料理写真ファイルを“クリーンな料理名”に整えて一覧出力する。
+# 料理ごとのキャプション（nagagutsu_captions.py 等）を書くための素材取り。投稿もダウンロードもしない。
+on:
+  workflow_dispatch:
+    inputs:
+      account:
+        description: "店舗アカウント（nagagutsu / goldporta / gifuyatenjin）"
+        required: false
+        default: "nagagutsu"
+permissions:
+  contents: read
+jobs:
+  list-dishes:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: susabiyu-remotion
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install Python deps
+        run: pip install google-api-python-client google-auth
+      - name: Write creds.json
+        run: echo "$GOOGLE_CREDS_B64" | base64 -d > creds.json
+        env:
+          GOOGLE_CREDS_B64: ${{ secrets.GOOGLE_CREDS_B64 }}
+      - name: List dishes
+        env:
+          STORE_ACCOUNT: ${{ github.event.inputs.account }}
+        run: python list_dishes.py creds.json

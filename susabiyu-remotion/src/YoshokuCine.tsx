@@ -6,8 +6,8 @@ import { AbsoluteFill, Audio, staticFile, useCurrentFrame, interpolate } from "r
 import { typoPhotos, typoHeadline, typoMusic, typoMusicStart } from "./typoData";
 import { ytheme } from "./yoshokuTheme";
 import {
-  mincho, serif, clamp, SAFE, EASE, rise, drawW, fade,
-  Grain, PhotoLayer, Slides, splitLines, heroSize, StoreLogo, segNow,
+  mincho, serif, clamp, SAFE, EASE, rise, drawW,
+  Grain, PhotoLayer, Slides, SampleBadge, splitLines, phraseLines, heroSize, StoreLogo, segNow,
 } from "./yoshokuDesign";
 
 export const YCINE_DUR = 480; // 16s
@@ -45,11 +45,14 @@ export const YoshokuCine: React.FC<{ storeName?: string; handle?: string; theme?
       <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: barH, background: "#000" }} />
       <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, height: barH, background: "#000" }} />
 
+      {/* 右上：見本番号（本番投稿では非表示） */}
+      <SampleBadge accent={T.accent} f={f} />
+
       {/* 導入タイトル（中央・フック） */}
       <AbsoluteFill style={{ display: "flex", alignItems: "center", justifyContent: "center", flexDirection: "column", opacity: titleO, transform: "translateY(" + titleY + "px)" }}>
         <div style={{ fontFamily: serif, color: T.accent, fontSize: 26, letterSpacing: 7, marginBottom: 22, textTransform: "uppercase", opacity: 0.9 }}>{T.label}</div>
         <div style={{ fontFamily: mincho, color: "#FFFFFF", fontSize: heroSize(typoHeadline, 74, 54), fontWeight: 700, letterSpacing: 2, textAlign: "center", lineHeight: 1.24, textShadow: "0 3px 26px rgba(0,0,0,0.7)", padding: "0 " + SAFE.side + "px" }}>
-          {splitLines(typoHeadline).length ? splitLines(typoHeadline).map((ln, i) => <div key={i}>{ln}</div>) : typoHeadline}
+          {phraseLines(typoHeadline).map((ln, i) => <div key={i} style={{ whiteSpace: "nowrap" }}>{ln}</div>)}
         </div>
         <div style={{ marginTop: 24, width: lineW, height: 2, background: T.accent, opacity: 0.9 }} />
       </AbsoluteFill>
@@ -58,8 +61,8 @@ export const YoshokuCine: React.FC<{ storeName?: string; handle?: string; theme?
       {(() => {
         const { i, local } = segNow(DUR, 4, f);
         if (i === 0 && f < 120) return null; // 1カット目はタイトル優先
-        const it = items[i]; const lines = splitLines(it.caption);
-        const sz = heroSize(it.caption, 60, 42);
+        const it = items[i]; const _nm = (it.disp && it.disp.length) ? it.disp : it.caption; const lines = splitLines(_nm);
+        const sz = heroSize(_nm, 80, 52);
         return (
           <div key={i} style={{ position: "absolute", left: SAFE.side, right: SAFE.side, bottom: BAR + 44, textAlign: "center", ...rise(local, 8, { dist: 16 }) }}>
             <div style={{ fontFamily: mincho, color: "#F4ECDD", fontSize: sz, fontWeight: 600, letterSpacing: 1, lineHeight: 1.2, textShadow: "0 2px 16px rgba(0,0,0,0.85)" }}>

@@ -971,7 +971,11 @@ function _acctFromIgId_(igid) {
     if (m && Object.prototype.hasOwnProperty.call(m, igid)) return m[igid];   // プロパティ優先（値 "" も有効）
   } catch (e) {}
   if (Object.prototype.hasOwnProperty.call(IG_ACCOUNT_BUILTIN, igid)) return IG_ACCOUNT_BUILTIN[igid];
-  return 'gifuyatenjin';
+  // 未マップのIGユーザーIDは、既知店（ぎふや等）のタブに混ぜず隔離用accountへ振る。
+  // ＝新店のトークン未設定時でも他店のDM/メンションに個人情報が混入しない（クロス店舗漏れ防止）。
+  // '_unknown' は予約投稿トークンを持たないためPython側の自動リポスト対象にもならない（隔離のみ）。
+  // 新店を足す時は IG_ACCOUNT_BUILTIN か スクリプトプロパティ IG_ACCOUNT_MAP に必ずIDを登録すること。
+  return '_unknown';
 }
 function _verifyWebhook_(p) {
   var ok = String(p['hub.verify_token'] || '') === _verifyToken_();
@@ -998,6 +1002,7 @@ function doPost(e) {
 // 相手からの初回メッセージとして届く＝ポーリングで取れない内容もアプリで確認できる。
 // タブ列は dm_notify.py と同一: A=時刻(JST) / B=送信者ID / C=本文 / D=msgid。
 function _dmTab_(account) {
+  var ss = SpreadsheetApp.openById(SHEET_ID);   // ← 各関数でローカル取得（グローバルssは存在しない＝参照するとReferenceError）
   var suf = account ? ("_" + String(account).trim()) : "";
   var name = "DM" + suf;
   var sh = ss.getSheetByName(name);
@@ -1091,6 +1096,7 @@ function _mediaAlive_(url) {
 // LP(sanjo.html等・外部ドメイン)から <img>/fetch(no-cors,keepalive) のGETビーコンで飛んでくる。
 // お客様の個人情報は保存しない（訪問IDは端末内発行のランダム値のみ）。タブ「LPアクセス」に追記。
 function _lpSheet_() {
+  var ss = SpreadsheetApp.openById(SHEET_ID);   // ← 同上（グローバルss無し）
   var sh = ss.getSheetByName("LPアクセス");
   if (!sh) {
     sh = ss.insertSheet("LPアクセス");
@@ -1108,6 +1114,11 @@ function _track_(p) {
       String(p.vid || "").slice(0, 40),
       String(p.ref || "").slice(0, 300),
       String(p.ua || "").slice(0, 200)]);
+    // 匿名GETで書けるビーコンのため行数に上限を設ける（＝大量POSTでのシート肥大・GASクォータ枯渇＝無料枠圧迫を防ぐ）。
+    // 上限超過時は最古の行から切り詰め（ヘッダー行は保持）。直近LP_CAP件のみ残す運用。
+    var LP_CAP = 8000;
+    var last = sh.getLastRow();
+    if (last > LP_CAP + 1) sh.deleteRows(2, last - (LP_CAP + 1));
   } catch (e) {}
   return _jsonp_(p.cb || p.callback || "", { ok: 1 });
 }
@@ -1117,6 +1128,7 @@ function _lpreport_(store, days) {
               cur: { pv: 0, uniq: 0, clicks: 0, resv: 0, cvr: 0 },
               prev: { pv: 0, uniq: 0, clicks: 0, resv: 0, cvr: 0 },
               labels: {} };
+  var ss = SpreadsheetApp.openById(SHEET_ID);   // ← 同上（グローバルss無し）
   var sh = ss.getSheetByName("LPアクセス");
   if (!sh) return out;
   var last = sh.getLastRow();
@@ -1168,6 +1180,7 @@ function _lpreport_(store, days) {
 // 受信DM一覧（dm_notify.py が「DM_<account>」タブに記録：A=時刻,B=送信者,C=本文,D=msgid）。
 // お客様の個人情報のため公開リポには置かず、このGAS経由でのみ確認アプリに返す。新しい順・最大60件。
 function _apiDM_(account) {
+  var ss = SpreadsheetApp.openById(SHEET_ID);   // ← 同上（グローバルss無し）
   var suf = account ? ("_" + String(account).trim()) : "";
   var sh = ss.getSheetByName("DM" + suf);
   if (!sh) return { items: [] };

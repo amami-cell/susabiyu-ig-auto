@@ -6,7 +6,7 @@ import { typoPhotos, typoMusic, typoMusicStart } from "./typoData";
 import { ytheme } from "./yoshokuTheme";
 import {
   mincho, serif, clamp, SAFE, rise, fade,
-  Grain, Vignette, PhotoLayer, Slides, StoreLogo, splitLines, heroSize, segNow,
+  Grain, Vignette, PhotoLayer, Slides, SampleBadge, StoreLogo, splitLines, heroSize, segNow,
 } from "./yoshokuDesign";
 
 export const YTRIO_DUR = 330; // 11s（1品 ≒ 3.6s）
@@ -17,7 +17,7 @@ export const YoshokuTrio: React.FC<{ storeName?: string; handle?: string; theme?
   const f = useCurrentFrame();
   const DUR = YTRIO_DUR;
   const T = ytheme(theme);
-  const p = typoPhotos.length ? typoPhotos : [{ src: "", caption: "" }];
+  const p = typoPhotos.length ? typoPhotos : [{ src: "", caption: "", story: "" }];
   const items = [0, 1, 2].map((i) => p[i] || p[p.length - 1]);
   const nos = ["01", "02", "03"];
 
@@ -37,11 +37,14 @@ export const YoshokuTrio: React.FC<{ storeName?: string; handle?: string; theme?
       <Vignette strength={0.42} />
       <Grain opacity={0.05} />
 
+      {/* 右上：見本番号（本番投稿では非表示） */}
+      <SampleBadge accent={T.accent} f={f} />
+
       {/* 番号＋料理名＝カットごとに“1件だけ”表示 */}
       {(() => {
         const { i, local } = segNow(DUR, 3, f);
-        const it = items[i]; const lines = splitLines(it.caption);
-        const sz = heroSize(it.caption, 72, 50);
+        const it = items[i]; const _nm = (it.disp && it.disp.length) ? it.disp : it.caption; const lines = splitLines(_nm);
+        const sz = heroSize(_nm, 90, 60);
         return (
           <div key={i}>
             <div style={{ position: "absolute", top: SAFE.top + 20, left: SAFE.side, ...rise(local, 4, { dist: 18 }) }}>
@@ -52,6 +55,7 @@ export const YoshokuTrio: React.FC<{ storeName?: string; handle?: string; theme?
               <div style={{ fontFamily: mincho, color: "#FFF8EC", fontSize: sz, fontWeight: 700, letterSpacing: 3, lineHeight: 1.22, textShadow: "0 2px 20px rgba(0,0,0,0.75)" }}>
                 {lines.length ? lines.map((ln, k) => <div key={k}>{ln}</div>) : it.caption}
               </div>
+              {it.story ? <div style={{ marginTop: 10, fontFamily: serif, fontStyle: "italic", color: T.accent, fontSize: 30, letterSpacing: 2, textShadow: "0 2px 14px rgba(0,0,0,0.7)" }}>{it.story}</div> : null}
             </div>
           </div>
         );
