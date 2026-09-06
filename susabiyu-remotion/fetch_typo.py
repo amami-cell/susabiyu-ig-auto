@@ -461,10 +461,79 @@ def _fetch_store_logo():
         print("[LOGO] 取得スキップ:", e); return ""
 
 
+def _fetch_round_logo():
+    """ロゴフォルダから「正方形に近い＝丸ロゴ（ブーツロゴ）」を1枚取得し、色そのままで
+    public/store_logo_round.png に保存（白のみ透過）。相対パス "store_logo_round.png" を返す。
+    動画No.6の中央メダリオンに“色付きの丸ロゴ”として入れる用（横ワードマークとは別軸で選別）。"""
+    try:
+        def _find(fid, depth=0):
+            for f in list_children(fid):
+                if f.get("mimeType") == "application/vnd.google-apps.folder":
+                    nm = str(f.get("name", ""))
+                    if ("ロゴ" in nm) or ("logo" in nm.lower()):
+                        return f["id"]
+                    if depth < 2:
+                        s = _find(f["id"], depth + 1)
+                        if s:
+                            return s
+            return None
+        lf = _find(FOOD_FOLDER)
+        if not lf:
+            return ""
+        imgs = [f for f in list_children(lf) if str(f.get("mimeType", "")).startswith("image/")]
+        if not imgs:
+            return ""
+
+        def _sq(f):
+            nm = str(f.get("name", "")).lower()
+            m = f.get("imageMediaMetadata") or {}
+            w, h = m.get("width", 0) or 0, m.get("height", 0) or 0
+            ar = (w / h) if h else 999
+            s = -abs(ar - 1.0) * 100         # 1:1 に近いほど高得点＝丸ロゴ
+            if any(k in nm for k in ("丸", "round", "circle", "マーク", "mark", "icon")):
+                s += 50
+            return s
+        pick = sorted(imgs, key=_sq, reverse=True)[0]
+        print("[LOGO-ROUND] 採用:", pick.get("name"))
+        raw = os.path.join(OUT_DIR, "_logo_round_raw")
+        req = drive.files().get_media(fileId=pick["id"])
+        buf = io.FileIO(raw, "wb"); dl = MediaIoBaseDownload(buf, req)
+        done = False
+        while not done:
+            _, done = dl.next_chunk()
+        buf.close()
+        try:
+            from PIL import Image
+        except ImportError:
+            import shutil; shutil.copyfile(raw, os.path.join("public", "store_logo_round.png")); return "store_logo_round.png"
+        im = Image.open(raw).convert("RGBA")
+        px = im.load(); W, H = im.size
+        HI = 246
+        for y in range(H):
+            for x in range(W):
+                r, g, b, a = px[x, y]
+                if a and min(r, g, b) >= HI:     # ほぼ白＝背景→透過（色はそのまま保持）
+                    px[x, y] = (r, g, b, 0)
+        bbox = im.getbbox()
+        if bbox:
+            im = im.crop(bbox)
+        im.save(os.path.join("public", "store_logo_round.png"))
+        try:
+            os.remove(raw)
+        except Exception:
+            pass
+        print("[LOGO-ROUND] public/store_logo_round.png 保存(カラー丸)", im.size)
+        return "store_logo_round.png"
+    except Exception as e:
+        print("[LOGO-ROUND] 取得スキップ:", e); return ""
+
+
 _LOGO_COLOR = ""   # カラー版ロゴ（フィードのブランド用）。_fetch_store_logo が副作用でセット。
 _logo = _fetch_store_logo()
+_logo_round = _fetch_round_logo()
 lines.append('export const typoLogo = "%s";' % esc(_logo))
 lines.append('export const typoLogoColor = "%s";' % esc(_LOGO_COLOR))
+lines.append('export const typoLogoRound = "%s";' % esc(_logo_round))
 _up = music
 _updir = os.path.join("public", "music", "uptempo")
 sync_music_from_drive(os.environ.get("GENRE_MUSIC_UPTEMPO_ID"), _updir)

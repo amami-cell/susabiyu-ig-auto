@@ -1,13 +1,26 @@
 // 洋食⑥ペアリング：上下2分割で「この一皿に、この一杯」。中央のメダリオンが締めの記号。
 // 役割＝“組み合わせの提案”で客単価と期待感を上げる。上下対の構図で選ぶ楽しさを見せる。
 // 変更点: 中央メダリオンを大きく／下の料理名を画面下寄りへ／弱いキャッチ→「本日のおすすめ」を大きく。
-import { AbsoluteFill, Audio, staticFile, useCurrentFrame, interpolate } from "remotion";
-import { typoPhotos, typoMusic, typoMusicStart } from "./typoData";
+import { AbsoluteFill, Audio, Img, staticFile, useCurrentFrame, interpolate } from "remotion";
+import { typoPhotos, typoMusic, typoMusicStart, typoLogoRound } from "./typoData";
 import { ytheme } from "./yoshokuTheme";
 import {
   mincho, serif, clamp, SAFE, EASE, drawW, fade,
-  Grain, PhotoLayer, SampleBadge, heroSize,
+  Grain, PhotoLayer, SampleBadge, heroSize, splitLines,
 } from "./yoshokuDesign";
+
+// 料理名を ｜ で改行しつつ描く小コンポーネント（disp＝16文字以上は承認済み位置で2行）。
+function DishName({ name, sub, size, color, subColor }: { name: string; sub?: string; size: number; color: string; subColor: string }) {
+  const arr = splitLines(name); const lines = arr.length ? arr : [name];
+  return (
+    <div>
+      {sub ? <div style={{ fontFamily: serif, color: subColor, fontSize: Math.max(20, Math.round(size * 0.42)), letterSpacing: 3, textTransform: "uppercase", fontWeight: 600, marginBottom: 6 }}>{sub}</div> : null}
+      <div style={{ fontFamily: mincho, color, fontSize: size, fontWeight: 700, letterSpacing: 2, lineHeight: 1.14 }}>
+        {lines.map((l, i) => <div key={i}>{l}</div>)}
+      </div>
+    </div>
+  );
+}
 
 export const YWINE_DUR = 300; // 10s
 
@@ -17,7 +30,7 @@ export const YoshokuWine: React.FC<{ storeName?: string; handle?: string; theme?
   const f = useCurrentFrame();
   const DUR = YWINE_DUR;
   const T = ytheme(theme);
-  const a = typoPhotos[0] || { src: "", caption: "", story: "" };
+  const a = typoPhotos[0] || { src: "", caption: "", story: "", sub: "", disp: "" };
   const b = typoPhotos[1] || a;
 
   const topY = interpolate(f, [4, 26], [-36, 0], { ...clamp, easing: EASE });
@@ -34,10 +47,10 @@ export const YoshokuWine: React.FC<{ storeName?: string; handle?: string; theme?
       <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: 940, overflow: "hidden", opacity: fade(f, 4), transform: "translateY(" + topY + "px)" }}>
         <PhotoLayer src={a.src} frame={f} dur={DUR} from={1.04} to={1.11} sat={1.06} />
         <AbsoluteFill style={{ background: "linear-gradient(180deg, rgba(0,0,0,0.28) 0%, rgba(0,0,0,0) 40%, " + T.base + "F2 100%)" }} />
-        <div style={{ position: "absolute", left: SAFE.side, bottom: 60, opacity: fade(f, 60) }}>
-          <div style={{ fontFamily: serif, color: T.accent, fontSize: 24, letterSpacing: 6, marginBottom: 6 }}>DISH</div>
-          <div style={{ fontFamily: mincho, color: T.ink, fontSize: heroSize(a.caption, 56, 40), fontWeight: 600, letterSpacing: 2 }}>{a.caption}</div>
-          {a.story ? <div style={{ marginTop: 6, fontFamily: mincho, color: T.sub, fontSize: 28, letterSpacing: 1 }}>{a.story}</div> : null}
+        <div style={{ position: "absolute", left: SAFE.side, right: SAFE.side, bottom: 176, opacity: fade(f, 60) }}>
+          <div style={{ fontFamily: serif, color: T.accent, fontSize: 24, letterSpacing: 6, marginBottom: 8 }}>DISH</div>
+          <DishName name={(a.disp && a.disp.length) ? a.disp : a.caption} sub={a.sub} size={heroSize((a.disp || a.caption), 72, 50)} color={T.ink} subColor={T.accent} />
+          {a.story ? <div style={{ marginTop: 8, fontFamily: mincho, color: T.sub, fontSize: 30, letterSpacing: 1 }}>{a.story}</div> : null}
         </div>
       </div>
 
@@ -45,10 +58,10 @@ export const YoshokuWine: React.FC<{ storeName?: string; handle?: string; theme?
       <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, height: 940, overflow: "hidden", opacity: fade(f, 16), transform: "translateY(" + botY + "px)" }}>
         <PhotoLayer src={b.src} frame={f} dur={DUR} from={1.11} to={1.04} sat={1.06} />
         <AbsoluteFill style={{ background: "linear-gradient(0deg, rgba(0,0,0,0.32) 0%, rgba(0,0,0,0) 42%, " + T.base + "F2 100%)" }} />
-        <div style={{ position: "absolute", left: SAFE.side, bottom: SAFE.bottom - 96, opacity: fade(f, 70) }}>
-          <div style={{ fontFamily: serif, color: T.accent, fontSize: 24, letterSpacing: 6, marginBottom: 6 }}>PAIRING</div>
-          <div style={{ fontFamily: mincho, color: T.ink, fontSize: heroSize(b.caption, 56, 40), fontWeight: 600, letterSpacing: 2 }}>{b.caption}</div>
-          {b.story ? <div style={{ marginTop: 6, fontFamily: mincho, color: T.sub, fontSize: 28, letterSpacing: 1 }}>{b.story}</div> : null}
+        <div style={{ position: "absolute", left: SAFE.side, right: SAFE.side, bottom: SAFE.bottom - 96, opacity: fade(f, 70) }}>
+          <div style={{ fontFamily: serif, color: T.accent, fontSize: 24, letterSpacing: 6, marginBottom: 8 }}>PAIRING</div>
+          <DishName name={(b.disp && b.disp.length) ? b.disp : b.caption} sub={b.sub} size={heroSize((b.disp || b.caption), 72, 50)} color={T.ink} subColor={T.accent} />
+          {b.story ? <div style={{ marginTop: 8, fontFamily: mincho, color: T.sub, fontSize: 30, letterSpacing: 1 }}>{b.story}</div> : null}
         </div>
       </div>
 
@@ -60,8 +73,10 @@ export const YoshokuWine: React.FC<{ storeName?: string; handle?: string; theme?
       {/* 中央：大きめメダリオン＋「本日のおすすめ」 */}
       <AbsoluteFill style={{ display: "flex", alignItems: "center", justifyContent: "center", flexDirection: "column", opacity: midO }}>
         <div style={{ width: rule, height: 1, background: T.line, marginBottom: 20 }} />
-        <div style={{ width: 184, height: 184, borderRadius: "50%", border: "2px solid " + T.accent, background: T.base + "D9", display: "flex", alignItems: "center", justifyContent: "center", transform: "scale(" + midS + ")", boxShadow: "0 20px 50px rgba(0,0,0,0.5)" }}>
-          <div style={{ fontFamily: serif, fontStyle: "italic", color: T.accent, fontSize: 96, lineHeight: 1 }}>&amp;</div>
+        <div style={{ width: 184, height: 184, borderRadius: "50%", border: "2px solid " + T.accent, background: T.base + "D9", overflow: "hidden", display: "flex", alignItems: "center", justifyContent: "center", transform: "scale(" + midS + ")", boxShadow: "0 20px 50px rgba(0,0,0,0.5)" }}>
+          {typoLogoRound
+            ? <Img src={staticFile(typoLogoRound)} style={{ width: "100%", height: "100%", objectFit: "contain", padding: 8 }} />
+            : <div style={{ fontFamily: serif, fontStyle: "italic", color: T.accent, fontSize: 96, lineHeight: 1 }}>&amp;</div>}
         </div>
         <div style={{ width: rule, height: 1, background: T.line, marginTop: 20 }} />
         <div style={{ marginTop: 20, fontFamily: mincho, color: T.ink, fontSize: 46, fontWeight: 700, letterSpacing: 6, textShadow: "0 2px 16px rgba(0,0,0,0.6)" }}>本日のおすすめ</div>
