@@ -12,3 +12,4 @@ export const typoMusic = "music/normal/bgm.mp3";
 export const typoMusicStart = 0;
 export const typoUptempo = "bgm.mp3";
 export const typoLogo = "";
+export const typoLogoColor = "";

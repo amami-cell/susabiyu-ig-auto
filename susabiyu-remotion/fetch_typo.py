@@ -432,30 +432,39 @@ def _fetch_store_logo():
                     if na > 60:
                         lum_sum += (r * 299 + g * 587 + b * 114) // 1000; lum_cnt += 1
         avg = (lum_sum / lum_cnt) if lum_cnt else 255
-        if avg < 150:   # 暗いロゴは暗背景で見えない→暖かい生成りへ
-            CR, CG, CB = 0xF3, 0xEA, 0xD8
-            for y in range(H):
-                for x in range(W):
-                    r, g, b, a = px[x, y]
-                    if a > 0:
-                        px[x, y] = (CR, CG, CB, a)
-            print("[LOGO] 暗ロゴ→生成りに整えました (avg=%.0f)" % avg)
         bbox = im.getbbox()
-        if bbox:
-            im = im.crop(bbox)
-        im.save(os.path.join("public", "store_logo.png"))
+        im_c = im.crop(bbox) if bbox else im
+        # ① カラー版（白のみ透過・色はそのまま）＝フィードのブランド用「色付き文字ロゴ」。
+        im_c.save(os.path.join("public", "store_logo_color.png"))
+        global _LOGO_COLOR
+        _LOGO_COLOR = "store_logo_color.png"
+        print("[LOGO] public/store_logo_color.png 保存(カラー)", im_c.size)
+        # ② 生成り版（暗背景の動画テンプレ用）＝暗いロゴはクリーム単色化して視認性を確保。
+        im_k = im_c.copy()
+        if avg < 150:
+            CR, CG, CB = 0xF3, 0xEA, 0xD8
+            pk = im_k.load(); w2, h2 = im_k.size
+            for y in range(h2):
+                for x in range(w2):
+                    r, g, b, a = pk[x, y]
+                    if a > 0:
+                        pk[x, y] = (CR, CG, CB, a)
+            print("[LOGO] 暗ロゴ→生成りに整えました (avg=%.0f)" % avg)
+        im_k.save(os.path.join("public", "store_logo.png"))
         try:
             os.remove(raw)
         except Exception:
             pass
-        print("[LOGO] public/store_logo.png 保存完了", im.size)
+        print("[LOGO] public/store_logo.png 保存完了", im_k.size)
         return "store_logo.png"
     except Exception as e:
         print("[LOGO] 取得スキップ:", e); return ""
 
 
+_LOGO_COLOR = ""   # カラー版ロゴ（フィードのブランド用）。_fetch_store_logo が副作用でセット。
 _logo = _fetch_store_logo()
 lines.append('export const typoLogo = "%s";' % esc(_logo))
+lines.append('export const typoLogoColor = "%s";' % esc(_LOGO_COLOR))
 _up = music
 _updir = os.path.join("public", "music", "uptempo")
 sync_music_from_drive(os.environ.get("GENRE_MUSIC_UPTEMPO_ID"), _updir)
