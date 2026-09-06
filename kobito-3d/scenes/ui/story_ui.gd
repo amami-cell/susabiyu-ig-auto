@@ -13,6 +13,7 @@ var _hint: Label
 var _catch: Button
 var _banner: Label
 var _banner_t := 0.0
+var _title_btn: Button = null   # エンディング後の「タイトルへ」
 
 
 func _ready() -> void:
@@ -27,6 +28,11 @@ func _ready() -> void:
 	Chapter.dialogue.connect(show_dialogue)
 	Chapter.objective_changed.connect(set_objective)
 	Chapter.banner.connect(show_banner)
+	# セッション終了（タイトルへ戻る）時に、エンディングボタンが残らないよう片づける。
+	Net.session_ended.connect(func(_r: String) -> void:
+		if _title_btn != null:
+			_title_btn.queue_free()
+			_title_btn = null)
 
 
 func _build() -> void:
@@ -182,6 +188,29 @@ func show_banner(text: String) -> void:
 	_banner_t = 3.2
 	var tw := create_tween()
 	tw.tween_property(_banner, "modulate:a", 1.0, 0.4)
+	# エンディングのバナーには「タイトルへ」導線を出す（余韻を壊さず、いつでも戻れる）。
+	if "おわり" in text:
+		_show_title_button()
+
+
+## エンディング後にだけ出す「タイトルへ ▶」ボタン。押すとタイトルへ戻る。
+func _show_title_button() -> void:
+	if _title_btn != null:
+		return
+	_title_btn = Button.new()
+	_title_btn.text = "タイトルへ ▶"
+	_title_btn.set_anchors_preset(Control.PRESET_CENTER_BOTTOM)
+	_title_btn.offset_left = -120
+	_title_btn.offset_right = 120
+	_title_btn.offset_top = -140
+	_title_btn.offset_bottom = -84
+	UIKit.style_button(_title_btn, UIKit.GREEN, UIKit.GREEN_DK)
+	_title_btn.modulate = Color(1, 1, 1, 0)
+	add_child(_title_btn)
+	_title_btn.pressed.connect(func() -> void: Net.leave("タイトルに戻りました"))
+	var tw := create_tween()
+	tw.tween_interval(2.0)   # 余韻のあとに ふわっと出す
+	tw.tween_property(_title_btn, "modulate:a", 1.0, 0.6)
 
 
 func _process(delta: float) -> void:

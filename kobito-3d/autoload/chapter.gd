@@ -425,6 +425,11 @@ func _set_beat(i: int, silent: bool = false) -> void:
 			if data.has("reset_recovery"):
 				# 第2章＝“新しい汚れた世界”。回復を落として、また緑に戻す payoff を作る。
 				WorldState.set_recovery(float(data["reset_recovery"]))
+			# 静かな場面に入るときは残った雑魚を浄化して片づける（余韻/エンディングを汚さない）。
+			if data.get("goal", "") in ["story", "ending", "green"]:
+				var g := get_tree().get_first_node_in_group("garden")
+				if g != null and g.has_method("purify_lingering_bugs"):
+					g.purify_lingering_bugs()
 	# 大バナー（章クリア・章タイトル・エンディング等）は全員の画面に出す。
 	if not silent:
 		if data.has("banner"):

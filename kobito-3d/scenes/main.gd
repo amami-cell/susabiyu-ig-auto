@@ -255,7 +255,7 @@ func _run_selftest() -> void:
 	var ally_ok: bool = get_tree().get_nodes_in_group("ally").size() > 0
 
 	# セーブ（つづきから）：章を進めるとチェックポイントが書かれるかを確認する
-	Chapter.rpc("_set_beat", 2)
+	Chapter.rpc("_set_beat", 2, false)
 	await get_tree().create_timer(0.3).timeout
 	var save_ok: bool = Chapter.has_save() and Chapter.save_label() != ""
 

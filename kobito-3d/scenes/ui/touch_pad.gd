@@ -41,12 +41,29 @@ func _ready() -> void:
 	_bind_button($Buttons/BtnGrab, "act_grab")
 	_bind_button($Buttons/BtnJump, "act_jump")
 	_skin_buttons()
-	if not _tutorial_done():
+	# オンボーディングはタッチ環境のみ（PC/パッドでは「スティックで動く」は嘘になる）。
+	if DisplayServer.is_touchscreen_available() and not _tutorial_done():
 		_build_tutorial()
 		_tut_armed = true
 		set_process(true)
 	_update_home()
 	get_viewport().size_changed.connect(_update_home)
+	# 会話/ポーズ/ロビー復帰でUIが隠れたら、押しっぱなしの入力を解放（勝手に動くのを防ぐ）。
+	visibility_changed.connect(_on_visibility_changed)
+
+
+func _on_visibility_changed() -> void:
+	if not is_visible_in_tree():
+		_release_all()
+
+
+func _release_all() -> void:
+	for a in ["move_left", "move_right", "move_forward", "move_back", "act_attack", "act_grab", "act_jump"]:
+		Input.action_release(a)
+	_stick_touch = -1
+	_cam_touches.clear()
+	_stick_value = Vector2.ZERO
+	queue_redraw()
 
 
 ## プニコンの中心を左下に固定。画面サイズが変わっても置き直す。

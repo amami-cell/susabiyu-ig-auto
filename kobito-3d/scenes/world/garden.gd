@@ -367,6 +367,17 @@ func _remote_spawn_seed(index: int, pos: Vector3) -> void:
 
 # ------------------------------------------------------------ 章の山場（群れ・中ボス）
 
+## 静かな場面（会話・エンディング・みどり回復）に入るとき、残っている雑魚を静かに浄化して
+## 片づける＝ボス撃破後のミニオンが余韻やエンディングまで攻撃し続けるのを防ぐ。中ボスは残す。
+func purify_lingering_bugs() -> void:
+	if not _is_server():
+		return
+	for b in get_tree().get_nodes_in_group("bug"):
+		var st: Variant = b.get("stats")
+		if st != null and not st.is_midboss:
+			b.rpc("_remote_healed")
+
+
 ## 群れ（ウェーブ）：一気に敵を湧かせる。Chapter の合図で。
 func _on_chapter_wave(n: int) -> void:
 	if not _is_server():
@@ -393,7 +404,10 @@ func _on_chapter_boss() -> void:
 		pos.y = 1.0
 		pos.x = clampf(pos.x, -30.0, 30.0)   # 壁にめり込まない範囲へ
 		pos.z = clampf(pos.z, -30.0, 30.0)
-	rpc("_remote_spawn_bug", _bug_serial, "res://data/queen_ant.tres", pos)
+	# 第1章の中ボス＝女王アリ、第2章のラスボス＝ヘドロの主（別モデル・大きく・硬い）。
+	# beat 10 以降が第2章なので、そこからは主にする（クライマックスの使い回しを解消）。
+	var boss_path := "res://data/sludge_lord.tres" if Chapter.beat >= 10 else "res://data/queen_ant.tres"
+	rpc("_remote_spawn_bug", _bug_serial, boss_path, pos)
 
 
 ## サーバ側で「誰か1人」のプレイヤーを返す（ボスの出現位置決め用）。

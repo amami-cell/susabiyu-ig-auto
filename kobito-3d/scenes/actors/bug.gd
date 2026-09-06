@@ -163,8 +163,9 @@ func _update_hpbar() -> void:
 	_hpbar_fill.scale.x = ratio
 	if _hp_num != null:
 		_hp_num.text = str(maxi(0, hp))
-	# 生きている間はいつも出す（満タンでも）＝のこりHPが常に分かる。
-	_hpbar.visible = _dead == false and hp > 0
+	# 満タンの雑魚はバーを隠す＝Webのオーバードローを減らす（接近中の大半が満タン）。
+	# 一度でも削れた雑魚と、ボス(中ボス)は常時表示＝「のこりHP」は見える。
+	_hpbar.visible = _dead == false and hp > 0 and (stats.is_midboss or hp < maxhp)
 
 
 func _physics_process(delta: float) -> void:
