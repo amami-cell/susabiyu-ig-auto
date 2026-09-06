@@ -28,6 +28,7 @@ var _sync_accum := 0.0
 var _net_pos := Vector3.ZERO
 var _dead := false
 var _age := 0.0
+var _body_mat: StandardMaterial3D = null   # 発光脈動用
 var _knockback := Vector3.ZERO   # 叩かれて弾き飛ぶ勢い（減衰する）
 
 # ボス（中ボス）だけの「召喚」：戦闘中、周りに小さな虫を生み出す。
@@ -61,7 +62,9 @@ func _ready() -> void:
 	mat.emission = Color(0.5, 0.25, 0.55)
 	mat.emission_energy_multiplier = 0.25
 	_body.material_override = mat
+	_body_mat = mat   # 発光を脈動させる（“侵されている”生々しさ）
 	_body.scale = Vector3.ONE * stats.body_scale
+	set_process(true)
 
 	# 横倒しカプセル1個を“虫”に見せる。Webは超軽量版（頭＋目のみ）でドローコールを抑える。
 	if OS.has_feature("web"):
@@ -166,6 +169,13 @@ func _update_hpbar() -> void:
 	# 満タンの雑魚はバーを隠す＝Webのオーバードローを減らす（接近中の大半が満タン）。
 	# 一度でも削れた雑魚と、ボス(中ボス)は常時表示＝「のこりHP」は見える。
 	_hpbar.visible = _dead == false and hp > 0 and (stats.is_midboss or hp < maxhp)
+
+
+## 見た目だけ（全員の画面）：ヘドロの発光をゆっくり脈動＝“侵されている”生々しさ。負荷ゼロ。
+func _process(_dt: float) -> void:
+	if _dead or _body_mat == null:
+		return
+	_body_mat.emission_energy_multiplier = 0.18 + 0.14 * (0.5 + 0.5 * sin(_age * 3.0))
 
 
 func _physics_process(delta: float) -> void:

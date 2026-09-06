@@ -27,9 +27,9 @@ const CHILDREN := [
 	{"name": "カヤ", "color": Color(0.85, 0.50, 0.25), "scale": 0.66},
 	{"name": "ソラ", "color": Color(0.50, 0.75, 0.95), "scale": 0.62},
 	{"name": "シズク", "color": Color(0.55, 0.80, 0.85), "scale": 0.60},
-	{"name": "リン", "color": Color(0.58, 0.82, 0.42), "scale": 0.58},
-	{"name": "ラン", "color": Color(0.50, 0.74, 0.38), "scale": 0.58},
-	{"name": "マメ", "color": Color(0.66, 0.70, 0.35), "scale": 0.56},
+	{"name": "リン", "color": Color(0.95, 0.55, 0.32), "scale": 0.58},
+	{"name": "ラン", "color": Color(0.30, 0.72, 0.66), "scale": 0.58},
+	{"name": "マメ", "color": Color(0.93, 0.80, 0.34), "scale": 0.56},
 	{"name": "つぼみ", "color": Color(0.95, 0.65, 0.75), "scale": 0.46},
 ]
 
@@ -696,7 +696,8 @@ func _apply_biome() -> void:
 			_ground_shader.set_shader_parameter("soil", Color(0.28, 0.28, 0.26))
 			_ground_shader.set_shader_parameter("grass", Color(0.30, 0.42, 0.28))
 		else:
-			_ground_shader.set_shader_parameter("soil", Color(0.34, 0.27, 0.19))
+			# 汚れ側は“下水の茶”→“くすんだ青緑(ヘドロ)”＝絵本の汚れに（第一印象の泥っぽさを解消）。
+			_ground_shader.set_shader_parameter("soil", Color(0.30, 0.31, 0.26))
 			_ground_shader.set_shader_parameter("grass", Color(0.30, 0.55, 0.25))
 	if _sun != null:
 		_sun.light_color = Color(0.7, 0.78, 0.72) if ruins else Color(1.0, 0.95, 0.86)
@@ -1429,7 +1430,7 @@ func _update_flowers(r: float) -> void:
 	if _is_ruins():
 		_flower_mm.visible_instance_count = 0   # 遺跡に花は咲かない
 		return
-	var t := clampf((r - 0.3) / 0.7, 0.0, 1.0)
+	var t := clampf((r - 0.2) / 0.8, 0.0, 1.0)   # 早めに咲き始める＝達成感を前倒し
 	_flower_mm.visible_instance_count = int(round(_flower_n * t))
 
 
@@ -1569,4 +1570,4 @@ func _on_recovery_changed(_value: float) -> void:
 	var env := _env.environment
 	if env != null:
 		env.background_color = WorldState.sky_color()
-		env.ambient_light_color = WorldState.sky_color()
+		# （ambient は AMBIENT_SOURCE_SKY のため ambient_light_color は無視される＝設定しない）

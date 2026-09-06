@@ -40,6 +40,7 @@ var _since_dmg := 999.0
 var _invuln := 0.0        # 無敵時間（被弾直後・復活直後）＝連続でハメられない＝ストレス減
 var revive_time := 2.5    # ダウン→復活までの秒数（家族が近いと短くなる）。HUDのカウント表示にも使う
 var _last_ground := Vector3.ZERO   # 直近で地面に居た位置（場外落下からの復帰用）
+var _shake := 0.0                  # カメラ微振動の強さ（被弾・攻撃で立ち、毎フレーム減衰）
 var _regen_frac := 0.0
 var level: int = 1
 var xp: int = 0
@@ -348,6 +349,7 @@ func _remote_swing() -> void:
 	tween.tween_property(_body, "scale", Vector3(1.15, 0.9, 1.15), 0.06)
 	tween.tween_property(_body, "scale", Vector3.ONE, 0.14)
 	_spawn_slash()   # モデル種別に依存しない斬撃＝Web簡易版でも「振った」が分かる
+	shake(0.06)      # 振った手応え（ごく軽く）
 
 
 ## 前方に三日月の光の斬撃を一瞬。攻撃=金色。1メッシュ・unshaded＝どの機種でも軽く読める。
@@ -377,6 +379,7 @@ func _spawn_slash() -> void:
 
 ## 被弾の見た目：赤フラッシュ＋のけぞり。apply_damage(全員で実行)から呼ぶ。
 func _play_hurt_fx() -> void:
+	shake(0.16)   # 被弾＝しっかりゆれる
 	var anim := _body.get_node_or_null("Anim")
 	if anim != null and anim.has_method("hurt"):
 		anim.hurt()
@@ -426,7 +429,16 @@ func _follow_camera() -> void:
 	off = off.rotated(Vector3.UP, _cam_rig.rotation.y)
 	var want := global_position + off
 	_cam_rig.global_position = _cam_rig.global_position.lerp(want, 0.14)
+	# 被弾・浄化の手応え：ごく短いカメラ微振動（時間停止なし＝固まる不具合とは無縁）。
+	if _shake > 0.001:
+		_cam_rig.global_position += Vector3(randf_range(-1.0, 1.0), randf_range(-1.0, 1.0), randf_range(-1.0, 1.0)) * _shake
+		_shake = maxf(0.0, _shake - 0.02)
 	_camera.look_at(global_position + Vector3.UP * 0.8, Vector3.UP)
+
+
+## カメラを一瞬ゆらす（被弾・攻撃ヒットの手応え）。次のフレームから自然に減衰。
+func shake(amount: float) -> void:
+	_shake = maxf(_shake, amount)
 
 
 func orbit_camera(amount: float) -> void:
