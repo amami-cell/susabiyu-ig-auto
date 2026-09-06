@@ -3,7 +3,7 @@
 // 静止画なので入場アニメは使わず「完成状態」で組む（どのフレームでも同じ見た目）。
 // 料理写真＝typoPhotos[0]、料理名＝caption、短句＝story を各パターンが別レイアウトで見せる。
 import { AbsoluteFill, Img, staticFile } from "remotion";
-import { typoPhotos } from "./typoData";
+import { typoPhotos, typoCatch } from "./typoData";
 import { ytheme } from "./yoshokuTheme";
 import { mincho, serif, Grain, Vignette, StoreLogo, splitLines, heroSize } from "./yoshokuDesign";
 
@@ -28,6 +28,11 @@ function Name({ text, size, color, ls = 1, lh = 1.16, shadow }: { text: string; 
     </div>
   );
 }
+// ブランドの一言キャッチ（typoCatch）。料理名とは別軸の店の世界観コピーを小さく添える。空なら何も描かない。
+function Catch({ color, size = 30, center, mb = 0, mt = 0, shadow }: { color: string; size?: number; center?: boolean; mb?: number; mt?: number; shadow?: string }) {
+  if (!typoCatch) return null;
+  return <div style={{ fontFamily: serif, fontStyle: "italic", color, fontSize: size, letterSpacing: 3, textAlign: center ? "center" : "left", marginBottom: mb, marginTop: mt, textShadow: shadow }}>{typoCatch}</div>;
+}
 
 // ①エディトリアル：上に写真、下は生成りパネルに料理名＋短句＋ロゴ（王道・清潔）
 export const YoshokuFeedA: React.FC<P> = ({ storeName = D.storeName, handle = D.handle, theme = D.theme }) => {
@@ -40,7 +45,8 @@ export const YoshokuFeedA: React.FC<P> = ({ storeName = D.storeName, handle = D.
       </div>
       <div style={{ position: "absolute", top: 30, left: 40, fontFamily: serif, color: "#fff", fontSize: 26, letterSpacing: 6, textShadow: "0 2px 10px rgba(0,0,0,0.5)" }}>{T.label}</div>
       <div style={{ position: "absolute", top: 858, left: 0, right: 0, bottom: 0, padding: "44px 56px", display: "flex", flexDirection: "column", justifyContent: "center" }}>
-        <div style={{ width: 92, height: 3, background: T.accent, marginBottom: 22 }} />
+        <div style={{ width: 92, height: 3, background: T.accent, marginBottom: 18 }} />
+        <Catch color={T.accent} size={30} mb={12} />
         <Name text={d.caption} size={sz} color={T.ink} />
         {d.story ? <div style={{ marginTop: 14, fontFamily: mincho, color: T.sub, fontSize: 34, letterSpacing: 2 }}>{d.story}</div> : null}
         <div style={{ marginTop: 22, fontFamily: serif, color: T.accent, fontSize: 26, letterSpacing: 4 }}>{storeName}　{handle}</div>
@@ -61,7 +67,8 @@ export const YoshokuFeedB: React.FC<P> = ({ storeName = D.storeName, handle = D.
         <StoreLogo storeName={storeName} height={58} tint="#fff" />
       </div>
       <div style={{ position: "absolute", left: 56, right: 56, bottom: 60 }}>
-        <div style={{ width: 84, height: 3, background: T.accent, marginBottom: 20 }} />
+        <div style={{ width: 84, height: 3, background: T.accent, marginBottom: 16 }} />
+        <Catch color={T.accent} size={30} mb={12} shadow="0 2px 16px rgba(0,0,0,0.85)" />
         <Name text={d.caption} size={sz} color="#fff" shadow="0 3px 24px rgba(0,0,0,0.8)" />
         {d.story ? <div style={{ marginTop: 12, fontFamily: mincho, color: "#F3E7CF", fontSize: 34, letterSpacing: 2, textShadow: "0 2px 16px rgba(0,0,0,0.8)" }}>{d.story}</div> : null}
         <div style={{ marginTop: 18, fontFamily: serif, color: T.accent, fontSize: 25, letterSpacing: 4 }}>{handle}</div>
@@ -84,6 +91,7 @@ export const YoshokuFeedC: React.FC<P> = ({ storeName = D.storeName, handle = D.
       <div style={{ position: "absolute", top: 150, left: 0, right: 0, textAlign: "center", padding: "0 70px" }}>
         <div style={{ display: "inline-block" }}><Name text={d.caption} size={sz} color="#F4F2EA" ls={2} shadow="0 1px 0 rgba(255,255,255,0.2),0 4px 18px rgba(0,0,0,0.5)" /></div>
         {d.story ? <div style={{ marginTop: 12, fontFamily: serif, fontStyle: "italic", color: T.accent, fontSize: 32, letterSpacing: 3 }}>{d.story}</div> : null}
+        <Catch color={T.accent} size={28} center mt={10} />
       </div>
       <div style={{ position: "absolute", top: 470, left: 165, width: 750, height: 640 }}>
         <div style={{ position: "absolute", inset: 0, background: "#F3EEE2", borderRadius: 6, padding: 16, boxShadow: "0 30px 66px rgba(0,0,0,0.6)" }}>
@@ -107,6 +115,7 @@ export const YoshokuFeedD: React.FC<P> = ({ storeName = D.storeName, handle = D.
         <div style={{ position: "absolute", inset: 0, border: "1px solid " + T.accent + "aa", overflow: "hidden" }}><Photo src={d.src} /></div>
       </div>
       <div style={{ position: "absolute", top: 1000, left: 0, right: 0, textAlign: "center", padding: "0 80px" }}>
+        <Catch color={T.accent} size={28} center mb={10} />
         <div style={{ display: "inline-block" }}><Name text={d.caption} size={sz} color={T.ink} ls={2} /></div>
         {d.story ? <div style={{ marginTop: 12, fontFamily: mincho, color: T.sub, fontSize: 30, letterSpacing: 2 }}>{d.story}</div> : null}
       </div>
@@ -126,6 +135,7 @@ export const YoshokuFeedE: React.FC<P> = ({ storeName = D.storeName, handle = D.
         <div style={{ fontFamily: serif, color: T.accent, fontSize: 24, letterSpacing: 6, marginBottom: 18 }}>{T.label}</div>
         <Name text={d.caption} size={sz} color={T.ink} ls={1} lh={1.24} />
         {d.story ? <div style={{ marginTop: 16, fontFamily: mincho, color: T.sub, fontSize: 30, letterSpacing: 1 }}>{d.story}</div> : null}
+        <Catch color={T.accent} size={28} mt={16} />
         <div style={{ marginTop: 22, width: 70, height: 3, background: T.accent }} />
         <div style={{ marginTop: 22, fontFamily: serif, color: T.accent, fontSize: 24, letterSpacing: 4 }}>{storeName}</div>
         <div style={{ marginTop: 4, fontFamily: serif, color: T.sub, fontSize: 22, letterSpacing: 3 }}>{handle}</div>
@@ -148,6 +158,7 @@ export const YoshokuFeedF: React.FC<P> = ({ storeName = D.storeName, handle = D.
         <div style={{ minHeight: 150, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 8, padding: "10px 16px" }}>
           <div style={{ fontFamily: mincho, color: "#2a2420", fontSize: sz, fontWeight: 700, textAlign: "center", letterSpacing: 1 }}>{d.caption}</div>
           {d.story ? <div style={{ fontFamily: mincho, color: "#7a6748", fontSize: 26, letterSpacing: 1 }}>{d.story}</div> : null}
+          <Catch color="#B0481F" size={24} center mt={2} />
         </div>
       </div>
       <div style={{ position: "absolute", left: 0, right: 0, bottom: 56, textAlign: "center", fontFamily: serif, color: "#EFE3CE", fontSize: 26, letterSpacing: 5 }}>{storeName}　{handle}</div>
@@ -167,6 +178,7 @@ export const YoshokuFeedG: React.FC<P> = ({ storeName = D.storeName, handle = D.
         <span style={{ fontFamily: mincho, color: "#fff", fontSize: 34, fontWeight: 700, letterSpacing: 6 }}>本日のおすすめ</span>
       </div>
       <div style={{ position: "absolute", left: 56, right: 56, bottom: 66, textAlign: "center" }}>
+        <Catch color={T.accent} size={30} center mb={10} shadow="0 2px 16px rgba(0,0,0,0.85)" />
         <div style={{ display: "inline-block" }}><Name text={d.caption} size={sz} color="#fff" ls={1} shadow="0 3px 22px rgba(0,0,0,0.8)" /></div>
         {d.story ? <div style={{ marginTop: 12, fontFamily: serif, fontStyle: "italic", color: T.accent, fontSize: 34, letterSpacing: 2 }}>{d.story}</div> : null}
         <div style={{ marginTop: 16, fontFamily: serif, color: "#EDE4D2", fontSize: 25, letterSpacing: 4 }}>{storeName}　{handle}</div>
@@ -183,7 +195,8 @@ export const YoshokuFeedH: React.FC<P> = ({ storeName = D.storeName, handle = D.
   return (
     <AbsoluteFill style={{ background: "linear-gradient(180deg, " + T.base + " 0%, " + T.footBase + " 100%)" }}>
       <div style={{ position: "absolute", top: 70, left: 56, right: 56 }}>
-        <div style={{ fontFamily: serif, color: T.accent, fontSize: 26, letterSpacing: 8, marginBottom: 18 }}>{T.label}</div>
+        <div style={{ fontFamily: serif, color: T.accent, fontSize: 26, letterSpacing: 8, marginBottom: 14 }}>{T.label}</div>
+        <Catch color={T.sub} size={32} mb={14} />
         <Name text={d.caption} size={sz} color={T.ink} ls={2} lh={1.2} shadow="0 2px 14px rgba(0,0,0,0.4)" />
         {d.story ? <div style={{ marginTop: 16, fontFamily: mincho, color: T.sub, fontSize: 34, letterSpacing: 2 }}>{d.story}</div> : null}
       </div>

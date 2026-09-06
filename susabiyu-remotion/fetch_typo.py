@@ -276,6 +276,16 @@ except Exception as _e:
 # 複数行の投稿本文はTS文字列リテラル用に改行を \n へエスケープ（生の改行は構文エラーになる）。
 lines.append('export const typoPostCaption = "%s";' % esc(_post_cap).replace("\n", "\\n"))
 lines.append('export const typoHeadline = "%s";' % esc(headline))
+# フィード画像に小さく添えるブランドの一言キャッチ（ナガグツのみ／他店は空）。
+_catch = ""
+try:
+    if os.environ.get("STORE_ACCOUNT", "").strip().lower() == "nagagutsu" and items:
+        import nagagutsu_captions as _ncc
+        _catch = _ncc.catch(items[0].get("caption", ""))
+        print("[CATCH] フィード用キャッチ:", _catch)
+except Exception as _e:
+    print("[CATCH] スキップ:", _e)
+lines.append('export const typoCatch = "%s";' % esc(_catch))
 lines.append('export const typoMusic = "%s";' % esc(music))
 
 

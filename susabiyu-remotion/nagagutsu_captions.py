@@ -15,6 +15,26 @@ import re
 # 全料理に共通で足すブランドタグ（重複は caption_for 側で除去）。
 BASE_TAGS = "#ナガグツ #イタリアン肉バル #肉バル"
 
+# フィード投稿画像に小さく添える“ブランドの一言キャッチ”（料理名とは別軸の、店の世界観コピー）。
+# 動画テンプレの見出し（例「今夜は、肉。」）と同じ肉バル×若干おしゃれのトーン。
+# 料理名をシードに決定論的に1本選ぶ（同じ料理なら毎回同じ＝見本比較がブレない）。
+CATCHES = [
+    "今夜は、肉とワイン。",
+    "旨い肉に、いい一杯を。",
+    "肉バルの、いい夜を。",
+    "コスパよく、贅沢に。",
+    "肉と、赤と、いい時間。",
+    "ちょっと贅沢な、いつもの夜に。",
+]
+
+
+def catch(seed=""):
+    s = clean(seed)
+    if not CATCHES:
+        return ""
+    h = sum(ord(ch) for ch in s) if s else 0
+    return CATCHES[h % len(CATCHES)]
+
 
 def clean(name):
     return re.sub(r"\s+", " ", re.sub(r"[_＿]", "　", str(name or ""))).strip()

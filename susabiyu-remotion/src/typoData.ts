@@ -5,6 +5,7 @@ export const typoPhotos = [
   { src: "typo/3.jpg", caption: "しらすポン酢", story: "" },
 ];
 export const typoHeadline = "握りたては、しあわせの味。";
+export const typoCatch = "";
 export const typoSampleNo = 0;
 export const typoPostCaption = "";
 export const typoMusic = "music/normal/bgm.mp3";
