@@ -252,11 +252,14 @@ def _process(store, sh):
             if is_video:                              # 動画は文字焼き未対応→そのままリポスト＋文面はDM
                 post_path = "/tmp/m_%s_%d.mp4" % (tok_key, i)
                 os.replace(tmp_in, post_path)
-                pub_url = post_path if DRY else poster.up(post_path, cdn=False)
+                # 一時ホスト(tmpfiles等)はIGが取得できず「image format not supported」になるため、
+                # まず永続の jsDelivr(cdn=True)へ上げ、失敗時のみ一時ホストへフォールバック（poster.py:568と同方針）。
+                pub_url = post_path if DRY else (poster.up(post_path, cdn=True) or poster.up(post_path))
             else:
                 post_path = "/tmp/m_%s_%d.jpg" % (tok_key, i)
                 render_story(tmp_in, comment, post_path, logo)
-                pub_url = post_path if DRY else poster.up(post_path, cdn=False)
+                # 同上：jsDelivr優先→一時ホストfallback（IGが確実に取得できるURLにする）。
+                pub_url = post_path if DRY else (poster.up(post_path, cdn=True) or poster.up(post_path))
             if DRY:
                 print("  [DRY] post story:", post_path, "| comment:", comment); pid = "DRY"
             else:
