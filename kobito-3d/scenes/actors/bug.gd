@@ -66,8 +66,10 @@ func _ready() -> void:
 	_body.scale = Vector3.ONE * stats.body_scale
 	set_process(true)
 
-	# 横倒しカプセル1個を“虫”に見せる。Webは超軽量版（頭＋目のみ）でドローコールを抑える。
-	if OS.has_feature("web"):
+	# 見た目：中ボスは固有シルエット、雑魚は通常リグ（Webは超軽量版でドローコール抑制）。
+	if stats.is_midboss:
+		BugLook.decorate_boss(self, stats.body_color, stats.body_scale)
+	elif OS.has_feature("web"):
 		BugLook.decorate_simple(self, stats.body_color, stats.body_scale, stats.shell)
 	else:
 		BugLook.decorate(self, stats.body_color, stats.body_scale, stats.shell)

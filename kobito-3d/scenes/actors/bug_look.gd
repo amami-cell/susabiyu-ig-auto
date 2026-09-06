@@ -92,6 +92,46 @@ static func decorate_simple(bug_root: Node3D, color: Color, scale_v: float, shel
 		sh.position = Vector3(0.0, 0.28, 0.04)
 
 
+## 中ボス用の固有シルエット：溶けかけのヘドロが盛り上がった塊＋にらむ目＋太い脚。
+## “大きいアリ”ではなく“汚れのおおもと”に見せる。素材ゼロ・低ポリ・全機種OK。
+static func decorate_boss(bug_root: Node3D, color: Color, scale_v: float) -> void:
+	if bug_root.has_node("InsectRig"):
+		return
+	var rig := Node3D.new()
+	rig.name = "InsectRig"
+	rig.scale = Vector3.ONE * scale_v
+	bug_root.add_child(rig)
+	var skin := color.darkened(0.1)
+	# ヘドロの盛り：黄金角で大小の球を積む＝溶けた塊のシルエット
+	var lumps := [
+		[Vector3(0.0, 0.32, 0.0), 0.42],
+		[Vector3(0.22, 0.20, 0.06), 0.26],
+		[Vector3(-0.20, 0.22, -0.05), 0.28],
+		[Vector3(0.05, 0.55, -0.08), 0.24],
+		[Vector3(-0.06, 0.16, 0.24), 0.22],
+	]
+	for lump in lumps:
+		var b := _sphere(rig, "Lump", lump[1], skin)
+		b.position = lump[0]
+		b.scale = Vector3(1.0, 0.85, 1.0)
+	# にらむ目2つ（前＝-Z、澄んだ黄で“意思”を感じさせる）
+	for sx in [-1.0, 1.0]:
+		var eye := _sphere(rig, "Eye", 0.075, Color(0.95, 0.85, 0.4))
+		eye.position = Vector3(0.12 * sx, 0.40, -0.34)
+		var pup := _sphere(eye, "Pupil", 0.5, Color(0.06, 0.05, 0.05))
+		pup.position = Vector3(0.0, 0.0, -0.5)
+	# 太い脚4本（どっしり）
+	for zi in [-0.18, 0.2]:
+		for sx in [-1.0, 1.0]:
+			var hip := Node3D.new()
+			hip.name = "Leg"
+			hip.position = Vector3(0.24 * sx, 0.12, zi)
+			hip.rotation = Vector3(0.0, 0.0, 1.0 * sx)
+			rig.add_child(hip)
+			var leg := _capsule(hip, "LegSeg", 0.06, 0.34, color.darkened(0.45))
+			leg.position = Vector3(0.0, -0.15, 0.0)
+
+
 static func _sphere(parent: Node, node_name: String, r: float, c: Color) -> MeshInstance3D:
 	var mi := MeshInstance3D.new()
 	mi.name = node_name
