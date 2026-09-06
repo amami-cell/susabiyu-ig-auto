@@ -38,6 +38,7 @@ const HP_REGEN_DELAY := 2.5    # 最後に被弾してから この秒数で自�
 const HP_REGEN_RATE := 7.0     # 1秒あたりの自然回復量
 var _since_dmg := 999.0
 var _invuln := 0.0        # 無敵時間（被弾直後・復活直後）＝連続でハメられない＝ストレス減
+var revive_time := 2.5    # ダウン→復活までの秒数（家族が近いと短くなる）。HUDのカウント表示にも使う
 var _regen_frac := 0.0
 var level: int = 1
 var xp: int = 0
@@ -237,6 +238,9 @@ func _local_step(delta: float) -> void:
 	var look_x := Input.get_joy_axis(0, JOY_AXIS_RIGHT_X)
 	if absf(look_x) > 0.2:
 		orbit_camera(-look_x * 2.6 * delta)
+	var look_y := Input.get_joy_axis(0, JOY_AXIS_RIGHT_Y)
+	if absf(look_y) > 0.2:
+		orbit_camera_pitch(look_y * 1.6 * delta)
 
 	if Input.is_action_just_pressed("act_attack"):
 		_try_attack()
@@ -347,17 +351,30 @@ func _update_look() -> void:
 		_body.transparency = 0.0
 
 
+const CAM_DIST := 6.05          # 既定オフセット(0,2.3,5.6)と同じ距離
+var _cam_pitch := 0.39          # 見下ろし角(rad)。sin*D=2.3 / cos*D=5.6 と一致＝従来の見え方
+const CAM_PITCH_MIN := 0.12     # ほぼ真後ろ（少し見上げ）
+const CAM_PITCH_MAX := 1.0      # 見下ろし（俯瞰）
+
 func _follow_camera() -> void:
 	# 追従カメラ。バネで寄せるだけ。SpringArm3D を使わないのは、
 	# スマホで壁にめり込む挙動を自分で調整したいときに分かりやすいから。
-	var want := global_position + Vector3(0.0, 2.3, 5.6).rotated(Vector3.UP, _cam_rig.rotation.y)
+	# 距離一定の球面オフセット＝ヨー(左右)＋ピッチ(上下)で回せる。
+	var off := Vector3(0.0, sin(_cam_pitch), cos(_cam_pitch)) * CAM_DIST
+	off = off.rotated(Vector3.UP, _cam_rig.rotation.y)
+	var want := global_position + off
 	_cam_rig.global_position = _cam_rig.global_position.lerp(want, 0.14)
 	_camera.look_at(global_position + Vector3.UP * 0.8, Vector3.UP)
 
 
 func orbit_camera(amount: float) -> void:
-	## 画面右側のドラッグでカメラを回す（TouchPad から呼ばれる）
+	## 画面ドラッグでカメラを左右に回す（TouchPad から呼ばれる）
 	_cam_rig.rotation.y -= amount
+
+
+func orbit_camera_pitch(amount: float) -> void:
+	## 縦ドラッグでカメラの見上げ／見下ろし（TouchPad から呼ばれる）
+	_cam_pitch = clampf(_cam_pitch + amount, CAM_PITCH_MIN, CAM_PITCH_MAX)
 
 
 # ------------------------------------------------------------ サーバ側の判定
@@ -406,10 +423,25 @@ func apply_damage(amount: int) -> void:
 	state = State.HURT if hp > 0 else State.DOWN
 	_play_hurt_fx()
 	stats_changed.emit()
-	if hp == 0 and multiplayer.has_multiplayer_peer() and multiplayer.is_server():
-		get_tree().create_timer(2.5).timeout.connect(func() -> void:   # 待たされ感を減らす
-			if is_instance_valid(self):
-				rpc("revive"))
+	if hp == 0:
+		# ★守る動機★ 家族・相方・なかまが近くに居ると 早く起き上がれる（母「手をはなさないで」）。
+		# ひとりぼっちだと遅い＝“はぐれない”動機になる（罰ではなく協力の報酬）。
+		revive_time = 1.5 if _help_near() else 3.5
+		if multiplayer.has_multiplayer_peer() and multiplayer.is_server():
+			get_tree().create_timer(revive_time).timeout.connect(func() -> void:
+				if is_instance_valid(self):
+					rpc("revive"))
+
+
+## 近くに 家族／別のプレイヤー／なかま が居るか（ダウン時の復活速度に使う）。
+func _help_near() -> bool:
+	for grp in ["player", "family", "ally"]:
+		for n in get_tree().get_nodes_in_group(grp):
+			if n == self or not is_instance_valid(n):
+				continue
+			if (n as Node3D).global_position.distance_to(global_position) < 4.5:
+				return true
+	return false
 
 
 @rpc("any_peer", "call_local", "reliable")

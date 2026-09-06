@@ -140,15 +140,18 @@ func _process(delta: float) -> void:
 		var low := float(_player.hp) / float(maxi(1, _player.max_hp)) < 0.3
 		_hp_bar.modulate = Color(1, 0.6, 0.6) if low else Color(1, 1, 1)
 	var fly := "　／ とべる！" if _player.can_fly() else ""
-	_level_label.text = "Lv.%d　XP %d/%d　HP %d/%d%s" % [
-		_player.level, _player.xp, _player.xp_to_next(), _player.hp, _player.max_hp, fly
+	var allies := get_tree().get_nodes_in_group("ally").size()
+	var mates := "　なかま ●×%d" % allies if allies > 0 else ""
+	_level_label.text = "Lv.%d　XP %d/%d　HP %d/%d%s%s" % [
+		_player.level, _player.xp, _player.xp_to_next(), _player.hp, _player.max_hp, fly, mates
 	]
 
 	# 死んだとき＝はっきり見せる（赤く沈める＋「たおれた…」＋復活までの数字）。
 	var downed: bool = _player.hp <= 0
 	if downed:
 		_down_t += delta
-		var remain := maxf(0.0, REVIVE_SECS - _down_t)
+		var secs: float = _player.revive_time if "revive_time" in _player else REVIVE_SECS
+		var remain := maxf(0.0, secs - _down_t)
 		_downed_dim.visible = true
 		_downed_lbl.visible = true
 		_downed_lbl.text = "たおれた…\nもうすぐ 起きあがる（%d）" % int(ceil(remain))
