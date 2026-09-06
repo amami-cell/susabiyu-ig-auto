@@ -695,7 +695,7 @@ function epUpsertRaw_(sh, rows, today) {
   sh.getRange(1, 1, 1, W).setValues([RAW_HEADER]);
   var clearW = Math.max(W, oldHdr.length);
   if (sh.getLastRow() > 1) sh.getRange(2, 1, sh.getLastRow() - 1, clearW).clearContent();
-  if (out.length) sh.getRange(2, 1, out.length, W).setValues(out);
+  if (out.length) sh.getRange(2, 1, out.length, W).setValues(out.map(function (row) { return row.map(csvGuard_); }));
   return { added: added, changed: changed, newByStore: newByStore, totalByStore: totalByStore };  // 差分サマリ（ログ・通知用）
 }
 
@@ -713,7 +713,7 @@ function epUpsertSnapshot_(sh, rows, funnel, today) {
   var add = rows.map(function (r) { return [today, r.code, r.name, r.statusCode, r.statusName, r.storeId, funnel[r.statusCode] || "", r.dup ? "重複" : ""]; });
   var all = keep.concat(add);
   if (sh.getLastRow() > 1) sh.getRange(2, 1, sh.getLastRow() - 1, 8).clearContent();
-  if (all.length) sh.getRange(2, 1, all.length, 8).setValues(all);
+  if (all.length) sh.getRange(2, 1, all.length, 8).setValues(all.map(function (row) { return row.map(csvGuard_); }));
 }
 
 function epWriteDashboard_(sh, rows, funnel) {

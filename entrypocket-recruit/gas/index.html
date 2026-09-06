@@ -347,29 +347,33 @@
       toast('飲食店ドットコムを開きました。その応募者一覧ページで、ブックマーク「飲食店com取り込み」を1タップしてください（数十秒後に最新化）。');
     }
     // グルメキャリー：クラウド(GitHub Actions)に取得を即時依頼（この場でワンタップ）
+    var _gourmetBusy=false;
     function doGourmetRun(){
-      var run=function(){
-        toast('クラウドに取得を依頼中…');
-        google.script.run.withSuccessHandler(function(res){
-          if(res&&res.ok){ toast('✅ クラウドで取得を開始しました。1〜2分後にこのアプリへ反映されます（自動で最新化）。'); setTimeout(load, 90000); }
-          else if(res&&(res.error==='no_token'||res.error==='token_invalid')){ askGhToken(res.error); }
-          else if(res&&res.error==='workflow_not_found'){ toast('ワークフローが見つかりません（gourmet_fetch がmainに無い可能性）。'); }
-          else { toast('依頼に失敗: '+((res&&res.error)||'unknown')); }
-        }).withFailureHandler(function(e){ toast('通信エラー: '+(e&&e.message||'')); }).epGourmetDispatch();
-      };
-      run();
+      if(_gourmetBusy){ toast('取得を実行中です。少しお待ちください。'); return; }  // 連打ガード
+      _gourmetBusy=true;
+      toast('クラウドに取得を依頼中…');
+      google.script.run.withSuccessHandler(function(res){
+        _gourmetBusy=false;
+        if(res&&res.ok){ toast('✅ クラウドで取得を開始しました。1〜2分後にこのアプリへ反映されます（自動で最新化）。'); setTimeout(load, 90000); }
+        else if(res&&(res.error==='no_token'||res.error==='token_invalid')){ askGhToken(res.error); }
+        else if(res&&res.error==='rate_limited'){ toast('少し前に取得を実行しています。あと約'+(res.wait||60)+'秒お待ちください。'); }
+        else if(res&&res.error==='workflow_not_found'){ toast('ワークフローが見つかりません（gourmet_fetch がmainに無い可能性）。'); }
+        else { toast('依頼に失敗: '+((res&&res.error)||'unknown')); }
+      }).withFailureHandler(function(e){ _gourmetBusy=false; toast('通信エラー: '+(e&&e.message||'')); }).epGourmetDispatch();
     }
     // 初回のみ：GitHubトークンを1回だけ登録（クラウド即時実行の権限。保存のみ・表示はしない）
     function askGhToken(reason){
       var msg=(reason==='token_invalid')
-        ? 'GitHubトークンが無効/期限切れのようです。新しいトークンを貼り付けてください。'
-        : '「今すぐ取得」を使うには、初回だけGitHubトークンの登録が必要です（1回だけ・無料）。\n作り方は使い方ガイドの「クラウド即時取得の設定」を参照。\n\nトークン(ghp_ または github_pat_ で始まる文字列)を貼り付け：';
+        ? 'GitHubトークンが無効/期限切れのようです。差し替えは安全のため管理者操作が必要です。担当にご連絡ください。'
+        : '「今すぐ取得」を使うには、初回だけGitHubトークンの登録が必要です（1回だけ・無料）。\n作り方は使い方ガイドの「クラウド即時取得の設定」を参照。\n\nトークン(github_pat_ で始まる Fine-grained トークン)を貼り付け：';
+      if(reason==='token_invalid'){ toast(msg); return; }  // 既存トークンの上書きは不可(write-once)。差し替えは管理操作。
       var t=window.prompt(msg,'');
       if(t==null) return;
       t=(''+t).trim(); if(!t){ toast('トークンが空です'); return; }
       toast('トークンを保存中…');
       google.script.run.withSuccessHandler(function(res){
         if(res&&res.ok){ toast('保存しました。もう一度「🔄今すぐ取得」を押してください。'); }
+        else if(res&&res.error==='already_set'){ toast('トークンは登録済みです。差し替えたい時は担当にご連絡ください（安全のため保護）。'); }
         else { toast('保存に失敗: '+((res&&res.error)||'unknown')); }
       }).withFailureHandler(function(e){ toast('通信エラー: '+(e&&e.message||'')); }).epSetGhToken(t);
     }
@@ -412,7 +416,7 @@
         sec('📊 集計タブ','上部の「目次」で見たい分析へジャンプ、見出しタップで折りたたみ。経営KPI・要注意店・データ品質・採用単価(加重/単純/中央値)・媒体別/店舗別・リスティング効果・リードタイム・定着率などを、年・地域フィルタ連動で確認。🖨レポート/⬇CSVで共有。')+
         sec('🔔 通知','⚙→通知する店舗で自店だけ通知にできます（ホーム画面アプリで有効）。新規応募・本日リマインド・週次の店舗スコアカードが届きます。')+
         sec('📥 取込（媒体別）','エンポケ・飲食店ドットコムは<b>PC起動時に自動取得</b>（PCの RecruitAuto.bat）。グルメキャリーは<b>毎日7:00/13:00にクラウド自動</b>。⚙の「取込」から手動もできます：エンポケ/飲食店＝「📱スマホで取り込む」（サイトを開いてブックマーク1タップ）、グルメ＝「🔄今すぐ取得（クラウド）」。どの媒体もDL済みCSVを選ぶ「📥CSVファイル」も可。')+
-        sec('🔄 クラウド即時取得の設定（グルメキャリーのみ・初回1回）','「🔄今すぐ取得」を初めて押すとトークン貼り付け画面が出ます。GitHubトークンの作り方：<br>① GitHub → 右上アイコン → Settings → 一番下 Developer settings → Personal access tokens → <b>Fine-grained tokens</b> → Generate new token。<br>② Repository access＝Only select repositories で <b>susabiyu-ig-auto</b> を選択。<br>③ Permissions → Repository permissions → <b>Actions</b> を <b>Read and write</b> に。<br>④ Generate して表示された文字列(ghp_ または github_pat_ で始まる)をコピー → アプリの貼り付け画面へ。<br>※保存はこのアプリ内のみ。無料・1回だけでOK（期限切れ時は再登録）。使わない場合はPC/CSVでも取り込めます。')+
+        sec('🔄 クラウド即時取得の設定（グルメキャリーのみ・初回1回）','「🔄今すぐ取得」を初めて押すとトークン貼り付け画面が出ます。GitHubトークンの作り方：<br>① GitHub → 右上アイコン → Settings → 一番下 Developer settings → Personal access tokens → <b>Fine-grained tokens</b> → Generate new token。<br>② Repository access＝Only select repositories で <b>susabiyu-ig-auto</b> を選択。<br>③ Permissions → Repository permissions → <b>Actions</b> を <b>Read and write</b> に。<br>④ Generate して表示された文字列(github_pat_ で始まる Fine-grained トークン)をコピー → アプリの貼り付け画面へ。<br>※<b>権限は当該リポジトリのActionsのみ</b>の最小権限で。classic(ghp_)や広い権限のトークンは使わないでください。<br>※保存はこのアプリ内のみ・1回だけ（登録後の上書きは安全のため不可＝差し替えは担当へ）。使わない場合はPC/CSVでも取り込めます。')+
         sec('⚙ 表示設定','テーマ（ダーク/ライト）と文字サイズを変更できます（端末に保存）。')+
         sec('✅ データを正しく保つ','結果入力は 採用>応募 などの矛盾を保存前に警告。集計タブの「要マッピング」でスプシに無い店舗名（名寄せ漏れ）を確認できます。数値の正はスプレッドシートです。');
       document.getElementById('modalTitle').textContent='❓ 使い方ガイド';

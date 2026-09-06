@@ -167,7 +167,7 @@ function doGet(e) {
     if (e.parameter.page === 'media') {
       var mdata; try { mdata = mediaListData_(); } catch (errm) { mdata = { ok: false, error: String(errm), items: [] }; }
       var mt = HtmlService.createTemplateFromFile('media');
-      mt.MEDIA = JSON.stringify(mdata);
+      mt.MEDIA = jsonForScript_(mdata);
       return mt.evaluate().setTitle('他媒体の応募者')
         .addMetaTag('viewport', 'width=device-width, initial-scale=1, viewport-fit=cover')
         .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
@@ -177,14 +177,14 @@ function doGet(e) {
       var eo = {}; try { eo = JSON.parse(e.parameter.d || '{}'); } catch (x) { eo = {}; }
       var data; try { data = epEntryData_(eo); } catch (err3) { data = { ok: false, error: String(err3) }; }
       var t = HtmlService.createTemplateFromFile('entry');
-      t.ENTRY = JSON.stringify(data);
+      t.ENTRY = jsonForScript_(data);
       return t.evaluate().setTitle('求人結果 入力').addMetaTag('viewport', 'width=device-width, initial-scale=1, viewport-fit=cover');
     }
   }
   // ダッシュボード本体。?store=… は店長用ビュー（その店舗だけ・閲覧専用）。SCOPEをページに注入。
   var scope = (e && e.parameter && e.parameter.store) ? String(e.parameter.store) : '';
   var tpl = HtmlService.createTemplateFromFile('index');
-  tpl.SCOPE = JSON.stringify(scope);
+  tpl.SCOPE = jsonForScript_(scope);
   return tpl.evaluate()
     .setTitle(scope ? (scope + ' 求人ビュー') : 'Initiateエンポケ求人')
     .setFaviconUrl(EP_ICONS_BASE + '/favicon-32.png')
@@ -202,6 +202,7 @@ function doPost(e) {
     else if (o.api === 'unsubscribe') out = epSubUnregister_(o.ep);
     else if (o.api === 'importcsv') out = (typeof epImportCsvB64 === 'function') ? epImportCsvB64(o.b64 || '') : { ok: false, error: 'import未対応' };
     else if (o.api === 'media_importcsv') out = (typeof mediaImportCsvB64 === 'function') ? mediaImportCsvB64(o.media || '', o.b64 || '') : { ok: false, error: 'media import未対応' };
+    else if (o.api === 'pc_alert') out = epPcAlert_(o);
     else out = { ok: false, error: 'unknown api' };
   } catch (err) { out = { ok: false, error: String(err) }; }
   return ContentService.createTextOutput(JSON.stringify(out)).setMimeType(ContentService.MimeType.JSON);
@@ -730,9 +731,12 @@ function epAIStatus() {
   return { ok: true, hasKey: !!(p.getProperty('ANTHROPIC_API_KEY') || ''), model: p.getProperty('EP_AI_MODEL') || 'claude-haiku-4-5-20251001' };
 }
 
-/** 【AI】アプリからAPIキーを保存（Apps Scriptを開かずに設定できる）。パスワード必須。 */
+/** 【AI】アプリからAPIキーを保存（Apps Scriptを開かずに設定できる）。管理キー必須。
+ *  公開Webアプリ(匿名アクセス)のため、ハードコード合言葉は廃止。
+ *  Script Property 'EP_ADMIN_KEY' が未設定なら常に拒否（fail-closed）＝匿名での鍵設定・課金濫用を封じる。 */
 function epSetAIKey(key, pass) {
-  if (String(pass || '') !== '8888') return { ok: false, error: 'パスワードが違います' };
+  var admin = PropertiesService.getScriptProperties().getProperty('EP_ADMIN_KEY') || '';
+  if (!admin || String(pass || '') !== admin) return { ok: false, error: '管理キーが違います（未設定なら無効）' };
   key = String(key || '').trim();
   if (!/^sk-ant-/.test(key)) return { ok: false, error: 'APIキーの形式が不正です（sk-ant- で始まる鍵を貼り付けてください）' };
   PropertiesService.getScriptProperties().setProperty('ANTHROPIC_API_KEY', key);
@@ -887,19 +891,43 @@ function epHasGhToken() {
 }
 
 // トークンを保存（アプリの設定から1回だけ貼り付け）。値は保存のみ・返さない。
+// 匿名アクセスの公開Webアプリのため、既に登録済みなら上書き拒否（write-once）＝匿名者による
+// 破壊/すり替えを防ぐ。差し替えが必要な時は epClearGhToken(管理キー) で消してから登録する。
 function epSetGhToken(token) {
   try {
+    var props = PropertiesService.getScriptProperties();
+    var cur = props.getProperty('GH_DISPATCH_TOKEN');
+    if (cur && String(cur).trim()) return { ok: false, error: 'already_set' };
     var t = (token == null ? '' : String(token)).trim();
     if (!t) return { ok: false, error: 'empty' };
-    PropertiesService.getScriptProperties().setProperty('GH_DISPATCH_TOKEN', t);
+    props.setProperty('GH_DISPATCH_TOKEN', t);
+    return { ok: true };
+  } catch (e) { return { ok: false, error: String(e) }; }
+}
+
+// トークンを消す（差し替え用）。管理キー必須・未設定なら無効（fail-closed）。
+function epClearGhToken(pass) {
+  try {
+    var props = PropertiesService.getScriptProperties();
+    var admin = props.getProperty('EP_ADMIN_KEY') || '';
+    if (!admin || String(pass || '') !== admin) return { ok: false, error: '管理キーが違います（未設定なら無効）' };
+    props.deleteProperty('GH_DISPATCH_TOKEN');
     return { ok: true };
   } catch (e) { return { ok: false, error: String(e) }; }
 }
 
 // グルメキャリー取得ワークフローを即時起動（workflow_dispatch, ref=main）
+// 匿名アクセスのためレート制限（既定120秒に1回）＝匿名連打によるActions濫用・グルメキャリーBANを防ぐ。
 function epGourmetDispatch() {
   try {
-    var tok = PropertiesService.getScriptProperties().getProperty('GH_DISPATCH_TOKEN');
+    var props = PropertiesService.getScriptProperties();
+    var MIN_INTERVAL = 120000; // ms
+    var last = parseInt(props.getProperty('GH_DISPATCH_LAST') || '0', 10) || 0;
+    var now = Date.now();
+    if (now - last < MIN_INTERVAL) {
+      return { ok: false, error: 'rate_limited', wait: Math.ceil((MIN_INTERVAL - (now - last)) / 1000) };
+    }
+    var tok = props.getProperty('GH_DISPATCH_TOKEN');
     if (!tok || !String(tok).trim()) return { ok: false, error: 'no_token' };
     var url = 'https://api.github.com/repos/' + EP_GH_OWNER + '/' + EP_GH_REPO +
       '/actions/workflows/' + EP_GH_WORKFLOW + '/dispatches';
@@ -916,9 +944,52 @@ function epGourmetDispatch() {
       muteHttpExceptions: true
     });
     var code = res.getResponseCode();
-    if (code === 204 || code === 201 || code === 200) return { ok: true };
+    if (code === 204 || code === 201 || code === 200) {
+      try { props.setProperty('GH_DISPATCH_LAST', String(now)); } catch (e2) { }
+      return { ok: true };
+    }
     if (code === 401 || code === 403) return { ok: false, error: 'token_invalid', code: code, body: res.getContentText().slice(0, 160) };
     if (code === 404) return { ok: false, error: 'workflow_not_found', code: code, body: res.getContentText().slice(0, 160) };
     return { ok: false, error: 'github_' + code, body: res.getContentText().slice(0, 200) };
+  } catch (e) { return { ok: false, error: String(e) }; }
+}
+
+// =============================================================================
+// 共通ヘルパ（セキュリティ）
+// =============================================================================
+
+// CSV/表計算 数式インジェクション対策：先頭が = + - @ (やタブ/CR)の文字列セルは ' を前置して
+// 「テキスト強制」にする。=IMPORTXML等でオーナーがシートを開いた瞬間にPIIが外部送信されるのを防ぐ。
+// 数値・日付・非文字列はそのまま返す（表示や計算に影響しない）。
+function csvGuard_(v) {
+  if (typeof v !== 'string' || v === '') return v;
+  return /^[=+\-@\t\r]/.test(v) ? ("'" + v) : v;
+}
+
+// <script>内に JSON を素で埋め込む(<?!= ?>)際の安全化。
+// 応募者の自由記述に </script> や U+2028/2029 が含まれてもページが壊れない/注入されないようにする。
+function jsonForScript_(obj) {
+  return JSON.stringify(obj)
+    .replace(/</g, '\\u003c').replace(/>/g, '\\u003e')
+    .replace(/&/g, '\\u0026')
+    .replace(/\u2028/g, '\\u2028').replace(/\u2029/g, '\\u2029');
+}
+
+// PC取得スクリプトからの「取得失敗」通知を受けて責任者へプッシュ（媒体別に1時間1回まで＝スパム防止）。
+function epPcAlert_(o) {
+  try {
+    var media = String((o && o.media) || '').slice(0, 24);
+    var msg = String((o && o.msg) || '').slice(0, 200);
+    var props = PropertiesService.getScriptProperties();
+    var lkey = 'PC_ALERT_LAST_' + (media || 'x');
+    var last = parseInt(props.getProperty(lkey) || '0', 10) || 0;
+    var now = Date.now();
+    if (now - last < 3600000) return { ok: true, skipped: 'rate_limited' }; // 1時間に1回まで
+    props.setProperty(lkey, String(now));
+    var label = { ep: 'エントリーポケット', inshoku: '飲食店ドットコム', gourmet: 'グルメキャリー' }[media] || media || 'PC取得';
+    if (typeof epEnqueuePush_ === 'function') {
+      epEnqueuePush_('⚠️ PC取得に失敗（' + label + '）', (msg || 'PCでの自動取得に失敗しました。PCの電源・ログイン・ネットをご確認ください。'), 'recruit');
+    }
+    return { ok: true };
   } catch (e) { return { ok: false, error: String(e) }; }
 }

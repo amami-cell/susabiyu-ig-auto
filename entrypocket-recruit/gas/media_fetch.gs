@@ -135,7 +135,8 @@ function mediaWrite_(media, rows) {
       (r.age == null ? "" : r.age), r.gender, r.tel, r.email, r.address, r.status, r.pr, now, r.key]);
     if (r.store) newByStore[r.store] = (newByStore[r.store] || 0) + 1;
   });
-  if (add.length) sh.getRange(sh.getLastRow() + 1, 1, add.length, MEDIA_HDR.length).setValues(add);
+  if (add.length) sh.getRange(sh.getLastRow() + 1, 1, add.length, MEDIA_HDR.length)
+    .setValues(add.map(function (row) { return row.map(csvGuard_); }));  // 数式インジェクション対策
   return { added: add.length, newByStore: newByStore };
 }
 
@@ -165,8 +166,23 @@ function mediaListData_() {
   if (!sh || sh.getLastRow() < 2) return { ok: true, items: [] };
   var v = sh.getRange(2, 1, sh.getLastRow() - 1, MEDIA_HDR.length).getValues();
   var items = v.map(function (r) {
-    var o = {}; MEDIA_HDR.forEach(function (h, i) { o[h] = r[i]; }); return o;
+    var o = {};
+    MEDIA_HDR.forEach(function (h, i) {
+      // Sheetsが日付風文字列をDate型に自動変換した分は JST 文字列へ戻す（UTC ISO化・表示崩れを防ぐ）。
+      o[h] = (r[i] instanceof Date) ? Utilities.formatDate(r[i], "Asia/Tokyo", "yyyy/MM/dd HH:mm") : r[i];
+    });
+    return o;
   });
-  items.sort(function (a, b) { return String(b["応募日時"]) < String(a["応募日時"]) ? -1 : 1; });
+  // 応募日時で新しい順。Date/文字列/フォーマット差が混在しても壊れないよう数値TSに正規化して比較。
+  items.sort(function (a, b) { return mediaTs_(b["応募日時"]) - mediaTs_(a["応募日時"]); });
   return { ok: true, items: items };
+}
+
+// 応募日時（Date or "yyyy/MM/dd HH:mm" 等の文字列）を比較可能なミリ秒に。解釈不能は0。
+function mediaTs_(v) {
+  if (v instanceof Date) return v.getTime();
+  var s = String(v == null ? "" : v).trim();
+  if (!s) return 0;
+  var t = new Date(s.replace(/\//g, "-").replace(" ", "T")).getTime();
+  return isNaN(t) ? 0 : t;
 }
