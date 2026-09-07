@@ -41,6 +41,7 @@ func _ready() -> void:
 	add_child(guide)
 	_build_downed()
 	_skin()
+	_build_pause_button()
 	_on_recovery(WorldState.recovery)
 	_on_roster()
 	_notice.modulate.a = 0.0
@@ -186,6 +187,29 @@ func _flash_center(text: String, col: Color) -> void:
 	var tween := create_tween()
 	tween.tween_interval(0.7)
 	tween.tween_property(_notice, "modulate:a", 0.0, 0.6)
+
+
+## スマホ用のポーズボタン（右上）。ブラウザには Esc も戻るキーも当てにできないので、
+## 画面に必ず出しておく＝いつでも「タイトルへ戻る／つづける」を開ける安心感。
+func _build_pause_button() -> void:
+	var btn := Button.new()
+	btn.name = "PauseButton"
+	btn.text = "‖"
+	btn.anchor_left = 1.0
+	btn.anchor_right = 1.0
+	btn.offset_left = -66.0
+	btn.offset_top = 54.0
+	btn.offset_right = -14.0
+	btn.offset_bottom = 106.0
+	UIKit.style_button(btn, UIKit.CREAM_SOLID, UIKit.GREEN_DK)
+	btn.add_theme_color_override("font_color", UIKit.INK)
+	btn.add_theme_font_size_override("font_size", 26)
+	btn.pressed.connect(func() -> void:
+		var root := get_tree().current_scene
+		if root != null and root.has_method("_toggle_pause"):
+			root._toggle_pause())
+	add_child(btn)
+	btn.add_to_group("play_ui_extra")   # 会話中は他のプレイUIと一緒に隠す
 
 
 func _find_local_player() -> Node:
