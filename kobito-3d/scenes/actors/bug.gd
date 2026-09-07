@@ -53,10 +53,10 @@ func _ready() -> void:
 	var mat := StandardMaterial3D.new()
 	mat.albedo_color = stats.body_color
 	mat.roughness = 0.8
-	# 敵が地面に溶けないよう、縁を強く光らせて（リム）シルエットを立たせる＝戦闘が分かりやすい。
+	# 地面から浮かせるためのリムは残しつつ、強すぎる縁光り（＝安っぽい“テカリ玉”）を抑える。
 	mat.rim_enabled = true
-	mat.rim = 0.85
-	mat.rim_tint = 0.2
+	mat.rim = 0.4
+	mat.rim_tint = 0.35
 	# ヘドロに侵された“不穏さ”をほのかな発光で表現＝敵だと一目で分かる。
 	mat.emission_enabled = true
 	mat.emission = Color(0.5, 0.25, 0.55)

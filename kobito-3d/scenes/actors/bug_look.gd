@@ -80,12 +80,37 @@ static func decorate_simple(bug_root: Node3D, color: Color, scale_v: float, shel
 	rig.name = "InsectRig"
 	rig.scale = Vector3.ONE * scale_v
 	bug_root.add_child(rig)
-	var skin := color.darkened(0.15)
-	var head := _sphere(rig, "Head", 0.16, skin)
-	head.position = Vector3(0.0, 0.24, -0.28)
+	var skin := color.darkened(0.12)
+	var dark := color.darkened(0.42)
+
+	# 頭（少し大きめ＝表情が主役）
+	var head := _sphere(rig, "Head", 0.2, skin)
+	head.position = Vector3(0.0, 0.26, -0.3)
+
+	# 触角2（前上へ）＋先の丸い節＝一目で“虫”に。安いのにシルエットがぐっと効く。
+	var knob_mat := _mat(color.lightened(0.2))
 	for sx in [-1.0, 1.0]:
-		var eye := _sphere(head, "Eye", 0.06, Color(0.05, 0.04, 0.04))
-		eye.position = Vector3(0.08 * sx, 0.03, -0.10)
+		var ant := _capsule(head, "Antenna", 0.017, 0.28, dark)
+		ant.position = Vector3(0.07 * sx, 0.14, -0.03)
+		ant.rotation = Vector3(deg_to_rad(-32.0), 0.0, deg_to_rad(15.0) * sx)
+		var knob := _sphere(ant, "Knob", 0.055, color.lightened(0.2))
+		knob.material_override = knob_mat
+		knob.position = Vector3(0.0, 0.16, 0.0)
+
+	# 目2（大きめ・つやあり＋白ハイライト）＝“ヘドロに侵されて困っている”、癒やしたくなる目。
+	# 暗い体でも目がしっかり立つように、白いふち＋黒目＋光点で“生きてる眼”に。
+	var eye_mat := _eye_mat()
+	var sclera_mat := _mat(Color(0.93, 0.94, 0.9))
+	for sx in [-1.0, 1.0]:
+		var sclera := _sphere(head, "Sclera", 0.105, Color(0.94, 0.95, 0.92))
+		sclera.material_override = sclera_mat
+		sclera.position = Vector3(0.095 * sx, 0.035, -0.14)
+		sclera.scale = Vector3(1.0, 1.2, 0.8)
+		# 黒目（つや＝実光源のハイライトで“うるむ”。少し内・下向きで“困り顔”）
+		var eye := _sphere(sclera, "Eye", 0.6, Color(0.06, 0.05, 0.05))
+		eye.material_override = eye_mat
+		eye.position = Vector3(0.18 * sx, -0.12, -0.55)
+
 	if shell:
 		var sh := _sphere(rig, "Shell", 0.3, color.darkened(0.05))
 		sh.scale = Vector3(1.05, 0.62, 1.35)
@@ -165,4 +190,16 @@ static func _mat(c: Color) -> StandardMaterial3D:
 	m.roughness = 0.8
 	m.rim_enabled = true
 	m.rim = 0.4
+	return m
+
+
+## つやのある目（クリアコートの照り）＝“生きてる・うるんだ”眼。癒やしたくなる表情に。
+static func _eye_mat() -> StandardMaterial3D:
+	var m := StandardMaterial3D.new()
+	m.albedo_color = Color(0.06, 0.05, 0.05)
+	m.roughness = 0.14
+	m.metallic_specular = 0.7
+	m.clearcoat_enabled = true
+	m.clearcoat = 1.0
+	m.clearcoat_roughness = 0.04
 	return m
