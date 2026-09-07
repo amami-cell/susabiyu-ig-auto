@@ -22,6 +22,7 @@ var _biome: OptionButton = null
 var _difficulty: OptionButton = null
 var _credits: Control = null
 var _dex: Control = null
+var _qr: Control = null
 
 # なかま図鑑の全種（id は data/*.tres のファイル名。色は見分け用の近似）。
 const DEX_SPECIES := [
@@ -99,6 +100,7 @@ func _ready() -> void:
 	Net.session_ended.connect(func(_r: String) -> void: _refresh_title_state())
 	_build_credits_button()
 	_build_dex_button()
+	_build_qr_button()
 
 	if Net.is_web():
 		_setup_for_browser()
@@ -304,6 +306,99 @@ func _build_dex_button() -> void:
 	btn.add_theme_color_override("font_color", UIKit.INK)
 	btn.pressed.connect(_show_dex)
 	add_child(btn)
+
+
+## 「QRでつなぐ」ボタン（下・中央）。別のスマホ/タブレットでこのQRを読むと
+## 同じゲームが開く＝ふたりで遊ぶ前の「URLをどう渡すか」を一気に解消する。
+func _build_qr_button() -> void:
+	var btn := Button.new()
+	btn.name = "QrButton"
+	btn.text = "QRでつなぐ"
+	btn.anchor_left = 0.5
+	btn.anchor_right = 0.5
+	btn.anchor_top = 1.0
+	btn.anchor_bottom = 1.0
+	btn.offset_left = -78.0
+	btn.offset_top = -56.0
+	btn.offset_right = 78.0
+	btn.offset_bottom = -16.0
+	UIKit.style_button(btn, UIKit.CREAM_SOLID, UIKit.GREEN_DK)
+	btn.add_theme_color_override("font_color", UIKit.INK)
+	btn.pressed.connect(_show_qr)
+	add_child(btn)
+
+
+func _show_qr() -> void:
+	if _qr != null:
+		_qr.visible = true
+		return
+	_qr = Control.new()
+	_qr.name = "QrOverlay"
+	_qr.set_anchors_preset(Control.PRESET_FULL_RECT)
+	add_child(_qr)
+
+	var dim := ColorRect.new()
+	dim.color = Color(0, 0, 0, 0.5)
+	dim.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_qr.add_child(dim)
+
+	var box := Panel.new()
+	box.set_anchors_preset(Control.PRESET_CENTER)
+	box.offset_left = -230.0
+	box.offset_top = -240.0
+	box.offset_right = 230.0
+	box.offset_bottom = 240.0
+	box.add_theme_stylebox_override("panel", UIKit.panel(UIKit.CREAM, UIKit.GREEN_DK, 20, 4, 22))
+	_qr.add_child(box)
+
+	var vb := VBoxContainer.new()
+	vb.set_anchors_preset(Control.PRESET_FULL_RECT)
+	vb.offset_left = 24
+	vb.offset_top = 20
+	vb.offset_right = -24
+	vb.offset_bottom = -20
+	vb.add_theme_constant_override("separation", 12)
+	box.add_child(vb)
+
+	var head := Label.new()
+	head.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	head.text = "べつの端末で ひらく"
+	UIKit.style_label(head, 26, UIKit.GREEN_DK)
+	vb.add_child(head)
+
+	var note := Label.new()
+	note.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	note.text = "スマホのカメラで よみとると、同じゲームが ひらくよ。\n（ふたりで遊ぶとき用）"
+	UIKit.style_label(note, 18, UIKit.INK)
+	vb.add_child(note)
+
+	var center := CenterContainer.new()
+	vb.add_child(center)
+	var qr_tex := TextureRect.new()
+	qr_tex.texture = load("res://assets/join_qr.png")
+	qr_tex.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST   # ドットをくっきり（読み取り安定）
+	qr_tex.expand_mode = TextureRect.EXPAND_IGNORE_SIZE         # 元画像サイズに縛られず縮められる
+	qr_tex.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	qr_tex.custom_minimum_size = Vector2(230, 230)
+	# 白い余白（クワイエットゾーン）を確保して読み取りやすく。
+	var qr_bg := PanelContainer.new()
+	var sb := StyleBoxFlat.new()
+	sb.bg_color = Color(1, 1, 1)
+	sb.set_corner_radius_all(10)
+	sb.set_content_margin_all(10)
+	qr_bg.add_theme_stylebox_override("panel", sb)
+	qr_bg.add_child(qr_tex)
+	center.add_child(qr_bg)
+
+	var close := Button.new()
+	close.text = "とじる"
+	close.custom_minimum_size = Vector2(0, 48)
+	UIKit.style_button(close, UIKit.GREEN, UIKit.GREEN_DK)
+	close.pressed.connect(func() -> void:
+		if _qr != null:
+			_qr.visible = false)
+	vb.add_child(close)
 
 
 func _show_dex() -> void:
