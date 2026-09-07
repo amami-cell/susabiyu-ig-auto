@@ -309,6 +309,19 @@
   .lbmeta{color:#fff;font-size:13px;margin-top:12px;text-align:center}.lbmeta b{font-size:15px}
   .lblink{color:#7fd1a0;font-size:13px;margin-top:10px;text-decoration:none;font-weight:800}
   .lbnone{color:#fff;padding:40px;font-size:14px}
+  /* ===== PC(デスクトップ)専用の見やすいレイアウト（モバイル<900pxは従来のまま） ===== */
+  @media (min-width:900px){
+    #gallery, #feed{ max-width:1180px; display:grid; grid-template-columns:repeat(2, minmax(0,1fr)); gap:22px; align-items:start }
+    #gallery > *:not(.card), #feed > *:not(.card){ grid-column:1 / -1 }
+    .card{ margin-bottom:0 }
+    /* 9:16動画/画像の全体を上限高さ内に“引き”で表示（縦長で画面が埋まらない・並べて確認できる） */
+    .card .mediaWrap{ aspect-ratio:auto; height:min(68vh,640px) }
+    .card .media{ object-fit:contain }
+    #report{ max-width:860px }
+  }
+  @media (min-width:1320px){
+    #gallery, #feed{ max-width:1560px; grid-template-columns:repeat(3, minmax(0,1fr)) }
+  }
 </style>
 </head>
 <body>
