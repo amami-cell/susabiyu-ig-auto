@@ -7,7 +7,7 @@ import { ytheme } from "./yoshokuTheme";
 import {
   mincho, serif, clamp, SAFE, rise, drawW, fade, segNow,
   Grain, StoreLogo, PhotoLayer, Slides, SampleBadge, splitLines, heroSize,
-  StoryOpening, StoryEndroll, STORY_OPEN, STORY_END,
+  StoryOpening, StoryEndroll, STORY_OPEN, STORY_END, STORY_XF,
 } from "./yoshokuDesign";
 
 const CHALK_BODY = 420; // 14s（4品×約3.5s）
@@ -85,8 +85,8 @@ const ChalkBody: React.FC<{ storeName?: string; handle?: string; theme?: string 
         </div>
       ) : null}
 
-      {/* フッター：店舗ロゴ＋ハンドル */}
-      <div style={{ position: "absolute", left: 0, right: 0, bottom: SAFE.bottom - 132, display: "flex", flexDirection: "column", alignItems: "center", gap: 10, ...rise(f, DUR - 70, { dist: 14 }) }}>
+      {/* フッター：店舗ロゴ＋ハンドル（1品目から常時表示） */}
+      <div style={{ position: "absolute", left: 0, right: 0, bottom: SAFE.bottom - 132, display: "flex", flexDirection: "column", alignItems: "center", gap: 10, opacity: fade(f, 16) }}>
         <StoreLogo storeName={storeName} height={86} tint="#F4F2EA" />
         <div style={{ fontFamily: serif, color: T.accent, fontSize: 26, letterSpacing: 5 }}>{handle}</div>
       </div>
@@ -102,7 +102,7 @@ export const YoshokuChalk: React.FC<{ storeName?: string; handle?: string; theme
     <AbsoluteFill style={{ backgroundColor: "#12181a" }}>
       <Sequence durationInFrames={STORY_OPEN}><StoryOpening storeName={storeName} theme={theme} /></Sequence>
       <Sequence from={STORY_OPEN} durationInFrames={CHALK_BODY}><ChalkBody storeName={storeName} handle={handle} theme={theme} /></Sequence>
-      <Sequence from={STORY_OPEN + CHALK_BODY} durationInFrames={STORY_END}><StoryEndroll storeName={storeName} handle={handle} theme={theme} /></Sequence>
+      <Sequence from={STORY_OPEN + CHALK_BODY - STORY_XF} durationInFrames={STORY_END + STORY_XF}><StoryEndroll storeName={storeName} handle={handle} theme={theme} /></Sequence>
     </AbsoluteFill>
   );
 };

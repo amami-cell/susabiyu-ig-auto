@@ -6,7 +6,7 @@ import { ytheme } from "./yoshokuTheme";
 import {
   mincho, serif, clamp, SAFE, rise, drawW, fade,
   Grain, StoreLogo, PhotoLayer, Slides, SampleBadge, splitLines, heroSize, segNow,
-  StoryOpening, StoryEndroll, STORY_OPEN, STORY_END,
+  StoryOpening, StoryEndroll, STORY_OPEN, STORY_END, STORY_XF,
 } from "./yoshokuDesign";
 
 const MAG_BODY = 480; // 16s
@@ -68,8 +68,8 @@ const MagBody: React.FC<{ storeName?: string; handle?: string; theme?: string }>
       </div>
 
       {/* 下：一言（各料理のストーリー用の短い一言。無ければ全体フック）＝大きめに */}
-      <div style={{ position: "absolute", left: SAFE.side, right: 360, bottom: 190, opacity: fade(f, 74) }}>
-        <div style={{ fontFamily: mincho, color: T.sub, fontSize: 37, letterSpacing: 2, lineHeight: 1.55 }}>{oneLiner}</div>
+      <div style={{ position: "absolute", left: SAFE.side, right: 330, bottom: 188, opacity: fade(f, 74) }}>
+        <div style={{ fontFamily: mincho, color: "#EADFC9", fontSize: 46, letterSpacing: 1, lineHeight: 1.5, textShadow: "0 2px 14px rgba(0,0,0,0.6)" }}>{oneLiner}</div>
       </div>
 
       {/* フッター：店舗ロゴ＋ハンドルを右下へ（左の余白は見出し/一言が使う） */}
@@ -89,7 +89,7 @@ export const YoshokuMag: React.FC<{ storeName?: string; handle?: string; theme?:
     <AbsoluteFill style={{ backgroundColor: T.base }}>
       <Sequence durationInFrames={STORY_OPEN}><StoryOpening storeName={storeName} theme={theme} /></Sequence>
       <Sequence from={STORY_OPEN} durationInFrames={MAG_BODY}><MagBody storeName={storeName} handle={handle} theme={theme} /></Sequence>
-      <Sequence from={STORY_OPEN + MAG_BODY} durationInFrames={STORY_END}><StoryEndroll storeName={storeName} handle={handle} theme={theme} /></Sequence>
+      <Sequence from={STORY_OPEN + MAG_BODY - STORY_XF} durationInFrames={STORY_END + STORY_XF}><StoryEndroll storeName={storeName} handle={handle} theme={theme} /></Sequence>
     </AbsoluteFill>
   );
 };

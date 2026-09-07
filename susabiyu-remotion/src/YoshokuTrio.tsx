@@ -25,12 +25,12 @@ export const YoshokuTrio: React.FC<{ storeName?: string; handle?: string; theme?
     <AbsoluteFill style={{ backgroundColor: "#000", fontFamily: mincho }}>
       <Audio src={staticFile(typoMusic)} startFrom={Math.round((typoMusicStart || 0) * 30)} volume={(ff) => interpolate(ff, [0, 16, DUR - 24, DUR], [0, 0.82, 0.82, 0], clamp)} />
 
-      {/* 写真だけ3カットのクロスフェード（文字は重ねない＝別レイヤーで1件だけ描く） */}
+      {/* 写真だけ3カットのクロスフェード（文字は重ねない＝別レイヤーで1件だけ描く）。
+          料理が見切れないよう、背景はぼかしカバー＋前面は contain で皿の全体を表示（引き）。 */}
       <Slides count={3} total={DUR} fade={18} render={(i, local, seg) => (
         <>
-          <AbsoluteFill>
-            <PhotoLayer src={items[i].src} frame={local} dur={seg} from={1.0} to={1.04} sat={1.08} />
-          </AbsoluteFill>
+          <AbsoluteFill><PhotoLayer src={items[i].src} frame={local} dur={seg} from={1.14} to={1.2} sat={1.02} brightness={0.5} blur={26} /></AbsoluteFill>
+          <AbsoluteFill><PhotoLayer src={items[i].src} frame={local} dur={seg} from={1.0} to={1.03} sat={1.08} brightness={1.02} fit="contain" /></AbsoluteFill>
           <AbsoluteFill style={{ background: "linear-gradient(180deg, rgba(0,0,0,0.5) 0%, rgba(0,0,0,0) 30%, rgba(0,0,0,0.12) 58%, rgba(0,0,0,0.86) 100%)" }} />
         </>
       )} />

@@ -6,7 +6,7 @@ import { ytheme } from "./yoshokuTheme";
 import {
   mincho, serif, clamp, SAFE, rise, drawW,
   Grain, Vignette, Masthead, PhotoLayer, Slides, SampleBadge, splitLines, heroSize, segNow,
-  StoryOpening, StoryEndroll, STORY_OPEN, STORY_END,
+  StoryOpening, StoryEndroll, STORY_OPEN, STORY_END, STORY_XF,
 } from "./yoshokuDesign";
 
 const SIZZLE_BODY = 480; // 16s
@@ -49,8 +49,8 @@ const SizzleBody: React.FC<{ storeName?: string; handle?: string; theme?: string
       <Vignette strength={0.46} />
       <Grain />
 
-      {/* 左上：ロゴのマストヘッド */}
-      <Masthead storeName={storeName} kicker={T.label} accent={T.accent} tint="#FFF6E6" f={f} />
+      {/* 左上：ロゴのマストヘッド（文字ロゴを大きく） */}
+      <Masthead storeName={storeName} kicker={T.label} accent={T.accent} tint="#FFF6E6" f={f} logoH={116} />
 
       {/* 右上：見本番号（本番投稿では非表示） */}
       <SampleBadge accent={T.accent} f={f} />
@@ -88,7 +88,7 @@ export const YoshokuSizzle: React.FC<{ storeName?: string; handle?: string; them
     <AbsoluteFill style={{ backgroundColor: "#0b0806" }}>
       <Sequence durationInFrames={STORY_OPEN}><StoryOpening storeName={storeName} theme={theme} /></Sequence>
       <Sequence from={STORY_OPEN} durationInFrames={SIZZLE_BODY}><SizzleBody storeName={storeName} handle={handle} theme={theme} /></Sequence>
-      <Sequence from={STORY_OPEN + SIZZLE_BODY} durationInFrames={STORY_END}><StoryEndroll storeName={storeName} handle={handle} theme={theme} /></Sequence>
+      <Sequence from={STORY_OPEN + SIZZLE_BODY - STORY_XF} durationInFrames={STORY_END + STORY_XF}><StoryEndroll storeName={storeName} handle={handle} theme={theme} /></Sequence>
     </AbsoluteFill>
   );
 };
