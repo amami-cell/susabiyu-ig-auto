@@ -23,8 +23,44 @@ func _ready() -> void:
 	_net_xform = global_transform
 	# サーバ以外は物理を止めて、届いた姿勢に従うだけにする
 	freeze = not (multiplayer.has_multiplayer_peer() and multiplayer.is_server())
+	_grime_up()
 	_build_marker()
 	set_physics_process(true)
+
+
+## ピカピカの缶では“汚れ・ゴミ”に見えないので、くすませてヘドロの付着を足す＝
+## 「この世界は汚れている」第一印象を、拾うゴミそのものでも語る。
+func _grime_up() -> void:
+	var body := get_node_or_null("Body") as MeshInstance3D
+	if body == null:
+		return
+	var gm := StandardMaterial3D.new()
+	gm.albedo_color = Color(0.46, 0.47, 0.45)
+	gm.metallic = 0.25
+	gm.metallic_specular = 0.3
+	gm.roughness = 0.88
+	gm.rim_enabled = true
+	gm.rim = 0.3
+	gm.rim_tint = 0.4
+	body.material_override = gm
+	# ヘドロの付着（暗い半透明のしみ）を数点
+	var sludge := StandardMaterial3D.new()
+	sludge.albedo_color = Color(0.16, 0.19, 0.15, 0.9)
+	sludge.roughness = 0.6
+	var rng := RandomNumberGenerator.new()
+	rng.seed = int(abs(global_position.x * 53.0 + global_position.z * 131.0)) + 7
+	for i in 3:
+		var spot := MeshInstance3D.new()
+		var sm := SphereMesh.new()
+		sm.radius = rng.randf_range(0.07, 0.12)
+		sm.height = sm.radius * 2.0
+		sm.radial_segments = 6
+		sm.rings = 4
+		spot.mesh = sm
+		spot.material_override = sludge
+		spot.position = Vector3(rng.randf_range(-0.12, 0.12), rng.randf_range(-0.12, 0.14), rng.randf_range(-0.12, 0.12))
+		spot.scale = Vector3(1.0, 0.5, 1.0)
+		body.add_child(spot)
 
 
 ## ゴミの上に ふわっと浮く 金色の光の粒。＝地面のゴミが 遠くからでも 見つかる。
@@ -48,12 +84,39 @@ func _build_marker() -> void:
 	_marker.top_level = true   # 親（ゴミ）の物理回転を受けない＝常にまっすぐ浮く
 	add_child(_marker)
 
+	# 光の輪（回りながら開閉）＝“ここ拾えるよ”がひと目で分かるサイン。
+	var ring := MeshInstance3D.new()
+	ring.name = "MarkerRing"
+	var tm := TorusMesh.new()
+	tm.inner_radius = 0.16
+	tm.outer_radius = 0.22
+	tm.rings = 16
+	tm.ring_segments = 6
+	ring.mesh = tm
+	var rmat := StandardMaterial3D.new()
+	rmat.albedo_color = Color(1.0, 0.9, 0.5, 0.85)
+	rmat.emission_enabled = true
+	rmat.emission = Color(1.0, 0.82, 0.35)
+	rmat.emission_energy_multiplier = 2.2
+	rmat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	rmat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	ring.material_override = rmat
+	ring.rotation.x = deg_to_rad(90.0)
+	_marker.add_child(ring)
+
 
 func _process(delta: float) -> void:
 	if _marker == null or _removed:
 		return
 	_marker_t += delta
 	_marker.global_position = global_position + Vector3(0.0, 0.55 + sin(_marker_t * 3.0) * 0.08, 0.0)
+	var pulse := 1.0 + sin(_marker_t * 4.0) * 0.12
+	_marker.scale = Vector3(pulse, pulse, pulse)
+	var ring := _marker.get_node_or_null("MarkerRing")
+	if ring != null:
+		ring.rotation.y = _marker_t * 1.6                     # ゆっくり回る
+		var rp := 1.0 + sin(_marker_t * 4.0 + 1.0) * 0.18     # 開いて閉じる
+		ring.scale = Vector3(rp, rp, rp)
 
 
 func _physics_process(delta: float) -> void:
