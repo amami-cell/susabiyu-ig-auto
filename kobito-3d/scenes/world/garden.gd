@@ -92,6 +92,12 @@ const BOULDER_COUNT := 110    # 岩
 var _hills: MultiMeshInstance3D = null
 var _water_mat: ShaderMaterial = null
 var _trees: Node3D = null
+# 木の葉を回復度で塗り替えるための保持（葉の色は建てたとき1回きりだと、
+# 汚れた世界でも森が青々として矛盾する→回復にあわせて病んだ色↔みずみずしい緑へ）。
+var _leaf_mm: MultiMesh = null
+var _cone_mm: MultiMesh = null
+var _leaf_tints := PackedFloat32Array()
+var _cone_tints := PackedFloat32Array()
 var _terrain_noise: FastNoiseLite = null
 
 # 蝶（回復するほど増えて舞う“命”）。純見た目・非同期（各自の画面でふわふわ飛ぶ）。
@@ -956,7 +962,9 @@ func _build_trees() -> void:
 		ti += 1
 		var ls := s * rng.randf_range(0.9, 1.2)
 		leaf_mm.set_instance_transform(i, Transform3D(Basis(Vector3.UP, yaw).scaled(Vector3(ls, ls * 1.1, ls)), base + Vector3(0.0, s + ls * 0.5, 0.0)))
-		leaf_mm.set_instance_color(i, Color(0.20, 0.38, 0.16).lerp(Color(0.34, 0.52, 0.22), rng.randf()))
+		var lt := rng.randf()
+		_leaf_tints.append(lt)
+		leaf_mm.set_instance_color(i, _leaf_color(lt, WorldState.recovery))
 	# 針葉樹（少し外側・高地に多い＝森の奥）
 	for i in _conifer_n:
 		var ang := rng.randf_range(0.0, TAU)
@@ -968,11 +976,39 @@ func _build_trees() -> void:
 		ti += 1
 		var cs := s * rng.randf_range(0.8, 1.1)
 		cone_mm.set_instance_transform(i, Transform3D(Basis(Vector3.UP, yaw).scaled(Vector3(cs, cs, cs)), base + Vector3(0.0, s * 0.6 + cs * 1.3, 0.0)))
-		cone_mm.set_instance_color(i, Color(0.14, 0.30, 0.16).lerp(Color(0.22, 0.40, 0.20), rng.randf()))
+		var ct := rng.randf()
+		_cone_tints.append(ct)
+		cone_mm.set_instance_color(i, _cone_color(ct, WorldState.recovery))
 
+	_leaf_mm = leaf_mm
+	_cone_mm = cone_mm
 	_add_mmi("TreeTrunks", trunk_mm)
 	_add_mmi("TreeFoliage", leaf_mm)
 	_add_mmi("Conifers", cone_mm)
+
+
+## 広葉樹の葉の色：汚れ(r=0)は病んだ黄枯れ、回復(r=1)でみずみずしい緑。t=個体差。
+func _leaf_color(t: float, r: float) -> Color:
+	var sick := Color(0.36, 0.33, 0.18).lerp(Color(0.42, 0.40, 0.22), t)
+	var lush := Color(0.20, 0.38, 0.16).lerp(Color(0.34, 0.52, 0.22), t)
+	return sick.lerp(lush, r)
+
+
+## 針葉樹の葉の色（同上、常緑寄りなので枯れは控えめ）。
+func _cone_color(t: float, r: float) -> Color:
+	var sick := Color(0.26, 0.27, 0.18).lerp(Color(0.32, 0.33, 0.22), t)
+	var lush := Color(0.14, 0.30, 0.16).lerp(Color(0.22, 0.40, 0.20), t)
+	return sick.lerp(lush, r)
+
+
+## 回復度にあわせて木の葉を塗り替える（_on_recovery_changed から呼ぶ）。
+func _update_tree_leaves(r: float) -> void:
+	if _leaf_mm != null:
+		for i in _leaf_tints.size():
+			_leaf_mm.set_instance_color(i, _leaf_color(_leaf_tints[i], r))
+	if _cone_mm != null:
+		for i in _cone_tints.size():
+			_cone_mm.set_instance_color(i, _cone_color(_cone_tints[i], r))
 
 
 ## 岩（丘の上のごろた石・大きめ）。地面ディテールを立体にして“自然物”を増やす。
@@ -1568,6 +1604,7 @@ func _on_recovery_changed(_value: float) -> void:
 	_update_grass(r)
 	_update_flowers(r)
 	_update_plants(r)
+	_update_tree_leaves(r)
 	var env := _env.environment
 	if env != null:
 		env.background_color = WorldState.sky_color()
