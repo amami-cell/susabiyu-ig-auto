@@ -49,7 +49,7 @@ const EYE_PALETTE := [
 ## Web など軽い環境向けの“かわいい こけし人形風”の小人。部品を絞りつつ（体・頭・髪・目2・
 ## ほっぺ2＝約7部品）、髪と顔をつけて「顔なしの卵」に見えないようにする。フルの手続きクレイ
 ## (1体100部品超)は9人で固まる原因なので、こちらで軽さと“ちゃんと人に見える”を両立する。
-static func decorate_simple(body: MeshInstance3D, color: Color, role: String = "child", char_name: String = "") -> void:
+static func decorate_simple(body: MeshInstance3D, color: Color, role: String = "child", char_name: String = "", hero: bool = false) -> void:
 	var inv := StandardMaterial3D.new()
 	inv.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 	inv.albedo_color = Color(0, 0, 0, 0)
@@ -59,104 +59,67 @@ static func decorate_simple(body: MeshInstance3D, color: Color, role: String = "
 	root.name = "SimpleLook"
 	body.add_child(root)
 
+	# 質感（材質だけ＝ドローコール増やさずに“やわらかく光る絵本クレイ”へ）
+	var body_mat := _soft(color, 0.68)
+	var pants_col := color.darkened(0.34)
+	var pants_mat := _soft(pants_col, 0.7)
+	var boot_mat := _soft(pants_col.darkened(0.18), 0.6)
+	var skin_mat := _soft(SKIN, 0.55)
+
+	# --- 脚2・足2（下半身が“ある”だけで人形→キャラに）---
+	for sx in [-1.0, 1.0]:
+		_lp_capsule(root, 0.115, 0.42, pants_mat, Vector3(0.15 * sx, -0.22, 0.0))
+		_lp_sphere(root, 0.13, boot_mat, Vector3(0.16 * sx, -0.46, -0.05), Vector3(1.1, 0.66, 1.5))
+
+	# --- 胴（家族色のつなぎ）。ぷっくり卵型 ---
+	_lp_sphere(root, 0.36, body_mat, Vector3(0.0, 0.24, 0.0), Vector3(1.0, 1.18, 0.92), 12, 7)
+
+	# --- 腕2（肩から下外へ、丸い手先）---
+	for sx in [-1.0, 1.0]:
+		_lp_capsule(root, 0.1, 0.4, body_mat, Vector3(0.33 * sx, 0.4, 0.02),
+			Vector3(0.0, 0.0, deg_to_rad(24.0) * sx))
+		if hero:
+			_lp_sphere(root, 0.1, skin_mat, Vector3(0.44 * sx, 0.16, 0.05))   # 手（親のみ・軽量化）
+
+	# --- 頭（肌色）---
+	var head := _lp_sphere(root, 0.38, skin_mat, Vector3(0.0, 0.92, 0.0), Vector3.ONE, 12, 8)
+
 	var is_adult := role == "adult"
-
-	# 体（家族色の服）。丸めのカプセルで“ぷっくり”＝かわいい。足元 y=-0.52。
-	var torso := MeshInstance3D.new()
-	var cap := CapsuleMesh.new()
-	cap.radius = 0.36
-	cap.height = 1.0
-	cap.radial_segments = 10
-	cap.rings = 3
-	torso.mesh = cap
-	torso.material_override = _flat(color, 0.95)
-	torso.position = Vector3(0.0, 0.12, 0.0)
-	root.add_child(torso)
-
-	# 頭（肌色）＝少し大きめでチビ可愛く（“頭でっかち卵”に見えないよう少しだけ小さく）
-	var head := MeshInstance3D.new()
-	var sph := SphereMesh.new()
-	sph.radius = 0.40
-	sph.height = 0.80
-	sph.radial_segments = 12
-	sph.rings = 7
-	head.mesh = sph
-	head.material_override = _flat(SKIN, 0.85)
-	head.position = Vector3(0.0, 1.0, 0.0)
-	root.add_child(head)
-
 	var hair_col: Color = HAIR_WHITE if char_name == "おじい" else HAIR_PALETTE[abs(char_name.hash()) % HAIR_PALETTE.size()]
-	var hair_mat := _flat(hair_col, 0.8)
+	var hair_mat := _soft(hair_col, 0.55)
 
-	# 髪＝頭に“ぴったり乗る”ぺたんこキャップ（前おでこ・顔は出す）。平たくして卵っぽさを消す。
-	var hair := MeshInstance3D.new()
-	var hs := SphereMesh.new()
-	hs.radius = 0.43
-	hs.height = 0.86
-	hs.radial_segments = 12
-	hs.rings = 7
-	hair.mesh = hs
-	hair.material_override = hair_mat
-	hair.position = Vector3(0.0, 1.08 + (0.0 if is_adult else 0.02), 0.10)
-	hair.scale = Vector3(1.02, 0.80 if is_adult else 0.74, 1.02)   # 平たいキャップ＝“髪”に見える
-	root.add_child(hair)
+	# 髪＝頭に乗る平たいキャップ（前おでこ・顔は出す）
+	_lp_sphere(root, 0.415, hair_mat, Vector3(0.0, 1.0 + (0.0 if is_adult else 0.02), 0.09),
+		Vector3(1.03, 0.78 if is_adult else 0.72, 1.03), 12, 7)
 
-	# アホ毛（ちょこんとした毛束）＝ぐっと可愛く。おじい（白髪）以外に付ける。
+	# アホ毛（おじい以外）
 	if char_name != "おじい":
-		var tuft := MeshInstance3D.new()
-		var tm := SphereMesh.new()
-		tm.radius = 0.07
-		tm.height = 0.2
-		tm.radial_segments = 6
-		tm.rings = 4
-		tuft.mesh = tm
-		tuft.material_override = hair_mat
-		tuft.position = Vector3(0.05, 1.44, 0.06)
-		tuft.scale = Vector3(0.7, 1.4, 0.7)
-		tuft.rotation = Vector3(deg_to_rad(-18.0), 0.0, deg_to_rad(12.0))
-		root.add_child(tuft)
+		_lp_sphere(root, 0.07, hair_mat, Vector3(0.05, 1.36, 0.05), Vector3(0.7, 1.5, 0.7))\
+			.rotation = Vector3(deg_to_rad(-18.0), 0.0, deg_to_rad(12.0))
 
-	# 目（黒い点2つ）
-	var emat := _flat(Color(0.12, 0.1, 0.1), 0.5)
-	for sx in [-0.16, 0.16]:
-		var eye := MeshInstance3D.new()
-		var e := SphereMesh.new()
-		e.radius = 0.08
-		e.height = 0.16
-		e.radial_segments = 6
-		e.rings = 4
-		eye.mesh = e
-		eye.material_override = emat
-		eye.position = Vector3(sx, 1.06, -0.35)
-		root.add_child(eye)
+	# 目（つやのある黒＋白ハイライト＝“生きてる”目に）
+	var eye_mat := _gloss(Color(0.1, 0.09, 0.1))
+	var catch_mat := _flat(Color(1, 1, 1), 0.25)
+	for sx in [-1.0, 1.0]:
+		_lp_sphere(root, 0.082, eye_mat, Vector3(0.15 * sx, 0.96, -0.33), Vector3(1.0, 1.12, 1.0), 8, 5)
+		if hero:
+			_lp_sphere(root, 0.03, catch_mat, Vector3(0.13 * sx, 1.0, -0.42), Vector3.ONE, 6, 4)
 
-	# ほっぺ（桃色）2つ＝ぐっと可愛くなる
-	var cmat := _flat(Color(1.0, 0.66, 0.68), 0.7)
-	for cx in [-0.26, 0.26]:
-		var cheek := MeshInstance3D.new()
-		var cm := SphereMesh.new()
-		cm.radius = 0.08
-		cm.height = 0.16
-		cm.radial_segments = 6
-		cm.rings = 4
-		cheek.mesh = cm
-		cheek.material_override = cmat
-		cheek.position = Vector3(cx, 0.96, -0.3)
-		cheek.scale = Vector3(1.0, 0.7, 0.5)
-		root.add_child(cheek)
+	# ほっぺ（桃色）
+	var cheek_mat := _soft(Color(1.0, 0.66, 0.68), 0.6)
+	for cx in [-1.0, 1.0]:
+		_lp_sphere(root, 0.082, cheek_mat, Vector3(0.25 * cx, 0.85, -0.29), Vector3(1.0, 0.7, 0.5), 8, 4)
 
-	# ちいさな口（にっこり）＝顔がぐっと生きる。ほっぺの間・目の下に小さく。
-	var mouth := MeshInstance3D.new()
-	var mm := SphereMesh.new()
-	mm.radius = 0.06
-	mm.height = 0.12
-	mm.radial_segments = 6
-	mm.rings = 3
-	mouth.mesh = mm
-	mouth.material_override = _flat(Color(0.5, 0.24, 0.24), 0.6)
-	mouth.position = Vector3(0.0, 0.9, -0.37)
-	mouth.scale = Vector3(1.6, 0.5, 0.5)   # 横に広い＝にっこり
-	root.add_child(mouth)
+	# 小さな口（にっこり）
+	_lp_sphere(root, 0.06, _soft(Color(0.5, 0.24, 0.24), 0.5), Vector3(0.0, 0.8, -0.36), Vector3(1.6, 0.5, 0.5), 6, 4)
+
+	# --- 頭のふたば（＝みどりを連れてくる一家の目印）。主役だけに乗せて特別感を出す ---
+	if hero:
+		var leaf_mat := _soft(Color(0.42, 0.72, 0.32), 0.5)
+		_lp_capsule(root, 0.022, 0.16, _soft(Color(0.36, 0.6, 0.28)), Vector3(0.0, 1.4, 0.0))
+		for sx in [-1.0, 1.0]:
+			_lp_sphere(root, 0.09, leaf_mat, Vector3(0.06 * sx, 1.5, 0.0),
+				Vector3(1.5, 0.35, 0.9)).rotation = Vector3(0.0, 0.0, deg_to_rad(28.0) * sx)
 
 
 ## 単色マット材質を1つ作る小ヘルパ（簡易NPC用）。
@@ -165,6 +128,64 @@ static func _flat(col: Color, rough: float) -> StandardMaterial3D:
 	m.albedo_color = col
 	m.roughness = rough
 	return m
+
+
+## 絵本クレイ質感（Web安全）：リムライト＋弱いスペキュラで“やわらかく光る”。
+## ドローコールは増やさない（材質だけ）ので、簡易モデルでもここでグッと質が上がる。
+static func _soft(col: Color, rough := 0.6) -> StandardMaterial3D:
+	var m := StandardMaterial3D.new()
+	m.albedo_color = col
+	m.roughness = rough
+	m.metallic_specular = 0.3
+	m.rim_enabled = true
+	m.rim = 0.45
+	m.rim_tint = 0.35
+	return m
+
+
+## つやのある材質（目など）：クリアコートで“いきいき”。
+static func _gloss(col: Color) -> StandardMaterial3D:
+	var m := StandardMaterial3D.new()
+	m.albedo_color = col
+	m.roughness = 0.16
+	m.metallic_specular = 0.6
+	m.clearcoat_enabled = true
+	m.clearcoat = 0.9
+	m.clearcoat_roughness = 0.05
+	return m
+
+
+## 低ポリ球（Web軽量）。segs/rings を絞ってドローコール以外のコストも抑える。
+static func _lp_sphere(parent: Node3D, r: float, mat: StandardMaterial3D, pos: Vector3, sc := Vector3.ONE, segs := 10, rings := 6) -> MeshInstance3D:
+	var mi := MeshInstance3D.new()
+	var sm := SphereMesh.new()
+	sm.radius = r
+	sm.height = r * 2.0
+	sm.radial_segments = segs
+	sm.rings = rings
+	mi.mesh = sm
+	mi.material_override = mat
+	mi.position = pos
+	mi.scale = sc
+	parent.add_child(mi)
+	return mi
+
+
+## 低ポリ カプセル（Web軽量）。手足・胴に使う。
+static func _lp_capsule(parent: Node3D, r: float, h: float, mat: StandardMaterial3D, pos: Vector3, rot := Vector3.ZERO, sc := Vector3.ONE, segs := 8) -> MeshInstance3D:
+	var mi := MeshInstance3D.new()
+	var cm := CapsuleMesh.new()
+	cm.radius = r
+	cm.height = h
+	cm.radial_segments = segs
+	cm.rings = 2
+	mi.mesh = cm
+	mi.material_override = mat
+	mi.position = pos
+	mi.rotation = rot
+	mi.scale = sc
+	parent.add_child(mi)
+	return mi
 
 
 static func decorate(body: MeshInstance3D, color: Color, with_weapon: bool = false, role: String = "child", char_name: String = "") -> void:

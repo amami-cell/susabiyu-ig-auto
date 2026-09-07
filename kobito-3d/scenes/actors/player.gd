@@ -104,7 +104,7 @@ func _ready() -> void:
 		# (約90部品)で、Web描画の約4割を主役2体が食っていた。攻撃は _remote_swing の
 		# スケールtweenフォールバックで成立するので見た目上も問題なし。きれい版(PC)はフル。
 		if OS.has_feature("web"):
-			KobitoLook.decorate_simple(_body, _base_color, "adult", style_name)
+			KobitoLook.decorate_simple(_body, _base_color, "adult", style_name, true)
 		else:
 			KobitoLook.decorate(_body, _base_color, true, "adult", style_name)   # 親：武器を持つ
 	_label.text = pname
