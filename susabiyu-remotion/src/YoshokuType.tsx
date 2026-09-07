@@ -17,7 +17,7 @@ export const YoshokuType: React.FC<{ storeName?: string; handle?: string; theme?
   const DUR = YTYPE_DUR;
   const T = ytheme(theme);
   const p = typoPhotos.length ? typoPhotos : [{ src: "", caption: "" }];
-  const items = [0, 1, 2, 3].map((i) => p[i] || p[p.length - 1]);
+  const items = [0, 1, 2, 3, 4, 5].map((i) => p[i] || p[p.length - 1]); // 6品紹介
 
   // 導入タイポ（フック）：出現→明転とともに退場
   const bigO = interpolate(f, [12, 34, 118, 138], [0, 1, 1, 0], clamp);
@@ -25,8 +25,8 @@ export const YoshokuType: React.FC<{ storeName?: string; handle?: string; theme?
   const bigLS = interpolate(f, [12, 44], [18, 3], { ...clamp, easing: EASE });
   const bigBlur = interpolate(f, [12, 40], [12, 0], { ...clamp, easing: EASE });
   const bigSize = heroSize(typoHeadline, 128, 82);
-  // 明転：3秒(90f)まで暗く→4秒(120f)で料理が立ち上がる
-  const darkO = interpolate(f, [0, 90, 122], [0.9, 0.84, 0.3], clamp);
+  // 明転：3秒(90f)まで暗く→4秒(122f)で明転しきる。明転後は暗すぎないよう薄く保つ（料理を明るく見せる）
+  const darkO = interpolate(f, [0, 90, 122, 150], [0.9, 0.82, 0.28, 0.1], clamp);
 
   return (
     <AbsoluteFill style={{ backgroundColor: T.base, fontFamily: mincho }}>
@@ -34,13 +34,13 @@ export const YoshokuType: React.FC<{ storeName?: string; handle?: string; theme?
 
       {/* 背景：4品クロスフェード（ズーム抑制）＋明転オーバーレイ */}
       <AbsoluteFill>
-        <Slides count={4} total={DUR} render={(i, local, seg) => (
-          <PhotoLayer src={items[i].src} frame={local} dur={seg} from={1.05} to={1.11} sat={1.06} brightness={0.96} />
+        <Slides count={6} total={DUR} render={(i, local, seg) => (
+          <PhotoLayer src={items[i].src} frame={local} dur={seg} from={1.03} to={1.09} sat={1.08} brightness={1.03} />
         )} />
       </AbsoluteFill>
       <AbsoluteFill style={{ backgroundColor: "#000", opacity: darkO }} />
-      <AbsoluteFill style={{ background: "linear-gradient(180deg, rgba(0,0,0,0.4) 0%, rgba(0,0,0,0) 32%, rgba(0,0,0,0.12) 60%, rgba(0,0,0,0.8) 100%)" }} />
-      <Vignette strength={0.44} />
+      <AbsoluteFill style={{ background: "linear-gradient(180deg, rgba(0,0,0,0.34) 0%, rgba(0,0,0,0) 34%, rgba(0,0,0,0.06) 62%, rgba(0,0,0,0.72) 100%)" }} />
+      <Vignette strength={0.34} />
       <Grain />
 
       {/* 右上：見本番号（本番投稿では非表示） */}
@@ -61,7 +61,7 @@ export const YoshokuType: React.FC<{ storeName?: string; handle?: string; theme?
 
       {/* 明転後：料理名（左下・大）＝“1件だけ”表示 */}
       {(() => {
-        const { i, local } = segNow(DUR, 4, f);
+        const { i, local } = segNow(DUR, 6, f);
         if (i === 0 && f < 130) return null;
         const it = items[i]; const _nm = (it.disp && it.disp.length) ? it.disp : it.caption; const lines = splitLines(_nm);
         const sz = heroSize(_nm, 98, 64);

@@ -35,7 +35,7 @@ export const YoshokuCine: React.FC<{ storeName?: string; handle?: string; theme?
       {/* 全画面：4品をクロスフェード＋ゆっくりパン（寄りすぎない） */}
       <AbsoluteFill>
         <Slides count={4} total={DUR} render={(i, local, seg) => (
-          <PhotoLayer src={items[i].src} frame={local} dur={seg} from={1.05} to={1.10} panX={28} sat={1.05} brightness={1.0} />
+          <PhotoLayer src={items[i].src} frame={local} dur={seg} from={1.0} to={1.035} panX={16} sat={1.05} brightness={1.0} />
         )} />
       </AbsoluteFill>
       <AbsoluteFill style={{ background: "linear-gradient(180deg, rgba(0,0,0,0.4) 0%, rgba(0,0,0,0) 34%, rgba(0,0,0,0) 60%, rgba(0,0,0,0.6) 100%)" }} />

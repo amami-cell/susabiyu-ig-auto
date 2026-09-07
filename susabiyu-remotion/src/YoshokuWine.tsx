@@ -14,13 +14,21 @@ function DishName({ name, sub, size, color, subColor }: { name: string; sub?: st
   const arr = splitLines(name); const lines = arr.length ? arr : [name];
   return (
     <div>
-      {sub ? <div style={{ fontFamily: serif, color: subColor, fontSize: Math.max(20, Math.round(size * 0.42)), letterSpacing: 3, textTransform: "uppercase", fontWeight: 600, marginBottom: 6 }}>{sub}</div> : null}
-      <div style={{ fontFamily: mincho, color, fontSize: size, fontWeight: 700, letterSpacing: 2, lineHeight: 1.14 }}>
+      {sub ? <div style={{ fontFamily: serif, color: subColor, fontSize: Math.max(20, Math.round(size * 0.42)), letterSpacing: 3, textTransform: "uppercase", fontWeight: 600, marginBottom: 6, textShadow: "0 2px 14px rgba(0,0,0,0.85)" }}>{sub}</div> : null}
+      <div style={{ fontFamily: mincho, color, fontSize: size, fontWeight: 700, letterSpacing: 2, lineHeight: 1.14, textShadow: "0 2px 18px rgba(0,0,0,0.9), 0 1px 3px rgba(0,0,0,0.8)" }}>
         {lines.map((l, i) => <div key={i}>{l}</div>)}
       </div>
     </div>
   );
 }
+
+// 文字の後ろに敷く半透明スクリム（背景色と文字が混ざって読みにくいのを防ぐ・角丸のやわらかい面）。
+const TextScrim: React.FC<{ dir?: "up" | "down"; top?: number; bottom?: number; height: number }> = ({ dir = "up", top, bottom, height }) => (
+  <div style={{
+    position: "absolute", left: 0, right: 0, top, bottom, height, pointerEvents: "none",
+    background: "linear-gradient(" + (dir === "up" ? "0deg" : "180deg") + ", rgba(8,5,3,0.72) 0%, rgba(8,5,3,0.5) 42%, rgba(8,5,3,0) 100%)",
+  }} />
+);
 
 export const YWINE_DUR = 300; // 10s
 
@@ -47,10 +55,11 @@ export const YoshokuWine: React.FC<{ storeName?: string; handle?: string; theme?
       <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: 940, overflow: "hidden", opacity: fade(f, 4), transform: "translateY(" + topY + "px)" }}>
         <PhotoLayer src={a.src} frame={f} dur={DUR} from={1.04} to={1.11} sat={1.06} />
         <AbsoluteFill style={{ background: "linear-gradient(180deg, rgba(0,0,0,0.28) 0%, rgba(0,0,0,0) 40%, " + T.base + "F2 100%)" }} />
+        <TextScrim dir="up" bottom={0} height={430} />
         <div style={{ position: "absolute", left: SAFE.side, right: SAFE.side, bottom: 176, opacity: fade(f, 60) }}>
           <div style={{ fontFamily: serif, color: T.accent, fontSize: 24, letterSpacing: 6, marginBottom: 8 }}>DISH</div>
           <DishName name={(a.disp && a.disp.length) ? a.disp : a.caption} sub={a.sub} size={heroSize((a.disp || a.caption), 72, 50)} color={T.ink} subColor={T.accent} />
-          {a.story ? <div style={{ marginTop: 8, fontFamily: mincho, color: T.sub, fontSize: 30, letterSpacing: 1 }}>{a.story}</div> : null}
+          {a.story ? <div style={{ marginTop: 8, fontFamily: mincho, color: "#E9DCC4", fontSize: 30, letterSpacing: 1, textShadow: "0 2px 14px rgba(0,0,0,0.85)" }}>{a.story}</div> : null}
         </div>
       </div>
 
@@ -58,10 +67,11 @@ export const YoshokuWine: React.FC<{ storeName?: string; handle?: string; theme?
       <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, height: 940, overflow: "hidden", opacity: fade(f, 16), transform: "translateY(" + botY + "px)" }}>
         <PhotoLayer src={b.src} frame={f} dur={DUR} from={1.11} to={1.04} sat={1.06} />
         <AbsoluteFill style={{ background: "linear-gradient(0deg, rgba(0,0,0,0.32) 0%, rgba(0,0,0,0) 42%, " + T.base + "F2 100%)" }} />
+        <TextScrim dir="down" top={0} height={360} />
         <div style={{ position: "absolute", left: SAFE.side, right: SAFE.side, bottom: SAFE.bottom - 96, opacity: fade(f, 70) }}>
           <div style={{ fontFamily: serif, color: T.accent, fontSize: 24, letterSpacing: 6, marginBottom: 8 }}>PAIRING</div>
           <DishName name={(b.disp && b.disp.length) ? b.disp : b.caption} sub={b.sub} size={heroSize((b.disp || b.caption), 72, 50)} color={T.ink} subColor={T.accent} />
-          {b.story ? <div style={{ marginTop: 8, fontFamily: mincho, color: T.sub, fontSize: 30, letterSpacing: 1 }}>{b.story}</div> : null}
+          {b.story ? <div style={{ marginTop: 8, fontFamily: mincho, color: "#E9DCC4", fontSize: 30, letterSpacing: 1, textShadow: "0 2px 14px rgba(0,0,0,0.85)" }}>{b.story}</div> : null}
         </div>
       </div>
 

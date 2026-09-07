@@ -154,6 +154,17 @@ def name_broken(name):
     return _BREAKS_N.get(d, d)
 
 
+def desc_for(name):
+    """料理の“こだわり／説明書き”の一言（動画の余白に添える用）。cap の締めの一行を使う。"""
+    c = caption_for(name)
+    cap = (c.get("cap") or "").strip()
+    if cap:
+        parts = [x.strip() for x in cap.split("\n") if x.strip()]
+        if parts:
+            return parts[-1]
+    return c.get("story") or ""
+
+
 def clean(name):
     return re.sub(r"\s+", " ", re.sub(r"[_＿]", "　", str(name or ""))).strip()
 

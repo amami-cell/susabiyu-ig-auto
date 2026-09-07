@@ -24,9 +24,9 @@ const ChalkBody: React.FC<{ storeName?: string; handle?: string; theme?: string 
   const f = useCurrentFrame();
   const DUR = CHALK_BODY;
   const T = ytheme(theme);
-  const photos = (typoPhotos.length ? typoPhotos : [{ src: "", caption: "", story: "", sub: "", disp: "" }]).slice(0, 4);
+  const photos = (typoPhotos.length ? typoPhotos : [{ src: "", caption: "", story: "", sub: "", disp: "", desc: "" }]).slice(0, 4);
   const { i, local } = segNow(DUR, photos.length, f);
-  const cur = photos[i] || { src: "", caption: "", story: "", sub: "", disp: "" };
+  const cur = photos[i] || { src: "", caption: "", story: "", sub: "", disp: "", desc: "" };
   const nm = (cur.disp && cur.disp.length) ? cur.disp : cur.caption;
   const lines = splitLines(nm);
   const nameSize = heroSize(nm, 104, 66);
@@ -75,6 +75,15 @@ const ChalkBody: React.FC<{ storeName?: string; handle?: string; theme?: string 
           </div>
         </div>
       </div>
+
+      {/* 写真の下の空きスペース：いま映っている料理のこだわり/説明（cur.desc）を添える */}
+      {cur.desc ? (
+        <div key={"d" + i} style={{ position: "absolute", top: 1534, left: 150, right: 150, textAlign: "center", ...rise(local, 10, { dist: 12 }) }}>
+          <div style={{ display: "inline-block", padding: "4px 22px 0", borderTop: "1px solid " + T.accent + "55" }}>
+            <span style={{ fontFamily: mincho, color: "#E4E0D4", fontSize: 30, lineHeight: 1.55, letterSpacing: 1 }}>{cur.desc}</span>
+          </div>
+        </div>
+      ) : null}
 
       {/* フッター：店舗ロゴ＋ハンドル */}
       <div style={{ position: "absolute", left: 0, right: 0, bottom: SAFE.bottom - 132, display: "flex", flexDirection: "column", alignItems: "center", gap: 10, ...rise(f, DUR - 70, { dist: 14 }) }}>

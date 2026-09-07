@@ -29,7 +29,7 @@ export const YoshokuTrio: React.FC<{ storeName?: string; handle?: string; theme?
       <Slides count={3} total={DUR} fade={18} render={(i, local, seg) => (
         <>
           <AbsoluteFill>
-            <PhotoLayer src={items[i].src} frame={local} dur={seg} from={1.03} to={1.08} sat={1.08} />
+            <PhotoLayer src={items[i].src} frame={local} dur={seg} from={1.0} to={1.04} sat={1.08} />
           </AbsoluteFill>
           <AbsoluteFill style={{ background: "linear-gradient(180deg, rgba(0,0,0,0.5) 0%, rgba(0,0,0,0) 30%, rgba(0,0,0,0.12) 58%, rgba(0,0,0,0.86) 100%)" }} />
         </>
