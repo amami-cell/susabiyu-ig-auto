@@ -115,6 +115,39 @@ var _anim_t := 0.0
 # 舞台(biome)。"garden"=庭 / "ruins"=遺跡。main が session 開始時に設定。
 var biome := "garden"
 
+# 舞台ごとの見た目パラメータを1箇所に集約（＝新しい舞台は1エントリ追加で足せる）。
+# 数値の意味は _apply_biome / _update_sky_fog / _update_flowers / _update_butterfly_count 参照。
+# 回復で変化する色は [汚れ(r=0), 満開(r=1)] の2点、静的な値は単体で持つ。
+# ※太陽の“回復リンク”だけは Net.world_biome を見る既存仕様のため別扱い（_on_recovery_changed）。
+const BIOMES := {
+	"garden": {
+		"pillars": false, "grass_frac": 1.0, "flowers": true, "tree_frac": 1.0, "bfly_frac": 1.0,
+		"soil": Color(0.30, 0.31, 0.26), "grass_col": Color(0.30, 0.55, 0.25),
+		"sun_c": Color(1.0, 0.95, 0.86), "sun_e": 1.15,
+		"water_shallow": Color(0.20, 0.45, 0.52), "water_deep": Color(0.06, 0.16, 0.24),
+		"sky_top": [Color(0.34, 0.38, 0.44), Color(0.20, 0.34, 0.62)],
+		"sky_horizon": [Color(0.58, 0.58, 0.56), Color(0.95, 0.66, 0.45)],
+		"fog_col": [Color(0.56, 0.58, 0.57), Color(0.95, 0.8, 0.66)],
+		"fog_d": [0.028, 0.006],
+	},
+	"ruins": {
+		"pillars": true, "grass_frac": 0.28, "flowers": false, "tree_frac": 0.35, "bfly_frac": 0.4,
+		"soil": Color(0.28, 0.28, 0.26), "grass_col": Color(0.30, 0.42, 0.28),
+		"sun_c": Color(0.7, 0.78, 0.72), "sun_e": 0.8,
+		"water_shallow": Color(0.22, 0.30, 0.28), "water_deep": Color(0.06, 0.12, 0.12),
+		"sky_top": [Color(0.16, 0.20, 0.20), Color(0.22, 0.34, 0.30)],
+		"sky_horizon": [Color(0.30, 0.34, 0.30), Color(0.42, 0.52, 0.42)],
+		"gnd_h": Color(0.24, 0.26, 0.22), "gnd_b": Color(0.2, 0.22, 0.2),
+		"fog_col": [Color(0.32, 0.40, 0.34), Color(0.45, 0.58, 0.48)],
+		"fog_d": [0.07, 0.03],
+	},
+}
+
+
+## 現在の舞台の設定辞書。未知の舞台は庭にフォールバック。
+func _cfg() -> Dictionary:
+	return BIOMES.get(biome, BIOMES["garden"])
+
 # ── 画質ティア（サクサク優先）───────────────────────────────
 # 実行環境ごとに草花・木・蝶の“実際に作る数”を落とす。Web は特に軽く。
 # きれい版(Forward+/PC)だけフル密度。ドローコールは MultiMesh で各1のままなので、
@@ -689,39 +722,30 @@ func set_biome(b: String) -> void:
 
 
 func _apply_biome() -> void:
-	var ruins := _is_ruins()
+	var cfg := _cfg()
 	if _pillars != null:
-		_pillars.visible = ruins
+		_pillars.visible = cfg["pillars"]
 	# 遺跡は草まばら・花なし。庭は満開まで戻る。
 	if _grass_mmi != null:
-		_grass_mmi.multimesh.visible_instance_count = int(_grass_n * (0.28 if ruins else 1.0))
-	if ruins and _flower_mm != null:
+		_grass_mmi.multimesh.visible_instance_count = int(_grass_n * float(cfg["grass_frac"]))
+	if not cfg["flowers"] and _flower_mm != null:
 		_flower_mm.visible_instance_count = 0
-	# 地面の色（遺跡＝苔むした石）
+	# 地面の色（遺跡＝苔むした石／庭＝くすんだ青緑のヘドロ）
 	if _ground_shader != null:
-		if ruins:
-			_ground_shader.set_shader_parameter("soil", Color(0.28, 0.28, 0.26))
-			_ground_shader.set_shader_parameter("grass", Color(0.30, 0.42, 0.28))
-		else:
-			# 汚れ側は“下水の茶”→“くすんだ青緑(ヘドロ)”＝絵本の汚れに（第一印象の泥っぽさを解消）。
-			_ground_shader.set_shader_parameter("soil", Color(0.30, 0.31, 0.26))
-			_ground_shader.set_shader_parameter("grass", Color(0.30, 0.55, 0.25))
+		_ground_shader.set_shader_parameter("soil", cfg["soil"])
+		_ground_shader.set_shader_parameter("grass", cfg["grass_col"])
 	if _sun != null:
-		_sun.light_color = Color(0.7, 0.78, 0.72) if ruins else Color(1.0, 0.95, 0.86)
-		_sun.light_energy = 0.8 if ruins else 1.15
+		_sun.light_color = cfg["sun_c"]
+		_sun.light_energy = cfg["sun_e"]
 	# 遺跡は森まばら・水は淀む。庭は森が茂り水は澄む。
 	if _trees != null:
-		var frac := 0.35 if ruins else 1.0
+		var frac := float(cfg["tree_frac"])
 		for mmi in _trees.get_children():
 			if mmi is MultiMeshInstance3D and mmi.multimesh != null:
 				mmi.multimesh.visible_instance_count = int(mmi.multimesh.instance_count * frac)
 	if _water_mat != null:
-		if ruins:
-			_water_mat.set_shader_parameter("shallow", Color(0.22, 0.30, 0.28))
-			_water_mat.set_shader_parameter("deep", Color(0.06, 0.12, 0.12))
-		else:
-			_water_mat.set_shader_parameter("shallow", Color(0.20, 0.45, 0.52))
-			_water_mat.set_shader_parameter("deep", Color(0.06, 0.16, 0.24))
+		_water_mat.set_shader_parameter("shallow", cfg["water_shallow"])
+		_water_mat.set_shader_parameter("deep", cfg["water_deep"])
 	_on_recovery_changed(WorldState.recovery)
 
 
@@ -1464,7 +1488,7 @@ func _update_grass(r: float) -> void:
 func _update_flowers(r: float) -> void:
 	if _flower_mm == null:
 		return
-	if _is_ruins():
+	if not _cfg()["flowers"]:
 		_flower_mm.visible_instance_count = 0   # 遺跡に花は咲かない
 		return
 	var t := clampf((r - 0.2) / 0.8, 0.0, 1.0)   # 早めに咲き始める＝達成感を前倒し
@@ -1472,22 +1496,31 @@ func _update_flowers(r: float) -> void:
 
 
 func _update_sky_fog(r: float) -> void:
+	var cfg := _cfg()
+	var sky_t0: Color = cfg["sky_top"][0]
+	var sky_t1: Color = cfg["sky_top"][1]
+	var sky_h0: Color = cfg["sky_horizon"][0]
+	var sky_h1: Color = cfg["sky_horizon"][1]
+	var fog0: Color = cfg["fog_col"][0]
+	var fog1: Color = cfg["fog_col"][1]
+	var fd0: float = cfg["fog_d"][0]
+	var fd1: float = cfg["fog_d"][1]
 	if _is_ruins():
 		# 遺跡：薄暗く苔むした空気。回復しても“青空”にはならず、澄んだ翠に。
 		if _sky_mat != null:
-			_sky_mat.sky_top_color = Color(0.16, 0.20, 0.20).lerp(Color(0.22, 0.34, 0.30), r)
-			_sky_mat.sky_horizon_color = Color(0.30, 0.34, 0.30).lerp(Color(0.42, 0.52, 0.42), r)
-			_sky_mat.ground_horizon_color = Color(0.24, 0.26, 0.22)
-			_sky_mat.ground_bottom_color = Color(0.2, 0.22, 0.2)
+			_sky_mat.sky_top_color = sky_t0.lerp(sky_t1, r)
+			_sky_mat.sky_horizon_color = sky_h0.lerp(sky_h1, r)
+			_sky_mat.ground_horizon_color = cfg["gnd_h"]
+			_sky_mat.ground_bottom_color = cfg["gnd_b"]
 		var e := _env.environment
 		if e != null:
-			e.fog_light_color = Color(0.32, 0.40, 0.34).lerp(Color(0.45, 0.58, 0.48), r)
-			e.fog_density = lerpf(0.07, 0.03, r)   # 常にうっすら霧が残る
+			e.fog_light_color = fog0.lerp(fog1, r)
+			e.fog_density = lerpf(fd0, fd1, r)   # 常にうっすら霧が残る
 		return
 	if _sky_mat != null:
 		# 汚: くすんだ曇天 → 回復: 夕方のマジックアワー（上は青紫、地平は金/桃）
-		_sky_mat.sky_top_color = Color(0.34, 0.38, 0.44).lerp(Color(0.20, 0.34, 0.62), r)
-		_sky_mat.sky_horizon_color = Color(0.58, 0.58, 0.56).lerp(Color(0.95, 0.66, 0.45), r)
+		_sky_mat.sky_top_color = sky_t0.lerp(sky_t1, r)
+		_sky_mat.sky_horizon_color = sky_h0.lerp(sky_h1, r)
 		_sky_mat.sun_angle_max = 22.0
 		_sky_mat.sky_energy_multiplier = 1.0
 		_sky_mat.ground_horizon_color = WorldState.ground_color()
@@ -1495,8 +1528,8 @@ func _update_sky_fog(r: float) -> void:
 	var env := _env.environment
 	if env != null:
 		# 遠景に金色のもや（大気遠近）で奥行きを出す。回復で澄んで遠くまで見える。
-		env.fog_light_color = Color(0.56, 0.58, 0.57).lerp(Color(0.95, 0.8, 0.66), r)
-		env.fog_density = lerpf(0.028, 0.006, r)   # 濃い茶霧を薄め、手前の濁りを抜く
+		env.fog_light_color = fog0.lerp(fog1, r)
+		env.fog_density = lerpf(fd0, fd1, r)   # 濃い茶霧を薄め、手前の濁りを抜く
 
 
 ## 蝶。回復するほど数が増える“命”。羽ばたきは頂点シェーダ、飛行はCPUで軽く。
@@ -1583,8 +1616,7 @@ func _update_butterfly_count(r: float) -> void:
 		return
 	var t := clampf((r - 0.05) / 0.6, 0.0, 1.0)
 	var vis := mini(_bfly_n, 4 + int(round((_bfly_n - 4) * t)))
-	if _is_ruins():
-		vis = int(vis * 0.4)   # 遺跡は命がまばら
+	vis = int(vis * float(_cfg()["bfly_frac"]))   # 遺跡は命がまばら（庭は×1.0で不変）
 	_bfly_mm.visible_instance_count = vis
 
 
