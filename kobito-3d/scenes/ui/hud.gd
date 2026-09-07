@@ -23,6 +23,8 @@ var _last_hp := -1                   # 前フレームのHP（減少検知用）
 @onready var _notice: Label = $Notice
 @onready var _roster: Label = $Roster
 
+var _recovery_ticks: Control = null
+
 
 const GuideArrowScript := preload("res://scenes/ui/guide_arrow.gd")
 
@@ -50,6 +52,14 @@ func _skin() -> void:
 	UIKit.style_label(_recovery_label, 22, Color(1, 1, 1), 5, Color(0.16, 0.3, 0.18, 0.95))
 	UIKit.style_bar(_recovery_bar, UIKit.GREEN)
 	_recovery_bar.custom_minimum_size.y = 26
+	# 25/50/75% の節目（＝環境回復の“お祝い”が起きる位置）を目盛りで見せる。
+	# 「あと少しで次のごほうび」が分かって、掃除を続ける動機になる。
+	_recovery_ticks = Control.new()
+	_recovery_ticks.name = "Ticks"
+	_recovery_ticks.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_recovery_ticks.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_recovery_bar.add_child(_recovery_ticks)
+	_recovery_ticks.draw.connect(_draw_recovery_ticks)
 	_panel_behind($Top, Color(0.36, 0.5, 0.33, 0.5), UIKit.GREEN_DK, 16)
 	# HP・レベル（左下）
 	UIKit.style_label(_level_label, 18, Color(1, 1, 1), 4, Color(0.3, 0.18, 0.18, 0.95))
@@ -188,6 +198,20 @@ func _find_local_player() -> Node:
 func _on_recovery(value: float) -> void:
 	_recovery_bar.value = value * 100.0
 	_recovery_label.text = "みどり回復　%d%%" % int(round(value * 100.0))
+	if _recovery_ticks != null:
+		_recovery_ticks.queue_redraw()
+
+
+## 回復メーターに 25/50/75% の節目を刻む。到達済みは金色、これからはうっすら。
+func _draw_recovery_ticks() -> void:
+	var sz := _recovery_ticks.size
+	if sz.x <= 0.0:
+		return
+	for step: float in [0.25, 0.5, 0.75]:
+		var x: float = sz.x * step
+		var reached: bool = WorldState.recovery >= step
+		var col := Color(1.0, 0.85, 0.35, 0.95) if reached else Color(1, 1, 1, 0.35)
+		_recovery_ticks.draw_line(Vector2(x, 3.0), Vector2(x, sz.y - 3.0), col, 2.0)
 
 
 func _on_roster() -> void:
