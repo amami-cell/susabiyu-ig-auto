@@ -1305,7 +1305,7 @@
       }).join('')+'</div>';
       var vbtn=function(v,label){ var on=schView===v; return '<button onclick="schSetView(\''+v+'\')" style="flex:1;padding:8px;border-radius:8px;border:1px solid var(--line);font-weight:700;font-size:12px;cursor:pointer;background:'+(on?'var(--accent)':'var(--card2)')+';color:'+(on?'#fff':'var(--fg)')+'">'+label+'</button>'; };
       var vtoggle='<div style="display:flex;gap:6px;margin:0 0 9px">'+vbtn('cal','📅 月表示')+vbtn('list','📋 リスト表示')+'</div>';
-      if(schView==='list'){ el.innerHTML=vtoggle+chips+schListHtml(); return; }
+      if(schView==='list'){ el.innerHTML=vtoggle+nav+chips+schListHtml(); return; }
       var dows=['日','月','火','水','木','金','土'];
       var head=dows.map(function(d,i){ return '<div class="dow'+(i===0?' sun':(i===6?' sat':''))+'">'+d+'</div>'; }).join('');
       var first=new Date(schY,schM,1), lead=first.getDay(), dim=new Date(schY,schM+1,0).getDate();
@@ -1321,11 +1321,12 @@
         // 面接がある日はセル全体を大きなタップ領域に。押すと選択店舗分の一覧を表示。
         // セルには日付＋店舗色のドット（最大6）＋件数だけを出す（小さな個別ボタンで押しづらい問題を解消）。
         if(list.length){
-          var dots=list.slice(0,6).map(function(e){ return '<span class="cdot" style="background:'+schColorOf(e.key)+'"></span>'; }).join('');
+          var chs=list.slice(0,3).map(function(e){
+            return '<span class="ev" style="background:'+schColorOf(e.key)+'"><b>'+esc(e.t||'—')+'</b><span class="nm">'+esc(e.name)+'</span><span class="evst">'+esc(e.store)+'</span></span>';
+          }).join('');
+          var more=(list.length>3)?('<div class="ccount">他'+(list.length-3)+'件 ▾</div>'):'<div class="ccount" style="color:var(--muted);font-weight:700">タップで一覧 ▾</div>';
           cells+='<div class="cell has'+(isT?' today':'')+'" onclick="schDay('+schY+','+schM+','+day+')">'+
-            '<div class="dn">'+day+'</div>'+
-            '<div class="cdots">'+dots+'</div>'+
-            '<div class="ccount">'+list.length+'件 ▾</div>'+
+            '<div class="dn">'+day+'</div>'+chs+more+
           '</div>';
         } else {
           cells+='<div class="cell'+(isT?' today':'')+'"><div class="dn">'+day+'</div></div>';
@@ -1335,21 +1336,23 @@
       if(total===0) body+='<div class="schnote">この月の面接予定はありません（店舗チップで絞り込み中なら解除して確認）</div>';
       el.innerHTML=body;
     }
-    // リスト表示：今日以降の面接を日付順に一覧（店舗チップで絞り込み連動・タップで詳細）
+    // リスト表示：上の◀▶で指定した月の面接を日付順に一覧（店舗チップ連動・各行にステータス・タップで詳細）
     function schListHtml(){
-      var now=new Date(), d0=new Date(now.getFullYear(),now.getMonth(),now.getDate()).getTime();
-      var evs=schedEvents().filter(function(e){ if(!schSel[e.key]) return false; return new Date(e.y,e.mo,e.da).getTime()>=d0; });
-      evs.sort(function(a,b){ var ta=new Date(a.y,a.mo,a.da).getTime(), tb=new Date(b.y,b.mo,b.da).getTime(); if(ta!==tb)return ta-tb; return (a.t||'99:99')<(b.t||'99:99')?-1:1; });
-      if(!evs.length) return '<div class="schnote">今日以降の面接予定はありません（店舗チップで絞り込み中なら解除して確認）</div>';
+      var evs=schedEvents().filter(function(e){ return e.y===schY && e.mo===schM && schSel[e.key]; });
+      evs.sort(function(a,b){ if(a.da!==b.da) return a.da-b.da; return (a.t||'99:99')<(b.t||'99:99')?-1:1; });
+      if(!evs.length) return '<div class="schnote">'+schY+'年'+(schM+1)+'月の面接予定はありません（◀▶で月を切替。店舗チップで絞り込み中なら解除して確認）</div>';
       var byDay={}, order=[], WD=['日','月','火','水','木','金','土'];
-      evs.forEach(function(e){ var k=e.y+'-'+e.mo+'-'+e.da; if(!byDay[k]){ byDay[k]=[]; order.push({k:k,y:e.y,mo:e.mo,da:e.da}); } byDay[k].push(e); });
-      return '<div>'+order.map(function(o){ var d=new Date(o.y,o.mo,o.da), isT=(d.getTime()===d0);
-        var rows=byDay[o.k].map(function(e){ return '<div class="prow" style="cursor:pointer;display:flex;gap:9px;align-items:center;padding:8px 2px" onclick="schDetail(\''+esc(e.code)+'\')">'+
+      var today=new Date(), td=(today.getFullYear()===schY&&today.getMonth()===schM)?today.getDate():-1;
+      evs.forEach(function(e){ if(!byDay[e.da]){ byDay[e.da]=[]; order.push(e.da); } byDay[e.da].push(e); });
+      return '<div>'+order.map(function(da){ var d=new Date(schY,schM,da), isT=(da===td);
+        var rows=byDay[da].map(function(e){ var a=e.app||appByCode[e.code]||{}; var st=String(a.status||'').trim();
+          return '<div class="prow" style="cursor:pointer;display:flex;gap:8px;align-items:center;padding:9px 2px;border-bottom:1px solid var(--line)" onclick="schDetail(\''+esc(e.code)+'\')">'+
           '<span style="width:9px;height:9px;border-radius:50%;flex:none;background:'+schColorOf(e.key)+'"></span>'+
-          '<span style="width:46px;color:var(--fg2);font-size:13px">'+(e.t||'—')+'</span>'+
-          '<span style="flex:1;font-size:13.5px">'+esc(e.name||'')+'<span class="muted" style="font-size:11px"> ・'+esc(e.store||'')+'</span></span>'+
-          '<span style="color:var(--muted);font-size:11px">詳細 ▾</span></div>'; }).join('');
-        return '<div style="margin:12px 0 2px;font-weight:800;font-size:13px'+(isT?';color:var(--accent)':'')+'">'+(o.mo+1)+'/'+o.da+'（'+WD[d.getDay()]+'）'+(isT?' ・今日':'')+'</div>'+rows;
+          '<span style="width:46px;color:var(--fg2);font-size:13px;flex:none">'+(e.t||'—')+'</span>'+
+          '<span style="flex:1;min-width:0"><span style="font-size:13.5px">'+esc(e.name||'')+'</span><span class="muted" style="font-size:11px"> ・'+esc(e.store||'')+'</span></span>'+
+          (st?'<span class="badge'+(isUntreated(st)?' warn':'')+'" style="flex:none;'+(isUntreated(st)?'':'background:var(--card2);color:var(--fg2);border:1px solid var(--line)')+'">'+esc(st)+'</span>':'')+
+          '<span style="color:var(--muted);font-size:11px;flex:none">›</span></div>'; }).join('');
+        return '<div style="margin:14px 0 2px;font-weight:800;font-size:13px'+(isT?';color:var(--accent)':'')+'">'+(schM+1)+'/'+da+'（'+WD[d.getDay()]+'）'+(isT?' ・今日':'')+'</div>'+rows;
       }).join('')+'</div>';
     }
     function schMove(delta){ schM+=delta; if(schM<0){ schM=11; schY--; } if(schM>11){ schM=0; schY++; } renderSchedule(); }
@@ -1370,11 +1373,13 @@
         var a=e.app||appByCode[e.code]||{};
         var meta=[ageTxt(a.age), a.gender, a.occupation].filter(Boolean).join('・');
         var tel=String(a.telRaw||a.tel||'').trim();
+        var st=String(a.status||'').trim();
         return '<div style="border-bottom:1px solid var(--line);padding:11px 2px">'+
-          '<div style="display:flex;gap:9px;align-items:center">'+
+          '<div style="display:flex;gap:9px;align-items:center;flex-wrap:wrap">'+
             '<span style="width:11px;height:11px;border-radius:50%;background:'+schColorOf(e.key)+';flex:none"></span>'+
             '<b style="min-width:46px">'+esc(e.t||'—')+'</b>'+
             '<b style="flex:1;min-width:0">'+esc(a.name||e.name)+'</b>'+
+            (st?'<span class="badge'+(isUntreated(st)?' warn':'')+'" style="flex:none;'+(isUntreated(st)?'':'background:var(--card2);color:var(--fg2);border:1px solid var(--line)')+'">📌 '+esc(st)+'</span>':'')+
             '<button onclick="schDetail(\''+esc(e.code)+'\')" style="border:0;background:var(--card2);color:var(--fg2);border-radius:8px;padding:5px 10px;font-size:11px;cursor:pointer;flex:none">詳細 ›</button>'+
           '</div>'+
           '<div class="muted" style="font-size:12px;margin:5px 0 0 20px;line-height:1.7">'+
