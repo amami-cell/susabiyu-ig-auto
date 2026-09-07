@@ -201,12 +201,16 @@ func _solved() -> void:
 
 func _mat(base: Color, lit: bool) -> StandardMaterial3D:
 	var m := StandardMaterial3D.new()
-	m.roughness = 0.85
+	m.roughness = 0.88
+	m.metallic_specular = 0.2
+	m.rim_enabled = true
+	m.rim = 0.3
+	m.rim_tint = 0.5
 	if lit:
-		m.albedo_color = base.lerp(Color(0.4, 0.8, 0.5), 0.6)
+		m.albedo_color = base.lerp(Color(0.4, 0.82, 0.5), 0.65)
 		m.emission_enabled = true
-		m.emission = Color(0.3, 0.9, 0.45)
-		m.emission_energy_multiplier = 0.6
+		m.emission = Color(0.35, 1.0, 0.5)
+		m.emission_energy_multiplier = 1.3   # 押せた瞬間しっかり光る
 	else:
 		m.albedo_color = base
 	return m

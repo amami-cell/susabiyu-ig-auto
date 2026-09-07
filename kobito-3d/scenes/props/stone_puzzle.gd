@@ -36,6 +36,26 @@ func _build() -> void:
 		add_child(plate)
 		_plates.append(plate)
 
+		# 石版に彫られた ほのかに光る紋様（リング）＝“ただの箱”でなく古代の石版らしく。
+		var rune := MeshInstance3D.new()
+		rune.name = "Rune"
+		var rt := TorusMesh.new()
+		rt.inner_radius = 0.24
+		rt.outer_radius = 0.32
+		rt.rings = 16
+		rt.ring_segments = 6
+		rune.mesh = rt
+		var rm := StandardMaterial3D.new()
+		rm.albedo_color = Color(0.55, 0.85, 0.6)
+		rm.emission_enabled = true
+		rm.emission = Color(0.4, 0.9, 0.5)
+		rm.emission_energy_multiplier = 0.5
+		rm.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+		rune.material_override = rm
+		rune.position = Vector3(0.0, 0.081, 0.0)   # 石版のすぐ上に寝かせる
+		rune.rotation.x = deg_to_rad(90.0)
+		plate.add_child(rune)
+
 		# 踏む順の“大きな数字”（1→N）。点だけだと読めないので数字で はっきり。
 		var num := Label3D.new()
 		num.text = str(i + 1)
@@ -159,14 +179,19 @@ func _solved() -> void:
 
 func _plate_mat(lit: bool) -> StandardMaterial3D:
 	var m := StandardMaterial3D.new()
-	m.roughness = 0.9
+	m.roughness = 0.95
+	m.metallic_specular = 0.2
+	# 苔むした石の縁光り＝“古い石版”らしい立体感。
+	m.rim_enabled = true
+	m.rim = 0.3
+	m.rim_tint = 0.5
 	if lit:
-		m.albedo_color = Color(0.45, 0.7, 0.4)
+		m.albedo_color = Color(0.4, 0.66, 0.42)
 		m.emission_enabled = true
-		m.emission = Color(0.3, 0.9, 0.4)
-		m.emission_energy_multiplier = 0.6
+		m.emission = Color(0.35, 1.0, 0.45)
+		m.emission_energy_multiplier = 1.3   # 踏めた瞬間しっかり光る＝手応え
 	else:
-		m.albedo_color = Color(0.4, 0.38, 0.34)
+		m.albedo_color = Color(0.42, 0.41, 0.37)   # くすんだ苔石
 	return m
 
 
