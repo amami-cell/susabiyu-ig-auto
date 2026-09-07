@@ -62,20 +62,54 @@ func _build_look() -> void:
 	mat.rim = 0.8
 	orb.material_override = mat
 	_body.add_child(orb)
-	# 目
+	# 目（つやのある黒＋白ハイライト＝“うれしそうに生きてる”眼）
 	var emat := StandardMaterial3D.new()
-	emat.albedo_color = Color(0.12, 0.1, 0.12)
+	emat.albedo_color = Color(0.1, 0.09, 0.11)
+	emat.roughness = 0.15
+	emat.metallic_specular = 0.7
+	emat.clearcoat_enabled = true
+	emat.clearcoat = 0.9
+	var catmat := StandardMaterial3D.new()
+	catmat.albedo_color = Color(1, 1, 1)
+	catmat.emission_enabled = true
+	catmat.emission = Color(1, 1, 1)
+	catmat.emission_energy_multiplier = 1.2
+	catmat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	for sx in [-0.12, 0.12]:
 		var e := MeshInstance3D.new()
 		var em := SphereMesh.new()
-		em.radius = 0.06
-		em.height = 0.12
-		em.radial_segments = 6
-		em.rings = 4
+		em.radius = 0.07
+		em.height = 0.14
+		em.radial_segments = 8
+		em.rings = 5
 		e.mesh = em
 		e.material_override = emat
-		e.position = Vector3(sx, 0.05, -0.26)
+		e.position = Vector3(sx, 0.06, -0.26)
 		_body.add_child(e)
+		var cat := MeshInstance3D.new()
+		var cm := SphereMesh.new()
+		cm.radius = 0.028
+		cm.height = 0.056
+		cm.radial_segments = 5
+		cm.rings = 3
+		cat.mesh = cm
+		cat.material_override = catmat
+		cat.position = Vector3(sx - 0.02, 0.1, -0.31)
+		_body.add_child(cat)
+	# ちいさな笑顔
+	var mmat := StandardMaterial3D.new()
+	mmat.albedo_color = Color(0.32, 0.16, 0.18)
+	var mouth := MeshInstance3D.new()
+	var mmesh := SphereMesh.new()
+	mmesh.radius = 0.05
+	mmesh.height = 0.1
+	mmesh.radial_segments = 6
+	mmesh.rings = 3
+	mouth.mesh = mmesh
+	mouth.material_override = mmat
+	mouth.position = Vector3(0.0, -0.06, -0.28)
+	mouth.scale = Vector3(1.5, 0.5, 0.5)
+	_body.add_child(mouth)
 	# ちいさな半透明の羽
 	var wmat := StandardMaterial3D.new()
 	wmat.albedo_color = Color(1, 1, 1, 0.65)

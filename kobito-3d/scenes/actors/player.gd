@@ -345,36 +345,83 @@ func _remote_swing() -> void:
 		if child.has_method("attack"):
 			child.attack()
 	Sfx.play("swing")
-	var tween := create_tween()
-	tween.tween_property(_body, "scale", Vector3(1.15, 0.9, 1.15), 0.06)
-	tween.tween_property(_body, "scale", Vector3.ONE, 0.14)
-	_spawn_slash()   # モデル種別に依存しない斬撃＝Web簡易版でも「振った」が分かる
-	shake(0.06)      # 振った手応え（ごく軽く）
+	# 体：ためて→ぐっと横に振り抜く（ひねり）＋踏み込みのつぶれ＝“ちゃんと振った”アクション。
+	# _body は見た目だけ（向きは親が持つ）なので、ここを回しても操作の向きは狂わない。
+	# 背後カメラでもハッキリ分かるよう、体の“振り”を大きく：ためて→前へ踏み込み＋横ひねり。
+	var sw := create_tween()
+	sw.tween_property(_body, "rotation:y", deg_to_rad(42.0), 0.06).set_trans(Tween.TRANS_SINE)   # ため（逆へ）
+	sw.tween_property(_body, "rotation:y", deg_to_rad(-58.0), 0.07).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)  # 振り抜き
+	sw.tween_property(_body, "rotation:y", 0.0, 0.2).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	var lean := create_tween()   # 前へのめり込む（ピッチ）＝踏み込みが見える
+	lean.tween_property(_body, "rotation:x", deg_to_rad(-8.0), 0.06)
+	lean.tween_property(_body, "rotation:x", deg_to_rad(20.0), 0.07)
+	lean.tween_property(_body, "rotation:x", 0.0, 0.2).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	var sq := create_tween()
+	sq.tween_property(_body, "scale", Vector3(0.9, 1.14, 0.9), 0.06)
+	sq.tween_property(_body, "scale", Vector3(1.2, 0.82, 1.2), 0.07)
+	sq.tween_property(_body, "scale", Vector3.ONE, 0.2).set_trans(Tween.TRANS_BACK)
+	_spawn_slash()          # 浄化のひとはらい（光の輪＋きらめき）
+	_spawn_clean_sparkles()
+	shake(0.09)             # 振った手応え
 
 
-## 前方に三日月の光の斬撃を一瞬。攻撃=金色。1メッシュ・unshaded＝どの機種でも軽く読める。
+## 浄化のひとはらい：前方に“澄んだ光の輪”がパッと広がって消える。攻撃＝倒すではなく
+## 「きれいにする」ので、白緑〜金の加算光で“汚れが払われる”手応えに。1メッシュ＝軽い。
 func _spawn_slash() -> void:
 	var arc := MeshInstance3D.new()
 	var tm := TorusMesh.new()
-	tm.inner_radius = 0.9
-	tm.outer_radius = 1.25
+	tm.inner_radius = 0.55
+	tm.outer_radius = 1.15
+	tm.rings = 20
+	tm.ring_segments = 8
 	arc.mesh = tm
 	var m := StandardMaterial3D.new()
-	m.albedo_color = Color(1.0, 0.92, 0.5, 0.9)
+	m.albedo_color = Color(0.85, 1.0, 0.75, 0.95)
 	m.emission_enabled = true
-	m.emission = Color(1.0, 0.88, 0.45)
-	m.emission_energy_multiplier = 2.4
+	m.emission = Color(0.6, 0.95, 0.55)
+	m.emission_energy_multiplier = 1.4   # 画面全体を焼かない控えめな光
 	m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 	m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	arc.material_override = m
 	add_child(arc)
-	# 体の前方(-Z)に、地面と平行の弧を寝かせて出す
-	arc.position = -global_transform.basis.z * 1.1 + Vector3(0.0, 0.9, 0.0)
+	# 体の前方(-Z)に、地面と平行の輪を寝かせて出す
+	arc.position = -global_transform.basis.z * 1.0 + Vector3(0.0, 0.85, 0.0)
 	arc.rotation = Vector3(deg_to_rad(90.0), rotation.y, 0.0)
+	arc.scale = Vector3(0.5, 0.5, 0.5)
 	var tw := create_tween()
-	tw.tween_property(arc, "scale", Vector3(1.6, 1.6, 1.6), 0.16)
-	tw.parallel().tween_property(m, "albedo_color:a", 0.0, 0.16)
+	tw.tween_property(arc, "scale", Vector3(1.9, 1.9, 1.9), 0.2).set_trans(Tween.TRANS_QUART).set_ease(Tween.EASE_OUT)
+	tw.parallel().tween_property(m, "albedo_color:a", 0.0, 0.2)
 	tw.tween_callback(arc.queue_free)
+
+
+## 浄化のきらめき：前方へ小さな光の粒がパッと散って上がって消える＝“きれいにした”爽快感。
+func _spawn_clean_sparkles() -> void:
+	var fwd := -global_transform.basis.z
+	var right := global_transform.basis.x
+	var mat := StandardMaterial3D.new()
+	mat.albedo_color = Color(0.95, 1.0, 0.8)
+	mat.emission_enabled = true
+	mat.emission = Color(0.8, 1.0, 0.65)
+	mat.emission_energy_multiplier = 1.6
+	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	for i in 6:
+		var s := MeshInstance3D.new()
+		var sm := SphereMesh.new()
+		sm.radius = 0.06
+		sm.height = 0.12
+		sm.radial_segments = 6
+		sm.rings = 4
+		s.mesh = sm
+		s.material_override = mat
+		add_child(s)
+		var base := fwd * 0.9 + Vector3(0.0, 0.8, 0.0)
+		s.position = base
+		var spread := right * randf_range(-0.7, 0.7) + fwd * randf_range(0.0, 0.6)
+		var up := Vector3(0.0, randf_range(0.5, 1.0), 0.0)
+		var tw := create_tween()
+		tw.tween_property(s, "position", base + spread + up, 0.28).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+		tw.parallel().tween_property(s, "scale", Vector3.ZERO, 0.28)
+		tw.tween_callback(s.queue_free)
 
 
 ## 被弾の見た目：赤フラッシュ＋のけぞり。apply_damage(全員で実行)から呼ぶ。
