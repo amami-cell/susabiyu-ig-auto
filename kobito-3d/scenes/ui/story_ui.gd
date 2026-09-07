@@ -243,6 +243,17 @@ func _show_result_card() -> void:
 	UIKit.style_label(stat, 22, UIKit.INK)
 	vb.add_child(stat)
 
+	# なかま図鑑の進み具合＝もう一周する動機（コンプ）を、達成のこの瞬間に見せる。
+	var dex_found := Chapter.dex_counts().size()
+	var dex := Label.new()
+	dex.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	if dex_found >= 9:
+		dex.text = "なかま図鑑　9 / 9 しゅるい　コンプリート！"
+	else:
+		dex.text = "なかま図鑑　%d / 9 しゅるい　（あと %d しゅるい！）" % [dex_found, 9 - dex_found]
+	UIKit.style_label(dex, 20, UIKit.GOLD.darkened(0.35))
+	vb.add_child(dex)
+
 	var msg := Label.new()
 	msg.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	msg.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
