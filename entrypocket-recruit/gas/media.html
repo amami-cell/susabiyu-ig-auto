@@ -32,6 +32,15 @@
   .prtog{margin-top:4px;color:var(--accent);font-size:12px;cursor:pointer;font-weight:700}
   .date{color:var(--muted);font-size:12px;margin-left:auto}
   .empty{color:var(--muted);text-align:center;padding:40px 10px}
+  /* PC（ワイド画面）最適化：モバイルは変えず、広い画面だけ幅拡張。メッセージ(フラット)は多列、応募者はグループを崩さず1列で広く。 */
+  @media (min-width:820px){
+    .wrap{max-width:1080px;padding:16px 22px}
+    header{padding:14px 22px}
+    #list.cols{column-width:360px;column-gap:16px}
+    #list.cols>*{break-inside:avoid}
+    .card:hover{border-color:var(--accent)}
+    .tab{cursor:pointer}
+  }
 </style>
 </head>
 <body>
@@ -135,6 +144,7 @@
     mode=m;
     document.getElementById('appsbox').style.display = (m==='apps')?'':'none';
     document.getElementById('msgsbox').style.display = (m==='msgs')?'':'none';
+    document.getElementById('list').className = (m==='msgs')?'cols':'';  // メッセージはPCで多列、応募者はグループ維持で1列
     document.getElementById('h1title').textContent = (m==='msgs')?'💬 スカウト・メッセージ':'📋 他媒体の応募者';
     Array.prototype.forEach.call(document.querySelectorAll('#modebar .tab'),function(t){ t.className='tab'+(t.getAttribute('data-mode')===m?' on':''); });
     draw();
