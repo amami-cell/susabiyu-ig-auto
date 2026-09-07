@@ -370,11 +370,12 @@ func _remote_hit(amount: int = 0) -> void:
 	# くらった：赤フラッシュ＋大きくのけぞって跳ね潰れ＋火花＋ダメージ数字＋HPバー＋音
 	# ＝はっきりした手応え。（※ヒットストップは時間停止が戻らず固まる不具合の元なので不使用）
 	Sfx.play("hit")
-	_flash_bug(Color(1.0, 0.5, 0.45))   # 赤めのフラッシュ＝ダメージが伝わる
 	# サーバは cleanse() で既に減算済み。クライアントは _remote_state を待たず即バーを減らす。
+	# ※フラッシュより先にHPを反映＝「今のきれいさ」の色に正しく戻す（拭うほど澄む）。
 	var is_server := multiplayer.has_multiplayer_peer() and multiplayer.is_server()
 	if amount > 0 and not is_server:
 		hp = maxi(0, hp - amount)
+	_flash_bug(Color(0.95, 1.0, 0.96))   # 澄んだ白緑＝“汚れを拭った”ひと払い（傷つけではない）
 	_update_hpbar()
 	var base := Vector3.ONE * stats.body_scale
 	var tw := create_tween()
@@ -457,14 +458,22 @@ func _remote_lunge() -> void:
 	tw2.tween_property(_body, "position:y", 0.0, 0.14)                        # 噛みつく
 
 
-## 汚れ色（stats.body_color）を base に、一瞬 c に光らせて戻す共通処理。
+## 今の「きれいさ」を表す体の色。HPが減る＝汚れが拭われるほど、
+## ヘドロ色(stats.body_color)から澄んだ色へ寄っていく＝「倒す」でなく「洗う」を体で見せる。
+func _cleanliness_color() -> Color:
+	var maxhp: int = maxi(1, stats.max_hp)
+	var t := clampf(1.0 - float(hp) / float(maxhp), 0.0, 1.0)
+	return stats.body_color.lerp(Color(0.86, 1.0, 0.90), t * 0.5)
+
+
+## 一瞬 c に光らせて、今のきれいさの色へ戻す共通処理。
 func _flash_bug(c: Color) -> void:
 	var mat := _body.material_override as StandardMaterial3D
 	if mat == null:
 		return
 	var tw := create_tween()
 	tw.tween_property(mat, "albedo_color", c, 0.04)
-	tw.tween_property(mat, "albedo_color", stats.body_color, 0.18)
+	tw.tween_property(mat, "albedo_color", _cleanliness_color(), 0.18)
 
 
 @rpc("authority", "call_local", "reliable")
