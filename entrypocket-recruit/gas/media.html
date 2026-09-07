@@ -37,19 +37,30 @@
 <body>
 <header>
   <a class="back" href="?" title="戻る">‹</a>
-  <h1>📋 他媒体の応募者</h1>
+  <h1 id="h1title">📋 他媒体の応募者</h1>
   <span id="tot" style="color:var(--muted);font-size:12px"></span>
 </header>
 <div class="wrap">
-  <div class="tabs" id="tabs"></div>
-  <div class="sbar"><input id="q" type="search" placeholder="🔍 氏名・店舗・電話・メールで検索"></div>
+  <div class="tabs" id="modebar">
+    <div class="tab on" data-mode="apps">👤 応募者</div>
+    <div class="tab" data-mode="msgs">💬 スカウト・メッセージ</div>
+  </div>
+  <div id="appsbox">
+    <div class="tabs" id="tabs"></div>
+    <div class="sbar"><input id="q" type="search" placeholder="🔍 氏名・店舗・電話・メールで検索"></div>
+  </div>
+  <div id="msgsbox" style="display:none">
+    <div class="sbar"><input id="mq" type="search" placeholder="🔍 店舗・本文で検索"></div>
+  </div>
   <div id="list"></div>
 </div>
 <script>
   var DATA = (<?!= MEDIA ?>) || {items:[]};
   var ITEMS = (DATA.items||[]).map(function(x){ return x; });
+  var MSGS = (<?!= MSGS ?>) || {items:[]};
+  var MSGITEMS = MSGS.items||[];
   var MEDIA_ALL = '全媒体';
-  var curMedia = MEDIA_ALL, curQ = '';
+  var curMedia = MEDIA_ALL, curQ = '', mode = 'apps', curMQ = '';
   function esc(s){ return String(s==null?'':s).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];}); }
   function mediaList(){ var s={}; ITEMS.forEach(function(x){ if(x['媒体']) s[x['媒体']]=1; }); return Object.keys(s).sort(); }
   function renderTabs(){
@@ -101,7 +112,38 @@
     c+='</div>';
     return c;
   }
+  function msgMatch(x){
+    if(!curMQ) return true;
+    return [x['店舗'],x['本文'],x['種別']].join(' ').toLowerCase().indexOf(curMQ)>=0;
+  }
+  function renderMsgs(){
+    var rows=MSGITEMS.filter(msgMatch);
+    document.getElementById('tot').textContent='全'+MSGITEMS.length+'件'+(rows.length!==MSGITEMS.length?'（表示'+rows.length+'）':'');
+    if(!rows.length){ document.getElementById('list').innerHTML='<div class="empty">スカウト/メッセージはまだありません</div>'; return; }
+    document.getElementById('list').innerHTML=rows.map(function(x){
+      var scout=/スカウト|返答/.test(String(x['種別']||'')+String(x['本文']||''));
+      var bg=scout?'background:#fde68a33;color:#b45309;':'';
+      var c='<div class="card">';
+      c+='<div class="row1"><span class="badge" style="'+bg+'">'+esc(x['種別']||'メッセージ')+'</span><span class="nm" style="font-size:13.5px">🏪 '+esc(x['店舗']||'（店舗不明）')+'</span><span class="date">'+esc(x['日時']||'')+'</span></div>';
+      c+='<div class="pr open" style="margin-top:6px">'+esc(x['本文']||'')+'</div>';
+      c+='</div>';
+      return c;
+    }).join('');
+  }
+  function draw(){ if(mode==='msgs'){ renderMsgs(); } else { render(); } }
+  function setMode(m){
+    mode=m;
+    document.getElementById('appsbox').style.display = (m==='apps')?'':'none';
+    document.getElementById('msgsbox').style.display = (m==='msgs')?'':'none';
+    document.getElementById('h1title').textContent = (m==='msgs')?'💬 スカウト・メッセージ':'📋 他媒体の応募者';
+    Array.prototype.forEach.call(document.querySelectorAll('#modebar .tab'),function(t){ t.className='tab'+(t.getAttribute('data-mode')===m?' on':''); });
+    draw();
+  }
+  Array.prototype.forEach.call(document.querySelectorAll('#modebar .tab'),function(t){
+    t.onclick=function(){ setMode(t.getAttribute('data-mode')); };
+  });
   document.getElementById('q').addEventListener('input',function(){ curQ=this.value.trim().toLowerCase(); render(); });
+  document.getElementById('mq').addEventListener('input',function(){ curMQ=this.value.trim().toLowerCase(); renderMsgs(); });
   renderTabs(); render();
 </script>
 </body>

@@ -163,11 +163,18 @@ function doGet(e) {
       var ml; try { ml = mediaListData_(); } catch (e2m) { ml = { ok: false, error: String(e2m), items: [] }; }
       return ContentService.createTextOutput(JSON.stringify(ml)).setMimeType(ContentService.MimeType.JSON);
     }
+    // 他媒体のスカウト/メッセージ一覧（JSON）
+    if (e.parameter.media === 'msgs') {
+      var mgl; try { mgl = mediaMsgsData_(); } catch (e2g) { mgl = { ok: false, error: String(e2g), items: [] }; }
+      return ContentService.createTextOutput(JSON.stringify(mgl)).setMimeType(ContentService.MimeType.JSON);
+    }
     // 他媒体の応募者一覧ページ（別ページ）
     if (e.parameter.page === 'media') {
       var mdata; try { mdata = mediaListData_(); } catch (errm) { mdata = { ok: false, error: String(errm), items: [] }; }
+      var mmsg; try { mmsg = mediaMsgsData_(); } catch (em) { mmsg = { ok: false, items: [] }; }
       var mt = HtmlService.createTemplateFromFile('media');
       mt.MEDIA = jsonForScript_(mdata);
+      mt.MSGS = jsonForScript_(mmsg);
       return mt.evaluate().setTitle('他媒体の応募者')
         .addMetaTag('viewport', 'width=device-width, initial-scale=1, viewport-fit=cover')
         .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
@@ -1046,6 +1053,22 @@ function epInshokuMsgs_(o) {
     }
     return { ok: true, added: add.length };
   } catch (e) { return { ok: false, error: String(e) }; }
+}
+
+// 他媒体_メッセージ を新しい順で返す（別ページのメッセージ表示用）。
+function mediaMsgsData_() {
+  try {
+    var ss = SpreadsheetApp.getActiveSpreadsheet();
+    var sh = ss.getSheetByName('他媒体_メッセージ');
+    if (!sh || sh.getLastRow() < 2) return { ok: true, items: [] };
+    var HDR = ['媒体', '店舗', '種別', '本文', '日時', '取得日時', 'key'];
+    var v = sh.getRange(2, 1, sh.getLastRow() - 1, HDR.length).getValues();
+    var items = v.map(function (r) {
+      var o = {}; HDR.forEach(function (h, i) { o[h] = (r[i] instanceof Date) ? Utilities.formatDate(r[i], 'Asia/Tokyo', 'yyyy/MM/dd HH:mm') : r[i]; }); return o;
+    });
+    items.sort(function (a, b) { return mediaTs_(b['日時']) - mediaTs_(a['日時']); });
+    return { ok: true, items: items };
+  } catch (e) { return { ok: false, error: String(e), items: [] }; }
 }
 
 // PC取得スクリプトからの「取得失敗」通知を受けて責任者へプッシュ（媒体別に1時間1回まで＝スパム防止）。
