@@ -543,6 +543,36 @@ func save_label() -> String:
 	return "第%d章のとちゅうから" % ch
 
 
+# ---------------------------------------------------------------- なかま図鑑
+# 癒やした虫の種類と累計を user://dex.cfg に記録（進行セーブとは別ファイル＝消えない収集）。
+# ＝「全種を なかまにする」というリプレイ動機＋テーマ（救う＝味方）の可視化。
+const DEX_PATH := "user://dex.cfg"
+
+## サーバ側で、虫を1体癒やしたら記録（bug.cleanse から呼ぶ）。species_path 例: res://data/ant.tres
+func record_healed(species_path: String) -> void:
+	if not _is_server():
+		return
+	var id := species_path.get_file().get_basename()
+	if id.is_empty():
+		return
+	var cfg := ConfigFile.new()
+	cfg.load(DEX_PATH)
+	cfg.set_value("dex", id, int(cfg.get_value("dex", id, 0)) + 1)
+	cfg.save(DEX_PATH)
+
+
+## 図鑑UI用：{ species_id: 累計数 }。まだ癒やしていない種は含まれない。
+func dex_counts() -> Dictionary:
+	var out := {}
+	var cfg := ConfigFile.new()
+	if cfg.load(DEX_PATH) != OK:
+		return out
+	if cfg.has_section("dex"):
+		for k in cfg.get_section_keys("dex"):
+			out[k] = int(cfg.get_value("dex", k, 0))
+	return out
+
+
 func _has_progress() -> bool:
 	var cfg := ConfigFile.new()
 	if cfg.load(SAVE_PATH) != OK:

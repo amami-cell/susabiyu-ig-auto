@@ -21,6 +21,20 @@ extends Control
 var _biome: OptionButton = null
 var _difficulty: OptionButton = null
 var _credits: Control = null
+var _dex: Control = null
+
+# なかま図鑑の全種（id は data/*.tres のファイル名。色は見分け用の近似）。
+const DEX_SPECIES := [
+	{"id": "ant", "name": "アリ", "color": Color(0.42, 0.32, 0.26)},
+	{"id": "beetle", "name": "コガネムシ", "color": Color(0.28, 0.46, 0.32)},
+	{"id": "batta", "name": "バッタ", "color": Color(0.52, 0.66, 0.32)},
+	{"id": "tentou", "name": "テントウ", "color": Color(0.82, 0.24, 0.22)},
+	{"id": "chou", "name": "チョウ", "color": Color(0.72, 0.52, 0.86)},
+	{"id": "tonbo", "name": "トンボ", "color": Color(0.32, 0.62, 0.72)},
+	{"id": "hachi", "name": "ハチ", "color": Color(0.92, 0.76, 0.24)},
+	{"id": "queen_ant", "name": "女王アリ", "color": Color(0.55, 0.2, 0.22)},
+	{"id": "sludge_lord", "name": "ヘドロの主", "color": Color(0.28, 0.34, 0.26)},
+]
 var _t := 0.0
 var _seeds: Array[Vector2] = []
 
@@ -84,6 +98,7 @@ func _ready() -> void:
 	# 遊び終えてタイトルへ戻ったら「つづきから」やクリア表示を出し直す。
 	Net.session_ended.connect(func(_r: String) -> void: _refresh_title_state())
 	_build_credits_button()
+	_build_dex_button()
 
 	if Net.is_web():
 		_setup_for_browser()
@@ -272,6 +287,103 @@ func _build_credits_button() -> void:
 	btn.add_theme_color_override("font_color", UIKit.INK)
 	btn.pressed.connect(_show_credits)
 	add_child(btn)
+
+
+## 「なかま図鑑」ボタン（左下）。癒やした種類を集める＝リプレイ動機。
+func _build_dex_button() -> void:
+	var btn := Button.new()
+	btn.name = "DexButton"
+	btn.text = "なかま図鑑"
+	btn.anchor_top = 1.0
+	btn.anchor_bottom = 1.0
+	btn.offset_left = 16.0
+	btn.offset_top = -56.0
+	btn.offset_right = 160.0
+	btn.offset_bottom = -16.0
+	UIKit.style_button(btn, UIKit.CREAM_SOLID, UIKit.GREEN_DK)
+	btn.add_theme_color_override("font_color", UIKit.INK)
+	btn.pressed.connect(_show_dex)
+	add_child(btn)
+
+
+func _show_dex() -> void:
+	if _dex != null:
+		_dex.queue_free()   # 開くたび最新の集計で作り直す
+		_dex = null
+	var counts := Chapter.dex_counts()
+	var found := 0
+	for sp in DEX_SPECIES:
+		if int(counts.get(sp["id"], 0)) > 0:
+			found += 1
+
+	_dex = Control.new()
+	_dex.name = "Dex"
+	_dex.set_anchors_preset(Control.PRESET_FULL_RECT)
+	add_child(_dex)
+	var dim := ColorRect.new()
+	dim.color = Color(0, 0, 0, 0.5)
+	dim.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_dex.add_child(dim)
+
+	var box := Panel.new()
+	box.set_anchors_preset(Control.PRESET_CENTER)
+	box.offset_left = -300.0
+	box.offset_top = -260.0
+	box.offset_right = 300.0
+	box.offset_bottom = 260.0
+	box.add_theme_stylebox_override("panel", UIKit.panel(UIKit.CREAM, UIKit.GREEN_DK, 20, 4, 22))
+	_dex.add_child(box)
+
+	var vb := VBoxContainer.new()
+	vb.set_anchors_preset(Control.PRESET_FULL_RECT)
+	vb.offset_left = 26
+	vb.offset_top = 20
+	vb.offset_right = -26
+	vb.offset_bottom = -70
+	vb.add_theme_constant_override("separation", 6)
+	box.add_child(vb)
+
+	var head := Label.new()
+	head.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	head.text = "なかま図鑑　%d / %d しゅるい" % [found, DEX_SPECIES.size()]
+	UIKit.style_label(head, 26, UIKit.GREEN_DK)
+	vb.add_child(head)
+
+	for sp in DEX_SPECIES:
+		var n := int(counts.get(sp["id"], 0))
+		var row := HBoxContainer.new()
+		row.add_theme_constant_override("separation", 12)
+		vb.add_child(row)
+		var sw := ColorRect.new()
+		sw.custom_minimum_size = Vector2(30, 30)
+		sw.color = (sp["color"] as Color) if n > 0 else Color(0.5, 0.5, 0.5, 0.5)
+		row.add_child(sw)
+		var nm := Label.new()
+		nm.custom_minimum_size = Vector2(220, 0)
+		nm.text = str(sp["name"]) if n > 0 else "？？？"
+		UIKit.style_label(nm, 22, UIKit.INK)
+		row.add_child(nm)
+		var cnt := Label.new()
+		cnt.text = ("なかまにした ×%d" % n) if n > 0 else "まだ 会っていない"
+		UIKit.style_label(cnt, 20, UIKit.GREEN_DK if n > 0 else Color(0.5, 0.5, 0.5))
+		row.add_child(cnt)
+
+	var close := Button.new()
+	close.text = "とじる"
+	close.anchor_left = 0.5
+	close.anchor_right = 0.5
+	close.anchor_top = 1.0
+	close.anchor_bottom = 1.0
+	close.offset_left = -90.0
+	close.offset_top = -60.0
+	close.offset_right = 90.0
+	close.offset_bottom = -16.0
+	UIKit.style_button(close, UIKit.GREEN, UIKit.GREEN_DK)
+	close.pressed.connect(func() -> void:
+		if _dex != null:
+			_dex.queue_free()
+			_dex = null)
+	box.add_child(close)
 
 
 func _show_credits() -> void:

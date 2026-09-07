@@ -338,6 +338,7 @@ func cleanse(amount: int, healer_id: int) -> void:
 
 	_dead = true
 	WorldState.add("bug_healed")
+	Chapter.record_healed(stats_path)   # なかま図鑑に記録（癒やした種類・累計）
 	# 癒やした生き物は「力」を残す（飛行5パーツなど）
 	WorldState.grant_power(stats.grants_power)
 	# 中ボス（女王アリ等）を癒やしたら章の進行へ知らせる

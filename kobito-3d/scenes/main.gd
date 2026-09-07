@@ -274,6 +274,9 @@ func _run_selftest() -> void:
 		bugs[0].cleanse(9999, players[0].name.to_int())
 		await get_tree().create_timer(0.5).timeout
 
+	# 癒やした種類が「なかま図鑑」に記録される経路を確認する（達成感・リプレイ動機）
+	var dex_ok: bool = Chapter.dex_counts().size() > 0
+
 	# 虫を癒やすと「なかま虫」が生まれて一緒に戦う経路を確認する
 	var ally_ok: bool = get_tree().get_nodes_in_group("ally").size() > 0
 
@@ -350,9 +353,9 @@ func _run_selftest() -> void:
 				break
 
 	var ok: bool = _garden != null and players.size() == 1 and bugs.size() > 0 \
-		and WorldState.recovery > 0.0 and xp_gained and flight_ok and kids_ok and mother_ok and puzzle_ok and switch_ok and ally_ok and save_ok and boss_ok
-	print("[selftest] 回復度=%.2f XP=%d 経験値=%s 飛行解禁=%s 子ども=%d(最寄り%.1f) 母=%s 石版=%s 扉=%s なかま=%s セーブ=%s ボス召喚=%s" % [
-		WorldState.recovery, xp_now, xp_gained, flight_ok, children.size(), nearest, mother_ok, puzzle_ok, switch_ok, ally_ok, save_ok, boss_ok])
+		and WorldState.recovery > 0.0 and xp_gained and flight_ok and kids_ok and mother_ok and puzzle_ok and switch_ok and ally_ok and save_ok and boss_ok and dex_ok
+	print("[selftest] 回復度=%.2f XP=%d 経験値=%s 飛行解禁=%s 子ども=%d(最寄り%.1f) 母=%s 石版=%s 扉=%s なかま=%s セーブ=%s ボス召喚=%s 図鑑=%s" % [
+		WorldState.recovery, xp_now, xp_gained, flight_ok, children.size(), nearest, mother_ok, puzzle_ok, switch_ok, ally_ok, save_ok, boss_ok, dex_ok])
 	print("[selftest] %s" % ("OK" if ok else "NG"))
 	get_tree().quit(0 if ok else 1)
 
