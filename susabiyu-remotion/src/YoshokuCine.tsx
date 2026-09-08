@@ -11,7 +11,7 @@ import {
 } from "./yoshokuDesign";
 
 export const YCINE_DUR = 480; // 16s
-const BAR = 200;
+const BAR = 120; // レターボックスを薄く＝料理を切らない
 
 export const YoshokuCine: React.FC<{ storeName?: string; handle?: string; theme?: string }> = ({
   storeName = "ナガグツ", handle = "@nagagutsu0427", theme = "italian",
@@ -38,7 +38,7 @@ export const YoshokuCine: React.FC<{ storeName?: string; handle?: string; theme?
         <Slides count={4} total={DUR} render={(i, local, seg) => (
           <>
             <AbsoluteFill><PhotoLayer src={items[i].src} frame={local} dur={seg} from={1.14} to={1.2} sat={1.02} brightness={0.46} blur={26} /></AbsoluteFill>
-            <AbsoluteFill><PhotoLayer src={items[i].src} frame={local} dur={seg} from={1.0} to={1.03} panX={10} sat={1.06} brightness={1.02} fit="contain" /></AbsoluteFill>
+            <AbsoluteFill><PhotoLayer src={items[i].src} frame={local} dur={seg} from={0.9} to={0.94} panX={8} sat={1.06} brightness={1.02} fit="contain" /></AbsoluteFill>
           </>
         )} />
       </AbsoluteFill>

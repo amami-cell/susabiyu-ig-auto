@@ -119,7 +119,7 @@ export const YoshokuFeedA: React.FC<P> = ({ storeName = D.storeName, handle = D.
     <AbsoluteFill style={{ backgroundColor: T.base }}>
       <Photo src={d.src} />
       <AbsoluteFill style={{ background: "linear-gradient(180deg, rgba(0,0,0,0.42) 0%, rgba(0,0,0,0) 22%, rgba(0,0,0,0) 46%, rgba(18,13,8,0.92) 88%, " + T.footBase + " 100%)" }} />
-      <div style={{ position: "absolute", top: 52, left: 44 }}>
+      <div style={{ position: "absolute", top: 24, left: 26 }}>
         <Brand storeName={storeName} accent={T.accent} shadow={NAME_SHADOW} />
       </div>
       <div style={{ position: "absolute", left: SIDE, right: SIDE, bottom: 150 }}>
@@ -141,7 +141,7 @@ export const YoshokuFeedB: React.FC<P> = ({ storeName = D.storeName, handle = D.
         <Photo src={d.src} />
         <AbsoluteFill style={{ background: "linear-gradient(180deg, rgba(0,0,0,0.35) 0%, rgba(0,0,0,0) 26%)" }} />
       </div>
-      <div style={{ position: "absolute", top: 52, left: 44 }}>
+      <div style={{ position: "absolute", top: 24, left: 26 }}>
         <Brand storeName={storeName} accent={T.accent} shadow={NAME_SHADOW} />
       </div>
       <div style={{ position: "absolute", left: SIDE, right: SIDE, top: 1000, bottom: 0, display: "flex", alignItems: "center" }}>
@@ -157,45 +157,55 @@ export const YoshokuFeedB: React.FC<P> = ({ storeName = D.storeName, handle = D.
 };
 
 // ③C カラースラブ分割（テラコッタのベタ面＋ノックアウト特大料理名／グリッドで色が殴る）
+// 左スラブは flex縦・space-between で「ロゴ／料理名／締め」を均等配置＝下の余白の空きすぎを解消。
+// 料理名は minPx を下げて“1行に収める”（狭いスラブでの不格好な2行を防止）。
 export const YoshokuFeedC: React.FC<P> = ({ storeName = D.storeName, handle = D.handle, theme = D.theme }) => {
-  const T = ytheme(theme); const d = dish(); const SLAB = 486;
+  const T = ytheme(theme); const d = dish(); const SLAB = 500;
   return (
     <AbsoluteFill style={{ backgroundColor: T.slab }}>
       <div style={{ position: "absolute", top: 0, bottom: 0, left: SLAB, right: 0, overflow: "hidden" }}>
         <Photo src={d.src} />
       </div>
-      <div style={{ position: "absolute", top: 0, bottom: 0, left: 0, width: SLAB, background: T.slab }} />
-      <div style={{ position: "absolute", top: 52, left: 44 }}>
+      <div style={{ position: "absolute", top: 0, bottom: 0, left: 0, width: SLAB, background: "linear-gradient(160deg, " + T.accent + "1F 0%, " + T.slab + " 42%, " + T.slab + " 100%)", display: "flex", flexDirection: "column", justifyContent: "space-between", padding: "26px 28px 40px", boxSizing: "border-box" }}>
         <Brand storeName={storeName} accent="#F6EFE0" tint="#F6EFE0" kicker="MEAT BAR" />
+        <div>
+          <HeroName text={dispName(d)} sub={d.sub} maxPx={92} minPx={34} usableW={SLAB - 56} color="#FDF6EA" subColor="rgba(253,246,234,0.85)" />
+          {d.desc ? <div style={{ marginTop: 20, fontFamily: mincho, color: "rgba(253,246,234,0.92)", fontSize: 26, lineHeight: 1.7, letterSpacing: 1 }}>{d.desc}</div> : null}
+        </div>
+        <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
+          <WineGlass style={{ width: 54, height: 92, opacity: 0.9 }} stroke="rgba(253,246,234,0.8)" />
+          <span style={{ fontFamily: serif, color: "rgba(253,246,234,0.92)", fontSize: 24, letterSpacing: 3 }}>{handle}</span>
+        </div>
       </div>
-      <div style={{ position: "absolute", left: 44, width: SLAB - 76, top: 360 }}>
-        <HeroName text={dispName(d)} sub={d.sub} maxPx={104} usableW={SLAB - 84} color="#FDF6EA" subColor="rgba(253,246,234,0.85)" />
-      </div>
-      {/* 左下の余白を、こだわり説明＋ワイングラスのイラスト(SVG)で埋める */}
-      {d.desc ? <div style={{ position: "absolute", left: 44, width: SLAB - 84, bottom: 210, fontFamily: mincho, color: "rgba(253,246,234,0.92)", fontSize: 27, lineHeight: 1.7, letterSpacing: 1 }}>{d.desc}</div> : null}
-      <WineGlass style={{ position: "absolute", left: 44, bottom: 96, width: 70, height: 118, opacity: 0.9 }} stroke="rgba(253,246,234,0.8)" />
-      <div style={{ position: "absolute", left: 132, bottom: 118, fontFamily: serif, color: "rgba(253,246,234,0.92)", fontSize: 24, letterSpacing: 3 }}>{handle}</div>
       <Grain opacity={0.05} />
     </AbsoluteFill>
   );
 };
 
-// ④D 縦組み特大明朝×半身シズル（フィードで珍しい縦組み＝パターン割り込み）
+// ④D 縦組み特大明朝×ハーフ・シズル（右に料理／左は暖色の濃色パネルに縦組み名）
+// 料理を右半分にきっちり寄せて左に余白を作る。左は“真っ黒の暗幕”ではなく暖かい濃茶パネル（不気味さ解消）。
 export const YoshokuFeedD: React.FC<P> = ({ storeName = D.storeName, handle = D.handle, theme = D.theme }) => {
-  const T = ytheme(theme); const d = dish();
+  const T = ytheme(theme); const d = dish(); const PANEL = 424;
   return (
     <AbsoluteFill style={{ backgroundColor: T.base }}>
-      <Photo src={d.src} pos="88% 50%" />
-      <AbsoluteFill style={{ background: "linear-gradient(90deg, " + T.base + "D9 0%, " + T.base + "5E 26%, rgba(0,0,0,0) 48%)" }} />
-      <div style={{ position: "absolute", top: 52, left: 44 }}>
+      {/* 右：料理（右へ寄せる＝左に余白） */}
+      <div style={{ position: "absolute", top: 0, bottom: 0, left: PANEL, right: 0, overflow: "hidden" }}>
+        <Photo src={d.src} />
+        {/* 継ぎ目だけやわらかく馴染ませる（暗くしすぎない） */}
+        <AbsoluteFill style={{ background: "linear-gradient(90deg, " + T.base + " 0%, " + T.base + "00 12%)" }} />
+      </div>
+      {/* 左：暖かい濃色パネル（真っ黒を避ける） */}
+      <div style={{ position: "absolute", top: 0, bottom: 0, left: 0, width: PANEL, background: "linear-gradient(155deg, #2d2118 0%, #211710 55%, " + T.base + " 100%)" }} />
+      <div style={{ position: "absolute", top: PANEL - 400, left: 0, width: 6, height: 0 }} />
+      <div style={{ position: "absolute", top: 24, left: 26 }}>
         <Brand storeName={storeName} accent={T.accent} shadow={NAME_SHADOW} />
       </div>
-      {d.sub ? <div style={{ position: "absolute", top: 300, left: SIDE, fontFamily: serif, color: T.accent, fontSize: 26, letterSpacing: 5, textTransform: "uppercase", fontWeight: 600, maxWidth: 360, textShadow: NAME_SHADOW }}>{d.sub}</div> : null}
-      <div style={{ position: "absolute", top: 360, left: SIDE, height: 800 }}>
-        <VName text={dispName(d)} color={T.ink} maxPx={132} availH={800} shadow={NAME_SHADOW} />
+      {d.sub ? <div style={{ position: "absolute", top: 232, left: 40, fontFamily: serif, color: T.accent, fontSize: 24, letterSpacing: 4, textTransform: "uppercase", fontWeight: 600, maxWidth: PANEL - 80 }}>{d.sub}</div> : null}
+      <div style={{ position: "absolute", top: 296, left: 46, height: 900 }}>
+        <VName text={dispName(d)} color={T.ink} maxPx={120} availH={900} shadow={NAME_SHADOW} />
       </div>
-      <Handle handle={handle} color={T.sub} shadow={NAME_SHADOW} />
-      <Vignette strength={0.4} /><Grain opacity={0.05} />
+      <div style={{ position: "absolute", left: 40, bottom: 54, fontFamily: serif, color: T.sub, fontSize: 24, letterSpacing: 3 }}>{handle}</div>
+      <Grain opacity={0.05} />
     </AbsoluteFill>
   );
 };
@@ -215,8 +225,8 @@ const EBase: React.FC<P & { rail: string; railText?: string }> = ({
       <div style={{ position: "absolute", top: 0, bottom: 0, left: 0, width: RAIL, background: rail, display: "flex", alignItems: "center", justifyContent: "center" }}>
         <div style={{ writingMode: "vertical-rl", fontFamily: serif, color: railText, fontSize: 22, letterSpacing: 10, textTransform: "uppercase", fontWeight: 600 }}>NAGAGUTSU&nbsp;·&nbsp;MEAT&nbsp;BAR</div>
       </div>
-      <div style={{ position: "absolute", top: 52, left: RAIL + 24 }}>
-        <Logo storeName={storeName} h={124} />
+      <div style={{ position: "absolute", top: 24, left: RAIL + 16 }}>
+        <Logo storeName={storeName} h={134} />
       </div>
       <div style={{ position: "absolute", left: RAIL + 40, right: SIDE, bottom: 150 }}>
         <HeroName text={dispName(d)} sub={d.sub} maxPx={140} usableW={FEED_W - RAIL - 40 - SIDE} color={T.ink} subColor="#F0DFC6" shadow={NAME_SHADOW} />
@@ -237,7 +247,7 @@ export const YoshokuFeedF: React.FC<P> = ({ storeName = D.storeName, handle = D.
     <AbsoluteFill style={{ backgroundColor: T.base }}>
       <Photo src={d.src} />
       <AbsoluteFill style={{ background: "linear-gradient(180deg, rgba(0,0,0,0.34) 0%, rgba(0,0,0,0) 18%, rgba(0,0,0,0) 70%, rgba(18,13,8,0.9) 90%, " + T.footBase + " 100%)" }} />
-      <div style={{ position: "absolute", top: 52, left: 44 }}>
+      <div style={{ position: "absolute", top: 24, left: 26 }}>
         <Brand storeName={storeName} accent={T.accent} shadow={NAME_SHADOW} />
       </div>
       {/* 「本日のおすすめ」帯と料理名をぎりぎり下へ＝料理を最大限見せる */}
@@ -261,7 +271,7 @@ export const YoshokuFeedG: React.FC<P> = ({ storeName = D.storeName, handle = D.
         <Photo src={d.src} />
         <AbsoluteFill style={{ background: "linear-gradient(180deg, rgba(0,0,0,0.18) 0%, rgba(0,0,0,0) 20%, rgba(0,0,0,0) 82%, " + T.footBase + " 100%)" }} />
       </div>
-      <div style={{ position: "absolute", top: 52, left: 44 }}>
+      <div style={{ position: "absolute", top: 24, left: 26 }}>
         <Brand storeName={storeName} accent={T.accent} shadow={NAME_SHADOW} />
       </div>
       <div style={{ position: "absolute", left: SIDE, right: SIDE, top: 966 }}>

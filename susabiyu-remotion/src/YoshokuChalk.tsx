@@ -34,8 +34,6 @@ const ChalkBody: React.FC<{ storeName?: string; handle?: string; theme?: string 
 
   return (
     <AbsoluteFill style={{ backgroundColor: "#12181a", fontFamily: mincho }}>
-      <Audio src={staticFile(typoMusic)} startFrom={Math.round((typoMusicStart || 0) * 30)} volume={(ff) => interpolate(ff, [0, 16, DUR - 24, DUR], [0, 0.8, 0.8, 0], clamp)} />
-
       {/* 黒板：濃緑〜黒のグラデ＋細かな地紋（のっぺり防止） */}
       <AbsoluteFill style={{ background: "radial-gradient(120% 90% at 50% 26%, #223029 0%, #141c1d 55%, #0a0f10 100%)" }} />
       <AbsoluteFill style={{ opacity: 0.05, backgroundImage: "repeating-linear-gradient(135deg, rgba(255,255,255,0.5) 0 1px, transparent 1px 22px)" }} />
@@ -100,6 +98,8 @@ export const YoshokuChalk: React.FC<{ storeName?: string; handle?: string; theme
   const T = ytheme(theme);
   return (
     <AbsoluteFill style={{ backgroundColor: "#12181a" }}>
+      {/* 音楽は全体（オープニング〜本編〜エンドロール）に通す */}
+      <Audio src={staticFile(typoMusic)} startFrom={Math.round((typoMusicStart || 0) * 30)} volume={(ff) => interpolate(ff, [0, 16, YCHALK_DUR - 30, YCHALK_DUR], [0, 0.8, 0.8, 0], clamp)} />
       <Sequence durationInFrames={STORY_OPEN}><StoryOpening storeName={storeName} theme={theme} /></Sequence>
       <Sequence from={STORY_OPEN} durationInFrames={CHALK_BODY}><ChalkBody storeName={storeName} handle={handle} theme={theme} /></Sequence>
       <Sequence from={STORY_OPEN + CHALK_BODY - STORY_XF} durationInFrames={STORY_END + STORY_XF}><StoryEndroll storeName={storeName} handle={handle} theme={theme} /></Sequence>

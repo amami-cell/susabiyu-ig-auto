@@ -30,7 +30,7 @@ export const YoshokuTrio: React.FC<{ storeName?: string; handle?: string; theme?
       <Slides count={3} total={DUR} fade={18} render={(i, local, seg) => (
         <>
           <AbsoluteFill><PhotoLayer src={items[i].src} frame={local} dur={seg} from={1.14} to={1.2} sat={1.02} brightness={0.5} blur={26} /></AbsoluteFill>
-          <AbsoluteFill><PhotoLayer src={items[i].src} frame={local} dur={seg} from={1.0} to={1.03} sat={1.08} brightness={1.02} fit="contain" /></AbsoluteFill>
+          <AbsoluteFill><PhotoLayer src={items[i].src} frame={local} dur={seg} from={0.9} to={0.94} sat={1.08} brightness={1.02} fit="contain" /></AbsoluteFill>
           <AbsoluteFill style={{ background: "linear-gradient(180deg, rgba(0,0,0,0.5) 0%, rgba(0,0,0,0) 30%, rgba(0,0,0,0.12) 58%, rgba(0,0,0,0.86) 100%)" }} />
         </>
       )} />

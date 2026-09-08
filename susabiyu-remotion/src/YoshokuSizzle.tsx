@@ -34,8 +34,6 @@ const SizzleBody: React.FC<{ storeName?: string; handle?: string; theme?: string
 
   return (
     <AbsoluteFill style={{ backgroundColor: "#0b0806", fontFamily: mincho }}>
-      <Audio src={staticFile(typoMusic)} startFrom={Math.round((typoMusicStart || 0) * 30)} volume={(ff) => interpolate(ff, [0, 16, DUR - 24, DUR], [0, 0.85, 0.85, 0], clamp)} />
-
       {/* 主役：4品フルブリード（ズーム抑制で全体が見える） */}
       <AbsoluteFill>
         <Slides count={4} total={DUR} render={(i, local, seg) => (
@@ -86,6 +84,8 @@ export const YoshokuSizzle: React.FC<{ storeName?: string; handle?: string; them
   const T = ytheme(theme);
   return (
     <AbsoluteFill style={{ backgroundColor: "#0b0806" }}>
+      {/* 音楽は全体（オープニング〜本編〜エンドロール）に通す */}
+      <Audio src={staticFile(typoMusic)} startFrom={Math.round((typoMusicStart || 0) * 30)} volume={(ff) => interpolate(ff, [0, 16, YSIZZLE_DUR - 30, YSIZZLE_DUR], [0, 0.85, 0.85, 0], clamp)} />
       <Sequence durationInFrames={STORY_OPEN}><StoryOpening storeName={storeName} theme={theme} /></Sequence>
       <Sequence from={STORY_OPEN} durationInFrames={SIZZLE_BODY}><SizzleBody storeName={storeName} handle={handle} theme={theme} /></Sequence>
       <Sequence from={STORY_OPEN + SIZZLE_BODY - STORY_XF} durationInFrames={STORY_END + STORY_XF}><StoryEndroll storeName={storeName} handle={handle} theme={theme} /></Sequence>

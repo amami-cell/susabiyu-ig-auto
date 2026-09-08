@@ -25,7 +25,6 @@ const MagBody: React.FC<{ storeName?: string; handle?: string; theme?: string }>
 
   return (
     <AbsoluteFill style={{ backgroundColor: T.base, fontFamily: mincho }}>
-      <Audio src={staticFile(typoMusic)} startFrom={Math.round((typoMusicStart || 0) * 30)} volume={(ff) => interpolate(ff, [0, 16, DUR - 24, DUR], [0, 0.8, 0.8, 0], clamp)} />
       <AbsoluteFill style={{ background: "linear-gradient(180deg, " + T.base + " 0%, " + T.footBase + " 100%)" }} />
 
       {/* 右上：見本番号（本番投稿では非表示） */}
@@ -87,6 +86,8 @@ export const YoshokuMag: React.FC<{ storeName?: string; handle?: string; theme?:
   const T = ytheme(theme);
   return (
     <AbsoluteFill style={{ backgroundColor: T.base }}>
+      {/* 音楽は全体（オープニング〜本編〜エンドロール）に通す */}
+      <Audio src={staticFile(typoMusic)} startFrom={Math.round((typoMusicStart || 0) * 30)} volume={(ff) => interpolate(ff, [0, 16, YMAG_DUR - 30, YMAG_DUR], [0, 0.8, 0.8, 0], clamp)} />
       <Sequence durationInFrames={STORY_OPEN}><StoryOpening storeName={storeName} theme={theme} /></Sequence>
       <Sequence from={STORY_OPEN} durationInFrames={MAG_BODY}><MagBody storeName={storeName} handle={handle} theme={theme} /></Sequence>
       <Sequence from={STORY_OPEN + MAG_BODY - STORY_XF} durationInFrames={STORY_END + STORY_XF}><StoryEndroll storeName={storeName} handle={handle} theme={theme} /></Sequence>
