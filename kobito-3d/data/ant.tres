@@ -11,5 +11,5 @@ attack_power = 4
 attack_interval = 1.1
 detect_range = 9.0
 xp_reward = 5
-body_color = Color(0.25, 0.16, 0.12, 1)
+body_color = Color(0.44, 0.32, 0.28, 1)
 body_scale = 0.8

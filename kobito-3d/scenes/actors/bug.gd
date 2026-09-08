@@ -52,15 +52,18 @@ func _ready() -> void:
 
 	var mat := StandardMaterial3D.new()
 	mat.albedo_color = stats.body_color
-	mat.roughness = 0.8
-	# 地面から浮かせるためのリムは残しつつ、強すぎる縁光り（＝安っぽい“テカリ玉”）を抑える。
+	mat.roughness = 0.94
+	mat.metallic_specular = 0.12   # 既定0.5の鏡面ハイライトが“黒いテカリ玉”の主因→大きく下げる
+	# 地面から浮かせるための弱いリムだけ残す。
 	mat.rim_enabled = true
-	mat.rim = 0.4
-	mat.rim_tint = 0.35
+	mat.rim = 0.22
+	mat.rim_tint = 0.5
 	# ヘドロに侵された“不穏さ”をほのかな発光で表現＝敵だと一目で分かる。
 	mat.emission_enabled = true
-	mat.emission = Color(0.5, 0.25, 0.55)
-	mat.emission_energy_multiplier = 0.25
+	# 自分の体色を少し持ち上げた“弱い自己発光”＝逆光でも真っ黒に潰れず、生きものだと分かる。
+	# 色は体色寄りにして「侵された生々しさ」を保つ（紫の固定色だと汚く見えた）。
+	mat.emission = stats.body_color.lerp(Color(0.55, 0.35, 0.55), 0.35)
+	mat.emission_energy_multiplier = 0.35
 	_body.material_override = mat
 	_body_mat = mat   # 発光を脈動させる（“侵されている”生々しさ）
 	_body.scale = Vector3.ONE * stats.body_scale
@@ -177,7 +180,7 @@ func _update_hpbar() -> void:
 func _process(_dt: float) -> void:
 	if _dead or _body_mat == null:
 		return
-	_body_mat.emission_energy_multiplier = 0.18 + 0.14 * (0.5 + 0.5 * sin(_age * 3.0))
+	_body_mat.emission_energy_multiplier = 0.32 + 0.16 * (0.5 + 0.5 * sin(_age * 3.0))
 
 
 func _physics_process(delta: float) -> void:
