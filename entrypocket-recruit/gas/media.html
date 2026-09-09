@@ -74,11 +74,16 @@
   function mediaList(){ var s={}; ITEMS.forEach(function(x){ if(x['媒体']) s[x['媒体']]=1; }); return Object.keys(s).sort(); }
   function renderTabs(){
     var ms=[MEDIA_ALL].concat(mediaList());
-    document.getElementById('tabs').innerHTML = ms.map(function(m){
+    // curMediaが現在の媒体一覧に無ければ「全媒体」へ自己修復（表示0のガード）
+    if(curMedia!==MEDIA_ALL && ms.indexOf(curMedia)<0) curMedia=MEDIA_ALL;
+    var box=document.getElementById('tabs');
+    box.innerHTML = ms.map(function(m){
       return '<div class="tab'+(m===curMedia?' on':'')+'" data-m="'+esc(m)+'">'+esc(m)+'</div>';
     }).join('');
-    Array.prototype.forEach.call(document.querySelectorAll('.tab'),function(t){
-      t.onclick=function(){ curMedia=t.getAttribute('data-m'); renderTabs(); render(); };
+    // ⚠️ 媒体タブだけにハンドラを付ける（#tabs配下限定）。全.tab を拾うと
+    //    モードバー(👤/💬)のクリックまで奪って curMedia=null になり「表示0」になる。
+    Array.prototype.forEach.call(box.querySelectorAll('.tab'),function(t){
+      t.onclick=function(){ curMedia=t.getAttribute('data-m')||MEDIA_ALL; renderTabs(); render(); };
     });
   }
   function match(x){
