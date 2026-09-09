@@ -107,7 +107,12 @@ const Handle: React.FC<{ handle: string; color: string; shadow?: string }> = ({ 
   <div style={{ position: "absolute", right: SIDE, bottom: 54, fontFamily: serif, color, fontSize: 24, letterSpacing: 3, textShadow: shadow }}>{handle}</div>
 );
 
-const NAME_SHADOW = "0 3px 22px rgba(0,0,0,0.85)";
+// 暗幕を“さりげなく”まで薄くしたぶん、文字側の影を二段（近い濃い影＋広い柔らかい影）にして
+// 明るい写真の上でも料理名が浮くようにする。＝画面を暗くせずに可読性を確保する。
+const NAME_SHADOW = "0 2px 8px rgba(0,0,0,0.92), 0 6px 28px rgba(0,0,0,0.72)";
+// 暗幕グラデを一切かけない案（A・C・F・G）で、文字を写真に直置きしても読ませるための影。
+// 画面を暗くする代わりに“文字の周りだけ”を締める：近い濃い影＋中間＋広く柔らかい影の三段。
+const BARE_SHADOW = "0 1px 3px rgba(0,0,0,0.95), 0 3px 12px rgba(0,0,0,0.9), 0 8px 34px rgba(0,0,0,0.8)";
 
 // モルタル（塗り壁/コンクリート）色。真っ黒を避けた“少し明るい黒”。B・G の下地に使う。
 const MORTAR = "#33302C";
@@ -179,17 +184,16 @@ export const YoshokuFeedA: React.FC<P> = ({ storeName = D.storeName, handle = D.
   return (
     <AbsoluteFill style={{ backgroundColor: T.base }}>
       <Photo src={d.src} />
-      {/* 暗幕は“料理名を読ませる下端だけ”。上端の暗幕と四隅のビネットは廃止（周囲を暗くしない）。 */}
-      <AbsoluteFill style={{ background: "linear-gradient(180deg, rgba(0,0,0,0) 0%, rgba(0,0,0,0) 46%, rgba(18,13,8,0.92) 88%, " + T.footBase + " 100%)" }} />
+      {/* 暗幕グラデは一切なし（写真そのまま）。文字は BARE_SHADOW の三段影だけで読ませる。 */}
       <div style={{ position: "absolute", top: 24, left: 26 }}>
-        <Brand storeName={storeName} accent={T.accent} shadow={NAME_SHADOW} />
+        <Brand storeName={storeName} accent={T.accent} shadow={BARE_SHADOW} />
       </div>
       <div style={{ position: "absolute", left: SIDE, right: SIDE, bottom: 128 }}>
         <div style={{ width: 84, height: 6, background: T.accent, marginBottom: 20 }} />
-        <HeroName text={dispName(d)} sub={d.sub} maxPx={150} usableW={FEED_W - SIDE * 2} color={T.ink} subColor={T.accent} shadow={NAME_SHADOW} />
-        {d.desc ? <div style={{ marginTop: 18, fontFamily: mincho, color: "#E7DAC2", fontSize: 30, lineHeight: 1.6, letterSpacing: 1, textShadow: NAME_SHADOW }}>{d.desc}</div> : null}
+        <HeroName text={dispName(d)} sub={d.sub} maxPx={150} usableW={FEED_W - SIDE * 2} color={T.ink} subColor={T.accent} shadow={BARE_SHADOW} />
+        {d.desc ? <div style={{ marginTop: 18, fontFamily: mincho, color: "#F2E7D4", fontSize: 30, lineHeight: 1.6, letterSpacing: 1, textShadow: BARE_SHADOW }}>{d.desc}</div> : null}
       </div>
-      <Handle handle={handle} color={T.sub} shadow={NAME_SHADOW} />
+      <Handle handle={handle} color={T.sub} shadow={BARE_SHADOW} />
       <Grain opacity={0.05} />
     </AbsoluteFill>
   );
@@ -208,7 +212,7 @@ export const YoshokuFeedB: React.FC<P> = ({ storeName = D.storeName, handle = D.
       {/* モルタル帯（微かな粒状ムラで“塗り壁”の質感） */}
       <div style={{ position: "absolute", top: 940, left: 0, right: 0, bottom: 0, background: "linear-gradient(180deg, " + MORTAR_HI + " 0%, " + MORTAR + " 60%, " + MORTAR_LO + " 100%)" }} />
       <div style={{ position: "absolute", top: 24, left: 26 }}>
-        <Brand storeName={storeName} accent={T.accent} shadow={NAME_SHADOW} />
+        <Brand storeName={storeName} accent={T.accent} shadow={BARE_SHADOW} />
       </div>
       <div style={{ position: "absolute", left: SIDE, right: SIDE, top: 986, display: "flex" }}>
         <div style={{ width: 6, background: T.accent, alignSelf: "stretch" }} />
@@ -232,31 +236,29 @@ export const YoshokuFeedC: React.FC<P> = ({ storeName = D.storeName, handle = D.
   return (
     <AbsoluteFill style={{ backgroundColor: T.base }}>
       <Photo src={d.src} />
-      {/* 上端・四隅の暗幕は廃止（周囲を暗くしない）。文字は下のキャプション面と文字影で読ませる。 */}
+      {/* 暗幕グラデは一切なし（写真そのまま）。文字は BARE_SHADOW の三段影だけで読ませる。 */}
       <div style={{ position: "absolute", top: 24, left: 26 }}>
-        <Brand storeName={storeName} accent={T.accent} shadow={NAME_SHADOW} />
+        <Brand storeName={storeName} accent={T.accent} shadow={BARE_SHADOW} />
       </div>
 
-      {/* 誌面のキャプション。クリームのベタ枠は“背景色が目立ちすぎる”ので廃止し、
-          写真の下側をやわらかく沈めた上に直接文字を置く（写真が主役のまま読める）。 */}
-      <div style={{ position: "absolute", left: 0, right: 0, bottom: 0, height: 720, background: "linear-gradient(180deg, rgba(10,7,4,0) 0%, rgba(10,7,4,0.30) 44%, rgba(10,7,4,0.66) 74%, rgba(10,7,4,0.84) 100%)" }} />
+      {/* 誌面のキャプション。クリームのベタ枠も下地グラデも使わず、写真の上に直接組む。
+          左のテラコッタ罫だけが“誌面”の骨格を保つ。 */}
       <div style={{ position: "absolute", left: 56, width: PANEL_W, bottom: 74 }}>
-        {/* 左のテラコッタ罫だけ残して“誌面”の骨格を保つ */}
         <div style={{ position: "absolute", left: 0, top: 4, bottom: 4, width: 5, background: T.accent, opacity: 0.9 }} />
         <div style={{ paddingLeft: 30 }}>
-          <div style={{ fontFamily: mincho, color: T.accent, fontSize: 21, letterSpacing: 6, marginBottom: 12, textShadow: NAME_SHADOW }}>本日のおすすめ</div>
-          <div style={{ height: 1, background: "rgba(246,239,224,0.32)", marginBottom: 16 }} />
-          <HeroName text={dispName(d)} sub={d.sub} maxPx={76} minPx={30} usableW={PANEL_W - 60} color="#F8F1E2" subColor={T.accent} shadow={NAME_SHADOW} />
+          <div style={{ fontFamily: mincho, color: T.accent, fontSize: 21, letterSpacing: 6, marginBottom: 12, textShadow: BARE_SHADOW }}>本日のおすすめ</div>
+          <div style={{ height: 1, background: "rgba(246,239,224,0.5)", marginBottom: 16, boxShadow: "0 1px 4px rgba(0,0,0,0.8)" }} />
+          <HeroName text={dispName(d)} sub={d.sub} maxPx={76} minPx={30} usableW={PANEL_W - 60} color="#F8F1E2" subColor={T.accent} shadow={BARE_SHADOW} />
           {d.desc ? (
             <>
               <div style={{ width: 72, height: 3, background: T.accent, margin: "18px 0 14px" }} />
-              <div style={{ fontFamily: mincho, color: "rgba(246,239,224,0.9)", fontSize: 26, lineHeight: 1.68, letterSpacing: 1, textShadow: "0 2px 14px rgba(0,0,0,0.8)" }}>{d.desc}</div>
+              <div style={{ fontFamily: mincho, color: "#F6EFE0", fontSize: 26, lineHeight: 1.68, letterSpacing: 1, textShadow: BARE_SHADOW }}>{d.desc}</div>
             </>
           ) : null}
         </div>
       </div>
 
-      <div style={{ position: "absolute", right: SIDE, bottom: 26, fontFamily: serif, color: "rgba(242,232,214,0.8)", fontSize: 22, letterSpacing: 3, textShadow: NAME_SHADOW }}>{handle}</div>
+      <div style={{ position: "absolute", right: SIDE, bottom: 26, fontFamily: serif, color: "#F2E8D6", fontSize: 22, letterSpacing: 3, textShadow: BARE_SHADOW }}>{handle}</div>
       <Grain opacity={0.05} />
     </AbsoluteFill>
   );
@@ -300,8 +302,9 @@ const EBase: React.FC<P & { rail: string; railText?: string }> = ({
     <AbsoluteFill style={{ backgroundColor: T.base }}>
       <div style={{ position: "absolute", top: 0, bottom: 0, left: RAIL, right: 0, overflow: "hidden" }}>
         <Photo src={d.src} />
-        {/* 上端の暗幕は廃止（周囲を暗くしない）。下端だけ料理名の可読性のために残す。 */}
-        <AbsoluteFill style={{ background: "linear-gradient(180deg, rgba(0,0,0,0) 0%, rgba(0,0,0,0) 62%, rgba(18,13,8,0.9) 92%, " + T.footBase + " 100%)" }} />
+        {/* 下端だけ“さりげなく”。以前は 62% から立ち上がり最後は footBase のベタ塗りで、
+            下半分がまるごと暗く見えていた。ベタ塗りは廃止し、薄いグラデ一枚だけにする。 */}
+        <AbsoluteFill style={{ background: "linear-gradient(180deg, rgba(0,0,0,0) 0%, rgba(0,0,0,0) 74%, rgba(18,13,8,0.22) 88%, rgba(18,13,8,0.52) 100%)" }} />
       </div>
       <div style={{ position: "absolute", top: 0, bottom: 0, left: 0, width: RAIL, background: rail, display: "flex", alignItems: "center", justifyContent: "center" }}>
         <div style={{ writingMode: "vertical-rl", fontFamily: serif, color: railText, fontSize: 22, letterSpacing: 10, textTransform: "uppercase", fontWeight: 600 }}>NAGAGUTSU&nbsp;·&nbsp;MEAT&nbsp;BAR</div>
@@ -327,16 +330,16 @@ export const YoshokuFeedF: React.FC<P> = ({ storeName = D.storeName, handle = D.
   return (
     <AbsoluteFill style={{ backgroundColor: T.base }}>
       <Photo src={d.src} />
-      <AbsoluteFill style={{ background: "linear-gradient(180deg, rgba(0,0,0,0) 0%, rgba(0,0,0,0) 70%, rgba(18,13,8,0.9) 90%, " + T.footBase + " 100%)" }} />
+      {/* 暗幕グラデは一切なし。テラコッタのベタ帯があるので、文字は帯と三段影で読める。 */}
       <div style={{ position: "absolute", top: 24, left: 26 }}>
-        <Brand storeName={storeName} accent={T.accent} shadow={NAME_SHADOW} />
+        <Brand storeName={storeName} accent={T.accent} shadow={BARE_SHADOW} />
       </div>
       {/* 「本日のおすすめ」帯と料理名をぎりぎり下へ＝料理を最大限見せる */}
       <div style={{ position: "absolute", left: 0, right: 0, bottom: 214, height: 104, background: T.slab, display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 14px 40px rgba(0,0,0,0.45)" }}>
         <span style={{ fontFamily: mincho, color: "#FDF6EA", fontSize: 46, fontWeight: 700, letterSpacing: 8 }}>本日のおすすめ</span>
       </div>
       <div style={{ position: "absolute", left: SIDE, right: SIDE, bottom: 52, textAlign: "center" }}>
-        <HeroName text={dispName(d)} sub={d.sub} maxPx={92} usableW={FEED_W - SIDE * 2} color={T.ink} subColor="#F0DFC6" align="center" shadow={NAME_SHADOW} />
+        <HeroName text={dispName(d)} sub={d.sub} maxPx={92} usableW={FEED_W - SIDE * 2} color={T.ink} subColor="#F0DFC6" align="center" shadow={BARE_SHADOW} />
       </div>
       <Grain opacity={0.05} />
     </AbsoluteFill>
@@ -351,9 +354,9 @@ export const YoshokuFeedG: React.FC<P> = ({ storeName = D.storeName, handle = D.
   return (
     <AbsoluteFill style={{ backgroundColor: MORTAR }}>
       <Photo src={d.src} />
-      <AbsoluteFill style={{ background: "linear-gradient(180deg, rgba(0,0,0,0) 0%, rgba(0,0,0,0) 78%, rgba(0,0,0,0.42) 100%)" }} />
+      {/* 暗幕グラデは一切なし。モルタルの帯が下地なので、文字は帯の中で読める。 */}
       <div style={{ position: "absolute", top: 24, left: 26 }}>
-        <Brand storeName={storeName} accent={T.accent} shadow={NAME_SHADOW} />
+        <Brand storeName={storeName} accent={T.accent} shadow={BARE_SHADOW} />
       </div>
       {/* 中央を横切るモルタルの帯（上下に細いテラコッタ罫） */}
       <div style={{ position: "absolute", left: 0, right: 0, top: BAND_TOP, height: BAND_H, background: "linear-gradient(180deg, " + MORTAR_HI + "F2 0%, " + MORTAR + "F7 100%)", boxShadow: "0 18px 46px rgba(0,0,0,0.45)" }} />
@@ -363,7 +366,7 @@ export const YoshokuFeedG: React.FC<P> = ({ storeName = D.storeName, handle = D.
         <HeroName text={dispName(d)} sub={d.sub} maxPx={92} minPx={36} usableW={FEED_W - SIDE * 2} color="#F7F1E6" subColor={T.accent} />
         {d.desc ? <div style={{ marginTop: 14, fontFamily: mincho, color: "#D9CFBE", fontSize: 27, lineHeight: 1.6, letterSpacing: 1 }}>{d.desc}</div> : null}
       </div>
-      <div style={{ position: "absolute", right: SIDE, bottom: 46, fontFamily: serif, color: "#F0E6D4", fontSize: 23, letterSpacing: 3, textShadow: NAME_SHADOW }}>{handle}</div>
+      <div style={{ position: "absolute", right: SIDE, bottom: 46, fontFamily: serif, color: "#F0E6D4", fontSize: 23, letterSpacing: 3, textShadow: BARE_SHADOW }}>{handle}</div>
       <Grain opacity={0.05} />
     </AbsoluteFill>
   );
@@ -522,7 +525,7 @@ export const YoshokuFeedH3: React.FC<P> = ({ storeName = D.storeName, handle = D
 };
 
 export const FEED_COMPS: { id: string; label: string; comp: React.FC<P> }[] = [
-  { id: "YoshokuFeedA", label: "フィード案A・フルブリード×ボトム暗幕(定番)", comp: YoshokuFeedA },
+  { id: "YoshokuFeedA", label: "フィード案A・フルブリード(暗幕なし)", comp: YoshokuFeedA },
   { id: "YoshokuFeedB", label: "フィード案B・ボトムバンド・エディトリアル", comp: YoshokuFeedB },
   { id: "YoshokuFeedC", label: "フィード案C・雑誌エディトリアル(キャプション枠)", comp: YoshokuFeedC },
   { id: "YoshokuFeedE", label: "フィード案E・サイドレール(テラコッタ帯)", comp: YoshokuFeedE },
