@@ -64,7 +64,7 @@ const ChalkBody: React.FC<{ storeName?: string; handle?: string; theme?: string 
 
       {/* 写真：クリームのマット＋金ヘアラインで額装。4品をクロスフェード。
           料理名のすぐ下まで引き上げ、額も大きく取る（上の余白を詰めて写真を主役に）。 */}
-      <div style={{ position: "absolute", top: 640, left: 96, width: 888, height: 800, opacity: fade(f, 60, 22) }}>
+      <div style={{ position: "absolute", top: 640, left: 96, width: 888, height: 800, opacity: fade(f, 4, 18) }}>
         <div style={{ position: "absolute", inset: 0, background: "#F3EEE2", borderRadius: 6, padding: 16, boxShadow: "0 30px 66px rgba(0,0,0,0.6)" }}>
           <div style={{ position: "absolute", inset: 16, border: "1px solid rgba(150,120,60,0.55)", borderRadius: 3, overflow: "hidden" }}>
             <Slides count={photos.length} total={DUR} render={(k, lf, seg) => (
