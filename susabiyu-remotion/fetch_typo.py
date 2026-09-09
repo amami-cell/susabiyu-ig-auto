@@ -380,7 +380,6 @@ for it in items:
                     esc(it.get("cut", ""))))
 lines.append("];")
 # サンプル番号（0=本番＝バッジ非表示）。見本レンダリング(render_samples)がテンプレ毎に上書きする。
-lines.append('export const typoGroup = "%s";' % esc(_fetch_group_photo()))
 lines.append('export const typoSampleNo = 0;')
 # 投稿本文（Instagramキャプション）。ナガグツは料理体系から自動生成、他店は空（従来どおり）。
 _post_cap = ""
@@ -662,6 +661,8 @@ _logo_round = _fetch_round_logo()
 lines.append('export const typoLogo = "%s";' % esc(_logo))
 lines.append('export const typoLogoColor = "%s";' % esc(_LOGO_COLOR))
 lines.append('export const typoLogoRound = "%s";' % esc(_logo_round))
+# 集合写真（OP/CLOSE案5用）。ロゴと同じく“関数定義より後”で呼ぶ。
+lines.append('export const typoGroup = "%s";' % esc(_fetch_group_photo()))
 _up = music
 _updir = os.path.join("public", "music", "uptempo")
 sync_music_from_drive(os.environ.get("GENRE_MUSIC_UPTEMPO_ID"), _updir)
