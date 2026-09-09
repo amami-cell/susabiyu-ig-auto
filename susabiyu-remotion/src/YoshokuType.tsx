@@ -5,7 +5,7 @@ import { typoPhotos, typoHeadline, typoMusic, typoMusicStart } from "./typoData"
 import { ytheme } from "./yoshokuTheme";
 import {
   mincho, serif, clamp, SAFE, EASE, rise, drawW, fade,
-  Grain, Vignette, PhotoLayer, Slides, Masthead, SampleBadge, phraseLines, heroSize, fitOneLine, segNow,
+  Grain, Vignette, PhotoLayer, Slides, StoreLogoColor, SampleBadge, phraseLines, heroSize, fitOneLine, segNow,
 } from "./yoshokuDesign";
 
 export const YTYPE_DUR = 480; // 16s
@@ -54,9 +54,10 @@ export const YoshokuType: React.FC<{ storeName?: string; handle?: string; theme?
         <div style={{ marginTop: 26, width: drawW(f, 40, 260, 30), height: 2, background: T.accent, opacity: bigO }} />
       </AbsoluteFill>
 
-      {/* 明転後：左上ロゴのマストヘッド */}
-      <div style={{ opacity: fade(f, 118) }}>
-        <Masthead storeName={storeName} kicker={T.label} accent={T.accent} tint="#FFF6E6" f={f} />
+      {/* 明転後：左上に色付きロゴを大きく（フィード投稿と同じ色ロゴ・サイズ感） */}
+      <div style={{ position: "absolute", top: SAFE.top - 150, left: SAFE.side, opacity: fade(f, 118) }}>
+        <StoreLogoColor storeName={storeName} height={140} />
+        <div style={{ marginTop: 10, fontFamily: serif, color: T.accent, fontSize: 24, letterSpacing: 6, fontWeight: 600, textTransform: "uppercase", textShadow: "0 2px 12px rgba(0,0,0,0.7)" }}>{T.label}</div>
       </div>
 
       {/* 明転後：料理名（左下・大）＝“1件だけ”表示 */}
