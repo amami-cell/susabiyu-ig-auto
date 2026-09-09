@@ -256,9 +256,21 @@ func _local_step(delta: float) -> void:
 	var hspeed := Vector2(velocity.x, velocity.z).length()
 	if not grounded and not _was_airborne and velocity.y > 1.0:
 		Sfx.play("jump", -9.0)          # 地面を離れた瞬間＝跳んだ
+		_jump_stretch()                 # ぐーんと伸びる＝跳んだ手応え
 	elif grounded and _was_airborne:
 		Sfx.play("land", -12.0)         # 空中→着地
+		_land_squash()                  # ぺしゃっと潰れて戻る＝着地の重み
 	_was_airborne = not grounded
+
+	# 飛行中のポーズ：ぐっと前傾（スーパーマン風）＋ゆらぎ。降りたら戻す。
+	# ※攻撃中(ATTACK)は攻撃モーションが体の傾きを使うので触らない。
+	var t := clampf(delta * 6.0, 0.0, 1.0)
+	if state == State.FLY:
+		_body.rotation.x = lerp_angle(_body.rotation.x, deg_to_rad(-24.0), t)
+		_body.rotation.z = lerp_angle(_body.rotation.z, sin(_age * 5.0) * deg_to_rad(7.0), t)
+	elif state != State.ATTACK:
+		_body.rotation.x = lerp_angle(_body.rotation.x, 0.0, t)
+		_body.rotation.z = lerp_angle(_body.rotation.z, 0.0, t)
 	if grounded and hspeed > 1.0 and state != State.FLY:
 		_step_t -= delta
 		if _step_t <= 0.0:
@@ -279,6 +291,20 @@ func _local_step(delta: float) -> void:
 		_try_attack()
 	if Input.is_action_just_pressed("act_grab"):
 		_do_clean()
+
+
+## 跳んだ瞬間：ぐーんと縦に伸びる（アンティシペーション→伸び）＝跳んだ手応え。
+func _jump_stretch() -> void:
+	var tw := create_tween()
+	tw.tween_property(_body, "scale", Vector3(0.8, 1.28, 0.8), 0.09).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+	tw.tween_property(_body, "scale", Vector3.ONE, 0.22).set_trans(Tween.TRANS_SINE)
+
+
+## 着地：ぺしゃっと潰れて ぽよんと戻る＝着地の重み。
+func _land_squash() -> void:
+	var tw := create_tween()
+	tw.tween_property(_body, "scale", Vector3(1.28, 0.7, 1.28), 0.07).set_ease(Tween.EASE_OUT)
+	tw.tween_property(_body, "scale", Vector3.ONE, 0.24).set_trans(Tween.TRANS_ELASTIC).set_ease(Tween.EASE_OUT)
 
 
 func can_fly() -> bool:
