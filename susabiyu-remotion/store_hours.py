@@ -25,11 +25,17 @@ def _first_time(s):
 def read(store, creds_path):
     """(open_text, hours_raw) を返す。失敗時は ("","")。"""
     sid = _sheet_id()
-    if not sid or not store:
+    if not sid:
+        print("[HOURS] REQ_SHEET_ID が未設定（入力用スプレッドシートを特定できない）")
+        return "", ""
+    if not store:
+        print("[HOURS] store 情報が空")
         return "", ""
     name = str(store.get("store_name", "")).strip()
     if not name:
+        print("[HOURS] store_name が空")
         return "", ""
+    print("[HOURS] 入力用シート=%s… / 店舗名=%r" % (sid[:8], name))
     try:
         from google.oauth2 import service_account
         from googleapiclient.discovery import build
@@ -46,6 +52,7 @@ def read(store, creds_path):
         if not tab and metas:
             tab = metas[-1]["properties"]["title"]
         if not tab:
+            print("[HOURS] タブが見つからない（シート一覧=%s）" % [x["properties"].get("title") for x in metas])
             return "", ""
         # K列(表示名)と O列(営業時間)をまとめて取得（K6:O60）。
         rng = "'%s'!K6:O60" % tab
