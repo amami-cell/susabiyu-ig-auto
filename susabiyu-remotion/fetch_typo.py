@@ -380,6 +380,7 @@ for it in items:
                     esc(it.get("cut", ""))))
 lines.append("];")
 # サンプル番号（0=本番＝バッジ非表示）。見本レンダリング(render_samples)がテンプレ毎に上書きする。
+lines.append('export const typoGroup = "%s";' % esc(_fetch_group_photo()))
 lines.append('export const typoSampleNo = 0;')
 # 投稿本文（Instagramキャプション）。ナガグツは料理体系から自動生成、他店は空（従来どおり）。
 _post_cap = ""
@@ -433,6 +434,54 @@ def _music_start_sec(path):
 _mstart = _music_start_sec(music)
 print("MUSIC_START:", _mstart, "秒（ファイル名から）")
 lines.append('export const typoMusicStart = %d;' % _mstart)
+
+
+def _fetch_group_photo():
+    """店舗の「集合」フォルダ（スタッフ集合写真）から1枚取得して public/typo/group.jpg に保存し、
+    相対パス "typo/group.jpg" を返す（見つからなければ ""）。
+    オープニング案5を“お店の人の顔”から始めたい時に使う。料理写真の選定からは従来どおり除外。
+    ・フォルダは FOOD_FOLDER 以下で名前に「集合」を含むサブフォルダを再帰的に探索。
+    ・横長（幅/高≧1.2）で解像度の大きいものを優先（縦1080x1920に敷いても粗くならない）。
+    """
+    try:
+        def _find(fid, depth=0):
+            for f in list_children(fid):
+                if f.get("mimeType") == "application/vnd.google-apps.folder":
+                    nm = str(f.get("name", ""))
+                    if "集合" in nm:
+                        return f["id"]
+                    if depth < 2:
+                        sub = _find(f["id"], depth + 1)
+                        if sub:
+                            return sub
+            return None
+
+        gf = _find(FOOD_FOLDER)
+        if not gf:
+            print("[GROUP] 集合フォルダが見つからず（案5は料理写真のまま）"); return ""
+        imgs = [f for f in list_children(gf) if str(f.get("mimeType", "")).startswith("image/")]
+        if not imgs:
+            print("[GROUP] 集合フォルダに画像なし"); return ""
+
+        def _score(f):
+            m = f.get("imageMediaMetadata") or {}
+            w, h = m.get("width", 0) or 0, m.get("height", 0) or 0
+            return (min(w, h), 1 if (h and w / h >= 1.2) else 0)
+
+        best = sorted(imgs, key=_score, reverse=True)[0]
+        out = os.path.join(OUT_DIR, "group.jpg")
+        req = drive.files().get_media(fileId=best["id"], supportsAllDrives=True)
+        buf = io.FileIO(out, "wb")
+        dl = MediaIoBaseDownload(buf, req, chunksize=1024 * 1024)
+        done = False
+        while not done:
+            _, done = dl.next_chunk()
+        buf.close()
+        print("[GROUP] 集合写真を取得:", best.get("name", ""))
+        return "typo/group.jpg"
+    except Exception as e:
+        print("[GROUP] スキップ:", e)
+        return ""
 
 
 def _fetch_store_logo():

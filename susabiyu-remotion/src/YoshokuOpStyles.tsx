@@ -5,7 +5,7 @@
 //
 // アニメは useCurrentFrame/interpolate のみ（CSSトランジション禁止）。各Sequence内で相対フレーム。
 import { AbsoluteFill, Audio, Img, Sequence, staticFile, useCurrentFrame, interpolate } from "remotion";
-import { typoPhotos, typoMusic, typoMusicStart } from "./typoData";
+import { typoPhotos, typoMusic, typoMusicStart, typoGroup } from "./typoData";
 import { ytheme } from "./yoshokuTheme";
 import {
   mincho, serif, clamp, EASE, fade, Grain, BrandMark, StoreLogoColor, StoryBgLayer,
@@ -78,11 +78,13 @@ const End4: React.FC<SP> = ({ storeName = DEF.storeName, handle = DEF.handle, th
   );
 };
 
-// ── 案5：一皿から引く（料理写真がゆっくり引いてロゴが重なる）───────────
-// 「料理の店である」ことを最初の1秒で伝える型。飲食店として一番素直。
+// ── 案5：写真から引く（ゆっくり引いてロゴが重なる）───────────────────
+// Driveの「集合」フォルダに写真があればスタッフ集合写真で始まり、無ければ料理写真。
+// 「どんな人がやっている店か」を最初の1秒で伝えられるのが集合写真版の強み。
 const Open5: React.FC<SP> = ({ storeName = DEF.storeName, theme = DEF.theme }) => {
   const f = useCurrentFrame(); const T = ytheme(theme);
-  const src = (typoPhotos[0] && typoPhotos[0].src) || "";
+  // Driveの「集合」フォルダに写真があれば“お店の人”から始める（無ければ料理写真）。
+  const src = typoGroup || (typoPhotos[0] && typoPhotos[0].src) || "";
   const s = interpolate(f, [0, STORY_OPEN], [1.42, 1.06], { ...clamp, easing: EASE });
   const scrim = interpolate(f, [0, STORY_OPEN], [0.2, 0.62], clamp);
   const o = Math.min(fade(f, 28, 30), interpolate(f, [STORY_OPEN - 18, STORY_OPEN], [1, 0], clamp));
@@ -107,8 +109,8 @@ const Open5: React.FC<SP> = ({ storeName = DEF.storeName, theme = DEF.theme }) =
 const End5: React.FC<SP> = ({ storeName = DEF.storeName, handle = DEF.handle, theme = DEF.theme }) => {
   const f = useCurrentFrame(); const T = ytheme(theme);
   const rootO = interpolate(f, [0, STORY_XF], [0, 1], { ...clamp, easing: EASE });
-  const src = (typoPhotos[0] && typoPhotos[0].src) || "";
-  // 料理がゆっくりボケていき、ロゴだけが残る＝余韻。
+  const src = typoGroup || (typoPhotos[0] && typoPhotos[0].src) || "";
+  // 写真がゆっくりボケていき、ロゴだけが残る＝余韻。
   const b = interpolate(f, [STORY_XF, STORY_XF + 62], [6, 40], { ...clamp, easing: EASE });
   const s = interpolate(f, [0, STORY_END + STORY_XF], [1.08, 1.16], clamp);
   return (
