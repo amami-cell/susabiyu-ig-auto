@@ -150,7 +150,9 @@
     var rows=MSGITEMS.filter(msgMatch);
     document.getElementById('tot').textContent='全'+MSGITEMS.length+'件'+(rows.length!==MSGITEMS.length?'（表示'+rows.length+'）':'');
     if(!rows.length){
-      var hint = (MSGITEMS.length===0) ? ('スカウト/メッセージはまだありません（取得0件／'+esc(_msgInfo)+'）') : '検索に一致するメッセージがありません';
+      var hint = (MSGITEMS.length===0)
+        ? ('まだスカウト/メッセージはありません。<br><span style="font-size:12px">飲食店ドットコムのメッセージは、PCの取得（RecruitAuto.bat）実行時に取り込まれます。受信箱に未読があるのに0のままなら、PCの <b>recruit_log.txt</b> の「<b>scout:</b>」の行（rows=◯）を確認してください。</span><br><span style="font-size:11px;opacity:.6">'+esc(_msgInfo)+'</span>')
+        : '検索に一致するメッセージがありません';
       document.getElementById('list').innerHTML='<div class="empty">'+hint+'</div>'; return; }
     document.getElementById('list').innerHTML=rows.map(function(x){
       var scout=/スカウト|返答/.test(String(x['種別']||'')+String(x['本文']||''));
