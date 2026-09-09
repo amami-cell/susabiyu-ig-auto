@@ -99,17 +99,29 @@ static func decorate_simple(bug_root: Node3D, color: Color, scale_v: float, shel
 		knob.material_override = knob_mat
 		knob.position = Vector3(0.0, 0.17, 0.0)
 
-	# --- 大きな目2（白目＋うるんだ黒目）＝顔の大半を占める“助けたくなる”眼 ---
+	# --- 目2（白目＋小さめの黒目＋ハイライト）＝うるんだ“助けたくなる”眼。
+	# ※黒目は必ず白目より小さく。以前は黒目(0.62)が白目(0.155)より大きく、
+	#   顔全体が“黒い固まり”に潰れて見えていた不具合を修正。
 	var eye_mat := _eye_mat()
 	var sclera_mat := _mat(Color(0.96, 0.97, 0.94))
+	var cat_mat := _mat(Color(1, 1, 1))
+	cat_mat.emission_enabled = true
+	cat_mat.emission = Color(1, 1, 1)
+	cat_mat.emission_energy_multiplier = 1.2
+	cat_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	for sx in [-1.0, 1.0]:
-		var sclera := _sphere(head, "Sclera", 0.155, Color(0.96, 0.97, 0.94))
+		var sclera := _sphere(head, "Sclera", 0.15, Color(0.96, 0.97, 0.94))
 		sclera.material_override = sclera_mat
-		sclera.position = Vector3(0.13 * sx, 0.03, -0.22)
-		sclera.scale = Vector3(1.0, 1.18, 0.7)
-		var eye := _sphere(sclera, "Eye", 0.62, Color(0.05, 0.04, 0.05))
+		sclera.position = Vector3(0.145 * sx, 0.02, -0.2)
+		sclera.scale = Vector3(1.0, 1.15, 0.78)
+		# 黒目（白目より小さく・前面へ）
+		var eye := _sphere(head, "Eye", 0.092, Color(0.05, 0.04, 0.05))
 		eye.material_override = eye_mat
-		eye.position = Vector3(0.16 * sx, -0.12, -0.5)
+		eye.position = Vector3(0.15 * sx, 0.0, -0.3)
+		# きらっと光るハイライト（生きてる眼）
+		var cat := _sphere(head, "Cat", 0.03, Color(1, 1, 1))
+		cat.material_override = cat_mat
+		cat.position = Vector3(0.12 * sx, 0.05, -0.36)
 
 	# --- 困り眉2（ハの字）---
 	for sx in [-1.0, 1.0]:

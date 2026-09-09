@@ -824,6 +824,56 @@ func _run_shot() -> void:
 		await get_tree().create_timer(1.0).timeout
 		await RenderingServer.frame_post_draw
 		get_viewport().get_texture().get_image().save_png("/tmp/shot_expr.png")
+	# --webbugs：ブラウザ版と同じ“軽量版”の見た目(decorate_simple)を、顔を正面から撮る。
+	# ＝実機(Web)でユーザーが見ている敵の姿の確認用（PC版 decorate とは別物）。
+	if OS.get_cmdline_user_args().has("--webbugs"):
+		var specs := [
+			"res://data/ant.tres", "res://data/beetle.tres",
+			"res://data/tonbo.tres", "res://data/chou.tres",
+		]
+		var root := Node3D.new()
+		add_child(root)
+		root.global_position = Vector3(0.0, 0.0, -40.0)
+		var wx := -(specs.size() - 1) * 1.1
+		for path in specs:
+			var st: EnemyStats = load(path)
+			var holder := Node3D.new()
+			root.add_child(holder)
+			holder.position = Vector3(wx, 0.4, 0.0)
+			holder.rotation.y = PI   # 顔(-Z)を手前のカメラへ向ける
+			# 胴（横倒しカプセル＝bug本体の腹の代わり）
+			var body := MeshInstance3D.new()
+			var cap := CapsuleMesh.new()
+			cap.radius = 0.3
+			cap.height = 0.8
+			body.mesh = cap
+			body.rotation.x = deg_to_rad(90.0)
+			var bmat := StandardMaterial3D.new()
+			bmat.albedo_color = st.body_color
+			bmat.roughness = 0.94
+			bmat.metallic_specular = 0.12
+			body.material_override = bmat
+			holder.add_child(body)
+			BugLook.decorate_simple(holder, st.body_color, st.body_scale, st.shell, st.flies)
+			var lbl := Label3D.new()
+			lbl.text = st.display_name
+			lbl.position = Vector3(0.0, 1.1, 0.0)
+			lbl.pixel_size = 0.006
+			lbl.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+			holder.add_child(lbl)
+			wx += 2.2
+		var wlight := DirectionalLight3D.new()
+		wlight.rotation = Vector3(deg_to_rad(-42.0), deg_to_rad(18.0), 0.0)
+		root.add_child(wlight)
+		var wcam := Camera3D.new()
+		add_child(wcam)
+		wcam.global_position = Vector3(0.0, 1.6, -32.5)   # 手前(+Z側)から全身を見る
+		wcam.look_at(Vector3(0.0, 0.35, -40.0), Vector3.UP)
+		wcam.fov = 48.0
+		wcam.current = true
+		await get_tree().create_timer(0.8).timeout
+		await RenderingServer.frame_post_draw
+		get_viewport().get_texture().get_image().save_png("/tmp/shot_webbugs.png")
 	get_tree().quit()
 
 
