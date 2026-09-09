@@ -8,7 +8,7 @@ import { AbsoluteFill, Audio, Img, Sequence, staticFile, useCurrentFrame, interp
 import { typoPhotos, typoMusic, typoMusicStart, typoGroup } from "./typoData";
 import { ytheme } from "./yoshokuTheme";
 import {
-  mincho, serif, clamp, EASE, fade, Grain, BrandMark, StoreLogoColor, StoryBgLayer,
+  mincho, serif, clamp, EASE, fade, Grain, BrandMark, StoreLogo, StoreLogoColor, StoryBgLayer,
   STORY_OPEN, STORY_END, STORY_XF,
 } from "./yoshokuDesign";
 
@@ -71,7 +71,8 @@ const End4: React.FC<SP> = ({ storeName = DEF.storeName, handle = DEF.handle, th
       <Curtain y={-close} pos="top" accent={T.accent} />
       <Curtain y={close} pos="bottom" accent={T.accent} />
       <AbsoluteFill style={{ display: "flex", alignItems: "center", justifyContent: "center", flexDirection: "column", gap: 18 }}>
-        <div style={{ opacity: fade(f, STORY_XF + 22, 30) }}><BrandMark storeName={storeName} ink={T.ink} size={200} /></div>
+        {/* 案4のCLOSEだけ丸ロゴではなく“文字ロゴ”で締める（暗い幕の上なので生成り版） */}
+        <div style={{ opacity: fade(f, STORY_XF + 22, 30) }}><StoreLogo storeName={storeName} height={124} /></div>
         <CloseCopy storeName={storeName} handle={handle} ink={T.ink} accent={T.accent} f={f} start={STORY_XF + 34} />
       </AbsoluteFill>
     </AbsoluteFill>
