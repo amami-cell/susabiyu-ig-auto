@@ -11,9 +11,9 @@ extends Control
 ##     指ごとに「どこで押したか」で役割を判定し、指(index)ごとに別々に反映する。
 ##   右下の3ボタン（きれいに・つかむ・ジャンプ）は各自でタッチを受ける。
 
-const STICK_RADIUS := 160.0      # プニコンの見た目の半径（スマホで押しやすいよう大きめ）
-const STICK_ZONE := 300.0        # この円内でタッチ開始したら「移動」とみなす（広め＝取りこぼさない）
-const KNOB_RADIUS := 58.0        # つまみの半径
+const STICK_RADIUS := 200.0      # プニコンの見た目の半径（スマホで押しやすいよう大きめ）
+const STICK_ZONE := 360.0        # この円内でタッチ開始したら「移動」とみなす（広め＝取りこぼさない）
+const KNOB_RADIUS := 74.0        # つまみの半径
 const DEAD_ZONE := 0.14
 const ORBIT_SPEED := 0.0072      # ドラッグ量→カメラ回転（やや速めで軽快に）
 
@@ -160,8 +160,9 @@ func _skin_buttons() -> void:
 	UIKit.style_button(g, UIKit.GOLD, Color(0.82, 0.6, 0.24))
 	UIKit.style_button(j, Color(0.62, 0.8, 1.0), Color(0.42, 0.6, 0.9))
 	for b in [a, g, j]:
-		b.custom_minimum_size = Vector2(124, 124)
+		b.custom_minimum_size = Vector2(158, 158)   # 押しやすい大きめ
 		b.autowrap_mode = TextServer.AUTOWRAP_OFF
+		b.add_theme_font_size_override("font_size", 26)
 		b.add_theme_constant_override("outline_size", 0)
 
 
