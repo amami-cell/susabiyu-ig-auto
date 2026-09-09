@@ -26,7 +26,10 @@ def _from_store(store):
     """店舗マスタ(stores.py)に書いてある営業時間から (open_text, hours) を作る。"""
     h = str((store or {}).get("hours", "") or "").strip()
     if not h:
-        return _from_store(store)
+        # ここが最終フォールバック。以前ここでも _from_store を呼び返していて、
+        # hours 未設定の店舗（ぎふや等）で無限再帰＝RecursionError になっていた。
+        print("[HOURS] 店舗マスタにも営業時間なし（営業時間は表示しない）")
+        return "", ""
     t = _first_time(h)
     print("[HOURS] 店舗マスタの営業時間を使用: %r" % h)
     return (("OPEN " + t) if t else ""), h
