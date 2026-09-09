@@ -12,7 +12,7 @@ import { AbsoluteFill, Img, staticFile, useCurrentFrame, interpolate, Easing } f
 import { loadFont as loadMincho } from "@remotion/google-fonts/ShipporiMincho";
 import { loadFont as loadSerif } from "@remotion/google-fonts/Cormorant";
 import { loadFont as loadMinchoBlack } from "@remotion/google-fonts/NotoSerifJP";
-import { typoLogo, typoLogoRound, typoSampleNo } from "./typoData";
+import { typoLogo, typoLogoRound, typoLogoColor, typoSampleNo } from "./typoData";
 import { ytheme } from "./yoshokuTheme";
 
 export const mincho = loadMincho().fontFamily;
@@ -153,6 +153,19 @@ export const StoreLogo: React.FC<{ storeName: string; height?: number; tint?: st
       {storeName}
     </div>
   );
+};
+
+// 色付きの文字ロゴ（フィード投稿と同じ typoLogoColor）。無ければ通常ロゴ→店名にフォールバック。
+export const StoreLogoColor: React.FC<{ storeName: string; height?: number }> = ({ storeName, height = 132 }) => {
+  if (typoLogoColor) {
+    return (
+      <Img src={staticFile(typoLogoColor)} style={{
+        height, width: "auto", maxWidth: 860, objectFit: "contain",
+        filter: "drop-shadow(0 3px 16px rgba(0,0,0,0.6))",
+      }} />
+    );
+  }
+  return <StoreLogo storeName={storeName} height={height} />;
 };
 
 // ラテンのキッカー（罫なし・控えめ）。上部の小さなブランドサイン。中央寄せは使わず既定は左。

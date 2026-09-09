@@ -5,7 +5,7 @@ import { typoPhotos, typoHeadline, typoMusic, typoMusicStart } from "./typoData"
 import { ytheme } from "./yoshokuTheme";
 import {
   mincho, serif, clamp, SAFE, rise, drawW, fade,
-  Grain, StoreLogo, PhotoLayer, Slides, SampleBadge, splitLines, heroSize, segNow,
+  Grain, StoreLogo, PhotoLayer, Slides, SampleBadge, fitOneLine, segNow,
   StoryOpening, StoryEndroll, STORY_OPEN, STORY_END, STORY_XF,
 } from "./yoshokuDesign";
 
@@ -53,14 +53,12 @@ const MagBody: React.FC<{ storeName?: string; handle?: string; theme?: string }>
           const { i, local } = segNow(DUR, 4, f);
           const it = items[i];
           const nm = (it.disp && it.disp.length) ? it.disp : it.caption;
-          const lines = splitLines(nm);
-          const sz = heroSize(nm, 120, 76);
+          const one = (nm || "").replace(/[｜\n]/g, "");                  // 料理名は必ず1行
+          const sz = fitOneLine(one, 104, 1080 - SAFE.side * 2, 36);
           return (
             <div key={i} style={{ ...rise(local, 6, { dist: 24, blur: 6 }) }}>
               <div style={{ fontFamily: serif, color: T.accent, fontSize: 30, letterSpacing: 5, marginBottom: 12, textTransform: "uppercase", fontWeight: 600 }}>{it.sub || ("No.0" + (i + 1))}</div>
-              <div style={{ fontFamily: mincho, color: T.ink, fontSize: sz, fontWeight: 700, letterSpacing: 2, lineHeight: 1.2, textShadow: "0 2px 16px rgba(0,0,0,0.45)" }}>
-                {lines.length ? lines.map((ln, k) => <div key={k}>{ln}</div>) : it.caption}
-              </div>
+              <div style={{ fontFamily: mincho, color: T.ink, fontSize: sz, fontWeight: 700, letterSpacing: 1, lineHeight: 1.18, whiteSpace: "nowrap", textShadow: "0 2px 16px rgba(0,0,0,0.45)" }}>{one}</div>
             </div>
           );
         })()}

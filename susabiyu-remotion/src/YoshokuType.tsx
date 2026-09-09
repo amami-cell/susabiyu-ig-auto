@@ -5,7 +5,7 @@ import { typoPhotos, typoHeadline, typoMusic, typoMusicStart } from "./typoData"
 import { ytheme } from "./yoshokuTheme";
 import {
   mincho, serif, clamp, SAFE, EASE, rise, drawW, fade,
-  Grain, Vignette, PhotoLayer, Slides, Masthead, SampleBadge, splitLines, phraseLines, heroSize, segNow,
+  Grain, Vignette, PhotoLayer, Slides, StoreLogoColor, SampleBadge, phraseLines, heroSize, fitOneLine, segNow,
 } from "./yoshokuDesign";
 
 export const YTYPE_DUR = 480; // 16s
@@ -54,23 +54,23 @@ export const YoshokuType: React.FC<{ storeName?: string; handle?: string; theme?
         <div style={{ marginTop: 26, width: drawW(f, 40, 260, 30), height: 2, background: T.accent, opacity: bigO }} />
       </AbsoluteFill>
 
-      {/* 明転後：左上ロゴのマストヘッド */}
-      <div style={{ opacity: fade(f, 118) }}>
-        <Masthead storeName={storeName} kicker={T.label} accent={T.accent} tint="#FFF6E6" f={f} />
+      {/* 明転後：左上に色付きロゴを大きく（フィード投稿と同じ色ロゴ・サイズ感） */}
+      <div style={{ position: "absolute", top: SAFE.top - 150, left: SAFE.side, opacity: fade(f, 118) }}>
+        <StoreLogoColor storeName={storeName} height={140} />
+        <div style={{ marginTop: 10, fontFamily: serif, color: T.accent, fontSize: 24, letterSpacing: 6, fontWeight: 600, textTransform: "uppercase", textShadow: "0 2px 12px rgba(0,0,0,0.7)" }}>{T.label}</div>
       </div>
 
       {/* 明転後：料理名（左下・大）＝“1件だけ”表示 */}
       {(() => {
         const { i, local } = segNow(DUR, 6, f);
         if (i === 0 && f < 130) return null;
-        const it = items[i]; const _nm = (it.disp && it.disp.length) ? it.disp : it.caption; const lines = splitLines(_nm);
-        const sz = heroSize(_nm, 98, 64);
+        const it = items[i]; const _nm = (it.disp && it.disp.length) ? it.disp : it.caption;
+        const one = (_nm || "").replace(/[｜\n]/g, "");                 // 料理名は必ず1行
+        const sz = fitOneLine(one, 96, 1080 - SAFE.side * 2, 34);
         return (
           <div key={i} style={{ position: "absolute", left: SAFE.side, right: SAFE.side, bottom: SAFE.bottom - 44, textAlign: "left", ...rise(local, 8, { dist: 20, blur: 6 }) }}>
             <div style={{ width: drawW(local, 14, 100, 24), height: 2, background: T.accent, marginBottom: 18 }} />
-            <div style={{ fontFamily: mincho, color: "#FFF6E6", fontSize: sz, fontWeight: 700, letterSpacing: 1, lineHeight: 1.16, textShadow: "0 2px 20px rgba(0,0,0,0.8)" }}>
-              {lines.length ? lines.map((ln, k) => <div key={k}>{ln}</div>) : it.caption}
-            </div>
+            <div style={{ fontFamily: mincho, color: "#FFF6E6", fontSize: sz, fontWeight: 700, letterSpacing: 1, lineHeight: 1.16, whiteSpace: "nowrap", textShadow: "0 2px 20px rgba(0,0,0,0.8)" }}>{one}</div>
             <div style={{ marginTop: 16, fontFamily: serif, color: T.accent, fontSize: 25, letterSpacing: 4, opacity: 0.85 }}>{handle}</div>
           </div>
         );

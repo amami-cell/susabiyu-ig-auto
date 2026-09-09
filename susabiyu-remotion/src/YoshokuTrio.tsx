@@ -1,21 +1,23 @@
 // 洋食⑦おすすめ3品：前菜→メイン→〆を大きな番号でテンポよく。品数と満足感を一気見せ。
 // 役割＝“今日はこれだけ頼めば間違いない”の提案。番号で見通しよく、最後に来店動機へ。
 // 変更点: ズーム抑制(寄りすぎ解消)／右上ラベルを2行で大きく／11秒・1品を少し長く／3品維持／フッターは店舗ロゴ。
-import { AbsoluteFill, Audio, staticFile, useCurrentFrame, interpolate } from "remotion";
+import { AbsoluteFill, Audio, Sequence, staticFile, useCurrentFrame, interpolate } from "remotion";
 import { typoPhotos, typoMusic, typoMusicStart } from "./typoData";
 import { ytheme } from "./yoshokuTheme";
 import {
   mincho, serif, clamp, SAFE, rise, fade,
   Grain, Vignette, PhotoLayer, Slides, SampleBadge, StoreLogo, fitOneLine, segNow,
+  StoryOpening, StoryEndroll, STORY_OPEN, STORY_END, STORY_XF,
 } from "./yoshokuDesign";
 
-export const YTRIO_DUR = 330; // 11s（1品 ≒ 3.6s）
+const TRIO_BODY = 330; // 11s（1品 ≒ 3.6s）
+export const YTRIO_DUR = STORY_OPEN + TRIO_BODY + STORY_END;
 
-export const YoshokuTrio: React.FC<{ storeName?: string; handle?: string; theme?: string }> = ({
+const TrioBody: React.FC<{ storeName?: string; handle?: string; theme?: string }> = ({
   storeName = "ナガグツ", handle = "@nagagutsu0427", theme = "italian",
 }) => {
   const f = useCurrentFrame();
-  const DUR = YTRIO_DUR;
+  const DUR = TRIO_BODY;
   const T = ytheme(theme);
   const p = typoPhotos.length ? typoPhotos : [{ src: "", caption: "", story: "" }];
   const items = [0, 1, 2].map((i) => p[i] || p[p.length - 1]);
@@ -23,8 +25,6 @@ export const YoshokuTrio: React.FC<{ storeName?: string; handle?: string; theme?
 
   return (
     <AbsoluteFill style={{ backgroundColor: "#000", fontFamily: mincho }}>
-      <Audio src={staticFile(typoMusic)} startFrom={Math.round((typoMusicStart || 0) * 30)} volume={(ff) => interpolate(ff, [0, 16, DUR - 24, DUR], [0, 0.82, 0.82, 0], clamp)} />
-
       {/* 写真だけ3カットのクロスフェード（文字は重ねない＝別レイヤーで1件だけ描く）。
           料理が見切れないよう、背景はぼかしカバー＋前面は contain で皿の全体を表示（引き）。 */}
       <Slides count={3} total={DUR} fade={18} render={(i, local, seg) => (
@@ -76,3 +76,15 @@ export const YoshokuTrio: React.FC<{ storeName?: string; handle?: string; theme?
     </AbsoluteFill>
   );
 };
+
+export const YoshokuTrio: React.FC<{ storeName?: string; handle?: string; theme?: string }> = ({
+  storeName = "ナガグツ", handle = "@nagagutsu0427", theme = "italian",
+}) => (
+  <AbsoluteFill style={{ backgroundColor: "#000" }}>
+    {/* 音楽は全体（オープニング〜本編〜エンドロール）に通す */}
+    <Audio src={staticFile(typoMusic)} startFrom={Math.round((typoMusicStart || 0) * 30)} volume={(ff) => interpolate(ff, [0, 16, YTRIO_DUR - 30, YTRIO_DUR], [0, 0.82, 0.82, 0], clamp)} />
+    <Sequence durationInFrames={STORY_OPEN}><StoryOpening storeName={storeName} theme={theme} /></Sequence>
+    <Sequence from={STORY_OPEN} durationInFrames={TRIO_BODY}><TrioBody storeName={storeName} handle={handle} theme={theme} /></Sequence>
+    <Sequence from={STORY_OPEN + TRIO_BODY - STORY_XF} durationInFrames={STORY_END + STORY_XF}><StoryEndroll storeName={storeName} handle={handle} theme={theme} /></Sequence>
+  </AbsoluteFill>
+);
