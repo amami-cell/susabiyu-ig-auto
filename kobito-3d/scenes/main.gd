@@ -960,6 +960,45 @@ func _run_shot() -> void:
 		await get_tree().create_timer(0.8).timeout
 		await RenderingServer.frame_post_draw
 		get_viewport().get_texture().get_image().save_png("/tmp/shot_enemypat.png")
+	# --enemybug：もっと“虫っぽい”シルエットの候補を6種並べて撮る。
+	if OS.get_cmdline_user_args().has("--enemybug"):
+		var bugs := [
+			{"n": "1 アリ(3節)", "col": Color(0.5, 0.36, 0.3), "kind": "ant"},
+			{"n": "2 てんとう", "col": Color(0.82, 0.26, 0.24), "kind": "ladybug"},
+			{"n": "3 バッタ", "col": Color(0.55, 0.68, 0.34), "kind": "hopper"},
+			{"n": "4 カブト", "col": Color(0.36, 0.46, 0.32), "kind": "beetle"},
+			{"n": "5 トンボ", "col": Color(0.34, 0.62, 0.72), "kind": "dragon"},
+			{"n": "6 いも虫", "col": Color(0.7, 0.62, 0.36), "kind": "worm"},
+		]
+		var iroot := Node3D.new()
+		add_child(iroot)
+		iroot.global_position = Vector3(0.0, 0.0, -40.0)
+		var ix := -(bugs.size() - 1) * 1.2
+		for cfg in bugs:
+			var holder := Node3D.new()
+			iroot.add_child(holder)
+			holder.position = Vector3(ix, 0.3, 0.0)
+			holder.rotation.y = PI
+			_ibug(holder, cfg)
+			var lbl := Label3D.new()
+			lbl.text = cfg["n"]
+			lbl.position = Vector3(0.0, 1.2, 0.0)
+			lbl.pixel_size = 0.0058
+			lbl.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+			holder.add_child(lbl)
+			ix += 2.4
+		var ilight := DirectionalLight3D.new()
+		ilight.rotation = Vector3(deg_to_rad(-42.0), deg_to_rad(18.0), 0.0)
+		iroot.add_child(ilight)
+		var icam := Camera3D.new()
+		add_child(icam)
+		icam.global_position = Vector3(0.0, 1.5, -31.0)
+		icam.look_at(Vector3(0.0, 0.3, -40.0), Vector3.UP)
+		icam.fov = 52.0
+		icam.current = true
+		await get_tree().create_timer(0.8).timeout
+		await RenderingServer.frame_post_draw
+		get_viewport().get_texture().get_image().save_png("/tmp/shot_enemybug.png")
 	get_tree().quit()
 
 
@@ -1021,6 +1060,76 @@ func _epat_face(face: Node3D, r: float, eye_r: float, estyle: String, cheek: boo
 		for sx in [-1.0, 1.0]:
 			_wbox(face, dark, Vector3(r * 0.05, r * 0.55, r * 0.05), Vector3(r * 0.42 * sx, r * 0.72, ezz * 0.2), Vector3.ZERO, deg_to_rad(18.0) * sx)
 			_wball(face, skin.lightened(0.12), r * 0.13, Vector3(r * 0.56 * sx, r * 1.02, ezz * 0.2))
+
+
+## “虫っぽい”シルエットの敵候補を組み立てる（--enemybug 用）。前＝-Z。
+func _ibug(holder: Node3D, cfg: Dictionary) -> void:
+	var base: Color = cfg["col"]
+	var skin := base.lerp(Color(0.7, 0.66, 0.62), 0.28)
+	var dark := base.darkened(0.34)
+	var head: Node3D = null
+	match cfg["kind"]:
+		"ant":   # 3節（腹・胸・頭）＋6脚＝いちばん“アリ”らしい
+			_wball(holder, skin, 0.22, Vector3(0.0, 0.26, 0.3), Vector3(1.0, 0.92, 1.25))
+			_wball(holder, skin, 0.15, Vector3(0.0, 0.24, 0.04))
+			head = _wball(holder, skin, 0.19, Vector3(0.0, 0.3, -0.24))
+			_ibug_legs(holder, dark)
+			_epat_face(head, 0.19, 0.08, "round", false, true, dark, skin)
+		"ladybug":   # 丸いドーム甲羅＋星＋小さな頭
+			head = _wball(holder, skin.darkened(0.2), 0.14, Vector3(0.0, 0.2, -0.26), Vector3(1.0, 0.85, 1.0))
+			var shell := _wball(holder, base, 0.32, Vector3(0.0, 0.32, 0.05), Vector3(1.12, 0.92, 1.2))
+			_wbox(shell, dark, Vector3(0.02, 0.02, 0.52), Vector3(0.0, 0.34, 0.0), Vector3.ZERO)
+			for sp in [Vector3(0.15, 0.34, -0.05), Vector3(-0.15, 0.34, 0.04), Vector3(0.11, 0.3, 0.2), Vector3(-0.11, 0.3, 0.22)]:
+				_wball(shell, dark, 0.05, sp)
+			_ibug_legs(holder, dark)
+			_epat_face(head, 0.14, 0.06, "round", false, true, dark, skin)
+		"hopper":   # バッタ：長い腹＋大きな後脚
+			_wball(holder, skin, 0.16, Vector3(0.0, 0.32, 0.28), Vector3(1.0, 0.85, 1.55))
+			head = _wball(holder, skin, 0.16, Vector3(0.0, 0.36, -0.24))
+			for sx in [-1.0, 1.0]:
+				_wbox(holder, dark, Vector3(0.05, 0.05, 0.3), Vector3(0.13 * sx, 0.24, 0.2), Vector3.ZERO)
+				_wbox(holder, dark, Vector3(0.05, 0.3, 0.05), Vector3(0.16 * sx, 0.12, 0.36), Vector3.ZERO, deg_to_rad(18.0) * sx)
+			for zi in [-0.08, 0.06]:
+				for sx in [-1.0, 1.0]:
+					_wbox(holder, dark, Vector3(0.035, 0.2, 0.035), Vector3(0.12 * sx, 0.08, zi), Vector3.ZERO, deg_to_rad(24.0) * sx)
+			_epat_face(head, 0.16, 0.07, "round", false, true, dark, skin)
+		"beetle":   # カブト：がっしり甲羅＋小さな角
+			head = _wball(holder, skin.darkened(0.15), 0.15, Vector3(0.0, 0.24, -0.28))
+			_wbox(head, dark, Vector3(0.04, 0.04, 0.18), Vector3(0.0, 0.08, -0.16), Vector3.ZERO)
+			_wball(holder, base.darkened(0.05), 0.3, Vector3(0.0, 0.32, 0.06), Vector3(1.16, 0.86, 1.28))
+			_wbox(holder, dark, Vector3(0.02, 0.02, 0.46), Vector3(0.0, 0.44, 0.06), Vector3.ZERO)
+			_ibug_legs(holder, dark)
+			_epat_face(head, 0.15, 0.06, "round", false, false, dark, skin)
+		"dragon":   # トンボ：細長い腹＋羽4枚＋大きな目
+			for zi in [0.16, 0.36, 0.56]:
+				_wball(holder, skin, 0.1, Vector3(0.0, 0.34, zi), Vector3(1.0, 0.9, 1.1))
+			head = _wball(holder, skin, 0.18, Vector3(0.0, 0.36, -0.18))
+			var wmat := StandardMaterial3D.new()
+			wmat.albedo_color = Color(0.9, 0.95, 1.0, 0.4)
+			wmat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+			wmat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+			wmat.cull_mode = BaseMaterial3D.CULL_DISABLED
+			for sx in [-1.0, 1.0]:
+				for zi in [0.04, 0.24]:
+					var w := _wball(holder, Color(1, 1, 1), 0.2, Vector3(0.28 * sx, 0.42, zi), Vector3(1.0, 0.08, 0.42))
+					w.material_override = wmat
+					w.rotation.z = deg_to_rad(16.0) * sx
+			_epat_face(head, 0.18, 0.09, "round", false, true, dark, skin)
+		"worm":   # いも虫：節が連なる＋ちび脚
+			for i in 5:
+				_wball(holder, skin, 0.2 - i * 0.014, Vector3(0.0, 0.22, 0.3 - i * 0.14))
+			head = _wball(holder, skin, 0.2, Vector3(0.0, 0.24, -0.44))
+			for zi in [-0.2, 0.0, 0.2]:
+				for sx in [-1.0, 1.0]:
+					_wbox(holder, dark, Vector3(0.03, 0.1, 0.03), Vector3(0.14 * sx, 0.05, zi), Vector3.ZERO)
+			_epat_face(head, 0.2, 0.085, "round", false, true, dark, skin)
+
+
+## 虫の6本脚（3対）。細い脚を左右へ張り出す。
+func _ibug_legs(holder: Node3D, col: Color) -> void:
+	for zi in [-0.1, 0.06, 0.22]:
+		for sx in [-1.0, 1.0]:
+			_wbox(holder, col, Vector3(0.035, 0.22, 0.035), Vector3(0.14 * sx, 0.08, zi), Vector3.ZERO, deg_to_rad(28.0) * sx)
 
 
 # ---------------------------------------------------------------- 見た目の自動検証

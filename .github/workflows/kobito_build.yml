@@ -131,7 +131,7 @@ jobs:
         run: |
           export LIBGL_ALWAYS_SOFTWARE=1 GALLIUM_DRIVER=llvmpipe
           xvfb-run -a -s "-screen 0 1280x720x24" \
-            ~/godot-bin/godot --path kobito-3d --rendering-driver opengl3 -- --shot --green --bugs \
+            ~/godot-bin/godot --path kobito-3d --rendering-driver opengl3 -- --shot --green --bugs --webbugs --enemypat --enemybug --bossshot \
             > shot.log 2>&1 || true
           echo "---- shot.log (末尾) ----"; tail -n 30 shot.log || true
           ls -la /tmp/shot_*.png || true

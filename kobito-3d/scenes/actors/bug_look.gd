@@ -197,11 +197,13 @@ static func decorate_boss(bug_root: Node3D, color: Color, scale_v: float) -> voi
 		b.position = lump[0]
 		b.scale = Vector3(1.0, 0.85, 1.0)
 	# にらむ目2つ（前＝-Z、澄んだ黄で“意思”を感じさせる）
+	# ※以前は黒目(0.5)が眼(0.075)より遥かに大きく、顔の前が“黒いゴミの塊”に潰れていた。
+	#   黒目を眼より小さく(0.04)＋前面へ寄せて、澄んだ黄の眼が見えるように直す。
 	for sx in [-1.0, 1.0]:
 		var eye := _sphere(rig, "Eye", 0.075, Color(0.95, 0.85, 0.4))
 		eye.position = Vector3(0.12 * sx, 0.40, -0.34)
-		var pup := _sphere(eye, "Pupil", 0.5, Color(0.06, 0.05, 0.05))
-		pup.position = Vector3(0.0, 0.0, -0.5)
+		var pup := _sphere(eye, "Pupil", 0.04, Color(0.06, 0.05, 0.05))
+		pup.position = Vector3(0.0, 0.0, -0.06)
 	# 太い脚4本（どっしり）
 	for zi in [-0.18, 0.2]:
 		for sx in [-1.0, 1.0]:
