@@ -107,11 +107,12 @@
     var tel=String(x['電話']||'').replace(/[^\d]/g,'');
     var mail=String(x['メール']||'');
     var age=x['年齢']!==''&&x['年齢']!=null?(x['年齢']+'歳'):'';
-    var meta=[x['雇用形態'],x['職種'],[age,x['性別']].filter(Boolean).join('・'),x['状況/資格']].filter(Boolean).map(function(v){return esc(v);}).join('<span style="opacity:.4">|</span> ');
+    var meta=[x['雇用形態'],x['職種'],[age,x['性別']].filter(Boolean).join('・')].filter(Boolean).map(function(v){return esc(v);}).join('<span style="opacity:.4">|</span> ');
+    var status=String(x['状況/資格']||'').trim();
     var pr=String(x['自己PR']||'').trim();
     var c='';
     c+='<div class="card">';
-    c+='<div class="row1"><span class="nm">'+esc(x['氏名']||'（無名）')+'</span>'+(x['カナ']?'<span class="kana">'+esc(x['カナ'])+'</span>':'')+'<span class="date">'+esc(x['応募日時']||'')+'</span></div>';
+    c+='<div class="row1"><span class="nm">'+esc(x['氏名']||'（無名）')+'</span>'+(x['カナ']?'<span class="kana">'+esc(x['カナ'])+'</span>':'')+(status?'<span class="badge" style="background:var(--accent2);color:var(--accent)">📌 '+esc(status)+'</span>':'')+'<span class="date">'+esc(x['応募日時']||'')+'</span></div>';
     c+='<div class="meta">'+meta+'</div>';
     c+='<div class="contact">';
     if(tel) c+='<a href="tel:'+tel+'">📞 '+esc(x['電話'])+'</a>';
@@ -143,7 +144,9 @@
   function renderMsgs(){
     var rows=MSGITEMS.filter(msgMatch);
     document.getElementById('tot').textContent='全'+MSGITEMS.length+'件'+(rows.length!==MSGITEMS.length?'（表示'+rows.length+'）':'');
-    if(!rows.length){ document.getElementById('list').innerHTML='<div class="empty">スカウト/メッセージはまだありません</div>'; return; }
+    if(!rows.length){
+      var hint = (MSGITEMS.length===0) ? ('スカウト/メッセージはまだありません（取得0件'+((MSGS&&MSGS.ok===false)?'・読込エラー: '+esc(MSGS.error||''):'')+'）') : '検索に一致するメッセージがありません';
+      document.getElementById('list').innerHTML='<div class="empty">'+hint+'</div>'; return; }
     document.getElementById('list').innerHTML=rows.map(function(x){
       var scout=/スカウト|返答/.test(String(x['種別']||'')+String(x['本文']||''));
       var bg=scout?'background:#fde68a33;color:#b45309;':'';
