@@ -277,6 +277,39 @@ if _fx:
     picked = [drive.files().get(fileId=_i, fields="id,name,mimeType,imageMediaMetadata(width,height),createdTime", supportsAllDrives=True).execute() for _i in _fx]
 usage.record(creds_path, picked, "typo")
 os.makedirs(OUT_DIR, exist_ok=True)
+# ── 背景除去（切り抜き）────────────────────────────────────────────────
+# TYPO_CUTOUT=1 の時だけ rembg で料理を切り抜いた透過PNGを作る（フィード画像H系で使用）。
+# 重い処理なので既定はOFF（動画レンダリングでは走らせない）。rembg未導入や失敗時は空を返し、
+# 呼び出し側（テンプレ）は従来の写真にフォールバックする＝壊れない設計。
+_CUT_ON = os.environ.get("TYPO_CUTOUT", "") == "1"
+_CUT_SESSION = None
+
+
+def _cutout(src_path, idx):
+    if not _CUT_ON:
+        return ""
+    global _CUT_SESSION
+    try:
+        from rembg import remove, new_session
+        from PIL import Image
+        if _CUT_SESSION is None:
+            _CUT_SESSION = new_session("u2net")
+        out_name = "cut%d.png" % idx
+        out_path = os.path.join(OUT_DIR, out_name)
+        im = Image.open(src_path).convert("RGBA")
+        cut = remove(im, session=_CUT_SESSION, post_process_mask=True)
+        # 透明部分を切り詰めて“料理だけ”の画像にする（余白があると配置が効かない）
+        bbox = cut.getbbox()
+        if bbox:
+            cut = cut.crop(bbox)
+        cut.save(out_path)
+        print("[CUTOUT] OK", out_name, cut.size)
+        return "typo/" + out_name
+    except Exception as e:
+        print("[CUTOUT] スキップ（従来の写真を使用）:", e)
+        return ""
+
+
 items = []
 for idx, f in enumerate(picked):
     ext = os.path.splitext(f["name"])[1] or ".jpg"
@@ -290,7 +323,8 @@ for idx, f in enumerate(picked):
     buf.close()
     caption = _clean_caption(f["name"])
     items.append({"src": "typo/" + local, "caption": caption, "story": _story_for(caption),
-                  "sub": _sub_for(caption), "disp": _name_disp(caption), "desc": _desc_for(caption)})
+                  "sub": _sub_for(caption), "disp": _name_disp(caption), "desc": _desc_for(caption),
+                  "cut": _cutout(os.path.join(OUT_DIR, local), idx)})
     print("PHOTO %d:" % idx, f["name"], "(短辺", short_side(f), "px)")
 
 import captions
@@ -315,9 +349,10 @@ print("PICKED ->", "out/picked.json")
 music = os.environ.get("FIXED_MUSIC") or music
 lines = ["export const typoPhotos = ["]
 for it in items:
-    lines.append('  { src: "%s", caption: "%s", sub: "%s", story: "%s", disp: "%s", desc: "%s" },'
+    lines.append('  { src: "%s", caption: "%s", sub: "%s", story: "%s", disp: "%s", desc: "%s", cut: "%s" },'
                  % (esc(it["src"]), esc(it["caption"]), esc(it.get("sub", "")),
-                    esc(it.get("story", "")), esc(it.get("disp", it["caption"])), esc(it.get("desc", ""))))
+                    esc(it.get("story", "")), esc(it.get("disp", it["caption"])), esc(it.get("desc", "")),
+                    esc(it.get("cut", ""))))
 lines.append("];")
 # サンプル番号（0=本番＝バッジ非表示）。見本レンダリング(render_samples)がテンプレ毎に上書きする。
 lines.append('export const typoSampleNo = 0;')

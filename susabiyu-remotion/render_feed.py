@@ -56,6 +56,9 @@ def main():
     poster.SHEET_ID = os.environ["SHEET_ID"]
 
     # 料理写真を1回だけ取得（全パターンで同じ料理＝デザイン比較用）。
+    # フィード画像は H系で“切り抜き（背景除去）”を使うので、ここでだけ生成を有効化する。
+    # rembg 未導入・失敗時は空になり、テンプレは従来の写真へフォールバックする（壊れない）。
+    os.environ["TYPO_CUTOUT"] = "1"
     run('python fetch_typo.py "' + creds + '"')
 
     samples = []
