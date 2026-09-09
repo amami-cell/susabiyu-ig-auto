@@ -9,7 +9,10 @@ import {
   Grain, Vignette, SampleBadge, StoreLogo, splitLines, heroSize, fitOneLine,
 } from "./yoshokuDesign";
 
-export const YPOLA_DUR = 330; // 11s
+// ロゴが出てからの余韻を2秒(60f)伸ばした尺。ロゴの登場位置は POLA_LOGO_IN で固定するので、
+// 尺を変えてもロゴは同じタイミングで出て、そのあとの余韻だけが長くなる。
+export const YPOLA_DUR = 390; // 13s
+const POLA_LOGO_IN = 274;     // ロゴ＋ハンドルが立ち上がるフレーム（従来の 330-56 と同じ位置）
 
 // 演出の区切り（フレーム）
 const PLACE0 = 26;   // 1枚目を置き始める
@@ -130,7 +133,7 @@ export const YoshokuPola: React.FC<{ storeName?: string; handle?: string; theme?
       </AbsoluteFill>
 
       {/* フッター：店舗ロゴ＋ハンドル */}
-      <div style={{ position: "absolute", left: 0, right: 0, bottom: SAFE.bottom - 150, display: "flex", flexDirection: "column", alignItems: "center", gap: 8, opacity: fade(f, DUR - 56) }}>
+      <div style={{ position: "absolute", left: 0, right: 0, bottom: SAFE.bottom - 150, display: "flex", flexDirection: "column", alignItems: "center", gap: 8, opacity: fade(f, POLA_LOGO_IN) }}>
         <StoreLogo storeName={storeName} height={80} />
         <div style={{ fontFamily: serif, color: T.accent, fontSize: 24, letterSpacing: 5 }}>{handle}</div>
       </div>
