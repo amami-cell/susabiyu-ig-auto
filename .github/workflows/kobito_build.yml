@@ -131,7 +131,7 @@ jobs:
         run: |
           export LIBGL_ALWAYS_SOFTWARE=1 GALLIUM_DRIVER=llvmpipe
           xvfb-run -a -s "-screen 0 1280x720x24" \
-            ~/godot-bin/godot --path kobito-3d --rendering-driver opengl3 -- --shot --green --bugs --webbugs --enemypat --enemybug --bossshot \
+            ~/godot-bin/godot --path kobito-3d --rendering-driver opengl3 -- --shot --green --bugs \
             > shot.log 2>&1 || true
           echo "---- shot.log (末尾) ----"; tail -n 30 shot.log || true
           ls -la /tmp/shot_*.png || true
@@ -147,32 +147,6 @@ jobs:
           name: kobito-shots
           path: /tmp/shot_*.png
           retention-days: 7
-
-      # 見た目の提案スクショを公開サイトの kobito2/proposals/ へ載せる＝ブラウザで確認できる。
-      # 触るのは kobito2/proposals/ のみ（求人/インスタ/ゲーム本体に影響なし）。secret未設定ならスキップ。
-      - name: 提案スクショを公開URLへ載せる（確認用）
-        if: always()
-        env:
-          TOKEN: ${{ secrets.GH_MEDIA_TOKEN }}
-          MEDIA_REPO: ${{ secrets.GH_MEDIA_REPO }}
-        run: |
-          if [ -z "$TOKEN" ] || [ -z "$MEDIA_REPO" ]; then echo "secret未設定のためスキップ"; exit 0; fi
-          if ! ls /tmp/shot_*.png >/dev/null 2>&1; then echo "スクショ無し"; exit 0; fi
-          git config --global user.name "github-actions[bot]"
-          git config --global user.email "github-actions[bot]@users.noreply.github.com"
-          git clone --depth 1 "https://x-access-token:${TOKEN}@github.com/${MEDIA_REPO}.git" _psite
-          mkdir -p _psite/kobito2/proposals
-          cp /tmp/shot_enemybug.png /tmp/shot_enemypat.png /tmp/shot_webbugs.png /tmp/shot_boss.png _psite/kobito2/proposals/ 2>/dev/null || true
-          touch _psite/.nojekyll
-          cd _psite
-          git add kobito2/proposals .nojekyll
-          if git diff --cached --quiet; then echo "変更なし"; exit 0; fi
-          git commit -m "kobito: 見た目の提案スクショ"
-          for i in 1 2 3 4 5; do
-            if git push; then break; fi
-            git pull --rebase origin main || true; sleep $((i*3))
-          done
-          echo "確認URL: https://${MEDIA_REPO%%/*}.github.io/${MEDIA_REPO#*/}/kobito2/proposals/"
 
   # ------------------------------------------------------------------
   # 2) Web書き出し … スマホにURLを送ってその場で試せる形

@@ -22,6 +22,8 @@ var _guide_accum := 0.0
 
 # セーブ（つづきから）。章の切れ目ごとに user://save.cfg へ書き、タイトルで続きを選べる。
 const SAVE_PATH := "user://save.cfg"
+const SAVE_TMP := "user://save.cfg.tmp"   # アトミック保存の一時ファイル
+const SAVE_SCHEMA := 1                     # セーブ形式の版。将来 形式を変えたら上げる。
 var cleared := false            # 一度でも通しクリアしたか（タイトルに小さく出す）
 var _want_continue := false     # タイトルで「つづきから」を押した
 var _pending_continue := false  # セッション開始後、庭が組み上がってから復元する合図
@@ -233,6 +235,10 @@ func apply_pending_continue() -> void:
 	_want_continue = false
 	var cfg := ConfigFile.new()
 	if cfg.load(SAVE_PATH) != OK:
+		rpc("_set_beat", 0, false)
+		return
+	# 未来の版で保存されたセーブは正しく読めない＝壊れた続きを避け、最初から始める。
+	if int(cfg.get_value("progress", "schema", SAVE_SCHEMA)) > SAVE_SCHEMA:
 		rpc("_set_beat", 0, false)
 		return
 	var b := int(cfg.get_value("progress", "beat", 0))
@@ -613,12 +619,20 @@ func _has_progress() -> bool:
 func _write_checkpoint() -> void:
 	var cfg := ConfigFile.new()
 	cfg.load(SAVE_PATH)   # meta（cleared）は残す
+	cfg.set_value("progress", "schema", SAVE_SCHEMA)
 	cfg.set_value("progress", "beat", beat)
 	cfg.set_value("progress", "healed", _healed)
 	cfg.set_value("progress", "seeds", _seeds)
 	cfg.set_value("progress", "recovery", WorldState.recovery)
 	cfg.set_value("progress", "powers", WorldState.powers_list())
-	cfg.save(SAVE_PATH)
+	# アトミック保存：一時ファイルに書いてから rename＝書き込み中にクラッシュ/タブ閉じでも
+	# save.cfg が半端に壊れない。rename できない環境（保険）は直接保存にフォールバック。
+	if cfg.save(SAVE_TMP) != OK:
+		cfg.save(SAVE_PATH)
+		return
+	var da := DirAccess.open("user://")
+	if da == null or da.rename("save.cfg.tmp", "save.cfg") != OK:
+		cfg.save(SAVE_PATH)
 
 
 func _clear_progress() -> void:
