@@ -25,16 +25,24 @@ const Scrim: React.FC<{ dir: "up" | "down"; height: number }> = ({ dir, height }
 
 // 上下どちらか半分の一皿：ぼかし背景＋contain（全体が見える）＋名前。
 // 名前は“中央の丸ロゴから離す”：上の皿は上寄せ（ヘッダーの下）、下の皿は下寄せ。中央の継ぎ目は空ける。
-const Half: React.FC<{ item: any; f: number; delay: number; label: string; accent: string; namePos: "top" | "bottom"; inset: number }> =
-  ({ item, f, delay, label, accent, namePos, inset }) => {
+const Half: React.FC<{ item: any; f: number; delay: number; label: string; accent: string; namePos: "top" | "bottom"; inset: number; pad?: number }> =
+  ({ item, f, delay, label, accent, namePos, inset, pad = 344 }) => {
     const nm = (item.disp && item.disp.length) ? item.disp : item.caption;
     const one = (nm || "").replace(/[｜\n]/g, "");
     const sz = fitOneLine(one, 58, 1080 - SAFE.side * 2, 30);
     const o = fade(f, delay, 18);
     return (
       <div style={{ position: "relative", width: 1080, height: HALF, overflow: "hidden", opacity: o }}>
+        {/* 背景（ぼかし）は半分いっぱいに敷く */}
         <AbsoluteFill><PhotoLayer src={item.src} frame={f} dur={YWINE_DUR} from={1.16} to={1.22} sat={1.02} brightness={0.42} blur={28} /></AbsoluteFill>
-        <AbsoluteFill><PhotoLayer src={item.src} frame={f} dur={YWINE_DUR} from={1.0} to={1.04} sat={1.07} brightness={1.02} fit="contain" /></AbsoluteFill>
+        {/* 料理本体は名前を置く帯を避けて配置＝皿と料理名が重ならない */}
+        <div style={{
+          position: "absolute", left: 0, right: 0,
+          top: namePos === "top" ? pad : 0,
+          bottom: namePos === "bottom" ? pad : 0,
+        }}>
+          <PhotoLayer src={item.src} frame={f} dur={YWINE_DUR} from={1.0} to={1.04} sat={1.07} brightness={1.02} fit="contain" />
+        </div>
         <Scrim dir={namePos === "bottom" ? "up" : "down"} height={360} />
         <div style={{ position: "absolute", left: SAFE.side, right: SAFE.side, [namePos]: inset, textAlign: "center" }}>
           <div style={{ fontFamily: serif, color: accent, fontSize: 24, letterSpacing: 6, marginBottom: 8, textShadow: "0 2px 12px rgba(0,0,0,0.85)" }}>{label}</div>
@@ -48,8 +56,8 @@ const Half: React.FC<{ item: any; f: number; delay: number; label: string; accen
 // 1ページ＝上下2品（横割り）。上の皿の名前はヘッダー下、下の皿の名前は最下部側に置く。
 const Page: React.FC<{ a: any; b: any; f: number; base: number; accent: string }> = ({ a, b, f, base, accent }) => (
   <div style={{ position: "absolute", top: 0, width: 1080, height: 1920 }}>
-    <Half item={a} f={f} delay={base} label="DISH" accent={accent} namePos="top" inset={236} />
-    <Half item={b} f={f} delay={base + 8} label="PAIRING" accent={accent} namePos="bottom" inset={214} />
+    <Half item={a} f={f} delay={base} label="DISH" accent={accent} namePos="top" inset={236} pad={368} />
+    <Half item={b} f={f} delay={base + 8} label="PAIRING" accent={accent} namePos="bottom" inset={214} pad={344} />
   </div>
 );
 
