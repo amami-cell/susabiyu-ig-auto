@@ -545,6 +545,10 @@ func _server_attack(from: Vector3, yaw: float) -> void:
 		to_blob.y = 0.0
 		if to_blob.length() <= ATTACK_RANGE + 0.6 and blob.has_method("scrub"):
 			blob.scrub(name.to_int())
+	# きれいの輪：近くの汚れの点を「きれいに」で澄ませる（時間で汚れ直す＝段取りの謎解き）。
+	for ring in get_tree().get_nodes_in_group("cleanable_ring"):
+		if ring.has_method("cleanse_near"):
+			ring.cleanse_near(from, name.to_int())
 
 
 @rpc("any_peer", "reliable")

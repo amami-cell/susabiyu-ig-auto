@@ -17,10 +17,12 @@ const SeedScene := preload("res://scenes/props/seed.tscn")
 const StonePuzzleScript := preload("res://scenes/props/stone_puzzle.gd")
 const SwitchPairScript := preload("res://scenes/props/switch_pair.gd")
 const ScrubBlobScript := preload("res://scenes/props/scrub_blob.gd")
+const CleanRingScript := preload("res://scenes/props/clean_ring.gd")
 
 var _puzzle: Node3D = null
 var _switch: Node3D = null
 var _blob: Node3D = null
+var _ring: Node3D = null
 
 ## 8人の子ども（CHARACTERS.md 準拠）。頭のスミレが親を追い、あとはぞろぞろ続く。
 ## 色・大きさはここ一箇所。順番＝隊列の並び（末尾のつぼみがいちばん小さい）。
@@ -238,6 +240,13 @@ func _spawn_puzzle() -> void:
 	_blob.position = Vector3(6.0, 0.0, 14.0)       # 拠点の近く（最初に出会う謎解き）
 	add_child(_blob)
 
+	# きれいの輪（ぜんぶ同時にきれいに保つ段取りの謎解き）。ソロはなかまが押さえ役。
+	_ring = Node3D.new()
+	_ring.set_script(CleanRingScript)
+	_ring.name = "CleanRing"
+	_ring.position = Vector3(-14.0, 0.0, -22.0)    # 北西の広場（少し歩いた先）
+	add_child(_ring)
+
 
 func _process(delta: float) -> void:
 	_update_butterflies(delta)   # 見た目だけ＝全員の画面で回す（サーバ判定の前）
@@ -317,6 +326,8 @@ func _on_peer_connected(id: int) -> void:
 		_puzzle.sync_to(id)
 	if _switch != null and _switch.has_method("sync_to"):
 		_switch.sync_to(id)
+	if _ring != null and _ring.has_method("sync_to"):
+		_ring.sync_to(id)
 	# まだ拾われていない種のかけらを配る
 	for s in get_tree().get_nodes_in_group("seed"):
 		if s.get_parent() == self:

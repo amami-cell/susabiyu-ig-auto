@@ -319,6 +319,15 @@ func _run_selftest() -> void:
 		await get_tree().create_timer(0.3).timeout
 		blob_ok = WorldState.recovery > rec3
 
+	# きれいの輪（ぜんぶ同時にきれいに）が「解ける→緑が戻る」経路を確認する
+	var ring := _garden.get_node_or_null("CleanRing") if _garden != null else null
+	var ring_ok := false
+	if ring != null:
+		var rec4 := WorldState.recovery
+		ring.debug_solve()
+		await get_tree().create_timer(0.3).timeout
+		ring_ok = ring.solved and WorldState.recovery > rec4
+
 	# 飛行が「癒やして集めた5パーツ」で解禁されるかを確認する
 	var could_fly_before: bool = players.is_empty() or players[0].can_fly()
 	for part in WorldState.FLIGHT_PARTS:
@@ -362,9 +371,9 @@ func _run_selftest() -> void:
 				break
 
 	var ok: bool = _garden != null and players.size() == 1 and bugs.size() > 0 \
-		and WorldState.recovery > 0.0 and xp_gained and flight_ok and kids_ok and mother_ok and puzzle_ok and switch_ok and blob_ok and ally_ok and save_ok and boss_ok and dex_ok
-	print("[selftest] 回復度=%.2f XP=%d 経験値=%s 飛行解禁=%s 子ども=%d(最寄り%.1f) 母=%s 石版=%s 扉=%s おそうじ=%s なかま=%s セーブ=%s ボス召喚=%s 図鑑=%s" % [
-		WorldState.recovery, xp_now, xp_gained, flight_ok, children.size(), nearest, mother_ok, puzzle_ok, switch_ok, blob_ok, ally_ok, save_ok, boss_ok, dex_ok])
+		and WorldState.recovery > 0.0 and xp_gained and flight_ok and kids_ok and mother_ok and puzzle_ok and switch_ok and blob_ok and ring_ok and ally_ok and save_ok and boss_ok and dex_ok
+	print("[selftest] 回復度=%.2f XP=%d 経験値=%s 飛行解禁=%s 子ども=%d(最寄り%.1f) 母=%s 石版=%s 扉=%s おそうじ=%s 輪=%s なかま=%s セーブ=%s ボス召喚=%s 図鑑=%s" % [
+		WorldState.recovery, xp_now, xp_gained, flight_ok, children.size(), nearest, mother_ok, puzzle_ok, switch_ok, blob_ok, ring_ok, ally_ok, save_ok, boss_ok, dex_ok])
 	print("[selftest] %s" % ("OK" if ok else "NG"))
 	get_tree().quit(0 if ok else 1)
 
