@@ -874,7 +874,153 @@ func _run_shot() -> void:
 		await get_tree().create_timer(0.8).timeout
 		await RenderingServer.frame_post_draw
 		get_viewport().get_texture().get_image().save_png("/tmp/shot_webbugs.png")
+	# --bossshot：中ボス(女王アリ)とボス(ヘドロの主)を decorate_boss の見た目で撮る。
+	if OS.get_cmdline_user_args().has("--bossshot"):
+		var bspecs := [
+			{"path": "res://data/queen_ant.tres", "x": -3.4},
+			{"path": "res://data/sludge_lord.tres", "x": 3.4},
+		]
+		var broot := Node3D.new()
+		add_child(broot)
+		broot.global_position = Vector3(0.0, 0.0, -40.0)
+		for bs in bspecs:
+			var st: EnemyStats = load(bs["path"])
+			var holder := Node3D.new()
+			broot.add_child(holder)
+			holder.position = Vector3(bs["x"], 0.2, 0.0)
+			holder.rotation.y = PI   # 顔(-Z)を手前のカメラへ
+			var body := MeshInstance3D.new()
+			var cap := CapsuleMesh.new()
+			cap.radius = 0.3
+			cap.height = 0.8
+			body.mesh = cap
+			body.rotation.x = deg_to_rad(90.0)
+			body.scale = Vector3.ONE * st.body_scale
+			var bmat := StandardMaterial3D.new()
+			bmat.albedo_color = st.body_color
+			bmat.roughness = 0.94
+			bmat.metallic_specular = 0.12
+			body.material_override = bmat
+			holder.add_child(body)
+			BugLook.decorate_boss(holder, st.body_color, st.body_scale)
+			var lbl := Label3D.new()
+			lbl.text = st.display_name
+			lbl.position = Vector3(0.0, 2.6, 0.0)
+			lbl.pixel_size = 0.01
+			lbl.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+			holder.add_child(lbl)
+		var blight := DirectionalLight3D.new()
+		blight.rotation = Vector3(deg_to_rad(-42.0), deg_to_rad(18.0), 0.0)
+		broot.add_child(blight)
+		var bcam := Camera3D.new()
+		add_child(bcam)
+		bcam.global_position = Vector3(0.0, 2.2, -30.5)
+		bcam.look_at(Vector3(0.0, 1.2, -40.0), Vector3.UP)
+		bcam.fov = 55.0
+		bcam.current = true
+		await get_tree().create_timer(0.8).timeout
+		await RenderingServer.frame_post_draw
+		get_viewport().get_texture().get_image().save_png("/tmp/shot_boss.png")
+	# --enemypat：敵デザインの候補を6パターン並べて撮る（見た目の方向を選ぶための提案）。
+	if OS.get_cmdline_user_args().has("--enemypat"):
+		var pats := [
+			{"n": "A 丸顔(現行)", "col": Color(0.55, 0.72, 0.42), "body": "twopart", "hr": 0.34, "eye": 0.15, "estyle": "round", "cheek": true, "ant": true},
+			{"n": "B まんまる一体", "col": Color(0.42, 0.62, 0.72), "body": "merged", "hr": 0.46, "eye": 0.13, "estyle": "round", "cheek": true, "ant": true},
+			{"n": "C ぷに2頭身", "col": Color(0.86, 0.52, 0.60), "body": "chibi", "hr": 0.4, "eye": 0.2, "estyle": "round", "cheek": true, "ant": true},
+			{"n": "D たまご型", "col": Color(0.90, 0.74, 0.36), "body": "egg", "hr": 0.4, "eye": 0.14, "estyle": "round", "cheek": true, "ant": false},
+			{"n": "E ヘドロ侵食", "col": Color(0.52, 0.60, 0.46), "body": "sludge", "hr": 0.34, "eye": 0.14, "estyle": "worried", "cheek": false, "ant": true},
+			{"n": "F キラ目", "col": Color(0.66, 0.52, 0.82), "body": "merged", "hr": 0.44, "eye": 0.13, "estyle": "sparkle", "cheek": false, "ant": true},
+		]
+		var eroot := Node3D.new()
+		add_child(eroot)
+		eroot.global_position = Vector3(0.0, 0.0, -40.0)
+		var ex := -(pats.size() - 1) * 1.15
+		for cfg in pats:
+			var holder := Node3D.new()
+			eroot.add_child(holder)
+			holder.position = Vector3(ex, 0.35, 0.0)
+			holder.rotation.y = PI
+			_epat(holder, cfg)
+			var lbl := Label3D.new()
+			lbl.text = cfg["n"]
+			lbl.position = Vector3(0.0, 1.25, 0.0)
+			lbl.pixel_size = 0.0058
+			lbl.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+			holder.add_child(lbl)
+			ex += 2.3
+		var elight := DirectionalLight3D.new()
+		elight.rotation = Vector3(deg_to_rad(-42.0), deg_to_rad(18.0), 0.0)
+		eroot.add_child(elight)
+		var ecam := Camera3D.new()
+		add_child(ecam)
+		ecam.global_position = Vector3(0.0, 1.7, -31.0)
+		ecam.look_at(Vector3(0.0, 0.35, -40.0), Vector3.UP)
+		ecam.fov = 50.0
+		ecam.current = true
+		await get_tree().create_timer(0.8).timeout
+		await RenderingServer.frame_post_draw
+		get_viewport().get_texture().get_image().save_png("/tmp/shot_enemypat.png")
 	get_tree().quit()
+
+
+## 敵デザイン候補を1体ぶん組み立てる（--enemypat 用）。素材ゼロ・低ポリ。前＝-Z。
+func _epat(holder: Node3D, cfg: Dictionary) -> void:
+	var base: Color = cfg["col"]
+	var skin := base.lerp(Color(0.72, 0.68, 0.66), 0.35)
+	var dark := base.darkened(0.32)
+	var body: String = cfg["body"]
+	var hr: float = cfg["hr"]
+	var face: Node3D = null
+	# --- 体と頭 ---
+	match body:
+		"merged":
+			face = _wball(holder, skin, hr, Vector3(0.0, hr, 0.0), Vector3(1.04, 1.0, 1.0))
+		"egg":
+			face = _wball(holder, skin, hr, Vector3(0.0, hr + 0.08, 0.0), Vector3(0.82, 1.22, 0.82))
+		"chibi":
+			_wball(holder, skin, 0.2, Vector3(0.0, 0.18, 0.02), Vector3(1.0, 0.85, 1.0))
+			face = _wball(holder, skin, hr, Vector3(0.0, 0.5, -0.02))
+		"sludge":
+			# 下は とろけたヘドロ（暗い塊）、上に 生きものの顔＝“汚れに侵された”テーマ表現
+			for p in [[Vector3(0.0, 0.16, 0.0), 0.34], [Vector3(0.22, 0.12, 0.05), 0.2], [Vector3(-0.2, 0.13, -0.04), 0.22]]:
+				_wball(holder, dark, p[1], p[0], Vector3(1.0, 0.8, 1.0))
+			face = _wball(holder, skin, hr, Vector3(0.0, 0.5, -0.02))
+		_:  # "twopart"（頭と体が分かれた現行タイプ）
+			_wball(holder, skin, 0.3, Vector3(0.0, 0.3, 0.02), Vector3(1.0, 0.9, 1.05))
+			face = _wball(holder, skin, hr, Vector3(0.0, 0.52, -0.02))
+	# --- 脚（ちょこん）---
+	if body != "merged" and body != "egg":
+		for sx in [-1.0, 1.0]:
+			_wbox(holder, dark, Vector3(0.05, 0.16, 0.05), Vector3(0.13 * sx, 0.06, 0.0), Vector3.ZERO, deg_to_rad(12.0) * sx)
+	_epat_face(face, hr, cfg["eye"], cfg["estyle"], cfg["cheek"], cfg["ant"], dark, skin)
+
+
+func _epat_face(face: Node3D, r: float, eye_r: float, estyle: String, cheek: bool, ant: bool, dark: Color, skin: Color) -> void:
+	if face == null:
+		return
+	var white := Color(0.96, 0.97, 0.94)
+	var blk := Color(0.05, 0.04, 0.05)
+	var exx := r * 0.44
+	var eyy := r * 0.05
+	var ezz := -r * 0.6
+	for sx in [-1.0, 1.0]:
+		_wball(face, white, eye_r, Vector3(exx * sx, eyy, ezz), Vector3(1.0, 1.15, 0.8))
+		var pr := eye_r * (0.6 if estyle != "jito" else 0.48)
+		_wball(face, blk, pr, Vector3(exx * sx, eyy, ezz - eye_r * 0.55))
+		var cr := eye_r * (0.42 if estyle == "sparkle" else 0.24)
+		_wball(face, Color(1, 1, 1), cr, Vector3(exx * sx - eye_r * 0.22, eyy + eye_r * 0.3, ezz - eye_r * 0.9), Vector3.ONE, 0.9)
+		if estyle == "sparkle":
+			_wball(face, Color(1, 1, 1), cr * 0.6, Vector3(exx * sx + eye_r * 0.28, eyy - eye_r * 0.25, ezz - eye_r * 0.9), Vector3.ONE, 0.9)
+		if estyle == "worried":
+			_wbox(face, dark, Vector3(r * 0.3, r * 0.05, r * 0.05), Vector3(exx * sx, r * 0.34, ezz * 0.9), Vector3.ZERO, deg_to_rad(-22.0) * sx)
+	if cheek:
+		for sx in [-1.0, 1.0]:
+			_wball(face, Color(0.96, 0.56, 0.56), r * 0.15, Vector3(r * 0.52 * sx, -r * 0.16, ezz * 0.82), Vector3(1.1, 0.75, 0.5))
+	_wball(face, Color(0.3, 0.14, 0.16), r * 0.1, Vector3(0.0, -r * 0.4, ezz * 0.95), Vector3(1.7, 0.7, 0.5))
+	if ant:
+		for sx in [-1.0, 1.0]:
+			_wbox(face, dark, Vector3(r * 0.05, r * 0.55, r * 0.05), Vector3(r * 0.42 * sx, r * 0.72, ezz * 0.2), Vector3.ZERO, deg_to_rad(18.0) * sx)
+			_wball(face, skin.lightened(0.12), r * 0.13, Vector3(r * 0.56 * sx, r * 1.02, ezz * 0.2))
 
 
 # ---------------------------------------------------------------- 見た目の自動検証
