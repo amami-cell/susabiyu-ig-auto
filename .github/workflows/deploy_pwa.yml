@@ -72,6 +72,16 @@ jobs:
           if [ -n "$R2_PUBLIC_BASE" ] && [ -f pwa/config.goldporta.js ]; then
             sed -i "s#PASTE_MEDIA_BASE_HERE#${R2_PUBLIC_BASE%/}#" pwa/config.goldporta.js
           fi
+      - name: 見本データのURLにビルド印を付ける（端末の古いキャッシュを確実に外す）
+        run: |
+          # config.*.js / app.js はコミットSHAをクエリに付ける。URLが変わるので、
+          # 端末に古い版が残っていても必ず新しい方を取りに行く（“更新しても変わらない”の根治）。
+          BUILD="${GITHUB_SHA:0:8}"
+          for f in pwa/*.html; do
+            sed -i "s/__BUILD__/${BUILD}/g" "$f"
+          done
+          echo "build stamp = ${BUILD}"
+          grep -h "?v=" pwa/nagagutsu.html || true
       - name: 公開フロントを難読化（コメント除去＋本格minify＝作り方を読み取られにくく）
         run: |
           cd pwa
