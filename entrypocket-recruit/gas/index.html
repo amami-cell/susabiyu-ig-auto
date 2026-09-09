@@ -364,7 +364,7 @@
       document.body.appendChild(p); _setSync(); }
     // 他媒体（飲食店ドットコム/グルメキャリー）の応募者一覧ページ（別ページ）を開く
     var EP_EXEC_URL='https://script.google.com/macros/s/AKfycbz6i36c7UjbM3S44kl1kEcsI0CSjYo9jL-W-T4BJUAr9jmBlVXj-vnQTUwQbGoxcHYT/exec';
-    function openMediaPage(){ try{ window.open(EP_EXEC_URL+'?page=media','_blank'); }catch(e){ location.href=EP_EXEC_URL+'?page=media'; } }
+    function openMediaPage(){ var u=EP_EXEC_URL+'?page=media&cb='+Date.now(); try{ window.open(u,'_blank'); }catch(e){ location.href=u; } }
     // スマホ保険：EntryPocketの応募者ページを開く→そこでブックマークレット「求人取り込み」を1タップ
     function openEpPage(){
       try{ window.open('https://manage.entrypocket.jp/web/8sin-saiyo/applicant','_blank'); }catch(e){}
