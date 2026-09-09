@@ -10,7 +10,8 @@ import {
   StoryOpening, StoryEndroll, STORY_OPEN, STORY_END, STORY_XF,
 } from "./yoshokuDesign";
 
-const CHALK_BODY = 420; // 14s（4品×約3.5s）
+// 全体を20秒ちょうどに（OP56 + 本編440 + ED104 = 600f = 20s）。この曲を使う時は20秒尺で運用する。
+const CHALK_BODY = 440;
 export const YCHALK_DUR = STORY_OPEN + CHALK_BODY + STORY_END;
 
 function todayMD(): string {

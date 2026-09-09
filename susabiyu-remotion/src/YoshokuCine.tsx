@@ -1,17 +1,15 @@
-// 洋食⑤シネマ：レターボックス＋ゆっくりパンの“映画”。最初にタイトル(フック)、以降は各カットに字幕。
-// 役割＝世界観・雰囲気を売る。静かなカメラ移動で高級感、字幕で品を一つずつ見せる。
-// 変更点: 1品→4品クロスフェード／ズーム抑制(寄りすぎ解消)／タイトル→シーンの流れ設計／16秒。
-//         好評だったパン＆キャプションの質感は踏襲。
+// 洋食⑤シネマ：上にブランドロゴ、中央に料理を大きく（全体が見える）、下に料理名＋伊語サブ＋説明。
+// 役割＝世界観と“何の料理か”を同時に伝える。上下の余白を情報で満たし、寂しさを解消する。
+// 料理名は fitOneLine で必ず1行に収める。アニメは useCurrentFrame/interpolate のみ。
 import { AbsoluteFill, Audio, staticFile, useCurrentFrame, interpolate } from "remotion";
-import { typoPhotos, typoHeadline, typoMusic, typoMusicStart } from "./typoData";
+import { typoPhotos, typoMusic, typoMusicStart } from "./typoData";
 import { ytheme } from "./yoshokuTheme";
 import {
-  mincho, serif, clamp, SAFE, EASE, rise, drawW,
-  Grain, PhotoLayer, Slides, SampleBadge, splitLines, phraseLines, heroSize, StoreLogo, segNow,
+  mincho, serif, clamp, SAFE, rise, fade,
+  Grain, PhotoLayer, Slides, SampleBadge, StoreLogo, fitOneLine, segNow,
 } from "./yoshokuDesign";
 
 export const YCINE_DUR = 480; // 16s
-const BAR = 120; // レターボックスを薄く＝料理を切らない
 
 export const YoshokuCine: React.FC<{ storeName?: string; handle?: string; theme?: string }> = ({
   storeName = "ナガグツ", handle = "@nagagutsu0427", theme = "italian",
@@ -19,67 +17,53 @@ export const YoshokuCine: React.FC<{ storeName?: string; handle?: string; theme?
   const f = useCurrentFrame();
   const DUR = YCINE_DUR;
   const T = ytheme(theme);
-  const p = typoPhotos.length ? typoPhotos : [{ src: "", caption: "" }];
+  const p = typoPhotos.length ? typoPhotos : [{ src: "", caption: "", sub: "", disp: "", desc: "" }];
   const items = [0, 1, 2, 3].map((i) => p[i] || p[p.length - 1]);
 
-  const barH = interpolate(f, [0, 24], [0, BAR], { ...clamp, easing: EASE });
-  // タイトル(フック)は導入で主役→静かに退場。以降はシーンの字幕が主役。
-  const titleO = interpolate(f, [30, 52, 108, 130], [0, 1, 1, 0], clamp);
-  const titleY = interpolate(f, [30, 52], [22, 0], { ...clamp, easing: EASE });
-  const lineW = drawW(f, 54, 240, 30);
-
   return (
-    <AbsoluteFill style={{ backgroundColor: "#000", fontFamily: mincho }}>
+    <AbsoluteFill style={{ backgroundColor: "#0b0806", fontFamily: mincho }}>
       <Audio src={staticFile(typoMusic)} startFrom={Math.round((typoMusicStart || 0) * 30)} volume={(ff) => interpolate(ff, [0, 18, DUR - 24, DUR], [0, 0.82, 0.82, 0], clamp)} />
 
-      {/* 全画面：4品をクロスフェード。料理を引き(全体が見切れない)で見せるため、
-          背景に同写真のぼかしカバーを敷き、前面は contain で皿の全体を表示。 */}
-      <AbsoluteFill>
-        <Slides count={4} total={DUR} render={(i, local, seg) => (
-          <>
-            <AbsoluteFill><PhotoLayer src={items[i].src} frame={local} dur={seg} from={1.14} to={1.2} sat={1.02} brightness={0.46} blur={26} /></AbsoluteFill>
-            <AbsoluteFill><PhotoLayer src={items[i].src} frame={local} dur={seg} from={0.9} to={0.94} panX={8} sat={1.06} brightness={1.02} fit="contain" /></AbsoluteFill>
-          </>
-        )} />
-      </AbsoluteFill>
-      <AbsoluteFill style={{ background: "linear-gradient(180deg, rgba(0,0,0,0.4) 0%, rgba(0,0,0,0) 34%, rgba(0,0,0,0) 60%, rgba(0,0,0,0.6) 100%)" }} />
+      {/* 背景：同写真の暗ぼかし（余白を寂しくしない）＋前面は contain で料理の全体を大きく見せる */}
+      <Slides count={4} total={DUR} render={(i, local, seg) => (
+        <>
+          <AbsoluteFill><PhotoLayer src={items[i].src} frame={local} dur={seg} from={1.16} to={1.22} sat={1.02} brightness={0.4} blur={30} /></AbsoluteFill>
+          <div style={{ position: "absolute", left: 40, right: 40, top: 396, height: 900 }}>
+            <PhotoLayer src={items[i].src} frame={local} dur={seg} from={1.0} to={1.04} sat={1.07} brightness={1.03} fit="contain" />
+          </div>
+        </>
+      )} />
+      <AbsoluteFill style={{ background: "linear-gradient(180deg, rgba(6,4,2,0.86) 0%, rgba(6,4,2,0.15) 20%, rgba(6,4,2,0.15) 66%, rgba(6,4,2,0.9) 88%, #0b0806 100%)" }} />
       <Grain opacity={0.05} />
-
-      {/* レターボックス */}
-      <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: barH, background: "#000" }} />
-      <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, height: barH, background: "#000" }} />
 
       {/* 右上：見本番号（本番投稿では非表示） */}
       <SampleBadge accent={T.accent} f={f} />
 
-      {/* 導入タイトル（中央・フック） */}
-      <AbsoluteFill style={{ display: "flex", alignItems: "center", justifyContent: "center", flexDirection: "column", opacity: titleO, transform: "translateY(" + titleY + "px)" }}>
-        <div style={{ fontFamily: serif, color: T.accent, fontSize: 26, letterSpacing: 7, marginBottom: 22, textTransform: "uppercase", opacity: 0.9 }}>{T.label}</div>
-        <div style={{ fontFamily: mincho, color: "#FFFFFF", fontSize: heroSize(typoHeadline, 74, 54), fontWeight: 700, letterSpacing: 2, textAlign: "center", lineHeight: 1.24, textShadow: "0 3px 26px rgba(0,0,0,0.7)", padding: "0 " + SAFE.side + "px" }}>
-          {phraseLines(typoHeadline).map((ln, i) => <div key={i} style={{ whiteSpace: "nowrap" }}>{ln}</div>)}
-        </div>
-        <div style={{ marginTop: 24, width: lineW, height: 2, background: T.accent, opacity: 0.9 }} />
-      </AbsoluteFill>
+      {/* 上：ブランドロゴを大きく＋ラテンのキッカー */}
+      <div style={{ position: "absolute", top: SAFE.top - 150, left: 0, right: 0, display: "flex", flexDirection: "column", alignItems: "center", gap: 12, ...rise(f, 6, { dist: 14 }) }}>
+        <StoreLogo storeName={storeName} height={150} tint="#FFF6E6" />
+        <div style={{ fontFamily: serif, color: T.accent, fontSize: 28, letterSpacing: 10, textTransform: "uppercase", fontWeight: 600, textShadow: "0 2px 12px rgba(0,0,0,0.7)" }}>{T.label}</div>
+      </div>
 
-      {/* 各シーンの字幕（料理名・下バー上）＝“1件だけ”表示。タイトル退場後から前面に。 */}
+      {/* 下：伊語サブ＋料理名（必ず1行）＋説明。カットごとに1件だけ描く。 */}
       {(() => {
         const { i, local } = segNow(DUR, 4, f);
-        if (i === 0 && f < 120) return null; // 1カット目はタイトル優先
-        const it = items[i]; const _nm = (it.disp && it.disp.length) ? it.disp : it.caption; const lines = splitLines(_nm);
-        const sz = heroSize(_nm, 80, 52);
+        const it = items[i];
+        const nm = (it.disp && it.disp.length) ? it.disp : it.caption;
+        const one = (nm || "").replace(/[｜\n]/g, ""); // 1行で見せる
+        const sz = fitOneLine(one, 76, 1080 - SAFE.side * 2, 34);
         return (
-          <div key={i} style={{ position: "absolute", left: SAFE.side, right: SAFE.side, bottom: BAR + 44, textAlign: "center", ...rise(local, 8, { dist: 16 }) }}>
-            <div style={{ fontFamily: mincho, color: "#F4ECDD", fontSize: sz, fontWeight: 600, letterSpacing: 1, lineHeight: 1.2, textShadow: "0 2px 16px rgba(0,0,0,0.85)" }}>
-              {lines.length ? lines.map((ln, k) => <div key={k}>{ln}</div>) : it.caption}
-            </div>
+          <div key={i} style={{ position: "absolute", left: SAFE.side, right: SAFE.side, top: 1360, textAlign: "center", ...rise(local, 8, { dist: 16 }) }}>
+            {it.sub ? <div style={{ fontFamily: serif, color: T.accent, fontSize: 28, letterSpacing: 5, textTransform: "uppercase", fontWeight: 600, marginBottom: 12, textShadow: "0 2px 12px rgba(0,0,0,0.8)" }}>{it.sub}</div> : null}
+            <div style={{ fontFamily: mincho, color: "#FFF6E6", fontSize: sz, fontWeight: 700, letterSpacing: 1, lineHeight: 1.15, whiteSpace: "nowrap", textShadow: "0 2px 20px rgba(0,0,0,0.9)" }}>{one}</div>
+            {it.desc ? <div style={{ marginTop: 18, fontFamily: mincho, color: "#E9DCC4", fontSize: 30, letterSpacing: 1, lineHeight: 1.6, textShadow: "0 2px 14px rgba(0,0,0,0.85)" }}>{it.desc}</div> : null}
           </div>
         );
       })()}
 
-      {/* 下バー内：店舗ロゴ＋ハンドル（返信バーに隠れない高さへ） */}
-      <div style={{ position: "absolute", bottom: 116, left: 0, right: 0, display: "flex", flexDirection: "column", alignItems: "center", gap: 6, opacity: interpolate(f, [DUR - 60, DUR - 40], [0, 1], clamp) }}>
-        <StoreLogo storeName={storeName} height={64} />
-        <div style={{ fontFamily: serif, color: T.accent, fontSize: 22, letterSpacing: 5 }}>{handle}</div>
+      {/* 最下部：ハンドル */}
+      <div style={{ position: "absolute", left: 0, right: 0, bottom: SAFE.bottom - 176, textAlign: "center", opacity: fade(f, 30) }}>
+        <span style={{ fontFamily: serif, color: T.accent, fontSize: 25, letterSpacing: 5, textShadow: "0 2px 12px rgba(0,0,0,0.8)" }}>{handle}</span>
       </div>
     </AbsoluteFill>
   );

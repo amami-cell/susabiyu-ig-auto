@@ -6,7 +6,7 @@ import { typoPhotos, typoMusic, typoMusicStart } from "./typoData";
 import { ytheme } from "./yoshokuTheme";
 import {
   mincho, serif, clamp, SAFE, rise, fade,
-  Grain, Vignette, PhotoLayer, Slides, SampleBadge, StoreLogo, splitLines, heroSize, segNow,
+  Grain, Vignette, PhotoLayer, Slides, SampleBadge, StoreLogo, fitOneLine, segNow,
 } from "./yoshokuDesign";
 
 export const YTRIO_DUR = 330; // 11s（1品 ≒ 3.6s）
@@ -43,19 +43,20 @@ export const YoshokuTrio: React.FC<{ storeName?: string; handle?: string; theme?
       {/* 番号＋料理名＝カットごとに“1件だけ”表示 */}
       {(() => {
         const { i, local } = segNow(DUR, 3, f);
-        const it = items[i]; const _nm = (it.disp && it.disp.length) ? it.disp : it.caption; const lines = splitLines(_nm);
-        const sz = heroSize(_nm, 90, 60);
+        const it = items[i]; const _nm = (it.disp && it.disp.length) ? it.disp : it.caption;
+        const one = (_nm || "").replace(/[｜\n]/g, "");            // 料理名は必ず1行
+        const one1 = fitOneLine(one, 76, 1080 - SAFE.side * 2, 32);
         return (
           <div key={i}>
             <div style={{ position: "absolute", top: SAFE.top + 20, left: SAFE.side, ...rise(local, 4, { dist: 18 }) }}>
               <div style={{ fontFamily: serif, color: T.accent, fontSize: 168, fontWeight: 600, lineHeight: 1, textShadow: "0 3px 22px rgba(0,0,0,0.6)" }}>{nos[i]}</div>
               <div style={{ marginTop: 8, width: 96, height: 3, background: T.accent }} />
             </div>
-            <div style={{ position: "absolute", left: SAFE.side, right: SAFE.side, bottom: SAFE.bottom + 20, ...rise(local, 10, { dist: 20, blur: 6 }) }}>
-              <div style={{ fontFamily: mincho, color: "#FFF8EC", fontSize: sz, fontWeight: 700, letterSpacing: 3, lineHeight: 1.22, textShadow: "0 2px 20px rgba(0,0,0,0.75)" }}>
-                {lines.length ? lines.map((ln, k) => <div key={k}>{ln}</div>) : it.caption}
-              </div>
-              {it.story ? <div style={{ marginTop: 10, fontFamily: serif, fontStyle: "italic", color: T.accent, fontSize: 30, letterSpacing: 2, textShadow: "0 2px 14px rgba(0,0,0,0.7)" }}>{it.story}</div> : null}
+            {/* 下：伊語サブ＋料理名（1行）＋商品説明 */}
+            <div style={{ position: "absolute", left: SAFE.side, right: SAFE.side, bottom: SAFE.bottom + 96, ...rise(local, 10, { dist: 20, blur: 6 }) }}>
+              {it.sub ? <div style={{ fontFamily: serif, color: T.accent, fontSize: 28, letterSpacing: 5, textTransform: "uppercase", fontWeight: 600, marginBottom: 10, textShadow: "0 2px 14px rgba(0,0,0,0.8)" }}>{it.sub}</div> : null}
+              <div style={{ fontFamily: mincho, color: "#FFF8EC", fontSize: one1, fontWeight: 700, letterSpacing: 1, lineHeight: 1.15, whiteSpace: "nowrap", textShadow: "0 2px 20px rgba(0,0,0,0.85)" }}>{one}</div>
+              {it.desc ? <div style={{ marginTop: 14, fontFamily: mincho, color: "#EFE3CC", fontSize: 29, letterSpacing: 1, lineHeight: 1.6, textShadow: "0 2px 14px rgba(0,0,0,0.8)" }}>{it.desc}</div> : null}
             </div>
           </div>
         );
@@ -67,10 +68,10 @@ export const YoshokuTrio: React.FC<{ storeName?: string; handle?: string; theme?
         <div style={{ fontFamily: mincho, color: "#EDE4D2", fontSize: 36, letterSpacing: 4, marginTop: 8, fontWeight: 600 }}>本日のおすすめ3品</div>
       </div>
 
-      {/* フッター：店舗ロゴ＋ハンドル */}
-      <div style={{ position: "absolute", left: 0, right: 0, bottom: SAFE.bottom - 150, display: "flex", flexDirection: "column", alignItems: "center", gap: 8, opacity: interpolate(f, [DUR - 54, DUR - 36], [0, 1], clamp) }}>
-        <StoreLogo storeName={storeName} height={78} tint="#FFF8EC" />
-        <div style={{ fontFamily: serif, color: T.accent, fontSize: 24, letterSpacing: 5 }}>{handle}</div>
+      {/* 最下部・中央：店舗ロゴを大きく（常時表示）＋ハンドル */}
+      <div style={{ position: "absolute", left: 0, right: 0, bottom: SAFE.bottom - 190, display: "flex", flexDirection: "column", alignItems: "center", gap: 8, opacity: fade(f, 16) }}>
+        <StoreLogo storeName={storeName} height={132} tint="#FFF8EC" />
+        <div style={{ fontFamily: serif, color: T.accent, fontSize: 24, letterSpacing: 5, textShadow: "0 2px 12px rgba(0,0,0,0.8)" }}>{handle}</div>
       </div>
     </AbsoluteFill>
   );

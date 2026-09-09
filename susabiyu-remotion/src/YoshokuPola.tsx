@@ -6,7 +6,7 @@ import { typoPhotos, typoMusic, typoMusicStart } from "./typoData";
 import { ytheme } from "./yoshokuTheme";
 import {
   mincho, serif, clamp, SAFE, EASE, fade,
-  Grain, Vignette, SampleBadge, StoreLogo, splitLines, heroSize,
+  Grain, Vignette, SampleBadge, StoreLogo, splitLines, heroSize, fitOneLine,
 } from "./yoshokuDesign";
 
 export const YPOLA_DUR = 330; // 11s
@@ -45,8 +45,8 @@ export const YoshokuPola: React.FC<{ storeName?: string; handle?: string; theme?
   // 選んだ品
   const sel = cards[pick];
   const selNm = (sel.disp && sel.disp.length) ? sel.disp : sel.caption;
-  const selLines = splitLines(selNm); const selL = selLines.length ? selLines : [selNm];
-  const selSz = heroSize(selNm, 78, 52);
+  const selOne = (selNm || "").replace(/[｜\n]/g, "");        // アップ紹介の料理名は必ず1行
+  const selSz = fitOneLine(selOne, 84, 1000, 34);
   const featO = interpolate(f, [ZOOM + 8, ZOOM + 28], [0, 1], clamp);
   const featS = interpolate(f, [ZOOM + 8, ZOOM + 34], [0.9, 1], { ...clamp, easing: EASE });
   const featTxtO = interpolate(f, [ZOOM + 26, ZOOM + 44], [0, 1], clamp);
@@ -115,16 +115,14 @@ export const YoshokuPola: React.FC<{ storeName?: string; handle?: string; theme?
 
           {/* 選んだ1品のアップ（ズームイン・大きく紹介） */}
           {featO > 0.001 ? (
-            <div style={{ position: "absolute", left: 0, top: 0, width: 720, marginLeft: -360, marginTop: -430, transform: "scale(" + featS + ")", transformOrigin: "360px 0", opacity: featO }}>
-              <div style={{ width: 720, height: 560, overflow: "hidden", borderRadius: 22, border: "1px solid " + T.accent + "66", boxShadow: "0 40px 90px rgba(0,0,0,0.65)", background: "#000" }}>
+            <div style={{ position: "absolute", left: 0, top: 0, width: 1000, marginLeft: -500, marginTop: -600, transform: "scale(" + featS + ")", transformOrigin: "500px 0", opacity: featO }}>
+              <div style={{ width: 1000, height: 800, overflow: "hidden", borderRadius: 24, border: "1px solid " + T.accent + "66", boxShadow: "0 40px 90px rgba(0,0,0,0.65)", background: "#000" }}>
                 <Img src={staticFile(sel.src)} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
               </div>
-              <div style={{ marginTop: 26, textAlign: "center", opacity: featTxtO }}>
-                {sel.sub ? <div style={{ fontFamily: serif, color: T.accent, fontSize: 30, letterSpacing: 5, textTransform: "uppercase", fontWeight: 600, marginBottom: 8, textShadow: "0 2px 12px rgba(0,0,0,0.6)" }}>{sel.sub}</div> : null}
-                <div style={{ fontFamily: mincho, color: "#FBF3E4", fontSize: selSz, fontWeight: 700, letterSpacing: 2, lineHeight: 1.16, textShadow: "0 2px 18px rgba(0,0,0,0.7)" }}>
-                  {selL.map((ln, k) => <div key={k}>{ln}</div>)}
-                </div>
-                {sel.desc ? <div style={{ marginTop: 14, fontFamily: mincho, color: "#E4D8C2", fontSize: 30, letterSpacing: 1, lineHeight: 1.5, textShadow: "0 2px 12px rgba(0,0,0,0.6)" }}>{sel.desc}</div> : null}
+              <div style={{ marginTop: 30, textAlign: "center", opacity: featTxtO }}>
+                {sel.sub ? <div style={{ fontFamily: serif, color: T.accent, fontSize: 32, letterSpacing: 5, textTransform: "uppercase", fontWeight: 600, marginBottom: 10, textShadow: "0 2px 12px rgba(0,0,0,0.6)" }}>{sel.sub}</div> : null}
+                <div style={{ fontFamily: mincho, color: "#FBF3E4", fontSize: selSz, fontWeight: 700, letterSpacing: 1, lineHeight: 1.14, whiteSpace: "nowrap", textShadow: "0 2px 18px rgba(0,0,0,0.7)" }}>{selOne}</div>
+                {sel.desc ? <div style={{ marginTop: 18, fontFamily: mincho, color: "#EFE3CC", fontSize: 38, letterSpacing: 1, lineHeight: 1.55, textShadow: "0 2px 12px rgba(0,0,0,0.7)" }}>{sel.desc}</div> : null}
               </div>
             </div>
           ) : null}

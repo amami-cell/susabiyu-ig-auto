@@ -333,6 +333,13 @@ export function segNow(total: number, count: number, f: number): { i: number; lo
   return { i, local: f - i * seg, seg };
 }
 
+// 「必ず1行に収める」ためのサイズ決定。和文は概ね1文字=1emなので、幅÷文字数で上限を出す。
+// 折り返して不格好な2行になるのを防ぐ（料理名を1行で見せたい時に使う）。
+export function fitOneLine(text: string, maxPx: number, usableW: number, minPx = 30): number {
+  const n = Math.max(1, Array.from((text || "").replace(/[｜\n]/g, "")).length);
+  return Math.max(minPx, Math.min(maxPx, Math.floor(usableW / n)));
+}
+
 // 文字数から見出しサイズを決める（2行前提・スマホでも読める下限を確保）。
 export function heroSize(text: string, big: number, small: number): number {
   const n = Array.from(text || "").length;
