@@ -9,7 +9,9 @@ import {
   Grain, PhotoLayer, SampleBadge, fitOneLine,
 } from "./yoshokuDesign";
 
-export const YWINE_DUR = 300; // 10s
+// 中央の丸ロゴをレコードのように時計回りへ“ちょうど1回転”させる尺。
+// 15秒（450f）＝1回転24秒相当より遅すぎず、目で追える速さで回りきる。
+export const YWINE_DUR = 450; // 15s
 const HALF = 960; // 上下それぞれの高さ
 
 // 半透明スクリム（文字の後ろ）。
@@ -61,8 +63,11 @@ export const YoshokuWine: React.FC<{ storeName?: string; handle?: string; theme?
   const items = [0, 1, 2, 3].map((i) => p[i] || p[p.length - 1]);
 
   // 2ページ（[0,1] → [2,3]）を横にスライド。分割は上下（横割り）のまま。
-  const trackX = interpolate(f, [0, 150, 178, DUR], [0, 0, -1080, -1080], { ...clamp, easing: EASE });
+  // 尺を15秒に伸ばしたので、前後半がほぼ同じ長さになる位置で切り替える。
+  const trackX = interpolate(f, [0, 212, 240, DUR], [0, 0, -1080, -1080], { ...clamp, easing: EASE });
   const midO = fade(f, 8);
+  // レコードのように等速で時計回り。動画の最後でちょうど360°＝1回転しきる。
+  const spin = interpolate(f, [0, DUR], [0, 360], clamp);
 
   return (
     <AbsoluteFill style={{ backgroundColor: T.base, fontFamily: mincho }}>
@@ -70,16 +75,19 @@ export const YoshokuWine: React.FC<{ storeName?: string; handle?: string; theme?
 
       <div style={{ position: "absolute", top: 0, left: 0, width: 2160, height: 1920, transform: "translateX(" + trackX + "px)" }}>
         <div style={{ position: "absolute", left: 0, top: 0 }}><Page a={items[0]} b={items[1]} f={f} base={6} accent={T.accent} /></div>
-        <div style={{ position: "absolute", left: 1080, top: 0 }}><Page a={items[2]} b={items[3]} f={f} base={158} accent={T.accent} /></div>
+        <div style={{ position: "absolute", left: 1080, top: 0 }}><Page a={items[2]} b={items[3]} f={f} base={220} accent={T.accent} /></div>
       </div>
 
       {/* 中央：仕切り線＋丸ロゴ（上下の境目） */}
       <div style={{ position: "absolute", top: HALF - 2, left: 0, right: 0, height: 4, background: "rgba(224,103,58,0.6)", opacity: midO }} />
       <div style={{ position: "absolute", top: HALF - 135, left: 0, right: 0, display: "flex", justifyContent: "center", opacity: midO }}>
         <div style={{ width: 270, height: 270, borderRadius: "50%", border: "3px solid " + T.accent, background: T.base + "E6", overflow: "hidden", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 22px 56px rgba(0,0,0,0.6)" }}>
-          {typoLogoRound
-            ? <Img src={staticFile(typoLogoRound)} style={{ width: "100%", height: "100%", objectFit: "contain", padding: 10 }} />
-            : <div style={{ fontFamily: serif, fontStyle: "italic", color: T.accent, fontSize: 128, lineHeight: 1 }}>&amp;</div>}
+          {/* レコード盤のように等速で時計回り。1回転しきったところが動画の終わり。 */}
+          <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center", transform: "rotate(" + spin + "deg)" }}>
+            {typoLogoRound
+              ? <Img src={staticFile(typoLogoRound)} style={{ width: "100%", height: "100%", objectFit: "contain", padding: 10 }} />
+              : <div style={{ fontFamily: serif, fontStyle: "italic", color: T.accent, fontSize: 128, lineHeight: 1 }}>&amp;</div>}
+          </div>
         </div>
       </div>
 

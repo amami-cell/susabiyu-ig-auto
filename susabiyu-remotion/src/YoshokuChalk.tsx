@@ -54,7 +54,7 @@ const ChalkBody: React.FC<{ storeName?: string; handle?: string; theme?: string 
       </div>
 
       {/* 主役：欧文サブ＋料理名（白チョーク風・特大・最大2行）＋短句。カット毎に差し替え。 */}
-      <div key={i} style={{ position: "absolute", top: 440, left: SAFE.side, right: SAFE.side, textAlign: "center", ...rise(local, 3, { dist: 20, blur: 6 }) }}>
+      <div key={i} style={{ position: "absolute", top: 400, left: SAFE.side, right: SAFE.side, textAlign: "center", ...rise(local, 3, { dist: 20, blur: 6 }) }}>
         {cur.sub ? <div style={{ fontFamily: serif, color: T.accent, fontSize: 28, letterSpacing: 4, textTransform: "uppercase", fontWeight: 600, marginBottom: 8, fontStyle: "italic" }}>{cur.sub}</div> : null}
         <div style={{ fontFamily: mincho, color: "#F4F2EA", fontSize: nameSize, fontWeight: 700, letterSpacing: 1, lineHeight: 1.18, whiteSpace: "nowrap", textShadow: "0 1px 0 rgba(255,255,255,0.22), 0 4px 18px rgba(0,0,0,0.5)" }}>{one}</div>
         {cur.story ? (
@@ -62,8 +62,9 @@ const ChalkBody: React.FC<{ storeName?: string; handle?: string; theme?: string 
         ) : null}
       </div>
 
-      {/* 写真：クリームのマット＋金ヘアラインで額装。4品をクロスフェード。 */}
-      <div style={{ position: "absolute", top: 812, left: 165, width: 750, height: 700, opacity: fade(f, 60, 22) }}>
+      {/* 写真：クリームのマット＋金ヘアラインで額装。4品をクロスフェード。
+          料理名のすぐ下まで引き上げ、額も大きく取る（上の余白を詰めて写真を主役に）。 */}
+      <div style={{ position: "absolute", top: 640, left: 96, width: 888, height: 800, opacity: fade(f, 60, 22) }}>
         <div style={{ position: "absolute", inset: 0, background: "#F3EEE2", borderRadius: 6, padding: 16, boxShadow: "0 30px 66px rgba(0,0,0,0.6)" }}>
           <div style={{ position: "absolute", inset: 16, border: "1px solid rgba(150,120,60,0.55)", borderRadius: 3, overflow: "hidden" }}>
             <Slides count={photos.length} total={DUR} render={(k, lf, seg) => (
@@ -75,7 +76,7 @@ const ChalkBody: React.FC<{ storeName?: string; handle?: string; theme?: string 
 
       {/* 写真の下の空きスペース：いま映っている料理のこだわり/説明（cur.desc）を添える */}
       {cur.desc ? (
-        <div key={"d" + i} style={{ position: "absolute", top: 1534, left: 150, right: 150, textAlign: "center", ...rise(local, 10, { dist: 12 }) }}>
+        <div key={"d" + i} style={{ position: "absolute", top: 1476, left: 150, right: 150, textAlign: "center", ...rise(local, 10, { dist: 12 }) }}>
           <div style={{ display: "inline-block", padding: "4px 22px 0", borderTop: "1px solid " + T.accent + "55" }}>
             <span style={{ fontFamily: mincho, color: "#E4E0D4", fontSize: 30, lineHeight: 1.55, letterSpacing: 1 }}>{cur.desc}</span>
           </div>

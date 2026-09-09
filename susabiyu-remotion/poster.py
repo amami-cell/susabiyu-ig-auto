@@ -116,6 +116,11 @@ def _u_jsdelivr(path):
                     json={"message": "media " + key, "content": content_b64, "branch": branch})
         if r.status_code in (200, 201):
             break
+        # 409 = 「is at X but expected Y」＝書き込み中にブランチ先端が動いた競合。一時的なので必ず再試行する。
+        # （ここで諦めると動画のURLが空になり、ポスターJPGだけが見本に載って“動画が画像になる”事故になる）
+        if r.status_code == 409:
+            _w = min(30, 3 * (2 ** _att)) + _r.randint(0, 3)
+            print("[UPLOAD] jsdelivr 409(競合) wait %ds retry %d/6" % (_w, _att + 1)); time.sleep(_w); continue
         if r.status_code in (403, 429) or r.status_code >= 500:  # レート/二次制限/一時障害 → 待って再試行
             _w = min(60, 6 * (2 ** _att))
             print("[UPLOAD] jsdelivr %s wait %ds retry" % (r.status_code, _w)); time.sleep(_w); continue

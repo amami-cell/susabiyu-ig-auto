@@ -69,8 +69,9 @@ const MagBody: React.FC<{ storeName?: string; handle?: string; theme?: string }>
         <div style={{ fontFamily: mincho, color: "#EADFC9", fontSize: 46, letterSpacing: 1, lineHeight: 1.5, textShadow: "0 2px 14px rgba(0,0,0,0.6)" }}>{oneLiner}</div>
       </div>
 
-      {/* フッター：店舗ロゴ＋ハンドルを右下へ（左の余白は見出し/一言が使う） */}
-      <div style={{ position: "absolute", right: SAFE.side, bottom: 70, display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 6, ...rise(f, DUR - 70, { dist: 14 }) }}>
+      {/* フッター：店舗ロゴ＋ハンドルを右下へ（左の余白は見出し/一言が使う）。
+          以前は最後の料理でだけ出ていたが、1品目から最後まで出しっぱなしにする（ブランドを常時表示）。 */}
+      <div style={{ position: "absolute", right: SAFE.side, bottom: 70, display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 6, ...rise(f, 16, { dist: 14 }) }}>
         <StoreLogo storeName={storeName} height={78} />
         <div style={{ fontFamily: serif, color: T.accent, fontSize: 25, letterSpacing: 5 }}>{handle}</div>
       </div>
