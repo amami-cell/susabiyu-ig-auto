@@ -2,7 +2,7 @@
 import { YoshokuDish, YOSHOKU_DUR } from "./YoshokuDish";
 import { YoshokuChalk, YCHALK_DUR } from "./YoshokuChalk";
 import { YoshokuOpBlur, YoshokuOpMortar, YoshokuOpWine, YOP_DUR } from "./YoshokuOpPreview";
-import { YoshokuOp4, YoshokuOp5, YoshokuOp6, YoshokuOp7, YoshokuOp8, YOPS_DUR } from "./YoshokuOpStyles";
+import { YoshokuOp4, YoshokuOp5, YoshokuOp6, YoshokuOp7, YoshokuOp8, YoshokuOp9, YOPS_DUR } from "./YoshokuOpStyles";
 import { YoshokuSizzle, YSIZZLE_DUR } from "./YoshokuSizzle";
 import { YoshokuMag, YMAG_DUR } from "./YoshokuMag";
 import { YoshokuCine, YCINE_DUR } from "./YoshokuCine";
@@ -99,6 +99,7 @@ export const RemotionRoot: React.FC = () => {
       <Composition id="YoshokuOp6" component={YoshokuOp6} fps={FPS} width={1080} height={1920} durationInFrames={YOPS_DUR} defaultProps={{ storeName: STORE, handle: "@susabiyu_sanjyo", theme: "neutral" }} />
       <Composition id="YoshokuOp7" component={YoshokuOp7} fps={FPS} width={1080} height={1920} durationInFrames={YOPS_DUR} defaultProps={{ storeName: STORE, handle: "@susabiyu_sanjyo", theme: "neutral" }} />
       <Composition id="YoshokuOp8" component={YoshokuOp8} fps={FPS} width={1080} height={1920} durationInFrames={YOPS_DUR} defaultProps={{ storeName: STORE, handle: "@susabiyu_sanjyo", theme: "neutral" }} />
+      <Composition id="YoshokuOp9" component={YoshokuOp9} fps={FPS} width={1080} height={1920} durationInFrames={YOPS_DUR} defaultProps={{ storeName: STORE, handle: "@susabiyu_sanjyo", theme: "neutral" }} />
       {/* フィード投稿画像テンプレ（4:5・静止画）。デザイン候補を複数パターン。 */}
       {FEED_COMPS.map((f) => (
         <Composition key={f.id} id={f.id} component={f.comp} fps={FPS} width={FEED_W} height={FEED_H} durationInFrames={FEED_DUR} defaultProps={{ storeName: STORE, handle: "@susabiyu_sanjyo", theme: "neutral" }} />
