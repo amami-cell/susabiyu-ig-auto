@@ -343,7 +343,7 @@ export const StoryBgLayer: React.FC<{ bg?: StoryBg; theme?: string; dur?: number
   );
 };
 
-const _BrandMark: React.FC<{ storeName: string; ink: string; size?: number }> = ({ storeName, ink, size = 300 }) => (
+export const BrandMark: React.FC<{ storeName: string; ink: string; size?: number }> = ({ storeName, ink, size = 300 }) => (
   typoLogoRound
     ? <Img src={staticFile(typoLogoRound)} style={{ width: size, height: size, objectFit: "contain", filter: "drop-shadow(0 8px 30px rgba(0,0,0,0.55))" }} />
     : (typoLogo
@@ -363,7 +363,7 @@ export const StoryOpening: React.FC<{ storeName?: string; theme?: string; bg?: S
       <StoryBgLayer bg={bg} theme={theme} dur={STORY_OPEN} />
       <AbsoluteFill style={{ display: "flex", alignItems: "center", justifyContent: "center", flexDirection: "column", opacity: o }}>
         <div style={{ transform: "scale(" + s + ")", display: "flex", flexDirection: "column", alignItems: "center", gap: 20 }}>
-          <_BrandMark storeName={storeName} ink={T.ink} size={300} />
+          <BrandMark storeName={storeName} ink={T.ink} size={300} />
           <div style={{ width: ruleW, height: 2, background: T.accent, opacity: 0.9 }} />
           <div style={{ fontFamily: serif, color: T.accent, fontSize: 40, letterSpacing: 14, textTransform: "uppercase", fontWeight: 600 }}>{T.label}</div>
         </div>
@@ -385,7 +385,7 @@ export const StoryEndroll: React.FC<{ storeName?: string; handle?: string; theme
     <AbsoluteFill style={{ backgroundColor: T.base, opacity: rootO }}>
       <StoryBgLayer bg={bg} theme={theme} dur={STORY_END + STORY_XF} />
       <AbsoluteFill style={{ display: "flex", alignItems: "center", justifyContent: "center", flexDirection: "column", opacity: cO, transform: "translateY(" + y + "px)", textAlign: "center", gap: 18 }}>
-        <_BrandMark storeName={storeName} ink={T.ink} size={230} />
+        <BrandMark storeName={storeName} ink={T.ink} size={230} />
         <div style={{ fontFamily: mincho, color: T.ink, fontSize: 56, fontWeight: 700, letterSpacing: 3 }}>ご来店をお待ちしています</div>
         <div style={{ fontFamily: serif, color: T.accent, fontSize: 34, letterSpacing: 6 }}>{storeName}　{handle}</div>
       </AbsoluteFill>

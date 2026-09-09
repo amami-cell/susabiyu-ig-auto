@@ -298,12 +298,37 @@ def _cutout(src_path, idx):
         out_path = os.path.join(OUT_DIR, out_name)
         im = Image.open(src_path).convert("RGBA")
         cut = remove(im, session=_CUT_SESSION, post_process_mask=True)
+
+        # 皿が写真の端で切れている写真は、背景を抜くと“断ち落とされた変な切り抜き”になる。
+        # 元画像の縁に料理が乗っているかをアルファで判定し、乗っていれば切り抜きを使わない
+        # （＝従来のぼかしマスク表示にフォールバック）。見栄えの事故を機械的に防ぐ。
+        a = cut.split()[-1]
+        W, H = a.size
+        px = a.load()
+        step = max(1, min(W, H) // 200)
+        edge_on = 0
+        edge_all = 0
+        for x in range(0, W, step):
+            for y in (0, H - 1):
+                edge_all += 1
+                if px[x, y] > 40:
+                    edge_on += 1
+        for y in range(0, H, step):
+            for x in (0, W - 1):
+                edge_all += 1
+                if px[x, y] > 40:
+                    edge_on += 1
+        ratio = (edge_on / edge_all) if edge_all else 0.0
+        if ratio > 0.12:
+            print("[CUTOUT] 見送り（料理が写真の縁で切れている 縁占有率=%.0f%%）: %s" % (ratio * 100, os.path.basename(src_path)))
+            return ""
+
         # 透明部分を切り詰めて“料理だけ”の画像にする（余白があると配置が効かない）
         bbox = cut.getbbox()
         if bbox:
             cut = cut.crop(bbox)
         cut.save(out_path)
-        print("[CUTOUT] OK", out_name, cut.size)
+        print("[CUTOUT] OK", out_name, cut.size, "縁占有率=%.0f%%" % (ratio * 100))
         return "typo/" + out_name
     except Exception as e:
         print("[CUTOUT] スキップ（従来の写真を使用）:", e)
