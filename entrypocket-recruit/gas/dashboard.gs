@@ -1085,6 +1085,10 @@ function mediaMsgsData_() {
   } catch (e) { return { ok: false, error: String(e), items: [] }; }
 }
 
+// クライアント(media.html)から google.script.run で呼ぶ公開ラッパー（末尾_の関数は直接呼べないため）。
+function mediaListPublic() { try { return mediaListData_(); } catch (e) { return { ok: false, error: String(e), items: [] }; } }
+function mediaMsgsPublic() { try { return mediaMsgsData_(); } catch (e) { return { ok: false, error: String(e), items: [] }; } }
+
 // PC取得スクリプトからの「取得失敗」通知を受けて責任者へプッシュ（媒体別に1時間1回まで＝スパム防止）。
 function epPcAlert_(o) {
   try {
