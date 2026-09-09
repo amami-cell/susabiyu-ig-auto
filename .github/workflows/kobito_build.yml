@@ -224,7 +224,19 @@ jobs:
             echo "変更なし"; exit 0
           fi
           git commit -m "deploy kobito web (test play, /kobito2/ no-PWA)"
-          git push
+          # 別の配信(求人PWA等)や連続ビルドが同じ main へ同時に push すると、
+          # clone→push の間に race で弾かれることがある（fetch first）。
+          # kobito2/ 以外は触っていないので、remote を取り込み(rebase)ながら最大5回 再試行する。
+          pushed=0
+          for i in 1 2 3 4 5; do
+            if git push; then pushed=1; break; fi
+            echo "push が弾かれた（同時 push の race?）— pull --rebase して再試行 ($i/5)"
+            git pull --rebase origin main || true
+            sleep $((i*3))
+          done
+          if [ "$pushed" != "1" ]; then
+            echo "ERROR: 公開 push に繰り返し失敗しました"; exit 1
+          fi
           echo "公開URL: https://${MEDIA_REPO%%/*}.github.io/${MEDIA_REPO#*/}/kobito2/"
 
   # ------------------------------------------------------------------

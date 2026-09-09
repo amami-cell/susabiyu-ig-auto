@@ -203,8 +203,25 @@ func _think(delta: float) -> void:
 	var helping_bug := false
 	var bug_y := 0.0
 
-	# ① 近くに暴れ虫がいれば、手伝いに行く
-	var bug := _nearest_bug()
+	# ⓪ 中ボスがいれば“押さえ役”に回る＝癒やしはプレイヤー主体（見せ場を残す）。
+	# ソロでも「押さえる人」ができるので、ひとりでも中ボスを癒やしきれる。
+	var boss := _nearest_midboss()
+	if boss != null:
+		var dbo: Vector3 = boss.global_position - global_position
+		dbo.y = 0.0
+		if dbo.length() <= HELP_RANGE:
+			has_goto = true
+			goto = boss.global_position
+			if _role_fly:
+				helping_bug = true
+				bug_y = boss.global_position.y
+			if dbo.length() < _reach + 0.8 and _help_cd <= 0.0:
+				_help_cd = HELP_INTERVAL
+				if boss.has_method("stagger"):
+					boss.stagger(owner_id)   # 押さえる＝暴れを止め、プレイヤーの「きれいに」を通す
+
+	# ① 近くに暴れ虫がいれば、手伝いに行く（中ボスに向かっていない時だけ）
+	var bug := _nearest_bug() if not has_goto else null
 	if bug != null:
 		var db: Vector3 = bug.global_position - global_position
 		db.y = 0.0
@@ -263,6 +280,21 @@ func _nearest_bug() -> Node3D:
 			continue
 		# 空を飛ぶ暴れ虫は、飛べるなかま だけが手伝える（地上の子は届かない）＝飛ぶ種を集める意味。
 		if st != null and st.flies and not _role_fly:
+			continue
+		var dd: float = b.global_position.distance_to(global_position)
+		if dd < bd:
+			bd = dd
+			best = b
+	return best
+
+
+## いちばん近い中ボス（＝押さえに行く相手）。癒やしはしない＝見せ場はプレイヤー主体。
+func _nearest_midboss() -> Node3D:
+	var best: Node3D = null
+	var bd := 1.0e9
+	for b in get_tree().get_nodes_in_group("bug"):
+		var st: Variant = b.get("stats")
+		if st == null or not st.is_midboss:
 			continue
 		var dd: float = b.global_position.distance_to(global_position)
 		if dd < bd:

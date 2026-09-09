@@ -37,6 +37,13 @@ const BOSS_SUMMON_INTERVAL := 3.0   # 何秒ごとに生み出すか（短め＝
 const BOSS_SUMMON_COUNT := 2        # 一度に生み出す数
 var _summon_cd := 2.5               # 最初の召喚までの間（出現直後にいきなりは出さない）
 
+# 中ボスの“暴れ”：暴れている間は「きれいに」が効かない。「つかむ」で数秒 怯ませてから癒やす。
+# ＝ソロは なかまが押さえ役／2人は「つかむ役 × きれいに役」の役割分担がそのまま解法。
+const BOSS_STAGGER_TIME := 3.5      # 「つかむ」で怯む秒数（この間だけ癒やせる）
+var _stagger_t := 0.0
+var _resist_hint_cd := 0.0
+var _stage := 0                     # 物語の段（0 暴れる →1 弱る →2 泣く）
+
 @onready var _body: MeshInstance3D = $Body
 
 var _hpbar: Node3D = null        # 頭上のHPバー（ダメージが目で分かる）
@@ -202,6 +209,9 @@ func _physics_process(delta: float) -> void:
 
 func _think(delta: float) -> void:
 	_attack_cd = maxf(0.0, _attack_cd - delta)
+	_resist_hint_cd = maxf(0.0, _resist_hint_cd - delta)
+	if stats.is_midboss:
+		_stagger_t = maxf(0.0, _stagger_t - delta)
 	_target = _nearest_player()
 
 	var to_target := Vector3.ZERO
@@ -335,7 +345,16 @@ func _remote_summon() -> void:
 func cleanse(amount: int, healer_id: int) -> void:
 	if not multiplayer.has_multiplayer_peer() or not multiplayer.is_server() or _dead:
 		return
+	# 中ボスは“暴れ”ている間は効かない＝「つかんで 押さえてから きれいに」の役割分担を促す。
+	if stats.is_midboss and _stagger_t <= 0.0:
+		if _resist_hint_cd <= 0.0:
+			_resist_hint_cd = 2.5
+			WorldState.notice.emit("あばれてる！ まず「つかむ」で 押さえて！")
+		rpc("_remote_lunge")   # ぶるっと暴れる（既存の予備動作演出を流用）
+		return
 	hp -= amount
+	if stats.is_midboss:
+		_boss_story_barks()
 	if hp > 0:
 		# 叩いた小人と反対方向へ弾き飛ばす（＝当たった手応え）
 		var src := _player_by_id(healer_id)
@@ -355,6 +374,7 @@ func cleanse(amount: int, healer_id: int) -> void:
 	# 中ボス（女王アリ等）を癒やしたら章の進行へ知らせる
 	if stats.is_midboss:
 		Chapter.notify_boss_cleared()
+		WorldState.notice.emit("（正気に もどった）「…ありがとう。もう、こわくない」")
 	for p in get_tree().get_nodes_in_group("player"):
 		if p.name.to_int() == healer_id:
 			p.rpc("gain_xp", stats.xp_reward)
@@ -367,6 +387,40 @@ func cleanse(amount: int, healer_id: int) -> void:
 			var ally_col: Color = stats.body_color.lerp(Color(0.6, 1.0, 0.72), 0.6)  # 澄んだ色に
 			garden.spawn_ally(global_position, healer_id, ally_col, stats_path.get_file().get_basename())
 	rpc("_remote_healed")
+
+
+## サーバ：中ボスを「つかむ」で怯ませる（この間だけ“きれいに”が通る）。
+## 押さえ役は プレイヤーの「つかむ」／ソロは なかまが肩代わり（ally.gd）。
+func stagger(_from_id: int) -> void:
+	if not multiplayer.has_multiplayer_peer() or not multiplayer.is_server() or _dead:
+		return
+	if not stats.is_midboss:
+		return
+	_stagger_t = BOSS_STAGGER_TIME
+	rpc("_remote_staggered")
+
+
+## 浄化の進みに合わせて 3段の芝居（暴れる→弱る→泣く）。倒すのでなく“助けている”手触り。
+func _boss_story_barks() -> void:
+	var maxhp := maxi(1, stats.max_hp)
+	var r := float(maxi(0, hp)) / float(maxhp)
+	if _stage == 0 and r <= 0.66:
+		_stage = 1
+		WorldState.notice.emit("（ヘドロが はがれてきた）「…ぐぅ、やめ…て…」")
+	elif _stage == 1 and r <= 0.33:
+		_stage = 2
+		WorldState.notice.emit("（もう すこし！）「…いたかった…ずっと、ずっと…」")
+
+
+@rpc("authority", "call_local", "reliable")
+func _remote_staggered() -> void:
+	# 怯み＝「今だ！」の合図。ぶるっと縮んで戻る＝“きれいに”が通るサイン。
+	if _body != null:
+		var s: float = stats.body_scale
+		var tw := create_tween()
+		tw.tween_property(_body, "scale", Vector3.ONE * s * 0.86, 0.08)
+		tw.tween_property(_body, "scale", Vector3.ONE * s, 0.25).set_trans(Tween.TRANS_ELASTIC)
+	Sfx.play("swing", -6.0)
 
 
 @rpc("authority", "unreliable_ordered")

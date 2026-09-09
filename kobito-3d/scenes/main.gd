@@ -379,10 +379,27 @@ func _run_selftest() -> void:
 				boss_ok = true
 				break
 
+	# 中ボスの“暴れ→つかむ→きれいに”を確認：暴れ中は効かず、怯ませると効く。
+	var boss_hold_ok := false
+	var boss_node: Node = null
+	for b in get_tree().get_nodes_in_group("bug"):
+		var st: Variant = b.get("stats")
+		if st != null and st.is_midboss:
+			boss_node = b
+			break
+	if boss_node != null:
+		boss_node._stagger_t = 0.0           # まず“暴れ”状態へ（なかまの押さえを無効化して純粋に判定）
+		var hp0: int = boss_node.hp
+		boss_node.cleanse(5, 1)              # 暴れ中＝効かないはず
+		var hp_resist: int = boss_node.hp
+		boss_node.stagger(1)                 # 「つかむ」で怯ませる
+		boss_node.cleanse(5, 1)              # 今度は効く
+		boss_hold_ok = (hp_resist == hp0) and (boss_node.hp < hp_resist)
+
 	var ok: bool = _garden != null and players.size() == 1 and bugs.size() > 0 \
-		and WorldState.recovery > 0.0 and xp_gained and flight_ok and kids_ok and mother_ok and puzzle_ok and switch_ok and blob_ok and ring_ok and ally_ok and ally_species_ok and save_ok and boss_ok and dex_ok
-	print("[selftest] 回復度=%.2f XP=%d 経験値=%s 飛行解禁=%s 子ども=%d(最寄り%.1f) 母=%s 石版=%s 扉=%s おそうじ=%s 輪=%s なかま=%s 種役割=%s セーブ=%s ボス召喚=%s 図鑑=%s" % [
-		WorldState.recovery, xp_now, xp_gained, flight_ok, children.size(), nearest, mother_ok, puzzle_ok, switch_ok, blob_ok, ring_ok, ally_ok, ally_species_ok, save_ok, boss_ok, dex_ok])
+		and WorldState.recovery > 0.0 and xp_gained and flight_ok and kids_ok and mother_ok and puzzle_ok and switch_ok and blob_ok and ring_ok and ally_ok and ally_species_ok and save_ok and boss_ok and boss_hold_ok and dex_ok
+	print("[selftest] 回復度=%.2f XP=%d 経験値=%s 飛行解禁=%s 子ども=%d(最寄り%.1f) 母=%s 石版=%s 扉=%s おそうじ=%s 輪=%s なかま=%s 種役割=%s セーブ=%s ボス召喚=%s ボス浄化=%s 図鑑=%s" % [
+		WorldState.recovery, xp_now, xp_gained, flight_ok, children.size(), nearest, mother_ok, puzzle_ok, switch_ok, blob_ok, ring_ok, ally_ok, ally_species_ok, save_ok, boss_ok, boss_hold_ok, dex_ok])
 	print("[selftest] %s" % ("OK" if ok else "NG"))
 	get_tree().quit(0 if ok else 1)
 

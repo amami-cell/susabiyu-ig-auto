@@ -571,6 +571,12 @@ func _server_clean_near(from: Vector3) -> void:
 	for blob in get_tree().get_nodes_in_group("scrub_blob"):
 		if (blob as Node3D).global_position.distance_to(from) <= pin_range and blob.has_method("pin"):
 			blob.pin(name.to_int())
+	# 中ボス：「つかむ」で怯ませる＝暴れを止めて 味方の「きれいに」を通す（役割分担のキモ）。
+	for b in get_tree().get_nodes_in_group("bug"):
+		var st: Variant = b.get("stats")
+		if st != null and st.is_midboss and b.has_method("stagger"):
+			if (b as Node3D).global_position.distance_to(from) <= pin_range + 1.2:
+				b.stagger(name.to_int())
 
 
 ## サーバから呼ばれる：被弾
