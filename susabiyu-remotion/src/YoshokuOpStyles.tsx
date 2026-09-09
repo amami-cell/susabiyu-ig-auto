@@ -271,39 +271,53 @@ const MAG_CREAM = "#F3E7CF";
 const MAG_CREAM_D = "#E7D5B2";
 const MAG_INK = "#241A12";
 
+function _todayMD(): string {
+  const now = new Date(Date.now() + 9 * 3600 * 1000); // JST
+  return now.getUTCMonth() + 1 + "/" + now.getUTCDate();
+}
+
 const Open9: React.FC<SP> = ({ storeName = DEF.storeName, theme = DEF.theme }) => {
   const f = useCurrentFrame(); const T = ytheme(theme);
   const src = (typoPhotos[0] && typoPhotos[0].src) || "";
-  const z = interpolate(f, [0, STORY_OPEN], [1.12, 1.02], { ...clamp, easing: EASE });
-  const head = interpolate(f, [0, 30], [-40, 0], { ...clamp, easing: EASE });   // 誌名が上から入る
-  const line = interpolate(f, [10, 42], [0, 912], { ...clamp, easing: EASE });  // 見出し罫が引かれる
-  const cover = interpolate(f, [14, 44], [34, 0], { ...clamp, easing: EASE });  // 見出しが下から
+  const head = interpolate(f, [0, 30], [-36, 0], { ...clamp, easing: EASE });   // 誌名が上から入る
+  const rule = interpolate(f, [10, 42], [0, 620], { ...clamp, easing: EASE });  // 誌名下の罫が引かれる
+  const ph = interpolate(f, [6, 44], [1.06, 1.0], { ...clamp, easing: EASE });  // 表紙写真がすっと収まる
+  const cover = interpolate(f, [16, 46], [30, 0], { ...clamp, easing: EASE });  // 見出しが下から
   const o = Math.min(fade(f, 2, 18), interpolate(f, [STORY_OPEN - 12, STORY_OPEN], [1, 0], clamp));
   return (
-    <AbsoluteFill style={{ backgroundColor: T.base, opacity: o }}>
-      {src ? (
-        <AbsoluteFill style={{ overflow: "hidden" }}>
-          <Img src={staticFile(src)} style={{ width: "100%", height: "100%", objectFit: "cover", transform: "scale(" + z + ")", filter: "saturate(1.12) contrast(1.06)" }} />
-        </AbsoluteFill>
-      ) : null}
-      {/* 表紙らしく上下だけ沈める（料理は暗くしない） */}
-      <AbsoluteFill style={{ background: "linear-gradient(180deg, rgba(0,0,0,0.52) 0%, rgba(0,0,0,0) 26%, rgba(0,0,0,0) 58%, rgba(0,0,0,0.62) 100%)" }} />
+    <AbsoluteFill style={{ background: "radial-gradient(120% 90% at 50% 30%, " + MAG_CREAM + " 0%, " + MAG_CREAM_D + " 100%)", opacity: o }}>
+      {/* 紙の織り目＋誌面の二重罫（CLOSEの裏表紙と同じ作法で対にする） */}
+      <AbsoluteFill style={{ opacity: 0.05, backgroundImage: "repeating-linear-gradient(90deg, rgba(120,80,40,0.6) 0 1px, transparent 1px 5px), repeating-linear-gradient(0deg, rgba(120,80,40,0.5) 0 1px, transparent 1px 6px)" }} />
+      <div style={{ position: "absolute", inset: 44, border: "2px solid rgba(150,110,70,0.4)" }} />
+      <div style={{ position: "absolute", inset: 60, border: "1px solid rgba(150,110,70,0.26)" }} />
 
       {/* 誌名（＝店ロゴ）＋発行情報 */}
       <div style={{ position: "absolute", top: 150, left: 0, right: 0, display: "flex", justifyContent: "center", transform: "translateY(" + head + "px)" }}>
         <StoreLogoColor storeName={storeName} height={150} />
       </div>
-      <div style={{ position: "absolute", top: 330, left: 0, right: 0, textAlign: "center", opacity: fade(f, 16, 20) }}>
-        <span style={{ fontFamily: serif, color: "#F6EFE0", fontSize: 26, letterSpacing: 12, textTransform: "uppercase", fontWeight: 600 }}>{T.label}　·　OGGI</span>
+      <div style={{ position: "absolute", top: 330, left: 0, right: 0, display: "flex", justifyContent: "center" }}>
+        <div style={{ width: rule, height: 2, background: T.slab, opacity: 0.75 }} />
+      </div>
+      <div style={{ position: "absolute", top: 352, left: 0, right: 0, textAlign: "center", opacity: fade(f, 18, 20) }}>
+        <span style={{ fontFamily: serif, color: T.slab, fontSize: 24, letterSpacing: 10, textTransform: "uppercase", fontWeight: 600 }}>{T.label}　·　OGGI {_todayMD()}</span>
       </div>
 
-      {/* 表紙の見出し（左下） */}
-      <div style={{ position: "absolute", left: 84, bottom: 300, height: 3, width: line, background: T.accent }} />
-      <div style={{ position: "absolute", left: 84, right: 84, bottom: 176, transform: "translateY(" + cover + "px)", opacity: fade(f, 14, 24) }}>
-        <div style={{ fontFamily: serif, color: T.accent, fontSize: 30, letterSpacing: 6, textTransform: "uppercase", fontWeight: 600, marginBottom: 10 }}>SIGNATURE</div>
-        <div style={{ fontFamily: mincho, color: "#F8F1E2", fontSize: 62, fontWeight: 700, letterSpacing: 4, textShadow: "0 3px 20px rgba(0,0,0,0.75)" }}>本日のおすすめ</div>
+      {/* 表紙写真：白フチで囲って“誌面に貼った写真”に（全面写真だと雑誌に見えない） */}
+      <div style={{ position: "absolute", left: 116, right: 116, top: 430, height: 880, transform: "scale(" + ph + ")", opacity: fade(f, 6, 22) }}>
+        <div style={{ position: "absolute", inset: 0, background: "#FBF5E9", padding: 18, boxShadow: "0 26px 60px rgba(60,35,14,0.32)" }}>
+          <div style={{ position: "absolute", inset: 18, overflow: "hidden" }}>
+            {src ? <Img src={staticFile(src)} style={{ width: "100%", height: "100%", objectFit: "cover", filter: "saturate(1.1) contrast(1.05)" }} /> : null}
+          </div>
+        </div>
       </div>
-      <Grain opacity={0.06} />
+
+      {/* 表紙の見出し（写真の下・左寄せ＝誌面の作法） */}
+      <div style={{ position: "absolute", left: 116, right: 116, top: 1372, transform: "translateY(" + cover + "px)", opacity: fade(f, 16, 24) }}>
+        <div style={{ fontFamily: serif, color: T.slab, fontSize: 28, letterSpacing: 8, textTransform: "uppercase", fontWeight: 600, marginBottom: 12 }}>SIGNATURE</div>
+        <div style={{ height: 3, width: 96, background: T.slab, marginBottom: 18 }} />
+        <div style={{ fontFamily: mincho, color: MAG_INK, fontSize: 70, fontWeight: 700, letterSpacing: 6 }}>本日のおすすめ</div>
+      </div>
+      <Grain opacity={0.05} />
     </AbsoluteFill>
   );
 };
