@@ -101,7 +101,12 @@ jobs:
           fi
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
-          git clone --depth 1 "https://x-access-token:${TOKEN}@github.com/${MEDIA_REPO}.git" _site
+          # メディアリポには見本のmp4/jpgが大量に溜まっており、素の --depth 1 でも
+          # 全ファイルの実体をダウンロードするため公開だけで5〜12分かかっていた。
+          # blob:none(必要な実体だけ後から取得)＋sparse(app/ だけ展開)にして数十秒に短縮する。
+          GIT_LFS_SKIP_SMUDGE=1 git clone --depth 1 --filter=blob:none --sparse \
+            "https://x-access-token:${TOKEN}@github.com/${MEDIA_REPO}.git" _site
+          git -C _site sparse-checkout set app
           rm -rf _site/app
           mkdir -p _site/app
           cp -r pwa/. _site/app/
