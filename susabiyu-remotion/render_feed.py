@@ -21,9 +21,9 @@ FEED_COMPS = [
     ("YoshokuFeedE", "フィード案E・サイドレール(テラコッタ帯)"),
     ("YoshokuFeedE2", "フィード案E2・サイドレール(オリーブ帯)"),
     ("YoshokuFeedE3", "フィード案E3・サイドレール(ゴールド帯)"),
-    ("YoshokuFeedH", "フィード案H・切り抜き3品のイメージポスター"),
+    ("YoshokuFeedH", "フィード案H・パーチメント×ぼかし切り抜き"),
     ("YoshokuFeedH2", "フィード案H2・丸皿カット(正円・テラコッタ地)"),
-    ("YoshokuFeedH3", "フィード案H3・角丸ステッカー×ハーフ地"),
+    ("YoshokuFeedH3", "フィード案H3・イメージポスター(切り抜き3品)"),
 ]
 
 
