@@ -5,7 +5,7 @@ import { typoPhotos, typoHeadline, typoMusic, typoMusicStart } from "./typoData"
 import { ytheme } from "./yoshokuTheme";
 import {
   mincho, serif, clamp, SAFE, EASE, rise, drawW, fade,
-  Grain, Vignette, PhotoLayer, Slides, Masthead, SampleBadge, splitLines, phraseLines, heroSize, segNow,
+  Grain, Vignette, PhotoLayer, Slides, Masthead, SampleBadge, phraseLines, heroSize, fitOneLine, segNow,
 } from "./yoshokuDesign";
 
 export const YTYPE_DUR = 480; // 16s
@@ -63,14 +63,13 @@ export const YoshokuType: React.FC<{ storeName?: string; handle?: string; theme?
       {(() => {
         const { i, local } = segNow(DUR, 6, f);
         if (i === 0 && f < 130) return null;
-        const it = items[i]; const _nm = (it.disp && it.disp.length) ? it.disp : it.caption; const lines = splitLines(_nm);
-        const sz = heroSize(_nm, 98, 64);
+        const it = items[i]; const _nm = (it.disp && it.disp.length) ? it.disp : it.caption;
+        const one = (_nm || "").replace(/[｜\n]/g, "");                 // 料理名は必ず1行
+        const sz = fitOneLine(one, 96, 1080 - SAFE.side * 2, 34);
         return (
           <div key={i} style={{ position: "absolute", left: SAFE.side, right: SAFE.side, bottom: SAFE.bottom - 44, textAlign: "left", ...rise(local, 8, { dist: 20, blur: 6 }) }}>
             <div style={{ width: drawW(local, 14, 100, 24), height: 2, background: T.accent, marginBottom: 18 }} />
-            <div style={{ fontFamily: mincho, color: "#FFF6E6", fontSize: sz, fontWeight: 700, letterSpacing: 1, lineHeight: 1.16, textShadow: "0 2px 20px rgba(0,0,0,0.8)" }}>
-              {lines.length ? lines.map((ln, k) => <div key={k}>{ln}</div>) : it.caption}
-            </div>
+            <div style={{ fontFamily: mincho, color: "#FFF6E6", fontSize: sz, fontWeight: 700, letterSpacing: 1, lineHeight: 1.16, whiteSpace: "nowrap", textShadow: "0 2px 20px rgba(0,0,0,0.8)" }}>{one}</div>
             <div style={{ marginTop: 16, fontFamily: serif, color: T.accent, fontSize: 25, letterSpacing: 4, opacity: 0.85 }}>{handle}</div>
           </div>
         );

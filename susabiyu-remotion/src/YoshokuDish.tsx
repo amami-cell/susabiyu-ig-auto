@@ -6,7 +6,7 @@ import { typoPhotos, typoMusic, typoMusicStart } from "./typoData";
 import { ytheme } from "./yoshokuTheme";
 import {
   mincho, serif, clamp, SAFE, rise, drawW, segNow,
-  Grain, Vignette, WarmGlow, DishStage, Masthead, SampleBadge, splitLines, heroSize,
+  Grain, Vignette, WarmGlow, DishStage, Masthead, SampleBadge, fitOneLine,
   StoryOpening, StoryEndroll, STORY_OPEN, STORY_END, STORY_XF,
 } from "./yoshokuDesign";
 
@@ -24,8 +24,8 @@ const DishBody: React.FC<{ storeName?: string; handle?: string; theme?: string }
   const { i, local } = segNow(DUR, photos.length, f);
   const cur = photos[i] || { caption: "", story: "", sub: "", disp: "" };
   const nm = (cur.disp && cur.disp.length) ? cur.disp : cur.caption;
-  const lines = splitLines(nm);
-  const nameSize = heroSize(nm, 104, 66);
+  const one = (nm || "").replace(/[｜\n]/g, "");                    // 料理名は必ず1行
+  const nameSize = fitOneLine(one, 96, 1080 - SAFE.side * 2, 34);
   const ruleW = drawW(f, 56, 108, 28);
 
   return (
@@ -46,9 +46,7 @@ const DishBody: React.FC<{ storeName?: string; handle?: string; theme?: string }
       <div key={i} style={{ position: "absolute", left: SAFE.side, right: SAFE.side, bottom: SAFE.bottom - 44, textAlign: "left", ...rise(local, 4, { dist: 24, blur: 6 }) }}>
         <div style={{ width: ruleW, height: 2, background: T.accent, opacity: 0.9, marginBottom: 18 }} />
         {cur.sub ? <div style={{ fontFamily: serif, color: T.accent, fontSize: 30, letterSpacing: 4, textTransform: "uppercase", fontWeight: 600, marginBottom: 8 }}>{cur.sub}</div> : null}
-        <div style={{ fontFamily: mincho, color: T.ink, fontSize: nameSize, fontWeight: 700, letterSpacing: 1, lineHeight: 1.16, textShadow: "0 3px 22px rgba(0,0,0,0.55)" }}>
-          {lines.length ? lines.map((ln, k) => <div key={k}>{ln}</div>) : cur.caption}
-        </div>
+        <div style={{ fontFamily: mincho, color: T.ink, fontSize: nameSize, fontWeight: 700, letterSpacing: 1, lineHeight: 1.16, whiteSpace: "nowrap", textShadow: "0 3px 22px rgba(0,0,0,0.55)" }}>{one}</div>
         {cur.story ? (
           <div style={{ marginTop: 14, fontFamily: mincho, color: T.sub, fontSize: 36, letterSpacing: 2, opacity: 0.96, textShadow: "0 2px 14px rgba(0,0,0,0.5)" }}>{cur.story}</div>
         ) : null}

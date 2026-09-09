@@ -5,7 +5,7 @@ import { typoPhotos, typoMusic, typoMusicStart } from "./typoData";
 import { ytheme } from "./yoshokuTheme";
 import {
   mincho, serif, clamp, SAFE, rise, drawW,
-  Grain, Vignette, Masthead, PhotoLayer, Slides, SampleBadge, splitLines, heroSize, segNow,
+  Grain, Vignette, Masthead, PhotoLayer, Slides, SampleBadge, fitOneLine, segNow,
   StoryOpening, StoryEndroll, STORY_OPEN, STORY_END, STORY_XF,
 } from "./yoshokuDesign";
 
@@ -34,10 +34,13 @@ const SizzleBody: React.FC<{ storeName?: string; handle?: string; theme?: string
 
   return (
     <AbsoluteFill style={{ backgroundColor: "#0b0806", fontFamily: mincho }}>
-      {/* 主役：4品フルブリード（ズーム抑制で全体が見える） */}
+      {/* 主役：4品。寄りすぎ解消のため、背景に同写真のぼかしカバー＋前面は contain で皿の全体を見せる */}
       <AbsoluteFill>
         <Slides count={4} total={DUR} render={(i, local, seg) => (
-          <PhotoLayer src={items[i].src} frame={local} dur={seg} from={1.03} to={1.09} sat={1.1} brightness={1.0} />
+          <>
+            <AbsoluteFill><PhotoLayer src={items[i].src} frame={local} dur={seg} from={1.16} to={1.22} sat={1.02} brightness={0.42} blur={28} /></AbsoluteFill>
+            <AbsoluteFill><PhotoLayer src={items[i].src} frame={local} dur={seg} from={0.94} to={0.98} sat={1.1} brightness={1.02} fit="contain" /></AbsoluteFill>
+          </>
         )} />
       </AbsoluteFill>
       <AbsoluteFill style={{ background: "linear-gradient(180deg, rgba(0,0,0,0.55) 0%, rgba(0,0,0,0.05) 24%, rgba(0,0,0,0.12) 54%, rgba(0,0,0,0.9) 100%)" }} />
@@ -58,15 +61,13 @@ const SizzleBody: React.FC<{ storeName?: string; handle?: string; theme?: string
         const { i, local } = segNow(DUR, 4, f);
         const it = items[i];
         const nm = (it.disp && it.disp.length) ? it.disp : it.caption;
-        const lines = splitLines(nm);
-        const sz = heroSize(nm, 104, 66);
+        const one = (nm || "").replace(/[｜\n]/g, "");                 // 料理名は必ず1行
+        const sz = fitOneLine(one, 92, 1080 - SAFE.side * 2, 34);
         return (
           <div key={i} style={{ position: "absolute", left: SAFE.side, right: SAFE.side, bottom: SAFE.bottom - 44, textAlign: "left", ...rise(local, 6, { dist: 22, blur: 6 }) }}>
             <div style={{ width: drawW(local, 12, 100, 24), height: 2, background: T.accent, marginBottom: 18 }} />
             {it.sub ? <div style={{ fontFamily: serif, color: T.accent, fontSize: 30, letterSpacing: 4, textTransform: "uppercase", fontWeight: 600, marginBottom: 8 }}>{it.sub}</div> : null}
-            <div style={{ fontFamily: mincho, color: "#FFF6E6", fontSize: sz, fontWeight: 700, letterSpacing: 1, lineHeight: 1.16, textShadow: "0 3px 24px rgba(0,0,0,0.75)" }}>
-              {lines.length ? lines.map((ln, k) => <div key={k}>{ln}</div>) : it.caption}
-            </div>
+            <div style={{ fontFamily: mincho, color: "#FFF6E6", fontSize: sz, fontWeight: 700, letterSpacing: 1, lineHeight: 1.16, whiteSpace: "nowrap", textShadow: "0 3px 24px rgba(0,0,0,0.75)" }}>{one}</div>
             {it.story ? (
               <div style={{ marginTop: 12, fontFamily: mincho, color: "#F3E7CF", fontSize: 35, letterSpacing: 2, opacity: 0.96, textShadow: "0 2px 16px rgba(0,0,0,0.7)" }}>{it.story}</div>
             ) : null}

@@ -6,7 +6,7 @@ import { typoPhotos, typoMusic, typoMusicStart } from "./typoData";
 import { ytheme } from "./yoshokuTheme";
 import {
   mincho, serif, clamp, SAFE, rise, drawW, fade, segNow,
-  Grain, StoreLogo, PhotoLayer, Slides, SampleBadge, splitLines, heroSize,
+  Grain, StoreLogo, PhotoLayer, Slides, SampleBadge, fitOneLine,
   StoryOpening, StoryEndroll, STORY_OPEN, STORY_END, STORY_XF,
 } from "./yoshokuDesign";
 
@@ -29,8 +29,8 @@ const ChalkBody: React.FC<{ storeName?: string; handle?: string; theme?: string 
   const { i, local } = segNow(DUR, photos.length, f);
   const cur = photos[i] || { src: "", caption: "", story: "", sub: "", disp: "", desc: "" };
   const nm = (cur.disp && cur.disp.length) ? cur.disp : cur.caption;
-  const lines = splitLines(nm);
-  const nameSize = heroSize(nm, 104, 66);
+  const one = (nm || "").replace(/[｜\n]/g, "");                    // 料理名は必ず1行
+  const nameSize = fitOneLine(one, 100, 1080 - SAFE.side * 2, 34);
   const ruleW = drawW(f, 24, 300, 34);
 
   return (
@@ -56,9 +56,7 @@ const ChalkBody: React.FC<{ storeName?: string; handle?: string; theme?: string 
       {/* 主役：欧文サブ＋料理名（白チョーク風・特大・最大2行）＋短句。カット毎に差し替え。 */}
       <div key={i} style={{ position: "absolute", top: 440, left: SAFE.side, right: SAFE.side, textAlign: "center", ...rise(local, 3, { dist: 20, blur: 6 }) }}>
         {cur.sub ? <div style={{ fontFamily: serif, color: T.accent, fontSize: 28, letterSpacing: 4, textTransform: "uppercase", fontWeight: 600, marginBottom: 8, fontStyle: "italic" }}>{cur.sub}</div> : null}
-        <div style={{ fontFamily: mincho, color: "#F4F2EA", fontSize: nameSize, fontWeight: 700, letterSpacing: 2, lineHeight: 1.18, textShadow: "0 1px 0 rgba(255,255,255,0.22), 0 4px 18px rgba(0,0,0,0.5)" }}>
-          {lines.length ? lines.map((ln, k) => <div key={k}>{ln}</div>) : cur.caption}
-        </div>
+        <div style={{ fontFamily: mincho, color: "#F4F2EA", fontSize: nameSize, fontWeight: 700, letterSpacing: 1, lineHeight: 1.18, whiteSpace: "nowrap", textShadow: "0 1px 0 rgba(255,255,255,0.22), 0 4px 18px rgba(0,0,0,0.5)" }}>{one}</div>
         {cur.story ? (
           <div style={{ marginTop: 14, fontFamily: serif, fontStyle: "italic", color: T.accent, fontSize: 36, letterSpacing: 3, opacity: 0.95 }}>{cur.story}</div>
         ) : null}

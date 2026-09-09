@@ -22,8 +22,9 @@ const Scrim: React.FC<{ dir: "up" | "down"; height: number }> = ({ dir, height }
 );
 
 // 上下どちらか半分の一皿：ぼかし背景＋contain（全体が見える）＋名前。
-const Half: React.FC<{ item: any; f: number; delay: number; label: string; accent: string; nameAtBottom: boolean }> =
-  ({ item, f, delay, label, accent, nameAtBottom }) => {
+// 名前は“中央の丸ロゴから離す”：上の皿は上寄せ（ヘッダーの下）、下の皿は下寄せ。中央の継ぎ目は空ける。
+const Half: React.FC<{ item: any; f: number; delay: number; label: string; accent: string; namePos: "top" | "bottom"; inset: number }> =
+  ({ item, f, delay, label, accent, namePos, inset }) => {
     const nm = (item.disp && item.disp.length) ? item.disp : item.caption;
     const one = (nm || "").replace(/[｜\n]/g, "");
     const sz = fitOneLine(one, 58, 1080 - SAFE.side * 2, 30);
@@ -32,8 +33,8 @@ const Half: React.FC<{ item: any; f: number; delay: number; label: string; accen
       <div style={{ position: "relative", width: 1080, height: HALF, overflow: "hidden", opacity: o }}>
         <AbsoluteFill><PhotoLayer src={item.src} frame={f} dur={YWINE_DUR} from={1.16} to={1.22} sat={1.02} brightness={0.42} blur={28} /></AbsoluteFill>
         <AbsoluteFill><PhotoLayer src={item.src} frame={f} dur={YWINE_DUR} from={1.0} to={1.04} sat={1.07} brightness={1.02} fit="contain" /></AbsoluteFill>
-        <Scrim dir={nameAtBottom ? "up" : "down"} height={330} />
-        <div style={{ position: "absolute", left: SAFE.side, right: SAFE.side, [nameAtBottom ? "bottom" : "top"]: 40, textAlign: "center" }}>
+        <Scrim dir={namePos === "bottom" ? "up" : "down"} height={360} />
+        <div style={{ position: "absolute", left: SAFE.side, right: SAFE.side, [namePos]: inset, textAlign: "center" }}>
           <div style={{ fontFamily: serif, color: accent, fontSize: 24, letterSpacing: 6, marginBottom: 8, textShadow: "0 2px 12px rgba(0,0,0,0.85)" }}>{label}</div>
           {item.sub ? <div style={{ fontFamily: serif, color: "rgba(240,223,198,0.95)", fontSize: 24, letterSpacing: 3, textTransform: "uppercase", fontWeight: 600, marginBottom: 6, textShadow: "0 2px 12px rgba(0,0,0,0.85)" }}>{item.sub}</div> : null}
           <div style={{ fontFamily: mincho, color: "#FBF3E4", fontSize: sz, fontWeight: 700, letterSpacing: 1, lineHeight: 1.15, whiteSpace: "nowrap", textShadow: "0 2px 18px rgba(0,0,0,0.9)" }}>{one}</div>
@@ -42,11 +43,11 @@ const Half: React.FC<{ item: any; f: number; delay: number; label: string; accen
     );
   };
 
-// 1ページ＝上下2品（横割り）。
+// 1ページ＝上下2品（横割り）。上の皿の名前はヘッダー下、下の皿の名前は最下部側に置く。
 const Page: React.FC<{ a: any; b: any; f: number; base: number; accent: string }> = ({ a, b, f, base, accent }) => (
   <div style={{ position: "absolute", top: 0, width: 1080, height: 1920 }}>
-    <Half item={a} f={f} delay={base} label="DISH" accent={accent} nameAtBottom />
-    <Half item={b} f={f} delay={base + 8} label="PAIRING" accent={accent} nameAtBottom={false} />
+    <Half item={a} f={f} delay={base} label="DISH" accent={accent} namePos="top" inset={236} />
+    <Half item={b} f={f} delay={base + 8} label="PAIRING" accent={accent} namePos="bottom" inset={214} />
   </div>
 );
 
@@ -74,11 +75,11 @@ export const YoshokuWine: React.FC<{ storeName?: string; handle?: string; theme?
 
       {/* 中央：仕切り線＋丸ロゴ（上下の境目） */}
       <div style={{ position: "absolute", top: HALF - 2, left: 0, right: 0, height: 4, background: "rgba(224,103,58,0.6)", opacity: midO }} />
-      <div style={{ position: "absolute", top: HALF - 88, left: 0, right: 0, display: "flex", justifyContent: "center", opacity: midO }}>
-        <div style={{ width: 176, height: 176, borderRadius: "50%", border: "2px solid " + T.accent, background: T.base + "E6", overflow: "hidden", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 18px 44px rgba(0,0,0,0.55)" }}>
+      <div style={{ position: "absolute", top: HALF - 135, left: 0, right: 0, display: "flex", justifyContent: "center", opacity: midO }}>
+        <div style={{ width: 270, height: 270, borderRadius: "50%", border: "3px solid " + T.accent, background: T.base + "E6", overflow: "hidden", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 22px 56px rgba(0,0,0,0.6)" }}>
           {typoLogoRound
-            ? <Img src={staticFile(typoLogoRound)} style={{ width: "100%", height: "100%", objectFit: "contain", padding: 8 }} />
-            : <div style={{ fontFamily: serif, fontStyle: "italic", color: T.accent, fontSize: 84, lineHeight: 1 }}>&amp;</div>}
+            ? <Img src={staticFile(typoLogoRound)} style={{ width: "100%", height: "100%", objectFit: "contain", padding: 10 }} />
+            : <div style={{ fontFamily: serif, fontStyle: "italic", color: T.accent, fontSize: 128, lineHeight: 1 }}>&amp;</div>}
         </div>
       </div>
 
