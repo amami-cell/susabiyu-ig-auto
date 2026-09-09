@@ -184,7 +184,7 @@
   document.getElementById('q').addEventListener('input',function(){ curQ=this.value.trim().toLowerCase(); render(); });
   document.getElementById('mq').addEventListener('input',function(){ curMQ=this.value.trim().toLowerCase(); renderMsgs(); });
   renderTabs(); render();
-  // ページ埋め込み(<?!= ?>)が空でも確実に出すため、サーバーから直接読み込んで再描画する保険。
+  // サーバー埋め込みが空でも確実に出すため、サーバーから直接読み込んで再描画する保険。
   try{
     if(window.google && google.script && google.script.run){
       google.script.run.withSuccessHandler(function(r){ if(r&&r.items){ ITEMS=r.items; renderTabs(); if(mode!=='msgs') render(); } }).mediaListPublic();
