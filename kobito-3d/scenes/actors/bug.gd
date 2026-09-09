@@ -365,7 +365,7 @@ func cleanse(amount: int, healer_id: int) -> void:
 		var garden := get_tree().get_first_node_in_group("garden")
 		if garden != null and garden.has_method("spawn_ally"):
 			var ally_col: Color = stats.body_color.lerp(Color(0.6, 1.0, 0.72), 0.6)  # 澄んだ色に
-			garden.spawn_ally(global_position, healer_id, ally_col)
+			garden.spawn_ally(global_position, healer_id, ally_col, stats_path.get_file().get_basename())
 	rpc("_remote_healed")
 
 

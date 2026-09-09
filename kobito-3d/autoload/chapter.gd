@@ -561,8 +561,16 @@ func record_healed(species_path: String) -> void:
 		return
 	var cfg := ConfigFile.new()
 	cfg.load(DEX_PATH)
-	cfg.set_value("dex", id, int(cfg.get_value("dex", id, 0)) + 1)
+	var prev := int(cfg.get_value("dex", id, 0))
+	cfg.set_value("dex", id, prev + 1)
 	cfg.save(DEX_PATH)
+	# はじめて癒やした種＝「なかまが増える＝物語が進む」の一歩。名前で祝う。
+	if prev == 0:
+		var nm := id
+		var st: Variant = load(species_path)
+		if st != null and "display_name" in st:
+			nm = st.display_name
+		WorldState.notice.emit("%s が なかまに なった！　（ずかんに 記録）" % nm)
 
 
 ## 図鑑UI用：{ species_id: 累計数 }。まだ癒やしていない種は含まれない。

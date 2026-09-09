@@ -19,6 +19,15 @@ const HELP_AMOUNT := 4
 
 var owner_id: int = 1
 var tint: Color = Color(0.6, 1.0, 0.72)
+var species := ""              # 癒やした虫の種類id（例 "beetle"）。空なら仕掛け由来の汎用なかま。
+
+# 種ごとの役割（＝集めた種がゲーム内で活きる）。
+#   飛ぶ種  … 空の暴れ虫にも 届く（地上のなかまは 届かない）＝飛ぶ敵対策の切り札
+#   甲羅種  … じょうぶ。癒やしの力が強く、少し広く届く
+var _role_fly := false
+var _role_shell := false
+var _heal_amt := HELP_AMOUNT
+var _reach := HELP_REACH
 
 var _sync_accum := 0.0
 var _net_pos := Vector3.ZERO
@@ -110,11 +119,12 @@ func _build_look() -> void:
 	mouth.position = Vector3(0.0, -0.06, -0.28)
 	mouth.scale = Vector3(1.5, 0.5, 0.5)
 	_body.add_child(mouth)
-	# ちいさな半透明の羽
+	# 半透明の羽。飛ぶ種のなかまは 大きくはっきり（＝空の敵に届く子だと見分けられる）。
 	var wmat := StandardMaterial3D.new()
 	wmat.albedo_color = Color(1, 1, 1, 0.65)
 	wmat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 	wmat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	var wing_s := 1.5 if _role_fly else 0.85
 	for sx in [-0.3, 0.3]:
 		var w := MeshInstance3D.new()
 		var wm := SphereMesh.new()
@@ -124,14 +134,48 @@ func _build_look() -> void:
 		wm.rings = 4
 		w.mesh = wm
 		w.material_override = wmat
-		w.position = Vector3(sx, 0.12, 0.06)
-		w.scale = Vector3(0.5, 1.0, 0.2)
+		w.position = Vector3(sx * wing_s, 0.12, 0.06)
+		w.scale = Vector3(0.5 * wing_s, 1.0 * wing_s, 0.2)
 		_body.add_child(w)
 
+	# 甲羅の種のなかまは 背中に つやのあるドーム（＝じょうぶな子だと見分けられる）。
+	if _role_shell:
+		var shell := MeshInstance3D.new()
+		var sm := SphereMesh.new()
+		sm.radius = 0.26
+		sm.height = 0.52
+		sm.radial_segments = 10
+		sm.rings = 6
+		shell.mesh = sm
+		var smat := StandardMaterial3D.new()
+		smat.albedo_color = tint.darkened(0.28)
+		smat.roughness = 0.35
+		smat.metallic_specular = 0.6
+		smat.clearcoat_enabled = true
+		smat.clearcoat = 0.7
+		shell.material_override = smat
+		shell.position = Vector3(0.0, 0.16, 0.08)
+		shell.scale = Vector3(1.05, 0.7, 1.15)
+		_body.add_child(shell)
 
-func setup(o_id: int, col: Color) -> void:
+
+## _ready() より前に呼ばれる（garden が add_child する直前）＝見た目づくりに間に合う。
+func setup(o_id: int, col: Color, sp: String = "") -> void:
 	owner_id = o_id
 	tint = col
+	species = sp
+	_heal_amt = HELP_AMOUNT
+	_reach = HELP_REACH
+	if sp != "":
+		var path := "res://data/%s.tres" % sp
+		if ResourceLoader.exists(path):
+			var st: Variant = load(path)
+			if st != null:
+				_role_fly = bool(st.flies)
+				_role_shell = bool(st.shell)
+	if _role_shell:
+		_heal_amt = 6      # 甲羅のなかま＝じょうぶ。癒やしの力が強い
+		_reach = 2.1
 
 
 func _physics_process(delta: float) -> void:
@@ -152,13 +196,12 @@ func _physics_process(delta: float) -> void:
 
 
 func _think(delta: float) -> void:
-	velocity.y -= GRAVITY * delta
-	if is_on_floor():
-		velocity.y = -0.1
 	_help_cd = maxf(0.0, _help_cd - delta)
 
 	var goto := Vector3.ZERO
 	var has_goto := false
+	var helping_bug := false
+	var bug_y := 0.0
 
 	# ① 近くに暴れ虫がいれば、手伝いに行く
 	var bug := _nearest_bug()
@@ -167,11 +210,13 @@ func _think(delta: float) -> void:
 		db.y = 0.0
 		if db.length() <= HELP_RANGE:
 			has_goto = true
+			helping_bug = true
+			bug_y = bug.global_position.y
 			goto = bug.global_position
-			if db.length() < HELP_REACH and _help_cd <= 0.0:
+			if db.length() < _reach and _help_cd <= 0.0:
 				_help_cd = HELP_INTERVAL
 				if bug.has_method("cleanse"):
-					bug.cleanse(HELP_AMOUNT, owner_id)   # 一緒に癒やす（手柄はプレイヤーへ）
+					bug.cleanse(_heal_amt, owner_id)   # 一緒に癒やす（手柄はプレイヤーへ）
 
 	# ② いなければ、プレイヤーについていく
 	if not has_goto:
@@ -182,6 +227,15 @@ func _think(delta: float) -> void:
 			if dp.length() > FOLLOW_DIST:
 				has_goto = true
 				goto = p.global_position
+
+	# 上下：飛ぶ種は 宙に浮いて 空の暴れ虫にも届く。地上の種は 重力で地面を歩く。
+	if _role_fly:
+		var want_y := (bug_y + 0.2) if helping_bug else 1.3
+		velocity.y = clampf((want_y - global_position.y) * 3.0, -5.0, 5.0)
+	else:
+		velocity.y -= GRAVITY * delta
+		if is_on_floor():
+			velocity.y = -0.1
 
 	if has_goto:
 		var dir: Vector3 = goto - global_position
@@ -206,6 +260,9 @@ func _nearest_bug() -> Node3D:
 		# 中ボスは手伝わない＝ボスの見せ場はプレイヤー主体で（なかま6体で勝手に浄化されない）。
 		var st: Variant = b.get("stats")
 		if st != null and st.is_midboss:
+			continue
+		# 空を飛ぶ暴れ虫は、飛べるなかま だけが手伝える（地上の子は届かない）＝飛ぶ種を集める意味。
+		if st != null and st.flies and not _role_fly:
 			continue
 		var dd: float = b.global_position.distance_to(global_position)
 		if dd < bd:

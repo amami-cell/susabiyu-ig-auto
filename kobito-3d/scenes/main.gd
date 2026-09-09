@@ -282,6 +282,12 @@ func _run_selftest() -> void:
 
 	# 虫を癒やすと「なかま虫」が生まれて一緒に戦う経路を確認する
 	var ally_ok: bool = get_tree().get_nodes_in_group("ally").size() > 0
+	# 癒やした種類が なかまに伝わる（種の個性・役割）経路を確認する
+	var ally_species_ok := false
+	for a in get_tree().get_nodes_in_group("ally"):
+		if String(a.get("species")) != "":
+			ally_species_ok = true
+			break
 
 	# セーブ（つづきから）：章を進めるとチェックポイントが書かれるかを確認する
 	Chapter.rpc("_set_beat", 2, false)
@@ -374,9 +380,9 @@ func _run_selftest() -> void:
 				break
 
 	var ok: bool = _garden != null and players.size() == 1 and bugs.size() > 0 \
-		and WorldState.recovery > 0.0 and xp_gained and flight_ok and kids_ok and mother_ok and puzzle_ok and switch_ok and blob_ok and ring_ok and ally_ok and save_ok and boss_ok and dex_ok
-	print("[selftest] 回復度=%.2f XP=%d 経験値=%s 飛行解禁=%s 子ども=%d(最寄り%.1f) 母=%s 石版=%s 扉=%s おそうじ=%s 輪=%s なかま=%s セーブ=%s ボス召喚=%s 図鑑=%s" % [
-		WorldState.recovery, xp_now, xp_gained, flight_ok, children.size(), nearest, mother_ok, puzzle_ok, switch_ok, blob_ok, ring_ok, ally_ok, save_ok, boss_ok, dex_ok])
+		and WorldState.recovery > 0.0 and xp_gained and flight_ok and kids_ok and mother_ok and puzzle_ok and switch_ok and blob_ok and ring_ok and ally_ok and ally_species_ok and save_ok and boss_ok and dex_ok
+	print("[selftest] 回復度=%.2f XP=%d 経験値=%s 飛行解禁=%s 子ども=%d(最寄り%.1f) 母=%s 石版=%s 扉=%s おそうじ=%s 輪=%s なかま=%s 種役割=%s セーブ=%s ボス召喚=%s 図鑑=%s" % [
+		WorldState.recovery, xp_now, xp_gained, flight_ok, children.size(), nearest, mother_ok, puzzle_ok, switch_ok, blob_ok, ring_ok, ally_ok, ally_species_ok, save_ok, boss_ok, dex_ok])
 	print("[selftest] %s" % ("OK" if ok else "NG"))
 	get_tree().quit(0 if ok else 1)
 

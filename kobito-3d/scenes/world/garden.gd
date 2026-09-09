@@ -313,7 +313,7 @@ func _on_peer_connected(id: int) -> void:
 	# 今いる「なかま虫」も配る（後から参加した人の画面にも味方が居るように）
 	if _allies != null:
 		for ally in _allies.get_children():
-			rpc_id(id, "_remote_spawn_ally", int(ally.name.trim_prefix("Ally")), ally.owner_id, ally.tint, ally.global_position)
+			rpc_id(id, "_remote_spawn_ally", int(ally.name.trim_prefix("Ally")), ally.owner_id, ally.tint, ally.global_position, ally.species)
 	# 母＋子ども。母は専用RPC、子は番号だけ送れば相手が同じ子を組み立てられる。
 	if _children.has_node("Mother"):
 		rpc_id(id, "_remote_spawn_mother")
@@ -573,22 +573,24 @@ func _remote_spawn_bug(serial: int, stats_path: String, pos: Vector3) -> void:
 # 虫を癒やしきると、その場に「なかま虫」が生まれてプレイヤーについてくる。
 # テーマ「敵は救えば味方になる」を遊びで見せる。bug.gd が cleanse 完了時に spawn_ally を呼ぶ。
 
-func spawn_ally(pos: Vector3, owner_id: int, col: Color) -> void:
+## species＝癒やした虫の種類id（例 "beetle"）。空なら仕掛け由来の汎用なかま。
+## 種によって見た目（甲羅・羽）と手伝い方（飛ぶ敵に届く／じょうぶ）が変わる。
+func spawn_ally(pos: Vector3, owner_id: int, col: Color, species: String = "") -> void:
 	if not _is_server():
 		return
 	if _allies == null or _allies.get_child_count() >= MAX_ALLIES:
 		return
 	_ally_serial += 1
-	rpc("_remote_spawn_ally", _ally_serial, owner_id, col, pos)
+	rpc("_remote_spawn_ally", _ally_serial, owner_id, col, pos, species)
 
 
 @rpc("authority", "call_local", "reliable")
-func _remote_spawn_ally(serial: int, owner_id: int, col: Color, pos: Vector3) -> void:
+func _remote_spawn_ally(serial: int, owner_id: int, col: Color, pos: Vector3, species: String = "") -> void:
 	if _allies == null or _allies.has_node("Ally%d" % serial):
 		return
 	var a := Ally.new()
 	a.name = "Ally%d" % serial
-	a.setup(owner_id, col)
+	a.setup(owner_id, col, species)
 	_allies.add_child(a)
 	a.global_position = pos + Vector3(0.0, 0.4, 0.0)
 	WorldState.notice.emit("なかまが ふえた！")   # 全員の画面で同時に（call_local）
