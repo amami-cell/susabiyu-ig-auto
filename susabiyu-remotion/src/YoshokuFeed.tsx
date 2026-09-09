@@ -324,21 +324,36 @@ export const YoshokuFeedH: React.FC<P> = ({ storeName = D.storeName, handle = D.
   const ghost = (d.sub || "MEAT BAR").split(" ")[0];
   return (
     <AbsoluteFill style={{ background: "radial-gradient(120% 90% at 50% 34%, " + CREAM + " 0%, " + CREAM_D + " 100%)" }}>
-      {/* 紙の透かし（ごく薄く・カードの背後に収める） */}
-      <div style={{ position: "absolute", top: 330, left: -20, right: -20, textAlign: "center", fontFamily: serif, fontStyle: "italic", fontWeight: 600, color: T.slab, opacity: 0.08, fontSize: 300, lineHeight: 1, whiteSpace: "nowrap", overflow: "hidden" }}>{ghost}</div>
-      {/* 紙の内枠（額のマット）＝エディトリアルの品を足す */}
+      {/* 紙の繊維（ごく薄い織り目）＝“紙もの”の質感 */}
+      <AbsoluteFill style={{ opacity: 0.05, backgroundImage: "repeating-linear-gradient(90deg, rgba(120,80,40,0.6) 0 1px, transparent 1px 5px), repeating-linear-gradient(0deg, rgba(120,80,40,0.5) 0 1px, transparent 1px 6px)" }} />
+      {/* 紙の透かし（ごく薄く） */}
+      <div style={{ position: "absolute", top: 320, left: -20, right: -20, textAlign: "center", fontFamily: serif, fontStyle: "italic", fontWeight: 600, color: T.slab, opacity: 0.07, fontSize: 300, lineHeight: 1, whiteSpace: "nowrap", overflow: "hidden" }}>{ghost}</div>
+      {/* 紙の内枠（額のマット） */}
       <div style={{ position: "absolute", inset: 28, border: "1px solid rgba(150,110,70,0.35)" }} />
       <div style={{ position: "absolute", top: 96, left: 0, right: 0, display: "flex", justifyContent: "center" }}>
         <Brand storeName={storeName} accent={T.slab} tint={INK_D} logoH={124} center />
       </div>
-      {/* 角丸カード＝“切り抜き風”。クリーム縁＋テラコッタのキーライン＋暖かい落ち影 */}
-      <div style={{ position: "absolute", left: 108, right: 108, top: 352, height: 620, borderRadius: 40, overflow: "hidden", border: "10px solid #FBF3E2", outline: "1px solid rgba(176,72,31,0.45)", boxShadow: "0 38px 72px rgba(70,36,14,0.36)" }}>
-        <Photo src={d.src} />
+
+      {/* 接地影（皿の下にふわりと影）＝紙の上に“置いてある”ように見せる */}
+      <div style={{ position: "absolute", left: 250, top: 916, width: 580, height: 92, background: "radial-gradient(50% 50% at 50% 50%, rgba(74,42,16,0.34) 0%, rgba(74,42,16,0) 70%)" }} />
+      {/* 料理：縁をぼかして紙に溶け込ませる（長方形の“貼った感”を消す）＋紙に合わせた暖色グレーディング */}
+      <div style={{
+        position: "absolute", left: 96, right: 96, top: 322, height: 640,
+        WebkitMaskImage: "radial-gradient(ellipse 50% 50% at 50% 47%, #000 54%, rgba(0,0,0,0.55) 72%, transparent 88%)",
+        maskImage: "radial-gradient(ellipse 50% 50% at 50% 47%, #000 54%, rgba(0,0,0,0.55) 72%, transparent 88%)",
+      }}>
+        <Photo src={d.src} bri={1.06} sat={1.06} con={1.04} style={{ filter: "brightness(1.06) saturate(1.06) contrast(1.04) sepia(0.16)" }} />
       </div>
-      <div style={{ position: "absolute", left: 76, right: 76, top: 1006, textAlign: "center" }}>
+
+      <div style={{ position: "absolute", left: 76, right: 76, top: 1012, textAlign: "center" }}>
         <div style={{ display: "inline-block", padding: "5px 16px", border: "1px solid rgba(176,72,31,0.5)", borderRadius: 999, fontFamily: mincho, color: T.slab, fontSize: 20, letterSpacing: 4, marginBottom: 14 }}>本日のおすすめ</div>
         <HeroName text={dispName(d)} sub={d.sub} maxPx={86} minPx={34} usableW={FEED_W - 152} color={INK_D} subColor={T.slab} align="center" />
-        {d.desc ? <div style={{ marginTop: 14, fontFamily: mincho, color: "rgba(36,26,18,0.78)", fontSize: 26, lineHeight: 1.62, letterSpacing: 1 }}>{d.desc}</div> : null}
+        {d.desc ? (
+          <>
+            <div style={{ width: 72, height: 3, background: T.slab, margin: "16px auto 12px" }} />
+            <div style={{ fontFamily: mincho, color: "rgba(36,26,18,0.78)", fontSize: 26, lineHeight: 1.62, letterSpacing: 1 }}>{d.desc}</div>
+          </>
+        ) : null}
       </div>
       <div style={{ position: "absolute", right: SIDE, bottom: 54, fontFamily: serif, color: "rgba(36,26,18,0.6)", fontSize: 24, letterSpacing: 3 }}>{handle}</div>
       <Grain opacity={0.05} />
@@ -399,7 +414,7 @@ export const FEED_COMPS: { id: string; label: string; comp: React.FC<P> }[] = [
   { id: "YoshokuFeedE", label: "フィード案E・サイドレール(テラコッタ帯)", comp: YoshokuFeedE },
   { id: "YoshokuFeedE2", label: "フィード案E2・サイドレール(オリーブ帯)", comp: YoshokuFeedE2 },
   { id: "YoshokuFeedE3", label: "フィード案E3・サイドレール(ゴールド帯)", comp: YoshokuFeedE3 },
-  { id: "YoshokuFeedH", label: "フィード案H・パーチメント×角丸カード(切り抜き風)", comp: YoshokuFeedH },
+  { id: "YoshokuFeedH", label: "フィード案H・パーチメント×ぼかし切り抜き", comp: YoshokuFeedH },
   { id: "YoshokuFeedH2", label: "フィード案H2・丸皿カット(正円・テラコッタ地)", comp: YoshokuFeedH2 },
   { id: "YoshokuFeedH3", label: "フィード案H3・角丸ステッカー×ハーフ地", comp: YoshokuFeedH3 },
 ];
