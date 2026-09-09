@@ -45,8 +45,8 @@ const Curtain: React.FC<{ y: number; pos: "top" | "bottom"; accent: string }> = 
 
 const Open4: React.FC<SP> = ({ storeName = DEF.storeName, theme = DEF.theme }) => {
   const f = useCurrentFrame(); const T = ytheme(theme);
-  const open = interpolate(f, [4, 40], [0, 960], { ...clamp, easing: EASE });
-  const o = Math.min(fade(f, 14, 24), interpolate(f, [STORY_OPEN - 16, STORY_OPEN], [1, 0], clamp));
+  const open = interpolate(f, [6, 62], [0, 960], { ...clamp, easing: EASE });
+  const o = Math.min(fade(f, 20, 30), interpolate(f, [STORY_OPEN - 20, STORY_OPEN], [1, 0], clamp));
   return (
     <AbsoluteFill style={{ backgroundColor: T.base }}>
       <StoryBgLayer bg="mortar" theme={theme} dur={STORY_OPEN} />
@@ -64,15 +64,15 @@ const End4: React.FC<SP> = ({ storeName = DEF.storeName, handle = DEF.handle, th
   const f = useCurrentFrame(); const T = ytheme(theme);
   const rootO = interpolate(f, [0, STORY_XF], [0, 1], { ...clamp, easing: EASE });
   // 幕が中央へ寄って“締める”。中央に640pxのバンドを残し、そこにロゴと締め文を置く。
-  const close = interpolate(f, [STORY_XF, STORY_XF + 40], [960, 320], { ...clamp, easing: EASE });
+  const close = interpolate(f, [STORY_XF, STORY_XF + 56], [960, 320], { ...clamp, easing: EASE });
   return (
     <AbsoluteFill style={{ backgroundColor: T.base, opacity: rootO }}>
       <StoryBgLayer bg="mortar" theme={theme} dur={STORY_END + STORY_XF} />
       <Curtain y={-close} pos="top" accent={T.accent} />
       <Curtain y={close} pos="bottom" accent={T.accent} />
       <AbsoluteFill style={{ display: "flex", alignItems: "center", justifyContent: "center", flexDirection: "column", gap: 18 }}>
-        <div style={{ opacity: fade(f, STORY_XF + 18, 26) }}><BrandMark storeName={storeName} ink={T.ink} size={200} /></div>
-        <CloseCopy storeName={storeName} handle={handle} ink={T.ink} accent={T.accent} f={f} start={STORY_XF + 26} />
+        <div style={{ opacity: fade(f, STORY_XF + 22, 30) }}><BrandMark storeName={storeName} ink={T.ink} size={200} /></div>
+        <CloseCopy storeName={storeName} handle={handle} ink={T.ink} accent={T.accent} f={f} start={STORY_XF + 34} />
       </AbsoluteFill>
     </AbsoluteFill>
   );
@@ -85,7 +85,7 @@ const Open5: React.FC<SP> = ({ storeName = DEF.storeName, theme = DEF.theme }) =
   const src = (typoPhotos[0] && typoPhotos[0].src) || "";
   const s = interpolate(f, [0, STORY_OPEN], [1.42, 1.06], { ...clamp, easing: EASE });
   const scrim = interpolate(f, [0, STORY_OPEN], [0.2, 0.62], clamp);
-  const o = Math.min(fade(f, 20, 24), interpolate(f, [STORY_OPEN - 14, STORY_OPEN], [1, 0], clamp));
+  const o = Math.min(fade(f, 28, 30), interpolate(f, [STORY_OPEN - 18, STORY_OPEN], [1, 0], clamp));
   return (
     <AbsoluteFill style={{ backgroundColor: T.base }}>
       {src ? (
@@ -109,7 +109,7 @@ const End5: React.FC<SP> = ({ storeName = DEF.storeName, handle = DEF.handle, th
   const rootO = interpolate(f, [0, STORY_XF], [0, 1], { ...clamp, easing: EASE });
   const src = (typoPhotos[0] && typoPhotos[0].src) || "";
   // 料理がゆっくりボケていき、ロゴだけが残る＝余韻。
-  const b = interpolate(f, [STORY_XF, STORY_XF + 44], [6, 40], { ...clamp, easing: EASE });
+  const b = interpolate(f, [STORY_XF, STORY_XF + 62], [6, 40], { ...clamp, easing: EASE });
   const s = interpolate(f, [0, STORY_END + STORY_XF], [1.08, 1.16], clamp);
   return (
     <AbsoluteFill style={{ backgroundColor: T.base, opacity: rootO }}>
@@ -133,7 +133,7 @@ const End5: React.FC<SP> = ({ storeName = DEF.storeName, handle = DEF.handle, th
 const Open6: React.FC<SP> = ({ storeName = DEF.storeName, theme = DEF.theme }) => {
   const f = useCurrentFrame(); const T = ytheme(theme);
   // 灯りが入る瞬間の1回だけのゆらぎ→そのあと安定。
-  const lit = interpolate(f, [0, 6, 8, 11, 13, 22, STORY_OPEN - 12, STORY_OPEN], [0, 0.55, 0.12, 0.85, 0.3, 1, 1, 0.9], clamp);
+  const lit = interpolate(f, [0, 8, 11, 15, 18, 32, STORY_OPEN - 14, STORY_OPEN], [0, 0.55, 0.12, 0.85, 0.3, 1, 1, 0.9], clamp);
   const glow = 10 + lit * 40;
   return (
     <AbsoluteFill style={{ backgroundColor: T.base }}>
@@ -157,7 +157,7 @@ const Open6: React.FC<SP> = ({ storeName = DEF.storeName, theme = DEF.theme }) =
 const End6: React.FC<SP> = ({ storeName = DEF.storeName, handle = DEF.handle, theme = DEF.theme }) => {
   const f = useCurrentFrame(); const T = ytheme(theme);
   const rootO = interpolate(f, [0, STORY_XF], [0, 1], { ...clamp, easing: EASE });
-  const lit = fade(f, STORY_XF, 26);
+  const lit = fade(f, STORY_XF, 32);
   return (
     <AbsoluteFill style={{ backgroundColor: T.base, opacity: rootO }}>
       <StoryBgLayer bg="mortar" theme={theme} dur={STORY_END + STORY_XF} />
@@ -190,12 +190,12 @@ const Ring: React.FC<{ f: number; start: number; dur: number; color: string; r?:
 
 const Open7: React.FC<SP> = ({ storeName = DEF.storeName, theme = DEF.theme }) => {
   const f = useCurrentFrame(); const T = ytheme(theme);
-  const o = Math.min(fade(f, 16, 24), interpolate(f, [STORY_OPEN - 14, STORY_OPEN], [1, 0], clamp));
+  const o = Math.min(fade(f, 22, 30), interpolate(f, [STORY_OPEN - 18, STORY_OPEN], [1, 0], clamp));
   return (
     <AbsoluteFill style={{ backgroundColor: T.base }}>
       <StoryBgLayer bg="wine" theme={theme} dur={STORY_OPEN} />
       <AbsoluteFill style={{ display: "flex", alignItems: "center", justifyContent: "center" }}>
-        <Ring f={f} start={4} dur={42} color={T.accent} />
+        <Ring f={f} start={6} dur={64} color={T.accent} />
         <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 16, opacity: o }}>
           <BrandMark storeName={storeName} ink={T.ink} size={250} />
         </div>
@@ -214,7 +214,7 @@ const End7: React.FC<SP> = ({ storeName = DEF.storeName, handle = DEF.handle, th
     <AbsoluteFill style={{ backgroundColor: T.base, opacity: rootO }}>
       <StoryBgLayer bg="wine" theme={theme} dur={STORY_END + STORY_XF} />
       <div style={{ position: "absolute", left: 0, right: 0, top: 430, display: "flex", alignItems: "center", justifyContent: "center" }}>
-        <Ring f={f} start={STORY_XF} dur={34} color={T.accent} r={172} />
+        <Ring f={f} start={STORY_XF} dur={46} color={T.accent} r={172} />
         <div style={{ opacity: fade(f, STORY_XF + 12, 24) }}><BrandMark storeName={storeName} ink={T.ink} size={200} /></div>
       </div>
       <div style={{ position: "absolute", left: 0, right: 0, top: 1030, display: "flex", justifyContent: "center" }}>
@@ -228,10 +228,10 @@ const End7: React.FC<SP> = ({ storeName = DEF.storeName, handle = DEF.handle, th
 // 雑誌の扉ページのような型。文字が主役なので、ロゴが小さめでもブランドが立つ。
 const Open8: React.FC<SP> = ({ storeName = DEF.storeName, theme = DEF.theme }) => {
   const f = useCurrentFrame(); const T = ytheme(theme);
-  const xL = interpolate(f, [0, 34], [-260, 0], { ...clamp, easing: EASE });
-  const xR = interpolate(f, [6, 40], [260, 0], { ...clamp, easing: EASE });
-  const rule = interpolate(f, [16, 46], [0, 520], { ...clamp, easing: EASE });
-  const o = Math.min(fade(f, 4, 22), interpolate(f, [STORY_OPEN - 14, STORY_OPEN], [1, 0], clamp));
+  const xL = interpolate(f, [0, 50], [-260, 0], { ...clamp, easing: EASE });
+  const xR = interpolate(f, [8, 58], [260, 0], { ...clamp, easing: EASE });
+  const rule = interpolate(f, [20, 66], [0, 520], { ...clamp, easing: EASE });
+  const o = Math.min(fade(f, 6, 28), interpolate(f, [STORY_OPEN - 18, STORY_OPEN], [1, 0], clamp));
   return (
     <AbsoluteFill style={{ backgroundColor: T.base }}>
       <StoryBgLayer bg="mortar" theme={theme} dur={STORY_OPEN} />
@@ -279,11 +279,11 @@ function _todayMD(): string {
 const Open9: React.FC<SP> = ({ storeName = DEF.storeName, theme = DEF.theme }) => {
   const f = useCurrentFrame(); const T = ytheme(theme);
   const src = (typoPhotos[0] && typoPhotos[0].src) || "";
-  const head = interpolate(f, [0, 30], [-36, 0], { ...clamp, easing: EASE });   // 誌名が上から入る
-  const rule = interpolate(f, [10, 42], [0, 620], { ...clamp, easing: EASE });  // 誌名下の罫が引かれる
-  const ph = interpolate(f, [6, 44], [1.06, 1.0], { ...clamp, easing: EASE });  // 表紙写真がすっと収まる
-  const cover = interpolate(f, [16, 46], [30, 0], { ...clamp, easing: EASE });  // 見出しが下から
-  const o = Math.min(fade(f, 2, 18), interpolate(f, [STORY_OPEN - 12, STORY_OPEN], [1, 0], clamp));
+  const head = interpolate(f, [0, 44], [-36, 0], { ...clamp, easing: EASE });   // 誌名が上から入る
+  const rule = interpolate(f, [12, 60], [0, 620], { ...clamp, easing: EASE });  // 誌名下の罫が引かれる
+  const ph = interpolate(f, [8, 64], [1.06, 1.0], { ...clamp, easing: EASE });  // 表紙写真がすっと収まる
+  const cover = interpolate(f, [22, 68], [30, 0], { ...clamp, easing: EASE });  // 見出しが下から
+  const o = Math.min(fade(f, 2, 24), interpolate(f, [STORY_OPEN - 16, STORY_OPEN], [1, 0], clamp));
   return (
     <AbsoluteFill style={{ background: "radial-gradient(120% 90% at 50% 30%, " + MAG_CREAM + " 0%, " + MAG_CREAM_D + " 100%)", opacity: o }}>
       {/* 紙の織り目＋誌面の二重罫（CLOSEの裏表紙と同じ作法で対にする） */}
@@ -325,7 +325,7 @@ const Open9: React.FC<SP> = ({ storeName = DEF.storeName, theme = DEF.theme }) =
 const End9: React.FC<SP> = ({ storeName = DEF.storeName, handle = DEF.handle, theme = DEF.theme }) => {
   const f = useCurrentFrame(); const T = ytheme(theme);
   const rootO = interpolate(f, [0, STORY_XF], [0, 1], { ...clamp, easing: EASE });
-  const rule = interpolate(f, [STORY_XF, STORY_XF + 34], [0, 620], { ...clamp, easing: EASE });
+  const rule = interpolate(f, [STORY_XF, STORY_XF + 46], [0, 620], { ...clamp, easing: EASE });
   return (
     <AbsoluteFill style={{ background: "radial-gradient(120% 90% at 50% 34%, " + MAG_CREAM + " 0%, " + MAG_CREAM_D + " 100%)", opacity: rootO }}>
       {/* 紙の織り目＋誌面の二重罫（裏表紙の作法） */}

@@ -267,9 +267,9 @@ export const SampleBadge: React.FC<{ accent?: string; f?: number }> = ({ accent 
 // ── 共通オープニング／エンドロール（No.1〜4のストーリーに前後付け）──────────────
 // ブランドの“顔”を最初と最後に見せる。丸ロゴ(typoLogoRound)があれば色付きで、無ければ横ロゴ/店名。
 // アニメは useCurrentFrame/interpolate のみ（CSSトランジション禁止）。各Sequence内で相対フレーム。
-export const STORY_OPEN = 56;   // オープニング 1.9s（ゆっくり）
-export const STORY_END = 104;   // エンドロール 3.5s（ゆっくり）
-export const STORY_XF = 24;     // 本編→CLOSE の重なりクロスフェード（じわーっと移行）
+export const STORY_OPEN = 90;   // オープニング 3.0s（ブランドを見せる時間をしっかり取る）
+export const STORY_END = 150;   // エンドロール 5.0s（余韻を長めに）
+export const STORY_XF = 30;     // 本編→CLOSE の重なりクロスフェード（じわーっと移行）
 
 // OP/CLOSE の既定の地。ここ1か所を変えれば10本すべてのオープニング／クローズに反映される。
 // 比較用プレビュー（YoshokuOpBlur / OpMortar / OpWine）で選んでから、この既定値を差し替える運用。
@@ -355,9 +355,9 @@ export const StoryOpening: React.FC<{ storeName?: string; theme?: string; bg?: S
   const f = useCurrentFrame();
   const T = ytheme(theme);
   // ゆっくり立ち上げ→終わりは全体をやわらかくフェードアウト（忙しくしない）
-  const o = Math.min(interpolate(f, [0, 20], [0, 1], clamp), interpolate(f, [STORY_OPEN - 18, STORY_OPEN], [1, 0], clamp));
-  const s = interpolate(f, [0, 42], [0.92, 1], { ...clamp, easing: EASE });
-  const ruleW = interpolate(f, [12, 44], [0, 260], { ...clamp, easing: EASE });
+  const o = Math.min(interpolate(f, [0, 26], [0, 1], clamp), interpolate(f, [STORY_OPEN - 22, STORY_OPEN], [1, 0], clamp));
+  const s = interpolate(f, [0, 66], [0.92, 1], { ...clamp, easing: EASE });
+  const ruleW = interpolate(f, [16, 68], [0, 260], { ...clamp, easing: EASE });
   return (
     <AbsoluteFill style={{ backgroundColor: T.base }}>
       <StoryBgLayer bg={bg} theme={theme} dur={STORY_OPEN} />
@@ -379,8 +379,8 @@ export const StoryEndroll: React.FC<{ storeName?: string; handle?: string; theme
   const f = useCurrentFrame();
   const T = ytheme(theme);
   const rootO = interpolate(f, [0, STORY_XF], [0, 1], { ...clamp, easing: EASE }); // 本編に重ねてじわーっと
-  const cO = interpolate(f, [STORY_XF, STORY_XF + 30], [0, 1], clamp);
-  const y = interpolate(f, [STORY_XF, STORY_XF + 40], [26, 0], { ...clamp, easing: EASE });
+  const cO = interpolate(f, [STORY_XF, STORY_XF + 36], [0, 1], clamp);
+  const y = interpolate(f, [STORY_XF, STORY_XF + 48], [26, 0], { ...clamp, easing: EASE });
   return (
     <AbsoluteFill style={{ backgroundColor: T.base, opacity: rootO }}>
       <StoryBgLayer bg={bg} theme={theme} dur={STORY_END + STORY_XF} />

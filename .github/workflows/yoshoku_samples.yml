@@ -30,6 +30,9 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '20'
+          # npm の依存をキャッシュ（npm ci の待ちを削る）
+          cache: 'npm'
+          cache-dependency-path: susabiyu-remotion/package-lock.json
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'

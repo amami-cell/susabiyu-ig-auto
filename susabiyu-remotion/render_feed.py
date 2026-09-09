@@ -61,6 +61,17 @@ def main():
     os.environ["TYPO_CUTOUT"] = "1"
     run('python fetch_typo.py "' + creds + '"')
 
+    # プロジェクトを1回だけバンドルして、9枚はそのバンドルから描く。
+    # `npx remotion still` は毎回バンドルし直すため、9枚で8回ぶん（3〜4分）無駄に待っていた。
+    entry = "src/index.ts"
+    try:
+        run("npx remotion bundle --out-dir=out/bundle")
+        if os.path.isdir("out/bundle"):
+            entry = "out/bundle"
+            print("[FEED] バンドル再利用: out/bundle")
+    except Exception as e:
+        print("[FEED] bundle 失敗（従来どおり毎回バンドルします）:", e)
+
     samples = []
     for cid, label in FEED_COMPS:
         png = "out/feed.png"
@@ -68,7 +79,7 @@ def main():
         if os.path.exists(png):
             os.remove(png)
         try:
-            run("npx remotion still " + cid + " " + png + " --frame 0 --scale 1.0 --timeout 120000" + props_arg)
+            run("npx remotion still " + entry + " " + cid + " " + png + " --frame 0 --scale 1.0 --timeout 120000" + props_arg)
         except Exception as e:
             print("[FEED] still 失敗 スキップ:", cid, e); continue
         try:

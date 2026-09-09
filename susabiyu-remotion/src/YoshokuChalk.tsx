@@ -10,8 +10,9 @@ import {
   StoryOpening, StoryEndroll, STORY_OPEN, STORY_END, STORY_XF,
 } from "./yoshokuDesign";
 
-// 全体を20秒ちょうどに（OP56 + 本編440 + ED104 = 600f = 20s）。この曲を使う時は20秒尺で運用する。
-const CHALK_BODY = 440;
+// 全体を20秒ちょうどに（OP90 + 本編360 + ED150 = 600f = 20s）。この曲を使う時は20秒尺で運用する。
+// OP/CLOSEを長くしたぶん本編を詰めて、総尺20秒（＝音楽の長さ）は維持する。
+const CHALK_BODY = 360;
 export const YCHALK_DUR = STORY_OPEN + CHALK_BODY + STORY_END;
 
 function todayMD(): string {
