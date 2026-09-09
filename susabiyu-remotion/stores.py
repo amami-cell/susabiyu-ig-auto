@@ -61,6 +61,7 @@ YOSHOKU_PATTERNS = [
     "yoshokupola",    # ⑧ポラロイド重ね（4枚シェア感）
     "yoshokutype",    # ⑨大見出しタイポ（超特大の一言）
     "yoshokuopen",    # ⑩本日OPEN案内（集客・予約導線）
+    "yoshokumagazine",# ⑪雑誌ストーリー（表紙〜裏表紙まで紙の誌面で統一）
 ]
 
 STORES = {

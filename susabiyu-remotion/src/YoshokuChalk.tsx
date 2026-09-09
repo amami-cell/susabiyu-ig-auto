@@ -7,9 +7,11 @@ import { ytheme } from "./yoshokuTheme";
 import {
   mincho, serif, clamp, SAFE, rise, drawW, fade, segNow,
   fitLines, splitLines,
-  Grain, StoreLogo, PhotoLayer, Slides, SampleBadge, fitOneLine,
-  StoryOpening, StoryEndroll, STORY_OPEN, STORY_END, STORY_XF,
+  Grain, StoreLogo, PhotoLayer, Slides, fitOneLine,
+  STORY_OPEN, STORY_END, STORY_XF,
 } from "./yoshokuDesign";
+// OP/CLOSEはテンプレごとに固定の案を使う（黒板トラットリア：幕が開いて黒板が現れる）。
+import { StoryOpenV, StoryEndV } from "./YoshokuOpStyles";
 
 // 全体を20秒ちょうどに（OP90 + 本編360 + ED150 = 600f = 20s）。この曲を使う時は20秒尺で運用する。
 // OP/CLOSEを長くしたぶん本編を詰めて、総尺20秒（＝音楽の長さ）は維持する。
@@ -46,8 +48,6 @@ const ChalkBody: React.FC<{ storeName?: string; handle?: string; theme?: string 
       {/* 外枠は金のヘアライン一本のみ */}
       <div style={{ position: "absolute", inset: 54, border: "1px solid " + T.accent + "66", borderRadius: 8, opacity: fade(f, 4) * 0.8 }} />
 
-      {/* 右上：見本番号（本番投稿では非表示） */}
-      <SampleBadge accent={T.accent} f={f} />
 
       {/* 上：Oggi ＋ 当日日付 */}
       <div style={{ position: "absolute", top: SAFE.top - 20, left: 0, right: 0, textAlign: "center", opacity: fade(f, 16) }}>
@@ -106,9 +106,9 @@ export const YoshokuChalk: React.FC<{ storeName?: string; handle?: string; theme
     <AbsoluteFill style={{ backgroundColor: "#12181a" }}>
       {/* 音楽は全体（オープニング〜本編〜エンドロール）に通す */}
       <Audio src={staticFile(typoMusic)} startFrom={Math.round((typoMusicStart || 0) * 30)} volume={(ff) => interpolate(ff, [0, 16, YCHALK_DUR - 30, YCHALK_DUR], [0, 0.8, 0.8, 0], clamp)} />
-      <Sequence durationInFrames={STORY_OPEN}><StoryOpening storeName={storeName} theme={theme} /></Sequence>
+      <Sequence durationInFrames={STORY_OPEN}><StoryOpenV v={4} storeName={storeName} theme={theme} /></Sequence>
       <Sequence from={STORY_OPEN} durationInFrames={CHALK_BODY}><ChalkBody storeName={storeName} handle={handle} theme={theme} /></Sequence>
-      <Sequence from={STORY_OPEN + CHALK_BODY - STORY_XF} durationInFrames={STORY_END + STORY_XF}><StoryEndroll storeName={storeName} handle={handle} theme={theme} /></Sequence>
+      <Sequence from={STORY_OPEN + CHALK_BODY - STORY_XF} durationInFrames={STORY_END + STORY_XF}><StoryEndV v={4} storeName={storeName} handle={handle} theme={theme} /></Sequence>
     </AbsoluteFill>
   );
 };

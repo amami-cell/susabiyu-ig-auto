@@ -6,7 +6,7 @@ import { typoPhotos, typoMusic, typoMusicStart, typoLogoRound } from "./typoData
 import { ytheme } from "./yoshokuTheme";
 import {
   mincho, serif, clamp, SAFE, EASE, fade,
-  Grain, PhotoLayer, SampleBadge, fitOneLine,
+  Grain, PhotoLayer, fitOneLine,
 } from "./yoshokuDesign";
 
 // 6品を上下2品ずつ3ページで紹介する尺。中央の丸ロゴはこの間にレコードのように
@@ -100,7 +100,6 @@ export const YoshokuWine: React.FC<{ storeName?: string; handle?: string; theme?
       </div>
 
       <Grain opacity={0.05} />
-      <SampleBadge accent={T.accent} f={f} />
 
       {/* 上：MEAT BAR＋本日のおすすめ */}
       <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: 300, pointerEvents: "none", background: "linear-gradient(180deg, rgba(6,4,2,0.8) 0%, rgba(6,4,2,0) 100%)" }} />

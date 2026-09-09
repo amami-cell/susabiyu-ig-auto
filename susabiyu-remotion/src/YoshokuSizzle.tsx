@@ -5,9 +5,11 @@ import { typoPhotos, typoMusic, typoMusicStart } from "./typoData";
 import { ytheme } from "./yoshokuTheme";
 import {
   mincho, serif, clamp, SAFE, rise, drawW,
-  Grain, Vignette, Masthead, PhotoLayer, Slides, SampleBadge, fitOneLine, fitLines, splitLines, segNow,
-  StoryOpening, StoryEndroll, STORY_OPEN, STORY_END, STORY_XF,
+  Grain, Vignette, Masthead, PhotoLayer, Slides, fitOneLine, fitLines, splitLines, segNow,
+  STORY_OPEN, STORY_END, STORY_XF,
 } from "./yoshokuDesign";
+// OP/CLOSEはテンプレごとに固定の案を使う（鉄板ジュ〜っと：夜の熱量に合わせてネオンが灯る）。
+import { StoryOpenV, StoryEndV } from "./YoshokuOpStyles";
 
 const SIZZLE_BODY = 480; // 16s
 export const YSIZZLE_DUR = STORY_OPEN + SIZZLE_BODY + STORY_END;
@@ -53,8 +55,6 @@ const SizzleBody: React.FC<{ storeName?: string; handle?: string; theme?: string
       {/* 左上：ロゴのマストヘッド（文字ロゴを大きく） */}
       <Masthead storeName={storeName} kicker={T.label} accent={T.accent} tint="#FFF6E6" f={f} logoH={116} />
 
-      {/* 右上：見本番号（本番投稿では非表示） */}
-      <SampleBadge accent={T.accent} f={f} />
 
       {/* 左下：欧文サブ＋料理名＝カットごとに“1件だけ”表示（左揃え・重ねない） */}
       {(() => {
@@ -94,9 +94,9 @@ export const YoshokuSizzle: React.FC<{ storeName?: string; handle?: string; them
     <AbsoluteFill style={{ backgroundColor: "#0b0806" }}>
       {/* 音楽は全体（オープニング〜本編〜エンドロール）に通す */}
       <Audio src={staticFile(typoMusic)} startFrom={Math.round((typoMusicStart || 0) * 30)} volume={(ff) => interpolate(ff, [0, 16, YSIZZLE_DUR - 30, YSIZZLE_DUR], [0, 0.85, 0.85, 0], clamp)} />
-      <Sequence durationInFrames={STORY_OPEN}><StoryOpening storeName={storeName} theme={theme} /></Sequence>
+      <Sequence durationInFrames={STORY_OPEN}><StoryOpenV v={6} storeName={storeName} theme={theme} /></Sequence>
       <Sequence from={STORY_OPEN} durationInFrames={SIZZLE_BODY}><SizzleBody storeName={storeName} handle={handle} theme={theme} /></Sequence>
-      <Sequence from={STORY_OPEN + SIZZLE_BODY - STORY_XF} durationInFrames={STORY_END + STORY_XF}><StoryEndroll storeName={storeName} handle={handle} theme={theme} /></Sequence>
+      <Sequence from={STORY_OPEN + SIZZLE_BODY - STORY_XF} durationInFrames={STORY_END + STORY_XF}><StoryEndV v={6} storeName={storeName} handle={handle} theme={theme} /></Sequence>
     </AbsoluteFill>
   );
 };

@@ -6,9 +6,11 @@ import { typoPhotos, typoMusic, typoMusicStart } from "./typoData";
 import { ytheme } from "./yoshokuTheme";
 import {
   mincho, serif, clamp, SAFE, rise, drawW, segNow,
-  Grain, Vignette, WarmGlow, DishStage, Masthead, SampleBadge, fitOneLine, fitLines, splitLines,
-  StoryOpening, StoryEndroll, STORY_OPEN, STORY_END, STORY_XF,
+  Grain, Vignette, WarmGlow, DishStage, Masthead, fitOneLine, fitLines, splitLines,
+  STORY_OPEN, STORY_END, STORY_XF,
 } from "./yoshokuDesign";
+// OP/CLOSEはテンプレごとに固定の案を使う（本日の一皿：料理が主役なので“一皿から引く”で始める）。
+import { StoryOpenV, StoryEndV } from "./YoshokuOpStyles";
 
 const DISH_BODY = 420; // 14s（4品×約3.5s）
 export const YOSHOKU_DUR = STORY_OPEN + DISH_BODY + STORY_END;
@@ -39,8 +41,6 @@ const DishBody: React.FC<{ storeName?: string; handle?: string; theme?: string }
       {/* 左上：ロゴのマストヘッド＋ラテンのキッカー（文字ロゴを大きく） */}
       <Masthead storeName={storeName} kicker={T.label} accent={T.accent} f={f} logoH={116} />
 
-      {/* 右上：見本番号（本番投稿では非表示） */}
-      <SampleBadge accent={T.accent} f={f} />
 
       {/* 左下：欧文サブ＋料理名（明朝・特大・最大2行）＋短い金の罫＋短句／ハンドル。カット毎に差し替え。 */}
       <div key={i} style={{ position: "absolute", left: SAFE.side, right: SAFE.side, bottom: SAFE.bottom - 44, textAlign: "left", ...rise(local, 4, { dist: 24, blur: 6 }) }}>
@@ -71,9 +71,9 @@ export const YoshokuDish: React.FC<{ storeName?: string; handle?: string; theme?
     <AbsoluteFill style={{ backgroundColor: T.base }}>
       {/* 音楽は全体（オープニング〜本編〜エンドロール）に通す */}
       <Audio src={staticFile(typoMusic)} startFrom={Math.round((typoMusicStart || 0) * 30)} volume={(ff) => interpolate(ff, [0, 16, YOSHOKU_DUR - 30, YOSHOKU_DUR], [0, 0.8, 0.8, 0], clamp)} />
-      <Sequence durationInFrames={STORY_OPEN}><StoryOpening storeName={storeName} theme={theme} /></Sequence>
+      <Sequence durationInFrames={STORY_OPEN}><StoryOpenV v={5} storeName={storeName} theme={theme} /></Sequence>
       <Sequence from={STORY_OPEN} durationInFrames={DISH_BODY}><DishBody storeName={storeName} handle={handle} theme={theme} /></Sequence>
-      <Sequence from={STORY_OPEN + DISH_BODY - STORY_XF} durationInFrames={STORY_END + STORY_XF}><StoryEndroll storeName={storeName} handle={handle} theme={theme} /></Sequence>
+      <Sequence from={STORY_OPEN + DISH_BODY - STORY_XF} durationInFrames={STORY_END + STORY_XF}><StoryEndV v={5} storeName={storeName} handle={handle} theme={theme} /></Sequence>
     </AbsoluteFill>
   );
 };

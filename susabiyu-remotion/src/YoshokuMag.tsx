@@ -6,9 +6,11 @@ import { ytheme } from "./yoshokuTheme";
 import {
   mincho, serif, clamp, SAFE, rise, drawW, fade,
   fitLines, splitLines,
-  Grain, StoreLogo, PhotoLayer, Slides, SampleBadge, fitOneLine, segNow,
-  StoryOpening, StoryEndroll, STORY_OPEN, STORY_END, STORY_XF,
+  Grain, StoreLogo, PhotoLayer, Slides, fitOneLine, segNow,
+  STORY_OPEN, STORY_END, STORY_XF,
 } from "./yoshokuDesign";
+// OP/CLOSEはテンプレごとに固定の案を使う（雑誌エディトリアル：誌面で開いて誌面で閉じる）。
+import { StoryOpenV, StoryEndV } from "./YoshokuOpStyles";
 
 const MAG_BODY = 480; // 16s
 export const YMAG_DUR = STORY_OPEN + MAG_BODY + STORY_END;
@@ -29,8 +31,6 @@ const MagBody: React.FC<{ storeName?: string; handle?: string; theme?: string }>
     <AbsoluteFill style={{ backgroundColor: T.base, fontFamily: mincho }}>
       <AbsoluteFill style={{ background: "linear-gradient(180deg, " + T.base + " 0%, " + T.footBase + " 100%)" }} />
 
-      {/* 右上：見本番号（本番投稿では非表示） */}
-      <SampleBadge accent={T.accent} f={f} />
 
       {/* 上：写真（4品クロスフェード・表紙のメイン） */}
       <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: 1230, overflow: "hidden" }}>
@@ -95,9 +95,9 @@ export const YoshokuMag: React.FC<{ storeName?: string; handle?: string; theme?:
     <AbsoluteFill style={{ backgroundColor: T.base }}>
       {/* 音楽は全体（オープニング〜本編〜エンドロール）に通す */}
       <Audio src={staticFile(typoMusic)} startFrom={Math.round((typoMusicStart || 0) * 30)} volume={(ff) => interpolate(ff, [0, 16, YMAG_DUR - 30, YMAG_DUR], [0, 0.8, 0.8, 0], clamp)} />
-      <Sequence durationInFrames={STORY_OPEN}><StoryOpening storeName={storeName} theme={theme} /></Sequence>
+      <Sequence durationInFrames={STORY_OPEN}><StoryOpenV v={9} storeName={storeName} theme={theme} /></Sequence>
       <Sequence from={STORY_OPEN} durationInFrames={MAG_BODY}><MagBody storeName={storeName} handle={handle} theme={theme} /></Sequence>
-      <Sequence from={STORY_OPEN + MAG_BODY - STORY_XF} durationInFrames={STORY_END + STORY_XF}><StoryEndroll storeName={storeName} handle={handle} theme={theme} /></Sequence>
+      <Sequence from={STORY_OPEN + MAG_BODY - STORY_XF} durationInFrames={STORY_END + STORY_XF}><StoryEndV v={9} storeName={storeName} handle={handle} theme={theme} /></Sequence>
     </AbsoluteFill>
   );
 };
