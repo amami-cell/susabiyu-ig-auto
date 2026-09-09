@@ -22,14 +22,31 @@ def _first_time(s):
     return "%d:%02d" % (int(m.group(1)), int(m.group(2)))
 
 
+def _from_store(store):
+    """店舗マスタ(stores.py)に書いてある営業時間から (open_text, hours) を作る。"""
+    h = str((store or {}).get("hours", "") or "").strip()
+    if not h:
+        return _from_store(store)
+    t = _first_time(h)
+    print("[HOURS] 店舗マスタの営業時間を使用: %r" % h)
+    return (("OPEN " + t) if t else ""), h
+
+
 def read(store, creds_path):
-    """(open_text, hours_raw) を返す。失敗時は ("","")。"""
+    """(open_text, hours_raw) を返す。入力用スプレッドシートを優先し、
+    読めない場合は店舗マスタ(stores.py)の hours にフォールバックする。"""
     sid = _sheet_id()
-    if not sid or not store:
-        return "", ""
+    if not sid:
+        print("[HOURS] REQ_SHEET_ID が未設定（入力用スプレッドシートを特定できない）")
+        return _from_store(store)
+    if not store:
+        print("[HOURS] store 情報が空")
+        return _from_store(store)
     name = str(store.get("store_name", "")).strip()
     if not name:
-        return "", ""
+        print("[HOURS] store_name が空")
+        return _from_store(store)
+    print("[HOURS] 入力用シート=%s… / 店舗名=%r" % (sid[:8], name))
     try:
         from google.oauth2 import service_account
         from googleapiclient.discovery import build
@@ -46,10 +63,14 @@ def read(store, creds_path):
         if not tab and metas:
             tab = metas[-1]["properties"]["title"]
         if not tab:
-            return "", ""
+            print("[HOURS] タブが見つからない（シート一覧=%s）" % [x["properties"].get("title") for x in metas])
+            return _from_store(store)
         # K列(表示名)と O列(営業時間)をまとめて取得（K6:O60）。
         rng = "'%s'!K6:O60" % tab
         rows = sp.values().get(spreadsheetId=sid, range=rng).execute().get("values", [])
+        # なぜ取れなかったのかを必ず追えるようにする（タブ名・探した店舗名・並んでいる表示名）。
+        found = [(r[0] or "").strip() for r in rows if r and (r[0] or "").strip()]
+        print("[HOURS] タブ=%s / 探した店舗名=%r / K列にある表示名=%s" % (tab, name, found))
         for r in rows:
             disp = (r[0] if len(r) > 0 else "").strip()
             if not disp:
@@ -57,10 +78,13 @@ def read(store, creds_path):
             if disp == name or (name in disp) or (disp in name):
                 hours = (r[4] if len(r) > 4 else "").strip()  # K,L,M,N,O → O=index4
                 if not hours:
-                    return "", ""
+                    print("[HOURS] 行は見つかったが営業時間(O列)が空: %r" % disp)
+                    return _from_store(store)
                 t = _first_time(hours)
+                print("[HOURS] 一致: %r → 営業時間=%r" % (disp, hours))
                 return (("OPEN " + t) if t else ""), hours
-        return "", ""
+        print("[HOURS] K列に一致する店舗名が無い（%r）" % name)
+        return _from_store(store)
     except Exception as e:
         print("[HOURS] 取得スキップ:", e)
-        return "", ""
+        return _from_store(store)

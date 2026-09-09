@@ -36,7 +36,7 @@ function jlen(s: string) { return Array.from(s || "").length; }
 
 // 料理写真（肉のシズル用に contrast/saturate を付与）。
 const Photo: React.FC<{ src: string; pos?: string; bri?: number; sat?: number; con?: number; style?: React.CSSProperties }> =
-  ({ src, pos, bri = 1.02, sat = 1.15, con = 1.10, style }) => (
+  ({ src, pos, bri = 1.10, sat = 1.14, con = 1.06, style }) => (
     <Img src={staticFile(src)} style={{
       width: "100%", height: "100%", objectFit: "cover", objectPosition: pos || "center",
       filter: "brightness(" + bri + ") saturate(" + sat + ") contrast(" + con + ")", ...style,
@@ -178,7 +178,7 @@ export const YoshokuFeedA: React.FC<P> = ({ storeName = D.storeName, handle = D.
   return (
     <AbsoluteFill style={{ backgroundColor: T.base }}>
       <Photo src={d.src} />
-      <AbsoluteFill style={{ background: "linear-gradient(180deg, rgba(0,0,0,0.42) 0%, rgba(0,0,0,0) 22%, rgba(0,0,0,0) 46%, rgba(18,13,8,0.92) 88%, " + T.footBase + " 100%)" }} />
+      <AbsoluteFill style={{ background: "linear-gradient(180deg, rgba(0,0,0,0.22) 0%, rgba(0,0,0,0) 18%, rgba(0,0,0,0) 46%, rgba(18,13,8,0.92) 88%, " + T.footBase + " 100%)" }} />
       <div style={{ position: "absolute", top: 24, left: 26 }}>
         <Brand storeName={storeName} accent={T.accent} shadow={NAME_SHADOW} />
       </div>
@@ -188,7 +188,7 @@ export const YoshokuFeedA: React.FC<P> = ({ storeName = D.storeName, handle = D.
         {d.desc ? <div style={{ marginTop: 18, fontFamily: mincho, color: "#E7DAC2", fontSize: 30, lineHeight: 1.6, letterSpacing: 1, textShadow: NAME_SHADOW }}>{d.desc}</div> : null}
       </div>
       <Handle handle={handle} color={T.sub} shadow={NAME_SHADOW} />
-      <WarmGlow /><Vignette strength={0.34} /><Grain opacity={0.05} />
+      <WarmGlow /><Vignette strength={0.14} /><Grain opacity={0.05} />
     </AbsoluteFill>
   );
 };
@@ -201,7 +201,7 @@ export const YoshokuFeedB: React.FC<P> = ({ storeName = D.storeName, handle = D.
     <AbsoluteFill style={{ backgroundColor: MORTAR }}>
       <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: 940, overflow: "hidden" }}>
         <Photo src={d.src} />
-        <AbsoluteFill style={{ background: "linear-gradient(180deg, rgba(0,0,0,0.35) 0%, rgba(0,0,0,0) 26%)" }} />
+        <AbsoluteFill style={{ background: "linear-gradient(180deg, rgba(0,0,0,0.20) 0%, rgba(0,0,0,0) 20%)" }} />
       </div>
       {/* モルタル帯（微かな粒状ムラで“塗り壁”の質感） */}
       <div style={{ position: "absolute", top: 940, left: 0, right: 0, bottom: 0, background: "linear-gradient(180deg, " + MORTAR_HI + " 0%, " + MORTAR + " 60%, " + MORTAR_LO + " 100%)" }} />
@@ -231,7 +231,7 @@ export const YoshokuFeedC: React.FC<P> = ({ storeName = D.storeName, handle = D.
     <AbsoluteFill style={{ backgroundColor: T.base }}>
       <Photo src={d.src} />
       {/* 上下だけ軽く沈めてロゴとハンドルを乗せる（料理は暗くしない） */}
-      <AbsoluteFill style={{ background: "linear-gradient(180deg, rgba(0,0,0,0.42) 0%, rgba(0,0,0,0) 20%, rgba(0,0,0,0) 74%, rgba(0,0,0,0.34) 100%)" }} />
+      <AbsoluteFill style={{ background: "linear-gradient(180deg, rgba(0,0,0,0.22) 0%, rgba(0,0,0,0) 18%, rgba(0,0,0,0) 74%, rgba(0,0,0,0.34) 100%)" }} />
       <div style={{ position: "absolute", top: 24, left: 26 }}>
         <Brand storeName={storeName} accent={T.accent} shadow={NAME_SHADOW} />
       </div>
@@ -299,7 +299,7 @@ const EBase: React.FC<P & { rail: string; railText?: string }> = ({
     <AbsoluteFill style={{ backgroundColor: T.base }}>
       <div style={{ position: "absolute", top: 0, bottom: 0, left: RAIL, right: 0, overflow: "hidden" }}>
         <Photo src={d.src} />
-        <AbsoluteFill style={{ background: "linear-gradient(180deg, rgba(0,0,0,0.3) 0%, rgba(0,0,0,0) 30%, rgba(18,13,8,0.9) 92%, " + T.footBase + " 100%)" }} />
+        <AbsoluteFill style={{ background: "linear-gradient(180deg, rgba(0,0,0,0.18) 0%, rgba(0,0,0,0) 22%, rgba(18,13,8,0.9) 92%, " + T.footBase + " 100%)" }} />
       </div>
       <div style={{ position: "absolute", top: 0, bottom: 0, left: 0, width: RAIL, background: rail, display: "flex", alignItems: "center", justifyContent: "center" }}>
         <div style={{ writingMode: "vertical-rl", fontFamily: serif, color: railText, fontSize: 22, letterSpacing: 10, textTransform: "uppercase", fontWeight: 600 }}>NAGAGUTSU&nbsp;·&nbsp;MEAT&nbsp;BAR</div>
@@ -325,7 +325,7 @@ export const YoshokuFeedF: React.FC<P> = ({ storeName = D.storeName, handle = D.
   return (
     <AbsoluteFill style={{ backgroundColor: T.base }}>
       <Photo src={d.src} />
-      <AbsoluteFill style={{ background: "linear-gradient(180deg, rgba(0,0,0,0.34) 0%, rgba(0,0,0,0) 18%, rgba(0,0,0,0) 70%, rgba(18,13,8,0.9) 90%, " + T.footBase + " 100%)" }} />
+      <AbsoluteFill style={{ background: "linear-gradient(180deg, rgba(0,0,0,0.20) 0%, rgba(0,0,0,0) 16%, rgba(0,0,0,0) 70%, rgba(18,13,8,0.9) 90%, " + T.footBase + " 100%)" }} />
       <div style={{ position: "absolute", top: 24, left: 26 }}>
         <Brand storeName={storeName} accent={T.accent} shadow={NAME_SHADOW} />
       </div>
@@ -336,7 +336,7 @@ export const YoshokuFeedF: React.FC<P> = ({ storeName = D.storeName, handle = D.
       <div style={{ position: "absolute", left: SIDE, right: SIDE, bottom: 52, textAlign: "center" }}>
         <HeroName text={dispName(d)} sub={d.sub} maxPx={92} usableW={FEED_W - SIDE * 2} color={T.ink} subColor="#F0DFC6" align="center" shadow={NAME_SHADOW} />
       </div>
-      <Vignette strength={0.24} /><Grain opacity={0.05} />
+      <Vignette strength={0.10} /><Grain opacity={0.05} />
     </AbsoluteFill>
   );
 };
@@ -349,7 +349,7 @@ export const YoshokuFeedG: React.FC<P> = ({ storeName = D.storeName, handle = D.
   return (
     <AbsoluteFill style={{ backgroundColor: MORTAR }}>
       <Photo src={d.src} />
-      <AbsoluteFill style={{ background: "linear-gradient(180deg, rgba(0,0,0,0.34) 0%, rgba(0,0,0,0) 22%, rgba(0,0,0,0) 78%, rgba(0,0,0,0.42) 100%)" }} />
+      <AbsoluteFill style={{ background: "linear-gradient(180deg, rgba(0,0,0,0.20) 0%, rgba(0,0,0,0) 18%, rgba(0,0,0,0) 78%, rgba(0,0,0,0.42) 100%)" }} />
       <div style={{ position: "absolute", top: 24, left: 26 }}>
         <Brand storeName={storeName} accent={T.accent} shadow={NAME_SHADOW} />
       </div>

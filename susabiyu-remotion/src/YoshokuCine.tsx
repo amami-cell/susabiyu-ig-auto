@@ -6,7 +6,7 @@ import { typoPhotos, typoMusic, typoMusicStart } from "./typoData";
 import { ytheme } from "./yoshokuTheme";
 import {
   mincho, serif, clamp, SAFE, rise, fade,
-  Grain, PhotoLayer, Slides, SampleBadge, StoreLogo, fitOneLine, segNow,
+  Grain, PhotoLayer, Slides, StoreLogo, fitOneLine, segNow,
 } from "./yoshokuDesign";
 
 export const YCINE_DUR = 480; // 16s
@@ -36,8 +36,6 @@ export const YoshokuCine: React.FC<{ storeName?: string; handle?: string; theme?
       <AbsoluteFill style={{ background: "linear-gradient(180deg, rgba(6,4,2,0.86) 0%, rgba(6,4,2,0.15) 20%, rgba(6,4,2,0.15) 66%, rgba(6,4,2,0.9) 88%, #0b0806 100%)" }} />
       <Grain opacity={0.05} />
 
-      {/* 右上：見本番号（本番投稿では非表示） */}
-      <SampleBadge accent={T.accent} f={f} />
 
       {/* 上：ブランドロゴを大きく＋ラテンのキッカー */}
       <div style={{ position: "absolute", top: SAFE.top - 150, left: 0, right: 0, display: "flex", flexDirection: "column", alignItems: "center", gap: 12, ...rise(f, 6, { dist: 14 }) }}>

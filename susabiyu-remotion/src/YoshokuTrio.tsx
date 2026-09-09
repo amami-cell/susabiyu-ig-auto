@@ -6,9 +6,11 @@ import { typoPhotos, typoMusic, typoMusicStart } from "./typoData";
 import { ytheme } from "./yoshokuTheme";
 import {
   mincho, serif, clamp, SAFE, rise, fade,
-  Grain, Vignette, PhotoLayer, Slides, SampleBadge, StoreLogo, fitOneLine, segNow,
-  StoryOpening, StoryEndroll, STORY_OPEN, STORY_END, STORY_XF,
+  Grain, Vignette, PhotoLayer, Slides, StoreLogo, fitOneLine, segNow,
+  STORY_OPEN, STORY_END, STORY_XF,
 } from "./yoshokuDesign";
+// OP/CLOSEはテンプレごとに固定の案を使う（おすすめ3品：金の円環で静かに始めて締める）。
+import { StoryOpenV, StoryEndV } from "./YoshokuOpStyles";
 
 const TRIO_BODY = 330; // 11s（1品 ≒ 3.6s）
 export const YTRIO_DUR = STORY_OPEN + TRIO_BODY + STORY_END;
@@ -37,8 +39,6 @@ const TrioBody: React.FC<{ storeName?: string; handle?: string; theme?: string }
       <Vignette strength={0.42} />
       <Grain opacity={0.05} />
 
-      {/* 右上：見本番号（本番投稿では非表示） */}
-      <SampleBadge accent={T.accent} f={f} />
 
       {/* 番号＋料理名＝カットごとに“1件だけ”表示 */}
       {(() => {
@@ -83,8 +83,8 @@ export const YoshokuTrio: React.FC<{ storeName?: string; handle?: string; theme?
   <AbsoluteFill style={{ backgroundColor: "#000" }}>
     {/* 音楽は全体（オープニング〜本編〜エンドロール）に通す */}
     <Audio src={staticFile(typoMusic)} startFrom={Math.round((typoMusicStart || 0) * 30)} volume={(ff) => interpolate(ff, [0, 16, YTRIO_DUR - 30, YTRIO_DUR], [0, 0.82, 0.82, 0], clamp)} />
-    <Sequence durationInFrames={STORY_OPEN}><StoryOpening storeName={storeName} theme={theme} /></Sequence>
+    <Sequence durationInFrames={STORY_OPEN}><StoryOpenV v={7} storeName={storeName} theme={theme} /></Sequence>
     <Sequence from={STORY_OPEN} durationInFrames={TRIO_BODY}><TrioBody storeName={storeName} handle={handle} theme={theme} /></Sequence>
-    <Sequence from={STORY_OPEN + TRIO_BODY - STORY_XF} durationInFrames={STORY_END + STORY_XF}><StoryEndroll storeName={storeName} handle={handle} theme={theme} /></Sequence>
+    <Sequence from={STORY_OPEN + TRIO_BODY - STORY_XF} durationInFrames={STORY_END + STORY_XF}><StoryEndV v={7} storeName={storeName} handle={handle} theme={theme} /></Sequence>
   </AbsoluteFill>
 );

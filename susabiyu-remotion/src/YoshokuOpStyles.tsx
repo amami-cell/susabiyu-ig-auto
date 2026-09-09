@@ -9,6 +9,7 @@ import { typoPhotos, typoMusic, typoMusicStart, typoGroup } from "./typoData";
 import { ytheme } from "./yoshokuTheme";
 import {
   mincho, serif, clamp, EASE, fade, Grain, BrandMark, StoreLogo, StoreLogoColor, StoryBgLayer,
+  StoryOpening, StoryEndroll,
   STORY_OPEN, STORY_END, STORY_XF,
 } from "./yoshokuDesign";
 
@@ -360,6 +361,32 @@ const End9: React.FC<SP> = ({ storeName = DEF.storeName, handle = DEF.handle, th
       <Grain opacity={0.05} />
     </AbsoluteFill>
   );
+};
+
+
+// ── どの案を使うかの切り替え ───────────────────────────────
+// 案1〜3は“地”だけ替えた従来のOP/CLOSE、案4〜9は構図とモーションごと別物。
+// テンプレごとに固定で割り当てる（ランダムにすると毎回見え方が変わって確認・比較ができないため）。
+export type OpVariant = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9;
+
+export const StoryOpenV: React.FC<SP & { v: OpVariant }> = ({ v, ...p }) => {
+  if (v === 4) return <Open4 {...p} />;
+  if (v === 5) return <Open5 {...p} />;
+  if (v === 6) return <Open6 {...p} />;
+  if (v === 7) return <Open7 {...p} />;
+  if (v === 8) return <Open8 {...p} />;
+  if (v === 9) return <Open9 {...p} />;
+  return <StoryOpening {...p} bg={v === 1 ? "blur" : v === 2 ? "mortar" : "wine"} />;
+};
+
+export const StoryEndV: React.FC<SP & { v: OpVariant }> = ({ v, ...p }) => {
+  if (v === 4) return <End4 {...p} />;
+  if (v === 5) return <End5 {...p} />;
+  if (v === 6) return <End6 {...p} />;
+  if (v === 7) return <End7 {...p} />;
+  if (v === 8) return <End8 {...p} />;
+  if (v === 9) return <End9 {...p} />;
+  return <StoryEndroll {...p} bg={v === 1 ? "blur" : v === 2 ? "mortar" : "wine"} />;
 };
 
 // ── 比較用プレビュー（OP → CLOSE をつないだ約5.3秒）─────────────────

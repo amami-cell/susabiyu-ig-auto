@@ -61,6 +61,7 @@ YOSHOKU_PATTERNS = [
     "yoshokupola",    # ⑧ポラロイド重ね（4枚シェア感）
     "yoshokutype",    # ⑨大見出しタイポ（超特大の一言）
     "yoshokuopen",    # ⑩本日OPEN案内（集客・予約導線）
+    "yoshokumagazine",# ⑪雑誌ストーリー（表紙〜裏表紙まで紙の誌面で統一）
 ]
 
 STORES = {
@@ -110,6 +111,9 @@ STORES = {
         "account": "nagagutsu",
         "store_name": "ナガグツ",
         "handle": "@nagagutsu0427",
+        # 営業時間。入力用スプレッドシートから読めなかった時のフォールバック（オーナー申告値）。
+        # シート側に記載があればそちらが優先される。
+        "hours": "11:30〜",
         "region": "",                    # 所在地未確定＝空（region prop対応compでは非表示）。判明後に設定。
         "theme": "italian",              # 洋食おしゃれテンプレの配色（イタリアン＝温かみ生成り）
         "sheet_id": SANJO_SHEET_ID,       # 同一スプレッドシートを接尾辞タブで共用

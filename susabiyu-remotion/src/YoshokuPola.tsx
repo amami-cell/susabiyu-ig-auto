@@ -6,7 +6,7 @@ import { typoPhotos, typoMusic, typoMusicStart } from "./typoData";
 import { ytheme } from "./yoshokuTheme";
 import {
   mincho, serif, clamp, SAFE, EASE, fade,
-  Grain, Vignette, SampleBadge, StoreLogo, splitLines, heroSize, fitOneLine,
+  Grain, Vignette, StoreLogo, splitLines, heroSize, fitOneLine,
 } from "./yoshokuDesign";
 
 // ロゴが出てからの余韻を2秒(60f)伸ばした尺。ロゴの登場位置は POLA_LOGO_IN で固定するので、
@@ -64,8 +64,6 @@ export const YoshokuPola: React.FC<{ storeName?: string; handle?: string; theme?
       <Grain opacity={0.09} />
       <Vignette strength={0.5} />
 
-      {/* 右上：見本番号（本番投稿では非表示） */}
-      <SampleBadge accent={T.accent} f={f} />
 
       {/* 上：MEAT BAR（大きく）＋本日のおすすめ */}
       <div style={{ position: "absolute", top: SAFE.top - 70, left: SAFE.side, right: SAFE.side, textAlign: "center", opacity: fade(f, 6) }}>
