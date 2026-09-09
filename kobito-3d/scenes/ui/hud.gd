@@ -7,6 +7,9 @@ extends Control
 
 var _player: Node = null
 
+const DEX_TOTAL := 9   # なかま図鑑の全種数（lobby.gd DEX_SPECIES と一致）
+var _progress: Label = null   # 中期目標（飛行パーツ・図鑑）の常設表示
+
 # 「やられた→復活」をはっきり見せるための表示
 const REVIVE_SECS := 2.5     # player.gd のダウン→復活の時間に合わせる
 var _was_downed := false
@@ -42,8 +45,13 @@ func _ready() -> void:
 	_build_downed()
 	_skin()
 	_build_pause_button()
+	_build_progress()
+	# 集める中期目標（飛行パーツ・図鑑）が増えたら表示を更新する
+	WorldState.powers_changed.connect(_update_progress)
+	WorldState.creature_healed.connect(_update_progress)
 	_on_recovery(WorldState.recovery)
 	_on_roster()
+	_update_progress()
 	_notice.modulate.a = 0.0
 
 
@@ -210,6 +218,38 @@ func _build_pause_button() -> void:
 			root._toggle_pause())
 	add_child(btn)
 	btn.add_to_group("play_ui_extra")   # 会話中は他のプレイUIと一緒に隠す
+
+
+## 中期目標の常設表示（回復メーターの下）。飛行は recovery バーだけでは見えない
+## 「あと◯個で飛べる」を、図鑑は「あと何種で完成か」を、遊んでいる最中に伝える。
+func _build_progress() -> void:
+	_progress = Label.new()
+	_progress.name = "Progress"
+	_progress.anchor_right = 0.55
+	_progress.offset_left = 24.0
+	_progress.offset_top = 104.0
+	_progress.offset_right = -24.0
+	_progress.offset_bottom = 134.0
+	_progress.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	UIKit.style_label(_progress, 18, Color(1, 1, 0.92), 4, Color(0.16, 0.3, 0.18, 0.9))
+	_progress.add_to_group("play_ui_extra")   # 会話中は他のプレイUIと一緒に隠す
+	add_child(_progress)
+
+
+func _update_progress() -> void:
+	if _progress == null:
+		return
+	var got := 0
+	for p in WorldState.FLIGHT_PARTS:
+		if WorldState.has_power(p):
+			got += 1
+	var total: int = WorldState.FLIGHT_PARTS.size()
+	var dots := ""
+	for i in total:
+		dots += "●" if i < got else "○"
+	var wings := "つばさ %s とべる！" % dots if got >= total else "つばさ %s %d/%d" % [dots, got, total]
+	var dex: int = Chapter.dex_counts().size()
+	_progress.text = "%s　　ずかん %d/%d" % [wings, dex, DEX_TOTAL]
 
 
 func _find_local_player() -> Node:

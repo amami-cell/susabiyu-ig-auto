@@ -39,6 +39,9 @@ func _ready() -> void:
 	if args.has("--shot"):
 		_run_shot()
 		return
+	if args.has("--verify-shots"):
+		_verify_shots()
+		return
 	if args.has("--selftest"):
 		_run_selftest()
 	elif args.has("--selftest-host"):
@@ -799,6 +802,88 @@ func _run_shot() -> void:
 		await RenderingServer.frame_post_draw
 		get_viewport().get_texture().get_image().save_png("/tmp/shot_expr.png")
 	get_tree().quit()
+
+
+# ---------------------------------------------------------------- 見た目の自動検証
+## `--shot --green` で撮った画像を読み、CIで“見た目の回帰”を機械が捕まえる。
+## GPU不要（Image.load はディスクから読むだけ）。画素完全一致ではなく「不変条件」で判定：
+##   ① 起動即・黒画面でない（大半が真っ黒なら NG＝クラッシュ/描画失敗の疑い）
+##   ② 回復すると 世界が緑に近づく（shot_green の緑みが shot_game より増える）
+## しきい値は llvmpipe(ソフトGL)と実GPUの色差を見込んで ゆるめに取る。
+func _verify_shots() -> void:
+	var ok := true
+	var msgs: Array[String] = []
+	var lobby := _load_img("/tmp/shot_lobby.png")
+	var game := _load_img("/tmp/shot_game.png")
+	var green := _load_img("/tmp/shot_green.png")
+
+	for pair in [["ロビー", lobby], ["ゲーム", game], ["回復後", green]]:
+		var nm: String = pair[0]
+		var img: Image = pair[1]
+		if img == null:
+			ok = false
+			msgs.append("%s: 画像が無い/読めない" % nm)
+			continue
+		var nb := _nonblack_ratio(img)
+		msgs.append("%s: 非黒率=%.2f" % [nm, nb])
+		if nb < 0.30:
+			ok = false
+			msgs.append("  → %s がほぼ真っ黒（黒画面の疑い）" % nm)
+
+	if game != null and green != null:
+		var g0 := _green_excess(game)
+		var g1 := _green_excess(green)
+		msgs.append("緑み: 汚れ=%.3f 回復後=%.3f" % [g0, g1])
+		if g1 <= g0 + 0.01:
+			ok = false
+			msgs.append("  → 回復しても緑が増えていない")
+
+	for m in msgs:
+		print("[verify] %s" % m)
+	print("[verify] %s" % ("OK" if ok else "NG"))
+	get_tree().quit(0 if ok else 1)
+
+
+func _load_img(path: String) -> Image:
+	if not FileAccess.file_exists(path):
+		return null
+	var img := Image.new()
+	if img.load(path) != OK:
+		return null
+	# 速度のため小さく（サンプリング用）。色の平均は縮小でも十分な精度。
+	img.resize(160, 90, Image.INTERPOLATE_BILINEAR)
+	return img
+
+
+## 明るさが一定以上の画素の割合（黒画面の検出）。
+func _nonblack_ratio(img: Image) -> float:
+	var w := img.get_width()
+	var h := img.get_height()
+	var total := w * h
+	if total <= 0:
+		return 0.0
+	var lit := 0
+	for y in h:
+		for x in w:
+			var c := img.get_pixel(x, y)
+			if maxf(c.r, maxf(c.g, c.b)) > 0.06:
+				lit += 1
+	return float(lit) / float(total)
+
+
+## 「緑み」＝ g -(r+b)/2 の平均。地面が汚れ→緑へ動くほど増える。
+func _green_excess(img: Image) -> float:
+	var w := img.get_width()
+	var h := img.get_height()
+	var total := w * h
+	if total <= 0:
+		return 0.0
+	var sum := 0.0
+	for y in h:
+		for x in w:
+			var c := img.get_pixel(x, y)
+			sum += c.g - (c.r + c.b) * 0.5
+	return sum / float(total)
 
 
 ## 本物モデルの材質に“絵づくり”を適用（--stylepat 用）。std/toon/toon_ol/anime/water/real。

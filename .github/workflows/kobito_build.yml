@@ -93,6 +93,62 @@ jobs:
           test "$HOST_RC" = "0" && test "$JOIN_RC" = "0"
 
   # ------------------------------------------------------------------
+  # 1.5) 見た目スモーク … ソフトウェアGL(llvmpipe)+xvfb で“実際に描画”して撮り、
+  #      「起動即・黒画面」「回復しても緑が戻らない」等の“見た目の回帰”を機械が捕まえる。
+  #      --headless では絵が出ない弱点をここで埋める。追加コストゼロ（公開リポの標準ランナー）。
+  #      ※このジョブが落ちても Web/APK 配信は止めない（web は selftest だけに依存）。
+  #        あくまで“見た目が壊れていないか”の見張り＝赤で気づける安全網。
+  smoke-visual:
+    runs-on: ubuntu-latest
+    needs: selftest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Cache Godot
+        id: cache-godot
+        uses: actions/cache@v4
+        with:
+          path: ~/godot-bin
+          key: godot-${{ env.GODOT_VERSION }}
+
+      - name: Download Godot
+        if: steps.cache-godot.outputs.cache-hit != 'true'
+        run: |
+          set -e
+          mkdir -p ~/godot-bin && cd ~/godot-bin
+          curl -fsSL -o godot.zip \
+            "https://github.com/godotengine/godot/releases/download/${GODOT_VERSION}/Godot_v${GODOT_VERSION}_linux.x86_64.zip"
+          unzip -q godot.zip && rm godot.zip
+          mv Godot_v${GODOT_VERSION}_linux.x86_64 godot && chmod +x godot
+
+      - name: ソフトウェアGL(Mesa)と仮想ディスプレイ(xvfb)を入れる
+        run: sudo apt-get update && sudo apt-get install -y xvfb libgl1-mesa-dri mesa-utils
+
+      - name: Import project
+        run: ~/godot-bin/godot --headless --path kobito-3d --import
+
+      - name: 実レンダリングでスクショを撮る（opengl3 / llvmpipe / xvfb）
+        run: |
+          export LIBGL_ALWAYS_SOFTWARE=1 GALLIUM_DRIVER=llvmpipe
+          xvfb-run -a -s "-screen 0 1280x720x24" \
+            ~/godot-bin/godot --path kobito-3d --rendering-driver opengl3 -- --shot --green --bugs \
+            > shot.log 2>&1 || true
+          echo "---- shot.log (末尾) ----"; tail -n 30 shot.log || true
+          ls -la /tmp/shot_*.png || true
+
+      - name: 見た目の不変条件を検証（黒画面でない／回復で緑が増える）
+        run: |
+          ~/godot-bin/godot --headless --path kobito-3d -- --verify-shots | tee verify.log
+          grep -q "\[verify\] OK" verify.log
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: kobito-shots
+          path: /tmp/shot_*.png
+          retention-days: 7
+
+  # ------------------------------------------------------------------
   # 2) Web書き出し … スマホにURLを送ってその場で試せる形
   # ------------------------------------------------------------------
   web:
