@@ -26,10 +26,27 @@ def run(cmd):
     subprocess.check_call(cmd, shell=True)
 
 
-def _poster_jpg(comp, props_arg):
-    """代表フレームの静止画(JPEG)を作って返す（失敗時 None）。ポスター＝一覧の見た目。"""
+def _poster_jpg(comp, props_arg, mp4=""):
+    """代表フレームの静止画(JPEG)を作って返す（失敗時 None）。ポスター＝一覧の見た目。
+
+    動画がある時は ffmpeg で mp4 から1枚抜く（1秒未満）。`npx remotion still` は
+    そのたびにプロジェクトを丸ごとバンドルし直すため1本あたり20〜30秒かかっていた。
+    見た目は同じフレームなので、待ち時間だけを削れる。動画が無い時だけ従来どおり still。
+    """
     png = "out/sample_poster.png"
     jpg = "out/sample_poster.jpg"
+    for f in (png, jpg):
+        if os.path.exists(f):
+            os.remove(f)
+    if mp4 and os.path.exists(mp4):
+        try:
+            # frame100 @30fps = 3.333秒。-ss を入力前に置くと高速シーク。
+            run('ffmpeg -y -loglevel error -ss 00:00:03.333 -i "' + mp4 + '" -frames:v 1 -q:v 3 "' + jpg + '"')
+            if os.path.exists(jpg) and os.path.getsize(jpg) > 0:
+                return jpg
+            print("[SAMPLE] ffmpegポスターが空 → still にフォールバック")
+        except Exception as e:
+            print("[SAMPLE] ffmpegポスター失敗 → still にフォールバック:", e)
     try:
         run("npx remotion still " + comp + " " + png + " --frame 100 --scale 1.0 --timeout 120000" + props_arg)
     except Exception as e:
@@ -151,14 +168,18 @@ def main():
         print("\n=========== 見本レンダリング: %s (%s) | 文言=%s | 音源=%s(+%ds) ==========="
               % (pattern, comp, cap, music_name or "既定", _mstart(mp)))
         try:
+            mp4 = ""
             if is_video:
-                # 見本は一度に10本描くので直列(concurrency 1)だと遅い＆遅延ランナーで詰まりやすい。
-                # 2並列にして体感2倍速に（1080x1920×2タブ≒2GB、標準ランナー16GBで安全）。
-                run("npx remotion render " + comp + " out/post.mp4 --crf 26 --timeout 180000 --concurrency 2" + props_arg)
-                url = poster.up("out/post.mp4", cdn=True)
+                # 標準ランナーは4vCPU。1080x1920×4タブでも約4GB（16GB搭載）なので4並列で回す。
+                # 直列や2並列だとレンダリングだけで1本60〜90秒かかっていた。
+                if os.path.exists("out/post.mp4"):
+                    os.remove("out/post.mp4")
+                run("npx remotion render " + comp + " out/post.mp4 --crf 26 --timeout 180000 --concurrency 4" + props_arg)
+                mp4 = "out/post.mp4"
+                url = poster.up(mp4, cdn=True)
             else:
                 url = ""
-            pj = _poster_jpg(comp, props_arg)
+            pj = _poster_jpg(comp, props_arg, mp4)
             purl = poster.up(pj, cdn=True) if pj else ""
             if is_video and not url:
                 # 動画のアップロードに失敗＝見本が“静止画になった動画”になる。黙って差し替えると
