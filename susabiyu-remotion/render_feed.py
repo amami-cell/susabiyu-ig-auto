@@ -88,6 +88,12 @@ def main():
                         "caption": "フィード投稿画像（4:5）", "kind": "image", "enabled": 1})
         print("[FEED] OK", cid, "->", url[:70])
 
+    # 切り抜き(背景除去)が実際に効いたかをログ末尾に必ず出す（Pythonの出力バッファで先頭に流れて
+    # 見落とすのを防ぐ）。0件なら H系は従来表示にフォールバックしている＝原因調査が必要。
+    import glob as _glob
+    _cuts = sorted(_glob.glob(os.path.join("public", "typo", "cut*.png")))
+    print("[CUTOUT-SUMMARY] 生成数=%d %s" % (len(_cuts), [os.path.basename(x) for x in _cuts]))
+
     print("\n===== FEED SAMPLES(JSON) ここから =====")
     print("FEED_SAMPLES = " + json.dumps(samples, ensure_ascii=False) + ";")
     print("===== FEED SAMPLES(JSON) ここまで =====")
