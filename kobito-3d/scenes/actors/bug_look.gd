@@ -80,41 +80,68 @@ static func decorate_simple(bug_root: Node3D, color: Color, scale_v: float, shel
 	rig.name = "InsectRig"
 	rig.scale = Vector3.ONE * scale_v
 	bug_root.add_child(rig)
-	var skin := color.darkened(0.12)
-	var dark := color.darkened(0.42)
+	# “顔が主役”の丸い生きもの。暗い体で潰れないよう頭は体色を持ち上げた明るめの色に。
+	var skin := color.lerp(Color(0.72, 0.64, 0.62), 0.4)
+	var dark := color.darkened(0.28)
 
-	# 頭（少し大きめ＝表情が主役）
-	var head := _sphere(rig, "Head", 0.2, skin)
-	head.position = Vector3(0.0, 0.26, -0.3)
+	# --- 大きな頭（胴より大きいチビ体型＝かわいい・顔が主役）---
+	var head := _sphere(rig, "Head", 0.34, skin)
+	head.position = Vector3(0.0, 0.34, -0.04)
+	head.scale = Vector3(1.06, 0.96, 1.0)
 
-	# 触角2（前上へ）＋先の丸い節＝一目で“虫”に。安いのにシルエットがぐっと効く。
-	var knob_mat := _mat(color.lightened(0.2))
+	# --- 触角2＋先の丸い節（頭の上へ）---
+	var knob_mat := _mat(skin.lightened(0.12))
 	for sx in [-1.0, 1.0]:
-		var ant := _capsule(head, "Antenna", 0.017, 0.28, dark)
-		ant.position = Vector3(0.07 * sx, 0.14, -0.03)
-		ant.rotation = Vector3(deg_to_rad(-32.0), 0.0, deg_to_rad(15.0) * sx)
-		var knob := _sphere(ant, "Knob", 0.055, color.lightened(0.2))
+		var ant := _capsule(head, "Antenna", 0.02, 0.3, dark)
+		ant.position = Vector3(0.16 * sx, 0.34, -0.02)
+		ant.rotation = Vector3(deg_to_rad(-26.0), 0.0, deg_to_rad(20.0) * sx)
+		var knob := _sphere(ant, "Knob", 0.06, skin.lightened(0.12))
 		knob.material_override = knob_mat
-		knob.position = Vector3(0.0, 0.16, 0.0)
+		knob.position = Vector3(0.0, 0.17, 0.0)
 
-	# 目2（大きめ・つやあり＋白ハイライト）＝“ヘドロに侵されて困っている”、癒やしたくなる目。
-	# 暗い体でも目がしっかり立つように、白いふち＋黒目＋光点で“生きてる眼”に。
+	# --- 大きな目2（白目＋うるんだ黒目）＝顔の大半を占める“助けたくなる”眼 ---
 	var eye_mat := _eye_mat()
-	var sclera_mat := _mat(Color(0.93, 0.94, 0.9))
+	var sclera_mat := _mat(Color(0.96, 0.97, 0.94))
 	for sx in [-1.0, 1.0]:
-		var sclera := _sphere(head, "Sclera", 0.105, Color(0.94, 0.95, 0.92))
+		var sclera := _sphere(head, "Sclera", 0.155, Color(0.96, 0.97, 0.94))
 		sclera.material_override = sclera_mat
-		sclera.position = Vector3(0.095 * sx, 0.035, -0.14)
-		sclera.scale = Vector3(1.0, 1.2, 0.8)
-		# 黒目（つや＝実光源のハイライトで“うるむ”。少し内・下向きで“困り顔”）
-		var eye := _sphere(sclera, "Eye", 0.6, Color(0.06, 0.05, 0.05))
+		sclera.position = Vector3(0.13 * sx, 0.03, -0.22)
+		sclera.scale = Vector3(1.0, 1.18, 0.7)
+		var eye := _sphere(sclera, "Eye", 0.62, Color(0.05, 0.04, 0.05))
 		eye.material_override = eye_mat
-		eye.position = Vector3(0.18 * sx, -0.12, -0.55)
+		eye.position = Vector3(0.16 * sx, -0.12, -0.5)
+
+	# --- 困り眉2（ハの字）---
+	for sx in [-1.0, 1.0]:
+		var brow := _capsule(head, "Brow", 0.018, 0.14, dark)
+		brow.position = Vector3(0.14 * sx, 0.2, -0.3)
+		brow.rotation = Vector3(deg_to_rad(90.0), 0.0, deg_to_rad(24.0) * sx)
+
+	# --- ほっぺ2 ---
+	var cheek_mat := _mat(Color(0.95, 0.55, 0.55))
+	for sx in [-1.0, 1.0]:
+		var cheek := _sphere(head, "Cheek", 0.07, Color(0.95, 0.55, 0.55))
+		cheek.material_override = cheek_mat
+		cheek.position = Vector3(0.24 * sx, -0.08, -0.24)
+		cheek.scale = Vector3(1.1, 0.75, 0.5)
+
+	# --- 小さな困り口 ---
+	var mouth := _sphere(head, "Mouth", 0.05, Color(0.3, 0.14, 0.16))
+	mouth.material_override = _mat(Color(0.3, 0.14, 0.16))
+	mouth.position = Vector3(0.0, -0.2, -0.32)
+	mouth.scale = Vector3(1.7, 0.7, 0.5)
+
+	# --- ちいさな脚4（下・暗い）＝“立ってる生きもの”に ---
+	for zi in [-0.06, 0.14]:
+		for sx in [-1.0, 1.0]:
+			var leg := _capsule(rig, "Leg", 0.025, 0.16, dark)
+			leg.position = Vector3(0.13 * sx, 0.02, zi)
+			leg.rotation = Vector3(0.0, 0.0, deg_to_rad(20.0) * sx)
 
 	if shell:
-		var sh := _sphere(rig, "Shell", 0.3, color.darkened(0.05))
+		var sh := _sphere(rig, "Shell", 0.22, color.darkened(0.05))
 		sh.scale = Vector3(1.05, 0.62, 1.35)
-		sh.position = Vector3(0.0, 0.28, 0.04)
+		sh.position = Vector3(0.0, 0.24, 0.18)
 
 
 ## 中ボス用の固有シルエット：溶けかけのヘドロが盛り上がった塊＋にらむ目＋太い脚。
@@ -187,9 +214,11 @@ static func _capsule(parent: Node, node_name: String, r: float, h: float, c: Col
 static func _mat(c: Color) -> StandardMaterial3D:
 	var m := StandardMaterial3D.new()
 	m.albedo_color = c
-	m.roughness = 0.8
+	m.roughness = 0.95
+	m.metallic_specular = 0.12   # 既定0.5の鏡面が“黒いテカリ玉”の主因→下げてマットに
 	m.rim_enabled = true
-	m.rim = 0.4
+	m.rim = 0.22
+	m.rim_tint = 0.5
 	return m
 
 
