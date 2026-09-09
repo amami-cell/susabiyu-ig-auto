@@ -11,8 +11,9 @@ extends Control
 ##     指ごとに「どこで押したか」で役割を判定し、指(index)ごとに別々に反映する。
 ##   右下の3ボタン（きれいに・つかむ・ジャンプ）は各自でタッチを受ける。
 
-const STICK_RADIUS := 120.0      # プニコンの見た目の半径
-const STICK_ZONE := 210.0        # この円内でタッチ開始したら「移動」とみなす
+const STICK_RADIUS := 160.0      # プニコンの見た目の半径（スマホで押しやすいよう大きめ）
+const STICK_ZONE := 300.0        # この円内でタッチ開始したら「移動」とみなす（広め＝取りこぼさない）
+const KNOB_RADIUS := 58.0        # つまみの半径
 const DEAD_ZONE := 0.14
 const ORBIT_SPEED := 0.0072      # ドラッグ量→カメラ回転（やや速めで軽快に）
 
@@ -196,8 +197,11 @@ func _on_input(event: InputEvent) -> void:
 		elif _cam_touches.has(event.index):
 			_orbit(event.relative)
 	elif event is InputEventMouseMotion and (event.button_mask & MOUSE_BUTTON_MASK_LEFT):
-		# PC/デバッグ：左ドラッグでカメラ（タッチが無い環境の保険）
-		_orbit(event.relative)
+		# PC/デバッグ：左ドラッグでカメラ（タッチが無い環境の保険）。
+		# ★スマホ対策★ タッチはOSが“マウス”にも変換して二重に届く。指が乗っている間
+		#   （スティック中／カメラ中）はこのマウス扱いを無視＝プニコンを触ると画面が回る不具合を防ぐ。
+		if _stick_touch == -1 and _cam_touches.is_empty():
+			_orbit(event.relative)
 
 
 # ------------------------------------------------------------ 移動（プニコン）
@@ -257,9 +261,9 @@ func _draw() -> void:
 	var boost := 0.0
 	if _tut_active and not _moved_once:
 		boost = 0.22 * (0.5 + 0.5 * sin(_tut_t * 6.0))
-	draw_circle(home, STICK_RADIUS, Color(1, 1, 1, 0.06 + boost))    # 薄い土台（案内中は濃く）
-	draw_circle(home, STICK_RADIUS, Color(1, 1, 1, 0.22 + boost), false, 3.0)
+	draw_circle(home, STICK_RADIUS, Color(1, 1, 1, 0.10 + boost))    # 薄い土台（案内中は濃く）
+	draw_circle(home, STICK_RADIUS, Color(1, 1, 1, 0.30 + boost), false, 4.0)
 	var knob := home + _stick_value * STICK_RADIUS
-	var kcol := Color(1, 1, 1, 0.4 + boost) if _stick_touch != -1 else Color(1, 1, 1, 0.22 + boost)
-	draw_circle(knob, 40.0, kcol)
-	draw_circle(knob, 40.0, Color(1, 1, 1, 0.4 + boost), false, 2.0)
+	var kcol := Color(1, 1, 1, 0.5 + boost) if _stick_touch != -1 else Color(1, 1, 1, 0.3 + boost)
+	draw_circle(knob, KNOB_RADIUS, kcol)
+	draw_circle(knob, KNOB_RADIUS, Color(1, 1, 1, 0.5 + boost), false, 3.0)
