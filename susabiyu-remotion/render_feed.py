@@ -17,11 +17,10 @@ import stores, poster
 FEED_COMPS = [
     ("YoshokuFeedA", "フィード案A・フルブリード×ボトム暗幕(定番)"),
     ("YoshokuFeedB", "フィード案B・ボトムバンド・エディトリアル"),
-    ("YoshokuFeedC", "フィード案C・カラースラブ分割(テラコッタ面)"),
+    ("YoshokuFeedC", "フィード案C・雑誌エディトリアル(キャプション枠)"),
     ("YoshokuFeedE", "フィード案E・サイドレール(テラコッタ帯)"),
     ("YoshokuFeedE2", "フィード案E2・サイドレール(オリーブ帯)"),
     ("YoshokuFeedE3", "フィード案E3・サイドレール(ゴールド帯)"),
-    ("YoshokuFeedG", "フィード案G・センターバンド"),
     ("YoshokuFeedH", "フィード案H・パーチメント×角丸カード(切り抜き風)"),
     ("YoshokuFeedH2", "フィード案H2・丸皿カット(正円・テラコッタ地)"),
     ("YoshokuFeedH3", "フィード案H3・角丸ステッカー×ハーフ地"),
