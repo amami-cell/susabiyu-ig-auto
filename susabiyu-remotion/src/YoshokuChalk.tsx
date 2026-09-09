@@ -78,7 +78,11 @@ const ChalkBody: React.FC<{ storeName?: string; handle?: string; theme?: string 
       {cur.desc ? (
         <div key={"d" + i} style={{ position: "absolute", top: 1476, left: 150, right: 150, textAlign: "center", ...rise(local, 10, { dist: 12 }) }}>
           <div style={{ display: "inline-block", padding: "4px 22px 0", borderTop: "1px solid " + T.accent + "55" }}>
-            <span style={{ fontFamily: mincho, color: "#E4E0D4", fontSize: 30, lineHeight: 1.55, letterSpacing: 1 }}>{cur.desc}</span>
+            {/* 説明文も必ず1行に収める（長い文は自動で少し詰める）。2行に折れると座りが悪い。 */}
+            <span style={{
+              fontFamily: mincho, color: "#E4E0D4", letterSpacing: 1, lineHeight: 1.5, whiteSpace: "nowrap",
+              fontSize: fitOneLine(cur.desc, 30, 1080 - 150 * 2 - 44 - 20, 17),
+            }}>{cur.desc}</span>
           </div>
         </div>
       ) : null}
