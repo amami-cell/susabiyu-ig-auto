@@ -12,7 +12,7 @@ import { AbsoluteFill, Img, staticFile, useCurrentFrame, interpolate, Easing } f
 import { loadFont as loadMincho } from "@remotion/google-fonts/ShipporiMincho";
 import { loadFont as loadSerif } from "@remotion/google-fonts/Cormorant";
 import { loadFont as loadMinchoBlack } from "@remotion/google-fonts/NotoSerifJP";
-import { typoLogo, typoLogoRound, typoLogoColor, typoSampleNo } from "./typoData";
+import { typoLogo, typoLogoRound, typoLogoColor, typoSampleNo, typoPhotos } from "./typoData";
 import { ytheme } from "./yoshokuTheme";
 
 export const mincho = loadMincho().fontFamily;
@@ -271,6 +271,78 @@ export const STORY_OPEN = 56;   // オープニング 1.9s（ゆっくり）
 export const STORY_END = 104;   // エンドロール 3.5s（ゆっくり）
 export const STORY_XF = 24;     // 本編→CLOSE の重なりクロスフェード（じわーっと移行）
 
+// OP/CLOSE の既定の地。ここ1か所を変えれば10本すべてのオープニング／クローズに反映される。
+// 比較用プレビュー（YoshokuOpBlur / OpMortar / OpWine）で選んでから、この既定値を差し替える運用。
+export const STORY_BG: StoryBg = "dark";
+
+// OP/CLOSE の背景。真っ黒一色だと重く沈むので、地の選択肢を用意して比較できるようにする。
+//  dark   = 従来（テーマの base 一色）
+//  blur   = 料理写真を大きくぼかして敷く（店の色がにじむ・いちばん“お店らしい”）
+//  mortar = モルタル塗り壁＋中央のやわらかいスポット（落ち着いた内装の壁）
+//  wine   = 深いボルドー〜黒のグラデ＋光のにじみ（ブランド色に寄せた華やかさ）
+export type StoryBg = "dark" | "blur" | "mortar" | "wine";
+
+export const StoryBgLayer: React.FC<{ bg?: StoryBg; theme?: string; dur?: number }> = ({ bg = "dark", theme = "italian", dur = 120 }) => {
+  const f = useCurrentFrame();
+  const T = ytheme(theme);
+  // どの案もごくゆっくり動かす（止め絵にしない・でも忙しくしない）
+  const z = interpolate(f, [0, dur], [1.06, 1.14], { ...clamp, easing: EASE });
+
+  if (bg === "blur") {
+    const src = (typoPhotos[0] && typoPhotos[0].src) || "";
+    return (
+      <AbsoluteFill style={{ backgroundColor: T.base }}>
+        {src ? (
+          <AbsoluteFill style={{ overflow: "hidden" }}>
+            <Img src={staticFile(src)} style={{
+              width: "100%", height: "100%", objectFit: "cover",
+              transform: "scale(" + z + ")",
+              filter: "blur(54px) brightness(0.46) saturate(1.18)",
+            }} />
+          </AbsoluteFill>
+        ) : null}
+        {/* 中央を少し明るく／四隅を落として、ロゴが必ず抜けて見えるようにする */}
+        <AbsoluteFill style={{ background: "radial-gradient(70% 46% at 50% 46%, rgba(0,0,0,0) 0%, rgba(0,0,0,0.42) 62%, rgba(0,0,0,0.72) 100%)" }} />
+        <AbsoluteFill style={{ background: "radial-gradient(60% 36% at 50% 40%, " + T.accent + "1f 0%, transparent 70%)" }} />
+        <Grain opacity={0.1} />
+      </AbsoluteFill>
+    );
+  }
+
+  if (bg === "mortar") {
+    return (
+      <AbsoluteFill style={{ background: "radial-gradient(115% 80% at 50% 38%, #3C3833 0%, #2E2B27 52%, #1E1C19 100%)" }}>
+        {/* 塗り壁のムラ（コテ跡っぽい斜めの濃淡）＋細かな砂目 */}
+        <AbsoluteFill style={{ opacity: 0.16, backgroundImage: "repeating-linear-gradient(118deg, rgba(255,255,255,0.10) 0 3px, transparent 3px 26px)" }} />
+        <AbsoluteFill style={{ opacity: 0.1, backgroundImage: "repeating-linear-gradient(28deg, rgba(0,0,0,0.35) 0 2px, transparent 2px 19px)" }} />
+        <AbsoluteFill style={{ opacity: 0.5, backgroundImage: "radial-gradient(rgba(255,255,255,0.5) 1px, transparent 1.6px)", backgroundSize: "18px 18px", mixBlendMode: "overlay" }} />
+        {/* 上からの暖色スポット（間接照明） */}
+        <AbsoluteFill style={{ background: "radial-gradient(52% 34% at 50% 30%, " + T.accent + "2e 0%, transparent 72%)" }} />
+        <AbsoluteFill style={{ background: "radial-gradient(100% 70% at 50% 50%, transparent 40%, rgba(0,0,0,0.5) 100%)" }} />
+        <Grain opacity={0.09} />
+      </AbsoluteFill>
+    );
+  }
+
+  if (bg === "wine") {
+    return (
+      <AbsoluteFill style={{ background: "radial-gradient(105% 75% at 50% 34%, #5A1A20 0%, #331014 44%, #14090A 100%)" }}>
+        {/* グラスに差す光のにじみ（ごくゆっくり広がる） */}
+        <AbsoluteFill style={{ background: "radial-gradient(38% 24% at 50% 30%, rgba(255,214,170,0.20) 0%, transparent 72%)", transform: "scale(" + z + ")" }} />
+        <AbsoluteFill style={{ opacity: 0.12, backgroundImage: "repeating-linear-gradient(135deg, rgba(255,255,255,0.5) 0 1px, transparent 1px 26px)" }} />
+        <AbsoluteFill style={{ background: "radial-gradient(100% 70% at 50% 52%, transparent 34%, rgba(0,0,0,0.62) 100%)" }} />
+        <Grain opacity={0.1} />
+      </AbsoluteFill>
+    );
+  }
+
+  return (
+    <AbsoluteFill style={{ backgroundColor: T.base }}>
+      <WarmGlow /><Grain />
+    </AbsoluteFill>
+  );
+};
+
 const _BrandMark: React.FC<{ storeName: string; ink: string; size?: number }> = ({ storeName, ink, size = 300 }) => (
   typoLogoRound
     ? <Img src={staticFile(typoLogoRound)} style={{ width: size, height: size, objectFit: "contain", filter: "drop-shadow(0 8px 30px rgba(0,0,0,0.55))" }} />
@@ -279,7 +351,7 @@ const _BrandMark: React.FC<{ storeName: string; ink: string; size?: number }> = 
       : <div style={{ fontFamily: mincho, color: ink, fontSize: Math.round(size * 0.4), fontWeight: 700, letterSpacing: 2 }}>{storeName}</div>)
 );
 
-export const StoryOpening: React.FC<{ storeName?: string; theme?: string }> = ({ storeName = "ナガグツ", theme = "italian" }) => {
+export const StoryOpening: React.FC<{ storeName?: string; theme?: string; bg?: StoryBg }> = ({ storeName = "ナガグツ", theme = "italian", bg = STORY_BG }) => {
   const f = useCurrentFrame();
   const T = ytheme(theme);
   // ゆっくり立ち上げ→終わりは全体をやわらかくフェードアウト（忙しくしない）
@@ -288,7 +360,7 @@ export const StoryOpening: React.FC<{ storeName?: string; theme?: string }> = ({
   const ruleW = interpolate(f, [12, 44], [0, 260], { ...clamp, easing: EASE });
   return (
     <AbsoluteFill style={{ backgroundColor: T.base }}>
-      <WarmGlow /><Grain />
+      <StoryBgLayer bg={bg} theme={theme} dur={STORY_OPEN} />
       <AbsoluteFill style={{ display: "flex", alignItems: "center", justifyContent: "center", flexDirection: "column", opacity: o }}>
         <div style={{ transform: "scale(" + s + ")", display: "flex", flexDirection: "column", alignItems: "center", gap: 20 }}>
           <_BrandMark storeName={storeName} ink={T.ink} size={300} />
@@ -303,7 +375,7 @@ export const StoryOpening: React.FC<{ storeName?: string; theme?: string }> = ({
 // エンドロール：本編のラスト STORY_XF フレームに重ねて配置する前提。
 // 最初の STORY_XF で画面全体(root)をじわーっとフェードイン＝本編からのクロスディゾルブ。
 // その後にロゴ／コピーがゆっくり立ち上がる（忙しさを解消）。
-export const StoryEndroll: React.FC<{ storeName?: string; handle?: string; theme?: string }> = ({ storeName = "ナガグツ", handle = "@nagagutsu0427", theme = "italian" }) => {
+export const StoryEndroll: React.FC<{ storeName?: string; handle?: string; theme?: string; bg?: StoryBg }> = ({ storeName = "ナガグツ", handle = "@nagagutsu0427", theme = "italian", bg = STORY_BG }) => {
   const f = useCurrentFrame();
   const T = ytheme(theme);
   const rootO = interpolate(f, [0, STORY_XF], [0, 1], { ...clamp, easing: EASE }); // 本編に重ねてじわーっと
@@ -311,7 +383,7 @@ export const StoryEndroll: React.FC<{ storeName?: string; handle?: string; theme
   const y = interpolate(f, [STORY_XF, STORY_XF + 40], [26, 0], { ...clamp, easing: EASE });
   return (
     <AbsoluteFill style={{ backgroundColor: T.base, opacity: rootO }}>
-      <WarmGlow /><Grain />
+      <StoryBgLayer bg={bg} theme={theme} dur={STORY_END + STORY_XF} />
       <AbsoluteFill style={{ display: "flex", alignItems: "center", justifyContent: "center", flexDirection: "column", opacity: cO, transform: "translateY(" + y + "px)", textAlign: "center", gap: 18 }}>
         <_BrandMark storeName={storeName} ink={T.ink} size={230} />
         <div style={{ fontFamily: mincho, color: T.ink, fontSize: 56, fontWeight: 700, letterSpacing: 3 }}>ご来店をお待ちしています</div>

@@ -1,6 +1,7 @@
 ﻿import { Composition } from "remotion";
 import { YoshokuDish, YOSHOKU_DUR } from "./YoshokuDish";
 import { YoshokuChalk, YCHALK_DUR } from "./YoshokuChalk";
+import { YoshokuOpBlur, YoshokuOpMortar, YoshokuOpWine, YOP_DUR } from "./YoshokuOpPreview";
 import { YoshokuSizzle, YSIZZLE_DUR } from "./YoshokuSizzle";
 import { YoshokuMag, YMAG_DUR } from "./YoshokuMag";
 import { YoshokuCine, YCINE_DUR } from "./YoshokuCine";
@@ -87,6 +88,10 @@ export const RemotionRoot: React.FC = () => {
       <Composition id="YoshokuPola" component={YoshokuPola} fps={FPS} width={1080} height={1920} durationInFrames={YPOLA_DUR} defaultProps={{ storeName: STORE, handle: "@susabiyu_sanjyo", theme: "neutral" }} />
       <Composition id="YoshokuType" component={YoshokuType} fps={FPS} width={1080} height={1920} durationInFrames={YTYPE_DUR} defaultProps={{ storeName: STORE, handle: "@susabiyu_sanjyo", theme: "neutral" }} />
       <Composition id="YoshokuOpen" component={YoshokuOpen} fps={FPS} width={1080} height={1920} durationInFrames={YOPEN_DUR} defaultProps={{ storeName: STORE, handle: "@susabiyu_sanjyo", theme: "neutral" }} />
+      {/* OP/CLOSEの「地」比較用プレビュー（短尺）。選ばれた案を STORY_BG に設定して全10本へ反映する。 */}
+      <Composition id="YoshokuOpBlur" component={YoshokuOpBlur} fps={FPS} width={1080} height={1920} durationInFrames={YOP_DUR} defaultProps={{ storeName: STORE, handle: "@susabiyu_sanjyo", theme: "neutral" }} />
+      <Composition id="YoshokuOpMortar" component={YoshokuOpMortar} fps={FPS} width={1080} height={1920} durationInFrames={YOP_DUR} defaultProps={{ storeName: STORE, handle: "@susabiyu_sanjyo", theme: "neutral" }} />
+      <Composition id="YoshokuOpWine" component={YoshokuOpWine} fps={FPS} width={1080} height={1920} durationInFrames={YOP_DUR} defaultProps={{ storeName: STORE, handle: "@susabiyu_sanjyo", theme: "neutral" }} />
       {/* フィード投稿画像テンプレ（4:5・静止画）。デザイン候補を複数パターン。 */}
       {FEED_COMPS.map((f) => (
         <Composition key={f.id} id={f.id} component={f.comp} fps={FPS} width={FEED_W} height={FEED_H} durationInFrames={FEED_DUR} defaultProps={{ storeName: STORE, handle: "@susabiyu_sanjyo", theme: "neutral" }} />
