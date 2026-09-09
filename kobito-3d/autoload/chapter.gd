@@ -509,6 +509,24 @@ func wants_enemies() -> bool:
 	return CH1[beat].get("goal", "") in ["heal", "green", "wave"]
 
 
+## 章の進行に合わせて「今 湧いてよい敵の種類」を返す（章ごとに少しずつ増える導入）。
+## 第1章：アリ→テントウ→バッタ（地上の弱い虫から）。中ボスは女王アリ（別枠で登場）。
+## 第2章：コガネムシ（硬い）＋トンボ/チョウ/ハチ（飛ぶ敵）。ラスボスはヘドロの主（別枠）。
+## 自由プレイ（章オフ）は全部あり。ボスはこの表には含めない（Chapterの専用合図で湧く）。
+func allowed_bugs() -> Array:
+	if not _active:
+		return ["ant", "tentou", "batta", "beetle", "tonbo", "chou", "hachi"]
+	if beat <= 1:
+		return ["ant"]                                    # 序：アリだけ＝やさしく
+	if beat <= 4:
+		return ["ant", "tentou"]                          # テントウ登場
+	if beat <= 8:
+		return ["ant", "tentou", "batta"]                 # 第1章後半：バッタ
+	if beat <= 9:
+		return ["ant", "tentou", "batta", "beetle"]       # 第2章入口：硬いコガネムシ
+	return ["ant", "tentou", "batta", "beetle", "tonbo", "chou", "hachi"]  # 飛ぶ敵も
+
+
 func ambient_spawn_ok() -> bool:
 	if not _active:
 		return true   # 自由プレイ（遺跡など）は従来どおり

@@ -512,18 +512,29 @@ const PART_BUGS := {
 	"hop": "batta", "float": "tentou", "glide": "chou", "hover": "tonbo", "lift": "hachi",
 }
 func _pick_stats_path() -> String:
+	# 章の進行で「今 出てよい種類」に限定＝章ごとに敵が少しずつ増える導入。
+	var allowed: Array = ["ant"]
+	if Chapter.has_method("allowed_bugs"):
+		var a: Array = Chapter.allowed_bugs()
+		if not a.is_empty():
+			allowed = a
+	# ① まだ授かっていない飛行パーツを持つ虫が pool にいれば、4割で優先（段階解禁）。
 	var missing: Array = []
 	for part in PART_BUGS:
-		if not WorldState.has_power(part):
+		if not WorldState.has_power(part) and PART_BUGS[part] in allowed:
 			missing.append(PART_BUGS[part])
-	# まだ飛行が揃っていないうちは、4割で「パーツ持ちの虫」を出す
 	if not missing.is_empty() and randf() < 0.4:
 		return "res://data/%s.tres" % missing[randi() % missing.size()]
-	# それ以外は“汚れの雑魚”。回復が進むほど硬いコガネムシは減る＝掃除の手応え。
-	# 序盤(recovery<0.2)はアリ固定で優しく。
-	if WorldState.recovery >= 0.2 and randf() > 0.35 + WorldState.recovery * 0.5:
-		return "res://data/beetle.tres"
-	return "res://data/ant.tres"
+	# ② 序盤(recovery<0.2)はアリ多めで優しく。
+	if WorldState.recovery < 0.2 and "ant" in allowed and randf() < 0.7:
+		return "res://data/ant.tres"
+	# ③ 硬いコガネムシは回復が進むほど出にくく＝掃除の手応え。
+	var pool: Array = allowed.duplicate()
+	if "beetle" in pool and randf() > 0.35 + WorldState.recovery * 0.5:
+		pool.erase("beetle")
+	if pool.is_empty():
+		return "res://data/ant.tres"
+	return "res://data/%s.tres" % pool[randi() % pool.size()]
 
 
 ## 詰み防止：プレイヤーのすぐ近くにアリを1体。すぐ見つかる距離に出す。
