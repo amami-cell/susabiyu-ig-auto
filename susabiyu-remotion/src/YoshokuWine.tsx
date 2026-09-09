@@ -1,4 +1,4 @@
-// 洋食⑥ペアリング（上下2分割＝横割り）：上下に一皿ずつ。4品を2ページでゆっくりスライド紹介。
+// 洋食⑥ペアリング（上下2分割＝横割り）：上下に一皿ずつ。6品を3ページでゆっくりスライド紹介。
 // 「寄りすぎて何の料理か分からない」を解消するため、各半分は“ぼかし背景＋contain”で皿の全体を見せる。
 // 文字は半透明スクリム＋影で背景と分離。アニメは useCurrentFrame/interpolate のみ。
 import { AbsoluteFill, Audio, Img, staticFile, useCurrentFrame, interpolate } from "remotion";
@@ -9,9 +9,9 @@ import {
   Grain, PhotoLayer, SampleBadge, fitOneLine,
 } from "./yoshokuDesign";
 
-// 中央の丸ロゴをレコードのように時計回りへ“ちょうど1回転”させる尺。
-// 15秒（450f）＝1回転24秒相当より遅すぎず、目で追える速さで回りきる。
-export const YWINE_DUR = 450; // 15s
+// 6品を上下2品ずつ3ページで紹介する尺。中央の丸ロゴはこの間にレコードのように
+// “ちょうど1回転”しきる（1ページ＝6秒 × 3ページ）。
+export const YWINE_DUR = 540; // 18s
 const HALF = 960; // 上下それぞれの高さ
 
 // 半透明スクリム（文字の後ろ）。
@@ -60,11 +60,11 @@ export const YoshokuWine: React.FC<{ storeName?: string; handle?: string; theme?
   const DUR = YWINE_DUR;
   const T = ytheme(theme);
   const p = typoPhotos.length ? typoPhotos : [{ src: "", caption: "", sub: "", disp: "" }];
-  const items = [0, 1, 2, 3].map((i) => p[i] || p[p.length - 1]);
+  const items = [0, 1, 2, 3, 4, 5].map((i) => p[i] || p[p.length - 1]);
 
-  // 2ページ（[0,1] → [2,3]）を横にスライド。分割は上下（横割り）のまま。
-  // 尺を15秒に伸ばしたので、前後半がほぼ同じ長さになる位置で切り替える。
-  const trackX = interpolate(f, [0, 212, 240, DUR], [0, 0, -1080, -1080], { ...clamp, easing: EASE });
+  // 3ページ（[0,1] → [2,3] → [4,5]）を横にスライド。分割は上下（横割り）のまま。
+  // 1ページあたり約6秒。スライドは28フレームでゆっくり送る。
+  const trackX = interpolate(f, [0, 152, 180, 332, 360, DUR], [0, 0, -1080, -1080, -2160, -2160], { ...clamp, easing: EASE });
   const midO = fade(f, 8);
   // レコードのように等速で時計回り。動画の最後でちょうど360°＝1回転しきる。
   const spin = interpolate(f, [0, DUR], [0, 360], clamp);
@@ -73,9 +73,10 @@ export const YoshokuWine: React.FC<{ storeName?: string; handle?: string; theme?
     <AbsoluteFill style={{ backgroundColor: T.base, fontFamily: mincho }}>
       <Audio src={staticFile(typoMusic)} startFrom={Math.round((typoMusicStart || 0) * 30)} volume={(ff) => interpolate(ff, [0, 16, DUR - 24, DUR], [0, 0.8, 0.8, 0], clamp)} />
 
-      <div style={{ position: "absolute", top: 0, left: 0, width: 2160, height: 1920, transform: "translateX(" + trackX + "px)" }}>
+      <div style={{ position: "absolute", top: 0, left: 0, width: 3240, height: 1920, transform: "translateX(" + trackX + "px)" }}>
         <div style={{ position: "absolute", left: 0, top: 0 }}><Page a={items[0]} b={items[1]} f={f} base={6} accent={T.accent} /></div>
-        <div style={{ position: "absolute", left: 1080, top: 0 }}><Page a={items[2]} b={items[3]} f={f} base={220} accent={T.accent} /></div>
+        <div style={{ position: "absolute", left: 1080, top: 0 }}><Page a={items[2]} b={items[3]} f={f} base={160} accent={T.accent} /></div>
+        <div style={{ position: "absolute", left: 2160, top: 0 }}><Page a={items[4]} b={items[5]} f={f} base={340} accent={T.accent} /></div>
       </div>
 
       {/* 中央：仕切り線＋丸ロゴ（上下の境目） */}
