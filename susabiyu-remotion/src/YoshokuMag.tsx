@@ -6,7 +6,7 @@ import { ytheme } from "./yoshokuTheme";
 import {
   mincho, serif, clamp, SAFE, rise, drawW, fade,
   Grain, StoreLogo, PhotoLayer, Slides, SampleBadge, splitLines, heroSize, segNow,
-  StoryOpening, StoryEndroll, STORY_OPEN, STORY_END,
+  StoryOpening, StoryEndroll, STORY_OPEN, STORY_END, STORY_XF,
 } from "./yoshokuDesign";
 
 const MAG_BODY = 480; // 16s
@@ -25,7 +25,6 @@ const MagBody: React.FC<{ storeName?: string; handle?: string; theme?: string }>
 
   return (
     <AbsoluteFill style={{ backgroundColor: T.base, fontFamily: mincho }}>
-      <Audio src={staticFile(typoMusic)} startFrom={Math.round((typoMusicStart || 0) * 30)} volume={(ff) => interpolate(ff, [0, 16, DUR - 24, DUR], [0, 0.8, 0.8, 0], clamp)} />
       <AbsoluteFill style={{ background: "linear-gradient(180deg, " + T.base + " 0%, " + T.footBase + " 100%)" }} />
 
       {/* 右上：見本番号（本番投稿では非表示） */}
@@ -46,19 +45,20 @@ const MagBody: React.FC<{ storeName?: string; handle?: string; theme?: string }>
         <div style={{ fontFamily: serif, color: "#FFFFFF", fontSize: 26, letterSpacing: 6, opacity: 0.9 }}>SIGNATURE</div>
       </div>
 
-      {/* 下：見出し（横組み・特大・最大2行）＝表紙の主役＝料理名。上に欧文サブ。 */}
-      <div style={{ position: "absolute", left: SAFE.side, right: SAFE.side, bottom: 470 }}>
+      {/* 下：見出し（横組み・特大・最大2行）＝表紙の主役＝料理名。上に欧文サブ。
+          （料理名を一段大きくし、ブロック全体を下げて下の空白を詰める） */}
+      <div style={{ position: "absolute", left: SAFE.side, right: SAFE.side, bottom: 316 }}>
         <div style={{ width: 3, height: barH, background: T.accent, marginBottom: 22 }} />
         {(() => {
           const { i, local } = segNow(DUR, 4, f);
           const it = items[i];
           const nm = (it.disp && it.disp.length) ? it.disp : it.caption;
           const lines = splitLines(nm);
-          const sz = heroSize(nm, 104, 64);
+          const sz = heroSize(nm, 120, 76);
           return (
             <div key={i} style={{ ...rise(local, 6, { dist: 24, blur: 6 }) }}>
-              <div style={{ fontFamily: serif, color: T.accent, fontSize: 26, letterSpacing: 5, marginBottom: 12, textTransform: "uppercase", fontWeight: 600 }}>{it.sub || ("No.0" + (i + 1))}</div>
-              <div style={{ fontFamily: mincho, color: T.ink, fontSize: sz, fontWeight: 700, letterSpacing: 2, lineHeight: 1.22, textShadow: "0 2px 16px rgba(0,0,0,0.45)" }}>
+              <div style={{ fontFamily: serif, color: T.accent, fontSize: 30, letterSpacing: 5, marginBottom: 12, textTransform: "uppercase", fontWeight: 600 }}>{it.sub || ("No.0" + (i + 1))}</div>
+              <div style={{ fontFamily: mincho, color: T.ink, fontSize: sz, fontWeight: 700, letterSpacing: 2, lineHeight: 1.2, textShadow: "0 2px 16px rgba(0,0,0,0.45)" }}>
                 {lines.length ? lines.map((ln, k) => <div key={k}>{ln}</div>) : it.caption}
               </div>
             </div>
@@ -66,14 +66,14 @@ const MagBody: React.FC<{ storeName?: string; handle?: string; theme?: string }>
         })()}
       </div>
 
-      {/* 下：一言（各料理のストーリー用の短い一言。無ければ全体フック） */}
-      <div style={{ position: "absolute", left: SAFE.side, right: SAFE.side, bottom: 388, opacity: fade(f, 74) }}>
-        <div style={{ fontFamily: mincho, color: T.sub, fontSize: 32, letterSpacing: 2, lineHeight: 1.6 }}>{oneLiner}</div>
+      {/* 下：一言（各料理のストーリー用の短い一言。無ければ全体フック）＝大きめに */}
+      <div style={{ position: "absolute", left: SAFE.side, right: 330, bottom: 188, opacity: fade(f, 74) }}>
+        <div style={{ fontFamily: mincho, color: "#EADFC9", fontSize: 46, letterSpacing: 1, lineHeight: 1.5, textShadow: "0 2px 14px rgba(0,0,0,0.6)" }}>{oneLiner}</div>
       </div>
 
-      {/* フッター：店舗ロゴ＋ハンドル */}
-      <div style={{ position: "absolute", left: 0, right: 0, bottom: SAFE.bottom - 150, display: "flex", flexDirection: "column", alignItems: "center", gap: 8, ...rise(f, DUR - 70, { dist: 14 }) }}>
-        <StoreLogo storeName={storeName} height={82} />
+      {/* フッター：店舗ロゴ＋ハンドルを右下へ（左の余白は見出し/一言が使う） */}
+      <div style={{ position: "absolute", right: SAFE.side, bottom: 70, display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 6, ...rise(f, DUR - 70, { dist: 14 }) }}>
+        <StoreLogo storeName={storeName} height={78} />
         <div style={{ fontFamily: serif, color: T.accent, fontSize: 25, letterSpacing: 5 }}>{handle}</div>
       </div>
     </AbsoluteFill>
@@ -86,9 +86,11 @@ export const YoshokuMag: React.FC<{ storeName?: string; handle?: string; theme?:
   const T = ytheme(theme);
   return (
     <AbsoluteFill style={{ backgroundColor: T.base }}>
+      {/* 音楽は全体（オープニング〜本編〜エンドロール）に通す */}
+      <Audio src={staticFile(typoMusic)} startFrom={Math.round((typoMusicStart || 0) * 30)} volume={(ff) => interpolate(ff, [0, 16, YMAG_DUR - 30, YMAG_DUR], [0, 0.8, 0.8, 0], clamp)} />
       <Sequence durationInFrames={STORY_OPEN}><StoryOpening storeName={storeName} theme={theme} /></Sequence>
       <Sequence from={STORY_OPEN} durationInFrames={MAG_BODY}><MagBody storeName={storeName} handle={handle} theme={theme} /></Sequence>
-      <Sequence from={STORY_OPEN + MAG_BODY} durationInFrames={STORY_END}><StoryEndroll storeName={storeName} handle={handle} theme={theme} /></Sequence>
+      <Sequence from={STORY_OPEN + MAG_BODY - STORY_XF} durationInFrames={STORY_END + STORY_XF}><StoryEndroll storeName={storeName} handle={handle} theme={theme} /></Sequence>
     </AbsoluteFill>
   );
 };

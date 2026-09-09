@@ -1,7 +1,7 @@
 import os, io, glob, json, sys, random
 
 FOOD_FOLDER = os.environ.get("GENRE_FOOD_ID") or "14oKNgdXee2NrI7Dkmbrlbid4f0_VZ5Cv"
-N_PHOTOS = 4
+N_PHOTOS = 6  # No.9タイポは6品紹介。他テンプレは必要枚数だけ index する（余剰は未使用）。
 MIN_SIDE = 800
 OUT_DIR = os.path.join("public", "typo")
 NORMAL_DIR = os.path.join("public", "music", "normal")
@@ -217,6 +217,25 @@ def _name_disp(caption):
         return caption
 
 
+# 料理の“こだわり/説明書き”の一言（動画の余白に添える）。ナガグツのみ。他店は空。
+_DESC_FN = None
+def _desc_for(caption):
+    global _DESC_FN
+    if _DESC_FN is None:
+        acct = os.environ.get("STORE_ACCOUNT", "").strip().lower()
+        _DESC_FN = (lambda _nm: "")
+        try:
+            if acct == "nagagutsu":
+                import nagagutsu_captions as _nc
+                _DESC_FN = _nc.desc_for
+        except Exception as _e:
+            print("[DESC] 説明書き体系スキップ:", _e)
+    try:
+        return _DESC_FN(caption) or ""
+    except Exception:
+        return ""
+
+
 import re as _re_cap
 def _clean_caption(nm):
     """ファイル名から“ちゃんとした料理名”を作る（ぎふやの _dish_name と同じ思想＋汎用の除去）。
@@ -271,7 +290,7 @@ for idx, f in enumerate(picked):
     buf.close()
     caption = _clean_caption(f["name"])
     items.append({"src": "typo/" + local, "caption": caption, "story": _story_for(caption),
-                  "sub": _sub_for(caption), "disp": _name_disp(caption)})
+                  "sub": _sub_for(caption), "disp": _name_disp(caption), "desc": _desc_for(caption)})
     print("PHOTO %d:" % idx, f["name"], "(短辺", short_side(f), "px)")
 
 import captions
@@ -296,9 +315,9 @@ print("PICKED ->", "out/picked.json")
 music = os.environ.get("FIXED_MUSIC") or music
 lines = ["export const typoPhotos = ["]
 for it in items:
-    lines.append('  { src: "%s", caption: "%s", sub: "%s", story: "%s", disp: "%s" },'
+    lines.append('  { src: "%s", caption: "%s", sub: "%s", story: "%s", disp: "%s", desc: "%s" },'
                  % (esc(it["src"]), esc(it["caption"]), esc(it.get("sub", "")),
-                    esc(it.get("story", "")), esc(it.get("disp", it["caption"]))))
+                    esc(it.get("story", "")), esc(it.get("disp", it["caption"])), esc(it.get("desc", ""))))
 lines.append("];")
 # サンプル番号（0=本番＝バッジ非表示）。見本レンダリング(render_samples)がテンプレ毎に上書きする。
 lines.append('export const typoSampleNo = 0;')

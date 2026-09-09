@@ -11,7 +11,7 @@ import {
 } from "./yoshokuDesign";
 
 export const YCINE_DUR = 480; // 16s
-const BAR = 200;
+const BAR = 120; // レターボックスを薄く＝料理を切らない
 
 export const YoshokuCine: React.FC<{ storeName?: string; handle?: string; theme?: string }> = ({
   storeName = "ナガグツ", handle = "@nagagutsu0427", theme = "italian",
@@ -32,10 +32,14 @@ export const YoshokuCine: React.FC<{ storeName?: string; handle?: string; theme?
     <AbsoluteFill style={{ backgroundColor: "#000", fontFamily: mincho }}>
       <Audio src={staticFile(typoMusic)} startFrom={Math.round((typoMusicStart || 0) * 30)} volume={(ff) => interpolate(ff, [0, 18, DUR - 24, DUR], [0, 0.82, 0.82, 0], clamp)} />
 
-      {/* 全画面：4品をクロスフェード＋ゆっくりパン（寄りすぎない） */}
+      {/* 全画面：4品をクロスフェード。料理を引き(全体が見切れない)で見せるため、
+          背景に同写真のぼかしカバーを敷き、前面は contain で皿の全体を表示。 */}
       <AbsoluteFill>
         <Slides count={4} total={DUR} render={(i, local, seg) => (
-          <PhotoLayer src={items[i].src} frame={local} dur={seg} from={1.05} to={1.10} panX={28} sat={1.05} brightness={1.0} />
+          <>
+            <AbsoluteFill><PhotoLayer src={items[i].src} frame={local} dur={seg} from={1.14} to={1.2} sat={1.02} brightness={0.46} blur={26} /></AbsoluteFill>
+            <AbsoluteFill><PhotoLayer src={items[i].src} frame={local} dur={seg} from={0.9} to={0.94} panX={8} sat={1.06} brightness={1.02} fit="contain" /></AbsoluteFill>
+          </>
         )} />
       </AbsoluteFill>
       <AbsoluteFill style={{ background: "linear-gradient(180deg, rgba(0,0,0,0.4) 0%, rgba(0,0,0,0) 34%, rgba(0,0,0,0) 60%, rgba(0,0,0,0.6) 100%)" }} />

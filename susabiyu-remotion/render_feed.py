@@ -24,7 +24,9 @@ FEED_COMPS = [
     ("YoshokuFeedE3", "フィード案E3・サイドレール(ゴールド帯)"),
     ("YoshokuFeedF", "フィード案F・テラコッタ帯(本日のおすすめ)"),
     ("YoshokuFeedG", "フィード案G・マガジン・エディトリアル"),
-    ("YoshokuFeedH", "フィード案H・大タイポ・カバー"),
+    ("YoshokuFeedH", "フィード案H・パーチメント×角丸カード(切り抜き風)"),
+    ("YoshokuFeedH2", "フィード案H2・丸皿カット(正円・テラコッタ地)"),
+    ("YoshokuFeedH3", "フィード案H3・角丸ステッカー×ハーフ地"),
 ]
 
 

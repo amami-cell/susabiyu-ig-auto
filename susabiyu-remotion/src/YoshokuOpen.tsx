@@ -42,11 +42,8 @@ export const YoshokuOpen: React.FC<{ storeName?: string; handle?: string; theme?
       {/* 右上：見本番号（本番投稿では非表示） */}
       <SampleBadge accent={T.accent} f={f} />
 
-      {/* 金のヘアライン枠＋上ラベル（控えめに） */}
+      {/* 金のヘアライン枠（上のMEAT BARラベルは削除） */}
       <div style={{ position: "absolute", inset: 74, border: "1px solid " + T.accent + "55", borderRadius: 8, opacity: fade(f, 16) * 0.75 }} />
-      <div style={{ position: "absolute", top: SAFE.top - 20, left: 0, right: 0, textAlign: "center", opacity: fade(f, 18) }}>
-        <div style={{ fontFamily: serif, color: T.accent, fontSize: 30, letterSpacing: 6, fontWeight: 600, textTransform: "uppercase" }}>{T.label}</div>
-      </div>
 
       {/* 中央：OPEN（実データ or 中立）＋ 情緒コピー */}
       <AbsoluteFill style={{ display: "flex", alignItems: "center", justifyContent: "center", flexDirection: "column", padding: "0 " + SAFE.side + "px" }}>

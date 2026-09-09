@@ -254,8 +254,9 @@ export const SampleBadge: React.FC<{ accent?: string; f?: number }> = ({ accent 
 // ── 共通オープニング／エンドロール（No.1〜4のストーリーに前後付け）──────────────
 // ブランドの“顔”を最初と最後に見せる。丸ロゴ(typoLogoRound)があれば色付きで、無ければ横ロゴ/店名。
 // アニメは useCurrentFrame/interpolate のみ（CSSトランジション禁止）。各Sequence内で相対フレーム。
-export const STORY_OPEN = 42;   // オープニング 1.4s
-export const STORY_END = 72;    // エンドロール 2.4s
+export const STORY_OPEN = 56;   // オープニング 1.9s（ゆっくり）
+export const STORY_END = 104;   // エンドロール 3.5s（ゆっくり）
+export const STORY_XF = 24;     // 本編→CLOSE の重なりクロスフェード（じわーっと移行）
 
 const _BrandMark: React.FC<{ storeName: string; ink: string; size?: number }> = ({ storeName, ink, size = 300 }) => (
   typoLogoRound
@@ -268,9 +269,10 @@ const _BrandMark: React.FC<{ storeName: string; ink: string; size?: number }> = 
 export const StoryOpening: React.FC<{ storeName?: string; theme?: string }> = ({ storeName = "ナガグツ", theme = "italian" }) => {
   const f = useCurrentFrame();
   const T = ytheme(theme);
-  const o = Math.min(interpolate(f, [0, 10], [0, 1], clamp), interpolate(f, [STORY_OPEN - 9, STORY_OPEN], [1, 0], clamp));
-  const s = interpolate(f, [0, 18], [0.84, 1], { ...clamp, easing: EASE });
-  const ruleW = interpolate(f, [8, 30], [0, 260], { ...clamp, easing: EASE });
+  // ゆっくり立ち上げ→終わりは全体をやわらかくフェードアウト（忙しくしない）
+  const o = Math.min(interpolate(f, [0, 20], [0, 1], clamp), interpolate(f, [STORY_OPEN - 18, STORY_OPEN], [1, 0], clamp));
+  const s = interpolate(f, [0, 42], [0.92, 1], { ...clamp, easing: EASE });
+  const ruleW = interpolate(f, [12, 44], [0, 260], { ...clamp, easing: EASE });
   return (
     <AbsoluteFill style={{ backgroundColor: T.base }}>
       <WarmGlow /><Grain />
@@ -285,15 +287,19 @@ export const StoryOpening: React.FC<{ storeName?: string; theme?: string }> = ({
   );
 };
 
+// エンドロール：本編のラスト STORY_XF フレームに重ねて配置する前提。
+// 最初の STORY_XF で画面全体(root)をじわーっとフェードイン＝本編からのクロスディゾルブ。
+// その後にロゴ／コピーがゆっくり立ち上がる（忙しさを解消）。
 export const StoryEndroll: React.FC<{ storeName?: string; handle?: string; theme?: string }> = ({ storeName = "ナガグツ", handle = "@nagagutsu0427", theme = "italian" }) => {
   const f = useCurrentFrame();
   const T = ytheme(theme);
-  const o = interpolate(f, [0, 14], [0, 1], clamp);
-  const y = interpolate(f, [0, 22], [24, 0], { ...clamp, easing: EASE });
+  const rootO = interpolate(f, [0, STORY_XF], [0, 1], { ...clamp, easing: EASE }); // 本編に重ねてじわーっと
+  const cO = interpolate(f, [STORY_XF, STORY_XF + 30], [0, 1], clamp);
+  const y = interpolate(f, [STORY_XF, STORY_XF + 40], [26, 0], { ...clamp, easing: EASE });
   return (
-    <AbsoluteFill style={{ backgroundColor: T.base }}>
+    <AbsoluteFill style={{ backgroundColor: T.base, opacity: rootO }}>
       <WarmGlow /><Grain />
-      <AbsoluteFill style={{ display: "flex", alignItems: "center", justifyContent: "center", flexDirection: "column", opacity: o, transform: "translateY(" + y + "px)", textAlign: "center", gap: 18 }}>
+      <AbsoluteFill style={{ display: "flex", alignItems: "center", justifyContent: "center", flexDirection: "column", opacity: cO, transform: "translateY(" + y + "px)", textAlign: "center", gap: 18 }}>
         <_BrandMark storeName={storeName} ink={T.ink} size={230} />
         <div style={{ fontFamily: mincho, color: T.ink, fontSize: 56, fontWeight: 700, letterSpacing: 3 }}>ご来店をお待ちしています</div>
         <div style={{ fontFamily: serif, color: T.accent, fontSize: 34, letterSpacing: 6 }}>{storeName}　{handle}</div>
