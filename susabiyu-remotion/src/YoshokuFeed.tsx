@@ -21,7 +21,7 @@ const D = { storeName: "ナガグツ", handle: "@nagagutsu0427", theme: "italian
 const SIDE = 64;
 
 function dish() {
-  return typoPhotos[0] || { src: "", caption: "", sub: "", story: "", disp: "", desc: "" };
+  return typoPhotos[0] || { src: "", caption: "", sub: "", story: "", disp: "", desc: "", cut: "" };
 }
 function dispName(d: { disp?: string; caption?: string }) {
   return (d.disp && d.disp.length ? d.disp : (d.caption || ""));
@@ -115,6 +115,16 @@ const WineGlass: React.FC<{ style?: React.CSSProperties; stroke?: string }> = ({
     <line x1="30" y1="37" x2="30" y2="90" />
     <line x1="16" y1="97" x2="44" y2="97" />
   </svg>
+);
+
+// 背景除去済みの切り抜き（透過PNG）。fetch_typo が TYPO_CUTOUT=1 で生成した時だけ存在する。
+// 料理だけが浮くので、影を自前で付けられる＝H系が“本物の切り抜き”になる。
+const Cutout: React.FC<{ src: string; style?: React.CSSProperties }> = ({ src, style }) => (
+  <Img src={staticFile(src)} style={{
+    width: "100%", height: "100%", objectFit: "contain",
+    filter: "drop-shadow(0 26px 34px rgba(60,30,12,0.42)) saturate(1.08) contrast(1.04)",
+    ...style,
+  }} />
 );
 
 // ①A フルブリード×ボトム暗幕（定番・最強のデフォルト）
@@ -337,13 +347,19 @@ export const YoshokuFeedH: React.FC<P> = ({ storeName = D.storeName, handle = D.
       {/* 接地影（皿の下にふわりと影）＝紙の上に“置いてある”ように見せる */}
       <div style={{ position: "absolute", left: 250, top: 916, width: 580, height: 92, background: "radial-gradient(50% 50% at 50% 50%, rgba(74,42,16,0.34) 0%, rgba(74,42,16,0) 70%)" }} />
       {/* 料理：縁をぼかして紙に溶け込ませる（長方形の“貼った感”を消す）＋紙に合わせた暖色グレーディング */}
-      <div style={{
-        position: "absolute", left: 96, right: 96, top: 322, height: 640,
-        WebkitMaskImage: "radial-gradient(ellipse 50% 50% at 50% 47%, #000 54%, rgba(0,0,0,0.55) 72%, transparent 88%)",
-        maskImage: "radial-gradient(ellipse 50% 50% at 50% 47%, #000 54%, rgba(0,0,0,0.55) 72%, transparent 88%)",
-      }}>
-        <Photo src={d.src} bri={1.06} sat={1.06} con={1.04} style={{ filter: "brightness(1.06) saturate(1.06) contrast(1.04) sepia(0.16)" }} />
-      </div>
+      {d.cut ? (
+        <div style={{ position: "absolute", left: 96, right: 96, top: 316, height: 650 }}>
+          <Cutout src={d.cut} />
+        </div>
+      ) : (
+        <div style={{
+          position: "absolute", left: 96, right: 96, top: 322, height: 640,
+          WebkitMaskImage: "radial-gradient(ellipse 50% 50% at 50% 47%, #000 54%, rgba(0,0,0,0.55) 72%, transparent 88%)",
+          maskImage: "radial-gradient(ellipse 50% 50% at 50% 47%, #000 54%, rgba(0,0,0,0.55) 72%, transparent 88%)",
+        }}>
+          <Photo src={d.src} bri={1.06} sat={1.06} con={1.04} style={{ filter: "brightness(1.06) saturate(1.06) contrast(1.04) sepia(0.16)" }} />
+        </div>
+      )}
 
       <div style={{ position: "absolute", left: 76, right: 76, top: 1012, textAlign: "center" }}>
         <div style={{ display: "inline-block", padding: "5px 16px", border: "1px solid rgba(176,72,31,0.5)", borderRadius: 999, fontFamily: mincho, color: T.slab, fontSize: 20, letterSpacing: 4, marginBottom: 14 }}>本日のおすすめ</div>
@@ -372,9 +388,15 @@ export const YoshokuFeedH2: React.FC<P> = ({ storeName = D.storeName, handle = D
         <Brand storeName={storeName} accent="#FDF6EA" tint="#FDF6EA" logoH={124} center shadow={NAME_SHADOW} />
       </div>
       {/* 正円マスク＝丸皿の切り抜き。二重リングで立体感 */}
-      <div style={{ position: "absolute", left: 130, top: 386, width: 820, height: 820, borderRadius: "50%", overflow: "hidden", border: "12px solid rgba(253,246,234,0.92)", boxShadow: "0 40px 80px rgba(0,0,0,0.5)" }}>
-        <Photo src={d.src} bri={1.05} sat={1.18} con={1.12} />
-      </div>
+      {d.cut ? (
+        <div style={{ position: "absolute", left: 110, top: 380, width: 860, height: 830 }}>
+          <Cutout src={d.cut} style={{ filter: "drop-shadow(0 30px 40px rgba(0,0,0,0.5)) saturate(1.12) contrast(1.05)" }} />
+        </div>
+      ) : (
+        <div style={{ position: "absolute", left: 130, top: 386, width: 820, height: 820, borderRadius: "50%", overflow: "hidden", border: "12px solid rgba(253,246,234,0.92)", boxShadow: "0 40px 80px rgba(0,0,0,0.5)" }}>
+          <Photo src={d.src} bri={1.05} sat={1.18} con={1.12} />
+        </div>
+      )}
       <div style={{ position: "absolute", left: SIDE, right: SIDE, bottom: 96 }}>
         <HeroName text={dispName(d)} sub={d.sub} maxPx={90} usableW={FEED_W - SIDE * 2} color="#FDF6EA" subColor="rgba(253,246,234,0.85)" align="center" shadow={NAME_SHADOW} />
       </div>
@@ -395,9 +417,15 @@ export const YoshokuFeedH3: React.FC<P> = ({ storeName = D.storeName, handle = D
         <Brand storeName={storeName} accent={T.slab} tint={INK_D} logoH={120} center />
       </div>
       {/* 角丸ステッカー＝切り抜き風。わずかに傾けて“貼った”感、クリーム縁＋落ち影 */}
-      <div style={{ position: "absolute", left: 190, top: 320, width: 700, height: 700, borderRadius: 60, overflow: "hidden", border: "12px solid #FBF3E2", boxShadow: "0 36px 70px rgba(40,20,8,0.4)", transform: "rotate(-4deg)" }}>
-        <Photo src={d.src} />
-      </div>
+      {d.cut ? (
+        <div style={{ position: "absolute", left: 150, top: 312, width: 780, height: 720, transform: "rotate(-4deg)" }}>
+          <Cutout src={d.cut} style={{ filter: "drop-shadow(0 28px 38px rgba(40,20,8,0.45)) saturate(1.08) contrast(1.04)" }} />
+        </div>
+      ) : (
+        <div style={{ position: "absolute", left: 190, top: 320, width: 700, height: 700, borderRadius: 60, overflow: "hidden", border: "12px solid #FBF3E2", boxShadow: "0 36px 70px rgba(40,20,8,0.4)", transform: "rotate(-4deg)" }}>
+          <Photo src={d.src} />
+        </div>
+      )}
       <div style={{ position: "absolute", left: SIDE, right: SIDE, bottom: 96, textAlign: "center" }}>
         <HeroName text={dispName(d)} sub={d.sub} maxPx={84} usableW={FEED_W - SIDE * 2} color="#FDF6EA" subColor="rgba(253,246,234,0.85)" align="center" shadow={NAME_SHADOW} />
       </div>

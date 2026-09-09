@@ -56,6 +56,9 @@ def main():
     poster.SHEET_ID = os.environ["SHEET_ID"]
 
     # 料理写真を1回だけ取得（全パターンで同じ料理＝デザイン比較用）。
+    # フィード画像は H系で“切り抜き（背景除去）”を使うので、ここでだけ生成を有効化する。
+    # rembg 未導入・失敗時は空になり、テンプレは従来の写真へフォールバックする（壊れない）。
+    os.environ["TYPO_CUTOUT"] = "1"
     run('python fetch_typo.py "' + creds + '"')
 
     samples = []
@@ -84,6 +87,12 @@ def main():
         samples.append({"pattern": cid.lower(), "url": url, "label": label,
                         "caption": "フィード投稿画像（4:5）", "kind": "image", "enabled": 1})
         print("[FEED] OK", cid, "->", url[:70])
+
+    # 切り抜き(背景除去)が実際に効いたかをログ末尾に必ず出す（Pythonの出力バッファで先頭に流れて
+    # 見落とすのを防ぐ）。0件なら H系は従来表示にフォールバックしている＝原因調査が必要。
+    import glob as _glob
+    _cuts = sorted(_glob.glob(os.path.join("public", "typo", "cut*.png")))
+    print("[CUTOUT-SUMMARY] 生成数=%d %s" % (len(_cuts), [os.path.basename(x) for x in _cuts]))
 
     print("\n===== FEED SAMPLES(JSON) ここから =====")
     print("FEED_SAMPLES = " + json.dumps(samples, ensure_ascii=False) + ";")
