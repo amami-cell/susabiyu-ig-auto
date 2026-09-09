@@ -539,6 +539,12 @@ func _server_attack(from: Vector3, yaw: float) -> void:
 		if facing.dot(to_bug.normalized()) < -0.1:   # ほぼ全周（真後ろだけ当たらない）＝当てやすく
 			continue
 		bug.cleanse(attack_power, name.to_int())
+	# おそうじリレー：近くの“おおきな汚れ”を「きれいに」でみがく（押さえてる間だけ効く）。
+	for blob in get_tree().get_nodes_in_group("scrub_blob"):
+		var to_blob: Vector3 = (blob as Node3D).global_position - from
+		to_blob.y = 0.0
+		if to_blob.length() <= ATTACK_RANGE + 0.6 and blob.has_method("scrub"):
+			blob.scrub(name.to_int())
 
 
 @rpc("any_peer", "reliable")
@@ -556,6 +562,11 @@ func _server_clean_near(from: Vector3) -> void:
 			best = t
 	if best != null and best.has_method("mark_removed"):
 		best.mark_removed()   # その場で片づく（poof＋音）。“外へ運ぶ”は不要に。
+	# おそうじリレー：近くの“おおきな汚れ”を「つかむ」で押さえる（数秒だけ みがける）。
+	var pin_range := CLEAN_RANGE * (1.5 if WorldState.has_power("carry") else 1.0) + 0.8
+	for blob in get_tree().get_nodes_in_group("scrub_blob"):
+		if (blob as Node3D).global_position.distance_to(from) <= pin_range and blob.has_method("pin"):
+			blob.pin(name.to_int())
 
 
 ## サーバから呼ばれる：被弾

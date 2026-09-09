@@ -16,9 +16,11 @@ const ChildScene := preload("res://scenes/actors/child.tscn")
 const SeedScene := preload("res://scenes/props/seed.tscn")
 const StonePuzzleScript := preload("res://scenes/props/stone_puzzle.gd")
 const SwitchPairScript := preload("res://scenes/props/switch_pair.gd")
+const ScrubBlobScript := preload("res://scenes/props/scrub_blob.gd")
 
 var _puzzle: Node3D = null
 var _switch: Node3D = null
+var _blob: Node3D = null
 
 ## 8人の子ども（CHARACTERS.md 準拠）。頭のスミレが親を追い、あとはぞろぞろ続く。
 ## 色・大きさはここ一箇所。順番＝隊列の並び（末尾のつぼみがいちばん小さい）。
@@ -228,6 +230,13 @@ func _spawn_puzzle() -> void:
 	_switch.name = "SwitchPair"
 	_switch.position = Vector3(28.0, 0.0, -8.0)    # 東の奥
 	add_child(_switch)
+
+	# おそうじリレー（つかむ→きれいに）。ソロはなかまが押さえ役、2人は役割分担。
+	_blob = Node3D.new()
+	_blob.set_script(ScrubBlobScript)
+	_blob.name = "ScrubBlob"
+	_blob.position = Vector3(6.0, 0.0, 14.0)       # 拠点の近く（最初に出会う謎解き）
+	add_child(_blob)
 
 
 func _process(delta: float) -> void:
