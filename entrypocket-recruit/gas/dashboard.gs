@@ -1024,34 +1024,47 @@ function epInshokuMsgs_(o) {
     var items = (o && o.items) || [];
     if (!items.length) return { ok: true, added: 0 };
     var ss = SpreadsheetApp.getActiveSpreadsheet();
-    var HDR = ['媒体', '店舗', '種別', '本文', '日時', '取得日時', 'key'];
+    var HDR = ['媒体', '店舗', '種別', '本文', '日時', '取得日時', 'key', 'msgid', '本文詳細'];
     var sh = epSheet_(ss, '他媒体_メッセージ', HDR);
-    var existing = {};
+    try { sh.getRange(1, 1, 1, HDR.length).setValues([HDR]); } catch (eh) { }  // 旧7列シートに新列(msgid/本文詳細)を補う
+    var keyCol = HDR.indexOf('key');            // 0基点=6 → 列7
+    var bodyColIdx = HDR.indexOf('本文詳細');    // 既存行に本文を後追いで書ける
+    var existing = {}, rowByKey = {};
     if (sh.getLastRow() > 1) {
-      var kv = sh.getRange(2, HDR.length, sh.getLastRow() - 1, 1).getValues();
-      for (var i = 0; i < kv.length; i++) existing[String(kv[i][0])] = 1;
+      var kv = sh.getRange(2, keyCol + 1, sh.getLastRow() - 1, 1).getValues();
+      for (var i = 0; i < kv.length; i++) { existing[String(kv[i][0])] = 1; rowByKey[String(kv[i][0])] = i + 2; }
     }
     var now = Utilities.formatDate(new Date(), 'Asia/Tokyo', 'yyyy-MM-dd HH:mm:ss');
-    var add = [], newByStore = {};
+    var add = [], newByStore = {}, backfilled = 0;
     items.forEach(function (m) {
       var text = String((m && m.t) || '').trim(); if (!text) return;
       var at = String((m && m.at) || '').trim();
+      var id = String((m && m.id) || '').trim();
+      var body = String((m && m.body) || '').trim();
       var key = 'inshokumsg|' + at + '|' + text.slice(0, 60);
-      if (existing[key]) return; existing[key] = 1;
+      if (existing[key]) {
+        // 既存メッセージに本文が後から取れたら追記（初回本文取り込み時の穴埋め）
+        if (body && rowByKey[key]) { try { sh.getRange(rowByKey[key], bodyColIdx + 1).setValue(csvGuard_(body)); backfilled++; } catch (e) { } }
+        return;
+      }
+      existing[key] = 1;
       var store = ''; var mm = text.match(/^(.*?)(?:でスカウトした|への応募者|への|の応募者)/); if (mm) store = mm[1].trim();
       try { if (store && typeof epCleanStore_ === 'function') store = epCleanStore_(store); } catch (e) { }
       var kind = /スカウト|返答/.test(text) ? 'スカウト' : '応募メッセージ';
-      add.push(['飲食店ドットコム', store, kind, text, at, now, key]);
+      add.push(['飲食店ドットコム', store, kind, text, at, now, key, id, body]);
       if (store) newByStore[store] = (newByStore[store] || 0) + 1;
     });
     if (add.length) {
       sh.getRange(sh.getLastRow() + 1, 1, add.length, HDR.length).setValues(add.map(function (r) { return r.map(csvGuard_); }));
       try {
-        var lines = add.slice(0, 8).map(function (r) { return '・' + (r[1] || '（店舗不明）') + '：' + r[3]; });
+        var lines = add.slice(0, 8).map(function (r) {
+          var b = String(r[8] || '').replace(/\s+/g, ' ').trim();
+          return '・' + (r[1] || '（店舗不明）') + '：' + r[3] + (b ? ('\n　💬 ' + b.slice(0, 60)) : '');
+        });
         epEnqueuePush_('🆕【飲食店ドットコム】新着メッセージ ' + add.length + '件', lines.join('\n'), 'recruit', JSON.stringify({ newByStore: newByStore, media: '飲食店ドットコム' }));
       } catch (e) { }
     }
-    return { ok: true, added: add.length };
+    return { ok: true, added: add.length, backfilled: backfilled };
   } catch (e) { return { ok: false, error: String(e) }; }
 }
 
@@ -1061,8 +1074,9 @@ function mediaMsgsData_() {
     var ss = SpreadsheetApp.getActiveSpreadsheet();
     var sh = ss.getSheetByName('他媒体_メッセージ');
     if (!sh || sh.getLastRow() < 2) return { ok: true, items: [] };
-    var HDR = ['媒体', '店舗', '種別', '本文', '日時', '取得日時', 'key'];
-    var v = sh.getRange(2, 1, sh.getLastRow() - 1, HDR.length).getValues();
+    var HDR = ['媒体', '店舗', '種別', '本文', '日時', '取得日時', 'key', 'msgid', '本文詳細'];
+    var ncol = Math.min(HDR.length, sh.getLastColumn());
+    var v = sh.getRange(2, 1, sh.getLastRow() - 1, ncol).getValues();
     var items = v.map(function (r) {
       var o = {}; HDR.forEach(function (h, i) { o[h] = (r[i] instanceof Date) ? Utilities.formatDate(r[i], 'Asia/Tokyo', 'yyyy/MM/dd HH:mm') : r[i]; }); return o;
     });

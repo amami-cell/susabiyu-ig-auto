@@ -123,7 +123,7 @@
   }
   function msgMatch(x){
     if(!curMQ) return true;
-    return [x['店舗'],x['本文'],x['種別']].join(' ').toLowerCase().indexOf(curMQ)>=0;
+    return [x['店舗'],x['本文'],x['種別'],x['本文詳細']].join(' ').toLowerCase().indexOf(curMQ)>=0;
   }
   function renderMsgs(){
     var rows=MSGITEMS.filter(msgMatch);
@@ -135,6 +135,8 @@
       var c='<div class="card">';
       c+='<div class="row1"><span class="badge" style="'+bg+'">'+esc(x['種別']||'メッセージ')+'</span><span class="nm" style="font-size:13.5px">🏪 '+esc(x['店舗']||'（店舗不明）')+'</span><span class="date">'+esc(x['日時']||'')+'</span></div>';
       c+='<div class="pr open" style="margin-top:6px">'+esc(x['本文']||'')+'</div>';
+      var body=String(x['本文詳細']||'').trim();
+      if(body) c+='<div style="margin-top:7px;padding:9px 11px;background:var(--card2);border:1px solid var(--line);border-radius:9px;font-size:13px;color:var(--fg2);white-space:pre-wrap;overflow-wrap:anywhere">💬 '+esc(body)+'</div>';
       c+='</div>';
       return c;
     }).join('');
