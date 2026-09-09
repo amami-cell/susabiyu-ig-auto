@@ -10,7 +10,8 @@
 import { AbsoluteFill, Img, staticFile } from "remotion";
 import { typoPhotos, typoLogoColor } from "./typoData";
 import { ytheme } from "./yoshokuTheme";
-import { mincho, minchoBlack, serif, Grain, Vignette, WarmGlow, splitLines } from "./yoshokuDesign";
+// ※ Vignette / WarmGlow は「画像の周囲が暗く見える」ため全案から外した（意図的に import しない）。
+import { mincho, minchoBlack, serif, Grain, splitLines } from "./yoshokuDesign";
 
 export const FEED_W = 1080;
 export const FEED_H = 1350;
@@ -178,7 +179,8 @@ export const YoshokuFeedA: React.FC<P> = ({ storeName = D.storeName, handle = D.
   return (
     <AbsoluteFill style={{ backgroundColor: T.base }}>
       <Photo src={d.src} />
-      <AbsoluteFill style={{ background: "linear-gradient(180deg, rgba(0,0,0,0.22) 0%, rgba(0,0,0,0) 18%, rgba(0,0,0,0) 46%, rgba(18,13,8,0.92) 88%, " + T.footBase + " 100%)" }} />
+      {/* 暗幕は“料理名を読ませる下端だけ”。上端の暗幕と四隅のビネットは廃止（周囲を暗くしない）。 */}
+      <AbsoluteFill style={{ background: "linear-gradient(180deg, rgba(0,0,0,0) 0%, rgba(0,0,0,0) 46%, rgba(18,13,8,0.92) 88%, " + T.footBase + " 100%)" }} />
       <div style={{ position: "absolute", top: 24, left: 26 }}>
         <Brand storeName={storeName} accent={T.accent} shadow={NAME_SHADOW} />
       </div>
@@ -188,7 +190,7 @@ export const YoshokuFeedA: React.FC<P> = ({ storeName = D.storeName, handle = D.
         {d.desc ? <div style={{ marginTop: 18, fontFamily: mincho, color: "#E7DAC2", fontSize: 30, lineHeight: 1.6, letterSpacing: 1, textShadow: NAME_SHADOW }}>{d.desc}</div> : null}
       </div>
       <Handle handle={handle} color={T.sub} shadow={NAME_SHADOW} />
-      <WarmGlow /><Vignette strength={0.14} /><Grain opacity={0.05} />
+      <Grain opacity={0.05} />
     </AbsoluteFill>
   );
 };
@@ -201,7 +203,7 @@ export const YoshokuFeedB: React.FC<P> = ({ storeName = D.storeName, handle = D.
     <AbsoluteFill style={{ backgroundColor: MORTAR }}>
       <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: 940, overflow: "hidden" }}>
         <Photo src={d.src} />
-        <AbsoluteFill style={{ background: "linear-gradient(180deg, rgba(0,0,0,0.20) 0%, rgba(0,0,0,0) 20%)" }} />
+        {/* 上端の暗幕は廃止（周囲を暗くしない）。ロゴは文字影だけで乗せる。 */}
       </div>
       {/* モルタル帯（微かな粒状ムラで“塗り壁”の質感） */}
       <div style={{ position: "absolute", top: 940, left: 0, right: 0, bottom: 0, background: "linear-gradient(180deg, " + MORTAR_HI + " 0%, " + MORTAR + " 60%, " + MORTAR_LO + " 100%)" }} />
@@ -230,8 +232,7 @@ export const YoshokuFeedC: React.FC<P> = ({ storeName = D.storeName, handle = D.
   return (
     <AbsoluteFill style={{ backgroundColor: T.base }}>
       <Photo src={d.src} />
-      {/* 上下だけ軽く沈めてロゴとハンドルを乗せる（料理は暗くしない） */}
-      <AbsoluteFill style={{ background: "linear-gradient(180deg, rgba(0,0,0,0.22) 0%, rgba(0,0,0,0) 18%, rgba(0,0,0,0) 74%, rgba(0,0,0,0.34) 100%)" }} />
+      {/* 上端・四隅の暗幕は廃止（周囲を暗くしない）。文字は下のキャプション面と文字影で読ませる。 */}
       <div style={{ position: "absolute", top: 24, left: 26 }}>
         <Brand storeName={storeName} accent={T.accent} shadow={NAME_SHADOW} />
       </div>
@@ -299,7 +300,8 @@ const EBase: React.FC<P & { rail: string; railText?: string }> = ({
     <AbsoluteFill style={{ backgroundColor: T.base }}>
       <div style={{ position: "absolute", top: 0, bottom: 0, left: RAIL, right: 0, overflow: "hidden" }}>
         <Photo src={d.src} />
-        <AbsoluteFill style={{ background: "linear-gradient(180deg, rgba(0,0,0,0.18) 0%, rgba(0,0,0,0) 22%, rgba(18,13,8,0.9) 92%, " + T.footBase + " 100%)" }} />
+        {/* 上端の暗幕は廃止（周囲を暗くしない）。下端だけ料理名の可読性のために残す。 */}
+        <AbsoluteFill style={{ background: "linear-gradient(180deg, rgba(0,0,0,0) 0%, rgba(0,0,0,0) 62%, rgba(18,13,8,0.9) 92%, " + T.footBase + " 100%)" }} />
       </div>
       <div style={{ position: "absolute", top: 0, bottom: 0, left: 0, width: RAIL, background: rail, display: "flex", alignItems: "center", justifyContent: "center" }}>
         <div style={{ writingMode: "vertical-rl", fontFamily: serif, color: railText, fontSize: 22, letterSpacing: 10, textTransform: "uppercase", fontWeight: 600 }}>NAGAGUTSU&nbsp;·&nbsp;MEAT&nbsp;BAR</div>
@@ -325,7 +327,7 @@ export const YoshokuFeedF: React.FC<P> = ({ storeName = D.storeName, handle = D.
   return (
     <AbsoluteFill style={{ backgroundColor: T.base }}>
       <Photo src={d.src} />
-      <AbsoluteFill style={{ background: "linear-gradient(180deg, rgba(0,0,0,0.20) 0%, rgba(0,0,0,0) 16%, rgba(0,0,0,0) 70%, rgba(18,13,8,0.9) 90%, " + T.footBase + " 100%)" }} />
+      <AbsoluteFill style={{ background: "linear-gradient(180deg, rgba(0,0,0,0) 0%, rgba(0,0,0,0) 70%, rgba(18,13,8,0.9) 90%, " + T.footBase + " 100%)" }} />
       <div style={{ position: "absolute", top: 24, left: 26 }}>
         <Brand storeName={storeName} accent={T.accent} shadow={NAME_SHADOW} />
       </div>
@@ -336,7 +338,7 @@ export const YoshokuFeedF: React.FC<P> = ({ storeName = D.storeName, handle = D.
       <div style={{ position: "absolute", left: SIDE, right: SIDE, bottom: 52, textAlign: "center" }}>
         <HeroName text={dispName(d)} sub={d.sub} maxPx={92} usableW={FEED_W - SIDE * 2} color={T.ink} subColor="#F0DFC6" align="center" shadow={NAME_SHADOW} />
       </div>
-      <Vignette strength={0.10} /><Grain opacity={0.05} />
+      <Grain opacity={0.05} />
     </AbsoluteFill>
   );
 };
@@ -349,7 +351,7 @@ export const YoshokuFeedG: React.FC<P> = ({ storeName = D.storeName, handle = D.
   return (
     <AbsoluteFill style={{ backgroundColor: MORTAR }}>
       <Photo src={d.src} />
-      <AbsoluteFill style={{ background: "linear-gradient(180deg, rgba(0,0,0,0.20) 0%, rgba(0,0,0,0) 18%, rgba(0,0,0,0) 78%, rgba(0,0,0,0.42) 100%)" }} />
+      <AbsoluteFill style={{ background: "linear-gradient(180deg, rgba(0,0,0,0) 0%, rgba(0,0,0,0) 78%, rgba(0,0,0,0.42) 100%)" }} />
       <div style={{ position: "absolute", top: 24, left: 26 }}>
         <Brand storeName={storeName} accent={T.accent} shadow={NAME_SHADOW} />
       </div>
