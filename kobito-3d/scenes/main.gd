@@ -230,6 +230,20 @@ func _build_pause() -> void:
 	vb.add_child(vol)
 	vol.value_changed.connect(func(v: float) -> void: Sfx.set_master_volume(v))
 
+	# 「一度 飛んでみたい」用：つばさをその場で授かる（ジャンプ長押しで飛べる）。
+	# 本来は飛ぶ虫を5種癒やして解禁だが、すぐ試せるようにしておく。
+	var fly := Button.new()
+	fly.text = "つばさを ためす（ジャンプ長押しで飛ぶ）"
+	fly.custom_minimum_size = Vector2(0, 54)
+	UIKit.style_button(fly, Color(0.7, 0.86, 1.0), Color(0.42, 0.6, 0.9))
+	fly.add_theme_color_override("font_color", UIKit.INK)
+	vb.add_child(fly)
+	fly.pressed.connect(func() -> void:
+		for part in WorldState.FLIGHT_PARTS:
+			WorldState.grant_power(part)
+		WorldState.notice.emit("つばさを 授かった！ ジャンプを 長押しで 飛べるよ")
+		_pause.visible = false)
+
 	var resume := Button.new()
 	resume.text = "つづける"
 	resume.custom_minimum_size = Vector2(0, 54)
