@@ -73,7 +73,7 @@ static func decorate(bug_root: Node3D, color: Color, scale_v: float, shell: bool
 ## Web用の超軽量版：頭＋目2（＋甲羅）だけ。脚6・触角2・BugAnim を省いてドローコールを
 ## 約12→約4に激減。gl_compatibility(Web)は1部品=1ドローコールなので、ボス戦で敵が
 ## 十数体出ると効く。見た目は「目のある小さな虫」で成立する。
-static func decorate_simple(bug_root: Node3D, color: Color, scale_v: float, shell: bool) -> void:
+static func decorate_simple(bug_root: Node3D, color: Color, scale_v: float, shell: bool, flies: bool = false) -> void:
 	if bug_root.has_node("InsectRig"):
 		return
 	var rig := Node3D.new()
@@ -131,12 +131,30 @@ static func decorate_simple(bug_root: Node3D, color: Color, scale_v: float, shel
 	mouth.position = Vector3(0.0, -0.2, -0.32)
 	mouth.scale = Vector3(1.7, 0.7, 0.5)
 
-	# --- ちいさな脚4（下・暗い）＝“立ってる生きもの”に ---
-	for zi in [-0.06, 0.14]:
+	if flies:
+		# 飛ぶ敵：半透明の羽4枚（左右2対）＝“飛んでる”とひと目で分かる。脚は小さくたらす。
+		var wing_mat := StandardMaterial3D.new()
+		wing_mat.albedo_color = Color(0.9, 0.95, 1.0, 0.45)
+		wing_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+		wing_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+		wing_mat.cull_mode = BaseMaterial3D.CULL_DISABLED
 		for sx in [-1.0, 1.0]:
-			var leg := _capsule(rig, "Leg", 0.025, 0.16, dark)
-			leg.position = Vector3(0.13 * sx, 0.02, zi)
-			leg.rotation = Vector3(0.0, 0.0, deg_to_rad(20.0) * sx)
+			for zi in [0.02, 0.16]:
+				var wing := _sphere(rig, "Wing", 0.18, Color(0.9, 0.95, 1.0))
+				wing.material_override = wing_mat
+				wing.position = Vector3(0.22 * sx, 0.34, zi)
+				wing.scale = Vector3(0.9, 0.12, 0.42)
+				wing.rotation = Vector3(0.0, 0.0, deg_to_rad(28.0) * sx)
+		for sx in [-1.0, 1.0]:
+			var dangle := _capsule(rig, "Leg", 0.02, 0.13, dark)
+			dangle.position = Vector3(0.08 * sx, -0.02, 0.06)
+	else:
+		# --- 歩く敵：ちいさな脚4（下・暗い）＝“立ってる生きもの”に ---
+		for zi in [-0.06, 0.14]:
+			for sx in [-1.0, 1.0]:
+				var leg := _capsule(rig, "Leg", 0.025, 0.16, dark)
+				leg.position = Vector3(0.13 * sx, 0.02, zi)
+				leg.rotation = Vector3(0.0, 0.0, deg_to_rad(20.0) * sx)
 
 	if shell:
 		var sh := _sphere(rig, "Shell", 0.22, color.darkened(0.05))

@@ -58,14 +58,13 @@ func _ready() -> void:
 	mat.rim_enabled = true
 	mat.rim = 0.22
 	mat.rim_tint = 0.5
-	# ヘドロに侵された“不穏さ”をほのかな発光で表現＝敵だと一目で分かる。
+	# 体色ベースの“弱い自己発光”＝逆光でも真っ黒に潰れず、生きものだと分かる。
+	# 紫の“汚れ”っぽい発光はやめ、澄んだ体色寄りに（＝敵が汚く見えないように）。
 	mat.emission_enabled = true
-	# 自分の体色を少し持ち上げた“弱い自己発光”＝逆光でも真っ黒に潰れず、生きものだと分かる。
-	# 色は体色寄りにして「侵された生々しさ」を保つ（紫の固定色だと汚く見えた）。
-	mat.emission = stats.body_color.lerp(Color(0.55, 0.35, 0.55), 0.35)
-	mat.emission_energy_multiplier = 0.35
+	mat.emission = stats.body_color.lightened(0.15)
+	mat.emission_energy_multiplier = 0.3
 	_body.material_override = mat
-	_body_mat = mat   # 発光を脈動させる（“侵されている”生々しさ）
+	_body_mat = mat   # 発光をゆるく脈動させる（生きてる感）
 	_body.scale = Vector3.ONE * stats.body_scale
 	set_process(true)
 
@@ -73,7 +72,7 @@ func _ready() -> void:
 	if stats.is_midboss:
 		BugLook.decorate_boss(self, stats.body_color, stats.body_scale)
 	elif OS.has_feature("web"):
-		BugLook.decorate_simple(self, stats.body_color, stats.body_scale, stats.shell)
+		BugLook.decorate_simple(self, stats.body_color, stats.body_scale, stats.shell, stats.flies)
 	else:
 		BugLook.decorate(self, stats.body_color, stats.body_scale, stats.shell)
 
@@ -205,16 +204,25 @@ func _think(delta: float) -> void:
 	_attack_cd = maxf(0.0, _attack_cd - delta)
 	_target = _nearest_player()
 
-	velocity.y -= GRAVITY * delta
-	if is_on_floor():
-		velocity.y = -0.1
-
 	var to_target := Vector3.ZERO
 	var dist := INF
 	if _target != null:
 		to_target = _target.global_position - global_position
 		to_target.y = 0.0
 		dist = to_target.length()
+
+	# 上下の動き：飛ぶ敵は重力を受けず、目標の高さへふわりと浮く（間合いに入ると急降下＝当てられる）。
+	if stats.flies:
+		# 目標が居れば その足元、居なければ 地面(≈0)を基準に浮く（＝際限なく上昇しない）。
+		var base_y: float = _target.global_position.y if _target != null else 0.0
+		var want_y := base_y + stats.hover_height + sin(_age * 2.5) * 0.2
+		if dist <= STOP_DIST + 0.6:
+			want_y = base_y + 0.45   # 攻撃間合いで急降下＝ダイブ感＆プレイヤーが届く
+		velocity.y = clampf((want_y - global_position.y) * 3.5, -6.0, 6.0)
+	else:
+		velocity.y -= GRAVITY * delta
+		if is_on_floor():
+			velocity.y = -0.1
 
 	# 索敵範囲の外＝まだ襲わない。その場で止まる（開始直後の平和／プレイヤーが来たら戦う）。
 	if _target == null or dist > AGGRO_RANGE:

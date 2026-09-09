@@ -14,3 +14,4 @@ xp_reward = 11
 body_color = Color(0.9, 0.8, 0.2, 1)
 body_scale = 0.9
 grants_power = "lift"
+flies = true

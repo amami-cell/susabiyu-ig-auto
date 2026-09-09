@@ -25,3 +25,9 @@ class_name EnemyStats
 
 ## 見た目：甲羅を付けるか（コガネムシ等の硬い虫＝つやのあるドーム）。
 @export var shell: bool = false
+
+## 飛ぶ敵か（トンボ・チョウ・ハチ等）。true なら重力を受けず、空中を漂ってプレイヤーへ寄る。
+@export var flies: bool = false
+
+## 飛ぶ敵の“浮く高さ”（地面/プレイヤーからの目安）。
+@export var hover_height: float = 1.7
