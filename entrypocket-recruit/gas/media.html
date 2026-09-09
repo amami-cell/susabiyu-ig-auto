@@ -121,6 +121,21 @@
     c+='</div>';
     return c;
   }
+  // 本文詳細（差出人 …受信日 …件名 …本文 …）を項目に分解
+  function parseMsgDetail(raw){
+    raw=String(raw||''); var out={from:'',date:'',subj:'',body:'',ok:false};
+    if(!raw) return out;
+    var m;
+    m=raw.match(/差出人\s*([\s\S]*?)\s*(?=受信日|件名|本文|$)/); if(m) out.from=m[1].trim();
+    m=raw.match(/受信日\s*([\s\S]*?)\s*(?=件名|本文|$)/); if(m) out.date=m[1].trim();
+    m=raw.match(/件名\s*([\s\S]*?)\s*(?=本文|$)/); if(m) out.subj=m[1].trim();
+    m=raw.match(/本文\s*([\s\S]*)$/); if(m) out.body=m[1].trim();
+    if(!out.body){ m=raw.match(/件名\s*([\s\S]*)$/); if(m){ out.body=m[1].trim(); out.subj=''; } }
+    // 末尾の返信UI/フッターらしき定型を軽く落とす
+    out.body=out.body.replace(/\s*(返信する|返信を送信|返信内容|テンプレート|関連|利用規約|個人情報|運営会社|お問い合わせ)[\s\S]*$/,'').trim();
+    out.ok=!!(out.from||out.subj||out.body);
+    return out;
+  }
   function msgMatch(x){
     if(!curMQ) return true;
     return [x['店舗'],x['本文'],x['種別'],x['本文詳細']].join(' ').toLowerCase().indexOf(curMQ)>=0;
@@ -135,8 +150,17 @@
       var c='<div class="card">';
       c+='<div class="row1"><span class="badge" style="'+bg+'">'+esc(x['種別']||'メッセージ')+'</span><span class="nm" style="font-size:13.5px">🏪 '+esc(x['店舗']||'（店舗不明）')+'</span><span class="date">'+esc(x['日時']||'')+'</span></div>';
       c+='<div class="pr open" style="margin-top:6px">'+esc(x['本文']||'')+'</div>';
-      var body=String(x['本文詳細']||'').trim();
-      if(body) c+='<div style="margin-top:7px;padding:9px 11px;background:var(--card2);border:1px solid var(--line);border-radius:9px;font-size:13px;color:var(--fg2);white-space:pre-wrap;overflow-wrap:anywhere">💬 '+esc(body)+'</div>';
+      var d=parseMsgDetail(x['本文詳細']);
+      if(d.from||d.subj||d.body){
+        c+='<div style="margin-top:7px;padding:10px 12px;background:var(--card2);border:1px solid var(--line);border-radius:9px;font-size:13px;color:var(--fg)">';
+        if(x['店舗']) c+='<div style="color:var(--muted);font-size:11.5px">店舗：<span style="color:var(--fg);font-weight:700">'+esc(x['店舗'])+'</span></div>';
+        if(d.from) c+='<div style="color:var(--muted);font-size:11.5px;margin-top:2px">差出人：<span style="color:var(--fg);font-weight:700">'+esc(d.from)+'</span></div>';
+        if(d.subj) c+='<div style="color:var(--muted);font-size:11.5px;margin-top:2px">件名：<span style="color:var(--fg2)">'+esc(d.subj)+'</span></div>';
+        if(d.body) c+='<div style="margin-top:7px;padding-top:7px;border-top:1px dashed var(--line);white-space:pre-wrap;overflow-wrap:anywhere;color:var(--fg2)">'+esc(d.body)+'</div>';
+        c+='</div>';
+      } else { var raw=String(x['本文詳細']||'').trim();
+        if(raw) c+='<div style="margin-top:7px;padding:9px 11px;background:var(--card2);border:1px solid var(--line);border-radius:9px;font-size:13px;color:var(--fg2);white-space:pre-wrap;overflow-wrap:anywhere">💬 '+esc(raw)+'</div>';
+      }
       c+='</div>';
       return c;
     }).join('');
