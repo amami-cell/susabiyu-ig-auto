@@ -110,6 +110,9 @@ STORES = {
         "account": "nagagutsu",
         "store_name": "ナガグツ",
         "handle": "@nagagutsu0427",
+        # 営業時間。入力用スプレッドシートから読めなかった時のフォールバック（オーナー申告値）。
+        # シート側に記載があればそちらが優先される。
+        "hours": "11:30〜",
         "region": "",                    # 所在地未確定＝空（region prop対応compでは非表示）。判明後に設定。
         "theme": "italian",              # 洋食おしゃれテンプレの配色（イタリアン＝温かみ生成り）
         "sheet_id": SANJO_SHEET_ID,       # 同一スプレッドシートを接尾辞タブで共用
