@@ -526,7 +526,4 @@ export const FEED_COMPS: { id: string; label: string; comp: React.FC<P> }[] = [
   { id: "YoshokuFeedE", label: "フィード案E・サイドレール(テラコッタ帯)", comp: YoshokuFeedE },
   { id: "YoshokuFeedE2", label: "フィード案E2・サイドレール(オリーブ帯)", comp: YoshokuFeedE2 },
   { id: "YoshokuFeedE3", label: "フィード案E3・サイドレール(ゴールド帯)", comp: YoshokuFeedE3 },
-  { id: "YoshokuFeedH", label: "フィード案H・パーチメント×ぼかし切り抜き", comp: YoshokuFeedH },
-  { id: "YoshokuFeedH2", label: "フィード案H2・丸皿カット(正円・テラコッタ地)", comp: YoshokuFeedH2 },
-  { id: "YoshokuFeedH3", label: "フィード案H3・イメージポスター(切り抜き3品)", comp: YoshokuFeedH3 },
 ];

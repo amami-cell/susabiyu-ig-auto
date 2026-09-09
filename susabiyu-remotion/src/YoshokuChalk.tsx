@@ -6,6 +6,7 @@ import { typoPhotos, typoMusic, typoMusicStart } from "./typoData";
 import { ytheme } from "./yoshokuTheme";
 import {
   mincho, serif, clamp, SAFE, rise, drawW, fade, segNow,
+  fitLines, splitLines,
   Grain, StoreLogo, PhotoLayer, Slides, SampleBadge, fitOneLine,
   StoryOpening, StoryEndroll, STORY_OPEN, STORY_END, STORY_XF,
 } from "./yoshokuDesign";
@@ -58,9 +59,7 @@ const ChalkBody: React.FC<{ storeName?: string; handle?: string; theme?: string 
       <div key={i} style={{ position: "absolute", top: 400, left: SAFE.side, right: SAFE.side, textAlign: "center", ...rise(local, 3, { dist: 20, blur: 6 }) }}>
         {cur.sub ? <div style={{ fontFamily: serif, color: T.accent, fontSize: 28, letterSpacing: 4, textTransform: "uppercase", fontWeight: 600, marginBottom: 8, fontStyle: "italic" }}>{cur.sub}</div> : null}
         <div style={{ fontFamily: mincho, color: "#F4F2EA", fontSize: nameSize, fontWeight: 700, letterSpacing: 1, lineHeight: 1.18, whiteSpace: "nowrap", textShadow: "0 1px 0 rgba(255,255,255,0.22), 0 4px 18px rgba(0,0,0,0.5)" }}>{one}</div>
-        {cur.story ? (
-          <div style={{ marginTop: 14, fontFamily: serif, fontStyle: "italic", color: T.accent, fontSize: 36, letterSpacing: 3, opacity: 0.95 }}>{cur.story}</div>
-        ) : null}
+        {/* 短句(story)は廃止。説明文(desc)は写真の下に1行で置いている。 */}
       </div>
 
       {/* 写真：クリームのマット＋金ヘアラインで額装。4品をクロスフェード。
@@ -81,9 +80,11 @@ const ChalkBody: React.FC<{ storeName?: string; handle?: string; theme?: string 
           <div style={{ display: "inline-block", padding: "4px 22px 0", borderTop: "1px solid " + T.accent + "55" }}>
             {/* 説明文も必ず1行に収める（長い文は自動で少し詰める）。2行に折れると座りが悪い。 */}
             <span style={{
-              fontFamily: mincho, color: "#E4E0D4", letterSpacing: 1, lineHeight: 1.5, whiteSpace: "nowrap",
-              fontSize: fitOneLine(cur.desc, 30, 1080 - 150 * 2 - 44 - 20, 17),
-            }}>{cur.desc}</span>
+              display: "inline-block", fontFamily: mincho, color: "#E4E0D4", letterSpacing: 1, lineHeight: 1.5,
+              fontSize: fitLines(cur.desc, 30, 1080 - 150 * 2 - 44 - 20, 17),
+            }}>
+              {splitLines(cur.desc).map((l, k) => <div key={k} style={{ whiteSpace: "nowrap" }}>{l}</div>)}
+            </span>
           </div>
         </div>
       ) : null}

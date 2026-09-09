@@ -33,9 +33,15 @@ const Half: React.FC<{ item: any; f: number; delay: number; label: string; accen
     const o = fade(f, delay, 18);
     return (
       <div style={{ position: "relative", width: 1080, height: HALF, overflow: "hidden", opacity: o }}>
-        {/* 上下とも半分いっぱいに敷く（左右で大きさが揃う＝上下がずれて見えない） */}
+        {/* 背景（ぼかし）は半分いっぱいに敷く */}
         <AbsoluteFill><PhotoLayer src={item.src} frame={f} dur={YWINE_DUR} from={1.16} to={1.22} sat={1.02} brightness={0.42} blur={28} /></AbsoluteFill>
-        <AbsoluteFill><PhotoLayer src={item.src} frame={f} dur={YWINE_DUR} from={1.0} to={1.04} sat={1.07} brightness={1.02} fit="contain" /></AbsoluteFill>
+        {/* 料理本体は大きさをそのままに、中央の継ぎ目側へ“空白の半分”だけ寄せる。
+            contain の余白は上下に均等にできるので、objectPosition を 50%→75%(上の皿は下へ) /
+            50%→25%(下の皿は上へ) にすると、ちょうど余白の半分ぶん中央へ寄る。 */}
+        <AbsoluteFill>
+          <PhotoLayer src={item.src} frame={f} dur={YWINE_DUR} from={1.0} to={1.04} sat={1.07} brightness={1.02}
+            fit="contain" position={namePos === "top" ? "center 75%" : "center 25%"} />
+        </AbsoluteFill>
         <Scrim dir={namePos === "bottom" ? "up" : "down"} height={360} />
         <div style={{ position: "absolute", left: SAFE.side, right: SAFE.side, [namePos]: inset, textAlign: "center" }}>
           <div style={{ fontFamily: serif, color: accent, fontSize: 24, letterSpacing: 6, marginBottom: 8, textShadow: "0 2px 12px rgba(0,0,0,0.85)" }}>{label}</div>

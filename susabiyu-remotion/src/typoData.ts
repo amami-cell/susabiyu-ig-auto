@@ -6,6 +6,7 @@ export const typoPhotos = [
 ];
 export const typoHeadline = "握りたては、しあわせの味。";
 export const typoCatch = "";
+export const typoGroup = "";
 export const typoSampleNo = 0;
 export const typoPostCaption = "";
 export const typoMusic = "music/normal/bgm.mp3";

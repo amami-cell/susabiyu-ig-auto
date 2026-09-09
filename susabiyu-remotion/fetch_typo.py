@@ -435,6 +435,54 @@ print("MUSIC_START:", _mstart, "秒（ファイル名から）")
 lines.append('export const typoMusicStart = %d;' % _mstart)
 
 
+def _fetch_group_photo():
+    """店舗の「集合」フォルダ（スタッフ集合写真）から1枚取得して public/typo/group.jpg に保存し、
+    相対パス "typo/group.jpg" を返す（見つからなければ ""）。
+    オープニング案5を“お店の人の顔”から始めたい時に使う。料理写真の選定からは従来どおり除外。
+    ・フォルダは FOOD_FOLDER 以下で名前に「集合」を含むサブフォルダを再帰的に探索。
+    ・横長（幅/高≧1.2）で解像度の大きいものを優先（縦1080x1920に敷いても粗くならない）。
+    """
+    try:
+        def _find(fid, depth=0):
+            for f in list_children(fid):
+                if f.get("mimeType") == "application/vnd.google-apps.folder":
+                    nm = str(f.get("name", ""))
+                    if "集合" in nm:
+                        return f["id"]
+                    if depth < 2:
+                        sub = _find(f["id"], depth + 1)
+                        if sub:
+                            return sub
+            return None
+
+        gf = _find(FOOD_FOLDER)
+        if not gf:
+            print("[GROUP] 集合フォルダが見つからず（案5は料理写真のまま）"); return ""
+        imgs = [f for f in list_children(gf) if str(f.get("mimeType", "")).startswith("image/")]
+        if not imgs:
+            print("[GROUP] 集合フォルダに画像なし"); return ""
+
+        def _score(f):
+            m = f.get("imageMediaMetadata") or {}
+            w, h = m.get("width", 0) or 0, m.get("height", 0) or 0
+            return (min(w, h), 1 if (h and w / h >= 1.2) else 0)
+
+        best = sorted(imgs, key=_score, reverse=True)[0]
+        out = os.path.join(OUT_DIR, "group.jpg")
+        req = drive.files().get_media(fileId=best["id"], supportsAllDrives=True)
+        buf = io.FileIO(out, "wb")
+        dl = MediaIoBaseDownload(buf, req, chunksize=1024 * 1024)
+        done = False
+        while not done:
+            _, done = dl.next_chunk()
+        buf.close()
+        print("[GROUP] 集合写真を取得:", best.get("name", ""))
+        return "typo/group.jpg"
+    except Exception as e:
+        print("[GROUP] スキップ:", e)
+        return ""
+
+
 def _fetch_store_logo():
     """店舗の「ロゴ」フォルダから横型ロゴを1枚取得し、暗背景で映える生成り透過PNGにして
     public/store_logo.png へ保存。相対パス "store_logo.png" を返す（見つからなければ ""）。
@@ -613,6 +661,8 @@ _logo_round = _fetch_round_logo()
 lines.append('export const typoLogo = "%s";' % esc(_logo))
 lines.append('export const typoLogoColor = "%s";' % esc(_LOGO_COLOR))
 lines.append('export const typoLogoRound = "%s";' % esc(_logo_round))
+# 集合写真（OP/CLOSE案5用）。ロゴと同じく“関数定義より後”で呼ぶ。
+lines.append('export const typoGroup = "%s";' % esc(_fetch_group_photo()))
 _up = music
 _updir = os.path.join("public", "music", "uptempo")
 sync_music_from_drive(os.environ.get("GENRE_MUSIC_UPTEMPO_ID"), _updir)

@@ -5,14 +5,14 @@
 //
 // アニメは useCurrentFrame/interpolate のみ（CSSトランジション禁止）。各Sequence内で相対フレーム。
 import { AbsoluteFill, Audio, Img, Sequence, staticFile, useCurrentFrame, interpolate } from "remotion";
-import { typoPhotos, typoMusic, typoMusicStart } from "./typoData";
+import { typoPhotos, typoMusic, typoMusicStart, typoGroup } from "./typoData";
 import { ytheme } from "./yoshokuTheme";
 import {
-  mincho, serif, clamp, EASE, fade, Grain, BrandMark, StoreLogoColor, StoryBgLayer,
+  mincho, serif, clamp, EASE, fade, Grain, BrandMark, StoreLogo, StoreLogoColor, StoryBgLayer,
   STORY_OPEN, STORY_END, STORY_XF,
 } from "./yoshokuDesign";
 
-type SP = { storeName?: string; handle?: string; theme?: string };
+type SP = { storeName?: string; handle?: string; theme?: string; openText?: string };
 const DEF = { storeName: "ナガグツ", handle: "@nagagutsu0427", theme: "italian" };
 
 // CLOSE の締め文（全案共通）。ロゴの下に置く。
@@ -71,18 +71,21 @@ const End4: React.FC<SP> = ({ storeName = DEF.storeName, handle = DEF.handle, th
       <Curtain y={-close} pos="top" accent={T.accent} />
       <Curtain y={close} pos="bottom" accent={T.accent} />
       <AbsoluteFill style={{ display: "flex", alignItems: "center", justifyContent: "center", flexDirection: "column", gap: 18 }}>
-        <div style={{ opacity: fade(f, STORY_XF + 22, 30) }}><BrandMark storeName={storeName} ink={T.ink} size={200} /></div>
+        {/* 案4のCLOSEだけ丸ロゴではなく“文字ロゴ”で締める（暗い幕の上なので生成り版） */}
+        <div style={{ opacity: fade(f, STORY_XF + 22, 30) }}><StoreLogo storeName={storeName} height={124} /></div>
         <CloseCopy storeName={storeName} handle={handle} ink={T.ink} accent={T.accent} f={f} start={STORY_XF + 34} />
       </AbsoluteFill>
     </AbsoluteFill>
   );
 };
 
-// ── 案5：一皿から引く（料理写真がゆっくり引いてロゴが重なる）───────────
-// 「料理の店である」ことを最初の1秒で伝える型。飲食店として一番素直。
+// ── 案5：写真から引く（ゆっくり引いてロゴが重なる）───────────────────
+// Driveの「集合」フォルダに写真があればスタッフ集合写真で始まり、無ければ料理写真。
+// 「どんな人がやっている店か」を最初の1秒で伝えられるのが集合写真版の強み。
 const Open5: React.FC<SP> = ({ storeName = DEF.storeName, theme = DEF.theme }) => {
   const f = useCurrentFrame(); const T = ytheme(theme);
-  const src = (typoPhotos[0] && typoPhotos[0].src) || "";
+  // Driveの「集合」フォルダに写真があれば“お店の人”から始める（無ければ料理写真）。
+  const src = typoGroup || (typoPhotos[0] && typoPhotos[0].src) || "";
   const s = interpolate(f, [0, STORY_OPEN], [1.42, 1.06], { ...clamp, easing: EASE });
   const scrim = interpolate(f, [0, STORY_OPEN], [0.2, 0.62], clamp);
   const o = Math.min(fade(f, 28, 30), interpolate(f, [STORY_OPEN - 18, STORY_OPEN], [1, 0], clamp));
@@ -107,8 +110,8 @@ const Open5: React.FC<SP> = ({ storeName = DEF.storeName, theme = DEF.theme }) =
 const End5: React.FC<SP> = ({ storeName = DEF.storeName, handle = DEF.handle, theme = DEF.theme }) => {
   const f = useCurrentFrame(); const T = ytheme(theme);
   const rootO = interpolate(f, [0, STORY_XF], [0, 1], { ...clamp, easing: EASE });
-  const src = (typoPhotos[0] && typoPhotos[0].src) || "";
-  // 料理がゆっくりボケていき、ロゴだけが残る＝余韻。
+  const src = typoGroup || (typoPhotos[0] && typoPhotos[0].src) || "";
+  // 写真がゆっくりボケていき、ロゴだけが残る＝余韻。
   const b = interpolate(f, [STORY_XF, STORY_XF + 62], [6, 40], { ...clamp, easing: EASE });
   const s = interpolate(f, [0, STORY_END + STORY_XF], [1.08, 1.16], clamp);
   return (
@@ -276,46 +279,50 @@ function _todayMD(): string {
   return now.getUTCMonth() + 1 + "/" + now.getUTCDate();
 }
 
-const Open9: React.FC<SP> = ({ storeName = DEF.storeName, theme = DEF.theme }) => {
+const Open9: React.FC<SP> = ({ storeName = DEF.storeName, theme = DEF.theme, openText = "" }) => {
   const f = useCurrentFrame(); const T = ytheme(theme);
-  const src = (typoPhotos[0] && typoPhotos[0].src) || "";
   const head = interpolate(f, [0, 44], [-36, 0], { ...clamp, easing: EASE });   // 誌名が上から入る
   const rule = interpolate(f, [12, 60], [0, 620], { ...clamp, easing: EASE });  // 誌名下の罫が引かれる
-  const ph = interpolate(f, [8, 64], [1.06, 1.0], { ...clamp, easing: EASE });  // 表紙写真がすっと収まる
   const cover = interpolate(f, [22, 68], [30, 0], { ...clamp, easing: EASE });  // 見出しが下から
   const o = Math.min(fade(f, 2, 24), interpolate(f, [STORY_OPEN - 16, STORY_OPEN], [1, 0], clamp));
+  // 営業時間はスプレッドシート(入力用)が正。未登録なら嘘の時刻を出さず中立表示にする。
+  const hours = (openText || "").trim();
   return (
     <AbsoluteFill style={{ background: "radial-gradient(120% 90% at 50% 30%, " + MAG_CREAM + " 0%, " + MAG_CREAM_D + " 100%)", opacity: o }}>
-      {/* 紙の織り目＋誌面の二重罫（CLOSEの裏表紙と同じ作法で対にする） */}
+      {/* 紙の織り目＋誌面の二重罫（CLOSEの裏表紙とまったく同じ作法＝表紙と裏表紙で対になる） */}
       <AbsoluteFill style={{ opacity: 0.05, backgroundImage: "repeating-linear-gradient(90deg, rgba(120,80,40,0.6) 0 1px, transparent 1px 5px), repeating-linear-gradient(0deg, rgba(120,80,40,0.5) 0 1px, transparent 1px 6px)" }} />
       <div style={{ position: "absolute", inset: 44, border: "2px solid rgba(150,110,70,0.4)" }} />
       <div style={{ position: "absolute", inset: 60, border: "1px solid rgba(150,110,70,0.26)" }} />
 
-      {/* 誌名（＝店ロゴ）＋発行情報 */}
-      <div style={{ position: "absolute", top: 150, left: 0, right: 0, display: "flex", justifyContent: "center", transform: "translateY(" + head + "px)" }}>
-        <StoreLogoColor storeName={storeName} height={150} />
+      {/* 誌名（＝店ロゴ）。写真は載せず、文字と罫だけの誌面にする。 */}
+      <div style={{ position: "absolute", top: 300, left: 0, right: 0, display: "flex", justifyContent: "center", transform: "translateY(" + head + "px)" }}>
+        <StoreLogoColor storeName={storeName} height={196} />
       </div>
-      <div style={{ position: "absolute", top: 330, left: 0, right: 0, display: "flex", justifyContent: "center" }}>
+      <div style={{ position: "absolute", top: 560, left: 0, right: 0, display: "flex", justifyContent: "center" }}>
         <div style={{ width: rule, height: 2, background: T.slab, opacity: 0.75 }} />
       </div>
-      <div style={{ position: "absolute", top: 352, left: 0, right: 0, textAlign: "center", opacity: fade(f, 18, 20) }}>
-        <span style={{ fontFamily: serif, color: T.slab, fontSize: 24, letterSpacing: 10, textTransform: "uppercase", fontWeight: 600 }}>{T.label}　·　OGGI {_todayMD()}</span>
+      <div style={{ position: "absolute", top: 584, left: 0, right: 0, textAlign: "center", opacity: fade(f, 20, 22) }}>
+        <span style={{ fontFamily: serif, color: T.slab, fontSize: 26, letterSpacing: 10, textTransform: "uppercase", fontWeight: 600 }}>{T.label}　·　OGGI {_todayMD()}</span>
       </div>
 
-      {/* 表紙写真：白フチで囲って“誌面に貼った写真”に（全面写真だと雑誌に見えない） */}
-      <div style={{ position: "absolute", left: 116, right: 116, top: 430, height: 880, transform: "scale(" + ph + ")", opacity: fade(f, 6, 22) }}>
-        <div style={{ position: "absolute", inset: 0, background: "#FBF5E9", padding: 18, boxShadow: "0 26px 60px rgba(60,35,14,0.32)" }}>
-          <div style={{ position: "absolute", inset: 18, overflow: "hidden" }}>
-            {src ? <Img src={staticFile(src)} style={{ width: "100%", height: "100%", objectFit: "cover", filter: "saturate(1.1) contrast(1.05)" }} /> : null}
-          </div>
+      {/* 見出し */}
+      <div style={{ position: "absolute", left: 116, right: 116, top: 720, textAlign: "center", transform: "translateY(" + cover + "px)", opacity: fade(f, 22, 26) }}>
+        <div style={{ fontFamily: mincho, color: MAG_INK, fontSize: 86, fontWeight: 700, letterSpacing: 8 }}>本日のおすすめ</div>
+      </div>
+
+      {/* 営業時間（奥付の作法で枠に収める）。未登録の間は中立の一行。 */}
+      <div style={{ position: "absolute", left: 190, right: 190, top: 930, border: "1px solid rgba(150,110,70,0.45)", padding: "26px 20px 30px", textAlign: "center", opacity: fade(f, 34, 28) }}>
+        <div style={{ fontFamily: serif, color: T.slab, fontSize: 24, letterSpacing: 8, textTransform: "uppercase", fontWeight: 600, marginBottom: 14 }}>ORARIO</div>
+        <div style={{ fontFamily: mincho, color: MAG_INK, fontSize: hours ? 52 : 44, fontWeight: 700, letterSpacing: 3, lineHeight: 1.3, whiteSpace: "pre-line" }}>
+          {hours || "本日も、営業中。"}
         </div>
       </div>
 
-      {/* 表紙の見出し（写真の下・左寄せ＝誌面の作法） */}
-      <div style={{ position: "absolute", left: 116, right: 116, top: 1372, transform: "translateY(" + cover + "px)", opacity: fade(f, 16, 24) }}>
-        <div style={{ fontFamily: serif, color: T.slab, fontSize: 28, letterSpacing: 8, textTransform: "uppercase", fontWeight: 600, marginBottom: 12 }}>SIGNATURE</div>
-        <div style={{ height: 3, width: 96, background: T.slab, marginBottom: 18 }} />
-        <div style={{ fontFamily: mincho, color: MAG_INK, fontSize: 70, fontWeight: 700, letterSpacing: 6 }}>本日のおすすめ</div>
+      {/* 奥付のフッター帯（CLOSEと対） */}
+      <div style={{ position: "absolute", left: 0, right: 0, bottom: 0, height: 104, background: T.slab, opacity: fade(f, 30, 26) }} />
+      <div style={{ position: "absolute", left: 84, right: 84, bottom: 36, display: "flex", justifyContent: "space-between", alignItems: "baseline", opacity: fade(f, 34, 26) }}>
+        <span style={{ fontFamily: serif, color: "#FDF6EA", fontSize: 24, letterSpacing: 8, textTransform: "uppercase", fontWeight: 600 }}>SIGNATURE</span>
+        <span style={{ fontFamily: serif, color: "rgba(253,246,234,0.9)", fontSize: 24, letterSpacing: 4 }}>{storeName}</span>
       </div>
       <Grain opacity={0.05} />
     </AbsoluteFill>
