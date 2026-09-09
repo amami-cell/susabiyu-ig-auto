@@ -15,3 +15,4 @@ body_color = Color(0.4, 0.12, 0.14, 1)
 body_scale = 2.4
 grants_power = "dig"
 is_midboss = true
+look_kind = "ant"

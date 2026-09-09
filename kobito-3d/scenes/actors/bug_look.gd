@@ -264,3 +264,154 @@ static func _eye_mat() -> StandardMaterial3D:
 	m.clearcoat = 1.0
 	m.clearcoat_roughness = 0.04
 	return m
+
+
+# ============================================================ 虫デザイン（採用版）
+## 種類ごとの“虫らしい”見た目を root 直下の InsectRig に作る。
+## root（＝Bodyノード）のスケール/演出をそのまま受け継ぐ設計＝つぶれ芝居も効く。素材ゼロ・低ポリ。
+const IB_KINDS := ["ant", "ladybug", "hopper", "beetle", "dragon", "butterfly", "bee", "worm"]
+
+static func decorate_insect(root: Node3D, color: Color, kind: String) -> void:
+	if root.has_node("InsectRig"):
+		return
+	var rig := Node3D.new()
+	rig.name = "InsectRig"
+	root.add_child(rig)
+	var k := kind if kind in IB_KINDS else "ant"
+	var skin := color.lerp(Color(0.72, 0.68, 0.64), 0.3)
+	var dark := color.darkened(0.34)
+	var head: Node3D = null
+	match k:
+		"ant":
+			_ib_ball(rig, 0.22, skin, Vector3(0, 0.26, 0.3), Vector3(1, 0.92, 1.25))
+			_ib_ball(rig, 0.15, skin, Vector3(0, 0.24, 0.04))
+			head = _ib_ball(rig, 0.19, skin, Vector3(0, 0.3, -0.24))
+			_ib_legs(rig, dark)
+			_ib_face(head, 0.19, 0.08, dark, skin)
+		"ladybug":
+			head = _ib_ball(rig, 0.14, skin.darkened(0.2), Vector3(0, 0.2, -0.26), Vector3(1, 0.85, 1))
+			var shell := _ib_ball(rig, 0.32, color, Vector3(0, 0.32, 0.05), Vector3(1.12, 0.92, 1.2))
+			_ib_box(shell, dark, Vector3(0.02, 0.02, 0.52), Vector3(0, 0.34, 0))
+			for sp in [Vector3(0.15, 0.34, -0.05), Vector3(-0.15, 0.34, 0.04), Vector3(0.11, 0.3, 0.2), Vector3(-0.11, 0.3, 0.22)]:
+				_ib_ball(shell, 0.05, dark, sp)
+			_ib_legs(rig, dark)
+			_ib_face(head, 0.14, 0.06, dark, skin)
+		"hopper":
+			_ib_ball(rig, 0.16, skin, Vector3(0, 0.32, 0.28), Vector3(1, 0.85, 1.55))
+			head = _ib_ball(rig, 0.16, skin, Vector3(0, 0.36, -0.24))
+			for sx in [-1.0, 1.0]:
+				_ib_box(rig, dark, Vector3(0.05, 0.05, 0.3), Vector3(0.13 * sx, 0.24, 0.2))
+				_ib_box(rig, dark, Vector3(0.05, 0.3, 0.05), Vector3(0.16 * sx, 0.12, 0.36), deg_to_rad(18.0) * sx)
+			for zi in [-0.08, 0.06]:
+				for sx in [-1.0, 1.0]:
+					_ib_box(rig, dark, Vector3(0.035, 0.2, 0.035), Vector3(0.12 * sx, 0.08, zi), deg_to_rad(24.0) * sx)
+			_ib_face(head, 0.16, 0.07, dark, skin)
+		"beetle":
+			head = _ib_ball(rig, 0.15, skin.darkened(0.15), Vector3(0, 0.24, -0.28))
+			_ib_box(head, dark, Vector3(0.04, 0.04, 0.18), Vector3(0, 0.08, -0.16))
+			_ib_ball(rig, 0.3, color.darkened(0.05), Vector3(0, 0.32, 0.06), Vector3(1.16, 0.86, 1.28))
+			_ib_box(rig, dark, Vector3(0.02, 0.02, 0.46), Vector3(0, 0.44, 0.06))
+			_ib_legs(rig, dark)
+			_ib_face(head, 0.15, 0.06, dark, skin)
+		"dragon":
+			for zi in [0.16, 0.36, 0.56]:
+				_ib_ball(rig, 0.1, skin, Vector3(0, 0.34, zi), Vector3(1, 0.9, 1.1))
+			head = _ib_ball(rig, 0.18, skin, Vector3(0, 0.36, -0.18))
+			_ib_wings(rig, 0.42, [0.04, 0.24], 0.08, 0.42, Color(0.9, 0.95, 1.0))
+			_ib_face(head, 0.18, 0.09, dark, skin)
+		"butterfly":
+			_ib_ball(rig, 0.11, dark, Vector3(0, 0.34, 0.16), Vector3(1, 1, 1.6))
+			head = _ib_ball(rig, 0.15, skin, Vector3(0, 0.36, -0.16))
+			var bwm := _wing_mat(color.lerp(Color(1, 1, 1), 0.2), 0.78)
+			for sx in [-1.0, 1.0]:
+				var wu := _ib_ball(rig, 0.24, color, Vector3(0.24 * sx, 0.42, -0.05), Vector3(1.0, 0.08, 1.0))
+				wu.material_override = bwm
+				wu.rotation.z = deg_to_rad(18.0) * sx
+				var wl := _ib_ball(rig, 0.17, color.lightened(0.12), Vector3(0.2 * sx, 0.34, 0.22), Vector3(0.9, 0.08, 0.9))
+				wl.material_override = bwm
+				wl.rotation.z = deg_to_rad(24.0) * sx
+			_ib_face(head, 0.15, 0.08, dark, skin)
+		"bee":
+			var yellow := color.lerp(Color(1.0, 0.85, 0.2), 0.45)
+			for i in 3:
+				var seg_c: Color = color.darkened(0.5) if i % 2 == 1 else yellow
+				_ib_ball(rig, 0.17 - i * 0.006, seg_c, Vector3(0, 0.32, 0.1 + i * 0.14), Vector3(1, 0.95, 1.0))
+			head = _ib_ball(rig, 0.15, yellow, Vector3(0, 0.34, -0.18))
+			_ib_wings(rig, 0.4, [0.02, 0.18], 0.08, 0.32, Color(1, 1, 1))
+			_ib_face(head, 0.15, 0.075, color.darkened(0.5), yellow)
+		"worm":
+			for i in 5:
+				_ib_ball(rig, 0.2 - i * 0.014, skin, Vector3(0, 0.22, 0.3 - i * 0.14))
+			head = _ib_ball(rig, 0.2, skin, Vector3(0, 0.24, -0.44))
+			for zi in [-0.2, 0.0, 0.2]:
+				for sx in [-1.0, 1.0]:
+					_ib_box(rig, dark, Vector3(0.03, 0.1, 0.03), Vector3(0.14 * sx, 0.05, zi))
+			_ib_face(head, 0.2, 0.085, dark, skin)
+
+
+static func _ib_ball(parent: Node3D, r: float, c: Color, pos: Vector3, sc := Vector3.ONE) -> MeshInstance3D:
+	var mi := _sphere(parent, "IB", r, c)
+	mi.position = pos
+	mi.scale = sc
+	return mi
+
+
+static func _ib_box(parent: Node3D, c: Color, size: Vector3, pos: Vector3, roll := 0.0) -> MeshInstance3D:
+	var mi := MeshInstance3D.new()
+	mi.name = "IBx"
+	var m := BoxMesh.new()
+	m.size = size
+	mi.mesh = m
+	mi.material_override = _mat(c)
+	mi.position = pos
+	mi.rotation.z = roll
+	parent.add_child(mi)
+	return mi
+
+
+static func _ib_legs(rig: Node3D, col: Color) -> void:
+	for zi in [-0.1, 0.06, 0.22]:
+		for sx in [-1.0, 1.0]:
+			_ib_box(rig, col, Vector3(0.035, 0.22, 0.035), Vector3(0.14 * sx, 0.08, zi), deg_to_rad(28.0) * sx)
+
+
+static func _wing_mat(c: Color, a: float) -> StandardMaterial3D:
+	var m := StandardMaterial3D.new()
+	m.albedo_color = Color(c.r, c.g, c.b, a)
+	m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	m.cull_mode = BaseMaterial3D.CULL_DISABLED
+	return m
+
+
+static func _ib_wings(rig: Node3D, y: float, zs: Array, thickness: float, length: float, col: Color) -> void:
+	var wmat := _wing_mat(col, 0.42)
+	for sx in [-1.0, 1.0]:
+		for zz in zs:
+			var w := _ib_ball(rig, 0.2, col, Vector3(0.28 * sx, y, zz), Vector3(1.0, thickness, length))
+			w.material_override = wmat
+			w.rotation.z = deg_to_rad(16.0) * sx
+
+
+static func _ib_face(head: Node3D, r: float, eye_r: float, dark: Color, skin: Color) -> void:
+	if head == null:
+		return
+	var white := Color(0.96, 0.97, 0.94)
+	var blk := Color(0.05, 0.04, 0.05)
+	var exx := r * 0.44
+	var eyy := r * 0.05
+	var ezz := -r * 0.6
+	for sx in [-1.0, 1.0]:
+		_ib_ball(head, eye_r, white, Vector3(exx * sx, eyy, ezz), Vector3(1.0, 1.15, 0.8))
+		_ib_ball(head, eye_r * 0.6, blk, Vector3(exx * sx, eyy, ezz - eye_r * 0.55))
+		var cat := _ib_ball(head, eye_r * 0.28, Color(1, 1, 1), Vector3(exx * sx - eye_r * 0.22, eyy + eye_r * 0.3, ezz - eye_r * 0.9))
+		var cm := cat.material_override as StandardMaterial3D
+		if cm != null:
+			cm.emission_enabled = true
+			cm.emission = Color(1, 1, 1)
+			cm.emission_energy_multiplier = 0.9
+			cm.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	_ib_ball(head, r * 0.1, Color(0.3, 0.14, 0.16), Vector3(0.0, -r * 0.4, ezz * 0.95), Vector3(1.7, 0.7, 0.5))
+	for sx in [-1.0, 1.0]:
+		_ib_box(head, dark, Vector3(r * 0.05, r * 0.55, r * 0.05), Vector3(r * 0.42 * sx, r * 0.72, ezz * 0.2), deg_to_rad(18.0) * sx)
+		_ib_ball(head, r * 0.13, skin.lightened(0.12), Vector3(r * 0.56 * sx, r * 1.02, ezz * 0.2))

@@ -824,52 +824,42 @@ func _run_shot() -> void:
 		await get_tree().create_timer(1.0).timeout
 		await RenderingServer.frame_post_draw
 		get_viewport().get_texture().get_image().save_png("/tmp/shot_expr.png")
-	# --webbugs：ブラウザ版と同じ“軽量版”の見た目(decorate_simple)を、顔を正面から撮る。
-	# ＝実機(Web)でユーザーが見ている敵の姿の確認用（PC版 decorate とは別物）。
+	# --webbugs：実ゲームと同じ decorate_insect（look_kind）で全species を正面から撮る。
 	if OS.get_cmdline_user_args().has("--webbugs"):
 		var specs := [
-			"res://data/ant.tres", "res://data/beetle.tres",
-			"res://data/tonbo.tres", "res://data/chou.tres",
+			"res://data/ant.tres", "res://data/tentou.tres", "res://data/batta.tres",
+			"res://data/beetle.tres", "res://data/tonbo.tres", "res://data/chou.tres",
+			"res://data/hachi.tres",
 		]
 		var root := Node3D.new()
 		add_child(root)
 		root.global_position = Vector3(0.0, 0.0, -40.0)
-		var wx := -(specs.size() - 1) * 1.1
+		var wx := -(specs.size() - 1) * 1.05
 		for path in specs:
 			var st: EnemyStats = load(path)
 			var holder := Node3D.new()
 			root.add_child(holder)
-			holder.position = Vector3(wx, 0.4, 0.0)
+			holder.position = Vector3(wx, 0.3, 0.0)
 			holder.rotation.y = PI   # 顔(-Z)を手前のカメラへ向ける
-			# 胴（横倒しカプセル＝bug本体の腹の代わり）
-			var body := MeshInstance3D.new()
-			var cap := CapsuleMesh.new()
-			cap.radius = 0.3
-			cap.height = 0.8
-			body.mesh = cap
-			body.rotation.x = deg_to_rad(90.0)
-			var bmat := StandardMaterial3D.new()
-			bmat.albedo_color = st.body_color
-			bmat.roughness = 0.94
-			bmat.metallic_specular = 0.12
-			body.material_override = bmat
-			holder.add_child(body)
-			BugLook.decorate_simple(holder, st.body_color, st.body_scale, st.shell, st.flies)
+			BugLook.decorate_insect(holder, st.body_color, st.look_kind)
+			var rig := holder.get_node_or_null("InsectRig")
+			if rig != null:
+				(rig as Node3D).scale = Vector3.ONE * st.body_scale
 			var lbl := Label3D.new()
 			lbl.text = st.display_name
-			lbl.position = Vector3(0.0, 1.1, 0.0)
-			lbl.pixel_size = 0.006
+			lbl.position = Vector3(0.0, 1.15, 0.0)
+			lbl.pixel_size = 0.0055
 			lbl.billboard = BaseMaterial3D.BILLBOARD_ENABLED
 			holder.add_child(lbl)
-			wx += 2.2
+			wx += 2.1
 		var wlight := DirectionalLight3D.new()
 		wlight.rotation = Vector3(deg_to_rad(-42.0), deg_to_rad(18.0), 0.0)
 		root.add_child(wlight)
 		var wcam := Camera3D.new()
 		add_child(wcam)
-		wcam.global_position = Vector3(0.0, 1.6, -32.5)   # 手前(+Z側)から全身を見る
+		wcam.global_position = Vector3(0.0, 1.5, -31.5)
 		wcam.look_at(Vector3(0.0, 0.35, -40.0), Vector3.UP)
-		wcam.fov = 48.0
+		wcam.fov = 52.0
 		wcam.current = true
 		await get_tree().create_timer(0.8).timeout
 		await RenderingServer.frame_post_draw
@@ -889,20 +879,14 @@ func _run_shot() -> void:
 			broot.add_child(holder)
 			holder.position = Vector3(bs["x"], 0.2, 0.0)
 			holder.rotation.y = PI   # 顔(-Z)を手前のカメラへ
-			var body := MeshInstance3D.new()
-			var cap := CapsuleMesh.new()
-			cap.radius = 0.3
-			cap.height = 0.8
-			body.mesh = cap
-			body.rotation.x = deg_to_rad(90.0)
-			body.scale = Vector3.ONE * st.body_scale
-			var bmat := StandardMaterial3D.new()
-			bmat.albedo_color = st.body_color
-			bmat.roughness = 0.94
-			bmat.metallic_specular = 0.12
-			body.material_override = bmat
-			holder.add_child(body)
-			BugLook.decorate_boss(holder, st.body_color, st.body_scale)
+			# 実ゲームと同じ振り分け：sludge は塊、それ以外(女王アリ=ant)は虫リグを body_scale 倍で。
+			if st.look_kind == "sludge":
+				BugLook.decorate_boss(holder, st.body_color, st.body_scale)
+			else:
+				BugLook.decorate_insect(holder, st.body_color, st.look_kind)
+				var brig := holder.get_node_or_null("InsectRig")
+				if brig != null:
+					(brig as Node3D).scale = Vector3.ONE * st.body_scale
 			var lbl := Label3D.new()
 			lbl.text = st.display_name
 			lbl.position = Vector3(0.0, 2.6, 0.0)
@@ -999,7 +983,113 @@ func _run_shot() -> void:
 		await get_tree().create_timer(0.8).timeout
 		await RenderingServer.frame_post_draw
 		get_viewport().get_texture().get_image().save_png("/tmp/shot_enemybug.png")
+	# --allypat：なかま（味方＝癒やした虫）の見た目候補を6パターン並べて撮る。
+	if OS.get_cmdline_user_args().has("--allypat"):
+		var apats := [
+			{"n": "A 精霊オーブ(現行)", "col": Color(0.55, 0.9, 0.7), "kind": "orb"},
+			{"n": "B 澄んだ虫＋新芽", "col": Color(0.6, 0.86, 0.55), "kind": "cleanbug"},
+			{"n": "C 妖精＋光輪", "col": Color(0.7, 0.86, 0.98), "kind": "fairy"},
+			{"n": "D 双葉なかま", "col": Color(0.62, 0.9, 0.6), "kind": "sprout"},
+			{"n": "E しずく光", "col": Color(0.6, 0.92, 0.86), "kind": "drop"},
+			{"n": "F ちび小人", "col": Color(0.85, 0.78, 0.68), "kind": "kobito"},
+		]
+		var aroot := Node3D.new()
+		add_child(aroot)
+		aroot.global_position = Vector3(0.0, 0.0, -40.0)
+		var ax := -(apats.size() - 1) * 1.15
+		for cfg in apats:
+			var holder := Node3D.new()
+			aroot.add_child(holder)
+			holder.position = Vector3(ax, 0.3, 0.0)
+			holder.rotation.y = PI
+			_apat(holder, cfg)
+			var lbl := Label3D.new()
+			lbl.text = cfg["n"]
+			lbl.position = Vector3(0.0, 1.3, 0.0)
+			lbl.pixel_size = 0.0055
+			lbl.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+			holder.add_child(lbl)
+			ax += 2.3
+		var alight := DirectionalLight3D.new()
+		alight.rotation = Vector3(deg_to_rad(-42.0), deg_to_rad(18.0), 0.0)
+		aroot.add_child(alight)
+		var acam := Camera3D.new()
+		add_child(acam)
+		acam.global_position = Vector3(0.0, 1.6, -31.0)
+		acam.look_at(Vector3(0.0, 0.4, -40.0), Vector3.UP)
+		acam.fov = 51.0
+		acam.current = true
+		await get_tree().create_timer(0.8).timeout
+		await RenderingServer.frame_post_draw
+		get_viewport().get_texture().get_image().save_png("/tmp/shot_allypat.png")
 	get_tree().quit()
+
+
+## なかま候補を1体ぶん組み立てる（--allypat 用）。前＝-Z。
+func _apat(holder: Node3D, cfg: Dictionary) -> void:
+	var base: Color = cfg["col"]
+	var glow := base.lerp(Color(0.75, 1.0, 0.82), 0.4)
+	var dark := base.darkened(0.3)
+	match cfg["kind"]:
+		"orb":   # 現行：光るオーブ＋目＋羽
+			var o := _wball(holder, glow, 0.3, Vector3(0.0, 0.46, 0.0), Vector3.ONE, 0.7)
+			_epat_face(o, 0.3, 0.09, "round", false, false, dark, glow)
+			_apat_wings(holder, 0.46)
+		"cleanbug":   # 澄んだ虫が浄化された姿＋頭に新芽
+			_wball(holder, glow, 0.24, Vector3(0.0, 0.34, 0.08), Vector3(1.0, 0.9, 1.2), 0.4)
+			var head := _wball(holder, glow, 0.22, Vector3(0.0, 0.42, -0.18), Vector3.ONE, 0.4)
+			_epat_face(head, 0.22, 0.085, "round", true, false, dark, glow)
+			_wbox(head, Color(0.4, 0.68, 0.34), Vector3(0.035, 0.16, 0.035), Vector3(0.0, 0.3, 0.0), Vector3.ZERO)
+			_wball(head, Color(0.52, 0.82, 0.42), 0.08, Vector3(-0.05, 0.42, 0.0))
+			_wball(head, Color(0.52, 0.82, 0.42), 0.08, Vector3(0.06, 0.42, 0.03))
+			for sx in [-1.0, 1.0]:
+				_wbox(holder, dark, Vector3(0.03, 0.14, 0.03), Vector3(0.12 * sx, 0.06, 0.02), Vector3.ZERO, deg_to_rad(22.0) * sx)
+		"fairy":   # 妖精：光るオーブ＋頭上の光輪＋羽
+			var o := _wball(holder, glow, 0.28, Vector3(0.0, 0.46, 0.0), Vector3.ONE, 0.7)
+			_epat_face(o, 0.28, 0.09, "round", false, false, dark, glow)
+			var halo := MeshInstance3D.new()
+			var tm := TorusMesh.new()
+			tm.inner_radius = 0.14
+			tm.outer_radius = 0.2
+			halo.mesh = tm
+			var hm := StandardMaterial3D.new()
+			hm.albedo_color = Color(1.0, 0.95, 0.6)
+			hm.emission_enabled = true
+			hm.emission = Color(1.0, 0.9, 0.5)
+			hm.emission_energy_multiplier = 1.6
+			hm.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+			halo.material_override = hm
+			halo.position = Vector3(0.0, 0.82, 0.0)
+			holder.add_child(halo)
+			_apat_wings(holder, 0.46)
+		"sprout":   # 双葉を背負ったなかま（緑を運ぶ）
+			var body := _wball(holder, glow, 0.3, Vector3(0.0, 0.42, 0.0), Vector3.ONE, 0.4)
+			_epat_face(body, 0.3, 0.09, "round", true, false, dark, glow)
+			for sx in [-1.0, 1.0]:
+				var leaf := _wball(holder, Color(0.46, 0.76, 0.38), 0.17, Vector3(0.12 * sx, 0.64, 0.14), Vector3(0.5, 1.15, 0.95), 0.2)
+				leaf.rotation.z = deg_to_rad(32.0) * sx
+		"drop":   # しずく型（つるん・透明感のある光）
+			var body := _wball(holder, glow, 0.3, Vector3(0.0, 0.42, 0.0), Vector3(0.92, 1.15, 0.92), 0.6)
+			_wball(holder, glow, 0.13, Vector3(0.0, 0.74, 0.0), Vector3(0.6, 1.5, 0.6), 0.6)
+			_epat_face(body, 0.3, 0.085, "round", false, false, dark, glow)
+		"kobito":   # ちび小人（一家の仲間らしい姿）
+			var head := _wball(holder, glow, 0.2, Vector3(0.0, 0.58, -0.02))
+			_wball(holder, base.lerp(Color(0.92, 0.86, 0.78), 0.5), 0.18, Vector3(0.0, 0.3, 0.0), Vector3(0.9, 1.15, 0.9))
+			_epat_face(head, 0.2, 0.08, "round", true, false, dark, glow)
+			for sx in [-1.0, 1.0]:
+				_wbox(holder, base.darkened(0.1), Vector3(0.05, 0.16, 0.05), Vector3(0.18 * sx, 0.32, 0.0), Vector3.ZERO, deg_to_rad(20.0) * sx)
+				_wbox(holder, base.darkened(0.15), Vector3(0.06, 0.12, 0.06), Vector3(0.08 * sx, 0.08, 0.0), Vector3.ZERO)
+
+
+func _apat_wings(holder: Node3D, y: float) -> void:
+	var wmat := StandardMaterial3D.new()
+	wmat.albedo_color = Color(1, 1, 1, 0.6)
+	wmat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	wmat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	for sx in [-1.0, 1.0]:
+		var w := _wball(holder, Color(1, 1, 1), 0.2, Vector3(0.28 * sx, y, 0.14), Vector3(0.5, 1.0, 0.22))
+		w.material_override = wmat
+		w.rotation.z = deg_to_rad(20.0) * sx
 
 
 ## 敵デザイン候補を1体ぶん組み立てる（--enemypat 用）。素材ゼロ・低ポリ。前＝-Z。

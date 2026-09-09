@@ -31,3 +31,7 @@ class_name EnemyStats
 
 ## 飛ぶ敵の“浮く高さ”（地面/プレイヤーからの目安）。
 @export var hover_height: float = 1.7
+
+## 見た目の種類（虫のシルエット）。ant/ladybug/hopper/beetle/dragon/butterfly/bee/worm/sludge。
+## data/*.tres ごとに指定＝データ駆動で見た目を切り替える。sludge は中ボスのヘドロ塊。
+@export var look_kind: String = "ant"

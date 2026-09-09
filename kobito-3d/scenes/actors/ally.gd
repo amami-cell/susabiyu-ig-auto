@@ -51,112 +51,84 @@ func _ready() -> void:
 	set_physics_process(true)
 
 
+## 浄化された虫は「ちび小人」の姿になって家族の仲間に（採用案F）。
+## 種の色(tint)を残して見分けられる。ふわっと光る＝救われた精霊。
 func _build_look() -> void:
 	_body = Node3D.new()
 	add_child(_body)
-	# 明るい発光オーブの体
-	var orb := MeshInstance3D.new()
-	var m := SphereMesh.new()
-	m.radius = 0.3
-	m.height = 0.6
-	m.radial_segments = 10
-	m.rings = 6
-	orb.mesh = m
-	var mat := StandardMaterial3D.new()
-	mat.albedo_color = tint
-	mat.emission_enabled = true
-	mat.emission = tint
-	mat.emission_energy_multiplier = 0.7
-	mat.rim_enabled = true
-	mat.rim = 0.8
-	orb.material_override = mat
-	_body.add_child(orb)
-	# 目（つやのある黒＋白ハイライト＝“うれしそうに生きてる”眼）
-	var emat := StandardMaterial3D.new()
-	emat.albedo_color = Color(0.1, 0.09, 0.11)
-	emat.roughness = 0.15
-	emat.metallic_specular = 0.7
-	emat.clearcoat_enabled = true
-	emat.clearcoat = 0.9
-	var catmat := StandardMaterial3D.new()
-	catmat.albedo_color = Color(1, 1, 1)
-	catmat.emission_enabled = true
-	catmat.emission = Color(1, 1, 1)
-	catmat.emission_energy_multiplier = 1.2
-	catmat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	for sx in [-0.12, 0.12]:
-		var e := MeshInstance3D.new()
-		var em := SphereMesh.new()
-		em.radius = 0.07
-		em.height = 0.14
-		em.radial_segments = 8
-		em.rings = 5
-		e.mesh = em
-		e.material_override = emat
-		e.position = Vector3(sx, 0.06, -0.26)
-		_body.add_child(e)
-		var cat := MeshInstance3D.new()
-		var cm := SphereMesh.new()
-		cm.radius = 0.028
-		cm.height = 0.056
-		cm.radial_segments = 5
-		cm.rings = 3
-		cat.mesh = cm
-		cat.material_override = catmat
-		cat.position = Vector3(sx - 0.02, 0.1, -0.31)
-		_body.add_child(cat)
-	# ちいさな笑顔
-	var mmat := StandardMaterial3D.new()
-	mmat.albedo_color = Color(0.32, 0.16, 0.18)
-	var mouth := MeshInstance3D.new()
-	var mmesh := SphereMesh.new()
-	mmesh.radius = 0.05
-	mmesh.height = 0.1
-	mmesh.radial_segments = 6
-	mmesh.rings = 3
-	mouth.mesh = mmesh
-	mouth.material_override = mmat
-	mouth.position = Vector3(0.0, -0.06, -0.28)
-	mouth.scale = Vector3(1.5, 0.5, 0.5)
-	_body.add_child(mouth)
-	# 半透明の羽。飛ぶ種のなかまは 大きくはっきり（＝空の敵に届く子だと見分けられる）。
-	var wmat := StandardMaterial3D.new()
-	wmat.albedo_color = Color(1, 1, 1, 0.65)
-	wmat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	wmat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	var wing_s := 1.5 if _role_fly else 0.85
-	for sx in [-0.3, 0.3]:
-		var w := MeshInstance3D.new()
-		var wm := SphereMesh.new()
-		wm.radius = 0.16
-		wm.height = 0.32
-		wm.radial_segments = 6
-		wm.rings = 4
-		w.mesh = wm
-		w.material_override = wmat
-		w.position = Vector3(sx * wing_s, 0.12, 0.06)
-		w.scale = Vector3(0.5 * wing_s, 1.0 * wing_s, 0.2)
-		_body.add_child(w)
+	var glow := tint.lerp(Color(0.82, 1.0, 0.88), 0.4)
+	var skin := tint.lerp(Color(0.95, 0.9, 0.84), 0.5)
+	var dark := tint.darkened(0.32)
+	# 頭（ふわっと発光）＋体
+	var head := _a_ball(_body, 0.2, glow, Vector3(0.0, 0.6, -0.02), Vector3.ONE, 0.5)
+	_a_ball(_body, 0.18, skin, Vector3(0.0, 0.32, 0.0), Vector3(0.92, 1.15, 0.92), 0.15)
+	# 腕・脚
+	for sx in [-1.0, 1.0]:
+		_a_box(_body, dark, Vector3(0.05, 0.16, 0.05), Vector3(0.19 * sx, 0.34, 0.0), deg_to_rad(22.0) * sx)
+		_a_box(_body, dark.darkened(0.08), Vector3(0.06, 0.12, 0.06), Vector3(0.08 * sx, 0.08, 0.0), 0.0)
+	# 顔（うれしい目・ほっぺ・笑顔）
+	_a_face(head, 0.2, 0.082, dark)
+	# 飛ぶ種の子は ちび羽で見分け（役割：空の暴れ虫に届く）
+	if _role_fly:
+		var wmat := StandardMaterial3D.new()
+		wmat.albedo_color = Color(1, 1, 1, 0.6)
+		wmat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+		wmat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+		for sx in [-1.0, 1.0]:
+			var w := _a_ball(_body, 0.14, Color(1, 1, 1), Vector3(0.17 * sx, 0.44, 0.12), Vector3(0.5, 1.0, 0.24))
+			w.material_override = wmat
+			w.rotation.z = deg_to_rad(24.0) * sx
 
-	# 甲羅の種のなかまは 背中に つやのあるドーム（＝じょうぶな子だと見分けられる）。
-	if _role_shell:
-		var shell := MeshInstance3D.new()
-		var sm := SphereMesh.new()
-		sm.radius = 0.26
-		sm.height = 0.52
-		sm.radial_segments = 10
-		sm.rings = 6
-		shell.mesh = sm
-		var smat := StandardMaterial3D.new()
-		smat.albedo_color = tint.darkened(0.28)
-		smat.roughness = 0.35
-		smat.metallic_specular = 0.6
-		smat.clearcoat_enabled = true
-		smat.clearcoat = 0.7
-		shell.material_override = smat
-		shell.position = Vector3(0.0, 0.16, 0.08)
-		shell.scale = Vector3(1.05, 0.7, 1.15)
-		_body.add_child(shell)
+
+func _a_ball(parent: Node3D, r: float, c: Color, pos: Vector3, sc := Vector3.ONE, emit := 0.0) -> MeshInstance3D:
+	var mi := MeshInstance3D.new()
+	var m := SphereMesh.new()
+	m.radius = r
+	m.height = r * 2.0
+	m.radial_segments = 9
+	m.rings = 6
+	mi.mesh = m
+	var mat := StandardMaterial3D.new()
+	mat.albedo_color = c
+	if emit > 0.0:
+		mat.emission_enabled = true
+		mat.emission = c
+		mat.emission_energy_multiplier = emit
+	mat.rim_enabled = true
+	mat.rim = 0.4
+	mi.material_override = mat
+	mi.position = pos
+	mi.scale = sc
+	parent.add_child(mi)
+	return mi
+
+
+func _a_box(parent: Node3D, c: Color, size: Vector3, pos: Vector3, roll: float) -> MeshInstance3D:
+	var mi := MeshInstance3D.new()
+	var m := BoxMesh.new()
+	m.size = size
+	mi.mesh = m
+	var mat := StandardMaterial3D.new()
+	mat.albedo_color = c
+	mi.material_override = mat
+	mi.position = pos
+	mi.rotation.z = roll
+	parent.add_child(mi)
+	return mi
+
+
+func _a_face(head: Node3D, r: float, eye_r: float, dark: Color) -> void:
+	var white := Color(0.96, 0.97, 0.94)
+	var blk := Color(0.08, 0.07, 0.09)
+	var exx := r * 0.42
+	var ezz := -r * 0.62
+	for sx in [-1.0, 1.0]:
+		_a_ball(head, eye_r, white, Vector3(exx * sx, r * 0.05, ezz), Vector3(1.0, 1.1, 0.8))
+		_a_ball(head, eye_r * 0.6, blk, Vector3(exx * sx, r * 0.05, ezz - eye_r * 0.5))
+		_a_ball(head, eye_r * 0.3, Color(1, 1, 1), Vector3(exx * sx - eye_r * 0.2, r * 0.05 + eye_r * 0.3, ezz - eye_r * 0.85), Vector3.ONE, 0.9)
+	for sx in [-1.0, 1.0]:
+		_a_ball(head, r * 0.14, Color(0.98, 0.6, 0.6), Vector3(r * 0.5 * sx, -r * 0.12, ezz * 0.8), Vector3(1.1, 0.7, 0.5))
+	_a_ball(head, r * 0.09, Color(0.4, 0.2, 0.24), Vector3(0.0, -r * 0.34, ezz * 0.9), Vector3(1.6, 0.7, 0.5))
 
 
 ## _ready() より前に呼ばれる（garden が add_child する直前）＝見た目づくりに間に合う。

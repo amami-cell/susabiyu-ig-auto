@@ -75,13 +75,16 @@ func _ready() -> void:
 	_body.scale = Vector3.ONE * stats.body_scale
 	set_process(true)
 
-	# 見た目：中ボスは固有シルエット、雑魚は通常リグ（Webは超軽量版でドローコール抑制）。
-	if stats.is_midboss:
+	# 見た目：種類ごとの“虫のシルエット”（data の look_kind で切り替え・データ駆動）。
+	# sludge（ヘドロの主）だけは塊のシルエット、それ以外は虫リグ＝女王アリも「巨大アリ」に。
+	if stats.look_kind == "sludge":
 		BugLook.decorate_boss(self, stats.body_color, stats.body_scale)
-	elif OS.has_feature("web"):
-		BugLook.decorate_simple(self, stats.body_color, stats.body_scale, stats.shell, stats.flies)
 	else:
-		BugLook.decorate(self, stats.body_color, stats.body_scale, stats.shell)
+		BugLook.decorate_insect(self, stats.body_color, stats.look_kind)
+		var rig := get_node_or_null("InsectRig")
+		if rig != null:
+			(rig as Node3D).scale = Vector3.ONE * stats.body_scale
+		_body.visible = false   # カプセルの胴は隠す＝虫リグが本体（つぶれ演出は今は本体スケールで代用）
 
 	_build_hpbar()
 	_update_hpbar()   # 生成した瞬間から満タンのHPバー＋数字を出す

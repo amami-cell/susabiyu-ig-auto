@@ -14,3 +14,4 @@ xp_reward = 7
 body_color = Color(0.8, 0.2, 0.2, 1)
 body_scale = 0.7
 grants_power = "float"
+look_kind = "ladybug"

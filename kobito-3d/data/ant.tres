@@ -13,3 +13,4 @@ detect_range = 9.0
 xp_reward = 5
 body_color = Color(0.44, 0.32, 0.28, 1)
 body_scale = 0.8
+look_kind = "ant"

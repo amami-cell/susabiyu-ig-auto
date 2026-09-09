@@ -14,3 +14,4 @@ xp_reward = 12
 body_color = Color(0.34, 0.46, 0.3, 1)
 body_scale = 1.25
 shell = true
+look_kind = "beetle"

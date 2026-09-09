@@ -14,3 +14,4 @@ xp_reward = 8
 body_color = Color(0.35, 0.55, 0.2, 1)
 body_scale = 1.0
 grants_power = "hop"
+look_kind = "hopper"

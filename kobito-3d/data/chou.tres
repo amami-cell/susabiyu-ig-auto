@@ -15,3 +15,4 @@ body_color = Color(0.9, 0.7, 0.85, 1)
 body_scale = 0.9
 grants_power = "glide"
 flies = true
+look_kind = "butterfly"
