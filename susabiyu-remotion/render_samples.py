@@ -138,6 +138,7 @@ def main():
         _io.open("src/typoData.ts", "w", encoding="utf-8").write(s)
 
     samples = []
+    degraded = []  # 動画のはずが静止画で代替になったパターン（末尾で警告する）
     for idx, pattern in enumerate(patterns):
         if pattern not in REG:
             print("[SAMPLE] 未登録パターン スキップ:", pattern); continue
@@ -159,6 +160,11 @@ def main():
                 url = ""
             pj = _poster_jpg(comp, props_arg)
             purl = poster.up(pj, cdn=True) if pj else ""
+            if is_video and not url:
+                # 動画のアップロードに失敗＝見本が“静止画になった動画”になる。黙って差し替えると
+                # 気づかないまま確認アプリに並ぶので、ログ末尾でも分かるよう明示的に警告する。
+                print("[SAMPLE][警告] %s は動画URLが取れずポスター静止画で代替します（要・再実行）" % pattern)
+                degraded.append(pattern)
             if not url:
                 url = purl  # 動画が上がらなければポスター静止画で代替
             if not url:
@@ -175,6 +181,8 @@ def main():
     print("window.GIFUYA.SAMPLES = " + json.dumps(samples, ensure_ascii=False) + ";")
     print("===== SAMPLES(JSON) ここまで =====")
     print("[SAMPLE] 完了：%d本" % len(samples))
+    if degraded:
+        print("[SAMPLE][警告] 動画→静止画で代替されたパターン: %s（このパターンだけ再実行してください）" % ",".join(degraded))
 
 
 if __name__ == "__main__":
