@@ -5,6 +5,7 @@ import { typoPhotos, typoHeadline, typoMusic, typoMusicStart } from "./typoData"
 import { ytheme } from "./yoshokuTheme";
 import {
   mincho, serif, clamp, SAFE, rise, drawW, fade,
+  fitLines, splitLines,
   Grain, StoreLogo, PhotoLayer, Slides, SampleBadge, fitOneLine, segNow,
   StoryOpening, StoryEndroll, STORY_OPEN, STORY_END, STORY_XF,
 } from "./yoshokuDesign";
@@ -68,10 +69,12 @@ const MagBody: React.FC<{ storeName?: string; handle?: string; theme?: string }>
       {/* 下：一言（各料理のストーリー用の短い一言。無ければ全体フック）＝大きめに */}
       <div style={{ position: "absolute", left: SAFE.side, right: SAFE.side, bottom: 188, opacity: fade(f, 74) }}>
         <div style={{
-          fontFamily: mincho, color: "#EADFC9", letterSpacing: 1, lineHeight: 1.4,
-          whiteSpace: "nowrap", textShadow: "0 2px 14px rgba(0,0,0,0.6)",
-          fontSize: fitOneLine(oneLiner, 46, 1080 - SAFE.side * 2 - 20, 24),
-        }}>{oneLiner}</div>
+          fontFamily: mincho, color: "#EADFC9", letterSpacing: 1, lineHeight: 1.36,
+          textShadow: "0 2px 14px rgba(0,0,0,0.6)",
+          fontSize: fitLines(oneLiner, 46, 1080 - SAFE.side * 2 - 20, 24),
+        }}>
+          {splitLines(oneLiner).map((l, k) => <div key={k} style={{ whiteSpace: "nowrap" }}>{l}</div>)}
+        </div>
       </div>
 
       {/* フッター：店舗ロゴ＋ハンドルを右下へ（左の余白は見出し/一言が使う）。

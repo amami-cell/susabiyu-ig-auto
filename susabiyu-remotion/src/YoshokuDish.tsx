@@ -6,7 +6,7 @@ import { typoPhotos, typoMusic, typoMusicStart } from "./typoData";
 import { ytheme } from "./yoshokuTheme";
 import {
   mincho, serif, clamp, SAFE, rise, drawW, segNow,
-  Grain, Vignette, WarmGlow, DishStage, Masthead, SampleBadge, fitOneLine,
+  Grain, Vignette, WarmGlow, DishStage, Masthead, SampleBadge, fitOneLine, fitLines, splitLines,
   StoryOpening, StoryEndroll, STORY_OPEN, STORY_END, STORY_XF,
 } from "./yoshokuDesign";
 
@@ -51,9 +51,11 @@ const DishBody: React.FC<{ storeName?: string; handle?: string; theme?: string }
         {cur.desc ? (
           <div style={{
             marginTop: 14, fontFamily: mincho, color: T.sub, letterSpacing: 1, opacity: 0.96,
-            whiteSpace: "nowrap", textShadow: "0 2px 14px rgba(0,0,0,0.5)",
-            fontSize: fitOneLine(cur.desc, 36, 1080 - SAFE.side * 2 - 20, 22),
-          }}>{cur.desc}</div>
+            lineHeight: 1.42, textShadow: "0 2px 14px rgba(0,0,0,0.5)",
+            fontSize: fitLines(cur.desc, 36, 1080 - SAFE.side * 2 - 20, 22),
+          }}>
+            {splitLines(cur.desc).map((l, k) => <div key={k} style={{ whiteSpace: "nowrap" }}>{l}</div>)}
+          </div>
         ) : null}
         <div style={{ marginTop: 16, fontFamily: serif, color: T.accent, fontSize: 26, letterSpacing: 4, opacity: 0.85 }}>{handle}</div>
       </div>

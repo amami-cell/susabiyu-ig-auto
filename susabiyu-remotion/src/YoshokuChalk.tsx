@@ -6,6 +6,7 @@ import { typoPhotos, typoMusic, typoMusicStart } from "./typoData";
 import { ytheme } from "./yoshokuTheme";
 import {
   mincho, serif, clamp, SAFE, rise, drawW, fade, segNow,
+  fitLines, splitLines,
   Grain, StoreLogo, PhotoLayer, Slides, SampleBadge, fitOneLine,
   StoryOpening, StoryEndroll, STORY_OPEN, STORY_END, STORY_XF,
 } from "./yoshokuDesign";
@@ -79,9 +80,11 @@ const ChalkBody: React.FC<{ storeName?: string; handle?: string; theme?: string 
           <div style={{ display: "inline-block", padding: "4px 22px 0", borderTop: "1px solid " + T.accent + "55" }}>
             {/* 説明文も必ず1行に収める（長い文は自動で少し詰める）。2行に折れると座りが悪い。 */}
             <span style={{
-              fontFamily: mincho, color: "#E4E0D4", letterSpacing: 1, lineHeight: 1.5, whiteSpace: "nowrap",
-              fontSize: fitOneLine(cur.desc, 30, 1080 - 150 * 2 - 44 - 20, 17),
-            }}>{cur.desc}</span>
+              display: "inline-block", fontFamily: mincho, color: "#E4E0D4", letterSpacing: 1, lineHeight: 1.5,
+              fontSize: fitLines(cur.desc, 30, 1080 - 150 * 2 - 44 - 20, 17),
+            }}>
+              {splitLines(cur.desc).map((l, k) => <div key={k} style={{ whiteSpace: "nowrap" }}>{l}</div>)}
+            </span>
           </div>
         </div>
       ) : null}

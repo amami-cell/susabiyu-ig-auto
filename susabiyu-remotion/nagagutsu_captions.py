@@ -154,8 +154,25 @@ def name_broken(name):
     return _BREAKS_N.get(d, d)
 
 
+# 説明文を「あえて2行で見せたい」料理だけ、承認済みの改行位置を ｜ で指定する。
+# 指定が無い料理は1行のまま（描画側が幅に合わせて自動で詰める）。
+# ※投稿本文(cap)には ｜ を入れない。ここは動画に焼く表示専用の指定。
+DESC_BREAKS = {
+    "アンチョビキャベツ": "ざく切りキャベツに旨塩アンチョビ、｜まずは一杯のお供に。",
+}
+
+_DESC_BREAKS_N = None
+
+
 def desc_for(name):
-    """料理の“こだわり／説明書き”の一言（動画の余白に添える用）。cap の締めの一行を使う。"""
+    """料理の“こだわり／説明書き”（動画の余白に添える用）。cap の締めの一行を使う。
+    DESC_BREAKS に指定がある料理だけ、承認済みの位置に ｜（改行マーカー）を入れて返す。"""
+    global _DESC_BREAKS_N
+    if _DESC_BREAKS_N is None:
+        _DESC_BREAKS_N = {clean(k): v for k, v in DESC_BREAKS.items()}
+    d = clean(name)
+    if d in _DESC_BREAKS_N:
+        return _DESC_BREAKS_N[d]
     c = caption_for(name)
     cap = (c.get("cap") or "").strip()
     if cap:

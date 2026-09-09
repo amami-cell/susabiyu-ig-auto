@@ -5,7 +5,7 @@ import { typoPhotos, typoMusic, typoMusicStart } from "./typoData";
 import { ytheme } from "./yoshokuTheme";
 import {
   mincho, serif, clamp, SAFE, rise, drawW,
-  Grain, Vignette, Masthead, PhotoLayer, Slides, SampleBadge, fitOneLine, segNow,
+  Grain, Vignette, Masthead, PhotoLayer, Slides, SampleBadge, fitOneLine, fitLines, splitLines, segNow,
   StoryOpening, StoryEndroll, STORY_OPEN, STORY_END, STORY_XF,
 } from "./yoshokuDesign";
 
@@ -72,9 +72,11 @@ const SizzleBody: React.FC<{ storeName?: string; handle?: string; theme?: string
             {it.desc ? (
               <div style={{
                 marginTop: 12, fontFamily: mincho, color: "#F3E7CF", letterSpacing: 1, opacity: 0.96,
-                whiteSpace: "nowrap", textShadow: "0 2px 16px rgba(0,0,0,0.7)",
-                fontSize: fitOneLine(it.desc, 35, 1080 - SAFE.side * 2 - 20, 22),
-              }}>{it.desc}</div>
+                lineHeight: 1.42, textShadow: "0 2px 16px rgba(0,0,0,0.7)",
+                fontSize: fitLines(it.desc, 35, 1080 - SAFE.side * 2 - 20, 22),
+              }}>
+                {splitLines(it.desc).map((l, k) => <div key={k} style={{ whiteSpace: "nowrap" }}>{l}</div>)}
+              </div>
             ) : null}
             <div style={{ marginTop: 16, fontFamily: serif, color: T.accent, fontSize: 25, letterSpacing: 4, opacity: 0.85 }}>{handle}</div>
           </div>
