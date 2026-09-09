@@ -50,6 +50,9 @@ def read(store, creds_path):
         # K列(表示名)と O列(営業時間)をまとめて取得（K6:O60）。
         rng = "'%s'!K6:O60" % tab
         rows = sp.values().get(spreadsheetId=sid, range=rng).execute().get("values", [])
+        # なぜ取れなかったのかを必ず追えるようにする（タブ名・探した店舗名・並んでいる表示名）。
+        found = [(r[0] or "").strip() for r in rows if r and (r[0] or "").strip()]
+        print("[HOURS] タブ=%s / 探した店舗名=%r / K列にある表示名=%s" % (tab, name, found))
         for r in rows:
             disp = (r[0] if len(r) > 0 else "").strip()
             if not disp:
@@ -57,9 +60,12 @@ def read(store, creds_path):
             if disp == name or (name in disp) or (disp in name):
                 hours = (r[4] if len(r) > 4 else "").strip()  # K,L,M,N,O → O=index4
                 if not hours:
+                    print("[HOURS] 行は見つかったが営業時間(O列)が空: %r" % disp)
                     return "", ""
                 t = _first_time(hours)
+                print("[HOURS] 一致: %r → 営業時間=%r" % (disp, hours))
                 return (("OPEN " + t) if t else ""), hours
+        print("[HOURS] K列に一致する店舗名が無い（%r）" % name)
         return "", ""
     except Exception as e:
         print("[HOURS] 取得スキップ:", e)
