@@ -376,48 +376,48 @@ const CREAM = "#F3E7CF";      // パーチメント地
 const CREAM_D = "#E9D6B4";    // その陰
 const INK_D = "#241A12";      // 濃い焦茶（明るい地の上の文字）
 
-// ⑧H イメージポスター：切り抜き3品（主役1＋脇役2）を紙地に配置した“お店のポスター”。
+// ⑧H パーチメント×角丸カード（切り抜き風・温かい紙地に料理カードが浮く）
 export const YoshokuFeedH: React.FC<P> = ({ storeName = D.storeName, handle = D.handle, theme = D.theme }) => {
-  const T = ytheme(theme);
-  // イメージポスター：切り抜き3品を「主役1＋脇役2」の三角構図で紙の上に配置する。
-  const [d0, d1, d2] = dishes(3);
-  const ghost = (d0.sub || "MEAT BAR").split(" ")[0];
+  const T = ytheme(theme); const d = dish();
+  const ghost = (d.sub || "MEAT BAR").split(" ")[0];
   return (
     <AbsoluteFill style={{ background: "radial-gradient(120% 90% at 50% 34%, " + CREAM + " 0%, " + CREAM_D + " 100%)" }}>
       {/* 紙の繊維（ごく薄い織り目）＝“紙もの”の質感 */}
       <AbsoluteFill style={{ opacity: 0.05, backgroundImage: "repeating-linear-gradient(90deg, rgba(120,80,40,0.6) 0 1px, transparent 1px 5px), repeating-linear-gradient(0deg, rgba(120,80,40,0.5) 0 1px, transparent 1px 6px)" }} />
       {/* 紙の透かし（ごく薄く） */}
-      <div style={{ position: "absolute", top: 320, left: -20, right: -20, textAlign: "center", fontFamily: serif, fontStyle: "italic", fontWeight: 600, color: T.slab, opacity: 0.055, fontSize: 260, lineHeight: 1, whiteSpace: "nowrap", overflow: "hidden" }}>{ghost}</div>
+      <div style={{ position: "absolute", top: 320, left: -20, right: -20, textAlign: "center", fontFamily: serif, fontStyle: "italic", fontWeight: 600, color: T.slab, opacity: 0.07, fontSize: 300, lineHeight: 1, whiteSpace: "nowrap", overflow: "hidden" }}>{ghost}</div>
       {/* 紙の内枠（額のマット） */}
       <div style={{ position: "absolute", inset: 28, border: "1px solid rgba(150,110,70,0.35)" }} />
       <div style={{ position: "absolute", top: 96, left: 0, right: 0, display: "flex", justifyContent: "center" }}>
         <Brand storeName={storeName} accent={T.slab} tint={INK_D} logoH={124} center />
       </div>
 
-      {/* 「本日のおすすめ」ラベル（ロゴの直下） */}
-      <div style={{ position: "absolute", left: 0, right: 0, top: 250, textAlign: "center" }}>
-        <div style={{ display: "inline-block", padding: "5px 16px", border: "1px solid rgba(176,72,31,0.5)", borderRadius: 999, fontFamily: mincho, color: T.slab, fontSize: 20, letterSpacing: 4 }}>本日のおすすめ</div>
-      </div>
+      {/* 接地影（皿の下にふわりと影）＝紙の上に“置いてある”ように見せる */}
+      <div style={{ position: "absolute", left: 250, top: 916, width: 580, height: 92, background: "radial-gradient(50% 50% at 50% 50%, rgba(74,42,16,0.34) 0%, rgba(74,42,16,0) 70%)" }} />
+      {/* 料理：縁をぼかして紙に溶け込ませる（長方形の“貼った感”を消す）＋紙に合わせた暖色グレーディング */}
+      {d.cut ? (
+        <div style={{ position: "absolute", left: 96, right: 96, top: 316, height: 650 }}>
+          <Cutout src={d.cut} />
+        </div>
+      ) : (
+        <div style={{
+          position: "absolute", left: 96, right: 96, top: 322, height: 640,
+          WebkitMaskImage: "radial-gradient(ellipse 50% 50% at 50% 47%, #000 54%, rgba(0,0,0,0.55) 72%, transparent 88%)",
+          maskImage: "radial-gradient(ellipse 50% 50% at 50% 47%, #000 54%, rgba(0,0,0,0.55) 72%, transparent 88%)",
+        }}>
+          <Photo src={d.src} bri={1.06} sat={1.06} con={1.04} style={{ filter: "brightness(1.06) saturate(1.06) contrast(1.04) sepia(0.16)" }} />
+        </div>
+      )}
 
-      {/* 主役（1品目）：中央に大きく。紙の上に置いた接地影付き。 */}
-      <Ground left={300} top={664} w={480} h={78} a={0.32} />
-      <CutSlot d={d0} left={250} top={300} w={580} h={400} />
-      <div style={{ position: "absolute", left: 100, right: 100, top: 710, textAlign: "center" }}>
-        <div style={{ fontFamily: serif, color: T.slab, fontSize: 19, letterSpacing: 4, fontWeight: 600, marginBottom: 6 }}>01</div>
-        <HeroName text={dispName(d0)} sub={d0.sub} maxPx={66} minPx={30} usableW={FEED_W - 200} color={INK_D} subColor={T.slab} align="center" />
-      </div>
-      <div style={{ position: "absolute", left: 470, right: 470, top: 828, height: 2, background: "rgba(176,72,31,0.45)" }} />
-
-      {/* 脇役（2・3品目）：下段に左右で。主役より一回り小さく置いてポスターの三角構図に。 */}
-      <Ground left={128} top={1082} w={284} h={58} a={0.26} />
-      <Ground left={668} top={1082} w={284} h={58} a={0.26} />
-      <CutSlot d={d1} left={84} top={862} w={372} h={268} />
-      <CutSlot d={d2} left={624} top={862} w={372} h={268} />
-      <div style={{ position: "absolute", left: 84, width: 372, top: 1146 }}>
-        <SmallName text={dispName(d1)} w={372} color={INK_D} num="02" numColor={T.slab} />
-      </div>
-      <div style={{ position: "absolute", left: 624, width: 372, top: 1146 }}>
-        <SmallName text={dispName(d2)} w={372} color={INK_D} num="03" numColor={T.slab} />
+      <div style={{ position: "absolute", left: 76, right: 76, top: 1012, textAlign: "center" }}>
+        <div style={{ display: "inline-block", padding: "5px 16px", border: "1px solid rgba(176,72,31,0.5)", borderRadius: 999, fontFamily: mincho, color: T.slab, fontSize: 20, letterSpacing: 4, marginBottom: 14 }}>本日のおすすめ</div>
+        <HeroName text={dispName(d)} sub={d.sub} maxPx={86} minPx={34} usableW={FEED_W - 152} color={INK_D} subColor={T.slab} align="center" />
+        {d.desc ? (
+          <>
+            <div style={{ width: 72, height: 3, background: T.slab, margin: "16px auto 12px" }} />
+            <div style={{ fontFamily: mincho, color: "rgba(36,26,18,0.78)", fontSize: 26, lineHeight: 1.62, letterSpacing: 1 }}>{d.desc}</div>
+          </>
+        ) : null}
       </div>
       <div style={{ position: "absolute", right: SIDE, bottom: 54, fontFamily: serif, color: "rgba(36,26,18,0.6)", fontSize: 24, letterSpacing: 3 }}>{handle}</div>
       <Grain opacity={0.05} />
@@ -454,30 +454,66 @@ export const YoshokuFeedH2: React.FC<P> = ({ storeName = D.storeName, handle = D
   );
 };
 
-// ⑧H3 角丸ステッカー×ハーフ地（クリーム／テラコッタ2分割＋傾けたカット＝雑誌の切り抜き）
+// ⑧H3 イメージポスター（切り抜き3品）
+// 「お店のポスター」の作法で組む：紙の額 → ロゴ → 見出し → 主役1品を大きく →
+// 脇役2品を左右に少し傾けて重ねる → テラコッタのフッター帯で締める。
+// 3品を同じ大きさで並べると“一覧表”になり主役が消えるので、意図的に主従をつける。
 export const YoshokuFeedH3: React.FC<P> = ({ storeName = D.storeName, handle = D.handle, theme = D.theme }) => {
-  const T = ytheme(theme); const d = dish();
+  const T = ytheme(theme);
+  const [d0, d1, d2] = dishes(3);
+  const ghost = (d0.sub || "MEAT BAR").split(" ")[0];
+  const FOOT = 132;                       // 下のテラコッタ帯
   return (
-    <AbsoluteFill style={{ backgroundColor: CREAM }}>
-      {/* 下半分をテラコッタのベタ面に（2分割） */}
-      <div style={{ position: "absolute", left: 0, right: 0, bottom: 0, height: 540, background: T.slab }} />
-      <div style={{ position: "absolute", top: 92, left: 0, right: 0, display: "flex", justifyContent: "center" }}>
-        <Brand storeName={storeName} accent={T.slab} tint={INK_D} logoH={120} center />
+    <AbsoluteFill style={{ background: "radial-gradient(120% 90% at 50% 30%, " + CREAM + " 0%, " + CREAM_D + " 100%)" }}>
+      {/* 紙の質感（織り目）＋大きな透かし文字＝ポスターの“刷り物”感 */}
+      <AbsoluteFill style={{ opacity: 0.05, backgroundImage: "repeating-linear-gradient(90deg, rgba(120,80,40,0.6) 0 1px, transparent 1px 5px), repeating-linear-gradient(0deg, rgba(120,80,40,0.5) 0 1px, transparent 1px 6px)" }} />
+      <div style={{ position: "absolute", top: 430, left: -20, right: -20, textAlign: "center", fontFamily: serif, fontStyle: "italic", fontWeight: 600, color: T.slab, opacity: 0.055, fontSize: 300, lineHeight: 1, whiteSpace: "nowrap", overflow: "hidden" }}>{ghost}</div>
+      {/* ポスターの二重罫（外に細・内に極細） */}
+      <div style={{ position: "absolute", inset: 26, border: "2px solid rgba(150,110,70,0.45)" }} />
+      <div style={{ position: "absolute", inset: 38, border: "1px solid rgba(150,110,70,0.28)" }} />
+
+      {/* ロゴ（中央・上） */}
+      <div style={{ position: "absolute", top: 74, left: 0, right: 0, display: "flex", justifyContent: "center" }}>
+        <Brand storeName={storeName} accent={T.slab} tint={INK_D} logoH={118} center />
       </div>
-      {/* 角丸ステッカー＝切り抜き風。わずかに傾けて“貼った”感、クリーム縁＋落ち影 */}
-      {d.cut ? (
-        <div style={{ position: "absolute", left: 150, top: 312, width: 780, height: 720, transform: "rotate(-4deg)" }}>
-          <Cutout src={d.cut} style={{ filter: "drop-shadow(0 28px 38px rgba(40,20,8,0.45)) saturate(1.08) contrast(1.04)" }} />
-        </div>
-      ) : (
-        <div style={{ position: "absolute", left: 190, top: 320, width: 700, height: 700, borderRadius: 60, overflow: "hidden", border: "12px solid #FBF3E2", boxShadow: "0 36px 70px rgba(40,20,8,0.4)", transform: "rotate(-4deg)" }}>
-          <Photo src={d.src} />
-        </div>
-      )}
-      <div style={{ position: "absolute", left: SIDE, right: SIDE, bottom: 96, textAlign: "center" }}>
-        <HeroName text={dispName(d)} sub={d.sub} maxPx={84} usableW={FEED_W - SIDE * 2} color="#FDF6EA" subColor="rgba(253,246,234,0.85)" align="center" shadow={NAME_SHADOW} />
+
+      {/* 見出し帯：左右に罫を引いた「本日のおすすめ」＝ポスターの惹句 */}
+      <div style={{ position: "absolute", top: 244, left: 120, right: 120, display: "flex", alignItems: "center", gap: 18 }}>
+        <div style={{ flex: 1, height: 1, background: "rgba(176,72,31,0.45)" }} />
+        <div style={{ fontFamily: mincho, color: T.slab, fontSize: 26, letterSpacing: 10, fontWeight: 700 }}>本日のおすすめ</div>
+        <div style={{ flex: 1, height: 1, background: "rgba(176,72,31,0.45)" }} />
       </div>
-      <div style={{ position: "absolute", left: 0, right: 0, bottom: 52, textAlign: "center", fontFamily: serif, color: "rgba(253,246,234,0.8)", fontSize: 24, letterSpacing: 3 }}>{handle}</div>
+
+      {/* 主役（1品目）：中央に大きく。接地影で紙の上に置いた見え方に。 */}
+      <Ground left={310} top={646} w={460} h={74} a={0.3} />
+      <CutSlot d={d0} left={252} top={296} w={576} h={392} />
+      <div style={{ position: "absolute", left: 110, right: 110, top: 702, textAlign: "center" }}>
+        <HeroName text={dispName(d0)} sub={d0.sub} maxPx={64} minPx={30} usableW={FEED_W - 220} color={INK_D} subColor={T.slab} align="center" />
+      </div>
+
+      {/* 脇役（2・3品目）：左右にわずかに傾けて配置＝“貼ったポスター”のリズム */}
+      <Ground left={140} top={1046} w={252} h={52} a={0.24} />
+      <Ground left={688} top={1046} w={252} h={52} a={0.24} />
+      <div style={{ position: "absolute", left: 78, top: 838, width: 356, height: 244, transform: "rotate(-3deg)" }}>
+        <CutSlot d={d1} left={0} top={0} w={356} h={244} />
+      </div>
+      <div style={{ position: "absolute", left: 646, top: 838, width: 356, height: 244, transform: "rotate(3deg)" }}>
+        <CutSlot d={d2} left={0} top={0} w={356} h={244} />
+      </div>
+      <div style={{ position: "absolute", left: 78, width: 356, top: 1098 }}>
+        <SmallName text={dispName(d1)} w={356} color={INK_D} />
+      </div>
+      <div style={{ position: "absolute", left: 646, width: 356, top: 1098 }}>
+        <SmallName text={dispName(d2)} w={356} color={INK_D} />
+      </div>
+
+      {/* フッター帯（テラコッタ）＝ポスターの署名欄 */}
+      <div style={{ position: "absolute", left: 0, right: 0, bottom: 0, height: FOOT, background: T.slab }} />
+      <div style={{ position: "absolute", left: 0, right: 0, bottom: FOOT - 1, height: 3, background: "rgba(253,246,234,0.5)" }} />
+      <div style={{ position: "absolute", left: 74, right: 74, bottom: 46, display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
+        <span style={{ fontFamily: mincho, color: "#FDF6EA", fontSize: 30, fontWeight: 700, letterSpacing: 4 }}>{storeName}</span>
+        <span style={{ fontFamily: serif, color: "rgba(253,246,234,0.9)", fontSize: 26, letterSpacing: 4 }}>{handle}</span>
+      </div>
       <Grain opacity={0.05} />
     </AbsoluteFill>
   );
@@ -490,7 +526,7 @@ export const FEED_COMPS: { id: string; label: string; comp: React.FC<P> }[] = [
   { id: "YoshokuFeedE", label: "フィード案E・サイドレール(テラコッタ帯)", comp: YoshokuFeedE },
   { id: "YoshokuFeedE2", label: "フィード案E2・サイドレール(オリーブ帯)", comp: YoshokuFeedE2 },
   { id: "YoshokuFeedE3", label: "フィード案E3・サイドレール(ゴールド帯)", comp: YoshokuFeedE3 },
-  { id: "YoshokuFeedH", label: "フィード案H・切り抜き3品のイメージポスター", comp: YoshokuFeedH },
+  { id: "YoshokuFeedH", label: "フィード案H・パーチメント×ぼかし切り抜き", comp: YoshokuFeedH },
   { id: "YoshokuFeedH2", label: "フィード案H2・丸皿カット(正円・テラコッタ地)", comp: YoshokuFeedH2 },
-  { id: "YoshokuFeedH3", label: "フィード案H3・角丸ステッカー×ハーフ地", comp: YoshokuFeedH3 },
+  { id: "YoshokuFeedH3", label: "フィード案H3・イメージポスター(切り抜き3品)", comp: YoshokuFeedH3 },
 ];
