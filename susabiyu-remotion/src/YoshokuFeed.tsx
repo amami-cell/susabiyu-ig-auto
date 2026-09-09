@@ -20,8 +20,14 @@ type P = { storeName?: string; handle?: string; theme?: string };
 const D = { storeName: "ナガグツ", handle: "@nagagutsu0427", theme: "italian" };
 const SIDE = 64;
 
+const EMPTY_DISH = { src: "", caption: "", sub: "", story: "", disp: "", desc: "", cut: "" };
 function dish() {
-  return typoPhotos[0] || { src: "", caption: "", sub: "", story: "", disp: "", desc: "", cut: "" };
+  return typoPhotos[0] || EMPTY_DISH;
+}
+// n品ぶん取り出す。写真が足りない時は最後の1枚で埋める（枠が空かないように）。
+function dishes(n: number) {
+  const p: any[] = typoPhotos.length ? (typoPhotos as any[]) : [EMPTY_DISH];
+  return Array.from({ length: n }, (_, i) => p[i] || p[p.length - 1]);
 }
 function dispName(d: { disp?: string; caption?: string }) {
   return (d.disp && d.disp.length ? d.disp : (d.caption || ""));
@@ -127,6 +133,45 @@ const Cutout: React.FC<{ src: string; style?: React.CSSProperties }> = ({ src, s
   }} />
 );
 
+// 切り抜きを1枠に描く共通パーツ。cut(透過PNG)があれば切り抜き、無ければ従来の楕円マスク写真へ
+// フォールバックする（＝背景除去が動かない環境でもレイアウトは崩れない）。
+const CutSlot: React.FC<{ d: any; left: number; top: number; w: number; h: number }> = ({ d, left, top, w, h }) => (
+  <div style={{ position: "absolute", left, top, width: w, height: h }}>
+    {d.cut ? (
+      <Cutout src={d.cut} />
+    ) : (
+      <div style={{
+        width: "100%", height: "100%",
+        WebkitMaskImage: "radial-gradient(ellipse 50% 50% at 50% 47%, #000 54%, rgba(0,0,0,0.55) 72%, transparent 88%)",
+        maskImage: "radial-gradient(ellipse 50% 50% at 50% 47%, #000 54%, rgba(0,0,0,0.55) 72%, transparent 88%)",
+      }}>
+        <Photo src={d.src} style={{ filter: "brightness(1.06) saturate(1.06) contrast(1.04) sepia(0.16)" }} />
+      </div>
+    )}
+  </div>
+);
+
+// 接地影（紙の上に“置いてある”ように見せる楕円のぼかし影）。
+const Ground: React.FC<{ left: number; top: number; w: number; h: number; a?: number }> = ({ left, top, w, h, a = 0.3 }) => (
+  <div style={{
+    position: "absolute", left, top, width: w, height: h,
+    background: "radial-gradient(50% 50% at 50% 50%, rgba(74,42,16," + a + ") 0%, rgba(74,42,16,0) 70%)",
+  }} />
+);
+
+// 脇役の料理名（枠幅に合わせて必ず1行に収める小さめの極太明朝）。
+const SmallName: React.FC<{ text: string; w: number; color: string; num?: string; numColor?: string }> =
+  ({ text, w, color, num, numColor }) => {
+    const one = (text || "").replace(/[｜\n]/g, "");
+    const size = Math.max(22, Math.min(38, Math.floor(w / Math.max(1, jlen(one)))));
+    return (
+      <div style={{ textAlign: "center" }}>
+        {num ? <div style={{ fontFamily: serif, color: numColor, fontSize: 19, letterSpacing: 4, fontWeight: 600, marginBottom: 6 }}>{num}</div> : null}
+        <div style={{ fontFamily: minchoBlack, fontWeight: 900, color, fontSize: size, lineHeight: 1.1, letterSpacing: -0.5, whiteSpace: "nowrap" }}>{one}</div>
+      </div>
+    );
+  };
+
 // ①A フルブリード×ボトム暗幕（定番・最強のデフォルト）
 export const YoshokuFeedA: React.FC<P> = ({ storeName = D.storeName, handle = D.handle, theme = D.theme }) => {
   const T = ytheme(theme); const d = dish();
@@ -177,8 +222,8 @@ export const YoshokuFeedB: React.FC<P> = ({ storeName = D.storeName, handle = D.
 };
 
 // ③C 雑誌エディトリアル（写真を主役に全面／クリームのキャプション枠を重ねる）
-// 旧版は左のテラコッタ面が大きすぎたので廃止。誌面のキャプションボックスの作法で、
-// 「小見出し→伊語→料理名→罫→説明」を1つの枠に収める＝雑誌のページに見える構成。
+// 旧版は左のテラコッタ面が大きすぎたので廃止。さらにクリームのキャプション枠も“背景色が目立ちすぎる”
+// ため廃止し、写真の下をやわらかく沈めて文字を直接置く誌面に変更（写真が主役／文字は左の罫で束ねる）。
 export const YoshokuFeedC: React.FC<P> = ({ storeName = D.storeName, handle = D.handle, theme = D.theme }) => {
   const T = ytheme(theme); const d = dish();
   const PANEL_W = 792;
@@ -191,23 +236,26 @@ export const YoshokuFeedC: React.FC<P> = ({ storeName = D.storeName, handle = D.
         <Brand storeName={storeName} accent={T.accent} shadow={NAME_SHADOW} />
       </div>
 
-      {/* 誌面のキャプションボックス（クリーム地・左にテラコッタの small bar） */}
-      <div style={{ position: "absolute", left: 56, width: PANEL_W, bottom: 56, background: "#FBF3E2", boxShadow: "0 26px 60px rgba(0,0,0,0.42)" }}>
-        <div style={{ position: "absolute", left: 0, top: 0, bottom: 0, width: 8, background: T.slab }} />
-        <div style={{ padding: "30px 38px 32px 46px" }}>
-          <div style={{ fontFamily: mincho, color: T.slab, fontSize: 21, letterSpacing: 6, marginBottom: 12 }}>本日のおすすめ</div>
-          <div style={{ height: 1, background: "rgba(176,72,31,0.35)", marginBottom: 16 }} />
-          <HeroName text={dispName(d)} sub={d.sub} maxPx={76} minPx={30} usableW={PANEL_W - 84} color={INK_D} subColor={T.slab} />
+      {/* 誌面のキャプション。クリームのベタ枠は“背景色が目立ちすぎる”ので廃止し、
+          写真の下側をやわらかく沈めた上に直接文字を置く（写真が主役のまま読める）。 */}
+      <div style={{ position: "absolute", left: 0, right: 0, bottom: 0, height: 720, background: "linear-gradient(180deg, rgba(10,7,4,0) 0%, rgba(10,7,4,0.30) 44%, rgba(10,7,4,0.66) 74%, rgba(10,7,4,0.84) 100%)" }} />
+      <div style={{ position: "absolute", left: 56, width: PANEL_W, bottom: 74 }}>
+        {/* 左のテラコッタ罫だけ残して“誌面”の骨格を保つ */}
+        <div style={{ position: "absolute", left: 0, top: 4, bottom: 4, width: 5, background: T.accent, opacity: 0.9 }} />
+        <div style={{ paddingLeft: 30 }}>
+          <div style={{ fontFamily: mincho, color: T.accent, fontSize: 21, letterSpacing: 6, marginBottom: 12, textShadow: NAME_SHADOW }}>本日のおすすめ</div>
+          <div style={{ height: 1, background: "rgba(246,239,224,0.32)", marginBottom: 16 }} />
+          <HeroName text={dispName(d)} sub={d.sub} maxPx={76} minPx={30} usableW={PANEL_W - 60} color="#F8F1E2" subColor={T.accent} shadow={NAME_SHADOW} />
           {d.desc ? (
             <>
-              <div style={{ width: 72, height: 3, background: T.slab, margin: "18px 0 14px" }} />
-              <div style={{ fontFamily: mincho, color: "rgba(36,26,18,0.8)", fontSize: 26, lineHeight: 1.68, letterSpacing: 1 }}>{d.desc}</div>
+              <div style={{ width: 72, height: 3, background: T.accent, margin: "18px 0 14px" }} />
+              <div style={{ fontFamily: mincho, color: "rgba(246,239,224,0.9)", fontSize: 26, lineHeight: 1.68, letterSpacing: 1, textShadow: "0 2px 14px rgba(0,0,0,0.8)" }}>{d.desc}</div>
             </>
           ) : null}
         </div>
       </div>
 
-      <div style={{ position: "absolute", right: SIDE, bottom: 22, fontFamily: serif, color: "#F2E8D6", fontSize: 22, letterSpacing: 3, textShadow: NAME_SHADOW }}>{handle}</div>
+      <div style={{ position: "absolute", right: SIDE, bottom: 26, fontFamily: serif, color: "rgba(242,232,214,0.8)", fontSize: 22, letterSpacing: 3, textShadow: NAME_SHADOW }}>{handle}</div>
       <Grain opacity={0.05} />
     </AbsoluteFill>
   );
@@ -328,48 +376,48 @@ const CREAM = "#F3E7CF";      // パーチメント地
 const CREAM_D = "#E9D6B4";    // その陰
 const INK_D = "#241A12";      // 濃い焦茶（明るい地の上の文字）
 
-// ⑧H パーチメント×角丸カード（切り抜き風・温かい紙地に料理カードが浮く）
+// ⑧H イメージポスター：切り抜き3品（主役1＋脇役2）を紙地に配置した“お店のポスター”。
 export const YoshokuFeedH: React.FC<P> = ({ storeName = D.storeName, handle = D.handle, theme = D.theme }) => {
-  const T = ytheme(theme); const d = dish();
-  const ghost = (d.sub || "MEAT BAR").split(" ")[0];
+  const T = ytheme(theme);
+  // イメージポスター：切り抜き3品を「主役1＋脇役2」の三角構図で紙の上に配置する。
+  const [d0, d1, d2] = dishes(3);
+  const ghost = (d0.sub || "MEAT BAR").split(" ")[0];
   return (
     <AbsoluteFill style={{ background: "radial-gradient(120% 90% at 50% 34%, " + CREAM + " 0%, " + CREAM_D + " 100%)" }}>
       {/* 紙の繊維（ごく薄い織り目）＝“紙もの”の質感 */}
       <AbsoluteFill style={{ opacity: 0.05, backgroundImage: "repeating-linear-gradient(90deg, rgba(120,80,40,0.6) 0 1px, transparent 1px 5px), repeating-linear-gradient(0deg, rgba(120,80,40,0.5) 0 1px, transparent 1px 6px)" }} />
       {/* 紙の透かし（ごく薄く） */}
-      <div style={{ position: "absolute", top: 320, left: -20, right: -20, textAlign: "center", fontFamily: serif, fontStyle: "italic", fontWeight: 600, color: T.slab, opacity: 0.07, fontSize: 300, lineHeight: 1, whiteSpace: "nowrap", overflow: "hidden" }}>{ghost}</div>
+      <div style={{ position: "absolute", top: 320, left: -20, right: -20, textAlign: "center", fontFamily: serif, fontStyle: "italic", fontWeight: 600, color: T.slab, opacity: 0.055, fontSize: 260, lineHeight: 1, whiteSpace: "nowrap", overflow: "hidden" }}>{ghost}</div>
       {/* 紙の内枠（額のマット） */}
       <div style={{ position: "absolute", inset: 28, border: "1px solid rgba(150,110,70,0.35)" }} />
       <div style={{ position: "absolute", top: 96, left: 0, right: 0, display: "flex", justifyContent: "center" }}>
         <Brand storeName={storeName} accent={T.slab} tint={INK_D} logoH={124} center />
       </div>
 
-      {/* 接地影（皿の下にふわりと影）＝紙の上に“置いてある”ように見せる */}
-      <div style={{ position: "absolute", left: 250, top: 916, width: 580, height: 92, background: "radial-gradient(50% 50% at 50% 50%, rgba(74,42,16,0.34) 0%, rgba(74,42,16,0) 70%)" }} />
-      {/* 料理：縁をぼかして紙に溶け込ませる（長方形の“貼った感”を消す）＋紙に合わせた暖色グレーディング */}
-      {d.cut ? (
-        <div style={{ position: "absolute", left: 96, right: 96, top: 316, height: 650 }}>
-          <Cutout src={d.cut} />
-        </div>
-      ) : (
-        <div style={{
-          position: "absolute", left: 96, right: 96, top: 322, height: 640,
-          WebkitMaskImage: "radial-gradient(ellipse 50% 50% at 50% 47%, #000 54%, rgba(0,0,0,0.55) 72%, transparent 88%)",
-          maskImage: "radial-gradient(ellipse 50% 50% at 50% 47%, #000 54%, rgba(0,0,0,0.55) 72%, transparent 88%)",
-        }}>
-          <Photo src={d.src} bri={1.06} sat={1.06} con={1.04} style={{ filter: "brightness(1.06) saturate(1.06) contrast(1.04) sepia(0.16)" }} />
-        </div>
-      )}
+      {/* 「本日のおすすめ」ラベル（ロゴの直下） */}
+      <div style={{ position: "absolute", left: 0, right: 0, top: 250, textAlign: "center" }}>
+        <div style={{ display: "inline-block", padding: "5px 16px", border: "1px solid rgba(176,72,31,0.5)", borderRadius: 999, fontFamily: mincho, color: T.slab, fontSize: 20, letterSpacing: 4 }}>本日のおすすめ</div>
+      </div>
 
-      <div style={{ position: "absolute", left: 76, right: 76, top: 1012, textAlign: "center" }}>
-        <div style={{ display: "inline-block", padding: "5px 16px", border: "1px solid rgba(176,72,31,0.5)", borderRadius: 999, fontFamily: mincho, color: T.slab, fontSize: 20, letterSpacing: 4, marginBottom: 14 }}>本日のおすすめ</div>
-        <HeroName text={dispName(d)} sub={d.sub} maxPx={86} minPx={34} usableW={FEED_W - 152} color={INK_D} subColor={T.slab} align="center" />
-        {d.desc ? (
-          <>
-            <div style={{ width: 72, height: 3, background: T.slab, margin: "16px auto 12px" }} />
-            <div style={{ fontFamily: mincho, color: "rgba(36,26,18,0.78)", fontSize: 26, lineHeight: 1.62, letterSpacing: 1 }}>{d.desc}</div>
-          </>
-        ) : null}
+      {/* 主役（1品目）：中央に大きく。紙の上に置いた接地影付き。 */}
+      <Ground left={300} top={664} w={480} h={78} a={0.32} />
+      <CutSlot d={d0} left={250} top={300} w={580} h={400} />
+      <div style={{ position: "absolute", left: 100, right: 100, top: 710, textAlign: "center" }}>
+        <div style={{ fontFamily: serif, color: T.slab, fontSize: 19, letterSpacing: 4, fontWeight: 600, marginBottom: 6 }}>01</div>
+        <HeroName text={dispName(d0)} sub={d0.sub} maxPx={66} minPx={30} usableW={FEED_W - 200} color={INK_D} subColor={T.slab} align="center" />
+      </div>
+      <div style={{ position: "absolute", left: 470, right: 470, top: 828, height: 2, background: "rgba(176,72,31,0.45)" }} />
+
+      {/* 脇役（2・3品目）：下段に左右で。主役より一回り小さく置いてポスターの三角構図に。 */}
+      <Ground left={128} top={1082} w={284} h={58} a={0.26} />
+      <Ground left={668} top={1082} w={284} h={58} a={0.26} />
+      <CutSlot d={d1} left={84} top={862} w={372} h={268} />
+      <CutSlot d={d2} left={624} top={862} w={372} h={268} />
+      <div style={{ position: "absolute", left: 84, width: 372, top: 1146 }}>
+        <SmallName text={dispName(d1)} w={372} color={INK_D} num="02" numColor={T.slab} />
+      </div>
+      <div style={{ position: "absolute", left: 624, width: 372, top: 1146 }}>
+        <SmallName text={dispName(d2)} w={372} color={INK_D} num="03" numColor={T.slab} />
       </div>
       <div style={{ position: "absolute", right: SIDE, bottom: 54, fontFamily: serif, color: "rgba(36,26,18,0.6)", fontSize: 24, letterSpacing: 3 }}>{handle}</div>
       <Grain opacity={0.05} />
@@ -442,7 +490,7 @@ export const FEED_COMPS: { id: string; label: string; comp: React.FC<P> }[] = [
   { id: "YoshokuFeedE", label: "フィード案E・サイドレール(テラコッタ帯)", comp: YoshokuFeedE },
   { id: "YoshokuFeedE2", label: "フィード案E2・サイドレール(オリーブ帯)", comp: YoshokuFeedE2 },
   { id: "YoshokuFeedE3", label: "フィード案E3・サイドレール(ゴールド帯)", comp: YoshokuFeedE3 },
-  { id: "YoshokuFeedH", label: "フィード案H・パーチメント×ぼかし切り抜き", comp: YoshokuFeedH },
+  { id: "YoshokuFeedH", label: "フィード案H・切り抜き3品のイメージポスター", comp: YoshokuFeedH },
   { id: "YoshokuFeedH2", label: "フィード案H2・丸皿カット(正円・テラコッタ地)", comp: YoshokuFeedH2 },
   { id: "YoshokuFeedH3", label: "フィード案H3・角丸ステッカー×ハーフ地", comp: YoshokuFeedH3 },
 ];
