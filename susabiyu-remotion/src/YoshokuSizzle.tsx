@@ -68,8 +68,13 @@ const SizzleBody: React.FC<{ storeName?: string; handle?: string; theme?: string
             <div style={{ width: drawW(local, 12, 100, 24), height: 2, background: T.accent, marginBottom: 18 }} />
             {it.sub ? <div style={{ fontFamily: serif, color: T.accent, fontSize: 30, letterSpacing: 4, textTransform: "uppercase", fontWeight: 600, marginBottom: 8 }}>{it.sub}</div> : null}
             <div style={{ fontFamily: mincho, color: "#FFF6E6", fontSize: sz, fontWeight: 700, letterSpacing: 1, lineHeight: 1.16, whiteSpace: "nowrap", textShadow: "0 3px 24px rgba(0,0,0,0.75)" }}>{one}</div>
-            {it.story ? (
-              <div style={{ marginTop: 12, fontFamily: mincho, color: "#F3E7CF", fontSize: 35, letterSpacing: 2, opacity: 0.96, textShadow: "0 2px 16px rgba(0,0,0,0.7)" }}>{it.story}</div>
+            {/* 短句(story)は廃止。料理の説明文(desc)を必ず1行で置く。 */}
+            {it.desc ? (
+              <div style={{
+                marginTop: 12, fontFamily: mincho, color: "#F3E7CF", letterSpacing: 1, opacity: 0.96,
+                whiteSpace: "nowrap", textShadow: "0 2px 16px rgba(0,0,0,0.7)",
+                fontSize: fitOneLine(it.desc, 35, 1080 - SAFE.side * 2 - 20, 22),
+              }}>{it.desc}</div>
             ) : null}
             <div style={{ marginTop: 16, fontFamily: serif, color: T.accent, fontSize: 25, letterSpacing: 4, opacity: 0.85 }}>{handle}</div>
           </div>

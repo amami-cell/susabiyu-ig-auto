@@ -47,8 +47,13 @@ const DishBody: React.FC<{ storeName?: string; handle?: string; theme?: string }
         <div style={{ width: ruleW, height: 2, background: T.accent, opacity: 0.9, marginBottom: 18 }} />
         {cur.sub ? <div style={{ fontFamily: serif, color: T.accent, fontSize: 30, letterSpacing: 4, textTransform: "uppercase", fontWeight: 600, marginBottom: 8 }}>{cur.sub}</div> : null}
         <div style={{ fontFamily: mincho, color: T.ink, fontSize: nameSize, fontWeight: 700, letterSpacing: 1, lineHeight: 1.16, whiteSpace: "nowrap", textShadow: "0 3px 22px rgba(0,0,0,0.55)" }}>{one}</div>
-        {cur.story ? (
-          <div style={{ marginTop: 14, fontFamily: mincho, color: T.sub, fontSize: 36, letterSpacing: 2, opacity: 0.96, textShadow: "0 2px 14px rgba(0,0,0,0.5)" }}>{cur.story}</div>
+        {/* 短句(story)は廃止。料理の説明文(desc)を必ず1行で置く。 */}
+        {cur.desc ? (
+          <div style={{
+            marginTop: 14, fontFamily: mincho, color: T.sub, letterSpacing: 1, opacity: 0.96,
+            whiteSpace: "nowrap", textShadow: "0 2px 14px rgba(0,0,0,0.5)",
+            fontSize: fitOneLine(cur.desc, 36, 1080 - SAFE.side * 2 - 20, 22),
+          }}>{cur.desc}</div>
         ) : null}
         <div style={{ marginTop: 16, fontFamily: serif, color: T.accent, fontSize: 26, letterSpacing: 4, opacity: 0.85 }}>{handle}</div>
       </div>

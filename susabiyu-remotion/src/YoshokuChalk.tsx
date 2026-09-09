@@ -58,9 +58,7 @@ const ChalkBody: React.FC<{ storeName?: string; handle?: string; theme?: string 
       <div key={i} style={{ position: "absolute", top: 400, left: SAFE.side, right: SAFE.side, textAlign: "center", ...rise(local, 3, { dist: 20, blur: 6 }) }}>
         {cur.sub ? <div style={{ fontFamily: serif, color: T.accent, fontSize: 28, letterSpacing: 4, textTransform: "uppercase", fontWeight: 600, marginBottom: 8, fontStyle: "italic" }}>{cur.sub}</div> : null}
         <div style={{ fontFamily: mincho, color: "#F4F2EA", fontSize: nameSize, fontWeight: 700, letterSpacing: 1, lineHeight: 1.18, whiteSpace: "nowrap", textShadow: "0 1px 0 rgba(255,255,255,0.22), 0 4px 18px rgba(0,0,0,0.5)" }}>{one}</div>
-        {cur.story ? (
-          <div style={{ marginTop: 14, fontFamily: serif, fontStyle: "italic", color: T.accent, fontSize: 36, letterSpacing: 3, opacity: 0.95 }}>{cur.story}</div>
-        ) : null}
+        {/* 短句(story)は廃止。説明文(desc)は写真の下に1行で置いている。 */}
       </div>
 
       {/* 写真：クリームのマット＋金ヘアラインで額装。4品をクロスフェード。

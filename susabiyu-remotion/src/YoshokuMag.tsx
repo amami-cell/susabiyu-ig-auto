@@ -21,7 +21,8 @@ const MagBody: React.FC<{ storeName?: string; handle?: string; theme?: string }>
   const p = typoPhotos.length ? typoPhotos : [{ src: "", caption: "", story: "", sub: "", disp: "" }];
   const items = [0, 1, 2, 3].map((i) => p[i] || p[p.length - 1]);
   const barH = drawW(f, 26, 220, 34);
-  const oneLiner = items[segNow(DUR, 4, f).i].story || typoHeadline;
+  // 短句(story)は廃止。各料理の説明文(desc)を使い、無ければ全体フックにフォールバック。
+  const oneLiner = items[segNow(DUR, 4, f).i].desc || typoHeadline;
 
   return (
     <AbsoluteFill style={{ backgroundColor: T.base, fontFamily: mincho }}>
@@ -65,8 +66,12 @@ const MagBody: React.FC<{ storeName?: string; handle?: string; theme?: string }>
       </div>
 
       {/* 下：一言（各料理のストーリー用の短い一言。無ければ全体フック）＝大きめに */}
-      <div style={{ position: "absolute", left: SAFE.side, right: 330, bottom: 188, opacity: fade(f, 74) }}>
-        <div style={{ fontFamily: mincho, color: "#EADFC9", fontSize: 46, letterSpacing: 1, lineHeight: 1.5, textShadow: "0 2px 14px rgba(0,0,0,0.6)" }}>{oneLiner}</div>
+      <div style={{ position: "absolute", left: SAFE.side, right: SAFE.side, bottom: 188, opacity: fade(f, 74) }}>
+        <div style={{
+          fontFamily: mincho, color: "#EADFC9", letterSpacing: 1, lineHeight: 1.4,
+          whiteSpace: "nowrap", textShadow: "0 2px 14px rgba(0,0,0,0.6)",
+          fontSize: fitOneLine(oneLiner, 46, 1080 - SAFE.side * 2 - 20, 24),
+        }}>{oneLiner}</div>
       </div>
 
       {/* フッター：店舗ロゴ＋ハンドルを右下へ（左の余白は見出し/一言が使う）。
