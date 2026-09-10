@@ -166,10 +166,10 @@
         if(x['店舗']) c+='<div style="color:var(--muted);font-size:11.5px">店舗：<span style="color:var(--fg);font-weight:700">'+esc(x['店舗'])+'</span></div>';
         if(d.from) c+='<div style="color:var(--muted);font-size:11.5px;margin-top:2px">差出人：<span style="color:var(--fg);font-weight:700">'+esc(d.from)+'</span></div>';
         if(d.subj) c+='<div style="color:var(--muted);font-size:11.5px;margin-top:2px">件名：<span style="color:var(--fg2)">'+esc(d.subj)+'</span></div>';
-        if(d.body) c+='<div style="margin-top:7px;padding-top:7px;border-top:1px dashed var(--line);white-space:pre-wrap;overflow-wrap:anywhere;color:var(--fg2)">'+esc(d.body)+'</div>';
+        if(d.body) c+='<div style="margin-top:7px;padding-top:7px;border-top:1px dashed var(--line);white-space:pre-wrap;overflow-wrap:anywhere;line-height:1.85;color:var(--fg2)">'+esc(d.body)+'</div>';
         c+='</div>';
       } else { var raw=String(x['本文詳細']||'').trim();
-        if(raw) c+='<div style="margin-top:7px;padding:9px 11px;background:var(--card2);border:1px solid var(--line);border-radius:9px;font-size:13px;color:var(--fg2);white-space:pre-wrap;overflow-wrap:anywhere">💬 '+esc(raw)+'</div>';
+        if(raw) c+='<div style="margin-top:7px;padding:9px 11px;background:var(--card2);border:1px solid var(--line);border-radius:9px;font-size:13px;color:var(--fg2);white-space:pre-wrap;overflow-wrap:anywhere;line-height:1.85">💬 '+esc(raw)+'</div>';
       }
       c+='</div>';
       return c;
