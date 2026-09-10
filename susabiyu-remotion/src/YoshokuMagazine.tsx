@@ -8,8 +8,9 @@
 //   02 案02 左右分割           : 右に縦長の写真、左に縦組みの料理名（和文誌面の作法）
 //   03 案07 全面写真＋角の小札  : 左上にブーツロゴ、右下にキャプションの小札
 //   04 案10 引用主役           : 鉤括弧の枠に料理名とキャプション、下に色付き文字ロゴ
-//   紙の地・二重罫・柱(誌名)・ノンブル・奥付帯はページをまたいで出しっぱなし＝“一冊”に見せる。
-//   ただし1ページ目(案11)だけは全面の別デザインなので、この“器”は出さない。
+//   紙の地・二重罫・柱(誌名)・ノンブル・奥付帯は2ページ目以降が各自まとう＝“一冊”に見せる。
+//   （1ページ目の案11だけは全面の別デザインなので、この“器”を持たない）
+//   ページ送りは表紙も含めて全部同じ「右から左へスライドして覆う」で統一する。
 //
 // アニメは useCurrentFrame/interpolate のみ（CSSトランジション禁止）。各Sequence内で相対フレーム。
 import { AbsoluteFill, Audio, Img, Sequence, staticFile, useCurrentFrame, interpolate } from "remotion";
@@ -17,7 +18,7 @@ import { typoPhotos, typoMusic, typoMusicStart, typoLogoColor, typoLogoRound } f
 import { YoshokuFeedEAt } from "./YoshokuFeed";
 import { ytheme } from "./yoshokuTheme";
 import {
-  mincho, serif, clamp, EASE, fade, Grain, Slides, fitOneLine, fitLines, splitLines, segNow,
+  mincho, serif, clamp, EASE, fade, Grain, fitOneLine, fitLines, splitLines,
   STORY_OPEN, STORY_END, STORY_XF,
 } from "./yoshokuDesign";
 import { StoryOpenV, StoryEndV } from "./YoshokuOpStyles";
@@ -214,6 +215,38 @@ const Page10: React.FC<{ it: Item; lf: number; seg: number; slab: string }> = ({
   );
 };
 
+// 誌面の器（紙・織り目・二重罫・柱・ノンブル・奥付帯）。2ページ目以降が身にまとう“紙1枚”。
+// 以前は全ページ共通の下敷きとして1枚だけ敷いていたが、ページを重ねてスライドさせるには
+// 各ページが自分の紙（＝不透明な地）を持っていないと、下のページが透けてしまう。
+const Sheet: React.FC<{ storeName: string; handle: string; slab: string; label: string; no: string; children: React.ReactNode }> =
+  ({ storeName, handle, slab, label, no, children }) => (
+    <AbsoluteFill style={{ background: "radial-gradient(120% 90% at 50% 34%, " + PAPER + " 0%, " + PAPER_D + " 100%)", fontFamily: mincho }}>
+      <AbsoluteFill style={{ opacity: 0.05, backgroundImage: "repeating-linear-gradient(90deg, rgba(120,80,40,0.6) 0 1px, transparent 1px 5px), repeating-linear-gradient(0deg, rgba(120,80,40,0.5) 0 1px, transparent 1px 6px)" }} />
+      <div style={{ position: "absolute", inset: 44, border: "2px solid rgba(150,110,70,0.4)" }} />
+      <div style={{ position: "absolute", inset: 60, border: "1px solid rgba(150,110,70,0.26)" }} />
+      {/* 柱（誌名）とノンブル（ページ番号）＝雑誌の本文ページの約束事 */}
+      <div style={{ position: "absolute", top: 118, left: 116, right: 116, display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
+        <span style={{ fontFamily: serif, color: slab, fontSize: 24, letterSpacing: 8, textTransform: "uppercase", fontWeight: 600 }}>{label}</span>
+        <span style={{ fontFamily: serif, color: slab, fontSize: 24, letterSpacing: 4 }}>{no} / 04</span>
+      </div>
+      <div style={{ position: "absolute", top: 158, left: 116, right: 116, height: 1, background: "rgba(176,72,31,0.4)" }} />
+      {children}
+      {/* 奥付の帯（表紙・裏表紙と対） */}
+      <div style={{ position: "absolute", left: 0, right: 0, bottom: 0, height: 104, background: slab }} />
+      <div style={{ position: "absolute", left: 84, right: 84, bottom: 36, display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
+        <span style={{ fontFamily: mincho, color: "#FDF6EA", fontSize: 26, fontWeight: 700, letterSpacing: 4 }}>{storeName}</span>
+        <span style={{ fontFamily: serif, color: "rgba(253,246,234,0.9)", fontSize: 24, letterSpacing: 4 }}>{handle}</span>
+      </div>
+      <Grain opacity={0.05} />
+    </AbsoluteFill>
+  );
+
+// ページ送りは全ページ同じ「右から左へスライドして覆う」。
+// 以前はクロスディゾルブ＋30pxの横流しだった。横流しは重なりが解けきってから動き出す
+// ため、ページが出そろってから“かくっ”と動く見え方になっていた。動きは1つに統一する。
+// 覆われる側は最後まで動かない＝滑って入ってくるのは常に新しいページだけ。
+const PAGE_XF = STORY_XF;   // 覆いきるまで30フレーム（1.0秒）。表紙→1ページ目と同じ。
+
 const MagazineBody: React.FC<{ storeName?: string; handle?: string; theme?: string }> = ({
   storeName = "ナガグツ", handle = "@nagagutsu0427", theme = "italian",
 }) => {
@@ -222,62 +255,34 @@ const MagazineBody: React.FC<{ storeName?: string; handle?: string; theme?: stri
   const T = ytheme(theme);
   const p = typoPhotos.length ? typoPhotos : [{ src: "", caption: "", sub: "", disp: "", desc: "" }];
   const items: Item[] = [0, 1, 2, 3].map((i) => p[i] || p[p.length - 1]);
-  const { i, seg } = segNow(DUR, 4, f);
-
-  // 1ページ目(案11)は全面の別デザインなので“誌面の器”を出さない。2ページ目に切り替わる
-  // クロスディゾルブ（Slides の fade=22 と同じ窓）に合わせて器を立ち上げる＝唐突に出ない。
-  const XF = 22;
-  const chrome = interpolate(f, [seg - XF, seg], [0, 1], clamp);
+  const seg = DUR / 4;
 
   return (
-    <AbsoluteFill style={{ background: "radial-gradient(120% 90% at 50% 34%, " + PAPER + " 0%, " + PAPER_D + " 100%)", fontFamily: mincho }}>
-      {/* ── 2ページ目以降で出しっぱなしの“誌面の器”＝一冊に見せるための共通レイヤー ── */}
-      <AbsoluteFill style={{ opacity: 0.05 * chrome, backgroundImage: "repeating-linear-gradient(90deg, rgba(120,80,40,0.6) 0 1px, transparent 1px 5px), repeating-linear-gradient(0deg, rgba(120,80,40,0.5) 0 1px, transparent 1px 6px)" }} />
-      <div style={{ position: "absolute", inset: 44, border: "2px solid rgba(150,110,70,0.4)", opacity: chrome }} />
-      <div style={{ position: "absolute", inset: 60, border: "1px solid rgba(150,110,70,0.26)", opacity: chrome }} />
-
-      {/* 柱（誌名）とノンブル（ページ番号）＝雑誌の本文ページの約束事 */}
-      <div style={{ position: "absolute", top: 118, left: 116, right: 116, display: "flex", justifyContent: "space-between", alignItems: "baseline", opacity: chrome }}>
-        <span style={{ fontFamily: serif, color: T.slab, fontSize: 24, letterSpacing: 8, textTransform: "uppercase", fontWeight: 600 }}>{T.label}</span>
-        <span style={{ fontFamily: serif, color: T.slab, fontSize: 24, letterSpacing: 4 }}>{"0" + (i + 1)} / 04</span>
-      </div>
-      <div style={{ position: "absolute", top: 158, left: 116, right: 116, height: 1, background: "rgba(176,72,31,0.4)", opacity: chrome }} />
-
-      {/* ── ページ本体：オーナーが選んだ4案。ページ送りは横に少し流してめくり感を出す ──
-          1ページ目(案11)には寄りも横流しも掛けない。表紙からの切り替えは本編ごと
-          スライドして覆う（SlideOver）ので、ここで別の動きを足すとぶつかる。 */}
-      <Slides count={4} total={DUR} fade={XF} render={(k, lf, sg) => {
+    // 地は敷かない。1ページ目がスライドして覆いきるまで、下の表紙が見えている必要がある。
+    <AbsoluteFill>
+      {[0, 1, 2, 3].map((k) => {
+        const s = k * seg;
+        // 表示するのは「入り始め」から「次のページに覆いきられる」まで。
+        if (f < s || f > s + seg + PAGE_XF) return null;
+        const lf = f - s;
+        const x = interpolate(lf, [0, PAGE_XF], [1080, 0], { ...clamp, easing: EASE });
         const it = items[k];
-        if (k === 0) {
-          return <Page11 it={it} lf={lf} seg={sg} storeName={storeName} handle={handle} theme={theme} />;
-        }
-        const x = interpolate(lf, [0, 26], [30, 0], { ...clamp, easing: EASE });
         return (
-          <AbsoluteFill style={{ transform: "translateX(" + x + "px)" }}>
-            {k === 1 ? <PageB it={it} lf={lf} seg={sg} slab={T.slab} /> : null}
-            {k === 2 ? <Page07 it={it} lf={lf} seg={sg} slab={T.slab} /> : null}
-            {k === 3 ? <Page10 it={it} lf={lf} seg={sg} slab={T.slab} /> : null}
+          <AbsoluteFill key={k} style={{ transform: "translateX(" + x + "px)" }}>
+            {k === 0
+              ? <Page11 it={it} lf={lf} seg={seg} storeName={storeName} handle={handle} theme={theme} />
+              : (
+                <Sheet storeName={storeName} handle={handle} slab={T.slab} label={T.label} no={"0" + (k + 1)}>
+                  {k === 1 ? <PageB it={it} lf={lf} seg={seg} slab={T.slab} /> : null}
+                  {k === 2 ? <Page07 it={it} lf={lf} seg={seg} slab={T.slab} /> : null}
+                  {k === 3 ? <Page10 it={it} lf={lf} seg={seg} slab={T.slab} /> : null}
+                </Sheet>
+              )}
           </AbsoluteFill>
         );
-      }} />
-
-      {/* 奥付の帯（表紙・裏表紙と対）。案11のページでは出さない。 */}
-      <div style={{ position: "absolute", left: 0, right: 0, bottom: 0, height: 104, background: T.slab, opacity: chrome }} />
-      <div style={{ position: "absolute", left: 84, right: 84, bottom: 36, display: "flex", justifyContent: "space-between", alignItems: "baseline", opacity: chrome }}>
-        <span style={{ fontFamily: mincho, color: "#FDF6EA", fontSize: 26, fontWeight: 700, letterSpacing: 4 }}>{storeName}</span>
-        <span style={{ fontFamily: serif, color: "rgba(253,246,234,0.9)", fontSize: 24, letterSpacing: 4 }}>{handle}</span>
-      </div>
-      <Grain opacity={0.05} />
+      })}
     </AbsoluteFill>
   );
-};
-
-// 本編が画面の右外から入ってきて表紙を覆う（＝画面スライドで切り替える）。
-// 覆う側だけが動き、覆われる表紙は最後まで止まったまま＝影や滲みが一切出ない。
-const SlideOver: React.FC<{ xf: number; children: React.ReactNode }> = ({ xf, children }) => {
-  const f = useCurrentFrame();
-  const x = interpolate(f, [0, xf], [1080, 0], { ...clamp, easing: EASE });
-  return <AbsoluteFill style={{ transform: "translateX(" + x + "px)" }}>{children}</AbsoluteFill>;
 };
 
 export const YoshokuMagazine: React.FC<{ storeName?: string; handle?: string; theme?: string; openText?: string }> = ({
@@ -295,9 +300,7 @@ export const YoshokuMagazine: React.FC<{ storeName?: string; handle?: string; th
       <StoryOpenV v={9} storeName={storeName} theme={theme} openText={openText} dur={MAGZ_OPEN + STORY_XF + 20} />
     </Sequence>
     <Sequence from={MAGZ_OPEN} durationInFrames={MAGZ_BODY}>
-      <SlideOver xf={STORY_XF}>
-        <MagazineBody storeName={storeName} handle={handle} theme={theme} />
-      </SlideOver>
+      <MagazineBody storeName={storeName} handle={handle} theme={theme} />
     </Sequence>
     <Sequence from={MAGZ_OPEN + MAGZ_BODY - STORY_XF} durationInFrames={MAGZ_END + STORY_XF}>
       <StoryEndV v={9} storeName={storeName} handle={handle} theme={theme} />
