@@ -3,15 +3,18 @@
 //   表紙(OP) → 本文ページ(4品) → 裏表紙(CLOSE)
 //
 // ★本文は「1つの型を4回」ではなく、実際の雑誌のように毎ページ組み方を変える。
-//   01 グラビア扉  : 大判の裁ち落とし写真＋下端に重ねたクリームの短冊見出し
-//   02 左右分割    : 右に縦長の写真、左に縦組みの料理名（和文誌面の作法）
-//   03 円形トリミング: 特大ノンブルの透かし＋丸く抜いた写真をセンターに
-//   04 白フチ写真  : 誌面に写真を貼った定番のキャプションページ
+//   オーナーが10案から選んだ4案を、この順で並べている。
+//   01 案11 フィード案Eそのまま : 全面写真＋左のテラコッタ帯（掴みの1ページ）
+//   02 案02 左右分割           : 右に縦長の写真、左に縦組みの料理名（和文誌面の作法）
+//   03 案07 全面写真＋角の小札  : 左上にブーツロゴ、右下にキャプションの小札
+//   04 案10 引用主役           : 鉤括弧の枠に料理名とキャプション、下に色付き文字ロゴ
 //   紙の地・二重罫・柱(誌名)・ノンブル・奥付帯はページをまたいで出しっぱなし＝“一冊”に見せる。
+//   ただし1ページ目(案11)だけは全面の別デザインなので、この“器”は出さない。
 //
 // アニメは useCurrentFrame/interpolate のみ（CSSトランジション禁止）。各Sequence内で相対フレーム。
 import { AbsoluteFill, Audio, Img, Sequence, staticFile, useCurrentFrame, interpolate } from "remotion";
-import { typoPhotos, typoMusic, typoMusicStart, typoLogoColor } from "./typoData";
+import { typoPhotos, typoMusic, typoMusicStart, typoLogoColor, typoLogoRound } from "./typoData";
+import { YoshokuFeedEAt } from "./YoshokuFeed";
 import { ytheme } from "./yoshokuTheme";
 import {
   mincho, serif, clamp, EASE, fade, Grain, Slides, fitOneLine, fitLines, splitLines, segNow,
@@ -89,26 +92,33 @@ const Kick: React.FC<{ text?: string; color: string; align?: "left" | "center"; 
     ) : null
   );
 
-// ── 01 グラビア扉：大判の写真を裁ち落とし、下端に重ねたクリームの短冊に見出しを置く ──
-const PageA: React.FC<{ it: Item; lf: number; seg: number; slab: string }> = ({ it, lf, seg, slab }) => {
-  const name = dishName(it);
-  return (
-    <>
-      <div style={{ position: "absolute", left: 88, right: 88, top: 236, height: 1120, overflow: "hidden", boxShadow: "0 30px 70px rgba(60,35,14,0.34)" }}>
-        <Plate src={it.src} lf={lf} seg={seg} />
-      </div>
-      {/* 写真の下端に食い込ませたクリームの短冊＝グラビアの見出しの作法 */}
-      <div style={{ position: "absolute", left: 88, width: 700, top: 1176, background: "#FBF5E9", padding: "26px 34px 30px", boxShadow: "0 18px 44px rgba(60,35,14,0.30)" }}>
-        <Kick text={it.sub} color={slab} usableW={700 - 68} />
-        <div style={{ marginTop: 8, fontFamily: mincho, color: INK, fontSize: fitOneLine(name, 66, 700 - 68, 26), fontWeight: 700, letterSpacing: 2, lineHeight: 1.14, whiteSpace: "nowrap" }}>{name}</div>
-      </div>
-      <div style={{ position: "absolute", left: 88, right: 88, top: 1466 }}>
-        <div style={{ width: 96, height: 3, background: slab, marginBottom: 18 }} />
-        <Body text={it.desc} usableW={1080 - 176} />
-      </div>
-    </>
+// 色付きの文字ロゴ／ブーツロゴ。紙の地に置くので落ち影は焦茶の薄いもの
+// （黒だと紙から浮きすぎて印刷物に見えない）。未取得なら描かない＝レイアウトを壊さない。
+const WordLogo: React.FC<{ h: number; o?: number }> = ({ h, o = 1 }) => (
+  typoLogoColor ? (
+    <Img src={staticFile(typoLogoColor)} style={{
+      height: h, width: "auto", maxWidth: 760, objectFit: "contain", opacity: o,
+      filter: "drop-shadow(0 4px 14px rgba(60,35,14,0.22))",
+    }} />
+  ) : null
+);
+const BootLogo: React.FC<{ size: number; o?: number }> = ({ size, o = 1 }) => (
+  typoLogoRound ? (
+    <Img src={staticFile(typoLogoRound)} style={{
+      width: size, height: size, objectFit: "contain", opacity: o,
+      filter: "drop-shadow(0 6px 20px rgba(0,0,0,0.45))",
+    }} />
+  ) : null
+);
+
+// ── 01 案11：フィード案E をそのまま1ページに（全面写真＋左のテラコッタ帯）──
+// 組み方は E 本体のものを使う（作り直すと似て非なるものになるため）。
+// 写真だけ Plate に差し替えて、他ページと同じごく弱いケンバーンズを効かせる。
+const Page11: React.FC<{ it: Item; lf: number; seg: number; storeName: string; handle: string; theme: string }> =
+  ({ it, lf, seg, storeName, handle, theme }) => (
+    <YoshokuFeedEAt storeName={storeName} handle={handle} theme={theme} it={it}
+      photo={<Plate src={it.src} lf={lf} seg={seg} />} />
   );
-};
 
 // ── 02 左右分割：右に縦長の写真、左に縦組みの料理名（和文誌面の作法）──
 const PageB: React.FC<{ it: Item; lf: number; seg: number; slab: string }> = ({ it, lf, seg, slab }) => {
@@ -130,55 +140,64 @@ const PageB: React.FC<{ it: Item; lf: number; seg: number; slab: string }> = ({ 
       <div style={{ position: "absolute", left: 116, right: 116, top: 1450 }}>
         <Body text={it.desc} usableW={1080 - 232} />
       </div>
-      {/* 説明文(〜1552)と奥付帯(1816〜)の間の空きに色付きの文字ロゴ。紙の地なので
-          落ち影は焦茶の薄いもの。ロゴが取得できていない時は描かない。 */}
-      {typoLogoColor ? (
-        <div style={{ position: "absolute", left: 116, right: 116, top: 1584, display: "flex", justifyContent: "center", opacity: fade(lf, 30, 22) }}>
-          <Img src={staticFile(typoLogoColor)} style={{ height: 150, width: "auto", maxWidth: 760, objectFit: "contain", filter: "drop-shadow(0 4px 14px rgba(60,35,14,0.22))" }} />
-        </div>
-      ) : null}
+      {/* 説明文(〜1552)と奥付帯(1816〜)の間の空きに色付きの文字ロゴ */}
+      <div style={{ position: "absolute", left: 116, right: 116, top: 1584, display: "flex", justifyContent: "center" }}>
+        <WordLogo h={150} o={fade(lf, 30, 22)} />
+      </div>
     </>
   );
 };
 
-// ── 03 円形トリミング：特大ノンブルの透かしの上に、丸く抜いた写真をセンターに ──
-const PageC: React.FC<{ it: Item; lf: number; seg: number; slab: string; no: string }> = ({ it, lf, seg, slab, no }) => {
+// ── 03 案07：全面写真＋角の小札。左上にブーツロゴ、右下にキャプションの小札 ──
+const Page07: React.FC<{ it: Item; lf: number; seg: number; slab: string }> = ({ it, lf, seg, slab }) => {
   const name = dishName(it);
+  const CW = 640 - 60;   // 小札の内寸
   return (
     <>
-      {/* 特大ノンブルの透かし（刷り物っぽさ） */}
-      <div style={{ position: "absolute", left: 0, right: 0, top: 380, textAlign: "center", fontFamily: serif, fontStyle: "italic", fontWeight: 600, color: slab, opacity: 0.09, fontSize: 460, lineHeight: 1 }}>{no}</div>
-      {/* 丸く抜いた写真＝“皿を切り取った”見立て。白フチ＋落ち影で紙から浮かせる。 */}
-      <div style={{ position: "absolute", left: 175, top: 318, width: 730, height: 730, borderRadius: "50%", overflow: "hidden", border: "12px solid #FBF5E9", boxShadow: "0 34px 74px rgba(60,35,14,0.34)" }}>
+      <div style={{ position: "absolute", inset: 60, overflow: "hidden" }}>
         <Plate src={it.src} lf={lf} seg={seg} />
       </div>
-      <div style={{ position: "absolute", left: 116, right: 116, top: 1140, textAlign: "center" }}>
-        <Kick text={it.sub} color={slab} align="center" usableW={1080 - 232} />
-        <div style={{ marginTop: 10, fontFamily: mincho, color: INK, fontSize: fitOneLine(name, 76, 1080 - 232, 28), fontWeight: 700, letterSpacing: 2, lineHeight: 1.14, whiteSpace: "nowrap" }}>{name}</div>
-        <div style={{ width: 96, height: 3, background: slab, margin: "22px auto 20px" }} />
-        <Body text={it.desc} usableW={1080 - 232} align="center" />
+      {/* 写真の角(60,60)から32px内側。写真が全面なので落ち影で浮かせる。 */}
+      <div style={{ position: "absolute", left: 92, top: 92, opacity: fade(lf, 10, 20) }}><BootLogo size={220} /></div>
+      <div style={{ position: "absolute", right: 92, bottom: 168, width: 640, background: "#FBF5E9", padding: "24px 30px 28px", boxShadow: "0 20px 50px rgba(60,35,14,0.40)", opacity: fade(lf, 18, 22) }}>
+        <Kick text={it.sub} color={slab} size={22} usableW={CW} />
+        <div style={{ marginTop: 8, fontFamily: mincho, color: INK, fontSize: fitOneLine(name, 54, CW, 24), fontWeight: 700, letterSpacing: 1, lineHeight: 1.16, whiteSpace: "nowrap" }}>{name}</div>
+        <div style={{ width: 72, height: 3, background: slab, margin: "16px 0 14px" }} />
+        <Body text={it.desc} usableW={CW} maxPx={26} />
       </div>
     </>
   );
 };
 
-// ── 04 白フチ写真：誌面に写真を貼った定番のキャプションページ ──
-const PageD: React.FC<{ it: Item; lf: number; seg: number; slab: string }> = ({ it, lf, seg, slab }) => {
+// ── 04 案10：引用主役。鉤括弧の枠に料理名とキャプションを収め、下に色付きの文字ロゴ ──
+const Page10: React.FC<{ it: Item; lf: number; seg: number; slab: string }> = ({ it, lf, seg, slab }) => {
   const name = dishName(it);
+  const W = 1080 - 232 - 56;   // 枠の内寸（左右28pxずつの余白ぶんを引く）
+  const lines = splitLines(it.desc || "");
+  const q = lines[0] || name;
+  // 枠の下端は写真の上端(640)を越えられない。2行のときは字を小さくして食い込みを防ぐ。
+  const qMax = lines.length >= 2 ? 40 : 50;
   return (
     <>
-      <div style={{ position: "absolute", left: 116, right: 116, top: 248, height: 800 }}>
-        <div style={{ position: "absolute", inset: 0, background: "#FBF5E9", padding: 18, boxShadow: "0 26px 60px rgba(60,35,14,0.30)" }}>
-          <div style={{ position: "absolute", inset: 18, overflow: "hidden" }}>
-            <Plate src={it.src} lf={lf} seg={seg} />
+      <div style={{ position: "absolute", left: 116, right: 116, top: 210, textAlign: "center", opacity: fade(lf, 8, 22) }}>
+        <div style={{ textAlign: "left", fontFamily: mincho, color: slab, fontSize: 96, lineHeight: 0.8, opacity: 0.5 }}>「</div>
+        <div style={{ paddingLeft: 28, paddingRight: 28 }}>
+          <Kick text={it.sub} color={slab} align="center" usableW={W} />
+          <div style={{ marginTop: 8, fontFamily: mincho, color: INK, fontSize: fitOneLine(name, 56, W, 26), fontWeight: 700, letterSpacing: 2, lineHeight: 1.15, whiteSpace: "nowrap" }}>{name}</div>
+          <div style={{ width: 96, height: 3, background: slab, margin: "16px auto 18px" }} />
+          <div style={{ fontFamily: mincho, color: INK, fontSize: fitLines(q, qMax, W, 24), fontWeight: 700, letterSpacing: 2, lineHeight: 1.4 }}>
+            {(lines.length ? lines : [q]).map((l, k) => <div key={k} style={{ whiteSpace: "nowrap" }}>{l}</div>)}
           </div>
         </div>
+        <div style={{ textAlign: "right", fontFamily: mincho, color: slab, fontSize: 96, lineHeight: 0.6, opacity: 0.5 }}>」</div>
       </div>
-      <div style={{ position: "absolute", left: 116, right: 116, top: 1116 }}>
-        <Kick text={it.sub} color={slab} />
-        <div style={{ marginTop: 10, fontFamily: mincho, color: INK, fontSize: fitOneLine(name, 74, 1080 - 232, 28), fontWeight: 700, letterSpacing: 2, lineHeight: 1.16, whiteSpace: "nowrap" }}>{name}</div>
-        <div style={{ width: 96, height: 3, background: slab, margin: "22px 0 20px" }} />
-        <Body text={it.desc} usableW={1080 - 232} />
+      {/* 写真は左右いっぱいの帯（二重罫を跨いで断ち切る＝誌面のアクセント） */}
+      <div style={{ position: "absolute", left: 0, right: 0, top: 640, height: 830, overflow: "hidden" }}>
+        <Plate src={it.src} lf={lf} seg={seg} />
+      </div>
+      {/* 写真(〜1470)と奥付帯(1816〜)の間346pxに、色付きの文字ロゴを中央・大きく */}
+      <div style={{ position: "absolute", left: 116, right: 116, top: 1520, display: "flex", justifyContent: "center" }}>
+        <WordLogo h={230} o={fade(lf, 26, 22)} />
       </div>
     </>
   );
@@ -192,45 +211,50 @@ const MagazineBody: React.FC<{ storeName?: string; handle?: string; theme?: stri
   const T = ytheme(theme);
   const p = typoPhotos.length ? typoPhotos : [{ src: "", caption: "", sub: "", disp: "", desc: "" }];
   const items: Item[] = [0, 1, 2, 3].map((i) => p[i] || p[p.length - 1]);
-  const { i } = segNow(DUR, 4, f);
+  const { i, seg } = segNow(DUR, 4, f);
 
   // 1ページ目の入り：表紙(OP)が上で薄れていく間に、誌面が“紙をめくって現れる”ように寄りから定まる。
   const inS = interpolate(f, [0, 46], [1.05, 1], { ...clamp, easing: EASE });
 
+  // 1ページ目(案11)は全面の別デザインなので“誌面の器”を出さない。2ページ目に切り替わる
+  // クロスディゾルブ（Slides の fade=22 と同じ窓）に合わせて器を立ち上げる＝唐突に出ない。
+  const XF = 22;
+  const chrome = interpolate(f, [seg - XF, seg], [0, 1], clamp);
+
   return (
     <AbsoluteFill style={{ background: "radial-gradient(120% 90% at 50% 34%, " + PAPER + " 0%, " + PAPER_D + " 100%)", fontFamily: mincho }}>
-      {/* ── ページをまたいで出しっぱなしの“誌面の器”＝一冊に見せるための共通レイヤー ── */}
-      <AbsoluteFill style={{ opacity: 0.05, backgroundImage: "repeating-linear-gradient(90deg, rgba(120,80,40,0.6) 0 1px, transparent 1px 5px), repeating-linear-gradient(0deg, rgba(120,80,40,0.5) 0 1px, transparent 1px 6px)" }} />
-      <div style={{ position: "absolute", inset: 44, border: "2px solid rgba(150,110,70,0.4)" }} />
-      <div style={{ position: "absolute", inset: 60, border: "1px solid rgba(150,110,70,0.26)" }} />
+      {/* ── 2ページ目以降で出しっぱなしの“誌面の器”＝一冊に見せるための共通レイヤー ── */}
+      <AbsoluteFill style={{ opacity: 0.05 * chrome, backgroundImage: "repeating-linear-gradient(90deg, rgba(120,80,40,0.6) 0 1px, transparent 1px 5px), repeating-linear-gradient(0deg, rgba(120,80,40,0.5) 0 1px, transparent 1px 6px)" }} />
+      <div style={{ position: "absolute", inset: 44, border: "2px solid rgba(150,110,70,0.4)", opacity: chrome }} />
+      <div style={{ position: "absolute", inset: 60, border: "1px solid rgba(150,110,70,0.26)", opacity: chrome }} />
 
       {/* 柱（誌名）とノンブル（ページ番号）＝雑誌の本文ページの約束事 */}
-      <div style={{ position: "absolute", top: 118, left: 116, right: 116, display: "flex", justifyContent: "space-between", alignItems: "baseline", opacity: fade(f, 6, 20) }}>
+      <div style={{ position: "absolute", top: 118, left: 116, right: 116, display: "flex", justifyContent: "space-between", alignItems: "baseline", opacity: chrome }}>
         <span style={{ fontFamily: serif, color: T.slab, fontSize: 24, letterSpacing: 8, textTransform: "uppercase", fontWeight: 600 }}>{T.label}</span>
         <span style={{ fontFamily: serif, color: T.slab, fontSize: 24, letterSpacing: 4 }}>{"0" + (i + 1)} / 04</span>
       </div>
-      <div style={{ position: "absolute", top: 158, left: 116, right: 116, height: 1, background: "rgba(176,72,31,0.4)", opacity: fade(f, 8, 20) }} />
+      <div style={{ position: "absolute", top: 158, left: 116, right: 116, height: 1, background: "rgba(176,72,31,0.4)", opacity: chrome }} />
 
-      {/* ── ページ本体：4ページそれぞれ別の組み方。ページ送りは横に少し流してめくり感を出す ── */}
-      <AbsoluteFill style={{ transform: "scale(" + inS + ")" }}>
-        <Slides count={4} total={DUR} fade={22} render={(k, lf, seg) => {
-          const x = interpolate(lf, [0, 26], [30, 0], { ...clamp, easing: EASE });
-          const it = items[k];
-          const no = "0" + (k + 1);
-          return (
-            <AbsoluteFill style={{ transform: "translateX(" + x + "px)" }}>
-              {k === 0 ? <PageA it={it} lf={lf} seg={seg} slab={T.slab} /> : null}
-              {k === 1 ? <PageB it={it} lf={lf} seg={seg} slab={T.slab} /> : null}
-              {k === 2 ? <PageC it={it} lf={lf} seg={seg} slab={T.slab} no={no} /> : null}
-              {k === 3 ? <PageD it={it} lf={lf} seg={seg} slab={T.slab} /> : null}
-            </AbsoluteFill>
-          );
-        }} />
-      </AbsoluteFill>
+      {/* ── ページ本体：オーナーが選んだ4案。ページ送りは横に少し流してめくり感を出す ──
+          1ページ目(案11)だけは全面デザインなので、横流しも寄りもかけない（帯やロゴが動くと崩れる）。 */}
+      <Slides count={4} total={DUR} fade={XF} render={(k, lf, sg) => {
+        const it = items[k];
+        if (k === 0) {
+          return <Page11 it={it} lf={lf} seg={sg} storeName={storeName} handle={handle} theme={theme} />;
+        }
+        const x = interpolate(lf, [0, 26], [30, 0], { ...clamp, easing: EASE });
+        return (
+          <AbsoluteFill style={{ transform: "scale(" + inS + ") translateX(" + x + "px)" }}>
+            {k === 1 ? <PageB it={it} lf={lf} seg={sg} slab={T.slab} /> : null}
+            {k === 2 ? <Page07 it={it} lf={lf} seg={sg} slab={T.slab} /> : null}
+            {k === 3 ? <Page10 it={it} lf={lf} seg={sg} slab={T.slab} /> : null}
+          </AbsoluteFill>
+        );
+      }} />
 
-      {/* 奥付の帯（表紙・裏表紙と対） */}
-      <div style={{ position: "absolute", left: 0, right: 0, bottom: 0, height: 104, background: T.slab, opacity: fade(f, 10, 22) }} />
-      <div style={{ position: "absolute", left: 84, right: 84, bottom: 36, display: "flex", justifyContent: "space-between", alignItems: "baseline", opacity: fade(f, 14, 22) }}>
+      {/* 奥付の帯（表紙・裏表紙と対）。案11のページでは出さない。 */}
+      <div style={{ position: "absolute", left: 0, right: 0, bottom: 0, height: 104, background: T.slab, opacity: chrome }} />
+      <div style={{ position: "absolute", left: 84, right: 84, bottom: 36, display: "flex", justifyContent: "space-between", alignItems: "baseline", opacity: chrome }}>
         <span style={{ fontFamily: mincho, color: "#FDF6EA", fontSize: 26, fontWeight: 700, letterSpacing: 4 }}>{storeName}</span>
         <span style={{ fontFamily: serif, color: "rgba(253,246,234,0.9)", fontSize: 24, letterSpacing: 4 }}>{handle}</span>
       </div>
