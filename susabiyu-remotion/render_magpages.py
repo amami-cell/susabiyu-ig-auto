@@ -67,8 +67,13 @@ def main():
     except Exception as e:
         print("[MAGP] bundle 失敗（従来どおり毎回バンドルします）:", e)
 
+    # PAGES で対象を絞れる（1案だけ直して見る、が速くできる）
+    _sel = [x.strip() for x in os.environ.get("PAGES", "").split(",") if x.strip()]
+    targets = [(c, l) for c, l in MAGP_COMPS if not _sel or c in _sel]
+    print("[MAGP] 対象 %d案 %s" % (len(targets), [c for c, _ in targets]))
+
     samples = []
-    for cid, label in MAGP_COMPS:
+    for cid, label in targets:
         png = "out/magpage.png"
         jpg = "out/magpage.jpg"
         for f in (png, jpg):

@@ -104,12 +104,14 @@ const P02: Inner = ({ d, slab }) => {
   const nm = nameOf(d); const availH = 880;
   const v = Math.max(30, Math.min(78, Math.floor(availH / Math.max(1, jlen(nm)))));
   return (<>
-    <div style={{ position: "absolute", left: 452, right: 92, top: 248, height: 1140, overflow: "hidden", boxShadow: "0 28px 64px rgba(60,35,14,0.32)" }}><Photo src={d.src} /></div>
+    {/* 写真の左端 452→320。縦組みの料理名がいちばん張り出すケース(x=270)から
+        50pxのすき間を残した位置。幅 540→672px。 */}
+    <div style={{ position: "absolute", left: 320, right: 88, top: 248, height: 1140, overflow: "hidden", boxShadow: "0 28px 64px rgba(60,35,14,0.32)" }}><Photo src={d.src} /></div>
     <div style={{ position: "absolute", left: 150, top: 268, height: availH, display: "flex", alignItems: "flex-start", gap: 18 }}>
       <div style={{ writingMode: "vertical-rl", fontFamily: mincho, color: INK, fontSize: v, fontWeight: 700, letterSpacing: 4, lineHeight: 1 }}>{nm}</div>
       <div style={{ writingMode: "vertical-rl", fontFamily: serif, color: slab, fontSize: 24, letterSpacing: 6, textTransform: "uppercase", fontWeight: 600, marginTop: 6 }}>{d.sub || ""}</div>
     </div>
-    <div style={{ position: "absolute", left: 150, top: 1180, width: 250, height: 3, background: slab }} />
+    <div style={{ position: "absolute", left: 150, top: 1180, width: 140, height: 3, background: slab }} />
     <div style={{ position: "absolute", left: 116, right: 116, top: 1450 }}><Body t={d.desc} w={1080 - 232} /></div>
   </>);
 };
@@ -214,7 +216,9 @@ const P10: Inner = ({ d, slab }) => {
       </div>
       <div style={{ textAlign: "right", fontFamily: mincho, color: slab, fontSize: 150, lineHeight: 0.6, opacity: 0.5 }}>」</div>
     </div>
-    <div style={{ position: "absolute", left: 0, right: 0, top: 830, height: 640, overflow: "hidden" }}><Photo src={d.src} /></div>
+    {/* 写真の上端 830→640（下端1470は据え置き）。引用が終わるのは約555なので
+        85pxの余白を残して、その下の空きを写真で埋める。高さ 640→830px。 */}
+    <div style={{ position: "absolute", left: 0, right: 0, top: 640, height: 830, overflow: "hidden" }}><Photo src={d.src} /></div>
     <div style={{ position: "absolute", left: 116, right: 116, top: 1530, textAlign: "center" }}>
       <Kick t={d.sub} c={slab} w={1080 - 232} align="center" />
       <div style={{ marginTop: 10, fontFamily: mincho, color: INK, fontSize: fitJa(nameOf(d), 68, 1080 - 232, 26), fontWeight: 700, letterSpacing: 2, whiteSpace: "nowrap" }}>{nameOf(d)}</div>

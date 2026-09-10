@@ -2,7 +2,12 @@ name: magpages
 # No.11 雑誌ストーリーの「商品ページ」デザイン提案10案を静止画で書き出して永続CDNへ納品する。
 # 同じ料理・同じ紙で10案を並べ、どの組み方にするかを選んでもらうための比較用。投稿はしない。
 on:
-  workflow_dispatch: {}
+  workflow_dispatch:
+    inputs:
+      pages:
+        description: "対象の案（カンマ区切り。空=10案すべて）例 MagPage02,MagPage10"
+        required: false
+        default: ""
 permissions:
   contents: read
 jobs:
@@ -36,6 +41,7 @@ jobs:
       - name: Render 商品ページ案10種 (nagagutsu)
         env:
           STORE_ACCOUNT: nagagutsu
+          PAGES: ${{ github.event.inputs.pages }}
           # 見本(フィード画像)づくりも「使った」に数えない。
           USAGE_SKIP: "1"
           GOOGLE_CREDS_B64: ${{ secrets.GOOGLE_CREDS_B64 }}

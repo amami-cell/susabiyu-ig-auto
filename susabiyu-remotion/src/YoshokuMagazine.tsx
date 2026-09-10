@@ -117,7 +117,8 @@ const PageB: React.FC<{ it: Item; lf: number; seg: number; slab: string }> = ({ 
   const vSize = Math.max(30, Math.min(78, Math.floor(availH / Math.max(1, Array.from(name).length))));
   return (
     <>
-      <div style={{ position: "absolute", left: 452, right: 92, top: 248, height: 1140, overflow: "hidden", boxShadow: "0 28px 64px rgba(60,35,14,0.32)" }}>
+      {/* 写真の左端 452→320（縦組みの料理名から50pxのすき間を残す）。幅 540→672px。 */}
+      <div style={{ position: "absolute", left: 320, right: 88, top: 248, height: 1140, overflow: "hidden", boxShadow: "0 28px 64px rgba(60,35,14,0.32)" }}>
         <Plate src={it.src} lf={lf} seg={seg} />
       </div>
       {/* 左の柱：縦組みの料理名。右から左へ読む向き（writing-mode: vertical-rl）。 */}
@@ -125,7 +126,7 @@ const PageB: React.FC<{ it: Item; lf: number; seg: number; slab: string }> = ({ 
         <div style={{ writingMode: "vertical-rl", fontFamily: mincho, color: INK, fontSize: vSize, fontWeight: 700, letterSpacing: 4, lineHeight: 1 }}>{name}</div>
         <div style={{ writingMode: "vertical-rl", fontFamily: serif, color: slab, fontSize: 24, letterSpacing: 6, textTransform: "uppercase", fontWeight: 600, marginTop: 6 }}>{it.sub || ""}</div>
       </div>
-      <div style={{ position: "absolute", left: 150, top: 1180, width: 250, height: 3, background: slab }} />
+      <div style={{ position: "absolute", left: 150, top: 1180, width: 140, height: 3, background: slab }} />
       <div style={{ position: "absolute", left: 116, right: 116, top: 1450 }}>
         <Body text={it.desc} usableW={1080 - 232} />
       </div>
