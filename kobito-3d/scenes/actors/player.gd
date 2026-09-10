@@ -63,7 +63,9 @@ var _net_pos := Vector3.ZERO
 var _net_yaw := 0.0
 
 @onready var _body: MeshInstance3D = $Body
-var _cape: Node3D = null   # 飛行を映えさせるマント（背中）
+var _wings: Node3D = null       # 飛行を映えさせる妖精の羽（背中・飛行中だけ）
+var _wing_l: Node3D = null      # 左右の羽ピボット（ひらひら羽ばたき用）
+var _wing_r: Node3D = null
 @onready var _label: Label3D = $NameLabel
 var _help_label: Label3D = null   # ダウン中の「たすけて！」
 @onready var _cam_rig: Node3D = $CamRig
@@ -108,7 +110,7 @@ func _ready() -> void:
 			KobitoLook.decorate_simple(_body, _base_color, "adult", style_name, true)
 		else:
 			KobitoLook.decorate(_body, _base_color, true, "adult", style_name)   # 親：武器を持つ
-	_build_cape()
+	_build_wings()
 	_label.text = pname
 
 	# ダウン中に頭上へ出す「たすけて！」ビーコン＝相方/なかまが近づくと復活が速まる
@@ -274,15 +276,16 @@ func _local_step(delta: float) -> void:
 	elif state != State.ATTACK:
 		_body.rotation.x = lerp_angle(_body.rotation.x, 0.0, t)
 		_body.rotation.z = lerp_angle(_body.rotation.z, 0.0, t)
-	# マント：飛行中だけ出して うしろへ なびく（ゆらゆら）。地上では隠す＝ふだんは素の見た目。
-	if _cape != null:
-		_cape.visible = state == State.FLY
+	# 妖精の羽：飛行中だけ出して ひらひら 羽ばたく。地上では隠す＝ふだんは素の見た目。
+	if _wings != null:
+		_wings.visible = state == State.FLY
 		if state == State.FLY:
-			_cape.rotation.x = lerp_angle(_cape.rotation.x, deg_to_rad(48.0) + sin(_age * 8.0) * deg_to_rad(12.0), t)
-			_cape.rotation.z = lerp_angle(_cape.rotation.z, sin(_age * 6.0) * deg_to_rad(8.0), t)
-		else:
-			_cape.rotation.x = lerp_angle(_cape.rotation.x, 0.0, t)
-			_cape.rotation.z = lerp_angle(_cape.rotation.z, 0.0, t)
+			var flap := sin(_age * 17.0) * deg_to_rad(26.0)   # 速い羽ばたき＝ひらひら
+			if _wing_l != null:
+				_wing_l.rotation.z = deg_to_rad(10.0) + flap
+			if _wing_r != null:
+				_wing_r.rotation.z = -deg_to_rad(10.0) - flap
+			_wings.rotation.x = sin(_age * 5.0) * deg_to_rad(6.0)   # 全体もふわり
 	if grounded and hspeed > 1.0 and state != State.FLY:
 		_step_t -= delta
 		if _step_t <= 0.0:
@@ -328,33 +331,46 @@ func is_flying() -> bool:
 	return state == State.FLY
 
 
-## 背中のマント（飛行を映えさせる）。前＝-Z なので背中＝+Z 側に段々で垂らす。
-func _build_cape() -> void:
-	_cape = Node3D.new()
-	_cape.name = "Cape"
-	_cape.position = Vector3(0.0, 0.62, 0.14)   # 肩のうしろあたり
-	_cape.visible = false                        # 飛行中だけ出す＝ふだんは絵本の雰囲気を保つ
-	_body.add_child(_cape)
-	var cloth := Color(0.86, 0.24, 0.26)         # 赤いマント（ヒーロー感）
-	var segs := [
-		[Vector3(0.0, -0.05, 0.02), Vector3(0.34, 0.22, 0.03)],
-		[Vector3(0.0, -0.24, 0.05), Vector3(0.32, 0.24, 0.03)],
-		[Vector3(0.0, -0.44, 0.08), Vector3(0.28, 0.24, 0.03)],
-		[Vector3(0.0, -0.63, 0.10), Vector3(0.22, 0.22, 0.03)],
-	]
-	for s in segs:
-		var mi := MeshInstance3D.new()
-		var bm := BoxMesh.new()
-		bm.size = s[1]
-		mi.mesh = bm
-		var mat := StandardMaterial3D.new()
-		mat.albedo_color = cloth
-		mat.roughness = 0.9
-		mat.rim_enabled = true
-		mat.rim = 0.3
-		mi.material_override = mat
-		mi.position = s[0]
-		_cape.add_child(mi)
+## 背中の妖精の羽（飛行を映えさせる・虫を癒やす本作テーマに合う透明の羽）。前＝-Z＝背中は+Z側。
+func _build_wings() -> void:
+	_wings = Node3D.new()
+	_wings.name = "Wings"
+	_wings.position = Vector3(0.0, 0.66, 0.12)   # 肩のうしろ
+	_wings.visible = false                        # 飛行中だけ出す＝ふだんは絵本の雰囲気を保つ
+	_body.add_child(_wings)
+	var fm := StandardMaterial3D.new()
+	fm.albedo_color = Color(0.72, 0.92, 1.0, 0.5)   # 透明な水色
+	fm.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	fm.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	fm.cull_mode = BaseMaterial3D.CULL_DISABLED
+	fm.emission_enabled = true
+	fm.emission = Color(0.6, 0.9, 1.0)
+	fm.emission_energy_multiplier = 0.35            # ほのかに光る
+	for sx in [-1.0, 1.0]:
+		var piv := Node3D.new()
+		piv.position = Vector3(0.05 * sx, 0.0, 0.0)
+		_wings.add_child(piv)
+		_wing_blade(piv, fm, 0.26, Vector3(0.24 * sx, 0.05, -0.02), deg_to_rad(22.0) * sx)   # 上の羽（大）
+		_wing_blade(piv, fm, 0.19, Vector3(0.2 * sx, -0.06, 0.14), deg_to_rad(30.0) * sx)    # 下の羽（小）
+		if sx < 0.0:
+			_wing_l = piv
+		else:
+			_wing_r = piv
+
+
+func _wing_blade(parent: Node3D, mat: StandardMaterial3D, r: float, pos: Vector3, roll: float) -> void:
+	var mi := MeshInstance3D.new()
+	var m := SphereMesh.new()
+	m.radius = r
+	m.height = r * 2.0
+	m.radial_segments = 10
+	m.rings = 6
+	mi.mesh = m
+	mi.material_override = mat
+	mi.position = pos
+	mi.scale = Vector3(1.0, 0.12, 0.68)   # 平たい羽
+	mi.rotation.z = roll
+	parent.add_child(mi)
 
 
 func _try_attack() -> void:

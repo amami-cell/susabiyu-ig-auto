@@ -1046,10 +1046,15 @@ func _run_shot() -> void:
 			var pb: Node3D = pf.get_node_or_null("Body")
 			if pb != null:
 				pb.rotation = Vector3(deg_to_rad(-72.0), 0.0, deg_to_rad(9.0))
-				var cape: Node3D = pb.get_node_or_null("Cape")
-				if cape != null:
-					cape.visible = true
-					cape.rotation.x = deg_to_rad(48.0)
+				var wings: Node3D = pb.get_node_or_null("Wings")
+				if wings != null:
+					wings.visible = true
+					var wl: Node3D = wings.get_child(0)
+					var wr: Node3D = wings.get_child(1)
+					if wl != null:
+						wl.rotation.z = deg_to_rad(32.0)   # 羽ばたきの一コマ
+					if wr != null:
+						wr.rotation.z = deg_to_rad(-32.0)
 			var fc: Vector3 = pf.global_position
 			var fcam := Camera3D.new()
 			add_child(fcam)
@@ -1059,6 +1064,38 @@ func _run_shot() -> void:
 			await get_tree().create_timer(0.5).timeout
 			await RenderingServer.frame_post_draw
 			get_viewport().get_texture().get_image().save_png("/tmp/shot_fly.png")
+	# --flapseq：妖精の羽の“ひらひら”を3コマ（とじる→ひらく→おおきく）で並べて撮る。
+	if OS.get_cmdline_user_args().has("--flapseq"):
+		var phases := [{"n": "① とじる", "f": -26.0}, {"n": "② ひらく", "f": 4.0}, {"n": "③ おおきく", "f": 32.0}]
+		var sroot := Node3D.new()
+		add_child(sroot)
+		sroot.global_position = Vector3(0.0, 0.0, -40.0)
+		var sx2 := -(phases.size() - 1) * 1.3
+		for p in phases:
+			var holder := Node3D.new()
+			sroot.add_child(holder)
+			holder.position = Vector3(sx2, 1.4, 0.0)
+			var fig := _ffig(holder)
+			_fairy_wings(fig, p["f"])
+			var lbl := Label3D.new()
+			lbl.text = p["n"]
+			lbl.position = Vector3(0.0, 0.9, 0.0)
+			lbl.pixel_size = 0.006
+			lbl.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+			holder.add_child(lbl)
+			sx2 += 2.6
+		var sl := DirectionalLight3D.new()
+		sl.rotation = Vector3(deg_to_rad(-38.0), deg_to_rad(20.0), 0.0)
+		sroot.add_child(sl)
+		var scam := Camera3D.new()
+		add_child(scam)
+		scam.global_position = Vector3(0.0, 2.0, -32.5)
+		scam.look_at(Vector3(0.0, 1.4, -40.0), Vector3.UP)
+		scam.fov = 56.0
+		scam.current = true
+		await get_tree().create_timer(0.7).timeout
+		await RenderingServer.frame_post_draw
+		get_viewport().get_texture().get_image().save_png("/tmp/shot_flapseq.png")
 	# --flypat：飛行アクセサリ（マント/羽）の候補を6種並べて撮る（見た目を選ぶ提案）。
 	if OS.get_cmdline_user_args().has("--flypat"):
 		var fp := [
@@ -1140,6 +1177,30 @@ func _fly_cape(fig: Node3D, col: Color, length: float, jagged: bool) -> void:
 	if jagged:
 		for sx in [-1.0, 1.0]:
 			_wbox(cape, col, Vector3(0.1, 0.16, 0.03), Vector3(0.08 * sx, -length - 0.02, 0.1), Vector3.ZERO, deg_to_rad(18.0) * sx)
+
+
+## 妖精の羽（羽ばたき角 flap_deg 指定つき）＝“ひらひら”の一コマを作る。
+func _fairy_wings(fig: Node3D, flap_deg: float) -> void:
+	var wings := Node3D.new()
+	wings.position = Vector3(0.0, 0.62, 0.12)
+	fig.add_child(wings)
+	var fm := StandardMaterial3D.new()
+	fm.albedo_color = Color(0.72, 0.92, 1.0, 0.5)
+	fm.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	fm.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	fm.cull_mode = BaseMaterial3D.CULL_DISABLED
+	fm.emission_enabled = true
+	fm.emission = Color(0.6, 0.9, 1.0)
+	fm.emission_energy_multiplier = 0.35
+	for sx in [-1.0, 1.0]:
+		var piv := Node3D.new()
+		piv.position = Vector3(0.05 * sx, 0.0, 0.0)
+		piv.rotation.z = deg_to_rad((10.0 + flap_deg) * (1.0 if sx < 0.0 else -1.0))
+		wings.add_child(piv)
+		for blade in [[0.26, Vector3(0.24 * sx, 0.05, -0.02), 22.0], [0.19, Vector3(0.2 * sx, -0.06, 0.14), 30.0]]:
+			var mi := _wball(piv, Color(0.8, 0.94, 1.0), blade[0], blade[1], Vector3(1.0, 0.12, 0.68))
+			mi.material_override = fm
+			mi.rotation.z = deg_to_rad(float(blade[2]) * sx)
 
 
 func _fly_wings(fig: Node3D, style: String) -> void:
