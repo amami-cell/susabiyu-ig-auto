@@ -5,7 +5,7 @@
 // 全案で共通なのは「紙の地・二重罫・柱(誌名)・ノンブル・奥付帯」＝“一冊の雑誌”に見せる器。
 // 変えているのは中身の組み方だけ。静止画なのでアニメは持たない（動きは採用後に付ける）。
 import { AbsoluteFill, Img, staticFile } from "remotion";
-import { typoPhotos } from "./typoData";
+import { typoPhotos, typoLogoRound } from "./typoData";
 import { ytheme } from "./yoshokuTheme";
 import { mincho, serif, splitLines } from "./yoshokuDesign";
 // 案11 は「フィード案E をそのまま1ページに」。作り直すと似て非なるものになるので、
@@ -52,6 +52,18 @@ const Photo: React.FC<{ src?: string; style?: React.CSSProperties; pos?: string 
       filter: "brightness(1.06) saturate(1.12) contrast(1.04)", ...style,
     }} />
   ) : null;
+
+
+// ブーツロゴ（＝丸ロゴ typoLogoRound）。Driveのロゴフォルダから“正方形に近い”1枚を
+// fetch_typo が選んで置いている。取得できていない時は何も描かない（レイアウトを壊さない）。
+const BootLogo: React.FC<{ size?: number; style?: React.CSSProperties }> = ({ size = 132, style }) => (
+  typoLogoRound ? (
+    <Img src={staticFile(typoLogoRound)} style={{
+      width: size, height: size, objectFit: "contain",
+      filter: "drop-shadow(0 6px 20px rgba(0,0,0,0.45))", ...style,
+    }} />
+  ) : null
+);
 
 // 誌面の器（紙・二重罫・柱・ノンブル・奥付帯）。全案で共通。
 const Sheet: React.FC<{ storeName: string; handle: string; label: string; slab: string; no: string; children: React.ReactNode }> =
@@ -173,6 +185,8 @@ const P06: Inner = ({ d, slab }) => (<>
 // ── 案07 全面写真＋角の小札：写真を紙いっぱいに敷き、右下に小さなキャプション札 ──
 const P07: Inner = ({ d, slab }) => (<>
   <div style={{ position: "absolute", inset: 60, overflow: "hidden" }}><Photo src={d.src} /></div>
+  {/* 左上にブーツロゴ。写真が全面なので、影を付けて写真から浮かせる。 */}
+  <div style={{ position: "absolute", left: 96, top: 196 }}><BootLogo size={140} /></div>
   <div style={{ position: "absolute", right: 92, bottom: 168, width: 640, background: CARD, padding: "24px 30px 28px", boxShadow: "0 20px 50px rgba(60,35,14,0.40)" }}>
     <Kick t={d.sub} c={slab} w={640 - 60} size={22} />
     <div style={{ marginTop: 8, fontFamily: mincho, color: INK, fontSize: fitJa(nameOf(d), 54, 640 - 60, 24), fontWeight: 700, letterSpacing: 1, whiteSpace: "nowrap" }}>{nameOf(d)}</div>
