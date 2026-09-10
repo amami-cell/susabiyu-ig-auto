@@ -1,6 +1,12 @@
 # -*- coding: utf-8 -*-
 """テンプレごとの「音源・文言」の固定割当。
 
+値の出どころ（重要）：確認アプリの config に書かれている music/caption ラベルは
+実際の動画と1つ分ずれていた（URLだけ差し替えてラベルを更新し忘れた結果）。
+そのため値は「その mp4 を実際に焼いたときの生成ログ」を正として起こしている。
+例）No.7 の実際の曲は Somebody_(Prod._Khaim)。config が表示していた
+    Take_Me_To_The_Top は隣の No.10 のものだった。
+
 これまで音源と文言は render_samples.py の中で _tracks[idx % len(_tracks)] ＝
 「そのとき実行したパターンの並び順」で決めていた。そのため一部だけ再レンダリング
 すると順番がずれ、同じテンプレでも音楽と文言が毎回変わってしまっていた。
@@ -20,16 +26,16 @@ import os, re, glob
 
 # パターン名 → 音源ファイル名（拡張子なし。public/music/normal/ の中を探す）
 MUSIC = {
-    "yoshokudish":       "1分23秒～　愛の傘下",
-    "yoshokuchalk":      "1分3秒～　Funky_droll_street",
-    "yoshokusizzle":     "1分51秒～　Good_Evening_Sunset",
-    "yoshokumag":        "20秒～　Cocktail_Glass",
+    "yoshokudish":       "1分3秒～　Funky_droll_street",
+    "yoshokuchalk":      "1分51秒～　Good_Evening_Sunset",
+    "yoshokusizzle":     "20秒～　Cocktail_Glass",
+    "yoshokumag":        "26秒～　Just_the_Record",
     "yoshokucine":       "26秒～　Just_the_Record",
     "yoshokuwine":       "49秒～　Somebody_(Prod._Khaim)",
-    "yoshokutrio":       "49秒～　Take_Me_To_The_Top",
+    "yoshokutrio":       "49秒～　Somebody_(Prod._Khaim)",
     "yoshokupola":       "4秒～月の降る街",
     "yoshokutype":       "French_Toast",
-    "yoshokuopen":       "paving_walkway",
+    "yoshokuopen":       "49秒～　Take_Me_To_The_Top",
     "yoshokumagazine":   "1分23秒～　愛の傘下",
     "yoshokuopblur":     "1分51秒～　Good_Evening_Sunset",
     "yoshokuopmortar":   "20秒～　Cocktail_Glass",
@@ -44,16 +50,16 @@ MUSIC = {
 
 # パターン名 → 画面に出すフック文言
 HOOK = {
-    "yoshokudish":       "今夜は、肉。",
-    "yoshokuchalk":      "この一皿に乾杯を。",
-    "yoshokusizzle":     "肉と、赤と、いい夜と。",
-    "yoshokumag":        "旨いを、遠慮なく。",
+    "yoshokudish":       "この一皿に乾杯を。",
+    "yoshokuchalk":      "肉と、赤と、いい夜と。",
+    "yoshokusizzle":     "旨いを、遠慮なく。",
+    "yoshokumag":        "腹ペコ、集合。",
     "yoshokucine":       "腹ペコ、集合。",
     "yoshokuwine":       "日常に、ひと皿の贅沢。",
-    "yoshokutrio":       "〆まで、旨い。",
+    "yoshokutrio":       "日常に、ひと皿の贅沢。",
     "yoshokupola":       "肉バルの、実力。",
     "yoshokutype":       "いい夜の、はじまり。",
-    "yoshokuopen":       "〜コスパ良く日常に贅沢を〜",
+    "yoshokuopen":       "〆まで、旨い。",
     "yoshokumagazine":   "今夜は、肉。",
     "yoshokuopblur":     "肉と、赤と、いい夜と。",
     "yoshokuopmortar":   "旨いを、遠慮なく。",
