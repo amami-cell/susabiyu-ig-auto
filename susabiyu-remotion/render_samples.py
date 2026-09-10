@@ -230,6 +230,14 @@ def main():
     print("window.GIFUYA.SAMPLES = " + json.dumps(samples, ensure_ascii=False) + ";")
     print("===== SAMPLES(JSON) ここまで =====")
     print("[SAMPLE] 完了：%d本" % len(samples))
+    # 結果を動画と同じ永続CDNにも1ファイル置く。
+    # Actionsのログは末尾しか取り出せないことがあり、この後にアーティファクト保存の
+    # ログが続くと上のJSON行に届かない＝どのURL・どの音源になったのか追えなくなる。
+    # メディア用リポジトリに置いておけば git から確実に読める（数KBなので容量も問題ない）。
+    try:
+        print("[SAMPLE][JSON]", poster.up("out/samples.json", cdn=True) or "アップロード失敗")
+    except Exception as _e:
+        print("[SAMPLE][JSON] アップロード失敗:", _e)
     # どのテンプレがどの音源に解決したかを最後に1行で出す。
     # ログは末尾しか読めないことがあるので、ここは必ず短く保つ。
     # 解決できなかったものは "?固定したい名前" と出るので、Drive側の改名にすぐ気づける。

@@ -274,8 +274,9 @@ export const YoshokuMagazine: React.FC<{ storeName?: string; handle?: string; th
     <Sequence from={MAGZ_OPEN} durationInFrames={MAGZ_BODY}>
       <MagazineBody storeName={storeName} handle={handle} theme={theme} />
     </Sequence>
+    {/* 1ページ目(案11)は表紙と別物の全面写真なので、溶かすと濁る。表紙を左へ“めくって”送る。 */}
     <Sequence durationInFrames={MAGZ_OPEN + STORY_XF}>
-      <StoryOpenXF v={9} storeName={storeName} theme={theme} openText={openText} dur={MAGZ_OPEN} xf={STORY_XF} />
+      <StoryOpenXF v={9} storeName={storeName} theme={theme} openText={openText} dur={MAGZ_OPEN} xf={STORY_XF} turn />
     </Sequence>
     <Sequence from={MAGZ_OPEN + MAGZ_BODY - STORY_XF} durationInFrames={MAGZ_END + STORY_XF}>
       <StoryEndV v={9} storeName={storeName} handle={handle} theme={theme} />
