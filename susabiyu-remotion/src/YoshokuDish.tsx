@@ -5,12 +5,13 @@ import { AbsoluteFill, Audio, Sequence, staticFile, useCurrentFrame, interpolate
 import { typoPhotos, typoMusic, typoMusicStart } from "./typoData";
 import { ytheme } from "./yoshokuTheme";
 import {
-  mincho, serif, clamp, SAFE, rise, drawW, segNow,
+  mincho, serif, clamp, EASE, SAFE, rise, drawW, segNow,
   Grain, Vignette, WarmGlow, DishStage, Masthead, fitOneLine, fitLines, splitLines,
   STORY_OPEN, STORY_END, STORY_XF,
 } from "./yoshokuDesign";
 // OP/CLOSEはテンプレごとに固定の案を使う（本日の一皿：料理が主役なので“一皿から引く”で始める）。
-import { StoryOpenV, StoryEndV } from "./YoshokuOpStyles";
+// StoryOpenXF は OP を本編の頭に重ねてディゾルブさせるラッパー（ハードカット解消）。
+import { StoryOpenXF, StoryEndV } from "./YoshokuOpStyles";
 
 const DISH_BODY = 420; // 14s（4品×約3.5s）
 export const YOSHOKU_DUR = STORY_OPEN + DISH_BODY + STORY_END;
@@ -21,29 +22,40 @@ const DishBody: React.FC<{ storeName?: string; handle?: string; theme?: string }
   const f = useCurrentFrame();
   const DUR = DISH_BODY;
   const T = ytheme(theme);
-  const photos = (typoPhotos.length ? typoPhotos : [{ src: "", caption: "", story: "", sub: "", disp: "" }]).slice(0, 4);
+  const photos = (typoPhotos.length ? typoPhotos : [{ src: "", caption: "", story: "", sub: "", disp: "", desc: "" }]).slice(0, 4);
   const srcs = photos.map((p) => p.src);
   const { i, local } = segNow(DUR, photos.length, f);
-  const cur = photos[i] || { caption: "", story: "", sub: "", disp: "" };
+  const cur = photos[i] || { caption: "", story: "", sub: "", disp: "", desc: "" };
   const nm = (cur.disp && cur.disp.length) ? cur.disp : cur.caption;
   const one = (nm || "").replace(/[｜\n]/g, "");                    // 料理名は必ず1行
   const nameSize = fitOneLine(one, 96, 1080 - SAFE.side * 2, 34);
   const ruleW = drawW(f, 56, 108, 28);
 
+  // ── 1品目の入り（トランジション）──────────────────────────────
+  // OPが上で消えていく STORY_XF の間に、本編は「少し寄った＋ぼけた」状態から
+  // ピントと画角が定まっていく。映画の“フォーカスが合う”動きで、切り替わりを
+  // 段差ではなく“流れ”にする。2品目以降は通常のクロスフェードなので触らない。
+  const inS = interpolate(f, [0, 54], [1.07, 1], { ...clamp, easing: EASE });
+  const inB = interpolate(f, [0, 34], [12, 0], { ...clamp, easing: EASE });
+
   return (
     <AbsoluteFill style={{ backgroundColor: T.base, fontFamily: mincho }}>
       {/* 主役ステージ（額装カード＋暗ぼかし背景）：4品をクロスフェードで巡回 */}
-      <DishStage srcs={srcs} total={DUR} base={T.base} accent={T.accent} cardW={846} cardH={846} cardTop={430} />
+      <AbsoluteFill style={{ transform: "scale(" + inS + ")", filter: "blur(" + inB + "px)" }}>
+        <DishStage srcs={srcs} total={DUR} base={T.base} accent={T.accent} cardW={846} cardH={846} cardTop={430} />
+      </AbsoluteFill>
       <Vignette strength={0.38} />
       <WarmGlow />
       <Grain />
 
-      {/* 左上：ロゴのマストヘッド＋ラテンのキッカー（文字ロゴを大きく） */}
-      <Masthead storeName={storeName} kicker={T.label} accent={T.accent} f={f} logoH={116} />
+      {/* 左上：ロゴのマストヘッド＋ラテンのキッカー（文字ロゴを大きく）。
+          写真がピントを取り戻してから出す＝OPのロゴと一瞬かぶらないように後ろへずらす。 */}
+      <Masthead storeName={storeName} kicker={T.label} accent={T.accent} f={f - 26} logoH={116} />
 
 
       {/* 左下：欧文サブ＋料理名（明朝・特大・最大2行）＋短い金の罫＋短句／ハンドル。カット毎に差し替え。 */}
-      <div key={i} style={{ position: "absolute", left: SAFE.side, right: SAFE.side, bottom: SAFE.bottom - 44, textAlign: "left", ...rise(local, 4, { dist: 24, blur: 6 }) }}>
+      {/* 1品目だけは、写真が定まってから文字が立ち上がる（OPと同時に喋らせない）。 */}
+      <div key={i} style={{ position: "absolute", left: SAFE.side, right: SAFE.side, bottom: SAFE.bottom - 44, textAlign: "left", ...rise(local, i === 0 ? 34 : 4, { dist: 24, blur: 6 }) }}>
         <div style={{ width: ruleW, height: 2, background: T.accent, opacity: 0.9, marginBottom: 18 }} />
         {cur.sub ? <div style={{ fontFamily: serif, color: T.accent, fontSize: 30, letterSpacing: 4, textTransform: "uppercase", fontWeight: 600, marginBottom: 8 }}>{cur.sub}</div> : null}
         <div style={{ fontFamily: mincho, color: T.ink, fontSize: nameSize, fontWeight: 700, letterSpacing: 1, lineHeight: 1.16, whiteSpace: "nowrap", textShadow: "0 3px 22px rgba(0,0,0,0.55)" }}>{one}</div>
@@ -71,8 +83,10 @@ export const YoshokuDish: React.FC<{ storeName?: string; handle?: string; theme?
     <AbsoluteFill style={{ backgroundColor: T.base }}>
       {/* 音楽は全体（オープニング〜本編〜エンドロール）に通す */}
       <Audio src={staticFile(typoMusic)} startFrom={Math.round((typoMusicStart || 0) * 30)} volume={(ff) => interpolate(ff, [0, 16, YOSHOKU_DUR - 30, YOSHOKU_DUR], [0, 0.8, 0.8, 0], clamp)} />
-      <Sequence durationInFrames={STORY_OPEN}><StoryOpenV v={5} storeName={storeName} theme={theme} /></Sequence>
+      {/* 本編を先に置き、その上にOPを STORY_XF ぶん長く重ねてディゾルブさせる（順序が重要）。
+          ＝OPが薄れていく裏で1品目が立ち上がる。以前はここがハードカットだった。 */}
       <Sequence from={STORY_OPEN} durationInFrames={DISH_BODY}><DishBody storeName={storeName} handle={handle} theme={theme} /></Sequence>
+      <Sequence durationInFrames={STORY_OPEN + STORY_XF}><StoryOpenXF v={5} storeName={storeName} theme={theme} /></Sequence>
       <Sequence from={STORY_OPEN + DISH_BODY - STORY_XF} durationInFrames={STORY_END + STORY_XF}><StoryEndV v={5} storeName={storeName} handle={handle} theme={theme} /></Sequence>
     </AbsoluteFill>
   );

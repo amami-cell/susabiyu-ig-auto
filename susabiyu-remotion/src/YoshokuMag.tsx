@@ -4,7 +4,7 @@ import { AbsoluteFill, Audio, Sequence, staticFile, useCurrentFrame, interpolate
 import { typoPhotos, typoHeadline, typoMusic, typoMusicStart } from "./typoData";
 import { ytheme } from "./yoshokuTheme";
 import {
-  mincho, serif, clamp, SAFE, rise, drawW, fade,
+  mincho, serif, clamp, EASE, SAFE, rise, fade,
   fitLines, splitLines,
   Grain, StoreLogo, PhotoLayer, Slides, fitOneLine, segNow,
   STORY_OPEN, STORY_END, STORY_XF,
@@ -21,9 +21,10 @@ const MagBody: React.FC<{ storeName?: string; handle?: string; theme?: string }>
   const f = useCurrentFrame();
   const DUR = MAG_BODY;
   const T = ytheme(theme);
-  const p = typoPhotos.length ? typoPhotos : [{ src: "", caption: "", story: "", sub: "", disp: "" }];
+  const p = typoPhotos.length ? typoPhotos : [{ src: "", caption: "", story: "", sub: "", disp: "", desc: "" }];
   const items = [0, 1, 2, 3].map((i) => p[i] || p[p.length - 1]);
-  const barH = drawW(f, 26, 220, 34);
+  // 縦罫の“引かれ具合”（0→1）。長さは固定値ではなく文字ブロックの高さに追従させる。
+  const barGrow = interpolate(f, [26, 60], [0, 1], { ...clamp, easing: EASE });
   // 短句(story)は廃止。各料理の説明文(desc)を使い、無ければ全体フックにフォールバック。
   const oneLiner = items[segNow(DUR, 4, f).i].desc || typoHeadline;
 
@@ -47,33 +48,38 @@ const MagBody: React.FC<{ storeName?: string; handle?: string; theme?: string }>
         <div style={{ fontFamily: serif, color: "#FFFFFF", fontSize: 26, letterSpacing: 6, opacity: 0.9 }}>SIGNATURE</div>
       </div>
 
-      {/* 下：見出し（横組み・特大・最大2行）＝表紙の主役＝料理名。上に欧文サブ。
-          （料理名を一段大きくし、ブロック全体を下げて下の空白を詰める） */}
-      <div style={{ position: "absolute", left: SAFE.side, right: SAFE.side, bottom: 316 }}>
-        <div style={{ width: 3, height: barH, background: T.accent, marginBottom: 22 }} />
-        {(() => {
-          const { i, local } = segNow(DUR, 4, f);
-          const it = items[i];
-          const nm = (it.disp && it.disp.length) ? it.disp : it.caption;
-          const one = (nm || "").replace(/[｜\n]/g, "");                  // 料理名は必ず1行
-          const sz = fitOneLine(one, 104, 1080 - SAFE.side * 2, 36);
-          return (
-            <div key={i} style={{ ...rise(local, 6, { dist: 24, blur: 6 }) }}>
-              <div style={{ fontFamily: serif, color: T.accent, fontSize: 30, letterSpacing: 5, marginBottom: 12, textTransform: "uppercase", fontWeight: 600 }}>{it.sub || ("No.0" + (i + 1))}</div>
-              <div style={{ fontFamily: mincho, color: T.ink, fontSize: sz, fontWeight: 700, letterSpacing: 1, lineHeight: 1.18, whiteSpace: "nowrap", textShadow: "0 2px 16px rgba(0,0,0,0.45)" }}>{one}</div>
+      {/* 下：欧文サブ＋料理名＋一言を「1つのブロック」にまとめ、左の縦罫をその高さに沿わせる。
+          以前は 220px の縦棒が文字の“上”に単独で立っていて、線と文字が離れた
+          （＝はぐれた線に見える）。雑誌の縦罫は本文の左に添えるのが本来の作法。 */}
+      <div style={{ position: "absolute", left: SAFE.side, right: SAFE.side, bottom: 188, display: "flex", alignItems: "stretch" }}>
+        {/* 縦罫は上から下へ引かれる（scaleY＝“罫を引く”動き。長さは文字ブロックが決める） */}
+        <div style={{ width: 4, background: T.accent, opacity: 0.92, transform: "scaleY(" + barGrow + ")", transformOrigin: "top" }} />
+        <div style={{ marginLeft: 30, flex: 1, minWidth: 0 }}>
+          {(() => {
+            const { i, local } = segNow(DUR, 4, f);
+            const it = items[i];
+            const nm = (it.disp && it.disp.length) ? it.disp : it.caption;
+            const one = (nm || "").replace(/[｜\n]/g, "");                  // 料理名は必ず1行
+            const sz = fitOneLine(one, 104, 1080 - SAFE.side * 2 - 34, 36);
+            return (
+              <div key={i} style={{ ...rise(local, 6, { dist: 24, blur: 6 }) }}>
+                <div style={{ fontFamily: serif, color: T.accent, fontSize: 30, letterSpacing: 5, marginBottom: 12, textTransform: "uppercase", fontWeight: 600 }}>{it.sub || ("No.0" + (i + 1))}</div>
+                <div style={{ fontFamily: mincho, color: T.ink, fontSize: sz, fontWeight: 700, letterSpacing: 1, lineHeight: 1.18, whiteSpace: "nowrap", textShadow: "0 2px 16px rgba(0,0,0,0.45)" }}>{one}</div>
+              </div>
+            );
+          })()}
+          {/* 一言（各料理の説明文。無ければ全体フック）＝同じ罫の内側に置く */}
+          {/* 出現は料理名のすぐ後（以前は74フレーム＝本編2.5秒目で、遅すぎて
+              サムネイルにも入らず、視聴時も“後から思い出したように”出ていた）。 */}
+          <div style={{ marginTop: 30, opacity: fade(f, 40) }}>
+            <div style={{
+              fontFamily: mincho, color: "#EADFC9", letterSpacing: 1, lineHeight: 1.36,
+              textShadow: "0 2px 14px rgba(0,0,0,0.6)",
+              fontSize: fitLines(oneLiner, 46, 1080 - SAFE.side * 2 - 54, 24),
+            }}>
+              {splitLines(oneLiner).map((l, k) => <div key={k} style={{ whiteSpace: "nowrap" }}>{l}</div>)}
             </div>
-          );
-        })()}
-      </div>
-
-      {/* 下：一言（各料理のストーリー用の短い一言。無ければ全体フック）＝大きめに */}
-      <div style={{ position: "absolute", left: SAFE.side, right: SAFE.side, bottom: 188, opacity: fade(f, 74) }}>
-        <div style={{
-          fontFamily: mincho, color: "#EADFC9", letterSpacing: 1, lineHeight: 1.36,
-          textShadow: "0 2px 14px rgba(0,0,0,0.6)",
-          fontSize: fitLines(oneLiner, 46, 1080 - SAFE.side * 2 - 20, 24),
-        }}>
-          {splitLines(oneLiner).map((l, k) => <div key={k} style={{ whiteSpace: "nowrap" }}>{l}</div>)}
+          </div>
         </div>
       </div>
 
