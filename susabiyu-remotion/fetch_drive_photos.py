@@ -78,15 +78,23 @@ def sync_music_from_drive(folder_id, local_dir):
             print("[MUSIC DL]", name)
     except Exception as e:
         print("[MUSIC] sync skip:", e)
-def pick_music():
+def pick_music(creds_path=""):
     music = "bgm.mp3"
     sync_music_from_drive(os.environ.get("GENRE_MUSIC_NORMAL_ID"), NORMAL_DIR)
     if os.path.isdir(NORMAL_DIR):
         tracks = [t for t in os.listdir(NORMAL_DIR)
                   if t.lower().endswith((".mp3", ".m4a", ".wav"))]
         if tracks:
-            music = "music/normal/" + random.choice(tracks)
-    return os.environ.get("FIXED_MUSIC") or music
+            # 直近に使った曲は続けて選ばない（写真と同じ考え方）。
+            import usage as _u
+            music = "music/normal/" + _u.pick_bgm(tracks, creds_path)
+    music = os.environ.get("FIXED_MUSIC") or music
+    try:
+        import usage as _u2
+        _u2.record_bgm(creds_path, music, "drive_photos")
+    except Exception:
+        pass
+    return music
 
 def gather(root_id):
     images = []
@@ -187,7 +195,7 @@ _fx = [x for x in os.environ.get("FIXED_IDS", "").split(",") if x]
 if _fx:
     picked = [drive.files().get(fileId=_i, fields="id,name,mimeType,imageMediaMetadata(width,height),createdTime", supportsAllDrives=True).execute() for _i in _fx]
 usage.record(creds_path, picked, "sushi")
-music = pick_music()
+music = pick_music(creds_path)
 print("MUSIC:", music)
 import json as _pj, os as _po
 _po.makedirs("out", exist_ok=True)

@@ -167,7 +167,10 @@ if os.path.isdir(UPTEMPO_DIR):
     tracks = [p for p in os.listdir(UPTEMPO_DIR)
               if p.lower().endswith((".mp3", ".m4a", ".wav"))]
     if tracks:
-        music = "music/uptempo/" + random.choice(tracks)
+        # 直近に使った曲は続けて選ばない（写真と同じ考え方）。
+        # シートが読めない/曲が足りない時は従来どおり全体から選ぶ＝止まらない。
+        music = "music/uptempo/" + usage.pick_bgm(tracks, creds_path)
+usage.record_bgm(creds_path, music, "tempo")
 print("MUSIC:", music)
 
 def esc(s):

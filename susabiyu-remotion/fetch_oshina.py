@@ -176,7 +176,9 @@ sync_music_from_drive(os.environ.get("GENRE_MUSIC_NORMAL_ID"), NORMAL_DIR)
 if os.path.isdir(NORMAL_DIR):
     cands += ["music/normal/" + t for t in os.listdir(NORMAL_DIR)
               if t.lower().endswith((".mp3", ".m4a", ".wav"))]
-music = random.choice(cands)
+# 直近に使った曲は続けて選ばない（写真と同じ考え方）。
+music = usage.pick_bgm(cands, creds_path)
+usage.record_bgm(creds_path, music, "oshina")
 print("MUSIC:", music)
 
 def esc(s):
