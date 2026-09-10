@@ -37,6 +37,8 @@ jobs:
       - name: Render feed patterns (nagagutsu)
         env:
           STORE_ACCOUNT: nagagutsu
+          # 見本(フィード画像)づくりも「使った」に数えない。
+          USAGE_SKIP: "1"
           GOOGLE_CREDS_B64: ${{ secrets.GOOGLE_CREDS_B64 }}
           SHEET_ID: ${{ secrets.SHEET_ID }}
           GH_MEDIA_TOKEN: ${{ secrets.GH_MEDIA_TOKEN }}
