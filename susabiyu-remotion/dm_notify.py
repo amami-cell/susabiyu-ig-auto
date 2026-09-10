@@ -20,6 +20,36 @@ import poster
 import stores as _stores
 
 JST = datetime.timezone(datetime.timedelta(hours=9))
+
+
+def _parse_ts(v):
+    """一覧タブの日時セルを datetime にする。読めなければ None。
+
+    以前は fromisoformat 一本だったが、シートに書かれる形が書き手ごとに違う：
+      ・Webhook 由来 … "2026-09-06T03:54:46+0000"（ISO）
+      ・GAS/手入力 由来 … "2026-09-10 9:00"（時が1桁＝ゼロ埋め無し）
+    fromisoformat は時のゼロ埋めが無いと弾くため、後者が必ず失敗し、
+    しかも except で握り潰していたので「直近24h 0件」と嘘の値が出ていた。
+    ＝新しいDMが来ても監視が気づけない状態だったので、両方を読めるようにする。
+    """
+    import re as _re
+    s = str(v or "").strip()
+    if not s:
+        return None
+    try:
+        d = datetime.datetime.fromisoformat(s.replace(" ", "T"))
+        return d if d.tzinfo else d.replace(tzinfo=JST)
+    except Exception:
+        pass
+    m = _re.match(r"^(\d{4})[-/](\d{1,2})[-/](\d{1,2})[T ]+(\d{1,2}):(\d{1,2})(?::(\d{1,2}))?", s)
+    if not m:
+        return None
+    try:
+        y, mo, d, hh, mi = (int(m.group(i)) for i in range(1, 6))
+        ss = int(m.group(6) or 0)
+        return datetime.datetime(y, mo, d, hh, mi, ss, tzinfo=JST)
+    except Exception:
+        return None
 IGB = getattr(poster, "IGB", "https://graph.instagram.com/v23.0")
 
 # 通知を出す時間帯（既定 10:00〜22:00 JST）。この窓の外（22:00〜翌10:00）は鳴らさない。
@@ -161,18 +191,17 @@ def run_account(acct, mode):
             newest = rows[-1][0] if rows else "-"
             cutoff = (datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(hours=24))
             recent = 0
+            bad = 0
             for r in rows:
-                try:
-                    ts = str(r[0]).strip().replace(" ", "T")
-                    dtv = datetime.datetime.fromisoformat(ts)
-                    if dtv.tzinfo is None:
-                        dtv = dtv.replace(tzinfo=JST)
-                    if dtv.astimezone(datetime.timezone.utc) >= cutoff:
-                        recent += 1
-                except Exception:
-                    pass
-            print("[%s][DM][MON] 一覧タブ=%s 累計%d件 / 直近24h %d件 / 最新=%s"
-                  % (name, ltab, len(rows), recent, newest))
+                dtv = _parse_ts(r[0])
+                if dtv is None:
+                    bad += 1
+                    continue
+                if dtv.astimezone(datetime.timezone.utc) >= cutoff:
+                    recent += 1
+            print("[%s][DM][MON] 一覧タブ=%s 累計%d件 / 直近24h %d件 / 最新=%s%s"
+                  % (name, ltab, len(rows), recent, newest,
+                     ("／時刻を読めない行 %d件" % bad) if bad else ""))
         except Exception as e:
             print("[%s][DM][MON] 一覧タブ読取スキップ:" % name, e)
         return  # 件数のみ。本文・通知は出さない
