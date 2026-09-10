@@ -361,7 +361,9 @@ sync_music_from_drive(os.environ.get("GENRE_MUSIC_NORMAL_ID"), NORMAL_DIR)
 if os.path.isdir(NORMAL_DIR):
     cands += ["music/normal/" + t for t in os.listdir(NORMAL_DIR)
               if t.lower().endswith((".mp3", ".m4a", ".wav"))]
-music = random.choice(cands)
+# 直近に使った曲は続けて選ばない（写真と同じ考え方）。曲数が少ないので日数ではなく
+# 「直近N回」で管理する。シートが読めない/曲が足りない時は従来どおり全体から選ぶ。
+music = usage.pick_bgm(cands, creds_path)
 print("MUSIC:", music)
 
 def esc(s):
@@ -372,6 +374,7 @@ _po.makedirs("out", exist_ok=True)
 _pj.dump({"ids": [f["id"] for f in picked], "caption": headline, "music": music}, open(_po.path.join("out", "picked.json"), "w", encoding="utf-8"), ensure_ascii=False)
 print("PICKED ->", "out/picked.json")
 music = os.environ.get("FIXED_MUSIC") or music
+usage.record_bgm(creds_path, music, "typo")
 lines = ["export const typoPhotos = ["]
 for it in items:
     lines.append('  { src: "%s", caption: "%s", sub: "%s", story: "%s", disp: "%s", desc: "%s", cut: "%s" },'

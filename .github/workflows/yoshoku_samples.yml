@@ -50,6 +50,9 @@ jobs:
         env:
           STORE_ACCOUNT: ${{ github.event.inputs.account }}
           PATTERNS: ${{ github.event.inputs.patterns }}
+          # 見本づくりは「使った」に数えない。ここを立てないと、確認用に焼いただけの
+          # 写真とBGMが使用記録に入り、本番投稿がそれらを避けてしまう（＝候補が痩せる）。
+          USAGE_SKIP: "1"
           GOOGLE_CREDS_B64: ${{ secrets.GOOGLE_CREDS_B64 }}
           SHEET_ID: ${{ secrets.SHEET_ID }}
           # 営業時間(入力用シート)を OPENテンプレの openText に反映するため。未登録なら中立表示にフォールバック。

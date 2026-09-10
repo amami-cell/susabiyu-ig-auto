@@ -175,3 +175,71 @@ def record(creds_path, files, pattern):
         print("[USAGE] %d枚を使用記録 (%s)" % (len(rows), pattern))
     except Exception as e:
         print("[USAGE] 記録失敗:", e)
+
+# ── BGM の連続使用を避ける ──────────────────────────────────────────
+# 写真は「使用写真」タブで直近21日を除外しているが、BGMは random.choice のみで
+# 直前に何を使ったか見ておらず、前回と同じ曲が連続で出ることがあった。
+# 曲数は10前後と少ないので日数ではなく「直近N回」で管理する。
+BGM_TAB = "使用BGM"
+BGM_RECENT = 3          # 直近この回数に使った曲は選ばない（曲が足りなければ自動で緩める）
+
+
+def _ensure_bgm(sh, sid):
+    try:
+        meta = sh.get(spreadsheetId=sid, fields="sheets.properties.title").execute()
+        titles = [x["properties"]["title"] for x in meta.get("sheets", [])]
+        if BGM_TAB not in titles:
+            sh.batchUpdate(spreadsheetId=sid,
+                body={"requests": [{"addSheet": {"properties": {"title": BGM_TAB}}}]}).execute()
+            sh.values().update(spreadsheetId=sid, range=BGM_TAB + "!A1:C1", valueInputOption="RAW",
+                body={"values": [["日時", "ファイル名", "パターン"]]}).execute()
+    except Exception as e:
+        print("[BGM] tab確認失敗:", e)
+
+
+def recent_bgm(creds_path, n=BGM_RECENT):
+    """直近n回に使ったBGMのファイル名(basename)の集合。読めない時は空＝従来どおり。"""
+    sid = _sheet_id()
+    if not (creds_path and sid and n > 0):
+        return set()
+    sh = _svc(creds_path)
+    if not sh:
+        return set()
+    _ensure_bgm(sh, sid)
+    try:
+        rows = sh.values().get(spreadsheetId=sid, range=BGM_TAB + "!A2:B").execute().get("values", [])
+    except Exception:
+        return set()
+    names = [r[1] for r in rows if len(r) > 1 and r[1]]
+    return set(names[-n:])
+
+
+def pick_bgm(cands, creds_path, n=BGM_RECENT):
+    """直近n回に使っていない曲からランダムに選ぶ。全部使ったばかりなら全体から選ぶ。"""
+    import random as _r
+    recent = recent_bgm(creds_path, n)
+    fresh = [c for c in cands if os.path.basename(c) not in recent]
+    print("[BGM] 候補%d -> 直近%d回を除外して%d (除外=%s)"
+          % (len(cands), n, len(fresh), ",".join(sorted(recent)) or "なし"))
+    return _r.choice(fresh or cands)
+
+
+def record_bgm(creds_path, music, pattern):
+    if os.environ.get("USAGE_SKIP") == "1":
+        print("[BGM] 見本生成のため記録スキップ")
+        return
+    sid = _sheet_id()
+    if not (creds_path and sid and music):
+        return
+    sh = _svc(creds_path)
+    if not sh:
+        return
+    _ensure_bgm(sh, sid)
+    now = datetime.datetime.now().strftime("%Y-%m-%d %H:%M")
+    try:
+        sh.values().append(spreadsheetId=sid, range=BGM_TAB + "!A:C", valueInputOption="RAW",
+            insertDataOption="INSERT_ROWS",
+            body={"values": [[now, os.path.basename(music), pattern]]}).execute()
+        print("[BGM] 使用記録:", os.path.basename(music))
+    except Exception as e:
+        print("[BGM] 記録失敗:", e)
