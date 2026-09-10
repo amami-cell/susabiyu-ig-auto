@@ -408,11 +408,27 @@ export const StoryOpenV: React.FC<SP & { v: OpVariant }> = ({ v, ...p }) => {
 // 本編が出るため繋がりが唐突だった（CLOSE側は STORY_XF で重ねていたのに頭だけ入っていない）。
 // 使い方: 本編Sequenceを先に置き、その上に「STORY_OPEN + xf」の長さでこれを重ねる。
 // 最後の xf フレームで“地ごと”消えていくので、本編が下から現れる真のディゾルブになる。
-export const StoryOpenXF: React.FC<SP & { v: OpVariant; xf?: number }> = ({ v, xf = STORY_XF, ...p }) => {
+// turn … 表紙を「ディゾルブ」ではなく「めくる」で送る。
+//   本編1ページ目が表紙と同じ紙面なら、重ねて溶かすディゾルブが自然につながる。
+//   けれど1ページ目が全面写真のような“別物”だと、明るいクリームの紙と暗い写真が
+//   混ざり合って濁って見える（＝溶けきるまで何のページか分からない）。
+//   そこで表紙を左へ送り出して下のページを出す＝雑誌のページを繰る動きにする。
+export const StoryOpenXF: React.FC<SP & { v: OpVariant; xf?: number; turn?: boolean }> = ({ v, xf = STORY_XF, turn, ...p }) => {
   const f = useCurrentFrame();
   // OPの長さは既定 STORY_OPEN だが、表紙に載せる情報が多いテンプレは長くしている。
   // ここを固定値にすると、伸ばしたOPでもディゾルブだけ3秒地点で始まってしまう。
   const D = p.dur || STORY_OPEN;
+  if (turn) {
+    // 送り出しきるまで表紙は不透明のまま＝1ページ目が“めくった下から”はっきり出る。
+    const x = interpolate(f, [D, D + xf], [0, -1140], { ...clamp, easing: EASE });
+    if (f >= D + xf) return null;
+    return (
+      // 右側（＝送られていく表紙の後ろ側）に落ちる影を下のページに落とす＝紙の厚みが出る。
+      <AbsoluteFill style={{ transform: "translateX(" + x + "px)", boxShadow: "26px 0 60px rgba(30,18,8,0.42)" }}>
+        <StoryOpenV v={v} {...p} />
+      </AbsoluteFill>
+    );
+  }
   const o = interpolate(f, [D, D + xf], [1, 0], { ...clamp, easing: EASE });
   if (o <= 0.001) return null;
   return (
