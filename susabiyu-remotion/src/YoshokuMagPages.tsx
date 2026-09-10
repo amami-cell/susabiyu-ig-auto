@@ -5,7 +5,7 @@
 // 全案で共通なのは「紙の地・二重罫・柱(誌名)・ノンブル・奥付帯」＝“一冊の雑誌”に見せる器。
 // 変えているのは中身の組み方だけ。静止画なのでアニメは持たない（動きは採用後に付ける）。
 import { AbsoluteFill, Img, staticFile } from "remotion";
-import { typoPhotos, typoLogoRound } from "./typoData";
+import { typoPhotos, typoLogoRound, typoLogoColor } from "./typoData";
 import { ytheme } from "./yoshokuTheme";
 import { mincho, serif, splitLines } from "./yoshokuDesign";
 // 案11 は「フィード案E をそのまま1ページに」。作り直すと似て非なるものになるので、
@@ -61,6 +61,18 @@ const BootLogo: React.FC<{ size?: number; style?: React.CSSProperties }> = ({ si
     <Img src={staticFile(typoLogoRound)} style={{
       width: size, height: size, objectFit: "contain",
       filter: "drop-shadow(0 6px 20px rgba(0,0,0,0.45))", ...style,
+    }} />
+  ) : null
+);
+
+// 色付きの文字ロゴ（＝フィード投稿と同じ typoLogoColor）。紙の地に置くので落ち影は
+// 焦茶の薄いものにする（黒い影だと紙から浮きすぎて印刷物に見えない）。
+// 取得できていない時は何も描かない（レイアウトを壊さない）。
+const WordLogo: React.FC<{ h?: number; style?: React.CSSProperties }> = ({ h = 150, style }) => (
+  typoLogoColor ? (
+    <Img src={staticFile(typoLogoColor)} style={{
+      height: h, width: "auto", maxWidth: 760, objectFit: "contain",
+      filter: "drop-shadow(0 4px 14px rgba(60,35,14,0.22))", ...style,
     }} />
   ) : null
 );
@@ -128,6 +140,9 @@ const P02: Inner = ({ d, slab }) => {
     </div>
     <div style={{ position: "absolute", left: 150, top: 1180, width: 140, height: 3, background: slab }} />
     <div style={{ position: "absolute", left: 116, right: 116, top: 1450 }}><Body t={d.desc} w={1080 - 232} /></div>
+    {/* 説明文(〜1552)と奥付帯(1816〜)の間が264px空いていたので、色付きの文字ロゴを置く。
+        中央寄せ・高さ150で、帯までのすき間は82px残る。 */}
+    <div style={{ position: "absolute", left: 116, right: 116, top: 1584, display: "flex", justifyContent: "center" }}><WordLogo h={150} /></div>
   </>);
 };
 
@@ -185,8 +200,9 @@ const P06: Inner = ({ d, slab }) => (<>
 // ── 案07 全面写真＋角の小札：写真を紙いっぱいに敷き、右下に小さなキャプション札 ──
 const P07: Inner = ({ d, slab }) => (<>
   <div style={{ position: "absolute", inset: 60, overflow: "hidden" }}><Photo src={d.src} /></div>
-  {/* 左上にブーツロゴ。写真が全面なので、影を付けて写真から浮かせる。 */}
-  <div style={{ position: "absolute", left: 96, top: 196 }}><BootLogo size={140} /></div>
+  {/* 左上にブーツロゴ。写真が全面なので、影を付けて写真から浮かせる。
+      写真の角(60,60)から32pxだけ内側＝角に寄せた位置。サイズ 140→220。 */}
+  <div style={{ position: "absolute", left: 92, top: 92 }}><BootLogo size={220} /></div>
   <div style={{ position: "absolute", right: 92, bottom: 168, width: 640, background: CARD, padding: "24px 30px 28px", boxShadow: "0 20px 50px rgba(60,35,14,0.40)" }}>
     <Kick t={d.sub} c={slab} w={640 - 60} size={22} />
     <div style={{ marginTop: 8, fontFamily: mincho, color: INK, fontSize: fitJa(nameOf(d), 54, 640 - 60, 24), fontWeight: 700, letterSpacing: 1, whiteSpace: "nowrap" }}>{nameOf(d)}</div>
@@ -224,22 +240,30 @@ const P09: Inner = ({ d, slab }) => (<>
 
 // ── 案10 引用主役：大きな鉤括弧で説明文を“引用”として立て、写真は帯状に ──
 const P10: Inner = ({ d, slab }) => {
-  const q = splitLines(d.desc || "")[0] || nameOf(d);
+  const W = 1080 - 232;
+  const lines = splitLines(d.desc || "");
+  const q = lines[0] || nameOf(d);
+  // 引用は「商品名の下・写真(640)の上」の限られた高さに収める。2行のときは
+  // 字を小さくしないと写真に食い込むので、行数で上限を切り替える。
+  const qMax = lines.length >= 2 ? 44 : 56;
   return (<>
-    <div style={{ position: "absolute", left: 116, right: 116, top: 250 }}>
-      <div style={{ fontFamily: mincho, color: slab, fontSize: 150, lineHeight: 0.8, opacity: 0.5 }}>「</div>
-      <div style={{ marginTop: -10, fontFamily: mincho, color: INK, fontSize: fitJa(q, 70, 1080 - 232, 28), fontWeight: 700, letterSpacing: 2, lineHeight: 1.5 }}>
-        {splitLines(d.desc || q).map((l, k) => <div key={k} style={{ whiteSpace: "nowrap" }}>{l}</div>)}
+    {/* 商品名を引用（キャプション）の上へ。欧文キッカー→料理名→罫の順。 */}
+    <div style={{ position: "absolute", left: 116, right: 116, top: 196, textAlign: "center" }}>
+      <Kick t={d.sub} c={slab} w={W} align="center" />
+      <div style={{ marginTop: 10, fontFamily: mincho, color: INK, fontSize: fitJa(nameOf(d), 60, W, 26), fontWeight: 700, letterSpacing: 2, lineHeight: 1.15, whiteSpace: "nowrap" }}>{nameOf(d)}</div>
+      <div style={{ width: 96, height: 3, background: slab, margin: "22px auto 0" }} />
+    </div>
+    <div style={{ position: "absolute", left: 116, right: 116, top: 350 }}>
+      <div style={{ fontFamily: mincho, color: slab, fontSize: 110, lineHeight: 0.8, opacity: 0.5 }}>「</div>
+      <div style={{ marginTop: -8, fontFamily: mincho, color: INK, fontSize: fitJa(q, qMax, W, 24), fontWeight: 700, letterSpacing: 2, lineHeight: 1.4 }}>
+        {(lines.length ? lines : [q]).map((l, k) => <div key={k} style={{ whiteSpace: "nowrap" }}>{l}</div>)}
       </div>
-      <div style={{ textAlign: "right", fontFamily: mincho, color: slab, fontSize: 150, lineHeight: 0.6, opacity: 0.5 }}>」</div>
+      <div style={{ textAlign: "right", fontFamily: mincho, color: slab, fontSize: 110, lineHeight: 0.6, opacity: 0.5 }}>」</div>
     </div>
-    {/* 写真の上端 830→640（下端1470は据え置き）。引用が終わるのは約555なので
-        85pxの余白を残して、その下の空きを写真で埋める。高さ 640→830px。 */}
+    {/* 写真の上端 830→640（下端1470は据え置き）。高さ 640→830px。 */}
     <div style={{ position: "absolute", left: 0, right: 0, top: 640, height: 830, overflow: "hidden" }}><Photo src={d.src} /></div>
-    <div style={{ position: "absolute", left: 116, right: 116, top: 1530, textAlign: "center" }}>
-      <Kick t={d.sub} c={slab} w={1080 - 232} align="center" />
-      <div style={{ marginTop: 10, fontFamily: mincho, color: INK, fontSize: fitJa(nameOf(d), 68, 1080 - 232, 26), fontWeight: 700, letterSpacing: 2, whiteSpace: "nowrap" }}>{nameOf(d)}</div>
-    </div>
+    {/* 写真(〜1470)と奥付帯(1816〜)の間346pxに、色付きの文字ロゴを中央・大きく。 */}
+    <div style={{ position: "absolute", left: 116, right: 116, top: 1520, display: "flex", justifyContent: "center" }}><WordLogo h={230} /></div>
   </>);
 };
 
