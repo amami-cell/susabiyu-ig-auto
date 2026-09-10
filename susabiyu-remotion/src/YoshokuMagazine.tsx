@@ -20,7 +20,13 @@ import {
 import { StoryOpenXF, StoryEndV } from "./YoshokuOpStyles";
 
 const MAGZ_BODY = 480; // 16s（4ページ×4s）
-export const YMAGZ_DUR = STORY_OPEN + MAGZ_BODY + STORY_END;
+// No.4 と同じく OP を +2秒 / CLOSE を -2秒（総尺24秒は据え置き）。
+// 表紙(案9)に「今号の見出し」＝4品の一覧を載せているため、既定の3秒では
+// 最終行が書き終わる前に表紙が消え始めていた（4行目の完了94フレーム > 消え始め74フレーム）。
+// 各要素の出現タイミング・速度は変えず、表紙を見せる時間だけ延ばす。
+const MAGZ_OPEN = STORY_OPEN + 60;   // 90 → 150 フレーム（3.0秒 → 5.0秒）
+const MAGZ_END = STORY_END - 60;     // 150 → 90 フレーム（5.0秒 → 3.0秒）
+export const YMAGZ_DUR = MAGZ_OPEN + MAGZ_BODY + MAGZ_END;   // 150+480+90 = 720 = 24.0秒（据え置き）
 
 // 案9と同じ紙の色（表紙・本文・裏表紙で同一にすることで“一冊”に見せる）
 const PAPER = "#F3E7CF";
@@ -233,13 +239,13 @@ export const YoshokuMagazine: React.FC<{ storeName?: string; handle?: string; th
     <Audio src={staticFile(typoMusic)} startFrom={Math.round((typoMusicStart || 0) * 30)}
       volume={(ff) => interpolate(ff, [0, 16, YMAGZ_DUR - 30, YMAGZ_DUR], [0, 0.8, 0.8, 0], clamp)} />
     {/* 本編を先に置き、その上に表紙(OP)を STORY_XF ぶん長く重ねてディゾルブ＝“表紙をめくる”繋がり */}
-    <Sequence from={STORY_OPEN} durationInFrames={MAGZ_BODY}>
+    <Sequence from={MAGZ_OPEN} durationInFrames={MAGZ_BODY}>
       <MagazineBody storeName={storeName} handle={handle} theme={theme} />
     </Sequence>
-    <Sequence durationInFrames={STORY_OPEN + STORY_XF}>
-      <StoryOpenXF v={9} storeName={storeName} theme={theme} openText={openText} />
+    <Sequence durationInFrames={MAGZ_OPEN + STORY_XF}>
+      <StoryOpenXF v={9} storeName={storeName} theme={theme} openText={openText} dur={MAGZ_OPEN} xf={STORY_XF} />
     </Sequence>
-    <Sequence from={STORY_OPEN + MAGZ_BODY - STORY_XF} durationInFrames={STORY_END + STORY_XF}>
+    <Sequence from={MAGZ_OPEN + MAGZ_BODY - STORY_XF} durationInFrames={MAGZ_END + STORY_XF}>
       <StoryEndV v={9} storeName={storeName} handle={handle} theme={theme} />
     </Sequence>
   </AbsoluteFill>

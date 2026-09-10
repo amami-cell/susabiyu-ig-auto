@@ -34,6 +34,9 @@ def run(cmd):
 POSTER_SEC_DEFAULT = 5.5
 POSTER_SEC = {
     "yoshokutype": 6.8,   # カット3の中ほど。明転(5.0秒)も終わっている
+    "yoshokumag": 7.5,    # このテンプレはOPが5.0秒（表紙に目次を載せているため長い）。
+                          # 既定の5.5秒だと本編に入って15フレーム目＝文字が立ち上がる前になる。
+    "yoshokumagazine": 7.5,  # 同上（こちらもOPが5.0秒）
 }
 
 
