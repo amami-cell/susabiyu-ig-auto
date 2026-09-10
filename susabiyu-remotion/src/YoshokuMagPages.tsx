@@ -8,6 +8,9 @@ import { AbsoluteFill, Img, staticFile } from "remotion";
 import { typoPhotos } from "./typoData";
 import { ytheme } from "./yoshokuTheme";
 import { mincho, serif, splitLines } from "./yoshokuDesign";
+// 案11 は「フィード案E をそのまま1ページに」。作り直すと似て非なるものになるので、
+// フィード側のコンポーネントをそのまま流用する（＝Eを直せばこちらも自動で追従する）。
+import { YoshokuFeedE } from "./YoshokuFeed";
 
 export const MAGP_W = 1080;
 export const MAGP_H = 1920;
@@ -238,6 +241,7 @@ const LABELS = [
   "案08 二枚組（主役＋ディテール）",
   "案09 縦帯レイアウト（左にテラコッタ帯）",
   "案10 引用主役（説明文を鉤括弧で立てる）",
+  "案11 フィード案Eそのまま（サイドレール／テラコッタ帯）",
 ];
 
 function make(i: number): React.FC<P> {
@@ -259,4 +263,7 @@ export const MAGP_COMPS: { id: string; label: string; comp: React.FC<P> }[] =
     id: "MagPage" + String(i + 1).padStart(2, "0"),
     label: LABELS[i],
     comp: make(i),
-  }));
+  })).concat([
+    // 案11 だけは“紙の誌面の器”を使わない。フィード案E をそのまま縦(1080×1920)で描く。
+    { id: "MagPage11", label: LABELS[10], comp: YoshokuFeedE },
+  ]);
