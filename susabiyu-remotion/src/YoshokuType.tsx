@@ -64,7 +64,10 @@ export const YoshokuType: React.FC<{ storeName?: string; handle?: string; theme?
       {/* 明転後：左上に色付きロゴを大きく（フィード投稿と同じ色ロゴ・サイズ感） */}
       <div style={{ position: "absolute", top: SAFE.top - 150, left: SAFE.side, opacity: fade(f, 118) }}>
         <StoreLogoColor storeName={storeName} height={140} />
-        <div style={{ marginTop: 10, fontFamily: serif, color: T.accent, fontSize: 24, letterSpacing: 6, fontWeight: 600, textTransform: "uppercase", textShadow: BARE_SHADOW }}>{T.label}</div>
+        {/* 暗幕を外したぶん、明るい写真の上ではテラコッタの小さい字が埋もれる。
+            キッカーとハンドルだけ生成り（料理名と同じ明るい色）に変えて可読性を確保する。
+            テラコッタは料理名の上の罫として残るのでブランド色は失われない。 */}
+        <div style={{ marginTop: 10, fontFamily: serif, color: "#F6EFE0", fontSize: 24, letterSpacing: 6, fontWeight: 600, textTransform: "uppercase", textShadow: BARE_SHADOW }}>{T.label}</div>
       </div>
 
       {/* 明転後：料理名（左下・大）＝“1件だけ”表示 */}
@@ -78,7 +81,7 @@ export const YoshokuType: React.FC<{ storeName?: string; handle?: string; theme?
           <div key={i} style={{ position: "absolute", left: SAFE.side, right: SAFE.side, bottom: SAFE.bottom - 44, textAlign: "left", ...rise(local, 8, { dist: 20, blur: 6 }) }}>
             <div style={{ width: drawW(local, 14, 100, 24), height: 2, background: T.accent, marginBottom: 18 }} />
             <div style={{ fontFamily: mincho, color: "#FFF6E6", fontSize: sz, fontWeight: 700, letterSpacing: 1, lineHeight: 1.16, whiteSpace: "nowrap", textShadow: BARE_SHADOW }}>{one}</div>
-            <div style={{ marginTop: 16, fontFamily: serif, color: T.accent, fontSize: 25, letterSpacing: 4, opacity: 0.9, textShadow: BARE_SHADOW }}>{handle}</div>
+            <div style={{ marginTop: 16, fontFamily: serif, color: "#F6EFE0", fontSize: 25, letterSpacing: 4, opacity: 0.92, textShadow: BARE_SHADOW }}>{handle}</div>
           </div>
         );
       })()}
