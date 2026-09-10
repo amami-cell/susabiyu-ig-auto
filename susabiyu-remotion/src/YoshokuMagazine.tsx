@@ -20,7 +20,7 @@ import {
   mincho, serif, clamp, EASE, fade, Grain, Slides, fitOneLine, fitLines, splitLines, segNow,
   STORY_OPEN, STORY_END, STORY_XF,
 } from "./yoshokuDesign";
-import { StoryOpenXF, StoryEndV } from "./YoshokuOpStyles";
+import { StoryOpenV, StoryEndV } from "./YoshokuOpStyles";
 
 const MAGZ_BODY = 480; // 16s（4ページ×4s）
 // No.4 と同じく OP を +2秒 / CLOSE を -2秒（総尺24秒は据え置き）。
@@ -224,9 +224,6 @@ const MagazineBody: React.FC<{ storeName?: string; handle?: string; theme?: stri
   const items: Item[] = [0, 1, 2, 3].map((i) => p[i] || p[p.length - 1]);
   const { i, seg } = segNow(DUR, 4, f);
 
-  // 1ページ目の入り：表紙(OP)が上で薄れていく間に、誌面が“紙をめくって現れる”ように寄りから定まる。
-  const inS = interpolate(f, [0, 46], [1.05, 1], { ...clamp, easing: EASE });
-
   // 1ページ目(案11)は全面の別デザインなので“誌面の器”を出さない。2ページ目に切り替わる
   // クロスディゾルブ（Slides の fade=22 と同じ窓）に合わせて器を立ち上げる＝唐突に出ない。
   const XF = 22;
@@ -247,21 +244,16 @@ const MagazineBody: React.FC<{ storeName?: string; handle?: string; theme?: stri
       <div style={{ position: "absolute", top: 158, left: 116, right: 116, height: 1, background: "rgba(176,72,31,0.4)", opacity: chrome }} />
 
       {/* ── ページ本体：オーナーが選んだ4案。ページ送りは横に少し流してめくり感を出す ──
-          1ページ目(案11)は全面デザインなので横流しはしない。代わりに寄りから定位置へ
-          動かす＝表紙が寄りながら外れるのと同じ向きの動き。止まった絵どうしを重ねると
-          濁ってしまうので、両方が動いている最中に入れ替える。 */}
+          1ページ目(案11)には寄りも横流しも掛けない。表紙からの切り替えは本編ごと
+          スライドして覆う（SlideOver）ので、ここで別の動きを足すとぶつかる。 */}
       <Slides count={4} total={DUR} fade={XF} render={(k, lf, sg) => {
         const it = items[k];
         if (k === 0) {
-          return (
-            <AbsoluteFill style={{ transform: "scale(" + inS + ")" }}>
-              <Page11 it={it} lf={lf} seg={sg} storeName={storeName} handle={handle} theme={theme} />
-            </AbsoluteFill>
-          );
+          return <Page11 it={it} lf={lf} seg={sg} storeName={storeName} handle={handle} theme={theme} />;
         }
         const x = interpolate(lf, [0, 26], [30, 0], { ...clamp, easing: EASE });
         return (
-          <AbsoluteFill style={{ transform: "scale(" + inS + ") translateX(" + x + "px)" }}>
+          <AbsoluteFill style={{ transform: "translateX(" + x + "px)" }}>
             {k === 1 ? <PageB it={it} lf={lf} seg={sg} slab={T.slab} /> : null}
             {k === 2 ? <Page07 it={it} lf={lf} seg={sg} slab={T.slab} /> : null}
             {k === 3 ? <Page10 it={it} lf={lf} seg={sg} slab={T.slab} /> : null}
@@ -280,6 +272,14 @@ const MagazineBody: React.FC<{ storeName?: string; handle?: string; theme?: stri
   );
 };
 
+// 本編が画面の右外から入ってきて表紙を覆う（＝画面スライドで切り替える）。
+// 覆う側だけが動き、覆われる表紙は最後まで止まったまま＝影や滲みが一切出ない。
+const SlideOver: React.FC<{ xf: number; children: React.ReactNode }> = ({ xf, children }) => {
+  const f = useCurrentFrame();
+  const x = interpolate(f, [0, xf], [1080, 0], { ...clamp, easing: EASE });
+  return <AbsoluteFill style={{ transform: "translateX(" + x + "px)" }}>{children}</AbsoluteFill>;
+};
+
 export const YoshokuMagazine: React.FC<{ storeName?: string; handle?: string; theme?: string; openText?: string }> = ({
   storeName = "ナガグツ", handle = "@nagagutsu0427", theme = "italian", openText = "",
 }) => (
@@ -287,14 +287,17 @@ export const YoshokuMagazine: React.FC<{ storeName?: string; handle?: string; th
     {/* 音楽は表紙〜本文〜裏表紙に通す */}
     <Audio src={staticFile(typoMusic)} startFrom={Math.round((typoMusicStart || 0) * 30)}
       volume={(ff) => interpolate(ff, [0, 16, YMAGZ_DUR - 30, YMAGZ_DUR], [0, 0.8, 0.8, 0], clamp)} />
-    {/* 本編を先に置き、その上に表紙(OP)を STORY_XF ぶん長く重ねてディゾルブ＝“表紙をめくる”繋がり */}
-    <Sequence from={MAGZ_OPEN} durationInFrames={MAGZ_BODY}>
-      <MagazineBody storeName={storeName} handle={handle} theme={theme} />
-    </Sequence>
-    {/* 1ページ目(案11)は表紙と別物の全面写真なので、止まったままのディゾルブでは濁る。
-        表紙は寄りながら外し、1ページ目は寄りから定位置へ。動いている最中に入れ替える。 */}
+    {/* 表紙(OP)を先に置き、その上を本編が右から左へスライドして覆う。
+        表紙は動かさず、消えもしない（＝影も滲みも出さない）。上に乗る本編が
+        画面を塞ぎきったところで表紙のSequenceが終わる。
+        dur には覆いきる時刻より後を渡し、表紙が自分でフェードアウトし始めないようにする。 */}
     <Sequence durationInFrames={MAGZ_OPEN + STORY_XF}>
-      <StoryOpenXF v={9} storeName={storeName} theme={theme} openText={openText} dur={MAGZ_OPEN} xf={STORY_XF} lift />
+      <StoryOpenV v={9} storeName={storeName} theme={theme} openText={openText} dur={MAGZ_OPEN + STORY_XF + 20} />
+    </Sequence>
+    <Sequence from={MAGZ_OPEN} durationInFrames={MAGZ_BODY}>
+      <SlideOver xf={STORY_XF}>
+        <MagazineBody storeName={storeName} handle={handle} theme={theme} />
+      </SlideOver>
     </Sequence>
     <Sequence from={MAGZ_OPEN + MAGZ_BODY - STORY_XF} durationInFrames={MAGZ_END + STORY_XF}>
       <StoryEndV v={9} storeName={storeName} handle={handle} theme={theme} />
