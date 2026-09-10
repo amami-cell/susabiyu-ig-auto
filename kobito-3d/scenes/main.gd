@@ -1041,15 +1041,20 @@ func _run_shot() -> void:
 		var pf: Node = _garden.local_player()
 		if pf != null:
 			pf.set_physics_process(false)   # 物理を止めて手動でポーズを固定
+			pf.set("state", 3)              # State.FLY＝アニメがスーパーマン姿勢に切替
 			pf.global_position.y = 3.0
 			var pb: Node3D = pf.get_node_or_null("Body")
 			if pb != null:
 				pb.rotation = Vector3(deg_to_rad(-72.0), 0.0, deg_to_rad(9.0))
+				var cape: Node3D = pb.get_node_or_null("Cape")
+				if cape != null:
+					cape.visible = true
+					cape.rotation.x = deg_to_rad(48.0)
 			var fc: Vector3 = pf.global_position
 			var fcam := Camera3D.new()
 			add_child(fcam)
-			fcam.global_position = fc + Vector3(3.4, 0.6, 0.4)   # 真横から
-			fcam.look_at(fc + Vector3(0.0, 0.1, 0.0), Vector3.UP)
+			fcam.global_position = fc + Vector3(2.2, 1.1, -3.2)   # 前方ななめ上（突き出した腕が見える角度）
+			fcam.look_at(fc + Vector3(0.0, -0.15, -0.4), Vector3.UP)
 			fcam.current = true
 			await get_tree().create_timer(0.5).timeout
 			await RenderingServer.frame_post_draw

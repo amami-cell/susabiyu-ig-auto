@@ -67,6 +67,22 @@ func _process(delta: float) -> void:
 	var walk := clampf(speed / 3.0, 0.0, 1.0)
 	_phase += delta * (4.0 + speed * 2.2)
 
+	# 飛行中は「スーパーマン姿勢」：片腕(右)を前方上へ突き出し、左腕は後ろ、脚はそろえて後ろ。
+	var flying: bool = _actor.has_method("is_flying") and _actor.is_flying()
+	if flying and _attack_t <= 0.0:
+		_body.position.y = _base_y
+		var kf := clampf(delta * 10.0, 0.0, 1.0)
+		if _arm_r != null:
+			_arm_r.rotation.x = lerp_angle(_arm_r.rotation.x, -1.75, kf)   # 右こぶしを前方（やや上）へ突き出す＝スーパーマン
+			_arm_r.rotation.y = lerp_angle(_arm_r.rotation.y, 0.0, kf)
+			_arm_r.rotation.z = lerp_angle(_arm_r.rotation.z, 0.0, kf)
+		if _arm_l != null:
+			_arm_l.rotation.x = lerp_angle(_arm_l.rotation.x, 1.15, kf)   # 左腕は体にそって後ろへ
+		for i in _legs.size():
+			if _legs[i] != null:
+				_legs[i].rotation.x = lerp_angle(_legs[i].rotation.x, -0.28, kf)   # 脚はそろえて後ろ
+		return
+
 	# 上下バウンド（常時＝攻撃中でも止まらない）
 	_body.position.y = _base_y + absf(sin(_phase)) * 0.045 * walk
 

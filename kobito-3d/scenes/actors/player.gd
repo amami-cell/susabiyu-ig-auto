@@ -63,6 +63,7 @@ var _net_pos := Vector3.ZERO
 var _net_yaw := 0.0
 
 @onready var _body: MeshInstance3D = $Body
+var _cape: Node3D = null   # 飛行を映えさせるマント（背中）
 @onready var _label: Label3D = $NameLabel
 var _help_label: Label3D = null   # ダウン中の「たすけて！」
 @onready var _cam_rig: Node3D = $CamRig
@@ -107,6 +108,7 @@ func _ready() -> void:
 			KobitoLook.decorate_simple(_body, _base_color, "adult", style_name, true)
 		else:
 			KobitoLook.decorate(_body, _base_color, true, "adult", style_name)   # 親：武器を持つ
+	_build_cape()
 	_label.text = pname
 
 	# ダウン中に頭上へ出す「たすけて！」ビーコン＝相方/なかまが近づくと復活が速まる
@@ -272,6 +274,15 @@ func _local_step(delta: float) -> void:
 	elif state != State.ATTACK:
 		_body.rotation.x = lerp_angle(_body.rotation.x, 0.0, t)
 		_body.rotation.z = lerp_angle(_body.rotation.z, 0.0, t)
+	# マント：飛行中だけ出して うしろへ なびく（ゆらゆら）。地上では隠す＝ふだんは素の見た目。
+	if _cape != null:
+		_cape.visible = state == State.FLY
+		if state == State.FLY:
+			_cape.rotation.x = lerp_angle(_cape.rotation.x, deg_to_rad(48.0) + sin(_age * 8.0) * deg_to_rad(12.0), t)
+			_cape.rotation.z = lerp_angle(_cape.rotation.z, sin(_age * 6.0) * deg_to_rad(8.0), t)
+		else:
+			_cape.rotation.x = lerp_angle(_cape.rotation.x, 0.0, t)
+			_cape.rotation.z = lerp_angle(_cape.rotation.z, 0.0, t)
 	if grounded and hspeed > 1.0 and state != State.FLY:
 		_step_t -= delta
 		if _step_t <= 0.0:
@@ -310,6 +321,40 @@ func _land_squash() -> void:
 
 func can_fly() -> bool:
 	return WorldState.has_flight()
+
+
+## 今 飛行中か（KobitoAnim がスーパーマン姿勢に切り替えるのに使う）。
+func is_flying() -> bool:
+	return state == State.FLY
+
+
+## 背中のマント（飛行を映えさせる）。前＝-Z なので背中＝+Z 側に段々で垂らす。
+func _build_cape() -> void:
+	_cape = Node3D.new()
+	_cape.name = "Cape"
+	_cape.position = Vector3(0.0, 0.62, 0.14)   # 肩のうしろあたり
+	_cape.visible = false                        # 飛行中だけ出す＝ふだんは絵本の雰囲気を保つ
+	_body.add_child(_cape)
+	var cloth := Color(0.86, 0.24, 0.26)         # 赤いマント（ヒーロー感）
+	var segs := [
+		[Vector3(0.0, -0.05, 0.02), Vector3(0.34, 0.22, 0.03)],
+		[Vector3(0.0, -0.24, 0.05), Vector3(0.32, 0.24, 0.03)],
+		[Vector3(0.0, -0.44, 0.08), Vector3(0.28, 0.24, 0.03)],
+		[Vector3(0.0, -0.63, 0.10), Vector3(0.22, 0.22, 0.03)],
+	]
+	for s in segs:
+		var mi := MeshInstance3D.new()
+		var bm := BoxMesh.new()
+		bm.size = s[1]
+		mi.mesh = bm
+		var mat := StandardMaterial3D.new()
+		mat.albedo_color = cloth
+		mat.roughness = 0.9
+		mat.rim_enabled = true
+		mat.rim = 0.3
+		mi.material_override = mat
+		mi.position = s[0]
+		_cape.add_child(mi)
 
 
 func _try_attack() -> void:
