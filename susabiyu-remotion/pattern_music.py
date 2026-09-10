@@ -16,7 +16,7 @@
 音源を差し替えたい時はここの1行を書き換える。ファイル名の「1分23秒～」の部分が
 再生開始位置になる（render_samples/_mstart が読む）ので、名前ごと変える。
 """
-import os, glob
+import os, re, glob
 
 # パターン名 → 音源ファイル名（拡張子なし。public/music/normal/ の中を探す）
 MUSIC = {
@@ -67,17 +67,33 @@ HOOK = {
 }
 
 
+def _key(name):
+    """照合用のキー。ファイル名の頭の「49秒～」「1分23秒～」は“再生開始位置”の指定で、
+    運用中に付け替えられる（＝曲は同じでも名前が変わる）。そこを落として曲名だけで
+    照合する。全角/半角の空白・チルダ・大文字小文字の揺れも吸収する。"""
+    n = os.path.splitext(os.path.basename(name or ""))[0]
+    n = re.sub(r"^\s*(?:\d+\s*分)?\s*(?:\d+\s*秒)?\s*[～~〜]?\s*", "", n)
+    n = n.replace("\u3000", " ").replace("_", " ")
+    return re.sub(r"\s+", "", n).lower()
+
+
 def music_path(pattern, tracks=None):
     """そのパターンに割り当てた音源の実ファイルパスを返す。
     見つからない時は "" を返し、呼び側は従来どおりのフォールバックに任せる
-    （Drive側でファイル名が変わっても落とさないため）。"""
+    （Drive側でファイルが消えても落とさないため）。"""
     stem = MUSIC.get(pattern)
     if not stem:
         return ""
     if tracks is None:
         tracks = sorted(glob.glob(os.path.join("public", "music", "normal", "*")))
+    # ①完全一致（名前がそのまま残っている場合）
     for t in tracks:
         if os.path.splitext(os.path.basename(t))[0] == stem:
+            return t
+    # ②曲名だけで一致（頭の秒数指定が付け替えられている場合。開始位置は現在の名前に従う）
+    k = _key(stem)
+    for t in tracks:
+        if _key(t) == k:
             return t
     return ""
 
@@ -90,3 +106,13 @@ def music_rel(pattern):
 
 def hook(pattern):
     return HOOK.get(pattern, "")
+
+
+def report(patterns, tracks):
+    """どのパターンがどの音源に解決したかを1行にまとめて返す（ログ確認用）。
+    解決できなかったものは ? を付ける。ログの末尾に出すので短く保つ。"""
+    out = []
+    for p in patterns:
+        t = music_path(p, tracks)
+        out.append("%s=%s" % (p.replace("yoshoku", ""), os.path.splitext(os.path.basename(t))[0] if t else "?" + (MUSIC.get(p) or "-")))
+    return " | ".join(out)

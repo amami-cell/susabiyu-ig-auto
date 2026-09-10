@@ -227,6 +227,17 @@ def main():
     print("window.GIFUYA.SAMPLES = " + json.dumps(samples, ensure_ascii=False) + ";")
     print("===== SAMPLES(JSON) ここまで =====")
     print("[SAMPLE] 完了：%d本" % len(samples))
+    # どのテンプレがどの音源に解決したかを最後に1行で出す。
+    # ログは末尾しか読めないことがあるので、ここは必ず短く保つ。
+    # 解決できなかったものは "?固定したい名前" と出るので、Drive側の改名にすぐ気づける。
+    try:
+        print("[MUSIC][MAP]", _pm.report(patterns, _tracks))
+        _miss = [p for p in patterns if p in _pm.MUSIC and not _pm.music_path(p, _tracks)]
+        if _miss:
+            print("[MUSIC][警告] 固定した音源が見つからないテンプレ:", ",".join(_miss))
+            print("[MUSIC][FILES]", "|".join(sorted(os.path.splitext(os.path.basename(t))[0] for t in _tracks)))
+    except Exception as _e:
+        print("[MUSIC][MAP] 出力失敗:", _e)
     if degraded:
         print("[SAMPLE][警告] 動画→静止画で代替されたパターン: %s（このパターンだけ再実行してください）" % ",".join(degraded))
 
