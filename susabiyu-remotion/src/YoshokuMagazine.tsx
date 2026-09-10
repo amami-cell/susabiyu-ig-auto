@@ -10,7 +10,7 @@
 //   04 案10 引用主役           : 鉤括弧の枠に料理名とキャプション、下に色付き文字ロゴ
 //   紙の地・二重罫・柱(誌名)・ノンブル・奥付帯は2ページ目以降が各自まとう＝“一冊”に見せる。
 //   （1ページ目の案11だけは全面の別デザインなので、この“器”を持たない）
-//   ページ送りは表紙も含めて全部同じ「右から左へスライドして覆う」で統一する。
+//   ページ送りは表紙も含めて全部同じ「重ねてディゾルブ＋横に少し流す」で統一する。
 //
 // アニメは useCurrentFrame/interpolate のみ（CSSトランジション禁止）。各Sequence内で相対フレーム。
 import { AbsoluteFill, Audio, Img, Sequence, staticFile, useCurrentFrame, interpolate } from "remotion";
@@ -21,7 +21,7 @@ import {
   mincho, serif, clamp, EASE, fade, Grain, fitOneLine, fitLines, splitLines,
   STORY_OPEN, STORY_END, STORY_XF,
 } from "./yoshokuDesign";
-import { StoryOpenV, StoryEndV } from "./YoshokuOpStyles";
+import { StoryOpenXF, StoryEndV } from "./YoshokuOpStyles";
 
 const MAGZ_BODY = 480; // 16s（4ページ×4s）
 // No.4 と同じく OP を +2秒 / CLOSE を -2秒（総尺24秒は据え置き）。
@@ -241,11 +241,20 @@ const Sheet: React.FC<{ storeName: string; handle: string; slab: string; label: 
     </AbsoluteFill>
   );
 
-// ページ送りは全ページ同じ「右から左へスライドして覆う」。
-// 以前はクロスディゾルブ＋30pxの横流しだった。横流しは重なりが解けきってから動き出す
-// ため、ページが出そろってから“かくっ”と動く見え方になっていた。動きは1つに統一する。
-// 覆われる側は最後まで動かない＝滑って入ってくるのは常に新しいページだけ。
-const PAGE_XF = STORY_XF;   // 覆いきるまで30フレーム（1.0秒）。表紙→1ページ目と同じ。
+// ページ送りは「重ねてディゾルブ＋横に少し流す」。
+//
+// ★“かくっ”の正体：以前は横流しを interpolate(lf, [0, 26], [30, 0]) と書いていた。
+//   lf は重なりの間はマイナス（＝前ページと重なって薄く出ている時間）なので、clamp で
+//   30px に貼りついたまま動かない。つまり「重なりが解けきって、ページが出そろってから
+//   ようやく動き出す」＝止まっている絵が急に動く。これが“かくっ”だった。
+//   直し方は、横流しの開始を「出はじめる瞬間」に合わせること（下の e0）。
+//   出てくる時にはもう動いていて、そのまま減速して止まる＝動きが途切れない。
+//
+// 抜けていく側も止めずに、同じ向きへ流しながら薄くする。すれ違う2枚が同じ向きに
+// 動き続けるので、重なっている間も画がぬるっと繋がる。
+const PAGE_XF = 22;          // 重なり（ディゾルブ）の長さ
+const PAGE_DRIFT = 30;       // 横に流す量(px)
+const PAGE_SETTLE = 30;      // 出きってから流れが止まるまでの余韻
 
 const MagazineBody: React.FC<{ storeName?: string; handle?: string; theme?: string }> = ({
   storeName = "ナガグツ", handle = "@nagagutsu0427", theme = "italian",
@@ -258,17 +267,29 @@ const MagazineBody: React.FC<{ storeName?: string; handle?: string; theme?: stri
   const seg = DUR / 4;
 
   return (
-    // 地は敷かない。1ページ目がスライドして覆いきるまで、下の表紙が見えている必要がある。
+    // 地は敷かない。1ページ目が濃くなりきるまで、下の表紙が透けて見えている必要がある。
     <AbsoluteFill>
       {[0, 1, 2, 3].map((k) => {
         const s = k * seg;
-        // 表示するのは「入り始め」から「次のページに覆いきられる」まで。
-        if (f < s || f > s + seg + PAGE_XF) return null;
         const lf = f - s;
-        const x = interpolate(lf, [0, PAGE_XF], [1080, 0], { ...clamp, easing: EASE });
+        // 出はじめる位置。1ページ目だけは前のページではなく“表紙”と重なるので、
+        // 本編の頭（lf=0）から出はじめる。2ページ目以降は前ページの尻に食い込む。
+        const e0 = k === 0 ? 0 : -PAGE_XF;
+        const last = k === 3;
+        if (lf < e0 || lf > seg) return null;
+        const oIn = interpolate(lf, [e0, e0 + PAGE_XF], [0, 1], clamp);
+        const oOut = last ? 1 : interpolate(lf, [seg - PAGE_XF, seg], [1, 0], clamp);
+        const o = Math.min(oIn, oOut);
+        // 出はじめ(e0)から動き、定位置で止まり、抜ける時はまた同じ向きへ流れる。
+        const x = interpolate(
+          lf,
+          [e0, e0 + PAGE_XF + PAGE_SETTLE, seg - PAGE_XF, seg],
+          [PAGE_DRIFT, 0, 0, last ? 0 : -PAGE_DRIFT],
+          { ...clamp, easing: EASE },
+        );
         const it = items[k];
         return (
-          <AbsoluteFill key={k} style={{ transform: "translateX(" + x + "px)" }}>
+          <AbsoluteFill key={k} style={{ opacity: o, transform: "translateX(" + x + "px)" }}>
             {k === 0
               ? <Page11 it={it} lf={lf} seg={seg} storeName={storeName} handle={handle} theme={theme} />
               : (
@@ -292,12 +313,10 @@ export const YoshokuMagazine: React.FC<{ storeName?: string; handle?: string; th
     {/* 音楽は表紙〜本文〜裏表紙に通す */}
     <Audio src={staticFile(typoMusic)} startFrom={Math.round((typoMusicStart || 0) * 30)}
       volume={(ff) => interpolate(ff, [0, 16, YMAGZ_DUR - 30, YMAGZ_DUR], [0, 0.8, 0.8, 0], clamp)} />
-    {/* 表紙(OP)を先に置き、その上を本編が右から左へスライドして覆う。
-        表紙は動かさず、消えもしない（＝影も滲みも出さない）。上に乗る本編が
-        画面を塞ぎきったところで表紙のSequenceが終わる。
-        dur には覆いきる時刻より後を渡し、表紙が自分でフェードアウトし始めないようにする。 */}
-    <Sequence durationInFrames={MAGZ_OPEN + STORY_XF}>
-      <StoryOpenV v={9} storeName={storeName} theme={theme} openText={openText} dur={MAGZ_OPEN + STORY_XF + 20} />
+    {/* 表紙(OP)も本文と同じ「重ねてディゾルブ」で送る。1ページ目が濃くなっていく間に
+        表紙が薄れる＝ページ間の切り替わりと同じ見え方になる。 */}
+    <Sequence durationInFrames={MAGZ_OPEN + PAGE_XF}>
+      <StoryOpenXF v={9} storeName={storeName} theme={theme} openText={openText} dur={MAGZ_OPEN} xf={PAGE_XF} />
     </Sequence>
     <Sequence from={MAGZ_OPEN} durationInFrames={MAGZ_BODY}>
       <MagazineBody storeName={storeName} handle={handle} theme={theme} />
