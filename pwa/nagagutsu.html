@@ -72,6 +72,18 @@
   /* 切替に応じてカードを出し分け（.cv=動画 .ci=画像 .cu=生成中は両方に表示） */
   #gallery.fvid .card.ci{display:none}
   #gallery.fimg .card.cv{display:none}
+  /* OP案フォルダ：オープニングの見比べ用は本編と混ざると探しにくいので末尾に畳んでおく */
+  .opfold{margin:18px 0 6px}
+  .opfold .opfoldb{width:100%;display:flex;align-items:center;gap:10px;
+    background:#141821;border:1px solid var(--line);border-radius:14px;padding:14px 16px;
+    color:var(--sub);font-size:15px;font-weight:800;text-align:left}
+  .opfold .opfoldb:active{transform:scale(.995)}
+  .opfold .opcar{display:inline-block;transition:transform .15s;font-size:12px;color:var(--accent)}
+  .opfold.open .opcar{transform:rotate(90deg)}
+  .opfold .opfoldb b{color:var(--accent);font-weight:900}
+  #gallery .card.opitem{display:none}
+  #gallery.opopen .card.opitem{display:block}
+  #gallery.opopen.fimg .card.opitem.cv{display:none}
   /* 再生中ミニバー：動画再生中に別画面へ移った時だけ画面下に出る */
   .npbar{position:fixed;left:12px;right:12px;bottom:calc(env(safe-area-inset-bottom) + 14px);z-index:46;
     display:flex;align-items:center;gap:10px;background:rgba(15,17,21,.96);border:1px solid var(--line);

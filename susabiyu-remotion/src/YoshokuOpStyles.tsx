@@ -13,7 +13,9 @@ import {
   STORY_OPEN, STORY_END, STORY_XF,
 } from "./yoshokuDesign";
 
-type SP = { storeName?: string; handle?: string; theme?: string; openText?: string };
+// dur … OPの長さ(フレーム)。既定は STORY_OPEN。テンプレによっては表紙に載せる情報が多く
+//        既定の3秒では出し切れないので、そのテンプレ側から長さを渡せるようにしてある。
+type SP = { storeName?: string; handle?: string; theme?: string; openText?: string; dur?: number };
 const DEF = { storeName: "ナガグツ", handle: "@nagagutsu0427", theme: "italian" };
 
 // CLOSE の締め文（全案共通）。ロゴの下に置く。
@@ -280,12 +282,15 @@ function _todayMD(): string {
   return now.getUTCMonth() + 1 + "/" + now.getUTCDate();
 }
 
-const Open9: React.FC<SP> = ({ storeName = DEF.storeName, theme = DEF.theme, openText = "" }) => {
+const Open9: React.FC<SP> = ({ storeName = DEF.storeName, theme = DEF.theme, openText = "", dur = STORY_OPEN }) => {
   const f = useCurrentFrame(); const T = ytheme(theme);
   const head = interpolate(f, [0, 44], [-36, 0], { ...clamp, easing: EASE });   // 誌名が上から入る
   const rule = interpolate(f, [12, 60], [0, 620], { ...clamp, easing: EASE });  // 誌名下の罫が引かれる
   const cover = interpolate(f, [22, 68], [30, 0], { ...clamp, easing: EASE });  // 見出しが下から
-  const o = Math.min(fade(f, 2, 24), interpolate(f, [STORY_OPEN - 16, STORY_OPEN], [1, 0], clamp));
+  // 表紙が消え始めるのは“終わりの16フレーム”。ここを STORY_OPEN 固定にしていたため、
+  // OPを長くしても表紙だけ3秒で消えてしまい、目次の3〜4行目が書き終わる前に切れていた。
+  // dur（そのテンプレのOPの長さ）を基準にする。各要素の出現タイミング自体は変えない。
+  const o = Math.min(fade(f, 2, 24), interpolate(f, [dur - 16, dur], [1, 0], clamp));
   // 営業時間はスプレッドシート(入力用)が正。未登録なら嘘の時刻を出さず中立表示にする。
   const hours = (openText || "").trim();
   return (
@@ -405,7 +410,10 @@ export const StoryOpenV: React.FC<SP & { v: OpVariant }> = ({ v, ...p }) => {
 // 最後の xf フレームで“地ごと”消えていくので、本編が下から現れる真のディゾルブになる。
 export const StoryOpenXF: React.FC<SP & { v: OpVariant; xf?: number }> = ({ v, xf = STORY_XF, ...p }) => {
   const f = useCurrentFrame();
-  const o = interpolate(f, [STORY_OPEN, STORY_OPEN + xf], [1, 0], { ...clamp, easing: EASE });
+  // OPの長さは既定 STORY_OPEN だが、表紙に載せる情報が多いテンプレは長くしている。
+  // ここを固定値にすると、伸ばしたOPでもディゾルブだけ3秒地点で始まってしまう。
+  const D = p.dur || STORY_OPEN;
+  const o = interpolate(f, [D, D + xf], [1, 0], { ...clamp, easing: EASE });
   if (o <= 0.001) return null;
   return (
     <AbsoluteFill style={{ opacity: o }}>

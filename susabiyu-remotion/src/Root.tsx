@@ -13,6 +13,7 @@ import { YoshokuType, YTYPE_DUR } from "./YoshokuType";
 import { YoshokuOpen, YOPEN_DUR } from "./YoshokuOpen";
 import { YoshokuMagazine, YMAGZ_DUR } from "./YoshokuMagazine";
 import { FEED_COMPS, FEED_W, FEED_H, FEED_DUR } from "./YoshokuFeed";
+import { MAGP_COMPS, MAGP_W, MAGP_H, MAGP_DUR } from "./YoshokuMagPages";
 import { SushiStory } from "./SushiStory";
 import { SimpleStory } from "./SimpleStory";
 import { PhotoStory } from "./PhotoStory";
@@ -103,6 +104,11 @@ export const RemotionRoot: React.FC = () => {
       <Composition id="YoshokuOp7" component={YoshokuOp7} fps={FPS} width={1080} height={1920} durationInFrames={YOPS_DUR} defaultProps={{ storeName: STORE, handle: "@susabiyu_sanjyo", theme: "neutral" }} />
       <Composition id="YoshokuOp8" component={YoshokuOp8} fps={FPS} width={1080} height={1920} durationInFrames={YOPS_DUR} defaultProps={{ storeName: STORE, handle: "@susabiyu_sanjyo", theme: "neutral" }} />
       <Composition id="YoshokuOp9" component={YoshokuOp9} fps={FPS} width={1080} height={1920} durationInFrames={YOPS_DUR} defaultProps={{ storeName: STORE, handle: "@susabiyu_sanjyo", theme: "neutral" }} />
+      {/* No.11 雑誌ストーリーの「商品ページ」デザイン提案（縦・静止画）。
+          同じ料理・同じ紙で10案を並べ、どの組み方にするかを選んでもらうための比較用。 */}
+      {MAGP_COMPS.map((m) => (
+        <Composition key={m.id} id={m.id} component={m.comp} fps={FPS} width={MAGP_W} height={MAGP_H} durationInFrames={MAGP_DUR} defaultProps={{ storeName: STORE, handle: "@susabiyu_sanjyo", theme: "neutral" }} />
+      ))}
       {/* フィード投稿画像テンプレ（4:5・静止画）。デザイン候補を複数パターン。 */}
       {FEED_COMPS.map((f) => (
         <Composition key={f.id} id={f.id} component={f.comp} fps={FPS} width={FEED_W} height={FEED_H} durationInFrames={FEED_DUR} defaultProps={{ storeName: STORE, handle: "@susabiyu_sanjyo", theme: "neutral" }} />

@@ -713,6 +713,40 @@
     if (bv) bv.textContent = "🎬 動画 " + nv;
     if (bi) bi.textContent = "🖼 画像 " + ni;
   }
+  // ── 見本のOP案は末尾の「OPフォルダ」にまとめる ───────────────────────
+  // yoshokuop4〜9 / opblur / opmortar / opwine は“本編テンプレ”ではなく
+  // オープニングの見た目を見比べるための素材。本編と混ざると探しにくいので、
+  // 一覧の一番下に畳んでおき、押した時だけ開く。
+  // ※ No.10 の yoshokuopen は本編テンプレなので含めない（数字/blur/mortar/wine のみ）。
+  var OP_RE = /^yoshokuop(\d+|blur|mortar|wine)$/;
+  function isOpPat(it) { return OP_RE.test(String((it && it.pattern) || "")); }
+  var OPOPEN = false;
+  try { OPOPEN = localStorage.getItem("sb_opfold") === "1"; } catch (e) {}
+  function placeOpFolder() {
+    if (!galleryEl) return;
+    var old = galleryEl.querySelector(".opfold");
+    if (old && old.parentNode) old.parentNode.removeChild(old);
+    var cards = galleryEl.querySelectorAll(".card");
+    var first = null, n = 0;
+    for (var i = 0; i < cards.length; i++) {
+      var isop = OP_RE.test(cards[i].getAttribute("data-pattern") || "");
+      if (cards[i].classList) cards[i].classList.toggle("opitem", isop);
+      if (isop) { n++; if (!first) first = cards[i]; }
+    }
+    galleryEl.classList.toggle("opopen", OPOPEN);
+    if (!first) return;
+    var h = document.createElement("div");
+    h.className = "opfold" + (OPOPEN ? " open" : "");
+    h.innerHTML = '<button class="opfoldb"><span class="opcar">▶</span> 📁 OP・クローズ案 <b>' + n + '</b>本</button>';
+    h.querySelector(".opfoldb").onclick = function () {
+      OPOPEN = !OPOPEN;
+      try { localStorage.setItem("sb_opfold", OPOPEN ? "1" : "0"); } catch (e) {}
+      galleryEl.classList.toggle("opopen", OPOPEN);
+      h.classList.toggle("open", OPOPEN);
+    };
+    first.parentNode.insertBefore(h, first);
+  }
+
   // カード1枚ぶんの内容署名（enabledは含めない＝採用切替では作り直さずその場で塗り替える）
   function cardSig(it) {
     return JSON.stringify([it.pattern, it.url || "", it.label || "", it.poster || "", it.blur || "", it.caption || "", it.music || ""]);
@@ -755,6 +789,9 @@
     // 店舗ページで振り分け：烏丸=【鮨処】のみ／三条=それ以外のみ
     var normal = items.filter(function (it) { return !isKarPat(it); });
     var stored = items.filter(isKarPat);
+    // OP案は末尾へ回す（本編どうしの順番は元のまま）
+    normal = normal.filter(function (it) { return !isOpPat(it); })
+                   .concat(normal.filter(isOpPat));
     var list = KAR ? stored : normal;
 
     // ── 差分更新：既にカードが並んでいるなら丸ごと作り直さない ──
@@ -781,6 +818,7 @@
         prev = card;
       });
       for (var k in have) { if (have[k].parentNode) have[k].parentNode.removeChild(have[k]); }
+      placeOpFolder();
       applyAdminClass();
       applyGalleryFilter();
       return;
@@ -811,6 +849,7 @@
     } else {
       if (normal.length) galleryEl.appendChild(buildFilterBar(normal));
       normal.forEach(function (it) { galleryEl.appendChild(galleryCard(it)); });
+      placeOpFolder();
     }
     applyAdminClass();
     applyGalleryFilter();

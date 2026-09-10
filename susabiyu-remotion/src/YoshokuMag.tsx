@@ -13,7 +13,13 @@ import {
 import { StoryOpenV, StoryEndV } from "./YoshokuOpStyles";
 
 const MAG_BODY = 480; // 16s
-export const YMAG_DUR = STORY_OPEN + MAG_BODY + STORY_END;
+// このテンプレだけ OP を +2秒 / CLOSE を -2秒（総尺24秒は据え置き）。
+// 表紙に「今号の見出し」＝4品の一覧を載せているぶん、既定の3秒では最終行が
+// 書き終わる前に表紙が消え始めていた（4行目の完了94フレーム > 消え始め74フレーム）。
+// 各要素の出現タイミング・速度は変えず、表紙を見せる時間だけ延ばす。
+const MAG_OPEN = STORY_OPEN + 60;   // 90 → 150 フレーム（3.0秒 → 5.0秒）
+const MAG_END = STORY_END - 60;     // 150 → 90 フレーム（5.0秒 → 3.0秒）
+export const YMAG_DUR = MAG_OPEN + MAG_BODY + MAG_END;   // 150+480+90 = 720 = 24.0秒（据え置き）
 
 const MagBody: React.FC<{ storeName?: string; handle?: string; theme?: string }> = ({
   storeName = "ナガグツ", handle = "@nagagutsu0427", theme = "italian",
@@ -103,10 +109,11 @@ export const YoshokuMag: React.FC<{ storeName?: string; handle?: string; theme?:
     <AbsoluteFill style={{ backgroundColor: T.base }}>
       {/* 音楽は全体（オープニング〜本編〜エンドロール）に通す */}
       <Audio src={staticFile(typoMusic)} startFrom={Math.round((typoMusicStart || 0) * 30)} volume={(ff) => interpolate(ff, [0, 16, YMAG_DUR - 30, YMAG_DUR], [0, 0.8, 0.8, 0], clamp)} />
-      {/* openText（営業時間）を渡していなかったため、案9の ORARIO 欄が中立表示のままだった */}
-      <Sequence durationInFrames={STORY_OPEN}><StoryOpenV v={9} storeName={storeName} theme={theme} openText={openText} /></Sequence>
-      <Sequence from={STORY_OPEN} durationInFrames={MAG_BODY}><MagBody storeName={storeName} handle={handle} theme={theme} /></Sequence>
-      <Sequence from={STORY_OPEN + MAG_BODY - STORY_XF} durationInFrames={STORY_END + STORY_XF}><StoryEndV v={9} storeName={storeName} handle={handle} theme={theme} /></Sequence>
+      {/* openText（営業時間）を渡していなかったため、案9の ORARIO 欄が中立表示のままだった。
+          dur には MAG_OPEN を渡す＝表紙のフェードアウトも延ばした尺に追従する。 */}
+      <Sequence durationInFrames={MAG_OPEN}><StoryOpenV v={9} storeName={storeName} theme={theme} openText={openText} dur={MAG_OPEN} /></Sequence>
+      <Sequence from={MAG_OPEN} durationInFrames={MAG_BODY}><MagBody storeName={storeName} handle={handle} theme={theme} /></Sequence>
+      <Sequence from={MAG_OPEN + MAG_BODY - STORY_XF} durationInFrames={MAG_END + STORY_XF}><StoryEndV v={9} storeName={storeName} handle={handle} theme={theme} /></Sequence>
     </AbsoluteFill>
   );
 };
