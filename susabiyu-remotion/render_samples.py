@@ -110,6 +110,7 @@ def main():
 
     # キャプション文言と音源を「パターンごとに変える」ため、店舗の文言プールと音源一覧を用意。
     import re as _re, glob as _glob, io as _io
+    import pattern_music as _pm   # テンプレ×音源×文言の固定割当
     # SNSで一瞬で目を止めるフック。1行で収まる短さに統一（変な改行・段落を作らない）。
     # 説明文ではなく“映像の一部”としての短いコピー＝高級感と勢いを両立。
     HOOKS = {
@@ -166,8 +167,12 @@ def main():
             print("[SAMPLE] 未登録パターン スキップ:", pattern); continue
         fetch, comp, is_video = REG[pattern]
         label = PAT_JA.get(pattern, pattern)
-        cap = _pool[idx % len(_pool)] if _pool else ""
-        mp = _tracks[idx % len(_tracks)] if _tracks else ""
+        # 音源と文言は「パターン名」で固定する（pattern_music.py）。
+        # 以前は _tracks[idx % len] ＝“そのとき実行した並び順”で決めていたため、
+        # 一部だけ焼き直すと順番がずれて同じテンプレの音楽・文言が変わっていた。
+        # 未登録のパターンだけ従来どおり並び順のフォールバックにする。
+        cap = _pm.hook(pattern) or (_pool[idx % len(_pool)] if _pool else "")
+        mp = _pm.music_path(pattern, _tracks) or (_tracks[idx % len(_tracks)] if _tracks else "")
         music_name = os.path.splitext(os.path.basename(mp))[0] if mp else ""
         _set_typo(cap, mp, idx + 1)   # このパターン用にキャプション＆音源＆見本番号(No.idx+1)を差し込む
         print("\n=========== 見本レンダリング: %s (%s) | 文言=%s | 音源=%s(+%ds) ==========="
