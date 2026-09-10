@@ -243,22 +243,22 @@ const P10: Inner = ({ d, slab }) => {
   const W = 1080 - 232;
   const lines = splitLines(d.desc || "");
   const q = lines[0] || nameOf(d);
-  // 引用は「商品名の下・写真(640)の上」の限られた高さに収める。2行のときは
-  // 字を小さくしないと写真に食い込むので、行数で上限を切り替える。
-  const qMax = lines.length >= 2 ? 44 : 56;
+  // 商品名とキャプションは鉤括弧の“枠の中”に一緒に入れる（離して置くと間が空きすぎる）。
+  // 枠の下端は写真の上端(640)を越えられないので、キャプションは行数で上限を切り替える。
+  const qMax = lines.length >= 2 ? 40 : 50;
   return (<>
-    {/* 商品名を引用（キャプション）の上へ。欧文キッカー→料理名→罫の順。 */}
-    <div style={{ position: "absolute", left: 116, right: 116, top: 196, textAlign: "center" }}>
-      <Kick t={d.sub} c={slab} w={W} align="center" />
-      <div style={{ marginTop: 10, fontFamily: mincho, color: INK, fontSize: fitJa(nameOf(d), 60, W, 26), fontWeight: 700, letterSpacing: 2, lineHeight: 1.15, whiteSpace: "nowrap" }}>{nameOf(d)}</div>
-      <div style={{ width: 96, height: 3, background: slab, margin: "22px auto 0" }} />
-    </div>
-    <div style={{ position: "absolute", left: 116, right: 116, top: 350 }}>
-      <div style={{ fontFamily: mincho, color: slab, fontSize: 110, lineHeight: 0.8, opacity: 0.5 }}>「</div>
-      <div style={{ marginTop: -8, fontFamily: mincho, color: INK, fontSize: fitJa(q, qMax, W, 24), fontWeight: 700, letterSpacing: 2, lineHeight: 1.4 }}>
-        {(lines.length ? lines : [q]).map((l, k) => <div key={k} style={{ whiteSpace: "nowrap" }}>{l}</div>)}
+    {/* 鉤括弧の枠：「 → 欧文キッカー・料理名・罫・キャプション → 」 */}
+    <div style={{ position: "absolute", left: 116, right: 116, top: 210, textAlign: "center" }}>
+      <div style={{ textAlign: "left", fontFamily: mincho, color: slab, fontSize: 96, lineHeight: 0.8, opacity: 0.5 }}>「</div>
+      <div style={{ paddingLeft: 28, paddingRight: 28 }}>
+        <Kick t={d.sub} c={slab} w={W - 56} align="center" />
+        <div style={{ marginTop: 8, fontFamily: mincho, color: INK, fontSize: fitJa(nameOf(d), 56, W - 56, 26), fontWeight: 700, letterSpacing: 2, lineHeight: 1.15, whiteSpace: "nowrap" }}>{nameOf(d)}</div>
+        <div style={{ width: 96, height: 3, background: slab, margin: "16px auto 18px" }} />
+        <div style={{ fontFamily: mincho, color: INK, fontSize: fitJa(q, qMax, W - 56, 24), fontWeight: 700, letterSpacing: 2, lineHeight: 1.4 }}>
+          {(lines.length ? lines : [q]).map((l, k) => <div key={k} style={{ whiteSpace: "nowrap" }}>{l}</div>)}
+        </div>
       </div>
-      <div style={{ textAlign: "right", fontFamily: mincho, color: slab, fontSize: 110, lineHeight: 0.6, opacity: 0.5 }}>」</div>
+      <div style={{ textAlign: "right", fontFamily: mincho, color: slab, fontSize: 96, lineHeight: 0.6, opacity: 0.5 }}>」</div>
     </div>
     {/* 写真の上端 830→640（下端1470は据え置き）。高さ 640→830px。 */}
     <div style={{ position: "absolute", left: 0, right: 0, top: 640, height: 830, overflow: "hidden" }}><Photo src={d.src} /></div>
