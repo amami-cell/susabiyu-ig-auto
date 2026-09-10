@@ -26,7 +26,22 @@ def run(cmd):
     subprocess.check_call(cmd, shell=True)
 
 
-def _poster_jpg(comp, props_arg, mp4=""):
+# サムネイルを抜き出す秒数。既定は 5.5秒＝OP(3.0秒)明け＋本編75フレーム目で、
+# 1品目が完全に立ち上がりきっている位置。ただしテンプレによってカットの割り方が
+# 違うため、既定値が「カットの変わり目」に当たるものだけここで個別に指定する。
+#  例) No.9(yoshokutype) は OPを持たず 480フレームを6カットに割る＝1カット80フレーム。
+#      5.5秒はカット3に入って5フレーム目＝料理名が立ち上がる前で、名前が写らなかった。
+POSTER_SEC_DEFAULT = 5.5
+POSTER_SEC = {
+    "yoshokutype": 6.8,   # カット3の中ほど。明転(5.0秒)も終わっている
+}
+
+
+def _poster_sec(pattern):
+    return POSTER_SEC.get(pattern, POSTER_SEC_DEFAULT)
+
+
+def _poster_jpg(comp, props_arg, mp4="", sec=POSTER_SEC_DEFAULT):
     """代表フレームの静止画(JPEG)を作って返す（失敗時 None）。ポスター＝一覧の見た目。
 
     動画がある時は ffmpeg で mp4 から1枚抜く（1秒未満）。`npx remotion still` は
@@ -46,7 +61,7 @@ def _poster_jpg(comp, props_arg, mp4=""):
             # 半透明状態で写ってしまっていた（サムネイルが未完成に見える原因）。
             # 5.5秒＝本編75フレーム目なら、どのテンプレも1品目が完全に立ち上がりきっており、
             # かつ最短の本編（黒板=1カット90フレーム）でも2品目に切り替わる前に収まる。
-            run('ffmpeg -y -loglevel error -ss 00:00:05.500 -i "' + mp4 + '" -frames:v 1 -q:v 3 "' + jpg + '"')
+            run('ffmpeg -y -loglevel error -ss %.3f -i "%s" -frames:v 1 -q:v 3 "%s"' % (sec, mp4, jpg))
             if os.path.exists(jpg) and os.path.getsize(jpg) > 0:
                 return jpg
             print("[SAMPLE] ffmpegポスターが空 → still にフォールバック")
@@ -189,7 +204,7 @@ def main():
                 url = poster.up(mp4, cdn=True)
             else:
                 url = ""
-            pj = _poster_jpg(comp, props_arg, mp4)
+            pj = _poster_jpg(comp, props_arg, mp4, _poster_sec(pattern))
             purl = poster.up(pj, cdn=True) if pj else ""
             if is_video and not url:
                 # 動画のアップロードに失敗＝見本が“静止画になった動画”になる。黙って差し替えると
