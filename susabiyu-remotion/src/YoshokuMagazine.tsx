@@ -11,7 +11,7 @@
 //
 // アニメは useCurrentFrame/interpolate のみ（CSSトランジション禁止）。各Sequence内で相対フレーム。
 import { AbsoluteFill, Audio, Img, Sequence, staticFile, useCurrentFrame, interpolate } from "remotion";
-import { typoPhotos, typoMusic, typoMusicStart } from "./typoData";
+import { typoPhotos, typoMusic, typoMusicStart, typoLogoColor } from "./typoData";
 import { ytheme } from "./yoshokuTheme";
 import {
   mincho, serif, clamp, EASE, fade, Grain, Slides, fitOneLine, fitLines, splitLines, segNow,
@@ -130,6 +130,13 @@ const PageB: React.FC<{ it: Item; lf: number; seg: number; slab: string }> = ({ 
       <div style={{ position: "absolute", left: 116, right: 116, top: 1450 }}>
         <Body text={it.desc} usableW={1080 - 232} />
       </div>
+      {/* 説明文(〜1552)と奥付帯(1816〜)の間の空きに色付きの文字ロゴ。紙の地なので
+          落ち影は焦茶の薄いもの。ロゴが取得できていない時は描かない。 */}
+      {typoLogoColor ? (
+        <div style={{ position: "absolute", left: 116, right: 116, top: 1584, display: "flex", justifyContent: "center", opacity: fade(lf, 30, 22) }}>
+          <Img src={staticFile(typoLogoColor)} style={{ height: 150, width: "auto", maxWidth: 760, objectFit: "contain", filter: "drop-shadow(0 4px 14px rgba(60,35,14,0.22))" }} />
+        </div>
+      ) : null}
     </>
   );
 };
