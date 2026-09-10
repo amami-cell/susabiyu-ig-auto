@@ -502,6 +502,19 @@ def main():
             dec = dict(dec, pattern=pattern)
             print("[STORE] pattern を region-free に置換 →", pattern)
         fetch, comp, is_video = REG[pattern]
+        # 見本で確認した「テンプレ×音楽」を本番でも再現する。
+        # これが無いと fetch_typo が random.choice で音源を引くため、
+        # 承認した見本と実際の投稿で曲が変わってしまう（写真だけがランダムであるべき）。
+        try:
+            import pattern_music as _pm
+            _fm = _pm.music_rel(pattern)
+            if _fm:
+                os.environ["FIXED_MUSIC"] = _fm
+                print("[MUSIC] %s に固定: %s" % (pattern, _fm))
+            else:
+                os.environ.pop("FIXED_MUSIC", None)
+        except Exception as _e:
+            print("[MUSIC] 固定割当スキップ:", _e)
         run('python ' + fetch + ' "' + creds + '"')
         picked_json = ""
         try:

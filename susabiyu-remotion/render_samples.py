@@ -26,7 +26,22 @@ def run(cmd):
     subprocess.check_call(cmd, shell=True)
 
 
-def _poster_jpg(comp, props_arg, mp4=""):
+# サムネイルを抜き出す秒数。既定は 5.5秒＝OP(3.0秒)明け＋本編75フレーム目で、
+# 1品目が完全に立ち上がりきっている位置。ただしテンプレによってカットの割り方が
+# 違うため、既定値が「カットの変わり目」に当たるものだけここで個別に指定する。
+#  例) No.9(yoshokutype) は OPを持たず 480フレームを6カットに割る＝1カット80フレーム。
+#      5.5秒はカット3に入って5フレーム目＝料理名が立ち上がる前で、名前が写らなかった。
+POSTER_SEC_DEFAULT = 5.5
+POSTER_SEC = {
+    "yoshokutype": 6.8,   # カット3の中ほど。明転(5.0秒)も終わっている
+}
+
+
+def _poster_sec(pattern):
+    return POSTER_SEC.get(pattern, POSTER_SEC_DEFAULT)
+
+
+def _poster_jpg(comp, props_arg, mp4="", sec=POSTER_SEC_DEFAULT):
     """代表フレームの静止画(JPEG)を作って返す（失敗時 None）。ポスター＝一覧の見た目。
 
     動画がある時は ffmpeg で mp4 から1枚抜く（1秒未満）。`npx remotion still` は
@@ -46,7 +61,7 @@ def _poster_jpg(comp, props_arg, mp4=""):
             # 半透明状態で写ってしまっていた（サムネイルが未完成に見える原因）。
             # 5.5秒＝本編75フレーム目なら、どのテンプレも1品目が完全に立ち上がりきっており、
             # かつ最短の本編（黒板=1カット90フレーム）でも2品目に切り替わる前に収まる。
-            run('ffmpeg -y -loglevel error -ss 00:00:05.500 -i "' + mp4 + '" -frames:v 1 -q:v 3 "' + jpg + '"')
+            run('ffmpeg -y -loglevel error -ss %.3f -i "%s" -frames:v 1 -q:v 3 "%s"' % (sec, mp4, jpg))
             if os.path.exists(jpg) and os.path.getsize(jpg) > 0:
                 return jpg
             print("[SAMPLE] ffmpegポスターが空 → still にフォールバック")
@@ -110,6 +125,7 @@ def main():
 
     # キャプション文言と音源を「パターンごとに変える」ため、店舗の文言プールと音源一覧を用意。
     import re as _re, glob as _glob, io as _io
+    import pattern_music as _pm   # テンプレ×音源×文言の固定割当
     # SNSで一瞬で目を止めるフック。1行で収まる短さに統一（変な改行・段落を作らない）。
     # 説明文ではなく“映像の一部”としての短いコピー＝高級感と勢いを両立。
     HOOKS = {
@@ -166,8 +182,12 @@ def main():
             print("[SAMPLE] 未登録パターン スキップ:", pattern); continue
         fetch, comp, is_video = REG[pattern]
         label = PAT_JA.get(pattern, pattern)
-        cap = _pool[idx % len(_pool)] if _pool else ""
-        mp = _tracks[idx % len(_tracks)] if _tracks else ""
+        # 音源と文言は「パターン名」で固定する（pattern_music.py）。
+        # 以前は _tracks[idx % len] ＝“そのとき実行した並び順”で決めていたため、
+        # 一部だけ焼き直すと順番がずれて同じテンプレの音楽・文言が変わっていた。
+        # 未登録のパターンだけ従来どおり並び順のフォールバックにする。
+        cap = _pm.hook(pattern) or (_pool[idx % len(_pool)] if _pool else "")
+        mp = _pm.music_path(pattern, _tracks) or (_tracks[idx % len(_tracks)] if _tracks else "")
         music_name = os.path.splitext(os.path.basename(mp))[0] if mp else ""
         _set_typo(cap, mp, idx + 1)   # このパターン用にキャプション＆音源＆見本番号(No.idx+1)を差し込む
         print("\n=========== 見本レンダリング: %s (%s) | 文言=%s | 音源=%s(+%ds) ==========="
@@ -184,7 +204,7 @@ def main():
                 url = poster.up(mp4, cdn=True)
             else:
                 url = ""
-            pj = _poster_jpg(comp, props_arg, mp4)
+            pj = _poster_jpg(comp, props_arg, mp4, _poster_sec(pattern))
             purl = poster.up(pj, cdn=True) if pj else ""
             if is_video and not url:
                 # 動画のアップロードに失敗＝見本が“静止画になった動画”になる。黙って差し替えると
@@ -207,6 +227,17 @@ def main():
     print("window.GIFUYA.SAMPLES = " + json.dumps(samples, ensure_ascii=False) + ";")
     print("===== SAMPLES(JSON) ここまで =====")
     print("[SAMPLE] 完了：%d本" % len(samples))
+    # どのテンプレがどの音源に解決したかを最後に1行で出す。
+    # ログは末尾しか読めないことがあるので、ここは必ず短く保つ。
+    # 解決できなかったものは "?固定したい名前" と出るので、Drive側の改名にすぐ気づける。
+    try:
+        print("[MUSIC][MAP]", _pm.report(patterns, _tracks))
+        _miss = [p for p in patterns if p in _pm.MUSIC and not _pm.music_path(p, _tracks)]
+        if _miss:
+            print("[MUSIC][警告] 固定した音源が見つからないテンプレ:", ",".join(_miss))
+            print("[MUSIC][FILES]", "|".join(sorted(os.path.splitext(os.path.basename(t))[0] for t in _tracks)))
+    except Exception as _e:
+        print("[MUSIC][MAP] 出力失敗:", _e)
     if degraded:
         print("[SAMPLE][警告] 動画→静止画で代替されたパターン: %s（このパターンだけ再実行してください）" % ",".join(degraded))
 

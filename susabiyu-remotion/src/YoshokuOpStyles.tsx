@@ -9,7 +9,7 @@ import { typoPhotos, typoMusic, typoMusicStart, typoGroup } from "./typoData";
 import { ytheme } from "./yoshokuTheme";
 import {
   mincho, serif, clamp, EASE, fade, Grain, BrandMark, StoreLogo, StoreLogoColor, StoryBgLayer,
-  StoryOpening, StoryEndroll,
+  StoryOpening, StoryEndroll, fitOneLine,
   STORY_OPEN, STORY_END, STORY_XF,
 } from "./yoshokuDesign";
 
@@ -307,16 +307,35 @@ const Open9: React.FC<SP> = ({ storeName = DEF.storeName, theme = DEF.theme, ope
       </div>
 
       {/* 見出し */}
-      <div style={{ position: "absolute", left: 116, right: 116, top: 720, textAlign: "center", transform: "translateY(" + cover + "px)", opacity: fade(f, 22, 26) }}>
+      <div style={{ position: "absolute", left: 116, right: 116, top: 688, textAlign: "center", transform: "translateY(" + cover + "px)", opacity: fade(f, 22, 26) }}>
         <div style={{ fontFamily: mincho, color: MAG_INK, fontSize: 86, fontWeight: 700, letterSpacing: 8 }}>本日のおすすめ</div>
       </div>
 
       {/* 営業時間（奥付の作法で枠に収める）。未登録の間は中立の一行。 */}
-      <div style={{ position: "absolute", left: 190, right: 190, top: 930, border: "1px solid rgba(150,110,70,0.45)", padding: "26px 20px 30px", textAlign: "center", opacity: fade(f, 34, 28) }}>
-        <div style={{ fontFamily: serif, color: T.slab, fontSize: 24, letterSpacing: 8, textTransform: "uppercase", fontWeight: 600, marginBottom: 14 }}>ORARIO</div>
+      <div style={{ position: "absolute", left: 190, right: 190, top: 872, border: "1px solid rgba(150,110,70,0.45)", padding: "22px 20px 26px", textAlign: "center", opacity: fade(f, 34, 28) }}>
+        <div style={{ fontFamily: serif, color: T.slab, fontSize: 24, letterSpacing: 8, textTransform: "uppercase", fontWeight: 600, marginBottom: 12 }}>ORARIO</div>
         <div style={{ fontFamily: mincho, color: MAG_INK, fontSize: hours ? 52 : 44, fontWeight: 700, letterSpacing: 3, lineHeight: 1.3, whiteSpace: "pre-line" }}>
           {hours || "本日も、営業中。"}
         </div>
+      </div>
+
+      {/* 今号の見出し（＝目次）。雑誌の表紙は「中身の惹句が並ぶ」もの。
+          ここが空白だと表紙が持たないので、今日の4品を細い罫で束ねて並べる。
+          1行ずつ順に立ち上げて、視線が上から下へ流れるようにする。 */}
+      <div style={{ position: "absolute", left: 150, right: 150, top: 1152, opacity: fade(f, 44, 24) }}>
+        <div style={{ fontFamily: serif, color: T.slab, fontSize: 22, letterSpacing: 8, textTransform: "uppercase", fontWeight: 600, textAlign: "center", marginBottom: 16 }}>IN QUESTO NUMERO</div>
+        <div style={{ height: 1, background: "rgba(176,72,31,0.4)" }} />
+        {(typoPhotos.length ? typoPhotos : []).slice(0, 4).map((it: any, k: number) => {
+          const nm = ((it.disp && it.disp.length) ? it.disp : (it.caption || "")).replace(/[｜\n]/g, "");
+          if (!nm) return null;
+          const o = fade(f, 50 + k * 8, 20);
+          return (
+            <div key={k} style={{ display: "flex", alignItems: "baseline", gap: 16, padding: "13px 4px", borderBottom: "1px solid rgba(150,110,70,0.26)", opacity: o }}>
+              <span style={{ fontFamily: serif, color: T.slab, fontSize: 21, letterSpacing: 2, fontWeight: 600, minWidth: 34 }}>{"0" + (k + 1)}</span>
+              <span style={{ fontFamily: mincho, color: MAG_INK, fontSize: fitOneLine(nm, 40, 1080 - 300 - 50, 20), fontWeight: 700, letterSpacing: 1, whiteSpace: "nowrap" }}>{nm}</span>
+            </div>
+          );
+        })}
       </div>
 
       {/* 奥付のフッター帯（CLOSEと対） */}

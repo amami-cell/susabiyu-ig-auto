@@ -51,7 +51,9 @@ const MagBody: React.FC<{ storeName?: string; handle?: string; theme?: string }>
       {/* 下：欧文サブ＋料理名＋一言を「1つのブロック」にまとめ、左の縦罫をその高さに沿わせる。
           以前は 220px の縦棒が文字の“上”に単独で立っていて、線と文字が離れた
           （＝はぐれた線に見える）。雑誌の縦罫は本文の左に添えるのが本来の作法。 */}
-      <div style={{ position: "absolute", left: SAFE.side, right: SAFE.side, bottom: 188, display: "flex", alignItems: "stretch" }}>
+      {/* bottom 188→300：ブロック全体を112px引き上げ、説明文の下端が
+          以前の料理名の位置あたりに来るようにする（下に余白を作ってロゴを大きく置く）。 */}
+      <div style={{ position: "absolute", left: SAFE.side, right: SAFE.side, bottom: 300, display: "flex", alignItems: "stretch" }}>
         {/* 縦罫は上から下へ引かれる（scaleY＝“罫を引く”動き。長さは文字ブロックが決める） */}
         <div style={{ width: 4, background: T.accent, opacity: 0.92, transform: "scaleY(" + barGrow + ")", transformOrigin: "top" }} />
         <div style={{ marginLeft: 30, flex: 1, minWidth: 0 }}>
@@ -85,23 +87,24 @@ const MagBody: React.FC<{ storeName?: string; handle?: string; theme?: string }>
 
       {/* フッター：店舗ロゴ＋ハンドルを右下へ（左の余白は見出し/一言が使う）。
           以前は最後の料理でだけ出ていたが、1品目から最後まで出しっぱなしにする（ブランドを常時表示）。 */}
-      <div style={{ position: "absolute", right: SAFE.side, bottom: 70, display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 6, ...rise(f, 16, { dist: 14 }) }}>
-        <StoreLogo storeName={storeName} height={78} />
-        <div style={{ fontFamily: serif, color: T.accent, fontSize: 25, letterSpacing: 5 }}>{handle}</div>
+      <div style={{ position: "absolute", right: SAFE.side, bottom: 78, display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 10, ...rise(f, 16, { dist: 14 }) }}>
+        <StoreLogo storeName={storeName} height={124} />
+        <div style={{ fontFamily: serif, color: T.accent, fontSize: 28, letterSpacing: 5 }}>{handle}</div>
       </div>
     </AbsoluteFill>
   );
 };
 
-export const YoshokuMag: React.FC<{ storeName?: string; handle?: string; theme?: string }> = ({
-  storeName = "ナガグツ", handle = "@nagagutsu0427", theme = "italian",
+export const YoshokuMag: React.FC<{ storeName?: string; handle?: string; theme?: string; openText?: string }> = ({
+  storeName = "ナガグツ", handle = "@nagagutsu0427", theme = "italian", openText = "",
 }) => {
   const T = ytheme(theme);
   return (
     <AbsoluteFill style={{ backgroundColor: T.base }}>
       {/* 音楽は全体（オープニング〜本編〜エンドロール）に通す */}
       <Audio src={staticFile(typoMusic)} startFrom={Math.round((typoMusicStart || 0) * 30)} volume={(ff) => interpolate(ff, [0, 16, YMAG_DUR - 30, YMAG_DUR], [0, 0.8, 0.8, 0], clamp)} />
-      <Sequence durationInFrames={STORY_OPEN}><StoryOpenV v={9} storeName={storeName} theme={theme} /></Sequence>
+      {/* openText（営業時間）を渡していなかったため、案9の ORARIO 欄が中立表示のままだった */}
+      <Sequence durationInFrames={STORY_OPEN}><StoryOpenV v={9} storeName={storeName} theme={theme} openText={openText} /></Sequence>
       <Sequence from={STORY_OPEN} durationInFrames={MAG_BODY}><MagBody storeName={storeName} handle={handle} theme={theme} /></Sequence>
       <Sequence from={STORY_OPEN + MAG_BODY - STORY_XF} durationInFrames={STORY_END + STORY_XF}><StoryEndV v={9} storeName={storeName} handle={handle} theme={theme} /></Sequence>
     </AbsoluteFill>
