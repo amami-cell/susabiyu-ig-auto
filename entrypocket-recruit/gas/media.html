@@ -132,11 +132,11 @@
     raw=String(raw||''); var out={from:'',date:'',subj:'',body:'',ok:false};
     if(!raw) return out;
     var m;
-    m=raw.match(/差出人\s*([\s\S]*?)\s*(?=受信日|件名|本文|$)/); if(m) out.from=m[1].trim();
-    m=raw.match(/受信日\s*([\s\S]*?)\s*(?=件名|本文|$)/); if(m) out.date=m[1].trim();
-    m=raw.match(/件名\s*([\s\S]*?)\s*(?=本文|$)/); if(m) out.subj=m[1].trim();
-    m=raw.match(/本文\s*([\s\S]*)$/); if(m) out.body=m[1].trim();
-    if(!out.body){ m=raw.match(/件名\s*([\s\S]*)$/); if(m){ out.body=m[1].trim(); out.subj=''; } }
+    m=raw.match(/差出人\s*[:：]?\s*([\s\S]*?)\s*(?=受信日|送信日|件名|本文|$)/); if(m) out.from=m[1].trim();
+    m=raw.match(/(?:受信日|送信日)\s*[:：]?\s*([\s\S]*?)\s*(?=件名|本文|$)/); if(m) out.date=m[1].trim();
+    m=raw.match(/件名\s*[:：]?\s*([\s\S]*?)\s*(?=本文|$)/); if(m) out.subj=m[1].trim();
+    m=raw.match(/本文\s*[:：]?\s*([\s\S]*)$/); if(m) out.body=m[1].trim();
+    if(!out.body){ m=raw.match(/件名\s*[:：]?\s*([\s\S]*)$/); if(m){ out.body=m[1].trim(); out.subj=''; } }
     // 末尾の返信UI/フッターらしき定型を軽く落とす
     out.body=out.body.replace(/\s*(返信する|返信を送信|返信内容|テンプレート|関連|利用規約|個人情報|運営会社|お問い合わせ)[\s\S]*$/,'').trim();
     out.ok=!!(out.from||out.subj||out.body);
