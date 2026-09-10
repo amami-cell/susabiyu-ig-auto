@@ -44,6 +44,17 @@ function dishName(it: Item): string {
   return nm.replace(/[｜\n]/g, "");   // 料理名は必ず1行
 }
 
+// 縦組みの料理名を1列に収めるサイズ。
+// 以前は floor(availH / 文字数) だけで決めていたが、字と字の間に letterSpacing が
+// 4pxずつ入るぶんを勘定していなかった。そのため長い名前（13文字以上）は実際の高さが
+// 枠を超えて2列に折り返していた（例「イカスミリゾットのアランチーニ」15文字＝930px > 880px）。
+const VERT_H = 880;   // 縦組みに使える高さ
+const VERT_LS = 4;    // letterSpacing
+function vertSize(name: string): number {
+  const n = Math.max(1, Array.from(name).length);
+  return Math.max(26, Math.min(78, Math.floor(VERT_H / n) - VERT_LS));
+}
+
 // 誌面に載せる写真（ケンバーンズはごく弱く。紙面なので暴れさせない）。
 const Plate: React.FC<{ src?: string; lf: number; seg: number; radius?: number; style?: React.CSSProperties }> =
   ({ src, lf, seg, radius, style }) => {
@@ -123,8 +134,7 @@ const Page11: React.FC<{ it: Item; lf: number; seg: number; storeName: string; h
 // ── 02 左右分割：右に縦長の写真、左に縦組みの料理名（和文誌面の作法）──
 const PageB: React.FC<{ it: Item; lf: number; seg: number; slab: string }> = ({ it, lf, seg, slab }) => {
   const name = dishName(it);
-  const availH = 880;
-  const vSize = Math.max(30, Math.min(78, Math.floor(availH / Math.max(1, Array.from(name).length))));
+  const vSize = vertSize(name);
   return (
     <>
       {/* 写真の左端 452→320（縦組みの料理名から50pxのすき間を残す）。幅 540→672px。 */}
@@ -132,8 +142,9 @@ const PageB: React.FC<{ it: Item; lf: number; seg: number; slab: string }> = ({ 
         <Plate src={it.src} lf={lf} seg={seg} />
       </div>
       {/* 左の柱：縦組みの料理名。右から左へ読む向き（writing-mode: vertical-rl）。 */}
-      <div style={{ position: "absolute", left: 150, top: 268, height: availH, display: "flex", alignItems: "flex-start", gap: 18 }}>
-        <div style={{ writingMode: "vertical-rl", fontFamily: mincho, color: INK, fontSize: vSize, fontWeight: 700, letterSpacing: 4, lineHeight: 1 }}>{name}</div>
+      <div style={{ position: "absolute", left: 150, top: 268, height: VERT_H, display: "flex", alignItems: "flex-start", gap: 18 }}>
+        {/* nowrap … 万一はみ出しても2列に割らない（料理名は必ず1列で読ませる） */}
+        <div style={{ writingMode: "vertical-rl", whiteSpace: "nowrap", fontFamily: mincho, color: INK, fontSize: vSize, fontWeight: 700, letterSpacing: VERT_LS, lineHeight: 1 }}>{name}</div>
         <div style={{ writingMode: "vertical-rl", fontFamily: serif, color: slab, fontSize: 24, letterSpacing: 6, textTransform: "uppercase", fontWeight: 600, marginTop: 6 }}>{it.sub || ""}</div>
       </div>
       <div style={{ position: "absolute", left: 150, top: 1180, width: 140, height: 3, background: slab }} />
@@ -236,11 +247,17 @@ const MagazineBody: React.FC<{ storeName?: string; handle?: string; theme?: stri
       <div style={{ position: "absolute", top: 158, left: 116, right: 116, height: 1, background: "rgba(176,72,31,0.4)", opacity: chrome }} />
 
       {/* ── ページ本体：オーナーが選んだ4案。ページ送りは横に少し流してめくり感を出す ──
-          1ページ目(案11)だけは全面デザインなので、横流しも寄りもかけない（帯やロゴが動くと崩れる）。 */}
+          1ページ目(案11)は全面デザインなので横流しはしない。代わりに寄りから定位置へ
+          動かす＝表紙が寄りながら外れるのと同じ向きの動き。止まった絵どうしを重ねると
+          濁ってしまうので、両方が動いている最中に入れ替える。 */}
       <Slides count={4} total={DUR} fade={XF} render={(k, lf, sg) => {
         const it = items[k];
         if (k === 0) {
-          return <Page11 it={it} lf={lf} seg={sg} storeName={storeName} handle={handle} theme={theme} />;
+          return (
+            <AbsoluteFill style={{ transform: "scale(" + inS + ")" }}>
+              <Page11 it={it} lf={lf} seg={sg} storeName={storeName} handle={handle} theme={theme} />
+            </AbsoluteFill>
+          );
         }
         const x = interpolate(lf, [0, 26], [30, 0], { ...clamp, easing: EASE });
         return (
@@ -274,9 +291,10 @@ export const YoshokuMagazine: React.FC<{ storeName?: string; handle?: string; th
     <Sequence from={MAGZ_OPEN} durationInFrames={MAGZ_BODY}>
       <MagazineBody storeName={storeName} handle={handle} theme={theme} />
     </Sequence>
-    {/* 1ページ目(案11)は表紙と別物の全面写真なので、溶かすと濁る。表紙を左へ“めくって”送る。 */}
+    {/* 1ページ目(案11)は表紙と別物の全面写真なので、止まったままのディゾルブでは濁る。
+        表紙は寄りながら外し、1ページ目は寄りから定位置へ。動いている最中に入れ替える。 */}
     <Sequence durationInFrames={MAGZ_OPEN + STORY_XF}>
-      <StoryOpenXF v={9} storeName={storeName} theme={theme} openText={openText} dur={MAGZ_OPEN} xf={STORY_XF} turn />
+      <StoryOpenXF v={9} storeName={storeName} theme={theme} openText={openText} dur={MAGZ_OPEN} xf={STORY_XF} lift />
     </Sequence>
     <Sequence from={MAGZ_OPEN + MAGZ_BODY - STORY_XF} durationInFrames={MAGZ_END + STORY_XF}>
       <StoryEndV v={9} storeName={storeName} handle={handle} theme={theme} />
