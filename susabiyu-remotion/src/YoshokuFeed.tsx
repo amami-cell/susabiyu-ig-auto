@@ -294,14 +294,16 @@ export const YoshokuFeedD: React.FC<P> = ({ storeName = D.storeName, handle = D.
 
 // ⑤E サイドレール・ブランド（全面写真＋左の縦帯＝グリッドの統一シグネチャ）。
 // 左オビの色は rail で差し替え可（テラコッタ/オリーブ/ゴールドのパターンを用意）。
-const EBase: React.FC<P & { rail: string; railText?: string }> = ({
-  storeName = D.storeName, handle = D.handle, theme = D.theme, rail, railText = "#FDF6EA",
+// it / photo は「動画（No.11の1ページ目）から使うため」の任意の差し替え口。
+// 省略時は今までどおり typoPhotos[0] と静止画の <Photo> ＝ フィード投稿の見た目は変わらない。
+const EBase: React.FC<P & { rail: string; railText?: string; it?: any; photo?: React.ReactNode }> = ({
+  storeName = D.storeName, handle = D.handle, theme = D.theme, rail, railText = "#FDF6EA", it, photo,
 }) => {
-  const T = ytheme(theme); const d = dish(); const RAIL = 74;
+  const T = ytheme(theme); const d = it || dish(); const RAIL = 74;
   return (
     <AbsoluteFill style={{ backgroundColor: T.base }}>
       <div style={{ position: "absolute", top: 0, bottom: 0, left: RAIL, right: 0, overflow: "hidden" }}>
-        <Photo src={d.src} />
+        {photo || <Photo src={d.src} />}
         {/* 下端だけ“さりげなく”。以前は 62% から立ち上がり最後は footBase のベタ塗りで、
             下半分がまるごと暗く見えていた。ベタ塗りは廃止し、薄いグラデ一枚だけにする。 */}
         <AbsoluteFill style={{ background: "linear-gradient(180deg, rgba(0,0,0,0) 0%, rgba(0,0,0,0) 74%, rgba(18,13,8,0.22) 88%, rgba(18,13,8,0.52) 100%)" }} />
@@ -321,6 +323,9 @@ const EBase: React.FC<P & { rail: string; railText?: string }> = ({
   );
 };
 export const YoshokuFeedE: React.FC<P> = (p) => <EBase {...p} rail={ytheme(p.theme || D.theme).slab} />;               // テラコッタ
+// 案E をそのまま動画の1ページとして使うための入口（料理と写真だけ差し替えられる）。
+// 作り直すと似て非なるものになるので、組み方は E 本体を1つだけ持つ。
+export const YoshokuFeedEAt: React.FC<P & { it?: any; photo?: React.ReactNode }> = (p) => <EBase {...p} rail={ytheme(p.theme || D.theme).slab} />;
 export const YoshokuFeedE2: React.FC<P> = (p) => <EBase {...p} rail="#4E7A3A" />;                                      // オリーブ/イタリアングリーン
 export const YoshokuFeedE3: React.FC<P> = (p) => <EBase {...p} rail="#B58A2E" />;                                      // 深めゴールド
 
