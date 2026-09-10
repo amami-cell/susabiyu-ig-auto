@@ -1059,7 +1059,121 @@ func _run_shot() -> void:
 			await get_tree().create_timer(0.5).timeout
 			await RenderingServer.frame_post_draw
 			get_viewport().get_texture().get_image().save_png("/tmp/shot_fly.png")
+	# --flypat：飛行アクセサリ（マント/羽）の候補を6種並べて撮る（見た目を選ぶ提案）。
+	if OS.get_cmdline_user_args().has("--flypat"):
+		var fp := [
+			{"n": "A マント赤", "type": "cape", "col": Color(0.86, 0.24, 0.26), "len": 0.75, "jag": false},
+			{"n": "B マント青ロング", "type": "cape", "col": Color(0.28, 0.42, 0.86), "len": 1.05, "jag": false},
+			{"n": "C マント緑ギザ", "type": "cape", "col": Color(0.36, 0.66, 0.4), "len": 0.85, "jag": true},
+			{"n": "D 天使の羽", "type": "wing", "style": "feather"},
+			{"n": "E 妖精の羽", "type": "wing", "style": "fairy"},
+			{"n": "F 光の翼", "type": "wing", "style": "energy"},
+		]
+		var froot := Node3D.new()
+		add_child(froot)
+		froot.global_position = Vector3(0.0, 0.0, -40.0)
+		var fx := -(fp.size() - 1) * 1.1
+		for cfg in fp:
+			var holder := Node3D.new()
+			froot.add_child(holder)
+			holder.position = Vector3(fx, 1.7, 0.0)
+			var fig := _ffig(holder)
+			if cfg["type"] == "cape":
+				_fly_cape(fig, cfg["col"], cfg["len"], cfg["jag"])
+			else:
+				_fly_wings(fig, cfg["style"])
+			var lbl := Label3D.new()
+			lbl.text = cfg["n"]
+			lbl.position = Vector3(0.0, 0.85, 0.0)
+			lbl.pixel_size = 0.0052
+			lbl.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+			holder.add_child(lbl)
+			fx += 1.95
+		var fl := DirectionalLight3D.new()
+		fl.rotation = Vector3(deg_to_rad(-38.0), deg_to_rad(20.0), 0.0)
+		froot.add_child(fl)
+		var fcam2 := Camera3D.new()
+		add_child(fcam2)
+		fcam2.global_position = Vector3(0.0, 2.2, -31.6)
+		fcam2.look_at(Vector3(0.0, 1.7, -40.0), Vector3.UP)
+		fcam2.fov = 60.0
+		fcam2.current = true
+		await get_tree().create_timer(0.7).timeout
+		await RenderingServer.frame_post_draw
+		get_viewport().get_texture().get_image().save_png("/tmp/shot_flypat.png")
 	get_tree().quit()
+
+
+## 飛行アクセサリ提案用の簡易フィギュア（前傾＝飛行姿）。前＝-Z。
+func _ffig(holder: Node3D) -> Node3D:
+	var fig := Node3D.new()
+	holder.add_child(fig)
+	var skin := Color(0.95, 0.86, 0.72)
+	var cloth := Color(0.4, 0.6, 0.9)
+	_wball(fig, cloth, 0.18, Vector3(0.0, 0.5, 0.0), Vector3(0.82, 1.2, 0.82))   # 胴
+	var head := _wball(fig, skin, 0.16, Vector3(0.0, 0.8, -0.03))                 # 頭
+	for sx in [-1.0, 1.0]:
+		_wball(head, Color(0.06, 0.05, 0.05), 0.03, Vector3(0.06 * sx, 0.0, -0.14))   # 目
+	# 前へ突き出す右腕、後ろへ左腕
+	_wbox(fig, skin, Vector3(0.06, 0.06, 0.34), Vector3(0.12, 0.66, -0.18), Vector3.ZERO, deg_to_rad(-18.0))
+	_wbox(fig, skin, Vector3(0.06, 0.06, 0.3), Vector3(-0.12, 0.5, 0.16), Vector3.ZERO, deg_to_rad(14.0))
+	# 脚はそろえて後ろ
+	for sx in [-1.0, 1.0]:
+		_wbox(fig, cloth.darkened(0.1), Vector3(0.06, 0.28, 0.06), Vector3(0.07 * sx, 0.32, 0.14), Vector3.ZERO)
+	fig.rotation.x = deg_to_rad(-72.0)   # 前傾＝飛行姿
+	return fig
+
+
+func _fly_cape(fig: Node3D, col: Color, length: float, jagged: bool) -> void:
+	var cape := Node3D.new()
+	cape.position = Vector3(0.0, 0.62, 0.14)
+	cape.rotation.x = deg_to_rad(50.0)   # うしろへ なびく
+	fig.add_child(cape)
+	var n := 5
+	for i in n:
+		var w := lerpf(0.36, 0.18 if not jagged else 0.06, float(i) / float(n - 1))
+		var seg := _wbox(cape, col, Vector3(w, length / n + 0.04, 0.03), Vector3(0.0, -length * float(i) / float(n - 1) - 0.05, 0.02 * i), Vector3.ZERO)
+		var m := seg.material_override as StandardMaterial3D
+		if m != null:
+			m.rim_enabled = true
+			m.rim = 0.3
+	if jagged:
+		for sx in [-1.0, 1.0]:
+			_wbox(cape, col, Vector3(0.1, 0.16, 0.03), Vector3(0.08 * sx, -length - 0.02, 0.1), Vector3.ZERO, deg_to_rad(18.0) * sx)
+
+
+func _fly_wings(fig: Node3D, style: String) -> void:
+	var wing := Node3D.new()
+	wing.position = Vector3(0.0, 0.62, 0.1)
+	fig.add_child(wing)
+	match style:
+		"feather":   # 天使：白い羽を層に
+			for sx in [-1.0, 1.0]:
+				for j in 3:
+					var f := _wball(wing, Color(0.98, 0.98, 0.96), 0.2 - j * 0.03, Vector3((0.18 + j * 0.14) * sx, 0.04 - j * 0.05, 0.02), Vector3(1.0, 0.16, 0.5))
+					f.rotation.z = deg_to_rad(24.0) * sx
+		"fairy":     # 妖精：透明の色つき羽（テーマの虫由来）
+			var fm := StandardMaterial3D.new()
+			fm.albedo_color = Color(0.75, 0.9, 1.0, 0.5)
+			fm.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+			fm.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+			for sx in [-1.0, 1.0]:
+				for zz in [-0.02, 0.14]:
+					var w := _wball(wing, Color(0.8, 0.92, 1.0), 0.24, Vector3(0.24 * sx, 0.06, zz), Vector3(1.0, 0.1, 0.7))
+					w.material_override = fm
+					w.rotation.z = deg_to_rad(20.0) * sx
+		"energy":    # 光の翼：発光する翼
+			var em := StandardMaterial3D.new()
+			em.albedo_color = Color(0.5, 0.9, 1.0)
+			em.emission_enabled = true
+			em.emission = Color(0.4, 0.85, 1.0)
+			em.emission_energy_multiplier = 2.2
+			em.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+			for sx in [-1.0, 1.0]:
+				for j in 3:
+					var w := _wball(wing, Color(0.6, 0.95, 1.0), 0.26 - j * 0.05, Vector3((0.16 + j * 0.16) * sx, 0.02, 0.0), Vector3(1.0, 0.12, 0.42))
+					w.material_override = em
+					w.rotation.z = deg_to_rad(18.0) * sx
 
 
 ## なかま候補を1体ぶん組み立てる（--allypat 用）。前＝-Z。
