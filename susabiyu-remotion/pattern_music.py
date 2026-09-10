@@ -1,75 +1,34 @@
 # -*- coding: utf-8 -*-
-"""テンプレごとの「音源・文言」の固定割当。
+"""No.7（yoshokutrio）だけ、音源と文言を固定する。
 
-値の出どころ（重要）：確認アプリの config に書かれている music/caption ラベルは
-実際の動画と1つ分ずれていた（URLだけ差し替えてラベルを更新し忘れた結果）。
-そのため値は「その mp4 を実際に焼いたときの生成ログ」を正として起こしている。
-例）No.7 の実際の曲は Somebody_(Prod._Khaim)。config が表示していた
-    Take_Me_To_The_Top は隣の No.10 のものだった。
+指定：「7だけ音楽とOPを固定。他の音楽はランダムでいい。7の曲を他が使うのも構わない」
 
-これまで音源と文言は render_samples.py の中で _tracks[idx % len(_tracks)] ＝
-「そのとき実行したパターンの並び順」で決めていた。そのため一部だけ再レンダリング
-すると順番がずれ、同じテンプレでも音楽と文言が毎回変わってしまっていた。
-さらに本番投稿(prepare.py)は fetch_typo の random.choice で音源を引いていたため、
-見本で確認した「テンプレ×音楽」の組み合わせが本番では再現されなかった。
+固定しない他のテンプレは従来どおりの挙動に戻る。
+  ・見本(render_samples)  : 音源一覧から並び順で割り当て（実行のたびに変わりうる）
+  ・本番投稿(fetch_typo)  : random.choice で毎回ランダム
 
-ここでパターン名に紐づけて固定することで、
-  ・見本を一部だけ焼き直しても組み合わせが変わらない
-  ・本番投稿でも見本と同じ音源・文言で出る
-  ・ランダムなのは料理写真だけ（fetch_typo の shuffle）
-という状態にする。値は承認済みの見本(config.nagagutsu.js)から起こしたもの。
+OPの案はテンプレごとにコード側で固定済み（No.7 は案7＝金の円環）なので、
+ここで持つ必要があるのは音源だけ。文言も No.7 は承認された組み合わせのまま保つ。
 
-音源を差し替えたい時はここの1行を書き換える。ファイル名の「1分23秒～」の部分が
-再生開始位置になる（render_samples/_mstart が読む）ので、名前ごと変える。
+値の出どころ：確認アプリの config に書かれている music/caption ラベルは実際の
+動画と1つ分ずれていたため、「その mp4 を実際に焼いたときの生成ログ」を正とした。
+No.7 の実際の曲は Somebody_(Prod._Khaim)。config が表示していた
+Take_Me_To_The_Top は隣の No.10 のものだった。
+
+音源を差し替えたい時はここの1行を書き換える。ファイル名の頭の「49秒～」が
+再生開始位置になるので、開始位置を変えたい時は Drive 側で名前を付け替えればよい
+（照合は曲名だけで行うので、秒数を変えても追随する）。
 """
 import os, re, glob
 
 # パターン名 → 音源ファイル名（拡張子なし。public/music/normal/ の中を探す）
 MUSIC = {
-    "yoshokudish":       "1分3秒～　Funky_droll_street",
-    "yoshokuchalk":      "1分51秒～　Good_Evening_Sunset",
-    "yoshokusizzle":     "20秒～　Cocktail_Glass",
-    "yoshokumag":        "26秒～　Just_the_Record",
-    "yoshokucine":       "paving_walkway",
-    "yoshokuwine":       "1分23秒～　愛の傘下",
-    "yoshokutrio":       "49秒～　Somebody_(Prod._Khaim)",
-    "yoshokupola":       "4秒～月の降る街",
-    "yoshokutype":       "French_Toast",
-    "yoshokuopen":       "49秒～　Take_Me_To_The_Top",
-    "yoshokumagazine":   "1分23秒～　愛の傘下",
-    "yoshokuopblur":     "1分51秒～　Good_Evening_Sunset",
-    "yoshokuopmortar":   "20秒～　Cocktail_Glass",
-    "yoshokuopwine":     "26秒～　Just_the_Record",
-    "yoshokuop4":        "1分23秒～　愛の傘下",
-    "yoshokuop5":        "1分3秒～　Funky_droll_street",
-    "yoshokuop6":        "1分51秒～　Good_Evening_Sunset",
-    "yoshokuop7":        "20秒～　Cocktail_Glass",
-    "yoshokuop8":        "26秒～　Just_the_Record",
-    "yoshokuop9":        "1分23秒～　愛の傘下",
+    "yoshokutrio": "49秒～　Somebody_(Prod._Khaim)",
 }
 
 # パターン名 → 画面に出すフック文言
 HOOK = {
-    "yoshokudish":       "この一皿に乾杯を。",
-    "yoshokuchalk":      "肉と、赤と、いい夜と。",
-    "yoshokusizzle":     "旨いを、遠慮なく。",
-    "yoshokumag":        "腹ペコ、集合。",
-    "yoshokucine":       "腹ペコ、集合。",
-    "yoshokuwine":       "日常に、ひと皿の贅沢。",
-    "yoshokutrio":       "日常に、ひと皿の贅沢。",
-    "yoshokupola":       "肉バルの、実力。",
-    "yoshokutype":       "いい夜の、はじまり。",
-    "yoshokuopen":       "〆まで、旨い。",
-    "yoshokumagazine":   "今夜は、肉。",
-    "yoshokuopblur":     "肉と、赤と、いい夜と。",
-    "yoshokuopmortar":   "旨いを、遠慮なく。",
-    "yoshokuopwine":     "腹ペコ、集合。",
-    "yoshokuop4":        "今夜は、肉。",
-    "yoshokuop5":        "この一皿に乾杯を。",
-    "yoshokuop6":        "肉と、赤と、いい夜と。",
-    "yoshokuop7":        "旨いを、遠慮なく。",
-    "yoshokuop8":        "腹ペコ、集合。",
-    "yoshokuop9":        "今夜は、肉。",
+    "yoshokutrio": "日常に、ひと皿の贅沢。",
 }
 
 
@@ -77,7 +36,10 @@ def _key(name):
     """照合用のキー。ファイル名の頭の「49秒～」「1分23秒～」は“再生開始位置”の指定で、
     運用中に付け替えられる（＝曲は同じでも名前が変わる）。そこを落として曲名だけで
     照合する。全角/半角の空白・チルダ・大文字小文字の揺れも吸収する。"""
-    n = os.path.splitext(os.path.basename(name or ""))[0]
+    # splitext は使わない。曲名にドットが含まれる（例 "Somebody_(Prod._Khaim)"）と
+    # "._Khaim)" を拡張子と誤認して切り落としてしまい、照合が必ず外れる。
+    # 実際の音源拡張子だけを末尾から取り除く。
+    n = re.sub(r"\.(?:mp3|m4a|wav)$", "", os.path.basename(name or ""), flags=re.I)
     n = re.sub(r"^\s*(?:\d+\s*分)?\s*(?:\d+\s*秒)?\s*[～~〜]?\s*", "", n)
     n = n.replace("\u3000", " ").replace("_", " ")
     return re.sub(r"\s+", "", n).lower()
