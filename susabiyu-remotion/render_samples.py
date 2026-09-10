@@ -40,8 +40,13 @@ def _poster_jpg(comp, props_arg, mp4=""):
             os.remove(f)
     if mp4 and os.path.exists(mp4):
         try:
-            # frame100 @30fps = 3.333秒。-ss を入力前に置くと高速シーク。
-            run('ffmpeg -y -loglevel error -ss 00:00:03.333 -i "' + mp4 + '" -frames:v 1 -q:v 3 "' + jpg + '"')
+            # frame165 @30fps = 5.5秒。-ss を入力前に置くと高速シーク。
+            # 以前は 3.333秒(frame100)で抜いていたが、OPが90フレーム＝3.0秒あるため
+            # 本編に入って10フレームしか経っておらず、文字も罫も奥付帯も“出かけ”の
+            # 半透明状態で写ってしまっていた（サムネイルが未完成に見える原因）。
+            # 5.5秒＝本編75フレーム目なら、どのテンプレも1品目が完全に立ち上がりきっており、
+            # かつ最短の本編（黒板=1カット90フレーム）でも2品目に切り替わる前に収まる。
+            run('ffmpeg -y -loglevel error -ss 00:00:05.500 -i "' + mp4 + '" -frames:v 1 -q:v 3 "' + jpg + '"')
             if os.path.exists(jpg) and os.path.getsize(jpg) > 0:
                 return jpg
             print("[SAMPLE] ffmpegポスターが空 → still にフォールバック")

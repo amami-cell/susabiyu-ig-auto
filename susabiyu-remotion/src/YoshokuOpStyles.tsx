@@ -379,6 +379,22 @@ export const StoryOpenV: React.FC<SP & { v: OpVariant }> = ({ v, ...p }) => {
   return <StoryOpening {...p} bg={v === 1 ? "blur" : v === 2 ? "mortar" : "wine"} />;
 };
 
+// OP→本編のクロスディゾルブ用ラッパー。
+// これまで OP と本編は Sequence が隣接するだけの“ハードカット”で、OPが消えた瞬間に
+// 本編が出るため繋がりが唐突だった（CLOSE側は STORY_XF で重ねていたのに頭だけ入っていない）。
+// 使い方: 本編Sequenceを先に置き、その上に「STORY_OPEN + xf」の長さでこれを重ねる。
+// 最後の xf フレームで“地ごと”消えていくので、本編が下から現れる真のディゾルブになる。
+export const StoryOpenXF: React.FC<SP & { v: OpVariant; xf?: number }> = ({ v, xf = STORY_XF, ...p }) => {
+  const f = useCurrentFrame();
+  const o = interpolate(f, [STORY_OPEN, STORY_OPEN + xf], [1, 0], { ...clamp, easing: EASE });
+  if (o <= 0.001) return null;
+  return (
+    <AbsoluteFill style={{ opacity: o }}>
+      <StoryOpenV v={v} {...p} />
+    </AbsoluteFill>
+  );
+};
+
 export const StoryEndV: React.FC<SP & { v: OpVariant }> = ({ v, ...p }) => {
   if (v === 4) return <End4 {...p} />;
   if (v === 5) return <End5 {...p} />;

@@ -4,12 +4,13 @@ import { AbsoluteFill, Audio, Sequence, staticFile, useCurrentFrame, interpolate
 import { typoPhotos, typoMusic, typoMusicStart } from "./typoData";
 import { ytheme } from "./yoshokuTheme";
 import {
-  mincho, serif, clamp, SAFE, rise, drawW,
+  mincho, serif, clamp, EASE, SAFE, rise, drawW, fade,
   Grain, Vignette, Masthead, PhotoLayer, Slides, fitOneLine, fitLines, splitLines, segNow,
   STORY_OPEN, STORY_END, STORY_XF,
 } from "./yoshokuDesign";
 // OP/CLOSEはテンプレごとに固定の案を使う（鉄板ジュ〜っと：夜の熱量に合わせてネオンが灯る）。
-import { StoryOpenV, StoryEndV } from "./YoshokuOpStyles";
+// StoryOpenXF は OP を本編の頭に重ねてディゾルブさせるラッパー（ハードカット解消）。
+import { StoryOpenXF, StoryEndV } from "./YoshokuOpStyles";
 
 const SIZZLE_BODY = 480; // 16s
 export const YSIZZLE_DUR = STORY_OPEN + SIZZLE_BODY + STORY_END;
@@ -20,7 +21,7 @@ const SizzleBody: React.FC<{ storeName?: string; handle?: string; theme?: string
   const f = useCurrentFrame();
   const DUR = SIZZLE_BODY;
   const T = ytheme(theme);
-  const p = typoPhotos.length ? typoPhotos : [{ src: "", caption: "", story: "", sub: "", disp: "" }];
+  const p = typoPhotos.length ? typoPhotos : [{ src: "", caption: "", story: "", sub: "", disp: "", desc: "" }];
   const items = [0, 1, 2, 3].map((i) => p[i] || p[p.length - 1]);
 
   // 控えめな火の粉（決定的乱数）
@@ -34,10 +35,17 @@ const SizzleBody: React.FC<{ storeName?: string; handle?: string; theme?: string
     return { x, yy, size, op };
   });
 
+  // ── 1品目の入り（トランジション）──────────────────────────────
+  // OPのネオンが上で薄れていく間に、本編は「熱で滲んだ状態」からピントが合っていく。
+  // 寄り→標準、ぼけ→クリア、少し明るい→通常。段差ではなく“熱が引く”流れにする。
+  const inS = interpolate(f, [0, 58], [1.08, 1], { ...clamp, easing: EASE });
+  const inB = interpolate(f, [0, 36], [16, 0], { ...clamp, easing: EASE });
+  const inL = interpolate(f, [0, 40], [1.18, 1], { ...clamp, easing: EASE });
+
   return (
     <AbsoluteFill style={{ backgroundColor: "#0b0806", fontFamily: mincho }}>
       {/* 主役：4品。寄りすぎ解消のため、背景に同写真のぼかしカバー＋前面は contain で皿の全体を見せる */}
-      <AbsoluteFill>
+      <AbsoluteFill style={{ transform: "scale(" + inS + ")", filter: "blur(" + inB + "px) brightness(" + inL + ")" }}>
         <Slides count={4} total={DUR} render={(i, local, seg) => (
           <>
             <AbsoluteFill><PhotoLayer src={items[i].src} frame={local} dur={seg} from={1.16} to={1.22} sat={1.02} brightness={0.42} blur={28} /></AbsoluteFill>
@@ -46,14 +54,15 @@ const SizzleBody: React.FC<{ storeName?: string; handle?: string; theme?: string
         )} />
       </AbsoluteFill>
       <AbsoluteFill style={{ background: "linear-gradient(180deg, rgba(0,0,0,0.55) 0%, rgba(0,0,0,0.05) 24%, rgba(0,0,0,0.12) 54%, rgba(0,0,0,0.9) 100%)" }} />
+      {/* 火の粉は写真が定まってから舞い始める（OPと同時に賑やかにしない） */}
       {parts.map((pt, i) => (
-        <div key={i} style={{ position: "absolute", left: pt.x, top: pt.yy, width: pt.size, height: pt.size, borderRadius: "50%", background: "#FFE7B0", opacity: pt.op, filter: "blur(1px)" }} />
+        <div key={i} style={{ position: "absolute", left: pt.x, top: pt.yy, width: pt.size, height: pt.size, borderRadius: "50%", background: "#FFE7B0", opacity: pt.op * fade(f, 30, 34), filter: "blur(1px)" }} />
       ))}
       <Vignette strength={0.46} />
       <Grain />
 
       {/* 左上：ロゴのマストヘッド（文字ロゴを大きく） */}
-      <Masthead storeName={storeName} kicker={T.label} accent={T.accent} tint="#FFF6E6" f={f} logoH={116} />
+      <Masthead storeName={storeName} kicker={T.label} accent={T.accent} tint="#FFF6E6" f={f - 26} logoH={116} />
 
 
       {/* 左下：欧文サブ＋料理名＝カットごとに“1件だけ”表示（左揃え・重ねない） */}
@@ -64,7 +73,7 @@ const SizzleBody: React.FC<{ storeName?: string; handle?: string; theme?: string
         const one = (nm || "").replace(/[｜\n]/g, "");                 // 料理名は必ず1行
         const sz = fitOneLine(one, 92, 1080 - SAFE.side * 2, 34);
         return (
-          <div key={i} style={{ position: "absolute", left: SAFE.side, right: SAFE.side, bottom: SAFE.bottom - 44, textAlign: "left", ...rise(local, 6, { dist: 22, blur: 6 }) }}>
+          <div key={i} style={{ position: "absolute", left: SAFE.side, right: SAFE.side, bottom: SAFE.bottom - 44, textAlign: "left", ...rise(local, i === 0 ? 36 : 6, { dist: 22, blur: 6 }) }}>
             <div style={{ width: drawW(local, 12, 100, 24), height: 2, background: T.accent, marginBottom: 18 }} />
             {it.sub ? <div style={{ fontFamily: serif, color: T.accent, fontSize: 30, letterSpacing: 4, textTransform: "uppercase", fontWeight: 600, marginBottom: 8 }}>{it.sub}</div> : null}
             <div style={{ fontFamily: mincho, color: "#FFF6E6", fontSize: sz, fontWeight: 700, letterSpacing: 1, lineHeight: 1.16, whiteSpace: "nowrap", textShadow: "0 3px 24px rgba(0,0,0,0.75)" }}>{one}</div>
@@ -94,8 +103,10 @@ export const YoshokuSizzle: React.FC<{ storeName?: string; handle?: string; them
     <AbsoluteFill style={{ backgroundColor: "#0b0806" }}>
       {/* 音楽は全体（オープニング〜本編〜エンドロール）に通す */}
       <Audio src={staticFile(typoMusic)} startFrom={Math.round((typoMusicStart || 0) * 30)} volume={(ff) => interpolate(ff, [0, 16, YSIZZLE_DUR - 30, YSIZZLE_DUR], [0, 0.85, 0.85, 0], clamp)} />
-      <Sequence durationInFrames={STORY_OPEN}><StoryOpenV v={6} storeName={storeName} theme={theme} /></Sequence>
+      {/* 本編を先に置き、その上にOPを STORY_XF ぶん長く重ねてディゾルブさせる（順序が重要）。
+          ＝ネオンが薄れていく裏で1品目が立ち上がる。以前はここがハードカットだった。 */}
       <Sequence from={STORY_OPEN} durationInFrames={SIZZLE_BODY}><SizzleBody storeName={storeName} handle={handle} theme={theme} /></Sequence>
+      <Sequence durationInFrames={STORY_OPEN + STORY_XF}><StoryOpenXF v={6} storeName={storeName} theme={theme} /></Sequence>
       <Sequence from={STORY_OPEN + SIZZLE_BODY - STORY_XF} durationInFrames={STORY_END + STORY_XF}><StoryEndV v={6} storeName={storeName} handle={handle} theme={theme} /></Sequence>
     </AbsoluteFill>
   );
