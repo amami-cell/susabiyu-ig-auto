@@ -17,12 +17,12 @@ class_name Player
 
 signal stats_changed
 
-const SPEED := 3.6
-const ACCEL := 18.0
+const SPEED := 5.0
+const ACCEL := 24.0
 const GRAVITY := 14.0
 const JUMP_SPEED := 5.2
-const FLY_LIFT := 4.2          # 飛行中の上昇速度
-const FLY_CEILING := 12.0      # 上がりすぎ防止
+const FLY_LIFT := 7.5          # 飛行中の上昇速度（ぐんぐん上がる）
+const FLY_CEILING := 16.0      # 上がりすぎ防止
 # 飛行の解禁は Lv ではなく「癒やして集めた5パーツ」で判定する（WorldState.has_flight）
 const ATTACK_RANGE := 2.3
 const ATTACK_COOLDOWN := 0.45
@@ -266,8 +266,9 @@ func _local_step(delta: float) -> void:
 	# ※攻撃中(ATTACK)は攻撃モーションが体の傾きを使うので触らない。
 	var t := clampf(delta * 6.0, 0.0, 1.0)
 	if state == State.FLY:
-		_body.rotation.x = lerp_angle(_body.rotation.x, deg_to_rad(-24.0), t)
-		_body.rotation.z = lerp_angle(_body.rotation.z, sin(_age * 5.0) * deg_to_rad(7.0), t)
+		# しっかり前傾＝“空を飛んでる”スーパーマン姿勢（直立に見えないよう大きく倒す）＋ゆらぎ。
+		_body.rotation.x = lerp_angle(_body.rotation.x, deg_to_rad(-72.0), t)
+		_body.rotation.z = lerp_angle(_body.rotation.z, sin(_age * 4.0) * deg_to_rad(9.0), t)
 	elif state != State.ATTACK:
 		_body.rotation.x = lerp_angle(_body.rotation.x, 0.0, t)
 		_body.rotation.z = lerp_angle(_body.rotation.z, 0.0, t)

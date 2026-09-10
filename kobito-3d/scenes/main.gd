@@ -1036,6 +1036,24 @@ func _run_shot() -> void:
 		await get_tree().create_timer(0.8).timeout
 		await RenderingServer.frame_post_draw
 		get_viewport().get_texture().get_image().save_png("/tmp/shot_allypat.png")
+	# --fly：飛行ポーズ（前傾）を横から撮る＝“直立に見えない”か確認用。
+	if OS.get_cmdline_user_args().has("--fly") and _garden != null:
+		var pf: Node = _garden.local_player()
+		if pf != null:
+			pf.set_physics_process(false)   # 物理を止めて手動でポーズを固定
+			pf.global_position.y = 3.0
+			var pb: Node3D = pf.get_node_or_null("Body")
+			if pb != null:
+				pb.rotation = Vector3(deg_to_rad(-72.0), 0.0, deg_to_rad(9.0))
+			var fc: Vector3 = pf.global_position
+			var fcam := Camera3D.new()
+			add_child(fcam)
+			fcam.global_position = fc + Vector3(3.4, 0.6, 0.4)   # 真横から
+			fcam.look_at(fc + Vector3(0.0, 0.1, 0.0), Vector3.UP)
+			fcam.current = true
+			await get_tree().create_timer(0.5).timeout
+			await RenderingServer.frame_post_draw
+			get_viewport().get_texture().get_image().save_png("/tmp/shot_fly.png")
 	get_tree().quit()
 
 
