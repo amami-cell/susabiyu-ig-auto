@@ -128,14 +128,16 @@ const P01: Inner = ({ d, slab }) => (<>
 
 // ── 案02 左右分割：右に縦長の写真、左に縦組みの料理名 ──
 const P02: Inner = ({ d, slab }) => {
-  const nm = nameOf(d); const availH = 880;
-  const v = Math.max(30, Math.min(78, Math.floor(availH / Math.max(1, jlen(nm)))));
+  const nm = nameOf(d); const availH = 880; const vls = 4;
+  // 字と字の間に入る letterSpacing のぶんも引く。引かないと長い名前（13文字以上）で
+  // 実際の高さが枠を超え、縦組みが2列に折り返してしまう。
+  const v = Math.max(26, Math.min(78, Math.floor(availH / Math.max(1, jlen(nm))) - vls));
   return (<>
     {/* 写真の左端 452→320。縦組みの料理名がいちばん張り出すケース(x=270)から
         50pxのすき間を残した位置。幅 540→672px。 */}
     <div style={{ position: "absolute", left: 320, right: 88, top: 248, height: 1140, overflow: "hidden", boxShadow: "0 28px 64px rgba(60,35,14,0.32)" }}><Photo src={d.src} /></div>
     <div style={{ position: "absolute", left: 150, top: 268, height: availH, display: "flex", alignItems: "flex-start", gap: 18 }}>
-      <div style={{ writingMode: "vertical-rl", fontFamily: mincho, color: INK, fontSize: v, fontWeight: 700, letterSpacing: 4, lineHeight: 1 }}>{nm}</div>
+      <div style={{ writingMode: "vertical-rl", whiteSpace: "nowrap", fontFamily: mincho, color: INK, fontSize: v, fontWeight: 700, letterSpacing: vls, lineHeight: 1 }}>{nm}</div>
       <div style={{ writingMode: "vertical-rl", fontFamily: serif, color: slab, fontSize: 24, letterSpacing: 6, textTransform: "uppercase", fontWeight: 600, marginTop: 6 }}>{d.sub || ""}</div>
     </div>
     <div style={{ position: "absolute", left: 150, top: 1180, width: 140, height: 3, background: slab }} />
