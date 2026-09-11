@@ -104,7 +104,7 @@ const PAPER_W = 760;
 const ContoBody: React.FC<Required<P>> = ({ storeName, handle, theme }) => {
   const f = useCurrentFrame(); const T = ytheme(theme);
   const items = dishes(4);
-  const grow = interpolate(f, [0, 70], [280, 1560], { ...clamp, easing: EASE });   // 紙が伸びる
+  const grow = interpolate(f, [0, 70], [280, 1150], { ...clamp, easing: EASE });   // 紙が伸びる
   const left = (1080 - PAPER_W) / 2;
   return (
     <AbsoluteFill style={{ backgroundColor: "#14100C" }}>
@@ -137,13 +137,13 @@ const ContoBody: React.FC<Required<P>> = ({ storeName, handle, theme }) => {
         })}
         {/* 締めのスタンプ（斜めに押す） */}
         <div style={{
-          position: "absolute", left: 0, right: 0, top: 1290, display: "flex", justifyContent: "center",
-          opacity: fade(f, 300, 14),
-          transform: "rotate(-8deg) scale(" + interpolate(f, [300, 316], [1.5, 1], { ...clamp, easing: EASE }) + ")",
+          position: "absolute", left: 0, right: 0, top: 800, display: "flex", justifyContent: "center",
+          opacity: fade(f, 210, 14),
+          transform: "rotate(-8deg) scale(" + interpolate(f, [210, 226], [1.5, 1], { ...clamp, easing: EASE }) + ")",
         }}>
           <div style={{ border: "5px solid " + T.slab, color: T.slab, fontFamily: serif, fontSize: 54, letterSpacing: 10, fontWeight: 700, padding: "10px 28px" }}>GRAZIE</div>
         </div>
-        <div style={{ position: "absolute", left: 0, right: 0, top: 1420, textAlign: "center", fontFamily: serif, color: "rgba(36,26,18,0.6)", fontSize: 24, letterSpacing: 4, opacity: fade(f, 316, 16) }}>{handle}</div>
+        <div style={{ position: "absolute", left: 0, right: 0, top: 980, textAlign: "center", fontFamily: serif, color: "rgba(36,26,18,0.6)", fontSize: 24, letterSpacing: 4, opacity: fade(f, 226, 16) }}>{handle}</div>
       </div>
       <Grain opacity={0.05} />
     </AbsoluteFill>
@@ -246,12 +246,13 @@ export const YoshokuCicchetti: React.FC<P> = ({ storeName = D.storeName, handle 
    イタリアの絵付けタイル。画面をタイルに割り、順にめくれて次の皿になる。
    幾何パターンで割る画は既存に無い。 */
 const TILE_C = 3, TILE_R = 5;
+const TILE_H = 1080;   // タイル全体の高さ（下の文字と重ならない高さに収める）
 const MaiolicaBody: React.FC<Required<P>> = ({ storeName, handle, theme }) => {
   const f = useCurrentFrame(); const T = ytheme(theme);
   const items = dishes(4);
   const { i, local } = segNow(BODY, 4, f);
-  const nx = items[(i + 1) % 4];
-  const W = 1080 / TILE_C, H = 1180 / TILE_R;
+  const pv = items[(i + 3) % 4];   // ひとつ前の皿。ここから今の皿へめくる
+  const W = 1080 / TILE_C, H = TILE_H / TILE_R;
   const top = 430;
   return (
     <AbsoluteFill style={{ backgroundColor: "#F3EBDC" }}>
@@ -265,14 +266,14 @@ const MaiolicaBody: React.FC<Required<P>> = ({ storeName, handle, theme }) => {
       </div>
       <div style={{ position: "absolute", top: 300, left: 0, right: 0, textAlign: "center", fontFamily: serif, color: T.slab, fontSize: 26, letterSpacing: 10, fontWeight: 600 }}>MAIOLICA</div>
       {/* タイル：左上から順にめくれて次の皿が出る */}
-      <div style={{ position: "absolute", left: 0, top, width: 1080, height: 1180 }}>
+      <div style={{ position: "absolute", left: 0, top, width: 1080, height: TILE_H }}>
         {Array.from({ length: TILE_C * TILE_R }).map((_, t) => {
           const c = t % TILE_C, r = Math.floor(t / TILE_C);
           const s = 8 + (c + r) * 7;                       // 斜めに伝播
           const p = interpolate(local, [s, s + 26], [0, 1], { ...clamp, easing: EASE_INOUT });
           const flipped = p > 0.5;
           const sx = Math.abs(1 - p * 2);                  // 1→0→1（半分でめくれる）
-          const d = flipped ? nx : items[i];
+          const d = flipped ? items[i] : pv;
           return (
             <div key={t} style={{
               position: "absolute", left: c * W, top: r * H, width: W, height: H,
@@ -280,14 +281,14 @@ const MaiolicaBody: React.FC<Required<P>> = ({ storeName, handle, theme }) => {
               transform: "scaleX(" + Math.max(0.02, sx) + ")",
             }}>
               {/* 1枚の写真をタイルの位置で切り出す＝割れた絵がちゃんと1枚に見える */}
-              <div style={{ position: "absolute", left: -c * W, top: -r * H, width: 1080, height: 1180 }}>
+              <div style={{ position: "absolute", left: -c * W, top: -r * H, width: 1080, height: TILE_H }}>
                 <Photo src={d.src} lf={0} seg={1} from={1} to={1} />
               </div>
             </div>
           );
         })}
       </div>
-      <div style={{ position: "absolute", left: SAFE.side, right: SAFE.side, top: 1660, textAlign: "center" }}>
+      <div style={{ position: "absolute", left: SAFE.side, right: SAFE.side, top: 1560, textAlign: "center" }}>
         <Caption d={items[i]} f={local} start={30} ink="#241A12" sub="rgba(36,26,18,0.8)" accent={T.slab} align="center" shadow={false} maxName={76} />
       </div>
       <div style={{ position: "absolute", left: 0, right: 0, bottom: 96, textAlign: "center", fontFamily: serif, color: T.slab, fontSize: 26, letterSpacing: 4, opacity: 0.85 }}>{handle}</div>
@@ -384,7 +385,7 @@ const ProvinoBody: React.FC<Required<P>> = ({ storeName, handle, theme }) => {
             width: FW + (1080 - FW) * blow, height: FH + (1920 - FH) * blow, overflow: "hidden",
           }}>
             <Photo src={items[i].src} lf={local} seg={seg} from={1.04} to={1.1} />
-            <AbsoluteFill style={{ background: "linear-gradient(180deg, rgba(8,7,6,0.6) 0%, rgba(8,7,6,0.05) 32%, rgba(8,7,6,0.85) 100%)" }} />
+            <AbsoluteFill style={{ background: "linear-gradient(180deg, rgba(8,7,6,0.6) 0%, rgba(8,7,6,0.05) 30%, rgba(8,7,6,0.55) 68%, rgba(8,7,6,0.94) 100%)" }} />
           </div>
         </AbsoluteFill>
       ) : null}

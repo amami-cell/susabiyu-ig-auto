@@ -41,6 +41,7 @@ POSTER_SEC = {
     "yoshokuconto": 10.5,
     "yoshokupassio": 6.5,    # 扉が開ききってから
     "yoshokutenda": 6.0,     # 日除けが降りきってから
+    "yoshokuprovino": 4.3,   # ベタ焼きが見えているうち（既定5.5だと引き伸ばしの最中になる）
 }
 
 
