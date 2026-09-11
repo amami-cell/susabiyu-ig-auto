@@ -12,6 +12,7 @@ import { YoshokuPola, YPOLA_DUR } from "./YoshokuPola";
 import { YoshokuType, YTYPE_DUR } from "./YoshokuType";
 import { YoshokuOpen, YOPEN_DUR } from "./YoshokuOpen";
 import { YoshokuMagazine, YMAGZ_DUR } from "./YoshokuMagazine";
+import { NUOVI_COMPS, YNUOVI_DUR } from "./YoshokuNuovi";
 import { FEED_COMPS, FEED_W, FEED_H, FEED_DUR } from "./YoshokuFeed";
 import { MAGP_COMPS, MAGP_W, MAGP_H, MAGP_DUR } from "./YoshokuMagPages";
 import { SushiStory } from "./SushiStory";
@@ -93,6 +94,11 @@ export const RemotionRoot: React.FC = () => {
       <Composition id="YoshokuOpen" component={YoshokuOpen} fps={FPS} width={1080} height={1920} durationInFrames={YOPEN_DUR} defaultProps={{ storeName: STORE, handle: "@susabiyu_sanjyo", theme: "neutral" }} />
       {/* ⑪雑誌ストーリー：表紙・本文・裏表紙まで紙の誌面で統一した1本 */}
       <Composition id="YoshokuMagazine" component={YoshokuMagazine} fps={FPS} width={1080} height={1920} durationInFrames={YMAGZ_DUR} defaultProps={{ storeName: STORE, handle: "@susabiyu_sanjyo", theme: "neutral" }} />
+      {/* No.12〜No.23：イタリアン酒場の追加案。小道具と動きの軸を既存11種と別にしてある。 */}
+      {NUOVI_COMPS.map((c) => (
+        <Composition key={c.id} id={c.id} component={c.comp} fps={FPS} width={1080} height={1920}
+          durationInFrames={YNUOVI_DUR} defaultProps={{ storeName: STORE, handle: "@susabiyu_sanjyo", theme: "neutral" }} />
+      ))}
       {/* OP/CLOSEの「地」比較用プレビュー（短尺）。選ばれた案を STORY_BG に設定して全10本へ反映する。 */}
       <Composition id="YoshokuOpBlur" component={YoshokuOpBlur} fps={FPS} width={1080} height={1920} durationInFrames={YOP_DUR} defaultProps={{ storeName: STORE, handle: "@susabiyu_sanjyo", theme: "neutral" }} />
       <Composition id="YoshokuOpMortar" component={YoshokuOpMortar} fps={FPS} width={1080} height={1920} durationInFrames={YOP_DUR} defaultProps={{ storeName: STORE, handle: "@susabiyu_sanjyo", theme: "neutral" }} />
