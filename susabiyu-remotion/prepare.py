@@ -7,7 +7,7 @@ import stores
 SHEET_ID = "13zKaUblOwmgZ-lgCfxylCLlW2Fqutqct5h5TvMRWv30"
 APP_TAB = "承認待ち"
 PROPS_ARG = ""   # 店舗ブランドprops（storeName/handle/region）のrenderフラグ。三条は空＝従来動作。
-PAT_JA = {"yoshokudish":"洋食・本日の一皿","yoshokuchalk":"洋食・黒板トラットリア","yoshokusizzle":"洋食・鉄板ジュ〜っと","yoshokumag":"洋食・雑誌エディトリアル","yoshokucine":"洋食・シネマ","yoshokuwine":"洋食・ワインと共に","yoshokutrio":"洋食・おすすめ3品","yoshokupola":"洋食・ポラロイド重ね","yoshokutype":"洋食・大見出しタイポ","yoshokuopen":"洋食・本日OPEN案内","yoshokumagazine":"洋食・雑誌ストーリー","yoshokuopblur":"OP/CLOSE案1・ぼかし写真","yoshokuopmortar":"OP/CLOSE案2・モルタル壁","yoshokuopwine":"OP/CLOSE案3・ボルドー","yoshokuop4":"OP/CLOSE案4・シネマの幕","yoshokuop5":"OP/CLOSE案5・一皿から引く","yoshokuop6":"OP/CLOSE案6・ネオンが灯る","yoshokuop7":"OP/CLOSE案7・金の円環","yoshokuop8":"OP/CLOSE案8・タイポが集まる","yoshokuop9":"OP/CLOSE案9・雑誌の表紙/裏表紙","sushi":"王道","tempo":"賑やか","typo":"雑誌風","photo":"全画面","simple":"額装","caption":"写真キャプション", "oshina":"お品書き","oshinatate":"お品書き(縦書き)","kaiten":"回転レーン","osusume":"店主おすすめ","gridzoom":"グリッド→ズーム","noren":"暖簾くぐり","season":"季節の旬","taishufuda":"大衆・値札チラシ","taishukaiten":"大衆・回転レーン","sanjokaiten":"回転レーン(烏丸ベース)","taishuoshi":"大衆・イチオシ","taishuodo":"大衆・王道","taishuzen":"大衆・全画面","taishushinbun":"大衆・見出し新聞","taishugrid":"大衆・グリッドズーム","taishutanzaku":"大衆・壁の短冊","taishunoren":"大衆・暖簾くぐり","taishutempo":"大衆・賑やかテンポ","taishushun":"大衆・季節の旬","taishuhito":"大衆・本日の一皿","taishuoshina":"大衆・お品書き","taishugaku":"大衆・額装（画像）","taishucap":"大衆・写真一言（画像）","taishuimga":"画像案A・提灯(寿司酒場)","taishuimga2":"画像案A2・提灯(大衆酒場)","taishuimgb":"画像案B・チラシ","taishuimgd":"画像案D・紺のれん","taishuimgf":"画像案F・白抜き文字","taishuimge":"画像案E・黄ポップ","beat":"音ハメリール（動画）","cinereel":"上品リール（AI/実写クリップ）"}
+PAT_JA = {"yoshokuconto":"洋食・伝票（コント）","yoshokuvicolo":"洋食・路地のネオン","yoshokucicchetti":"洋食・カウンター横歩き","yoshokumaiolica":"洋食・陶タイル","yoshokutricolore":"洋食・三色帯","yoshokuprovino":"洋食・ベタ焼き","yoshokucartolina":"洋食・絵はがき","yoshokunumeri":"洋食・数字で見る","yoshokutenda":"洋食・縞の日除け","yoshokumedaglione":"洋食・丸窓の紋章","yoshokumuro":"洋食・石壁の壁書き","yoshokupassio":"洋食・扉が開く","yoshokudish":"洋食・本日の一皿","yoshokuchalk":"洋食・黒板トラットリア","yoshokusizzle":"洋食・鉄板ジュ〜っと","yoshokumag":"洋食・雑誌エディトリアル","yoshokucine":"洋食・シネマ","yoshokuwine":"洋食・ワインと共に","yoshokutrio":"洋食・おすすめ3品","yoshokupola":"洋食・ポラロイド重ね","yoshokutype":"洋食・大見出しタイポ","yoshokuopen":"洋食・本日OPEN案内","yoshokumagazine":"洋食・雑誌ストーリー","yoshokuopblur":"OP/CLOSE案1・ぼかし写真","yoshokuopmortar":"OP/CLOSE案2・モルタル壁","yoshokuopwine":"OP/CLOSE案3・ボルドー","yoshokuop4":"OP/CLOSE案4・シネマの幕","yoshokuop5":"OP/CLOSE案5・一皿から引く","yoshokuop6":"OP/CLOSE案6・ネオンが灯る","yoshokuop7":"OP/CLOSE案7・金の円環","yoshokuop8":"OP/CLOSE案8・タイポが集まる","yoshokuop9":"OP/CLOSE案9・雑誌の表紙/裏表紙","sushi":"王道","tempo":"賑やか","typo":"雑誌風","photo":"全画面","simple":"額装","caption":"写真キャプション", "oshina":"お品書き","oshinatate":"お品書き(縦書き)","kaiten":"回転レーン","osusume":"店主おすすめ","gridzoom":"グリッド→ズーム","noren":"暖簾くぐり","season":"季節の旬","taishufuda":"大衆・値札チラシ","taishukaiten":"大衆・回転レーン","sanjokaiten":"回転レーン(烏丸ベース)","taishuoshi":"大衆・イチオシ","taishuodo":"大衆・王道","taishuzen":"大衆・全画面","taishushinbun":"大衆・見出し新聞","taishugrid":"大衆・グリッドズーム","taishutanzaku":"大衆・壁の短冊","taishunoren":"大衆・暖簾くぐり","taishutempo":"大衆・賑やかテンポ","taishushun":"大衆・季節の旬","taishuhito":"大衆・本日の一皿","taishuoshina":"大衆・お品書き","taishugaku":"大衆・額装（画像）","taishucap":"大衆・写真一言（画像）","taishuimga":"画像案A・提灯(寿司酒場)","taishuimga2":"画像案A2・提灯(大衆酒場)","taishuimgb":"画像案B・チラシ","taishuimgd":"画像案D・紺のれん","taishuimgf":"画像案F・白抜き文字","taishuimge":"画像案E・黄ポップ","beat":"音ハメリール（動画）","cinereel":"上品リール（AI/実写クリップ）"}
 REG = {
   "yoshokudish": ("fetch_typo.py","YoshokuDish",True),   # 洋食おしゃれ①本日の一皿（イタリアン/フレンチ）
   "yoshokuchalk":  ("fetch_typo.py","YoshokuChalk",True),   # ②黒板トラットリア
@@ -20,6 +20,19 @@ REG = {
   "yoshokutype":   ("fetch_typo.py","YoshokuType",True),    # ⑨大見出しタイポ
   "yoshokuopen":   ("fetch_typo.py","YoshokuOpen",True),    # ⑩本日OPEN案内
   "yoshokumagazine": ("fetch_typo.py","YoshokuMagazine",True),  # ⑪雑誌ストーリー（表紙〜裏表紙まで紙の誌面）
+  # No.12〜No.23 イタリアン酒場の追加案（小道具と動きの軸を既存11種と別にしてある）
+  "yoshokuconto":      ("fetch_typo.py","YoshokuConto",True),       # ⑫伝票（コント）
+  "yoshokuvicolo":     ("fetch_typo.py","YoshokuVicolo",True),      # ⑬路地のネオン
+  "yoshokucicchetti":  ("fetch_typo.py","YoshokuCicchetti",True),   # ⑭カウンター横歩き
+  "yoshokumaiolica":   ("fetch_typo.py","YoshokuMaiolica",True),    # ⑮陶タイル
+  "yoshokutricolore":  ("fetch_typo.py","YoshokuTricolore",True),   # ⑯三色帯
+  "yoshokuprovino":    ("fetch_typo.py","YoshokuProvino",True),     # ⑰ベタ焼き
+  "yoshokucartolina":  ("fetch_typo.py","YoshokuCartolina",True),   # ⑱絵はがき
+  "yoshokunumeri":     ("fetch_typo.py","YoshokuNumeri",True),      # ⑲数字で見る
+  "yoshokutenda":      ("fetch_typo.py","YoshokuTenda",True),       # ⑳縞の日除け
+  "yoshokumedaglione": ("fetch_typo.py","YoshokuMedaglione",True),  # ㉑丸窓の紋章
+  "yoshokumuro":       ("fetch_typo.py","YoshokuMuro",True),        # ㉒石壁の壁書き
+  "yoshokupassio":     ("fetch_typo.py","YoshokuPassio",True),      # ㉓扉が開く
   # OP/CLOSE の地（背景）比較用プレビュー（短尺・投稿用ではない）
   "yoshokuopblur":   ("fetch_typo.py","YoshokuOpBlur",True),
   "yoshokuopmortar": ("fetch_typo.py","YoshokuOpMortar",True),
