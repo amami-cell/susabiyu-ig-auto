@@ -373,7 +373,10 @@ const NastroBody: React.FC<Required<P>> = ({ storeName, handle, theme }) => {
       {/* 斜めのリボン（左下→右上に掛かる） */}
       <div style={{ position: "absolute", left: -140, right: -140, top: 820, transform: "translateX(" + inX + "px) rotate(-11deg)" }}>
         <div style={{ height: 176, background: T.slab, boxShadow: "0 18px 46px rgba(0,0,0,0.5)", display: "flex", alignItems: "center", justifyContent: "center" }}>
-          <span style={{ fontFamily: mincho, color: "#FFF6E8", fontSize: fitOneLine(nm, 82, 1180, 34), fontWeight: 700, letterSpacing: 2, whiteSpace: "nowrap", textShadow: "0 3px 16px rgba(0,0,0,0.4)" }}>{nm}</span>
+          {/* 収める幅は「リボンの幅」ではなく「画面の幅」。リボンはわざと画面の外
+              （左右それぞれ140px）まで伸ばしてあるので、リボン幅で組むと長い料理名が
+              画面の端で切れる（実際「豚肩ロースのソテートマトソース」が両端とも切れていた）。 */}
+          <span style={{ fontFamily: mincho, color: "#FFF6E8", fontSize: fitOneLine(nm, 82, 930, 34), fontWeight: 700, letterSpacing: 2, whiteSpace: "nowrap", textShadow: "0 3px 16px rgba(0,0,0,0.4)" }}>{nm}</span>
         </div>
         {/* リボンの上下に細い生成りの縁 */}
         <div style={{ position: "absolute", left: 0, right: 0, top: -8, height: 6, background: CREAM, opacity: 0.85 }} />
