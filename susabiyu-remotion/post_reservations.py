@@ -22,6 +22,7 @@ import poster  # 既存の _sheets/_ensure_tab/fresh_token/up/ig_post_media/line
 
 RESV_TAB = "予約投稿"
 GRACE_H = 24            # when がこの時間より過去なら投稿せず expired
+STUCK_MIN = 20         # "posting" のままこの分数を超えたら停止とみなし failed へ自動復旧
 JST = poster.JST
 
 # ---- 純粋ロジック（ネット/シート不要・selftest対象） ----
@@ -52,6 +53,18 @@ def classify(when_dt, now, grace_h=GRACE_H):
     if when_dt < now - datetime.timedelta(hours=grace_h):
         return "expired"
     return "due"
+
+def _parse_note_time(note):
+    """I列(note)の末尾等に含まれる '%Y-%m-%d %H:%M'(JST) を datetime に。無ければ None。
+       "投稿中 2026-07-25 18:00" のような文字列から時刻を拾う（自己復旧の経過時間判定用）。"""
+    import re
+    m = re.search(r'(\d{4}-\d{2}-\d{2} \d{2}:\d{2})', note or "")
+    if not m:
+        return None
+    try:
+        return datetime.datetime.strptime(m.group(1), "%Y-%m-%d %H:%M").replace(tzinfo=JST)
+    except Exception:
+        return None
 
 def collapse_dup_hashtags(text):
     """キャプション全体で同じハッシュタグの2回目以降を除去（“上にも下にも”を根絶）。
@@ -267,61 +280,115 @@ def run(live):
             tok_cache[acc] = poster.fresh_token_for(acc) if live else ""
         return tok_cache[acc]
 
+    fails = []          # (token, 理由) 失敗/期限切れ/停止をまとめて最後に1通通知（A-1）
+    dead_accts = set()  # トークン失効アカウント（重複通知抑止, A-3）
+
+    # --- 自己復旧: "posting" のまま停止した行を failed へ戻す（永久スタック防止, A-2）。
+    #     再投稿はしない（failed 止まり）＝二重投稿を避ける。実投稿有無は人が確認して再予約。
+    for i, row in enumerate(rows):
+        row0 = (row + [""] * 12)[:12]
+        if (row0[6] or "").strip() != "posting":
+            continue
+        t0 = _parse_note_time(row0[8])
+        age_min = (now - t0).total_seconds() / 60.0 if t0 else None
+        if age_min is None or age_min > STUCK_MIN:
+            info = ("%.0f分間停止" % age_min) if age_min is not None else "時刻不明"
+            print("  [RECOVER] posting のまま%s→failed token=%s" % (info, (row0[0] or "")[:14]))
+            if live:
+                _set(sh, i + 1, "G", "failed")
+                _set(sh, i + 1, "I", "posting停止→failed(投稿有無を要確認) " + _now_str(now))
+            fails.append(((row0[0] or "")[:14], "posting停止(投稿有無を要確認)"))
+
     posted = 0
     for i, row in enumerate(rows):   # i は0-based（データ行）
-        row = (row + [""] * 12)[:12]
-        token_id, when_s, kind, media, caption, tags, status, created, note, account, trim_s, trim_e = row
-        status = (status or "scheduled").strip()
-        if status != "scheduled":
-            continue
-        state = classify(parse_when(when_s), now)
-        if state == "future":
-            continue
-        if state == "bad":
-            print("  [SKIP] 日時が不正 token=%s when=%r" % (token_id, when_s)); continue
-        if state == "expired":
-            print("  [EXPIRED] %s (%s) 予定を%dh超過→投稿せず" % (token_id, when_s, GRACE_H))
-            if live:
-                _set(sh, i + 1, "G", "expired"); _set(sh, i + 1, "I", "期限切れ " + _now_str(now))
-            continue
-
-        # due
-        kind = _norm_kind(kind)
-        cap = build_caption(caption, tags)
-        acc = (account or "").strip()
-        acc_label = acc or "既定(三条)"
-        if not live:
-            print("  [DRY] 投稿する→ token=%s account=%s kind=%s when=%s media=%s" % (token_id, acc_label, kind, when_s, media))
-            print("        caption=%r" % cap[:80]); posted += 1; continue
-
-        # 投稿先アカウントのトークンを解決（アカウント別）
-        atoken = token_of(acc)
-        if not atoken:
-            _set(sh, i + 1, "G", "failed"); _set(sh, i + 1, "I", "アカウント %s のトークン無効/未設定" % acc_label)
-            print("  [FAIL] トークン無効/未設定 account=%s token=%s" % (acc_label, token_id)); continue
-
-        # 二重投稿防止：先に posting で確保
-        _set(sh, i + 1, "G", "posting"); _set(sh, i + 1, "I", "投稿中 " + _now_str(now))
-        url = resolve_media(media, kind)
-        if not url:
-            _set(sh, i + 1, "G", "failed"); _set(sh, i + 1, "I", "メディアURL取得失敗")
-            print("  [FAIL] media URL なし token=%s" % token_id); continue
-        # リールで切取位置(K/L列)があれば ffmpeg で切り出してから投稿。
-        if kind == "reel" and str(trim_s).strip() != "" and str(trim_e).strip() != "":
-            url = trim_reel(url, trim_s, trim_e)
         try:
-            pid = poster.ig_post_media(atoken, url, kind, cap)
-        except Exception as e:
-            pid = ""; print("  [FAIL] 例外:", e)
-        if pid:
-            _set(sh, i + 1, "G", "posted"); _set(sh, i + 1, "I", "投稿済 %s id=%s" % (_now_str(now), pid))
-            poster.line_notify("[予約投稿] %s を投稿しました\n%s" % (_kind_label(kind), caption or ""))
-            print("  [POSTED] token=%s id=%s" % (token_id, pid)); posted += 1
-        else:
-            _set(sh, i + 1, "G", "failed"); _set(sh, i + 1, "I", "投稿失敗 " + _now_str(now))
-            print("  [FAIL] 投稿失敗 token=%s" % token_id)
+            row = (row + [""] * 12)[:12]
+            token_id, when_s, kind, media, caption, tags, status, created, note, account, trim_s, trim_e = row
+            status = (status or "scheduled").strip()
+            if status != "scheduled":
+                continue
+            state = classify(parse_when(when_s), now)
+            if state == "future":
+                continue
+            if state == "bad":
+                # 日時不正を放置すると永久に scheduled で残る→failed にして可視化（A-5）
+                print("  [BAD] 日時が不正 token=%s when=%r → failed" % (token_id, when_s))
+                if live:
+                    _set(sh, i + 1, "G", "failed"); _set(sh, i + 1, "I", "日時が不正: %r" % (when_s,))
+                fails.append((str(token_id)[:14], "日時が不正(%r)" % (when_s,)))
+                continue
+            if state == "expired":
+                print("  [EXPIRED] %s (%s) 予定を%dh超過→投稿せず" % (token_id, when_s, GRACE_H))
+                if live:
+                    _set(sh, i + 1, "G", "expired"); _set(sh, i + 1, "I", "期限切れ " + _now_str(now))
+                fails.append((str(token_id)[:14], "期限切れ(%dh超過・未投稿)" % GRACE_H))
+                continue
 
-    print("[RESV] 完了：%s %d 件" % ("投稿" if live else "対象(DRY)", posted))
+            # due
+            kind = _norm_kind(kind)
+            cap = build_caption(caption, tags)
+            acc = (account or "").strip()
+            acc_label = acc or "既定(三条)"
+            if not live:
+                print("  [DRY] 投稿する→ token=%s account=%s kind=%s when=%s media=%s" % (token_id, acc_label, kind, when_s, media))
+                print("        caption=%r" % cap[:80]); posted += 1; continue
+
+            # 投稿先アカウントのトークンを解決（アカウント別）
+            atoken = token_of(acc)
+            if not atoken:
+                _set(sh, i + 1, "G", "failed"); _set(sh, i + 1, "I", "アカウント %s のトークン無効/未設定" % acc_label)
+                print("  [FAIL] トークン無効/未設定 account=%s token=%s" % (acc_label, token_id))
+                dead_accts.add(acc_label)
+                fails.append((str(token_id)[:14], "トークン無効(%s)" % acc_label))
+                continue
+
+            # 二重投稿防止：先に posting で確保
+            _set(sh, i + 1, "G", "posting"); _set(sh, i + 1, "I", "投稿中 " + _now_str(now))
+            try:
+                url = resolve_media(media, kind)
+            except BaseException as e:   # poster.up は全ホスト失敗で SystemExit を投げる（Exception外）
+                url = ""; print("  [FAIL] メディア解決で例外:", e)
+            if not url:
+                _set(sh, i + 1, "G", "failed"); _set(sh, i + 1, "I", "メディアURL取得失敗 " + _now_str(now))
+                print("  [FAIL] media URL なし token=%s" % token_id)
+                fails.append((str(token_id)[:14], "メディアURL取得失敗"))
+                continue
+            # リールで切取位置(K/L列)があれば ffmpeg で切り出してから投稿。
+            if kind == "reel" and str(trim_s).strip() != "" and str(trim_e).strip() != "":
+                url = trim_reel(url, trim_s, trim_e)
+            try:
+                pid = poster.ig_post_media(atoken, url, kind, cap)
+            except Exception as e:
+                pid = ""; print("  [FAIL] 例外:", e)
+            if pid:
+                _set(sh, i + 1, "G", "posted"); _set(sh, i + 1, "I", "投稿済 %s id=%s" % (_now_str(now), pid))
+                poster.line_notify("[予約投稿] %s を投稿しました\n%s" % (_kind_label(kind), caption or ""))
+                print("  [POSTED] token=%s id=%s" % (token_id, pid)); posted += 1
+            else:
+                _set(sh, i + 1, "G", "failed"); _set(sh, i + 1, "I", "投稿失敗 " + _now_str(now))
+                print("  [FAIL] 投稿失敗 token=%s" % token_id)
+                fails.append((str(token_id)[:14], "IG投稿失敗"))
+        except BaseException as e:   # 1行の異常で他店舗/他予約を巻き込まない（A-4）
+            print("  [ERROR] 行%d 予期せぬ例外→スキップ:" % (i + 2), e)
+            fails.append(("row%d" % (i + 2), "予期せぬ例外: %s" % e))
+            continue
+
+    # --- 失敗はまとめて1通だけ通知（無音の投稿事故を可視化, A-1）---
+    if live:
+        if dead_accts:
+            try:
+                poster.alert_token_dead("予約投稿: " + ", ".join(sorted(dead_accts)))
+            except Exception as _e:
+                print("  [WARN] alert_token_dead 失敗:", _e)
+        if fails:
+            body = "\n".join("・%s … %s" % (t, r) for t, r in fails[:20])
+            more = "" if len(fails) <= 20 else "\n他%d件" % (len(fails) - 20)
+            try:
+                poster.line_notify("[予約投稿] 未投稿/失敗 %d件（要確認）\n%s%s" % (len(fails), body, more))
+            except Exception as _e:
+                print("  [WARN] 失敗通知に失敗:", _e)
+
+    print("[RESV] 完了：%s %d 件 / 未投稿・失敗 %d 件" % ("投稿" if live else "対象(DRY)", posted, len(fails)))
     return 0
 
 # ---- selftest（ネット/シート不要でロジック検証） ----
@@ -349,6 +416,9 @@ def selftest():
     assert build_caption("本文", "") == "本文"
     assert _on_cdn("https://cdn.jsdelivr.net/gh/x/y@z/a.jpg") is True
     assert _on_cdn("https://amami-cell.github.io/susabiyu-media/app/sample/feed1.jpg") is False
+    assert _parse_note_time("投稿中 2026-07-25 18:00") == datetime.datetime(2026, 7, 25, 18, 0, tzinfo=JST)
+    assert _parse_note_time("") is None
+    assert _parse_note_time("時刻なしのメモ") is None
     assert resolve_media("", "feed") == ""
     assert resolve_media("https://cdn.jsdelivr.net/gh/x/y@z/a.mp4", "reel") == "https://cdn.jsdelivr.net/gh/x/y@z/a.mp4"
     print("selftest OK")

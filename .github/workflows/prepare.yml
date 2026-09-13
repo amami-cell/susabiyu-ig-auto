@@ -17,6 +17,10 @@ on:
         description: "1=LINE/Push通知を送らない（夜間作業用）"
         required: false
         default: "0"
+# 多重起動防止（手動dispatchとcron/他店舗方式と揃える）: 同グループは同時に1つだけ
+concurrency:
+  group: susabiyu-prepare
+  cancel-in-progress: false
 jobs:
   prepare:
     runs-on: ubuntu-latest
