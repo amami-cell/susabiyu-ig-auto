@@ -52,6 +52,8 @@ var _invuln := 0.0        # 無敵時間（被弾直後・復活直後）＝連�
 var revive_time := 2.5    # ダウン→復活までの秒数（家族が近いと短くなる）。HUDのカウント表示にも使う
 var _last_ground := Vector3.ZERO   # 直近で地面に居た位置（場外落下からの復帰用）
 var _shake := 0.0                  # カメラ微振動の強さ（被弾・攻撃で立ち、毎フレーム減衰）
+var _fov_kick := 0.0               # 画角の“キュッ”（攻撃=寄る/被弾=引く）。0へ自然に戻る
+var _base_fov := 0.0               # 平常時の画角（初回に取得）
 var _regen_frac := 0.0
 var level: int = 1
 var xp: int = 0
@@ -168,7 +170,7 @@ func _physics_process(delta: float) -> void:
 		_push_state(delta)
 	else:
 		_remote_step(delta)
-	_update_look()
+	_update_look(delta)
 
 
 ## HPは「しばらく攻撃を受けていないと じわっと自然回復」する（＝回復場所を探さなくていい）。
@@ -461,7 +463,11 @@ func _remote_swing() -> void:
 	sq.tween_property(_body, "scale", Vector3.ONE, 0.2).set_trans(Tween.TRANS_BACK)
 	_spawn_slash()          # 浄化のひとはらい（光の輪＋きらめき）
 	_spawn_clean_sparkles()
-	shake(0.09)             # 振った手応え
+	# 手応えは“当たったか”で変える：空振りは軽く、虫に届いた振りはしっかり。
+	# ＝クライアント側の見た目予測（判定はサーバが正）。当てた実感が段違いになる。
+	var connected := is_local and _target_in_reach()
+	shake(0.12 if connected else 0.06)
+	fov_kick(-5.5 if connected else -2.5)   # 届いた＝ぐっと寄る／空振り＝控えめ
 
 
 ## 浄化のひとはらい：前方に“澄んだ光の輪”がパッと広がって消える。攻撃＝倒すではなく
@@ -522,6 +528,7 @@ func _spawn_clean_sparkles() -> void:
 ## 被弾の見た目：赤フラッシュ＋のけぞり。apply_damage(全員で実行)から呼ぶ。
 func _play_hurt_fx() -> void:
 	shake(0.16)   # 被弾＝しっかりゆれる
+	fov_kick(7.0)   # ぐっと“引く”＝突き放される衝撃（攻撃の“寄り”と逆向き）
 	var anim := _body.get_node_or_null("Anim")
 	if anim != null and anim.has_method("hurt"):
 		anim.hurt()
@@ -540,10 +547,10 @@ func _play_hurt_fx() -> void:
 		tw.tween_property(mat, "albedo_color", from, 0.22)
 
 
-func _update_look() -> void:
+func _update_look(delta := 0.0) -> void:
 	rotation.y = _yaw
 	if is_local:
-		_follow_camera()
+		_follow_camera(delta)
 	var down := state == State.DOWN
 	if _help_label != null:
 		_help_label.visible = down
@@ -563,7 +570,7 @@ var _cam_pitch := 0.39          # 見下ろし角(rad)。sin*D=2.3 / cos*D=5.6 �
 const CAM_PITCH_MIN := 0.12     # ほぼ真後ろ（少し見上げ）
 const CAM_PITCH_MAX := 1.0      # 見下ろし（俯瞰）
 
-func _follow_camera() -> void:
+func _follow_camera(delta := 0.0) -> void:
 	# 追従カメラ。バネで寄せるだけ。SpringArm3D を使わないのは、
 	# スマホで壁にめり込む挙動を自分で調整したいときに分かりやすいから。
 	# 距離一定の球面オフセット＝ヨー(左右)＋ピッチ(上下)で回せる。
@@ -576,11 +583,39 @@ func _follow_camera() -> void:
 		_cam_rig.global_position += Vector3(randf_range(-1.0, 1.0), randf_range(-1.0, 1.0), randf_range(-1.0, 1.0)) * _shake
 		_shake = maxf(0.0, _shake - 0.02)
 	_camera.look_at(global_position + Vector3.UP * 0.8, Vector3.UP)
+	# 画角の“キュッ”：攻撃で少し寄り、被弾で少し引く。0へなめらかに戻る＝一撃ごとに奥行きの手応え。
+	if _base_fov <= 0.0:
+		_base_fov = _camera.fov
+	_camera.fov = _base_fov + _fov_kick
+	if absf(_fov_kick) > 0.01:
+		_fov_kick = move_toward(_fov_kick, 0.0, delta * 45.0)   # physics tick 固定＝機種によらず一定
+	else:
+		_fov_kick = 0.0
+
+
+## 攻撃が“届く範囲”に虫が居るか（見た目の手応えを変えるためのクライアント側予測。判定はサーバが正）。
+func _target_in_reach() -> bool:
+	var reach := ATTACK_RANGE * 1.15
+	for b in get_tree().get_nodes_in_group("bug"):
+		if global_position.distance_to(b.global_position) <= reach:
+			return true
+	return false
 
 
 ## カメラを一瞬ゆらす（被弾・攻撃ヒットの手応え）。次のフレームから自然に減衰。
 func shake(amount: float) -> void:
 	_shake = maxf(_shake, amount)
+
+
+## 画角を一瞬だけ動かす（マイナス=寄る/プラス=引く）。奥行きの手応え。0へ自然に戻る。
+func fov_kick(amount: float) -> void:
+	_fov_kick = clampf(_fov_kick + amount, -8.0, 10.0)
+
+
+## 浄化が成功した“やった！”の間：近くで虫が澄んだ瞬間、ふわっと寄って戻る小さなごほうび。
+func reward_pulse() -> void:
+	fov_kick(-3.0)
+	shake(0.05)
 
 
 func orbit_camera(amount: float) -> void:

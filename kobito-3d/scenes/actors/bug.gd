@@ -566,6 +566,13 @@ func _remote_healed() -> void:
 	Sfx.play_at("heal", global_position + Vector3(0, 0.6, 0))
 	Sfx.play("levelup", -14.0)   # 澄んだ余韻
 
+	# 近くで浄化に立ち会った“自分”のカメラに、ふわっと寄る小さなごほうびの間を返す。
+	for p in get_tree().get_nodes_in_group("player"):
+		if p.get("is_local") and p.has_method("reward_pulse") \
+				and p.global_position.distance_to(global_position) < 14.0:
+			p.reward_pulse()
+			break
+
 	# 見えている全部品（BugLook のパーツ含む）を澄んだ光へ＝色がはっきり変わる。
 	var glow := StandardMaterial3D.new()
 	glow.albedo_color = Color(0.82, 1.0, 0.86)
