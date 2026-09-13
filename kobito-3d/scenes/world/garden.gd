@@ -116,6 +116,11 @@ var _bfly_phase := PackedFloat32Array()
 var _bfly_bob := PackedFloat32Array()
 var _anim_t := 0.0
 
+# 接地影（ブロブシャドウ）。Webは実影オフで“紙人形が浮いて見える”のを、
+# 足元のやわらかい影で解消。全員ぶんを MultiMesh 1個＝1ドローコールで描く（軽い）。
+const SHADOW_MAX := 48
+var _shadow_mm: MultiMesh = null
+
 # 舞台(biome)。"garden"=庭 / "ruins"=遺跡。main が session 開始時に設定。
 var biome := "garden"
 
@@ -251,6 +256,7 @@ func _spawn_puzzle() -> void:
 func _process(delta: float) -> void:
 	_update_butterflies(delta)   # 見た目だけ＝全員の画面で回す（サーバ判定の前）
 	_update_beacon(delta)        # 道しるべの光の柱をふわっと動かす（見た目・全員）
+	_update_actor_shadows()      # 足元の接地影（全アクター・見た目のみ）
 	if not _is_server():
 		return
 	_spawn_timer -= delta
@@ -741,7 +747,75 @@ func _setup_visuals() -> void:
 	_build_trees()
 	_build_boulders()
 	_build_butterflies()
+	_build_actor_shadows()
 	_apply_biome()
+
+
+## 接地影：やわらかい放射グラデの円を足元に敷く。全アクターぶんを 1 MultiMesh＝1ドローコール。
+func _build_actor_shadows() -> void:
+	var grad := Gradient.new()
+	grad.set_color(0, Color(0.05, 0.06, 0.04, 0.5))   # 中心：やや濃い
+	grad.set_color(1, Color(0.05, 0.06, 0.04, 0.0))   # 外周：透明
+	var tex := GradientTexture2D.new()
+	tex.gradient = grad
+	tex.fill = GradientTexture2D.FILL_RADIAL
+	tex.fill_from = Vector2(0.5, 0.5)
+	tex.fill_to = Vector2(0.5, 1.0)
+	tex.width = 64
+	tex.height = 64
+	var mat := StandardMaterial3D.new()
+	mat.albedo_texture = tex
+	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	mat.vertex_color_use_as_albedo = true   # インスタンス色のαで高さフェード
+	mat.cull_mode = BaseMaterial3D.CULL_DISABLED
+	mat.depth_draw_mode = BaseMaterial3D.DEPTH_DRAW_DISABLED   # z-fight回避
+	var quad := QuadMesh.new()
+	quad.size = Vector2(1.0, 1.0)
+	_shadow_mm = MultiMesh.new()
+	_shadow_mm.transform_format = MultiMesh.TRANSFORM_3D
+	_shadow_mm.use_colors = true
+	_shadow_mm.mesh = quad
+	_shadow_mm.instance_count = SHADOW_MAX
+	_shadow_mm.visible_instance_count = 0
+	var mmi := MultiMeshInstance3D.new()
+	mmi.name = "ActorShadows"
+	mmi.multimesh = _shadow_mm
+	mmi.material_override = mat
+	mmi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	add_child(mmi)
+
+
+## 毎フレーム：各アクターの真下へ影を置く（見た目だけ＝全員の画面で回す）。
+func _update_actor_shadows() -> void:
+	if _shadow_mm == null:
+		return
+	var flat := Basis(Vector3.RIGHT, -PI / 2.0)   # 板を地面へ寝かす
+	var i := 0
+	for grp in ["player", "child", "ally", "bug"]:
+		for a in get_tree().get_nodes_in_group(grp):
+			if i >= SHADOW_MAX:
+				break
+			var n := a as Node3D
+			if n == null or not is_instance_valid(n):
+				continue
+			var p: Vector3 = n.global_position
+			var base := 0.72
+			match grp:
+				"child": base = 0.5
+				"ally": base = 0.55
+				"bug":
+					var st: Variant = a.get("stats")
+					base = 0.62 * (float(st.body_scale) if st != null else 1.0)
+			# 高い所（飛行）ほど 影は小さく薄く
+			var h := maxf(0.0, p.y)
+			var fade := clampf(1.0 - h * 0.14, 0.12, 1.0)
+			var sc := base * clampf(1.0 - h * 0.05, 0.45, 1.0)
+			var xf := Transform3D(flat.scaled(Vector3(sc, sc, sc)), Vector3(p.x, 0.03, p.z))
+			_shadow_mm.set_instance_transform(i, xf)
+			_shadow_mm.set_instance_color(i, Color(1, 1, 1, fade))
+			i += 1
+	_shadow_mm.visible_instance_count = i
 
 
 func _is_ruins() -> bool:

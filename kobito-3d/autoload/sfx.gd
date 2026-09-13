@@ -47,8 +47,9 @@ func _ready() -> void:
 	Net.session_started.connect(start_bgm)
 	Net.session_ended.connect(func(_reason: String) -> void: stop_bgm())
 	WorldState.recovery_changed.connect(_on_recovery_changed)
-	# 環境回復の節目・飛行解禁など“いい知らせ”でキラッと鳴らす。
-	WorldState.notice.connect(func(_text: String) -> void: play("milestone", -2.0))
+	# 環境回復の節目・飛行解禁・なかま化など“いい知らせ”だけキラッと鳴らす。
+	# （以前は全 notice で鳴り、ボスの苦しい台詞やヒントでもごほうび音が鳴っていた不具合を修正）
+	WorldState.notice.connect(_on_notice)
 
 
 ## 名前で鳴らす。音量(db)を少し変えられる。存在しない名前は無視。
@@ -125,6 +126,20 @@ func stop_bgm() -> void:
 
 func _on_recovery_changed(_r: float) -> void:
 	pass   # 音量は _process でまとめて（回復度＋戦闘度から）決める
+
+
+## “いい知らせ”の通知だけ ごほうび音(milestone)を鳴らす。ヒントやボスの苦しい台詞では鳴らさない。
+func _on_notice(text: String) -> void:
+	var good := (
+		"環境回復" in text
+		or ("なかま" in text and "なった" in text)
+		or "きれいにした" in text
+		or "つばさ" in text
+		or "飛べる" in text
+		or "とべる" in text
+	)
+	if good:
+		play("milestone", -2.0)
 
 
 ## 毎フレーム、BGMの3層をなめらかに混ぜる：
