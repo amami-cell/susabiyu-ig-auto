@@ -542,7 +542,9 @@ func _show_credits() -> void:
 # ------------------------------------------------------------ 開始
 
 func _setup_for_app() -> void:
-	_addr_edit.text = "127.0.0.1"
+	# 直前につないだ相手を覚えていれば入れておく＝切れた後の再参加が1タップ。
+	var last := Net.last_join_address()
+	_addr_edit.text = last if last != "" else "127.0.0.1"
 	_status.text = "このPC/スマホのIP: %s" % Net.local_ip_hint()
 
 

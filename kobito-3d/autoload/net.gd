@@ -27,6 +27,12 @@ enum Transport { ENET, WEBSOCKET }
 const DEFAULT_PORT := 24567
 const MAX_PLAYERS := 4
 
+# 自動つなぎ直し（スマホは電波が一瞬切れるのが日常）。
+# 参加(client)側だけが対象。切れたら、覚えておいた相手へ数回つなぎ直す。
+const RECONNECT_TRIES := 3       # つなぎ直しを試す回数
+const RECONNECT_GAP := 1.5       # 各試行の前に置く間（秒）
+const RECONNECT_TIMEOUT := 6.0   # 1回の接続確立を待つ上限（秒）
+
 ## この2つは「誰が何色の小人か」を決めるだけの飾り。増やせば3人目以降も遊べる。
 const ROLE_NAMES := ["夫", "妻", "こども1", "こども2"]
 const ROLE_COLORS := [Color(0.45, 0.78, 0.5), Color(0.95, 0.55, 0.7), Color(0.6, 0.7, 0.95), Color(0.95, 0.85, 0.5)]
@@ -45,6 +51,12 @@ var is_online := false
 var roster: Dictionary = {}
 
 var _peer: MultiplayerPeer = null
+
+# つなぎ直し用：最後に参加した相手を覚えておき、意図しない切断のときだけ試す。
+var _last_address := ""
+var _last_port := DEFAULT_PORT
+var _intentional := false     # ユーザーが自分で退出した＝つなぎ直さない
+var _reconnecting := false    # つなぎ直しの最中（この間は通常の切断処理を止める）
 
 
 const CFG_PATH := "user://settings.cfg"
@@ -114,6 +126,8 @@ func host(port: int = DEFAULT_PORT) -> Error:
 	if not can_host():
 		_emit_status("ブラウザ版はホストになれません。PCかAndroid側でホストして、こちらは「参加する」を使ってください")
 		return ERR_UNAVAILABLE
+	_intentional = false
+	_reconnecting = false
 	_shutdown_peer()
 	var peer := _make_peer()
 	var err: Error
@@ -136,6 +150,20 @@ func host(port: int = DEFAULT_PORT) -> Error:
 
 
 func join(address: String, port: int = DEFAULT_PORT) -> Error:
+	# つなぎ直し用に相手を覚える。ユーザー操作の参加なので「意図した接続」。
+	_last_address = address
+	_last_port = port
+	_intentional = false
+	_reconnecting = false
+	var err := _open_client(address, port)
+	if err != OK:
+		return err
+	_emit_status("%s へ接続中…" % address)
+	return OK
+
+
+## クライアントとして接続を開く低レベル部（join と つなぎ直しで共用）。
+func _open_client(address: String, port: int) -> Error:
 	_shutdown_peer()
 	var peer := _make_peer()
 	var err: Error
@@ -149,15 +177,19 @@ func join(address: String, port: int = DEFAULT_PORT) -> Error:
 	if err != OK:
 		_emit_status("接続に失敗しました: %d" % err)
 		return err
-
 	_peer = peer
 	multiplayer.multiplayer_peer = _peer
 	is_online = true
-	_emit_status("%s へ接続中…" % address)
 	return OK
 
 
-func leave(reason: String = "退出しました") -> void:
+## 最後に参加した相手の住所（ロビーの入力欄を埋め直す用）。
+func last_join_address() -> String:
+	return _last_address
+
+
+func leave(reason: String = "退出しました", intentional: bool = true) -> void:
+	_intentional = intentional
 	_shutdown_peer()
 	roster.clear()
 	is_online = false
@@ -206,11 +238,70 @@ func _on_connected_to_server() -> void:
 
 
 func _on_connection_failed() -> void:
-	leave("接続できませんでした（IPとポート、同じWi-Fiかを確認）")
+	if _reconnecting:
+		return   # つなぎ直しの最中は、その流れの中で扱う（ここでは畳まない）
+	leave("接続できませんでした（IPとポート、同じWi-Fiかを確認）", false)
 
 
 func _on_server_disconnected() -> void:
-	leave("ホストとの接続が切れました")
+	if _reconnecting:
+		return
+	# 意図しない切断で、参加していた相手が分かっているなら、自動でつなぎ直す。
+	if _intentional or _last_address == "":
+		leave("ホストとの接続が切れました", false)
+		return
+	_reconnect_flow()
+
+
+## 電波が一瞬切れた等でホストとの接続が落ちたとき、覚えておいた相手へ数回つなぎ直す。
+## つなぎ直しは「一度きれいに畳んで → 参加し直す」＝通常経路そのままなので、
+## 途中状態の作り直し（虫の重複など）が起きず安全。成功すればサーバが全状態を配り直す。
+func _reconnect_flow() -> void:
+	_reconnecting = true
+	var addr := _last_address
+	var port := _last_port
+	# いったんきれいに畳む（フリーズした画面を残さない）。session_ended でロビーへ。
+	_shutdown_peer()
+	roster.clear()
+	is_online = false
+	roster_changed.emit()
+	session_ended.emit("reconnecting")
+
+	for k in RECONNECT_TRIES:
+		if _intentional:
+			break   # 途中でユーザーが退出したら中断
+		_emit_status("つうしんが 切れました。つなぎ直しています…（%d/%d）" % [k + 1, RECONNECT_TRIES])
+		await get_tree().create_timer(RECONNECT_GAP).timeout
+		if _intentional:
+			break
+		if _open_client(addr, port) != OK:
+			continue
+		if await _await_connected(RECONNECT_TIMEOUT):
+			_reconnecting = false
+			_emit_status("つなぎ直しました")
+			return   # 接続成功。connected_to_server が session_started を出して復帰する。
+		_shutdown_peer()
+
+	_reconnecting = false
+	is_online = false
+	_emit_status("つなぎ直せませんでした。ロビーに もどりました（IPは 入力ずみ＝「参加する」ですぐ再挑戦できます）")
+
+
+## 接続が確立（or 失敗）するまで待つ。確立＝true、時間切れ/切断＝false。
+func _await_connected(timeout: float) -> bool:
+	var t := 0.0
+	while t < timeout:
+		if _intentional:
+			return false
+		if _peer != null:
+			match _peer.get_connection_status():
+				MultiplayerPeer.CONNECTION_CONNECTED:
+					return true
+				MultiplayerPeer.CONNECTION_DISCONNECTED:
+					return false
+		await get_tree().create_timer(0.2).timeout
+		t += 0.2
+	return false
 
 
 @rpc("any_peer", "reliable")
