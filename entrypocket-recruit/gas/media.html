@@ -159,13 +159,19 @@
       var km=raw.match(/件名\s*[:：]?\s*([\s\S]*)$/); rest = km ? km[1] : raw;
     }
     out.body=beautify(rest);
-    // 本文ラベルが無い場合、先頭の件名（Re:… や （会社名 担当）で終わる件名）を本文から切り出す
+    // 本文ラベルが無い場合、先頭行が「短い件名」の時だけ件名に切り出す（長い本文は絶対に件名へ入れない）
     if(!hasHon && !out.subj && out.body){
-      var fm=out.body.match(/^((?:Re:|RE:|re:|返信)[\s\S]*?）)\s*([\s\S]*)$/);
-      if(fm){ out.subj=fm[1].replace(/\s+/g,' ').trim(); out.body=fm[2].trim(); }
-      else { var fl=out.body.split('\n');
-        if(fl.length>1 && /^(?:Re:|RE:|re:)/.test(fl[0]) && fl[0].length<=40){ out.subj=fl[0].trim(); out.body=fl.slice(1).join('\n').trim(); } }
+      var fl=out.body.split('\n');
+      var f=(fl[0]||'').trim();
+      if(fl.length>1 && f.length<=60 && /^(?:Re:|RE:|re:|返信|【)/.test(f)){
+        out.subj=f; out.body=fl.slice(1).join('\n').trim();
+        // 件名に本文冒頭がくっついている場合は「）」で分割して本文へ戻す
+        var pi=out.subj.indexOf('）');
+        if(pi>0 && pi<out.subj.length-1){ var extra=out.subj.slice(pi+1).trim(); out.subj=out.subj.slice(0,pi+1).trim(); if(extra){ out.body=beautify(extra)+'\n'+out.body; } }
+      }
     }
+    // 保険：件名が長すぎる（本文が混ざった）時は、件名を本文へ戻して件名は空に＝ベタ書きを件名に出さない
+    if(out.subj && out.subj.length>70){ out.body=beautify(out.subj)+'\n'+out.body; out.subj=''; }
     out.ok=!!(out.from||out.subj||out.body);
     return out;
   }
