@@ -11,6 +11,7 @@
 from __future__ import annotations
 
 import argparse
+import os
 import sys
 import time
 import traceback
@@ -57,12 +58,15 @@ def run(settings: Settings, csv_override: bytes | None = None) -> int:
 
             csv_bytes = fetch_csv(settings)
 
-        # artifacts に生CSVを保存（デバッグ用）
-        try:
-            settings.artifacts_dir.mkdir(parents=True, exist_ok=True)
-            (settings.artifacts_dir / "latest.csv").write_bytes(csv_bytes)
-        except Exception:
-            pass
+        # 注意: 生CSVには応募者の個人情報(氏名/電話/メール)が含まれる。当リポジトリは公開のため
+        # Actions artifact として公開すると誰でもDL可能になる。よって latest.csv は保存しない。
+        # ローカルでの調査が必要なときだけ、環境変数 EP_DEBUG_CSV=1 のときに限り出力する。
+        if os.environ.get("EP_DEBUG_CSV") == "1":
+            try:
+                settings.artifacts_dir.mkdir(parents=True, exist_ok=True)
+                (settings.artifacts_dir / "latest.csv").write_bytes(csv_bytes)
+            except Exception:
+                pass
 
         # --- パース ---
         column_map = settings.columns or None
