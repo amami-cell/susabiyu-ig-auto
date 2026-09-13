@@ -15,6 +15,7 @@ var _banner: Label
 var _banner_t := 0.0
 var _title_btn: Button = null   # エンディング後の「タイトルへ」
 var _result_card: Panel = null  # クリア結果カード
+var _result_dim: ColorRect = null   # 結果カードの後ろの やわらかい暗幕（余韻）
 var _start_msec := 0            # プレイ開始時刻（結果の「じかん」用）
 
 
@@ -39,7 +40,10 @@ func _ready() -> void:
 			_result_card = null
 		if _title_btn != null:
 			_title_btn.queue_free()
-			_title_btn = null)
+			_title_btn = null
+		if _result_dim != null:
+			_result_dim.queue_free()
+			_result_dim = null)
 
 
 func _build() -> void:
@@ -207,6 +211,18 @@ func _show_result_card() -> void:
 	var allies := get_tree().get_nodes_in_group("ally").size()
 	var green := int(round(WorldState.recovery * 100.0))
 	var secs := (Time.get_ticks_msec() - _start_msec) / 1000 if _start_msec > 0 else 0
+	# 咲かせた花＝「自分が治した手あと」の総数（B1）。クリアの成績に出して達成感を締める。
+	var gnode := get_tree().get_first_node_in_group("garden")
+	var blooms := int(gnode.blooms_placed()) if gnode != null and gnode.has_method("blooms_placed") else 0
+
+	# 余韻のための やわらかい暗幕＝カードに目が行く（生き返った庭は うっすら透けて見える）。
+	var dim := ColorRect.new()
+	dim.set_anchors_preset(Control.PRESET_FULL_RECT)
+	dim.color = Color(0.06, 0.10, 0.06, 0.0)
+	dim.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(dim)
+	_result_dim = dim
+	create_tween().tween_property(dim, "color:a", 0.34, 1.2)
 	var names: Array[String] = []
 	for id in Net.roster:
 		names.append(str(Net.roster[id]["name"]))
@@ -239,7 +255,7 @@ func _show_result_card() -> void:
 
 	var stat := Label.new()
 	stat.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	stat.text = "なかま ●×%d　　みどり %d%%\nじかん %d:%02d　　%s" % [allies, green, secs / 60, secs % 60, who]
+	stat.text = "なかま ●×%d　　みどり %d%%\n咲かせた花 ✿×%d\nじかん %d:%02d　　%s" % [allies, green, blooms, secs / 60, secs % 60, who]
 	UIKit.style_label(stat, 22, UIKit.INK)
 	vb.add_child(stat)
 

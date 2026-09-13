@@ -209,6 +209,32 @@ func _process(_dt: float) -> void:
 	if _dead or _body_mat == null:
 		return
 	_body_mat.emission_energy_multiplier = 0.32 + 0.16 * (0.5 + 0.5 * sin(_age * 3.0))
+	_update_lod()
+
+
+## 距離LOD：遠い虫は 細かい虫リグ(約18パーツ)を隠し、1メッシュの胴(カプセル)だけにする＝
+## 遠景のドローコールを大きく減らす（web/gl_compatibility で効く）。近づけば元の見た目に戻る。
+## 虫リグを持つ個体だけが対象（ボスは数が少ないので常に精細）。判定はローカルのカメラ距離。
+const LOD_DIST := 24.0
+var _lod_far := false
+func _update_lod() -> void:
+	if _vis == _body:
+		return   # リグが無い（ボス等）＝LOD対象外
+	var cam := get_viewport().get_camera_3d()
+	if cam == null:
+		return
+	# ヒステリシス：遠く(>24)で簡略化、近く(<21)で精細へ戻す＝境界でのちらつき防止。
+	var d := cam.global_position.distance_to(global_position)
+	var far := _lod_far
+	if not _lod_far and d > LOD_DIST:
+		far = true
+	elif _lod_far and d < LOD_DIST - 3.0:
+		far = false
+	if far == _lod_far:
+		return
+	_lod_far = far
+	_vis.visible = not far     # 遠い＝リグを消す
+	_body.visible = far        # 遠い＝胴カプセル1個で代用（色は残る＝敵と分かる）
 
 
 func _physics_process(delta: float) -> void:
