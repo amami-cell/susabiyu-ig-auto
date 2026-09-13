@@ -26,15 +26,15 @@ var _qr: Control = null
 
 # なかま図鑑の全種（id は data/*.tres のファイル名。色は見分け用の近似）。
 const DEX_SPECIES := [
-	{"id": "ant", "name": "アリ", "color": Color(0.42, 0.32, 0.26)},
-	{"id": "beetle", "name": "コガネムシ", "color": Color(0.28, 0.46, 0.32)},
-	{"id": "batta", "name": "バッタ", "color": Color(0.52, 0.66, 0.32)},
-	{"id": "tentou", "name": "テントウ", "color": Color(0.82, 0.24, 0.22)},
-	{"id": "chou", "name": "チョウ", "color": Color(0.72, 0.52, 0.86)},
-	{"id": "tonbo", "name": "トンボ", "color": Color(0.32, 0.62, 0.72)},
-	{"id": "hachi", "name": "ハチ", "color": Color(0.92, 0.76, 0.24)},
-	{"id": "queen_ant", "name": "女王アリ", "color": Color(0.55, 0.2, 0.22)},
-	{"id": "sludge_lord", "name": "ヘドロの主", "color": Color(0.28, 0.34, 0.26)},
+	{"id": "ant", "name": "アリ", "color": Color(0.42, 0.32, 0.26), "role": "すばしっこい：手数でついてくる"},
+	{"id": "beetle", "name": "コガネムシ", "color": Color(0.28, 0.46, 0.32), "role": "がんじょうな盾：癒やしが強い"},
+	{"id": "batta", "name": "バッタ", "color": Color(0.52, 0.66, 0.32), "role": "よくはねる：広めにとどく"},
+	{"id": "tentou", "name": "テントウ", "color": Color(0.82, 0.24, 0.22), "role": "がんじょうな盾：癒やしが強い"},
+	{"id": "chou", "name": "チョウ", "color": Color(0.72, 0.52, 0.86), "role": "ひらひら：飛べて ひろくとどく"},
+	{"id": "tonbo", "name": "トンボ", "color": Color(0.32, 0.62, 0.72), "role": "空の担当：空の敵にとどく"},
+	{"id": "hachi", "name": "ハチ", "color": Color(0.92, 0.76, 0.24), "role": "すばやい手数：何度も癒やす"},
+	{"id": "queen_ant", "name": "女王アリ", "color": Color(0.55, 0.2, 0.22), "role": "女王の加護：とても強い癒やし"},
+	{"id": "sludge_lord", "name": "ヘドロの主", "color": Color(0.28, 0.34, 0.26), "role": "汚れのおおもと"},
 ]
 var _t := 0.0
 var _seeds: Array[Vector2] = []
@@ -453,11 +453,20 @@ func _show_dex() -> void:
 		sw.custom_minimum_size = Vector2(30, 30)
 		sw.color = (sp["color"] as Color) if n > 0 else Color(0.5, 0.5, 0.5, 0.5)
 		row.add_child(sw)
+		# 名前＋役割（見つけていれば）を縦に。役割を見せる＝「この虫を集める意味」が伝わる。
+		var col := VBoxContainer.new()
+		col.custom_minimum_size = Vector2(300, 0)
+		col.add_theme_constant_override("separation", 0)
+		row.add_child(col)
 		var nm := Label.new()
-		nm.custom_minimum_size = Vector2(220, 0)
 		nm.text = str(sp["name"]) if n > 0 else "？？？"
 		UIKit.style_label(nm, 22, UIKit.INK)
-		row.add_child(nm)
+		col.add_child(nm)
+		if n > 0:
+			var role := Label.new()
+			role.text = str(sp.get("role", ""))
+			UIKit.style_label(role, 15, UIKit.INK_SOFT)
+			col.add_child(role)
 		var cnt := Label.new()
 		cnt.text = ("なかまにした ×%d" % n) if n > 0 else "まだ 会っていない"
 		UIKit.style_label(cnt, 20, UIKit.GREEN_DK if n > 0 else Color(0.5, 0.5, 0.5))

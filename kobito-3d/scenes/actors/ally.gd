@@ -28,6 +28,10 @@ var _role_fly := false
 var _role_shell := false
 var _heal_amt := HELP_AMOUNT
 var _reach := HELP_REACH
+var _speed := SPEED               # 種によって動きの速さが変わる（アリは速い等）
+var _help_interval := HELP_INTERVAL   # 癒やしパルスの間隔（ハチは短い＝手数）
+var role_name := "なかま"          # 図鑑に出す ひとこと役割名
+var role_desc := "いっしょに きれいにする"   # 図鑑に出す 役割の説明
 
 var _sync_accum := 0.0
 var _net_pos := Vector3.ZERO
@@ -148,6 +152,48 @@ func setup(o_id: int, col: Color, sp: String = "") -> void:
 	if _role_shell:
 		_heal_amt = 6      # 甲羅のなかま＝じょうぶ。癒やしの力が強い
 		_reach = 2.1
+	_apply_species_role(sp)
+
+
+## 種ごとの個性（＝どの虫を集めるかに意味を持たせる）。数値は控えめに差をつける。
+## 役割名/説明は図鑑に出して「集める動機」を見せる。飛ぶ/甲羅の基本差はそのまま活かす。
+func _apply_species_role(sp: String) -> void:
+	match sp:
+		"ant":
+			_speed = SPEED * 1.28   # すばしっこい＝手数でついてくる
+			role_name = "すばしっこい"
+			role_desc = "動きが速く、手数で いっしょに きれいにする"
+		"beetle", "tentou":
+			role_name = "がんじょうな 盾"
+			role_desc = "癒やしの力が強く、少し広く とどく（甲羅）"
+		"batta":
+			_speed = SPEED * 1.15
+			_reach = HELP_REACH + 0.3
+			role_name = "よく はねる"
+			role_desc = "ぴょんと よく動いて、広めに とどく"
+		"tonbo":
+			role_name = "空の 担当"
+			role_desc = "飛べる＝空の暴れ虫にも とどく切り札"
+		"chou":
+			_reach = HELP_REACH + 0.6
+			role_name = "ひらひら"
+			role_desc = "飛べて、ひろく やさしく とどく"
+		"hachi":
+			_help_interval = 0.7
+			role_name = "すばやい 手数"
+			role_desc = "飛べて、何度も つづけて 癒やす"
+		"queen_ant":
+			_heal_amt = 8
+			_reach = 2.3
+			role_name = "女王の 加護"
+			role_desc = "とても強い癒やしで みんなを助ける"
+		_:
+			if _role_fly:
+				role_name = "空の 担当"
+				role_desc = "飛べる＝空の暴れ虫にも とどく"
+			elif _role_shell:
+				role_name = "がんじょうな 盾"
+				role_desc = "癒やしの力が強く、少し広く とどく"
 
 
 func _physics_process(delta: float) -> void:
@@ -188,7 +234,7 @@ func _think(delta: float) -> void:
 				helping_bug = true
 				bug_y = boss.global_position.y
 			if dbo.length() < _reach + 0.8 and _help_cd <= 0.0:
-				_help_cd = HELP_INTERVAL
+				_help_cd = _help_interval
 				if boss.has_method("stagger"):
 					boss.stagger(owner_id)   # 押さえる＝暴れを止め、プレイヤーの「きれいに」を通す
 
@@ -203,7 +249,7 @@ func _think(delta: float) -> void:
 			bug_y = bug.global_position.y
 			goto = bug.global_position
 			if db.length() < _reach and _help_cd <= 0.0:
-				_help_cd = HELP_INTERVAL
+				_help_cd = _help_interval
 				if bug.has_method("cleanse"):
 					bug.cleanse(_heal_amt, owner_id)   # 一緒に癒やす（手柄はプレイヤーへ）
 
@@ -230,8 +276,8 @@ func _think(delta: float) -> void:
 		var dir: Vector3 = goto - global_position
 		dir.y = 0.0
 		dir = dir.normalized()
-		velocity.x = dir.x * SPEED
-		velocity.z = dir.z * SPEED
+		velocity.x = dir.x * _speed
+		velocity.z = dir.z * _speed
 		if _body != null:
 			var yaw := atan2(-dir.x, -dir.z)
 			_body.rotation.y = lerp_angle(_body.rotation.y, yaw, clampf(delta * 10.0, 0.0, 1.0))
