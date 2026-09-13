@@ -664,10 +664,12 @@
         '<div style="background:var(--line);border-radius:5px;height:7px;overflow:hidden;margin-bottom:6px"><div id="todoBar" style="width:'+pct+'%;height:100%;background:var(--green)"></div></div>'+
         rows+'<div class="lnote" style="margin-top:6px">チェックは端末に保存され、日付が変わると自動リセット。連絡・面接はタップで詳細へ。</div></div>';
     }
-    // 未対応アラートの対象＝新規/未対応 かつ 応募が直近この日数以内（古すぎる未対応は除外）
-    var UNTREATED_ALERT_DAYS=10;
-    function untreatedList(){ var mx=UNTREATED_ALERT_DAYS*86400000, now=Date.now();
-      return apps.filter(function(a){ if(!isUntreated(a.status)) return false; var d=toDate(a.appliedAt); return !(d && (now-d.getTime())>mx); }); }
+    // 未対応アラートの対象＝新規/未対応。放置期間での除外はしない（一番放置された人ほど
+    // アラートから消えてしまうのを防ぐ, A-14）。10日超は「長期放置」として強調表示する。
+    var LONG_NEGLECT_DAYS=10;
+    function untreatedList(){ return apps.filter(function(a){ return isUntreated(a.status); }); }
+    function untreatedLongCount(){ var mx=LONG_NEGLECT_DAYS*86400000, now=Date.now();
+      return untreatedList().filter(function(a){ var d=toDate(a.appliedAt); return d && (now-d.getTime())>mx; }).length; }
     // ⑥ 未対応（新規/未対応のまま）の応募アラート。放置時間つき・タップで詳細。
     function untreatedAlertHtml(){
       var now=Date.now();
@@ -680,8 +682,9 @@
         return '<div class="prow" style="cursor:pointer" onclick="schDetail(\''+esc(a.code)+'\')">'+
           '<div class="pr-nm">'+esc(a.name||'(氏名なし)')+' <span class="warnchip" style="background:var(--warnbg);border-color:var(--warnbd);color:var(--amber)">'+age(h)+'</span></div>'+
           '<div class="pr-sub muted" style="font-size:12px">'+esc(a.store||'')+'　'+esc(a.status||'')+(d?'　'+fmtD(d):'')+'</div></div>'; }).join('');
+      var lng=untreatedLongCount();
       return '<div class="alert"><div class="al-h">🔴 未対応の応募 '+un.length+'件（最長 '+age(oh)+'放置）</div>'+
-        '<div class="al-note">新規/未対応のままの応募です。早めの初回連絡を（タップで詳細）。</div>'+rows+
+        '<div class="al-note">新規/未対応のままの応募です。早めの初回連絡を（タップで詳細）。'+(lng?' <b style="color:var(--red)">⚠️ うち10日超の長期放置 '+lng+'件</b>':'')+'</div>'+rows+
         (un.length>8?'<div class="rf-hint" style="margin-top:6px">ほか '+(un.length-8)+'件</div>':'')+'</div>';
     }
     // 長期応募なしで結果報告が“まだ無い”店舗＝未提出アラート（タップで結果入力）

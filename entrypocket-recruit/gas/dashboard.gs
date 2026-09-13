@@ -475,21 +475,24 @@ function epNotifyUntreated_(hours, dry) {
   if (!raw || raw.getLastRow() < 2) return { ok: true, count: 0 };
   var v = raw.getDataRange().getValues(), h = v[0], ci = {}; h.forEach(function (x, i) { ci[String(x)] = i; });
   var cA = ci['応募日時'], cS = ci['ステータス'], cSt = ci['店舗名'], cG = ci['消失'];
-  var now = new Date(), thr = hours * 3600000, cnt = 0, oldest = 0, byStore = {};
+  var now = new Date(), thr = hours * 3600000, cnt = 0, oldest = 0, longCnt = 0, byStore = {};
   for (var i = 1; i < v.length; i++) {
     if (cG != null && String(v[i][cG]) === 'TRUE') continue;
     var st = String(cS != null ? v[i][cS] : ''); if (!/未対応|新規/.test(st)) continue;
     var d = cA != null ? epDate_(v[i][cA]) : null, ageMs = d ? (now.getTime() - d.getTime()) : 0;
     if (ageMs < thr) continue;
-    if (ageMs > 10 * 86400000) continue;   // 直近10日より古い未対応はアラート対象外
+    // 古い未対応も除外しない（一番放置された人ほど気付かれなくなるのを防ぐ, A-14）。
+    // 10日超は「長期放置」として別に数え、通知本文で強調する。
     cnt++; if (ageMs > oldest) oldest = ageMs;
+    if (ageMs > 10 * 86400000) longCnt++;
     var s = epCleanStore_(String(cSt != null ? v[i][cSt] : '')) || '不明'; byStore[s] = (byStore[s] || 0) + 1;
   }
   if (!cnt) return { ok: true, count: 0 };
   var oh = Math.floor(oldest / 3600000), ageTxt = oh >= 24 ? (Math.floor(oh / 24) + '日') : (oh + '時間');
   var top = Object.keys(byStore).sort(function (a, b) { return byStore[b] - byStore[a]; }).slice(0, 5).map(function (s) { return '・' + s + ' ' + byStore[s] + '件'; });
   var title = '🔴 未対応の応募 ' + cnt + '件';
-  var body = '最長 ' + ageTxt + '放置。早めの初回連絡を。\n' + top.join('\n');
+  var body = '最長 ' + ageTxt + '放置。早めの初回連絡を。\n'
+    + (longCnt ? '⚠️ うち10日超の長期放置 ' + longCnt + '件\n' : '') + top.join('\n');
   if (!dry && typeof epEnqueuePush_ === 'function') epEnqueuePush_(title, body, 'recruit');
   return { ok: true, count: cnt, oldestHours: oh, dry: !!dry, title: title, body: body };
 }
