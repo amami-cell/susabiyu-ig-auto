@@ -83,6 +83,52 @@ def _to_bool(value: str) -> bool:
     return v in ("1", "true", "○", "◯", "あり", "yes", "y", "重複")
 
 
+# 集計の土台となる必須論理列。ここが1つでも取りこぼされると、応募者は作れても
+# ステータス/店舗が空のまま「成功」扱いになり、ファネル・店舗別集計が静かに全滅する。
+REQUIRED_LOGICAL: tuple[str, ...] = ("applicant_code", "status_code", "store_id")
+
+
+def missing_required_columns(
+    data: bytes, encoding: str = "cp932", column_map: dict[str, list[str]] | None = None
+) -> list[str]:
+    """CSVヘッダに必須論理列(REQUIRED_LOGICAL)が見つからなければ、その論理名を返す（A-8）。
+    列名変更の取りこぼしを取得直後に検知して fail させるために使う。"""
+    text = data.decode(encoding, errors="replace")
+    reader = csv.reader(io.StringIO(text))
+    try:
+        headers = next(reader)
+    except StopIteration:
+        return list(REQUIRED_LOGICAL)
+    idx = build_header_index(headers, column_map)
+    return [name for name in REQUIRED_LOGICAL if name not in idx]
+
+
+def dedupe_by_code(applicants: list["Applicant"]) -> tuple[list["Applicant"], int]:
+    """同一 applicant_code が複数あれば最後の1件だけ残す（A-13）。空コードはそのまま保持。
+    戻り値 (deduped, removed_count)。CSV側の重複行が下流の全書換や差分検知を汚すのを防ぐ。"""
+    seen: dict[str, "Applicant"] = {}
+    order: list[str] = []
+    empties: list["Applicant"] = []
+    for a in applicants:
+        code = (a.applicant_code or "").strip()
+        if not code:
+            empties.append(a)
+            continue
+        if code not in seen:
+            order.append(code)
+        seen[code] = a  # 後勝ち
+    deduped = [seen[c] for c in order] + empties
+    return deduped, len(applicants) - len(deduped)
+
+
+def is_suspicious_drop(prev_count: int, inc_count: int, min_base: int = 20, ratio: float = 0.5) -> bool:
+    """取得件数の急減判定（A-9）。前回が min_base 件以上あり、今回が前回の ratio 未満なら
+    「部分取得の疑い」＝True。誤って全員を消失扱いにするのを防ぐガードに使う。"""
+    if prev_count < min_base:
+        return False
+    return inc_count < prev_count * ratio
+
+
 def build_header_index(
     headers: list[str], column_map: dict[str, list[str]] | None = None
 ) -> dict[str, int]:
