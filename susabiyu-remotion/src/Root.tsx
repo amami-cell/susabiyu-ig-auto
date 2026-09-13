@@ -98,7 +98,7 @@ export const RemotionRoot: React.FC = () => {
       {/* No.12〜No.23：イタリアン酒場の追加案。小道具と動きの軸を既存11種と別にしてある。 */}
       {NUOVI_COMPS.map((c) => (
         <Composition key={c.id} id={c.id} component={c.comp} fps={FPS} width={1080} height={1920}
-          durationInFrames={YNUOVI_DUR} defaultProps={{ storeName: STORE, handle: "@susabiyu_sanjyo", theme: "neutral" }} />
+          durationInFrames={(c as { dur?: number }).dur || YNUOVI_DUR} defaultProps={{ storeName: STORE, handle: "@susabiyu_sanjyo", theme: "neutral" }} />
       ))}
       {/* No.24〜No.31：さらに追加。長さ・共通ルールは No.12〜23 と同じ。 */}
       {NUOVI2_COMPS.map((c) => (

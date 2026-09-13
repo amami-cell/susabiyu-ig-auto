@@ -291,6 +291,8 @@ const Open9: React.FC<SP> = ({ storeName = DEF.storeName, theme = DEF.theme, ope
   // OPを長くしても表紙だけ3秒で消えてしまい、目次の3〜4行目が書き終わる前に切れていた。
   // dur（そのテンプレのOPの長さ）を基準にする。各要素の出現タイミング自体は変えない。
   const o = Math.min(fade(f, 2, 24), interpolate(f, [dur - 16, dur], [1, 0], clamp));
+  // 目次の立ち上がり始め。4行＝LIST0..LIST0+15 に10フレームの明けを足して出そろう。
+  const LIST0 = Math.max(30, dur - 48);
   // 営業時間はスプレッドシート(入力用)が正。未登録なら嘘の時刻を出さず中立表示にする。
   const hours = (openText || "").trim();
   return (
@@ -327,13 +329,16 @@ const Open9: React.FC<SP> = ({ storeName = DEF.storeName, theme = DEF.theme, ope
       {/* 今号の見出し（＝目次）。雑誌の表紙は「中身の惹句が並ぶ」もの。
           ここが空白だと表紙が持たないので、今日の4品を細い罫で束ねて並べる。
           1行ずつ順に立ち上げて、視線が上から下へ流れるようにする。 */}
-      <div style={{ position: "absolute", left: 150, right: 150, top: 1152, opacity: fade(f, 44, 24) }}>
+      {/* 目次が書き終わる時刻は「OPの長さ」から逆算する。50+k*8 の決め打ちだったため、
+          OPが3.0秒のテンプレ（No.23等）では4行目が書き終わる前に表紙が消えていた。
+          最後の行が、表紙が抜け始める(dur-16)より前に出そろうように置く。 */}
+      <div style={{ position: "absolute", left: 150, right: 150, top: 1152, opacity: fade(f, LIST0 - 6, 18) }}>
         <div style={{ fontFamily: serif, color: T.slab, fontSize: 22, letterSpacing: 8, textTransform: "uppercase", fontWeight: 600, textAlign: "center", marginBottom: 16 }}>IN QUESTO NUMERO</div>
         <div style={{ height: 1, background: "rgba(176,72,31,0.4)" }} />
         {(typoPhotos.length ? typoPhotos : []).slice(0, 4).map((it: any, k: number) => {
           const nm = ((it.disp && it.disp.length) ? it.disp : (it.caption || "")).replace(/[｜\n]/g, "");
           if (!nm) return null;
-          const o = fade(f, 50 + k * 8, 20);
+          const o = fade(f, LIST0 + k * 5, 10);
           return (
             <div key={k} style={{ display: "flex", alignItems: "baseline", gap: 16, padding: "13px 4px", borderBottom: "1px solid rgba(150,110,70,0.26)", opacity: o }}>
               <span style={{ fontFamily: serif, color: T.slab, fontSize: 21, letterSpacing: 2, fontWeight: 600, minWidth: 34 }}>{"0" + (k + 1)}</span>
