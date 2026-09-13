@@ -18,13 +18,16 @@ import { typoPhotos, typoMusic, typoMusicStart, typoLogoColor } from "./typoData
 import { ytheme } from "./yoshokuTheme";
 import {
   mincho, serif, clamp, EASE, EASE_INOUT, fade, rise, Grain, Vignette,
-  Masthead, HandleMark, StoreLogo, fitOneLine, fitLines, splitLines, segNow, SAFE,
+  Masthead, HandleMark, StoreLogo, Slides, fitOneLine, fitLines, splitLines, segNow, SAFE,
   STORY_OPEN, STORY_END, STORY_XF,
 } from "./yoshokuDesign";
 import { StoryOpenXF, StoryEndV } from "./YoshokuOpStyles";
 
 export const BODY = 400;                                   // 本編 400f（4品×100f＝約13.3秒）
 export const YNUOVI_DUR = STORY_OPEN + BODY + STORY_END;   // 90+400+150 = 640 = 約21.3秒
+// OPを長く取るテンプレ用（No.23 は表紙に今日の4品を並べるので、書き終わるまで待たせる）
+export const PASSIO_OPEN = STORY_OPEN + 60;                // 150f = 5.0秒
+export const PASSIO_DUR = PASSIO_OPEN + BODY + STORY_END;  // 700f = 約23.3秒
 
 export type Item = { src?: string; caption?: string; sub?: string; disp?: string; desc?: string };
 
@@ -89,21 +92,25 @@ export const Caption: React.FC<{
 // 3段（OP→本編→CLOSE）の共通の殻。中身だけ差し替える。
 export const Shell: React.FC<{
   v: 4 | 5 | 6 | 7 | 8 | 9; base: string; storeName: string; handle: string; theme: string;
+  openDur?: number;   // OPを長く取りたいテンプレだけ指定（既定は共通の3.0秒）
   children: React.ReactNode;
-}> = ({ v, base, storeName, handle, theme, children }) => (
-  <AbsoluteFill style={{ backgroundColor: base }}>
-    <Audio src={staticFile(typoMusic)} startFrom={Math.round((typoMusicStart || 0) * 30)}
-      volume={(ff) => interpolate(ff, [0, 16, YNUOVI_DUR - 30, YNUOVI_DUR], [0, 0.8, 0.8, 0], clamp)} />
-    {/* 本編を先に置き、その上にOPを重ねてディゾルブ（既存テンプレと同じ繋ぎ） */}
-    <Sequence from={STORY_OPEN} durationInFrames={BODY}>{children}</Sequence>
-    <Sequence durationInFrames={STORY_OPEN + STORY_XF}>
-      <StoryOpenXF v={v} storeName={storeName} theme={theme} />
-    </Sequence>
-    <Sequence from={STORY_OPEN + BODY - STORY_XF} durationInFrames={STORY_END + STORY_XF}>
-      <StoryEndV v={v} storeName={storeName} handle={handle} theme={theme} />
-    </Sequence>
-  </AbsoluteFill>
-);
+}> = ({ v, base, storeName, handle, theme, openDur = STORY_OPEN, children }) => {
+  const total = openDur + BODY + STORY_END;
+  return (
+    <AbsoluteFill style={{ backgroundColor: base }}>
+      <Audio src={staticFile(typoMusic)} startFrom={Math.round((typoMusicStart || 0) * 30)}
+        volume={(ff) => interpolate(ff, [0, 16, total - 30, total], [0, 0.8, 0.8, 0], clamp)} />
+      {/* 本編を先に置き、その上にOPを重ねてディゾルブ（既存テンプレと同じ繋ぎ） */}
+      <Sequence from={openDur} durationInFrames={BODY}>{children}</Sequence>
+      <Sequence durationInFrames={openDur + STORY_XF}>
+        <StoryOpenXF v={v} storeName={storeName} theme={theme} dur={openDur} />
+      </Sequence>
+      <Sequence from={openDur + BODY - STORY_XF} durationInFrames={STORY_END + STORY_XF}>
+        <StoryEndV v={v} storeName={storeName} handle={handle} theme={theme} />
+      </Sequence>
+    </AbsoluteFill>
+  );
+};
 
 type P = { storeName?: string; handle?: string; theme?: string };
 const D = { storeName: "ナガグツ", handle: "@nagagutsu0427", theme: "italian" };
@@ -232,7 +239,7 @@ const CicchettiBody: React.FC<Required<P>> = ({ storeName, handle, theme }) => {
       {/* カウンターの陰（上下）＝並んだ皿を見ている目線 */}
       {/* 上下の帯だけ濃くする（明るい皿でロゴ下の伊語・料理名が飛ぶのを防ぐ）。真ん中は素のまま */}
       <AbsoluteFill style={{ background: "linear-gradient(180deg, rgba(10,8,5,0.86) 0%, rgba(10,8,5,0.62) 16%, rgba(10,8,5,0.06) 32%, rgba(10,8,5,0.08) 58%, rgba(10,8,5,0.6) 76%, rgba(10,8,5,0.96) 100%)" }} />
-      <Masthead storeName={storeName} f={f} kicker="CICCHETTI" accent={T.accent} logoH={78} />
+      <Masthead storeName={storeName} f={f} kicker="CICCHETTI" accent={T.accent} logoH={132} />
       {/* 下の帯だけは動かさない＝止まった台の上を皿が流れていく */}
       <div style={{ position: "absolute", left: 0, right: 0, bottom: 250, height: 4, background: T.slab, opacity: 0.9 }} />
       <div style={{ position: "absolute", left: SAFE.side, right: SAFE.side, bottom: 300 }}>
@@ -334,7 +341,7 @@ const TricoloreBody: React.FC<Required<P>> = ({ storeName, handle, theme }) => {
         const x = interpolate(local, [s, s + 30], [1180, -1180], { ...clamp, easing: EASE_INOUT });
         return <div key={k} style={{ position: "absolute", top: 0, bottom: 0, left: 0, width: 1080, background: c, transform: "translateX(" + x + "px)" }} />;
       })}
-      <Masthead storeName={storeName} f={f} kicker="OSTERIA" accent={T.accent} logoH={78} />
+      <Masthead storeName={storeName} f={f} kicker="OSTERIA" accent={T.accent} logoH={132} />
       {/* 料理名は帯が抜けた直後に、下から勢いよく */}
       <div style={{ position: "absolute", left: SAFE.side, right: SAFE.side, bottom: 300 }}>
         <Caption d={items[i]} f={local} start={4} ink={T.ink} sub={T.sub} accent={T.accent} maxName={90} />
@@ -365,8 +372,11 @@ const ProvinoBody: React.FC<Required<P>> = ({ storeName, handle, theme }) => {
   const cols = 2, rows = 2;
   const gw = cols * FW + (cols - 1) * GAP, gh = rows * FH + (rows - 1) * GAP;
   const gx = (1080 - gw) / 2, gy = 470;
-  // 選ばれたコマが引き伸ばされて全面に（各カットの後半）
-  const blow = interpolate(local, [seg - 46, seg - 12], [0, 1], { ...clamp, easing: EASE });
+  // 選ばれたコマが引き伸ばされて全面に出て、しばらく見せて、またシートへ戻る。
+  // 以前は「カット終わりの12フレーム前に出きって、そのまま次のカットへ切り替わる」形で、
+  // ①引き伸ばした絵を見ている時間が短い ②戻りがパッと切り替わる、の2つが起きていた。
+  // 出る→見せる→戻る を1本の値で持ち、戻り終わってから次のカットへ渡す。
+  const blow = interpolate(local, [26, 62, seg - 30, seg - 6], [0, 1, 1, 0], { ...clamp, easing: EASE_INOUT });
   const bx = gx + (i % cols) * (FW + GAP), by = gy + Math.floor(i / cols) * (FH + GAP);
   return (
     <AbsoluteFill style={{ backgroundColor: "#0E0D0C" }}>
@@ -403,8 +413,9 @@ const ProvinoBody: React.FC<Required<P>> = ({ storeName, handle, theme }) => {
         </AbsoluteFill>
       ) : null}
       <Masthead storeName={storeName} f={f} kicker="PROVINO" accent={T.accent} logoH={78} />
-      <div style={{ position: "absolute", left: SAFE.side, right: SAFE.side, bottom: 300 }}>
-        <Caption d={items[i]} f={local} start={seg - 40} ink={T.ink} sub={T.sub} accent={T.accent} />
+      {/* 料理名は引き伸ばした絵と一緒に出入りする（戻りでも置き去りにならない） */}
+      <div style={{ position: "absolute", left: SAFE.side, right: SAFE.side, bottom: 300, opacity: blow }}>
+        <Caption d={items[i]} f={local} start={34} ink={T.ink} sub={T.sub} accent={T.accent} />
       </div>
       <HandleMark handle={handle} accent={T.accent} f={f} start={20} />
       <Grain opacity={0.07} />
@@ -491,11 +502,13 @@ const NumeriBody: React.FC<Required<P>> = ({ storeName, handle, theme }) => {
   const numY = interpolate(local, [0, 34], [70, 0], { ...clamp, easing: EASE });
   return (
     <AbsoluteFill style={{ backgroundColor: T.base }}>
-      {/* 写真は右半分の縦長。左に数字を大きく置く */}
-      <div style={{ position: "absolute", left: 372, right: 0, top: 0, bottom: 0, overflow: "hidden" }}>
-        <Photo src={items[i].src} lf={local} seg={seg} from={1.06} to={1.14} />
+      {/* 写真は右側の縦長。左に数字を大きく置く。
+          左の余白を372→232まで詰めて写真の面積を広げ、寄りも 1.06〜1.14 → 1.0〜1.05 に
+          弱める（料理が近すぎて何の皿か分からなくなっていた）。 */}
+      <div style={{ position: "absolute", left: 232, right: 0, top: 0, bottom: 0, overflow: "hidden" }}>
+        <Photo src={items[i].src} lf={local} seg={seg} from={1.0} to={1.05} />
       </div>
-      <AbsoluteFill style={{ background: "linear-gradient(90deg, " + T.base + " 0%, " + T.base + "F2 30%, " + T.base + "33 56%, rgba(0,0,0,0) 100%)" }} />
+      <AbsoluteFill style={{ background: "linear-gradient(90deg, " + T.base + " 0%, " + T.base + "F2 24%, " + T.base + "33 50%, rgba(0,0,0,0) 100%)" }} />
       <AbsoluteFill style={{ background: "linear-gradient(180deg, rgba(10,8,5,0.6) 0%, rgba(0,0,0,0) 28%, rgba(10,8,5,0.86) 100%)" }} />
       <Masthead storeName={storeName} f={f} kicker="I NUMERI" accent={T.accent} logoH={78} />
       {/* 特大ナンバー */}
@@ -529,7 +542,14 @@ const TendaBody: React.FC<{ storeName: string; handle: string }> = ({ storeName,
   const SCAL = 12;   // 縞の本数
   return (
     <AbsoluteFill style={{ backgroundColor: "#EDE4D3" }}>
-      <AbsoluteFill><Photo src={items[i].src} lf={local} seg={seg} from={1.05} to={1.12} bri={1.04} /></AbsoluteFill>
+      {/* 写真はひさしの下だけに置く。全面に敷いていたため、料理の上半分が
+          ひさしの裏に隠れて見切れていた。寄りも 1.05〜1.12 → 1.0〜1.04 に弱める。
+          皿の入れ替わりは Slides でクロスディゾルブ（パッと切り替わらない）。 */}
+      <div style={{ position: "absolute", left: 0, right: 0, top: 350, bottom: 0, overflow: "hidden" }}>
+        <Slides count={4} total={BODY} fade={26} render={(k, lf, sg) => (
+          <Photo src={items[k].src} lf={lf} seg={sg} from={1.0} to={1.04} bri={1.04} />
+        )} />
+      </div>
       <AbsoluteFill style={{ background: "linear-gradient(180deg, rgba(20,16,10,0.5) 0%, rgba(20,16,10,0) 26%, rgba(20,16,10,0.08) 58%, rgba(20,16,10,0.82) 100%)" }} />
       {/* ひさし：縞＋波型の裾 */}
       <div style={{ position: "absolute", left: 0, right: 0, top: 0, height: 360, transform: "translateY(" + down + "px)" }}>
@@ -541,16 +561,19 @@ const TendaBody: React.FC<{ storeName: string; handle: string }> = ({ storeName,
             <div key={k} style={{ width: 1080 / SCAL, height: 68, borderRadius: "0 0 50% 50%", background: k % 2 === 0 ? GREEN : CREAM }} />
           ))}
         </div>
-        <div style={{ position: "absolute", left: 0, right: 0, top: 120, textAlign: "center" }}>
-          <div style={{ display: "inline-block", background: "rgba(20,16,10,0.34)", padding: "10px 30px" }}>
-            <span style={{ fontFamily: serif, color: "#FFF6E8", fontSize: 34, letterSpacing: 10, fontWeight: 600, textTransform: "uppercase" }}>TERRAZZA</span>
+        {/* ひさしの真ん中に文字ロゴを大きく（縞に負けないよう濃い下敷きを敷く） */}
+        <div style={{ position: "absolute", left: 0, right: 0, top: 92, display: "flex", justifyContent: "center" }}>
+          <div style={{ background: "rgba(20,16,10,0.46)", padding: "20px 52px" }}>
+            <StoreLogo storeName={storeName} height={132} />
           </div>
         </div>
       </div>
-      <div style={{ position: "absolute", top: 430, left: 0, right: 0, display: "flex", justifyContent: "center", ...rise(f, 40, { dist: 14 }) }}>
-        <StoreLogo storeName={storeName} height={84} />
+      {/* 店名の代わりに置いていた TERRAZZA は、ひさしの下へ小さく回す */}
+      <div style={{ position: "absolute", top: 432, left: 0, right: 0, textAlign: "center", ...rise(f, 40, { dist: 12 }) }}>
+        <span style={{ fontFamily: serif, color: "#FFF6E8", fontSize: 28, letterSpacing: 10, fontWeight: 600, textTransform: "uppercase", textShadow: "0 2px 12px rgba(0,0,0,0.7)" }}>TERRAZZA</span>
       </div>
-      <div style={{ position: "absolute", left: SAFE.side, right: SAFE.side, bottom: 300, textAlign: "center" }}>
+      {/* 料理名もカットの終わりで先に抜く＝写真の重なりと合わせて自然に渡る */}
+      <div style={{ position: "absolute", left: SAFE.side, right: SAFE.side, bottom: 300, textAlign: "center", opacity: interpolate(local, [seg - 24, seg - 4], [1, 0], clamp) }}>
         <Caption d={items[i]} f={local} start={10} ink="#FFF6E8" sub="#E7D9C0" accent="#FFD9A0" align="center" />
       </div>
       <HandleMark handle={handle} accent="#FFD9A0" f={f} start={26} align="center" />
@@ -617,7 +640,7 @@ export const YoshokuMedaglione: React.FC<P> = ({ storeName = D.storeName, handle
 const MuroBody: React.FC<Required<P>> = ({ storeName, handle, theme }) => {
   const f = useCurrentFrame(); const T = ytheme(theme);
   const items = dishes(4);
-  const { i, local, seg } = segNow(BODY, 4, f);
+  const { i, local } = segNow(BODY, 4, f);   // 写真は Slides 側で刻むので seg は使わない
   const nm = nameOf(items[i]);
   const chars = Array.from(nm);
   const size = fitOneLine(nm, 88, 1080 - SAFE.side * 2, 32);
@@ -627,8 +650,11 @@ const MuroBody: React.FC<Required<P>> = ({ storeName, handle, theme }) => {
       <AbsoluteFill style={{ background: "radial-gradient(80% 60% at 40% 30%, #3A342A 0%, #211E19 70%, #16140F 100%)" }} />
       <AbsoluteFill style={{ opacity: 0.16, backgroundImage: "repeating-linear-gradient(28deg, rgba(255,255,255,0.08) 0 2px, transparent 2px 9px), repeating-linear-gradient(-14deg, rgba(0,0,0,0.2) 0 3px, transparent 3px 14px)" }} />
       {/* 壁に留めた1枚（少し傾けて画鋲） */}
+      {/* 貼り替えはクロスディゾルブ（パッと入れ替わらない） */}
       <div style={{ position: "absolute", left: 150, top: 430, width: 780, height: 720, transform: "rotate(-1.4deg)", boxShadow: "0 30px 70px rgba(0,0,0,0.66)", overflow: "hidden", border: "12px solid #EDE6D6" }}>
-        <Photo src={items[i].src} lf={local} seg={seg} from={1.04} to={1.11} />
+        <Slides count={4} total={BODY} fade={26} render={(k, lf, sg) => (
+          <Photo src={items[k].src} lf={lf} seg={sg} from={1.02} to={1.08} />
+        )} />
       </div>
       <div style={{ position: "absolute", left: 528, top: 414, width: 22, height: 22, borderRadius: "50%", background: T.slab, boxShadow: "0 4px 10px rgba(0,0,0,0.7)" }} />
       {/* チョークで書かれていく料理名 */}
@@ -650,8 +676,8 @@ const MuroBody: React.FC<Required<P>> = ({ storeName, handle, theme }) => {
           </div>
         ) : null}
       </div>
-      <div style={{ position: "absolute", top: 200, left: 0, right: 0, display: "flex", justifyContent: "center", ...rise(f, 6, { dist: 12 }) }}>
-        <StoreLogo storeName={storeName} height={80} />
+      <div style={{ position: "absolute", top: 176, left: 0, right: 0, display: "flex", justifyContent: "center", ...rise(f, 6, { dist: 12 }) }}>
+        <StoreLogo storeName={storeName} height={132} />
       </div>
       <HandleMark handle={handle} accent={T.accent} f={f} start={26} align="center" />
       <Grain opacity={0.07} />
@@ -707,7 +733,8 @@ const PassioBody: React.FC<Required<P>> = ({ storeName, handle, theme }) => {
   );
 };
 export const YoshokuPassio: React.FC<P> = ({ storeName = D.storeName, handle = D.handle, theme = D.theme }) => (
-  <Shell v={9} base="#0F0D0B" storeName={storeName} handle={handle} theme={theme}>
+  // 表紙に今日の4品を並べるOPなので、書き終わるまで待たせる（3.0秒→5.0秒）。
+  <Shell v={9} base="#0F0D0B" storeName={storeName} handle={handle} theme={theme} openDur={PASSIO_OPEN}>
     <PassioBody storeName={storeName} handle={handle} theme={theme} />
   </Shell>
 );
@@ -725,5 +752,6 @@ export const NUOVI_COMPS = [
   { id: "YoshokuTenda", pattern: "yoshokutenda", label: "No.20 洋食おしゃれ・縞の日除け", comp: YoshokuTenda },
   { id: "YoshokuMedaglione", pattern: "yoshokumedaglione", label: "No.21 洋食おしゃれ・丸窓の紋章", comp: YoshokuMedaglione },
   { id: "YoshokuMuro", pattern: "yoshokumuro", label: "No.22 洋食おしゃれ・石壁の壁書き", comp: YoshokuMuro },
-  { id: "YoshokuPassio", pattern: "yoshokupassio", label: "No.23 洋食おしゃれ・扉が開く", comp: YoshokuPassio },
+  // dur を持つものだけ既定の長さ(YNUOVI_DUR)から外れる
+  { id: "YoshokuPassio", pattern: "yoshokupassio", label: "No.23 洋食おしゃれ・扉が開く", comp: YoshokuPassio, dur: PASSIO_DUR },
 ];
