@@ -19,6 +19,9 @@ import stores, poster
 from prepare import REG, PAT_JA  # パターン→(fetch,comp,is_video) と 日本語ラベル
 
 DEFAULT_PATTERNS = list(stores.YOSHOKU_PATTERNS)
+# パターンごとの「全体の中での定位置」。音源と文言の割り当てをここで固定する＝
+# 一部だけ焼き直しても、そのテンプレの音楽・文言が入れ替わらない。
+FIXED_IX = {p: i for i, p in enumerate(DEFAULT_PATTERNS)}
 
 
 def run(cmd):
@@ -197,13 +200,15 @@ def main():
         fetch, comp, is_video = REG[pattern]
         label = PAT_JA.get(pattern, pattern)
         # 音源と文言は「パターン名」で固定する（pattern_music.py）。
-        # 以前は _tracks[idx % len] ＝“そのとき実行した並び順”で決めていたため、
-        # 一部だけ焼き直すと順番がずれて同じテンプレの音楽・文言が変わっていた。
-        # 未登録のパターンだけ従来どおり並び順のフォールバックにする。
-        cap = _pm.hook(pattern) or (_pool[idx % len(_pool)] if _pool else "")
-        mp = _pm.music_path(pattern, _tracks) or (_tracks[idx % len(_tracks)] if _tracks else "")
+        # 未登録のパターンは並び順のフォールバックだが、その並びは
+        # 「今回流した分の中での番号(idx)」ではなく「全パターンの中での定位置(ix)」を使う。
+        # idx にしていたため、一部だけ焼き直すたびに同じテンプレの音楽と文言が
+        # 入れ替わっていた（No.12が愛の傘下→Cocktail_Glassになる等）。
+        ix = FIXED_IX.get(pattern, idx)
+        cap = _pm.hook(pattern) or (_pool[ix % len(_pool)] if _pool else "")
+        mp = _pm.music_path(pattern, _tracks) or (_tracks[ix % len(_tracks)] if _tracks else "")
         music_name = os.path.splitext(os.path.basename(mp))[0] if mp else ""
-        _set_typo(cap, mp, idx + 1)   # このパターン用にキャプション＆音源＆見本番号(No.idx+1)を差し込む
+        _set_typo(cap, mp, ix + 1)   # このパターン用にキャプション＆音源＆見本番号(No.idx+1)を差し込む
         print("\n=========== 見本レンダリング: %s (%s) | 文言=%s | 音源=%s(+%ds) ==========="
               % (pattern, comp, cap, music_name or "既定", _mstart(mp)))
         try:
