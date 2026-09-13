@@ -259,6 +259,17 @@ func _refresh_title_state() -> void:
 			existing.queue_free()
 		_solo.text = "ひとりで始める"
 
+	# クリア後のごほうび「のんびり庭」＝章の進行なし・最初からみどり豊かな平和サンドボックス。
+	if Chapter.cleared and _vbox.get_node_or_null("FreePlayButton") == null:
+		var fp := Button.new()
+		fp.name = "FreePlayButton"
+		fp.text = "のんびり庭（すきなだけ）"
+		fp.custom_minimum_size = Vector2(0, 52)
+		UIKit.style_button(fp, Color(0.6, 0.85, 0.62), UIKit.GREEN_DK)
+		_vbox.add_child(fp)
+		_vbox.move_child(fp, _join.get_index() + 1)
+		fp.pressed.connect(_on_free_play)
+
 	# 一度でも通しクリアしていたら、小さく誇らしく表示（左上）
 	if Chapter.cleared and get_node_or_null("ClearedBadge") == null:
 		var badge := Label.new()
@@ -600,6 +611,14 @@ func _on_host() -> void:
 	Chapter.start_new()
 	if Net.host() == OK:
 		_status.text = "待ち受け中。相手の端末に %s を入力してもらう" % Net.local_ip_hint()
+
+
+## のんびり庭（クリア後のごほうび）：舞台は庭に固定・章オフで始める。ひとりでも相手が来てもOK。
+func _on_free_play() -> void:
+	_sync_settings()
+	Net.world_biome = "garden"   # のんびり庭は 庭に固定
+	Chapter.start_free_play()
+	Net.start_solo()
 
 
 func _on_join() -> void:

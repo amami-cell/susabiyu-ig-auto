@@ -47,6 +47,8 @@ func _ready() -> void:
 		return
 	if args.has("--selftest"):
 		_run_selftest()
+	elif args.has("--selftest-free"):
+		_run_selftest_free()
 	elif args.has("--selftest-host"):
 		_run_selftest_host()
 	elif args.has("--selftest-join"):
@@ -424,6 +426,30 @@ func _run_selftest() -> void:
 	print("[selftest] 回復度=%.2f XP=%d 経験値=%s 飛行解禁=%s 子ども=%d(最寄り%.1f) 母=%s 石版=%s 扉=%s おそうじ=%s 輪=%s なかま=%s 種役割=%s セーブ=%s ボス召喚=%s ボス浄化=%s 図鑑=%s 音バス=%s 花あと=%s" % [
 		WorldState.recovery, xp_now, xp_gained, flight_ok, children.size(), nearest, mother_ok, puzzle_ok, switch_ok, blob_ok, ring_ok, ally_ok, ally_species_ok, save_ok, boss_ok, boss_hold_ok, dex_ok, audio_ok, bloom_ok])
 	print("[selftest] %s" % ("OK" if ok else "NG"))
+	get_tree().quit(0 if ok else 1)
+
+
+## のんびり庭（クリア後フリープレイ）の通し確認：
+## 章オフ(_active=false)・最初からみどり豊か・敵はやさしく湧くだけ（ボス/物語なし）を検証。
+func _run_selftest_free() -> void:
+	print("[selftest-free] のんびり庭 開始")
+	Chapter.start_free_play()
+	Net.start_solo()
+	await get_tree().create_timer(5.0).timeout
+	var chapter_off: bool = not Chapter._active
+	var lush: bool = WorldState.recovery >= 0.85
+	# やさしく虫が湧く（章オフでも ambient_spawn_ok=true）＝癒やす対象がいる
+	var spawns: bool = get_tree().get_nodes_in_group("bug").size() > 0
+	var no_boss := true
+	for b in get_tree().get_nodes_in_group("bug"):
+		var st: Variant = b.get("stats")
+		if st != null and st.is_midboss:
+			no_boss = false
+			break
+	var ok: bool = _garden != null and chapter_off and lush and spawns and no_boss
+	print("[selftest-free] 庭=%s 章オフ=%s みどり=%.2f 虫=%d ボスなし=%s" % [
+		_garden != null, chapter_off, WorldState.recovery, get_tree().get_nodes_in_group("bug").size(), no_boss])
+	print("[selftest-free] %s" % ("OK" if ok else "NG"))
 	get_tree().quit(0 if ok else 1)
 
 

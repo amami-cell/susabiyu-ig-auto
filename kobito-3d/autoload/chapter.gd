@@ -25,6 +25,7 @@ const SAVE_PATH := "user://save.cfg"
 const SAVE_TMP := "user://save.cfg.tmp"   # アトミック保存の一時ファイル
 const SAVE_SCHEMA := 1                     # セーブ形式の版。将来 形式を変えたら上げる。
 var cleared := false            # 一度でも通しクリアしたか（タイトルに小さく出す）
+var free_play := false          # のんびり庭（クリア後のごほうび）＝章の進行を止めた平和モード
 var _want_continue := false     # タイトルで「つづきから」を押した
 var _pending_continue := false  # セッション開始後、庭が組み上がってから復元する合図
 
@@ -207,6 +208,16 @@ func notify_boss_cleared() -> void:
 
 
 func _on_session_started() -> void:
+	# のんびり庭（クリア後のごほうび）：章を回さず、最初からみどり豊かな平和サンドボックス。
+	# 敵は「章オフ」扱いで やさしく湧くだけ（ボス/ウェーブ/物語なし）。セーブも触らない。
+	if free_play:
+		_active = false
+		guide_on = false
+		guide_changed.emit(false, Vector3.ZERO, "")
+		objective_changed.emit("のんびり庭：すきなだけ 虫を「きれいに」して 花を さかせよう")
+		if _is_server():
+			WorldState.set_recovery(0.9)   # 最初から みどり豊か
+		return
 	# 庭(ハブ)＝第1章の舞台のときだけ物語を回す。遺跡は自由あそび（目的だけ出す＝空に見えない）。
 	if Net.world_biome != "garden":
 		_active = false
@@ -549,10 +560,19 @@ func ambient_spawn_ok() -> bool:
 ## タイトルの「つづきから」を押した合図（この後 Net.start_solo/host する）。
 func continue_game() -> void:
 	_want_continue = true
+	free_play = false
 
 
 func start_new() -> void:
 	_want_continue = false
+	free_play = false
+
+
+## クリア後のごほうび「のんびり庭」：章の進行なし・最初からみどり豊か・敵はやさしく湧くだけ。
+## すきなだけ 虫を癒やして 花を咲かせて 図鑑を埋められる 平和なサンドボックス。
+func start_free_play() -> void:
+	_want_continue = false
+	free_play = true
 
 
 ## 途中経過のセーブがあるか（タイトルで「つづきから」を出すか）。
