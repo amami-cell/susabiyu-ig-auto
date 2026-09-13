@@ -27,6 +27,12 @@ static func _shared_spark_mesh() -> SphereMesh:
 const AGGRO_RANGE := 16.0   # この距離まで近づかれて初めて襲う（開始直後の平和を保つ）
 const STOP_DIST := 1.4      # プレイヤーに乗り上げないよう、少し離れて噛みつく
 
+# 攻撃の“タメ（予告）”：噛む前にひと呼吸ためる＝プレイヤーが避けられる猶予＝理不尽さを消す。
+# タメ中に間合いの外へ逃げれば空振り（ダメージなし）。サーバが判定する。
+const ATTACK_WINDUP := 0.42        # タメの長さ（秒）。この間に離れれば避けられる
+const WINDUP_ESCAPE_MARGIN := 0.9  # STOP_DIST からこれだけ離れれば回避成立
+var _windup_t := 0.0               # >0＝タメ中（サーバのみ）
+
 @export var stats: EnemyStats
 
 ## どの .tres から作られたか。後から参加した人へ同じ虫を作り直してもらうために持っておく。
@@ -56,6 +62,7 @@ var _resist_hint_cd := 0.0
 var _stage := 0                     # 物語の段（0 暴れる →1 弱る →2 泣く）
 
 @onready var _body: MeshInstance3D = $Body
+@onready var _vis: Node3D = $Body   # 見える本体（虫はInsectRig、ボスは_body）。芝居はこれを動かす
 
 var _hpbar: Node3D = null        # 頭上のHPバー（ダメージが目で分かる）
 var _hpbar_fill: Node3D = null   # 緑の残量（xスケールで減る）
@@ -95,6 +102,7 @@ func _ready() -> void:
 		var rig := get_node_or_null("InsectRig")
 		if rig != null:
 			(rig as Node3D).scale = Vector3.ONE * stats.body_scale
+			_vis = rig as Node3D   # 見える本体＝虫リグ。噛みつき/タメの芝居はこれを動かす
 		_body.visible = false   # カプセルの胴は隠す＝虫リグが本体（つぶれ演出は今は本体スケールで代用）
 
 	_build_hpbar()
@@ -265,6 +273,24 @@ func _think(delta: float) -> void:
 			_summon_cd = BOSS_SUMMON_INTERVAL
 			_summon_minions()
 
+	# 攻撃のタメ（予告）中：その場でためて、終わりに判定。逃げていれば空振り＝避けられる。
+	if _windup_t > 0.0:
+		velocity.x = 0.0
+		velocity.z = 0.0
+		_windup_t -= delta
+		if _windup_t <= 0.0:
+			if dist <= STOP_DIST + WINDUP_ESCAPE_MARGIN and _target != null and _target.has_method("apply_damage"):
+				rpc("_remote_lunge")   # 噛みつき（本命）：赤フラッシュ＋音
+				var dmg := maxi(1, int(round(stats.attack_power * Net.difficulty)))
+				_target.rpc("apply_damage", dmg)
+			else:
+				rpc("_remote_whiff")   # 逃げられた＝空振り（ダメージなし）
+		velocity.x += _knockback.x
+		velocity.z += _knockback.z
+		_knockback = _knockback.move_toward(Vector3.ZERO, 26.0 * delta)
+		move_and_slide()
+		return
+
 	if dist > STOP_DIST:
 		# M2ではまっすぐ寄るだけ。障害物を避けたくなったら
 		# NavigationAgent3D をここに差し込む（世界を広げる M5 で）。
@@ -276,13 +302,10 @@ func _think(delta: float) -> void:
 		velocity.x = 0.0
 		velocity.z = 0.0
 		if _attack_cd <= 0.0:
+			# すぐ噛まず“タメ”に入る＝予告。避ける猶予をプレイヤーに与える。
 			_attack_cd = stats.attack_interval
-			rpc("_remote_lunge")   # 見た目：噛みつきの予備動作＋赤フラッシュ
-			if _target.has_method("apply_damage"):
-				# 難易度で敵の攻撃力を調整（やさしい=弱く/つよい=強く）。HPは据え置き＝
-				# バー表示が壊れない。サーバ権威なので Net.difficulty はサーバ基準でよい。
-				var dmg := maxi(1, int(round(stats.attack_power * Net.difficulty)))
-				_target.rpc("apply_damage", dmg)
+			_windup_t = ATTACK_WINDUP
+			rpc("_remote_telegraph", ATTACK_WINDUP)
 
 	# 叩かれた勢い（ノックバック）を上乗せして減衰＝弾き飛ぶ手応え
 	velocity.x += _knockback.x
@@ -529,12 +552,44 @@ func _remote_lunge() -> void:
 	_flash_bug(Color(1.0, 0.4, 0.3))
 	var base := Vector3.ONE * stats.body_scale
 	var tw := create_tween()
-	tw.tween_property(_body, "scale", base * Vector3(0.8, 1.2, 0.8), 0.09)    # 振りかぶり（縮む）
-	tw.tween_property(_body, "scale", base * Vector3(1.3, 0.8, 1.3), 0.07)    # 噛みつき（のびる）
-	tw.tween_property(_body, "scale", base, 0.14)
+	tw.tween_property(_vis, "scale", base * Vector3(1.3, 0.8, 1.3), 0.07)     # 前へ噛みつく（のびる）
+	tw.tween_property(_vis, "scale", base, 0.14)
 	var tw2 := create_tween()
-	tw2.tween_property(_body, "position:y", 0.22, 0.16)                       # ぐっと持ち上げて
-	tw2.tween_property(_body, "position:y", 0.0, 0.14)                        # 噛みつく
+	tw2.tween_property(_vis, "position:y", 0.0, 0.12)                         # 持ち上げた頭を打ちつける
+
+
+## 攻撃の“タメ（予告）”：噛む前にぐっと引いて ふくらむ＝「くるぞ」が見て分かる。
+## 赤ではなく橙の軽い光にして“痛そう”になりすぎないように（この作品はやさしさが基調）。
+@rpc("authority", "call_local", "unreliable")
+func _remote_telegraph(windup: float) -> void:
+	if _dead:
+		return
+	var base := Vector3.ONE * stats.body_scale
+	var t := maxf(windup * 0.72, 0.05)
+	var tw := create_tween()
+	tw.tween_property(_vis, "scale", base * Vector3(0.84, 1.22, 0.84), t).set_trans(Tween.TRANS_SINE)  # 息をためる
+	var tp := create_tween()
+	tp.tween_property(_vis, "position:y", 0.30, t).set_trans(Tween.TRANS_SINE)   # ぐっと持ち上げる＝予告
+	if _body_mat != null:   # ボスなど _body が見える個体では体色でも予告（虫はリグなので動きで伝える）
+		var tc := create_tween()
+		tc.tween_property(_body_mat, "albedo_color", Color(1.0, 0.72, 0.28), t)
+
+
+## 空振り：タメ終わりに相手が居ない（避けられた）とき。前へ突っ込んで“すかっ”と外す。
+@rpc("authority", "call_local", "unreliable")
+func _remote_whiff() -> void:
+	if _dead:
+		return
+	Sfx.play_at("swing", global_position + Vector3(0, 0.6, 0), -10.0)   # 空を切る軽い音
+	var base := Vector3.ONE * stats.body_scale
+	var tw := create_tween()
+	tw.tween_property(_vis, "scale", base * Vector3(1.2, 0.85, 1.2), 0.08)   # つんのめる
+	tw.tween_property(_vis, "scale", base, 0.18).set_trans(Tween.TRANS_BACK)
+	var tp := create_tween()
+	tp.tween_property(_vis, "position:y", 0.0, 0.14)
+	if _body_mat != null:   # 予告で橙にした体色を、今のきれいさの色へ戻す（ボスなど）
+		var tc := create_tween()
+		tc.tween_property(_body_mat, "albedo_color", _cleanliness_color(), 0.18)
 
 
 ## 今の「きれいさ」を表す体の色。HPが減る＝汚れが拭われるほど、

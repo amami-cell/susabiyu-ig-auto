@@ -50,6 +50,16 @@ const HP_REGEN_RATE := 7.0     # 1秒あたりの自然回復量
 var _since_dmg := 999.0
 var _invuln := 0.0        # 無敵時間（被弾直後・復活直後）＝連続でハメられない＝ストレス減
 var revive_time := 2.5    # ダウン→復活までの秒数（家族が近いと短くなる）。HUDのカウント表示にも使う
+
+# ダウン救済（理不尽よけ）：短時間に何度も倒れる＝苦戦。次の復活で しばらく手厚く守る。
+# ＝“詰み”を作らず、下手でも前へ進める（罰ではなく やさしさ）。サーバ権威の判定に同期。
+const MERCY_WINDOW := 12.0   # 前回ダウンからこの秒数以内に また倒れたら「苦戦」とみなす
+const MERCY_INVULN := 4.5    # 苦戦時の復活後 無敵（通常2.5より長い）
+const MERCY_TIME := 6.0      # 苦戦時の復活後 しばらく被ダメ半減
+const MERCY_DR := 0.5        # その間の被ダメ倍率
+var _since_down := 999.0     # 前回ダウンからの経過（苦戦判定用）
+var _struggle := 0           # 短時間の連続ダウン数
+var _mercy_t := 0.0          # >0＝被ダメ半減の加護中
 var _last_ground := Vector3.ZERO   # 直近で地面に居た位置（場外落下からの復帰用）
 var _shake := 0.0                  # カメラ微振動の強さ（被弾・攻撃で立ち、毎フレーム減衰）
 var _fov_kick := 0.0               # 画角の“キュッ”（攻撃=寄る/被弾=引く）。0へ自然に戻る
@@ -164,6 +174,8 @@ func _physics_process(delta: float) -> void:
 		return
 	_age += delta
 	_invuln = maxf(0.0, _invuln - delta)   # 無敵時間を減らす（全員の画面で同じに）
+	_since_down += delta
+	_mercy_t = maxf(0.0, _mercy_t - delta)
 	if is_local:
 		_local_step(delta)
 		_regen_hp(delta)
@@ -690,6 +702,8 @@ func apply_damage(amount: int) -> void:
 		return
 	if state == State.DOWN or _invuln > 0.0:
 		return   # 無敵時間中は無効＝連続被弾でハメられない
+	if _mercy_t > 0.0:
+		amount = maxi(1, int(round(amount * MERCY_DR)))   # 加護中は被ダメ半減＝立て直しやすい
 	hp = maxi(0, hp - amount)
 	_hurt_time = 0.35
 	_since_dmg = 0.0   # 被弾したので自然回復のクールダウンをリセット
@@ -698,6 +712,9 @@ func apply_damage(amount: int) -> void:
 	_play_hurt_fx()
 	stats_changed.emit()
 	if hp == 0:
+		# 短時間に何度も倒れている＝苦戦とみなして数える（次の復活で手厚く守る）。
+		_struggle = (_struggle + 1) if _since_down < MERCY_WINDOW else 1
+		_since_down = 0.0
 		# ★守る動機★ 家族・相方・なかまが近くに居ると 早く起き上がれる（母「手をはなさないで」）。
 		# ひとりぼっちだと遅い＝“はぐれない”動機になる（罰ではなく協力の報酬）。
 		revive_time = 1.5 if _help_near() else 3.5
@@ -726,7 +743,12 @@ func revive() -> void:
 		return
 	hp = max_hp
 	state = State.IDLE
-	_invuln = 2.5   # 復活直後はしっかり無敵＝起き上がりを一方的に殴られない
+	# 苦戦（短時間に2回以上ダウン）していたら、復活後しばらく手厚く守る＝“詰み”防止。
+	if _struggle >= 2:
+		_invuln = MERCY_INVULN
+		_mercy_t = MERCY_TIME
+	else:
+		_invuln = 2.5   # 通常：起き上がりを一方的に殴られない程度
 	stats_changed.emit()
 
 
