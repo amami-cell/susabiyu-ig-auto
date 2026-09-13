@@ -748,7 +748,73 @@ func _setup_visuals() -> void:
 	_build_boulders()
 	_build_butterflies()
 	_build_actor_shadows()
+	_build_bloom()
 	_apply_biome()
+
+
+# ------------------------------------------------------------ 浄化の“あと”に咲く花
+#
+# 虫をきれいにした その場所に、小さな花が永続で咲く＝「自分がここを治した」あとが世界に残る。
+# 本作の核（きれいにする→世界がよみがえる）を“自分の手あと”として見せる。
+# プール制の MultiMesh 1個＝1ドローコール。上限を超えたら古いものから使い回す（青天井にしない）。
+const BLOOM_POOL := 96
+var _bloom_mm: MultiMesh = null
+var _bloom_next := 0
+var _bloom_count := 0   # これまでに咲かせた回数（自己点検・確認用）
+
+
+## これまでに咲かせた花の“回数”（浄化/片づけの手あと）。selftest の確認に使う。
+func blooms_placed() -> int:
+	return _bloom_count
+const _BLOOM_COLS := [
+	Color(0.98, 0.42, 0.55), Color(1.0, 0.86, 0.38),
+	Color(0.95, 0.97, 0.99), Color(0.78, 0.56, 0.95), Color(0.55, 0.86, 0.6),
+]
+
+func _build_bloom() -> void:
+	var head := CylinderMesh.new()
+	head.top_radius = 0.13
+	head.bottom_radius = 0.13
+	head.height = 0.04
+	head.radial_segments = 6
+	var mat := StandardMaterial3D.new()
+	mat.vertex_color_use_as_albedo = true
+	mat.roughness = 0.55
+	mat.emission_enabled = true
+	mat.emission = Color(1, 1, 1)
+	mat.emission_energy_multiplier = 0.35   # 咲いたばかり＝ほんのり光る
+	head.material = mat
+	_bloom_mm = MultiMesh.new()
+	_bloom_mm.transform_format = MultiMesh.TRANSFORM_3D
+	_bloom_mm.use_colors = true
+	_bloom_mm.mesh = head
+	_bloom_mm.instance_count = BLOOM_POOL
+	# 最初は全部“地面の下”に隠しておく（scaleゼロ）。咲いた時だけ地上へ出す。
+	for i in BLOOM_POOL:
+		_bloom_mm.set_instance_transform(i, Transform3D(Basis().scaled(Vector3.ZERO), Vector3(0, -100, 0)))
+		_bloom_mm.set_instance_color(i, Color.WHITE)
+	var mmi := MultiMeshInstance3D.new()
+	mmi.name = "Bloom"
+	mmi.multimesh = _bloom_mm
+	add_child(mmi)
+
+
+## 指定の場所に小さな花のかたまりを永続で咲かせる（浄化・片づけの“手あと”）。
+## 全クライアントが同じ位置で呼ぶ（bug の _remote_healed は call_local）＝見た目は揃う。
+func bloom_at(world_pos: Vector3) -> void:
+	if _bloom_mm == null:
+		return
+	_bloom_count += 1
+	for _j in 3:
+		var i := _bloom_next
+		_bloom_next = (_bloom_next + 1) % BLOOM_POOL
+		var ang := randf() * TAU
+		var rad := randf() * 0.55
+		var origin := Vector3(world_pos.x + cos(ang) * rad, 0.16, world_pos.z + sin(ang) * rad)
+		var sc := randf_range(0.8, 1.35)
+		var basis := Basis(Vector3.UP, randf() * TAU).scaled(Vector3.ONE * sc)
+		_bloom_mm.set_instance_transform(i, Transform3D(basis, origin))
+		_bloom_mm.set_instance_color(i, _BLOOM_COLS[randi() % _BLOOM_COLS.size()])
 
 
 ## 接地影：やわらかい放射グラデの円を足元に敷く。全アクターぶんを 1 MultiMesh＝1ドローコール。

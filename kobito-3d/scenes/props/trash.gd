@@ -167,6 +167,10 @@ func _remote_removed() -> void:
 	_removed = true
 	remove_from_group("trash")   # 目的判定(trash)からは外す。trash_all には残す
 	Sfx.play_at("heal", global_position + Vector3(0, 0.3, 0))            # 片づいた合図（気持ちいい音）
+	# 片づけた その場所にも花を咲かせる＝掃除の手あとが世界に残る（浄化と同じ演出）。
+	var garden := get_tree().get_first_node_in_group("garden")
+	if garden != null and garden.has_method("bloom_at"):
+		garden.bloom_at(global_position)
 	if _marker != null:
 		_marker.queue_free()
 		_marker = null

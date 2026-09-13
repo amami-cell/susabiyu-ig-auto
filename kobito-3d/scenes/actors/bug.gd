@@ -621,6 +621,11 @@ func _remote_healed() -> void:
 	Sfx.play_at("heal", global_position + Vector3(0, 0.6, 0))
 	Sfx.play("levelup", -14.0)   # 澄んだ余韻
 
+	# 浄化した その場所に、小さな花を永続で咲かせる＝「ここを治した」手あとが世界に残る。
+	var garden := get_tree().get_first_node_in_group("garden")
+	if garden != null and garden.has_method("bloom_at"):
+		garden.bloom_at(global_position)
+
 	# 近くで浄化に立ち会った“自分”のカメラに、ふわっと寄る小さなごほうびの間を返す。
 	for p in get_tree().get_nodes_in_group("player"):
 		if p.get("is_local") and p.has_method("reward_pulse") \
