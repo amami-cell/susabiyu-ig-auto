@@ -361,7 +361,37 @@ jobs:
           # 非対応PCなら起動に失敗するだけ（通常の.exeは影響を受けない）。
           printf '@echo off\r\nstart "" "%%~dp0kobito.exe" --rendering-method forward_plus --rendering-driver vulkan\r\n' \
             > "kobito-3d/build/windows/きれい版（新しめPC向け）.bat"
-          cp kobito-3d/build/windows/はじめに.txt kobito-3d/build/linux/
+          # Linux版は別名・Linux向けの内容にする。
+          # （Windowsの「はじめに.txt」をそのままコピーすると、GitHub Release では
+          #   同名アセットが2つ出来て衝突する＝release ジョブが 404 で失敗していた原因）
+          cat > "kobito-3d/build/linux/はじめに（Linux版）.txt" <<'TXT'
+          小人一家と汚れた世界 — PC版（Linux）
+
+          このフォルダを展開してから、ターミナルで
+            chmod +x kobito.x86_64
+            ./kobito.x86_64
+          で起動してください（これがゲーム本体です）。
+
+          ※ 起動しても画面が真っ黒なときは、素のOpenGLが弾かれている可能性があります。
+             ./kobito.x86_64 --rendering-driver opengl3
+             で起動を試してください。
+
+          ★ きれいな画質で遊びたいとき（新しめのPC向け）
+             ./kobito.x86_64 --rendering-method forward_plus --rendering-driver vulkan
+             Vulkan(Forward+)で起動し、接触影(AO)などが効いて一段リアルになります。
+             動かない/真っ黒なら、そのPCは非対応なので通常起動で遊んでください。
+
+          遊びかた
+            起動したら「ひとりで始める」
+            移動      WASD / 矢印キー（マウスで画面左半分をドラッグでも可）
+            きれいに  J（虫を癒やす。倒さず“なかま”にする）
+            つかむ    E（光るゴミを片づける）
+            ジャンプ  スペース（虫を癒やして“飛ぶ力”を5つ集めると、長押しで飛べます）
+            戻る      Esc
+
+          2人で遊ぶとき
+            片方が「ホストする」→ 画面に出るIPを、もう片方が入れて「参加する」
+          TXT
 
       - uses: actions/upload-artifact@v4
         with:
