@@ -23,23 +23,23 @@ import {
 } from "./yoshokuDesign";
 import { StoryOpenXF, StoryEndV } from "./YoshokuOpStyles";
 
-const BODY = 400;                                   // 本編 400f（4品×100f＝約13.3秒）
+export const BODY = 400;                                   // 本編 400f（4品×100f＝約13.3秒）
 export const YNUOVI_DUR = STORY_OPEN + BODY + STORY_END;   // 90+400+150 = 640 = 約21.3秒
 
-type Item = { src?: string; caption?: string; sub?: string; disp?: string; desc?: string };
+export type Item = { src?: string; caption?: string; sub?: string; disp?: string; desc?: string };
 
-const EMPTY: Item = { src: "", caption: "", sub: "", disp: "", desc: "" };
-function dishes(n: number): Item[] {
+export const EMPTY: Item = { src: "", caption: "", sub: "", disp: "", desc: "" };
+export function dishes(n: number): Item[] {
   const p: Item[] = (typoPhotos as Item[]).length ? (typoPhotos as Item[]) : [EMPTY];
   return Array.from({ length: n }, (_, i) => p[i] || p[p.length - 1]);
 }
-function nameOf(d: Item): string {
+export function nameOf(d: Item): string {
   const nm = (d.disp && d.disp.length) ? d.disp : (d.caption || "");
   return nm.replace(/[｜\n]/g, "");   // 料理名は必ず1行
 }
 
 // 料理写真。ケンバーンズは弱く（酒場の落ち着き）。
-const Photo: React.FC<{
+export const Photo: React.FC<{
   src?: string; lf?: number; seg?: number; from?: number; to?: number;
   bri?: number; blur?: number; style?: React.CSSProperties;
 }> = ({ src, lf = 0, seg = 100, from = 1.02, to = 1.08, bri = 1.06, blur = 0, style }) => {
@@ -56,7 +56,7 @@ const Photo: React.FC<{
 };
 
 // 料理名＋伊語サブ＋説明文の“下組み”。既存テンプレと同じ字の大きさに揃える。
-const Caption: React.FC<{
+export const Caption: React.FC<{
   d: Item; f: number; start?: number; ink: string; sub: string; accent: string;
   w?: number; align?: "left" | "center"; shadow?: boolean; maxName?: number;
 }> = ({ d, f, start = 0, ink, sub, accent, w = 1080 - SAFE.side * 2, align = "left", shadow = true, maxName = 84 }) => {
@@ -76,7 +76,7 @@ const Caption: React.FC<{
 };
 
 // 3段（OP→本編→CLOSE）の共通の殻。中身だけ差し替える。
-const Shell: React.FC<{
+export const Shell: React.FC<{
   v: 4 | 5 | 6 | 7 | 8 | 9; base: string; storeName: string; handle: string; theme: string;
   children: React.ReactNode;
 }> = ({ v, base, storeName, handle, theme, children }) => (

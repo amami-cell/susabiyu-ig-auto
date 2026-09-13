@@ -13,6 +13,7 @@ import { YoshokuType, YTYPE_DUR } from "./YoshokuType";
 import { YoshokuOpen, YOPEN_DUR } from "./YoshokuOpen";
 import { YoshokuMagazine, YMAGZ_DUR } from "./YoshokuMagazine";
 import { NUOVI_COMPS, YNUOVI_DUR } from "./YoshokuNuovi";
+import { NUOVI2_COMPS } from "./YoshokuNuovi2";
 import { FEED_COMPS, FEED_W, FEED_H, FEED_DUR } from "./YoshokuFeed";
 import { MAGP_COMPS, MAGP_W, MAGP_H, MAGP_DUR } from "./YoshokuMagPages";
 import { SushiStory } from "./SushiStory";
@@ -96,6 +97,11 @@ export const RemotionRoot: React.FC = () => {
       <Composition id="YoshokuMagazine" component={YoshokuMagazine} fps={FPS} width={1080} height={1920} durationInFrames={YMAGZ_DUR} defaultProps={{ storeName: STORE, handle: "@susabiyu_sanjyo", theme: "neutral" }} />
       {/* No.12〜No.23：イタリアン酒場の追加案。小道具と動きの軸を既存11種と別にしてある。 */}
       {NUOVI_COMPS.map((c) => (
+        <Composition key={c.id} id={c.id} component={c.comp} fps={FPS} width={1080} height={1920}
+          durationInFrames={YNUOVI_DUR} defaultProps={{ storeName: STORE, handle: "@susabiyu_sanjyo", theme: "neutral" }} />
+      ))}
+      {/* No.24〜No.31：さらに追加。長さ・共通ルールは No.12〜23 と同じ。 */}
+      {NUOVI2_COMPS.map((c) => (
         <Composition key={c.id} id={c.id} component={c.comp} fps={FPS} width={1080} height={1920}
           durationInFrames={YNUOVI_DUR} defaultProps={{ storeName: STORE, handle: "@susabiyu_sanjyo", theme: "neutral" }} />
       ))}
