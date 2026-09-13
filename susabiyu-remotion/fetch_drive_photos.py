@@ -1,4 +1,5 @@
 import os, io, glob, json, sys, random
+import caption_clean  # ファイル名→料理名の共通クリーナー
 from collections import defaultdict
 
 FOOD_FOLDER = os.environ.get("GENRE_FOOD_ID") or "14oKNgdXee2NrI7Dkmbrlbid4f0_VZ5Cv"
@@ -218,7 +219,7 @@ for i, f in enumerate(picked, 1):
         ext = ".webp"
     dest = os.path.join(OUT, "%02d%s" % (i, ext))
     download(f["id"], dest)
-    cap = os.path.splitext(f["name"])[0]
+    cap = caption_clean.clean_caption(f["name"])
     entries.append(("photos/%02d%s" % (i, ext), cap))
     print("DL:", dest, "| [%s]" % f.get("cat", "?"), "caption:", cap)
 

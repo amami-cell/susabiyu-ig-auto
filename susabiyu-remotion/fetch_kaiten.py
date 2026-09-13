@@ -1,4 +1,5 @@
 import os, io, glob, json, sys, random
+import caption_clean  # ファイル名→料理名の共通クリーナー
 
 FOOD_FOLDER = os.environ.get("GENRE_FOOD_ID") or "14oKNgdXee2NrI7Dkmbrlbid4f0_VZ5Cv"
 N_PHOTOS = 8
@@ -136,7 +137,7 @@ for idx, f in enumerate(picked):
     while not done:
         _, done = dl.next_chunk()
     buf.close()
-    caption = os.path.splitext(f["name"])[0]
+    caption = caption_clean.clean_caption(f["name"])
     items.append({"src": "kaiten/" + local, "caption": caption})
     print("PHOTO %d:" % idx, f["name"], "(短辺", short_side(f), "px)")
 
