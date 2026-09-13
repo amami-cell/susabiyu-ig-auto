@@ -40,7 +40,10 @@ const SettimanaBody: React.FC<Required<P>> = ({ storeName, handle, theme }) => {
   return (
     <AbsoluteFill style={{ backgroundColor: T.base }}>
       <AbsoluteFill><Photo src={items[i].src} lf={local} seg={seg} from={1.08} to={1.16} bri={0.9} /></AbsoluteFill>
-      <AbsoluteFill style={{ background: "linear-gradient(180deg, rgba(10,8,5,0.86) 0%, rgba(10,8,5,0.3) 34%, rgba(10,8,5,0.24) 60%, rgba(10,8,5,0.92) 100%)" }} />
+      {/* 明るい料理（オイルサーディンのような黄色い皿）だと白文字が飛ぶので、
+          文字の載る帯＝上（ロゴ〜曜日の枡）と下（料理名）だけを濃くする。
+          真ん中は暗くしない＝料理は明るいまま見せる。 */}
+      <AbsoluteFill style={{ background: "linear-gradient(180deg, rgba(10,8,5,0.9) 0%, rgba(10,8,5,0.72) 20%, rgba(10,8,5,0.6) 34%, rgba(10,8,5,0.12) 48%, rgba(10,8,5,0.1) 60%, rgba(10,8,5,0.6) 76%, rgba(10,8,5,0.96) 100%)" }} />
       <Masthead storeName={storeName} f={f} kicker="LA SETTIMANA" accent={T.accent} logoH={78} />
       {/* 曜日の枡（灯った枡だけテラコッタで塗る） */}
       <div style={{ position: "absolute", left: (1080 - gw) / 2, top: 430, display: "flex", gap: GAP }}>
@@ -59,7 +62,7 @@ const SettimanaBody: React.FC<Required<P>> = ({ storeName, handle, theme }) => {
           );
         })}
       </div>
-      <div style={{ position: "absolute", left: 0, right: 0, top: 576, textAlign: "center", fontFamily: mincho, color: T.sub, fontSize: 28, letterSpacing: 8, opacity: fade(f, 20, 20) }}>今週の一皿</div>
+      <div style={{ position: "absolute", left: 0, right: 0, top: 576, textAlign: "center", fontFamily: mincho, color: T.ink, fontSize: 28, letterSpacing: 8, textShadow: "0 3px 18px rgba(0,0,0,0.8)", opacity: fade(f, 20, 20) }}>今週の一皿</div>
       <div style={{ position: "absolute", left: SAFE.side, right: SAFE.side, bottom: 300 }}>
         <Caption d={items[i]} f={local} start={10} ink={T.ink} sub={T.sub} accent={T.accent} />
       </div>
@@ -136,7 +139,8 @@ const FuocoBody: React.FC<Required<P>> = ({ storeName, handle, theme }) => {
   return (
     <AbsoluteFill style={{ backgroundColor: T.base }}>
       <AbsoluteFill><Photo src={items[i].src} lf={local} seg={seg} from={1.1} to={1.04} blur={bl} /></AbsoluteFill>
-      <AbsoluteFill style={{ background: "linear-gradient(180deg, rgba(10,8,5,0.66) 0%, rgba(10,8,5,0.04) 30%, rgba(10,8,5,0.12) 62%, rgba(10,8,5,0.9) 100%)" }} />
+      {/* 上下の帯だけ濃くする（明るい皿でロゴ下の伊語・料理名が飛ぶのを防ぐ）。真ん中は素のまま */}
+      <AbsoluteFill style={{ background: "linear-gradient(180deg, rgba(10,8,5,0.86) 0%, rgba(10,8,5,0.62) 16%, rgba(10,8,5,0.06) 32%, rgba(10,8,5,0.08) 58%, rgba(10,8,5,0.6) 76%, rgba(10,8,5,0.96) 100%)" }} />
       {/* ファインダーの枠（合焦すると消える） */}
       <div style={{ position: "absolute", left: 180, right: 180, top: 560, height: 700, opacity: ringO, transform: "scale(" + ring + ")" }}>
         {[[0, 0, 1, 1], [1, 0, -1, 1], [0, 1, 1, -1], [1, 1, -1, -1]].map((c, k) => (
@@ -280,7 +284,8 @@ const BattitoBody: React.FC<Required<P>> = ({ storeName, handle, theme }) => {
       </AbsoluteFill>
       {/* 拍の頭だけ一瞬明るく＝刻みが目で分かる */}
       <AbsoluteFill style={{ background: "#FFF", opacity: interpolate(lb, [0, 4], [0.16, 0], clamp) }} />
-      <AbsoluteFill style={{ background: "linear-gradient(180deg, rgba(8,7,5,0.6) 0%, rgba(8,7,5,0) 28%, rgba(8,7,5,0.1) 62%, rgba(8,7,5,0.9) 100%)" }} />
+      {/* 上下の帯だけ濃くする（明るい皿でロゴ下の伊語・料理名が飛ぶのを防ぐ）。真ん中は素のまま */}
+      <AbsoluteFill style={{ background: "linear-gradient(180deg, rgba(8,7,5,0.86) 0%, rgba(8,7,5,0.62) 16%, rgba(8,7,5,0.04) 32%, rgba(8,7,5,0.08) 58%, rgba(8,7,5,0.6) 76%, rgba(8,7,5,0.96) 100%)" }} />
       <Masthead storeName={storeName} f={f} kicker="A TEMPO" accent={T.accent} logoH={78} />
       {/* 料理名は拍ごとに出し直す（切り替わりが気持ちいい） */}
       <div style={{ position: "absolute", left: SAFE.side, right: SAFE.side, bottom: 320 }}>
