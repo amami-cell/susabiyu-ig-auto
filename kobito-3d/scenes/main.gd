@@ -42,6 +42,9 @@ func _ready() -> void:
 	if args.has("--verify-shots"):
 		_verify_shots()
 		return
+	if args.has("--perf"):
+		_run_perf()
+		return
 	if args.has("--selftest"):
 		_run_selftest()
 	elif args.has("--selftest-host"):
@@ -468,6 +471,25 @@ func _wait_until(cond: Callable, timeout: float) -> bool:
 		await get_tree().create_timer(0.25).timeout
 		waited += 0.25
 	return false
+
+
+## 描画コストの計測（ドローコール/頂点）。実レンダラ(opengl3+xvfb)で乱戦を作って測る。
+## CIで「今の数値」を記録＝Web軽量化の効果と回帰を数値で追える。
+func _run_perf() -> void:
+	await get_tree().create_timer(1.0).timeout
+	Net.start_solo()
+	await get_tree().create_timer(3.0).timeout
+	if _garden != null and _garden.has_method("_spawn_bug"):
+		for _i in 8:
+			_garden._spawn_bug()
+		await get_tree().create_timer(1.5).timeout
+	await RenderingServer.frame_post_draw
+	await RenderingServer.frame_post_draw
+	var dc := RenderingServer.get_rendering_info(RenderingServer.RENDERING_INFO_TOTAL_DRAW_CALLS_IN_FRAME)
+	var prim := RenderingServer.get_rendering_info(RenderingServer.RENDERING_INFO_TOTAL_PRIMITIVES_IN_FRAME)
+	var bugs := get_tree().get_nodes_in_group("bug").size()
+	print("[perf] draw_calls=%d primitives=%d bugs=%d" % [dc, prim, bugs])
+	get_tree().quit(0)
 
 
 func _run_shot() -> void:

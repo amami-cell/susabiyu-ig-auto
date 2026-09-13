@@ -13,6 +13,17 @@ extends CharacterBody3D
 
 const SYNC_HZ := 10.0
 const GRAVITY := 14.0
+
+# きらめき粒の球メッシュは全個体で同一形状＝1本のリソースを共有（生成のたびに作らない）。
+static var _spark_mesh: SphereMesh
+static func _shared_spark_mesh() -> SphereMesh:
+	if _spark_mesh == null:
+		_spark_mesh = SphereMesh.new()
+		_spark_mesh.radius = 0.06
+		_spark_mesh.height = 0.12
+		_spark_mesh.radial_segments = 6
+		_spark_mesh.rings = 3
+	return _spark_mesh
 const AGGRO_RANGE := 16.0   # この距離まで近づかれて初めて襲う（開始直後の平和を保つ）
 const STOP_DIST := 1.4      # プレイヤーに乗り上げないよう、少し離れて噛みつく
 
@@ -617,14 +628,12 @@ func _spawn_sparkles(n: int) -> void:
 	if world == null:
 		return
 	var origin := global_position + Vector3(0.0, 0.5, 0.0)
+	# web は描画予算を守るため粒を半分に間引く（見た目の印象はほぼ同じ）。
+	if OS.has_feature("web"):
+		n = int(ceil(n * 0.5))
 	for i in n:
 		var s := MeshInstance3D.new()
-		var m := SphereMesh.new()
-		m.radius = 0.06
-		m.height = 0.12
-		m.radial_segments = 6
-		m.rings = 3
-		s.mesh = m
+		s.mesh = _shared_spark_mesh()
 		var mat := StandardMaterial3D.new()
 		mat.albedo_color = Color(1.0, 1.0, 0.85)
 		mat.emission_enabled = true

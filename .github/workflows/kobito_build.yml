@@ -141,6 +141,16 @@ jobs:
           ~/godot-bin/godot --headless --path kobito-3d -- --verify-shots | tee verify.log
           grep -q "\[verify\] OK" verify.log
 
+      # 描画予算の“見張り”：敵8体でのドローコール数をログに出す（合否は問わない＝非ゲート）。
+      # 数が跳ね上がったらこのログで気づける。web用の間引き(LOD)は OS.has_feature("web") 側で効く。
+      - name: 描画予算の目安（ドローコール数を記録・非ゲート）
+        run: |
+          export LIBGL_ALWAYS_SOFTWARE=1 GALLIUM_DRIVER=llvmpipe
+          xvfb-run -a -s "-screen 0 640x360x24" \
+            ~/godot-bin/godot --path kobito-3d --rendering-driver opengl3 --resolution 640x360 -- --perf \
+            > perf.log 2>&1 || true
+          echo "---- perf.log ----"; grep "\[perf\]" perf.log || tail -n 20 perf.log || true
+
       - uses: actions/upload-artifact@v4
         if: always()
         with:

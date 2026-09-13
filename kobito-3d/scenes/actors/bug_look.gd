@@ -271,9 +271,14 @@ static func _eye_mat() -> StandardMaterial3D:
 ## root（＝Bodyノード）のスケール/演出をそのまま受け継ぐ設計＝つぶれ芝居も効く。素材ゼロ・低ポリ。
 const IB_KINDS := ["ant", "ladybug", "hopper", "beetle", "dragon", "butterfly", "bee", "worm"]
 
+# Web(gl_compatibility)は1パーツ＝1ドローコール。描画予算を守るため web だけ
+# 目のキャッチライト/触角の玉/脚の本数を間引く（シルエットは維持）。
+static var _ib_lite := false
+
 static func decorate_insect(root: Node3D, color: Color, kind: String) -> void:
 	if root.has_node("InsectRig"):
 		return
+	_ib_lite = OS.has_feature("web")
 	var rig := Node3D.new()
 	rig.name = "InsectRig"
 	root.add_child(rig)
@@ -370,7 +375,9 @@ static func _ib_box(parent: Node3D, c: Color, size: Vector3, pos: Vector3, roll 
 
 
 static func _ib_legs(rig: Node3D, col: Color) -> void:
-	for zi in [-0.1, 0.06, 0.22]:
+	# lite（web）は3対→2対に間引く＝脚のシルエットは残しつつドローコール節約
+	var zs := ([-0.08, 0.18] if _ib_lite else [-0.1, 0.06, 0.22])
+	for zi in zs:
 		for sx in [-1.0, 1.0]:
 			_ib_box(rig, col, Vector3(0.035, 0.22, 0.035), Vector3(0.14 * sx, 0.08, zi), deg_to_rad(28.0) * sx)
 
@@ -404,14 +411,16 @@ static func _ib_face(head: Node3D, r: float, eye_r: float, dark: Color, skin: Co
 	for sx in [-1.0, 1.0]:
 		_ib_ball(head, eye_r, white, Vector3(exx * sx, eyy, ezz), Vector3(1.0, 1.15, 0.8))
 		_ib_ball(head, eye_r * 0.6, blk, Vector3(exx * sx, eyy, ezz - eye_r * 0.55))
-		var cat := _ib_ball(head, eye_r * 0.28, Color(1, 1, 1), Vector3(exx * sx - eye_r * 0.22, eyy + eye_r * 0.3, ezz - eye_r * 0.9))
-		var cm := cat.material_override as StandardMaterial3D
-		if cm != null:
-			cm.emission_enabled = true
-			cm.emission = Color(1, 1, 1)
-			cm.emission_energy_multiplier = 0.9
-			cm.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+		if not _ib_lite:   # キャッチライト（各目1玉）は web では省く
+			var cat := _ib_ball(head, eye_r * 0.28, Color(1, 1, 1), Vector3(exx * sx - eye_r * 0.22, eyy + eye_r * 0.3, ezz - eye_r * 0.9))
+			var cm := cat.material_override as StandardMaterial3D
+			if cm != null:
+				cm.emission_enabled = true
+				cm.emission = Color(1, 1, 1)
+				cm.emission_energy_multiplier = 0.9
+				cm.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	_ib_ball(head, r * 0.1, Color(0.3, 0.14, 0.16), Vector3(0.0, -r * 0.4, ezz * 0.95), Vector3(1.7, 0.7, 0.5))
 	for sx in [-1.0, 1.0]:
 		_ib_box(head, dark, Vector3(r * 0.05, r * 0.55, r * 0.05), Vector3(r * 0.42 * sx, r * 0.72, ezz * 0.2), deg_to_rad(18.0) * sx)
-		_ib_ball(head, r * 0.13, skin.lightened(0.12), Vector3(r * 0.56 * sx, r * 1.02, ezz * 0.2))
+		if not _ib_lite:   # 触角の先の玉（各1）は web では省く＝棒だけ残す
+			_ib_ball(head, r * 0.13, skin.lightened(0.12), Vector3(r * 0.56 * sx, r * 1.02, ezz * 0.2))
