@@ -184,8 +184,10 @@ export const Masthead: React.FC<{ storeName: string; f: number; kicker?: string;
 }) => (
   <div style={{ position: "absolute", top: SAFE.top - 74, left: SAFE.side, ...rise(f, 6, { dist: 12 }) }}>
     <StoreLogo storeName={storeName} height={logoH} tint={tint} />
+    {/* テラコッタの小文字は明るい料理（オイルサーディン等）に重なると消える。
+        落ち影を敷いておく＝暗い画では見えないが、明るい画では字の輪郭が残る。 */}
     {kicker ? (
-      <div style={{ marginTop: 12, fontFamily: serif, color: accent, fontSize: 23, letterSpacing: 5, fontWeight: 600, textTransform: "uppercase", opacity: 0.88 }}>{kicker}</div>
+      <div style={{ marginTop: 12, fontFamily: serif, color: accent, fontSize: 23, letterSpacing: 5, fontWeight: 600, textTransform: "uppercase", opacity: 0.88, textShadow: "0 2px 10px rgba(0,0,0,0.7)" }}>{kicker}</div>
     ) : null}
   </div>
 );
@@ -195,7 +197,7 @@ export const HandleMark: React.FC<{ handle: string; accent: string; f: number; s
   handle, accent, f, start, align = "left",
 }) => (
   <div style={{ position: "absolute", left: SAFE.side, right: SAFE.side, bottom: SAFE.bottom - 150, textAlign: align, ...rise(f, start, { dist: 10 }) }}>
-    <span style={{ fontFamily: serif, color: accent, fontSize: 26, letterSpacing: 4, opacity: 0.85 }}>{handle}</span>
+    <span style={{ fontFamily: serif, color: accent, fontSize: 26, letterSpacing: 4, opacity: 0.85, textShadow: "0 2px 10px rgba(0,0,0,0.7)" }}>{handle}</span>
   </div>
 );
 
