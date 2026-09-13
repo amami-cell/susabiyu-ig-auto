@@ -132,11 +132,11 @@ const EtichettaBody: React.FC<Required<P>> = ({ storeName, handle, theme }) => {
         <div style={{ position: "absolute", top: 300, left: 0, right: 0, textAlign: "center", fontFamily: serif, color: T.slab, fontSize: 30, letterSpacing: 12, fontWeight: 600 }}>OSTERIA · DAL 2011</div>
         <div style={{ position: "absolute", top: 364, left: 190, right: 190, height: 1, background: "rgba(36,26,18,0.3)" }} />
         {/* 中央：料理の窓（ラベルに刷られた銅版画の見立て） */}
-        <div style={{ position: "absolute", left: 112, right: 112, top: 420, height: 760, overflow: "hidden", border: "1px solid rgba(36,26,18,0.3)" }}>
+        <div style={{ position: "absolute", left: 112, right: 112, top: 420, height: 900, overflow: "hidden", border: "1px solid rgba(36,26,18,0.3)" }}>
           <Photo src={items[i].src} lf={local} seg={seg} from={1.04} to={1.1} />
         </div>
         {/* 下部：料理名と年号 */}
-        <div style={{ position: "absolute", left: 112, right: 112, top: 1248, textAlign: "center" }}>
+        <div style={{ position: "absolute", left: 112, right: 112, top: 1390, textAlign: "center" }}>
           <Caption d={items[i]} f={local} start={14} ink="#241A12" sub="rgba(36,26,18,0.78)" accent={T.slab}
             w={1080 - 224 - 60} align="center" shadow={false} maxName={84} />
         </div>
