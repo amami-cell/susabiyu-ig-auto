@@ -200,7 +200,7 @@ jobs:
       # 求人PWA(deploy_pwa_recruit)と同じ仕組み。app/recruit/tana には一切触れない。
       # ※シークレット未設定なら黙ってスキップ（CIは緑のまま／成果物 kobito-web は取得可）。
       # ※iPhone(Safari)版は現行の見た目（Vulkanのリアル強化は届かない）。
-      - name: テストプレイ用の公開URLへ載せる（kobito2/ サブフォルダ＝キャッシュ回避の新URL）
+      - name: テストプレイ用の公開URLへ載せる（版フォルダ＋自動転送＝キャッシュで古い版が残らない）
         env:
           TOKEN: ${{ secrets.GH_MEDIA_TOKEN }}
           MEDIA_REPO: ${{ secrets.GH_MEDIA_REPO }}
@@ -209,24 +209,51 @@ jobs:
             echo "INFO: GH_MEDIA_TOKEN / GH_MEDIA_REPO 未設定のため公開はスキップ（成果物 kobito-web は取得可）"
             exit 0
           fi
-          # 旧URL(/kobito/)は古いサービスワーカーがキャッシュを握って更新が反映されないため、
-          # まっさらな新URL(/kobito2/)へ配信する。PWAも無効化済みなので今後は普通に更新される。
+          # ★キャッシュ対策★ Web版の本体(.pck/.wasm)はブラウザに強くキャッシュされ、
+          #   同じURLに上書きしても“古い版”が読まれ続ける（例：マントのまま等）。
+          #   そこで毎回 版フォルダ v/<sha>/ へ出し、入口 /kobito2/ は最新へ自動転送する。
+          #   ＝本体URLが毎回変わる→古い.pckを掴めない→更新が確実に反映される。
+          VER="${GITHUB_SHA::7}"
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
           git clone --depth 1 "https://x-access-token:${TOKEN}@github.com/${MEDIA_REPO}.git" _site
-          rm -rf _site/kobito2
-          mkdir -p _site/kobito2
-          cp -r kobito-3d/build/web/. _site/kobito2/
+          mkdir -p "_site/kobito2/v/$VER"
+          rm -rf "_site/kobito2/v/$VER"/*
+          cp -r kobito-3d/build/web/. "_site/kobito2/v/$VER/"
+          # 旧方式で kobito2/ 直下に置いていたゲーム本体(index.*)は不要なので掃除（版フォルダへ移行）。
+          rm -f _site/kobito2/index.* 2>/dev/null || true
+          # 入口＝最新の版フォルダへ自動転送する小さなHTML（それ自体はキャッシュさせない）
+          cat > _site/kobito2/index.html <<HTML
+          <!doctype html><html lang="ja"><head><meta charset="utf-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+          <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+          <meta http-equiv="Pragma" content="no-cache"><meta http-equiv="Expires" content="0">
+          <title>みどりのはじまり</title>
+          <meta http-equiv="refresh" content="0; url=v/$VER/index.html">
+          <script>location.replace("v/$VER/index.html");</script>
+          <style>body{font-family:sans-serif;background:#eef6ea;color:#2c4a2e;height:100vh;margin:0;display:flex;align-items:center;justify-content:center}</style>
+          </head><body><p>よみこみ中… <a href="v/$VER/index.html">ひらく</a></p></body></html>
+          HTML
+          # 版フォルダは 新しい3つだけ残す（無料枠の容量を圧迫しない）
+          cd _site/kobito2
+          touch versions.txt
+          grep -qxF "$VER" versions.txt || echo "$VER" >> versions.txt
+          KEEP="$(awk '!seen[$0]++' versions.txt | tail -n 3)"
+          for d in v/*/; do
+            [ -d "$d" ] || continue
+            nm="$(basename "$d")"
+            printf '%s\n' "$KEEP" | grep -qxF "$nm" || rm -rf "$d"
+          done
+          printf '%s\n' $KEEP > versions.txt
+          cd - >/dev/null
           touch _site/.nojekyll
           cd _site
-          git add kobito2 .nojekyll
+          git add -A kobito2 .nojekyll
           if git diff --cached --quiet; then
             echo "変更なし"; exit 0
           fi
-          git commit -m "deploy kobito web (test play, /kobito2/ no-PWA)"
-          # 別の配信(求人PWA等)や連続ビルドが同じ main へ同時に push すると、
-          # clone→push の間に race で弾かれることがある（fetch first）。
-          # kobito2/ 以外は触っていないので、remote を取り込み(rebase)ながら最大5回 再試行する。
+          git commit -m "deploy kobito web v/$VER (auto-redirect, no stale cache)"
+          # 同時pushのrace対策：remoteを取り込み(rebase)ながら最大5回 再試行（触るのは kobito2/ のみ）。
           pushed=0
           for i in 1 2 3 4 5; do
             if git push; then pushed=1; break; fi
@@ -237,7 +264,7 @@ jobs:
           if [ "$pushed" != "1" ]; then
             echo "ERROR: 公開 push に繰り返し失敗しました"; exit 1
           fi
-          echo "公開URL: https://${MEDIA_REPO%%/*}.github.io/${MEDIA_REPO#*/}/kobito2/"
+          echo "公開URL: https://${MEDIA_REPO%%/*}.github.io/${MEDIA_REPO#*/}/kobito2/  （最新版 v/$VER へ自動転送）"
 
   # ------------------------------------------------------------------
   # 3) PC版（Windows / Linux）… ダウンロードして展開 → ダブルクリックで起動。
