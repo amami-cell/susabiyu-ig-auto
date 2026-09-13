@@ -151,13 +151,21 @@
     m=raw.match(/(?:受信日|送信日)\s*[:：]?\s*([^\n]*)/); if(m) out.date=m[1].trim();
     if(/件名|本文|差出人/.test(out.date) || out.date.length>40) out.date='';
     // 「本文」ラベルがあればそこ以降を本文、件名はその手前。無ければ件名以降を本文扱い（件名に本文が混ざる問題の解消）。
+    var hasHon=false;
     m=raw.match(/本文\s*[:：]?\s*([\s\S]*)$/);
-    if(m){ rest=m[1];
+    if(m){ rest=m[1]; hasHon=true;
       var sm=raw.match(/件名\s*[:：]?\s*([\s\S]*?)\s*(?=本文)/); if(sm) out.subj=sm[1].replace(/\s+/g,' ').trim();
     } else {
       var km=raw.match(/件名\s*[:：]?\s*([\s\S]*)$/); rest = km ? km[1] : raw;
     }
     out.body=beautify(rest);
+    // 本文ラベルが無い場合、先頭の件名（Re:… や （会社名 担当）で終わる件名）を本文から切り出す
+    if(!hasHon && !out.subj && out.body){
+      var fm=out.body.match(/^((?:Re:|RE:|re:|返信)[\s\S]*?）)\s*([\s\S]*)$/);
+      if(fm){ out.subj=fm[1].replace(/\s+/g,' ').trim(); out.body=fm[2].trim(); }
+      else { var fl=out.body.split('\n');
+        if(fl.length>1 && /^(?:Re:|RE:|re:)/.test(fl[0]) && fl[0].length<=40){ out.subj=fl[0].trim(); out.body=fl.slice(1).join('\n').trim(); } }
+    }
     out.ok=!!(out.from||out.subj||out.body);
     return out;
   }
