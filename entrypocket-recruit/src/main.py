@@ -25,7 +25,7 @@ from .history import (
     detect_diff_changes,
     parse_change_history,
 )
-from .parse import parse_csv_bytes
+from .parse import parse_csv_bytes, missing_required_columns, dedupe_by_code, is_suspicious_drop
 
 JST = timezone(timedelta(hours=9))
 
@@ -70,9 +70,19 @@ def run(settings: Settings, csv_override: bytes | None = None) -> int:
 
         # --- パース ---
         column_map = settings.columns or None
+        # A-8: 必須列(応募者コード/ステータスコード/店舗ID)を取りこぼしたまま「成功」になり、
+        #      ファネル・店舗別集計が静かに全滅するのを防ぐ。列名変更を取得直後に検知して fail。
+        missing = missing_required_columns(csv_bytes, column_map=column_map)
+        if missing:
+            raise RuntimeError("CSVに必須列が見つかりません（列名変更の可能性）: " + ", ".join(missing))
         applicants = parse_csv_bytes(csv_bytes, column_map=column_map)
         if not applicants:
             raise RuntimeError("CSVから応募者を1件も読み取れませんでした（列名マッピングを確認）。")
+        # A-13: CSV内の応募者コード重複を除去（下流の全書換・差分検知が汚れるのを防ぐ）
+        applicants, dup_removed = dedupe_by_code(applicants)
+        if dup_removed:
+            note = (note + " / " if note else "") + f"重複コード除去{dup_removed}件"
+            print(f"[WARN] 応募者コード重複を {dup_removed} 件除去しました")
 
         # --- Sheets 接続 ---
         from .sheets import SheetsClient
@@ -82,6 +92,16 @@ def run(settings: Settings, csv_override: bytes | None = None) -> int:
 
         # 差分検知の保険用に upsert 前の状態を読む
         prev_status = sheets.read_prev_statuses()
+
+        # A-9: 取得件数が前回より急減したら「部分取得の疑い」。前回いて今回いない応募者を
+        #      無条件に消失=TRUE化する暴走を防ぐため、いかなる書き込みもせず fail にする。
+        #      正当な減少（一括削除等）のときは EP_SKIP_COUNT_GUARD=1 で明示的に通す。
+        if os.environ.get("EP_SKIP_COUNT_GUARD") != "1" and is_suspicious_drop(len(prev_status), len(applicants)):
+            raise RuntimeError(
+                "取得件数が急減（前回%d件→今回%d件）。部分取得の疑いがあるため書き込みを中止しました。"
+                "正当な減少なら EP_SKIP_COUNT_GUARD=1 を付けて再実行してください。"
+                % (len(prev_status), len(applicants))
+            )
 
         # --- master 同期（未知コード・新店舗の追記） ---
         before_master = set(_status_codes(sheets))
