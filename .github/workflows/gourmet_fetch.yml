@@ -35,11 +35,6 @@ jobs:
           GOURMET_PASS: ${{ secrets.GOURMET_PASS }}
           RECRUIT_EXEC_URL: ${{ secrets.RECRUIT_EXEC_URL }}
         run: python entrypocket-recruit/scripts/gourmet_fetch.py
-      - name: 失敗時の調査用スクショ保存
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: gourmet-fetch-${{ github.run_id }}
-          path: entrypocket-recruit/artifacts/
-          if-no-files-found: ignore
-          retention-days: 7
+      # 保存されるスクショ/HTMLはログイン後の応募者ページ＝個人情報を含む。当リポジトリは公開で
+      # artifactは誰でもDL可能なため、ここでは公開アップロードしない（調査はローカル実行で行う）。
+      # 参照: 監査 S-2（応募者PIIの公開artifact流出）。

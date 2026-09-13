@@ -71,11 +71,16 @@ jobs:
           GITHUB_RUN_ID: ${{ github.run_id }}
         run: python -m src.main
 
-      - name: スクリーンショット等を保存（失敗時の調査用）
+      # 当リポジトリは公開のため artifact は誰でもDL可能。応募者の個人情報が写る
+      # ログイン後の画面(02_〜06_)・生CSV(latest.csv)はアップロードしない。
+      # 失敗の大半はログイン段階なので、PIIを含まない 01_login* とHTMLのみ保存する。
+      - name: ログイン段階のスクショのみ保存（PII除外・失敗時の調査用）
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: artifacts-${{ github.run_id }}
-          path: entrypocket-recruit/artifacts/
+          path: |
+            entrypocket-recruit/artifacts/01_login*.png
+            entrypocket-recruit/artifacts/01_login.html
           if-no-files-found: ignore
-          retention-days: 14
+          retention-days: 7

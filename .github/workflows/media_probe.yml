@@ -51,11 +51,7 @@ jobs:
           RECRUIT_EXEC_URL: ${{ secrets.RECRUIT_EXEC_URL }}
         run: python entrypocket-recruit/scripts/media_login_probe.py
 
-      - name: 調査結果（スクショ/HTML）を保存
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: media-probe-${{ github.run_id }}
-          path: entrypocket-recruit/artifacts/
-          if-no-files-found: ignore
-          retention-days: 7
+      # このプローブが保存するスクショ/HTMLはログイン後ページ＝応募者の個人情報を含みうる。
+      # 当リポジトリは公開で artifact は誰でもDL可能なため、公開アップロードはしない。
+      # 調査が必要なときはローカルで media_login_probe.py を実行して確認する。
+      # 参照: 監査 S-2（応募者PIIの公開artifact流出）。
