@@ -14,7 +14,7 @@
 //
 // アニメは useCurrentFrame/interpolate のみ（CSSトランジション禁止）。各Sequence内で相対フレーム。
 import { AbsoluteFill, Audio, Img, Sequence, staticFile, useCurrentFrame, interpolate } from "remotion";
-import { typoPhotos, typoMusic, typoMusicStart } from "./typoData";
+import { typoPhotos, typoMusic, typoMusicStart, typoLogoColor } from "./typoData";
 import { ytheme } from "./yoshokuTheme";
 import {
   mincho, serif, clamp, EASE, EASE_INOUT, fade, rise, Grain, Vignette,
@@ -54,6 +54,15 @@ export const Photo: React.FC<{
     }} />
   );
 };
+
+// 紙（クリーム地）に置くロゴ。Drive から来る通常ロゴは白抜きなので、紙の上だと
+// ほとんど見えない（伝票・陶タイル・ラベル・スタンプカードで実際に消えていた）。
+// フィード投稿と同じ色付きの文字ロゴを使い、無ければ焦茶の店名にフォールバックする。
+export const PaperLogo: React.FC<{ storeName: string; h: number }> = ({ storeName, h }) => (
+  typoLogoColor
+    ? <Img src={staticFile(typoLogoColor)} style={{ height: h, width: "auto", maxWidth: 700, objectFit: "contain", filter: "drop-shadow(0 3px 12px rgba(60,35,14,0.2))" }} />
+    : <div style={{ fontFamily: mincho, color: "#241A12", fontSize: h, fontWeight: 700, letterSpacing: h * 0.12, lineHeight: 1 }}>{storeName}</div>
+);
 
 // 料理名＋伊語サブ＋説明文の“下組み”。既存テンプレと同じ字の大きさに揃える。
 export const Caption: React.FC<{
@@ -116,7 +125,7 @@ const ContoBody: React.FC<Required<P>> = ({ storeName, handle, theme }) => {
         {/* ミシン目の下端 */}
         <div style={{ position: "absolute", left: 0, right: 0, bottom: 0, height: 10, background: "repeating-linear-gradient(90deg, #F7F3EA 0 12px, rgba(0,0,0,0.16) 12px 20px)" }} />
         <div style={{ position: "absolute", top: 44, left: 0, right: 0, display: "flex", justifyContent: "center", opacity: fade(f, 8, 18) }}>
-          <StoreLogo storeName={storeName} height={56} tint="#241A12" />
+          <PaperLogo storeName={storeName} h={56} />
         </div>
         <div style={{ position: "absolute", top: 128, left: 0, right: 0, textAlign: "center", fontFamily: serif, color: T.slab, fontSize: 26, letterSpacing: 10, fontWeight: 600, opacity: fade(f, 14, 18) }}>CONTO DEL GIORNO</div>
         <div style={{ position: "absolute", top: 176, left: 48, right: 48, height: 2, background: "rgba(36,26,18,0.28)", opacity: fade(f, 18, 16) }} />
@@ -262,7 +271,7 @@ const MaiolicaBody: React.FC<Required<P>> = ({ storeName, handle, theme }) => {
       <div style={{ position: "absolute", left: 40, right: 40, top: 40, height: 26, background: "repeating-linear-gradient(90deg, " + T.slab + " 0 26px, #2F5D50 26px 52px)" , opacity: 0.85 }} />
       <div style={{ position: "absolute", left: 40, right: 40, bottom: 40, height: 26, background: "repeating-linear-gradient(90deg, #2F5D50 0 26px, " + T.slab + " 26px 52px)", opacity: 0.85 }} />
       <div style={{ position: "absolute", top: 160, left: 0, right: 0, display: "flex", justifyContent: "center", ...rise(f, 4, { dist: 12 }) }}>
-        <StoreLogo storeName={storeName} height={86} tint="#241A12" />
+        <PaperLogo storeName={storeName} h={86} />
       </div>
       <div style={{ position: "absolute", top: 300, left: 0, right: 0, textAlign: "center", fontFamily: serif, color: T.slab, fontSize: 26, letterSpacing: 10, fontWeight: 600 }}>MAIOLICA</div>
       {/* タイル：左上から順にめくれて次の皿が出る */}

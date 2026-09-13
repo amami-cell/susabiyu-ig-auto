@@ -17,9 +17,9 @@ import { AbsoluteFill, Img, staticFile, useCurrentFrame, interpolate } from "rem
 import { ytheme } from "./yoshokuTheme";
 import {
   mincho, serif, clamp, EASE, EASE_INOUT, fade, rise, Grain, Vignette,
-  Masthead, HandleMark, StoreLogo, fitOneLine, splitLines, segNow, SAFE,
+  Masthead, HandleMark, fitOneLine, splitLines, segNow, SAFE,
 } from "./yoshokuDesign";
-import { BODY, Shell, Caption, Photo, dishes, nameOf } from "./YoshokuNuovi";
+import { BODY, Shell, Caption, Photo, PaperLogo, dishes, nameOf } from "./YoshokuNuovi";
 
 type P = { storeName?: string; handle?: string; theme?: string };
 const D = { storeName: "ナガグツ", handle: "@nagagutsu0427", theme: "italian" };
@@ -96,7 +96,7 @@ const EtichettaBody: React.FC<Required<P>> = ({ storeName, handle, theme }) => {
         <div style={{ position: "absolute", inset: 34, border: "1px solid rgba(36,26,18,0.35)" }} />
         {/* 上部の紋章＝店ロゴ */}
         <div style={{ position: "absolute", top: 64, left: 0, right: 0, display: "flex", justifyContent: "center" }}>
-          <StoreLogo storeName={storeName} height={70} tint="#241A12" />
+          <PaperLogo storeName={storeName} h={70} />
         </div>
         <div style={{ position: "absolute", top: 168, left: 0, right: 0, textAlign: "center", fontFamily: serif, color: T.slab, fontSize: 24, letterSpacing: 10, fontWeight: 600 }}>OSTERIA · DAL 2011</div>
         <div style={{ position: "absolute", top: 218, left: 120, right: 120, height: 1, background: "rgba(36,26,18,0.3)" }} />
@@ -219,7 +219,7 @@ const TesseraBody: React.FC<Required<P>> = ({ storeName, handle, theme }) => {
       <div style={{ position: "absolute", left: 110, right: 110, top: 430, height: 980, background: "#F6F0E2", boxShadow: "0 36px 86px rgba(0,0,0,0.6)", transform: "rotate(-1deg)" }}>
         <div style={{ position: "absolute", inset: 20, border: "2px dashed rgba(36,26,18,0.28)" }} />
         <div style={{ position: "absolute", top: 54, left: 0, right: 0, display: "flex", justifyContent: "center" }}>
-          <StoreLogo storeName={storeName} height={62} tint="#241A12" />
+          <PaperLogo storeName={storeName} h={62} />
         </div>
         <div style={{ position: "absolute", top: 146, left: 0, right: 0, textAlign: "center", fontFamily: serif, color: T.slab, fontSize: 24, letterSpacing: 8, fontWeight: 600 }}>TESSERA · 10 VOLTE</div>
         {/* 押印の枡 */}
@@ -361,7 +361,7 @@ const NastroBody: React.FC<Required<P>> = ({ storeName, handle, theme }) => {
   return (
     <AbsoluteFill style={{ backgroundColor: T.base }}>
       <AbsoluteFill><Photo src={items[i].src} lf={local} seg={seg} from={1.04} to={1.12} /></AbsoluteFill>
-      <AbsoluteFill style={{ background: "linear-gradient(180deg, rgba(10,8,5,0.66) 0%, rgba(10,8,5,0.02) 26%, rgba(10,8,5,0.08) 60%, rgba(10,8,5,0.88) 100%)" }} />
+      <AbsoluteFill style={{ background: "linear-gradient(180deg, rgba(10,8,5,0.66) 0%, rgba(10,8,5,0.02) 26%, rgba(10,8,5,0.1) 56%, rgba(10,8,5,0.72) 82%, rgba(10,8,5,0.94) 100%)" }} />
       {/* 斜めのリボン（左下→右上に掛かる） */}
       <div style={{ position: "absolute", left: -140, right: -140, top: 820, transform: "translateX(" + inX + "px) rotate(-11deg)" }}>
         <div style={{ height: 176, background: T.slab, boxShadow: "0 18px 46px rgba(0,0,0,0.5)", display: "flex", alignItems: "center", justifyContent: "center" }}>
@@ -371,12 +371,14 @@ const NastroBody: React.FC<Required<P>> = ({ storeName, handle, theme }) => {
         <div style={{ position: "absolute", left: 0, right: 0, top: -8, height: 6, background: CREAM, opacity: 0.85 }} />
         <div style={{ position: "absolute", left: 0, right: 0, bottom: -8, height: 6, background: CREAM, opacity: 0.85 }} />
       </div>
-      {/* 伊語サブは帯の上、説明文は帯の下 */}
-      <div style={{ position: "absolute", left: SAFE.side, right: SAFE.side, top: 700, opacity: fade(local, 24, 16) }}>
-        <span style={{ fontFamily: serif, color: T.accent, fontSize: 30, letterSpacing: 4, textTransform: "uppercase", fontWeight: 600, textShadow: "0 3px 18px rgba(0,0,0,0.6)" }}>{items[i].sub || ""}</span>
+      {/* 伊語サブは帯のすぐ上に、濃い下敷きを敷いて置く。
+          明るい写真に直に置くと（実際そうなっていて）字が飛んで読めないため。 */}
+      <div style={{ position: "absolute", left: SAFE.side, top: 730, opacity: fade(local, 24, 16) }}>
+        <span style={{ display: "inline-block", background: "rgba(12,9,6,0.6)", padding: "8px 20px", fontFamily: serif, color: T.accent, fontSize: 30, letterSpacing: 4, textTransform: "uppercase", fontWeight: 600 }}>{items[i].sub || ""}</span>
       </div>
+      {/* 説明文は足元の暗いところへ（グラデが効いている高さ）。 */}
       {items[i].desc ? (
-        <div style={{ position: "absolute", left: SAFE.side, right: SAFE.side, top: 1120, fontFamily: mincho, color: T.sub, fontSize: 34, lineHeight: 1.44, letterSpacing: 1, textShadow: "0 3px 18px rgba(0,0,0,0.6)", opacity: fade(local, 34, 18) }}>
+        <div style={{ position: "absolute", left: SAFE.side, right: SAFE.side, bottom: 300, fontFamily: mincho, color: T.ink, fontSize: 34, lineHeight: 1.44, letterSpacing: 1, textShadow: "0 3px 22px rgba(0,0,0,0.75)", opacity: fade(local, 34, 18) }}>
           {splitLines(items[i].desc || "").map((l, k) => <div key={k} style={{ whiteSpace: "nowrap" }}>{l}</div>)}
         </div>
       ) : null}
