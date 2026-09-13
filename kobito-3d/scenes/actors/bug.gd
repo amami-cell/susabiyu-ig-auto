@@ -448,7 +448,7 @@ func _remote_state(pos: Vector3, remote_hp: int) -> void:
 func _remote_hit(amount: int = 0) -> void:
 	# くらった：赤フラッシュ＋大きくのけぞって跳ね潰れ＋火花＋ダメージ数字＋HPバー＋音
 	# ＝はっきりした手応え。（※ヒットストップは時間停止が戻らず固まる不具合の元なので不使用）
-	Sfx.play("hit")
+	Sfx.play_at("hit", global_position + Vector3(0, 0.6, 0))
 	# サーバは cleanse() で既に減算済み。クライアントは _remote_state を待たず即バーを減らす。
 	# ※フラッシュより先にHPを反映＝「今のきれいさ」の色に正しく戻す（拭うほど澄む）。
 	var is_server := multiplayer.has_multiplayer_peer() and multiplayer.is_server()
@@ -525,7 +525,7 @@ func _player_by_id(id: int) -> Node3D:
 func _remote_lunge() -> void:
 	if _dead:
 		return
-	Sfx.play("bite")
+	Sfx.play_at("bite", global_position + Vector3(0, 0.6, 0))
 	_flash_bug(Color(1.0, 0.4, 0.3))
 	var base := Vector3.ONE * stats.body_scale
 	var tw := create_tween()
@@ -563,7 +563,7 @@ func _remote_healed() -> void:
 	remove_from_group("bug")
 	if _hpbar != null:
 		_hpbar.visible = false
-	Sfx.play("heal")
+	Sfx.play_at("heal", global_position + Vector3(0, 0.6, 0))
 	Sfx.play("levelup", -14.0)   # 澄んだ余韻
 
 	# 見えている全部品（BugLook のパーツ含む）を澄んだ光へ＝色がはっきり変わる。

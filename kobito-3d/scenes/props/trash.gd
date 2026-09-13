@@ -166,7 +166,7 @@ func _remote_xform(xform: Transform3D) -> void:
 func _remote_removed() -> void:
 	_removed = true
 	remove_from_group("trash")   # 目的判定(trash)からは外す。trash_all には残す
-	Sfx.play("heal")            # 片づいた合図（気持ちいい音）
+	Sfx.play_at("heal", global_position + Vector3(0, 0.3, 0))            # 片づいた合図（気持ちいい音）
 	if _marker != null:
 		_marker.queue_free()
 		_marker = null

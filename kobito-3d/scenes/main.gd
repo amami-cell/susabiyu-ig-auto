@@ -413,10 +413,13 @@ func _run_selftest() -> void:
 		boss_node.cleanse(5, 1)              # 今度は効く
 		boss_hold_ok = (hp_resist == hp0) and (boss_node.hp < hp_resist)
 
+	# 音のバス分割（Master→Music/SFX）が組まれているか＝BGMと効果音を別々に扱える経路を確認する
+	var audio_ok: bool = AudioServer.get_bus_index("Music") != -1 and AudioServer.get_bus_index("SFX") != -1
+
 	var ok: bool = _garden != null and players.size() == 1 and bugs.size() > 0 \
-		and WorldState.recovery > 0.0 and xp_gained and flight_ok and kids_ok and mother_ok and puzzle_ok and switch_ok and blob_ok and ring_ok and ally_ok and ally_species_ok and save_ok and boss_ok and boss_hold_ok and dex_ok
-	print("[selftest] 回復度=%.2f XP=%d 経験値=%s 飛行解禁=%s 子ども=%d(最寄り%.1f) 母=%s 石版=%s 扉=%s おそうじ=%s 輪=%s なかま=%s 種役割=%s セーブ=%s ボス召喚=%s ボス浄化=%s 図鑑=%s" % [
-		WorldState.recovery, xp_now, xp_gained, flight_ok, children.size(), nearest, mother_ok, puzzle_ok, switch_ok, blob_ok, ring_ok, ally_ok, ally_species_ok, save_ok, boss_ok, boss_hold_ok, dex_ok])
+		and WorldState.recovery > 0.0 and xp_gained and flight_ok and kids_ok and mother_ok and puzzle_ok and switch_ok and blob_ok and ring_ok and ally_ok and ally_species_ok and save_ok and boss_ok and boss_hold_ok and dex_ok and audio_ok
+	print("[selftest] 回復度=%.2f XP=%d 経験値=%s 飛行解禁=%s 子ども=%d(最寄り%.1f) 母=%s 石版=%s 扉=%s おそうじ=%s 輪=%s なかま=%s 種役割=%s セーブ=%s ボス召喚=%s ボス浄化=%s 図鑑=%s 音バス=%s" % [
+		WorldState.recovery, xp_now, xp_gained, flight_ok, children.size(), nearest, mother_ok, puzzle_ok, switch_ok, blob_ok, ring_ok, ally_ok, ally_species_ok, save_ok, boss_ok, boss_hold_ok, dex_ok, audio_ok])
 	print("[selftest] %s" % ("OK" if ok else "NG"))
 	get_tree().quit(0 if ok else 1)
 

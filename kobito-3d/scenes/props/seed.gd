@@ -49,7 +49,7 @@ func _on_body_entered(body: Node3D) -> void:
 func _remote_collected() -> void:
 	_collected = true
 	remove_from_group("seed")
-	Sfx.play("pickup", -4.0)
+	Sfx.play_at("pickup", global_position + Vector3(0, 0.3, 0), -4.0)
 	# きらめいて上へ昇って消える
 	var mat := _mesh.material_override as StandardMaterial3D
 	var tw := create_tween()

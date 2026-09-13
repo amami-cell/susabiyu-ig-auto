@@ -9,9 +9,18 @@ extends Node
 
 const RATE := 32000
 const VOICES := 10          # 同時発音数（足りなければ古い声から使い回す）
+const VOICES_3D := 8        # 位置つき（3D）の同時発音数
+
+# バス構成：Master ─┬─ Music（BGM）
+#                    └─ SFX  （効果音・2D/3D共通）
+# 全体スライダーは Master を動かす＝両方まとめて上下。将来 BGM/SFX 個別スライダーも足しやすい。
+const BUS_SFX := "SFX"
+const BUS_MUSIC := "Music"
 
 var _players: Array[AudioStreamPlayer] = []
+var _players_3d: Array[AudioStreamPlayer3D] = []
 var _next := 0
+var _next_3d := 0
 var _bank := {}             # name -> AudioStreamWAV
 
 var _bgm_pad: AudioStreamPlayer
@@ -26,19 +35,28 @@ var _master := 0.8          # 全体音量（0.0〜1.0）。設定スライダ�
 
 
 func _ready() -> void:
+	_ensure_buses()
 	for i in VOICES:
 		var p := AudioStreamPlayer.new()
-		p.bus = "Master"
+		p.bus = BUS_SFX
 		add_child(p)
 		_players.append(p)
+	for i in VOICES_3D:
+		var p3 := AudioStreamPlayer3D.new()
+		p3.bus = BUS_SFX
+		p3.max_distance = 34.0          # これより遠い音は聞こえない
+		p3.unit_size = 6.0              # 近づくほど大きく（減衰のなだらかさ）
+		p3.attenuation_model = AudioStreamPlayer3D.ATTENUATION_INVERSE_DISTANCE
+		add_child(p3)
+		_players_3d.append(p3)
 	_bgm_pad = AudioStreamPlayer.new()
-	_bgm_pad.bus = "Master"
+	_bgm_pad.bus = BUS_MUSIC
 	add_child(_bgm_pad)
 	_bgm_shine = AudioStreamPlayer.new()
-	_bgm_shine.bus = "Master"
+	_bgm_shine.bus = BUS_MUSIC
 	add_child(_bgm_shine)
 	_bgm_battle = AudioStreamPlayer.new()
-	_bgm_battle.bus = "Master"
+	_bgm_battle.bus = BUS_MUSIC
 	add_child(_bgm_battle)
 	_build_bank()
 	_load_settings()
@@ -63,6 +81,32 @@ func play(sound_name: String, volume_db: float = -7.0) -> void:
 	p.volume_db = volume_db
 	p.pitch_scale = randf_range(0.97, 1.04)   # 毎回わずかに変えて機械的な連打感を消す
 	p.play()
+
+
+## 位置つきで鳴らす＝どこで起きた音かが方向・距離で分かる（協力プレイで“相方の音”が聞こえる）。
+## 世界の出来事（敵の噛みつき/浄化、ゴミ片づけ等）向け。自分視点の音（足音・跳ぶ）は play() のままでよい。
+func play_at(sound_name: String, world_pos: Vector3, volume_db: float = -7.0) -> void:
+	var stream: AudioStreamWAV = _bank.get(sound_name)
+	if stream == null:
+		return
+	var p := _players_3d[_next_3d]
+	_next_3d = (_next_3d + 1) % _players_3d.size()
+	p.stream = stream
+	p.volume_db = volume_db
+	p.pitch_scale = randf_range(0.97, 1.04)
+	p.global_position = world_pos
+	p.play()
+
+
+## バス Music / SFX が無ければ作り、どちらも Master へ流す（＝全体スライダーで一括調整）。
+## default_bus_layout.tres に依存しない自己完結。既にあれば何もしない。
+func _ensure_buses() -> void:
+	for bus_name in [BUS_MUSIC, BUS_SFX]:
+		if AudioServer.get_bus_index(bus_name) == -1:
+			var idx := AudioServer.bus_count
+			AudioServer.add_bus(idx)
+			AudioServer.set_bus_name(idx, bus_name)
+			AudioServer.set_bus_send(idx, "Master")
 
 
 # ---------------------------------------------------------------- 全体音量（設定）

@@ -19,6 +19,17 @@ signal stats_changed
 
 const SPEED := 5.0
 const ACCEL := 24.0
+
+# 浄化のきらめき粒は全員で同一形状＝1本のリソースを共有（毎回作らない）。
+static var _clean_mesh: SphereMesh
+static func _shared_clean_mesh() -> SphereMesh:
+	if _clean_mesh == null:
+		_clean_mesh = SphereMesh.new()
+		_clean_mesh.radius = 0.06
+		_clean_mesh.height = 0.12
+		_clean_mesh.radial_segments = 6
+		_clean_mesh.rings = 4
+	return _clean_mesh
 const GRAVITY := 14.0
 const JUMP_SPEED := 5.2
 const FLY_LIFT := 7.5          # 飛行中の上昇速度（ぐんぐん上がる）
@@ -492,14 +503,10 @@ func _spawn_clean_sparkles() -> void:
 	mat.emission = Color(0.8, 1.0, 0.65)
 	mat.emission_energy_multiplier = 1.6
 	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	for i in 6:
+	var count := 3 if OS.has_feature("web") else 6   # web は粒を半分に（描画予算）
+	for i in count:
 		var s := MeshInstance3D.new()
-		var sm := SphereMesh.new()
-		sm.radius = 0.06
-		sm.height = 0.12
-		sm.radial_segments = 6
-		sm.rings = 4
-		s.mesh = sm
+		s.mesh = _shared_clean_mesh()
 		s.material_override = mat
 		add_child(s)
 		var base := fwd * 0.9 + Vector3(0.0, 0.8, 0.0)

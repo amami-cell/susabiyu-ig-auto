@@ -147,7 +147,7 @@ func cleanse_near(from: Vector3, _id: int) -> void:
 	_clean[best] = 1.0
 	_fresh[best] = KEEP_FRESH
 	rpc("_remote_spot", best, 1.0)
-	Sfx.play("hit", -6.0)
+	Sfx.play_at("hit", global_position + Vector3(0, 0.4, 0), -6.0)
 	_check_solved()
 
 
@@ -241,7 +241,7 @@ func _remote_solved() -> void:
 			mat.emission_energy_multiplier = 2.2
 	if _ring_mat != null:
 		_ring_mat.emission_energy_multiplier = 2.4
-	Sfx.play("heal")
+	Sfx.play_at("heal", global_position + Vector3(0, 0.4, 0))
 	Sfx.play("levelup", -12.0)
 	# 澄んだ点が ふわっと浮いて弾ける
 	for m in _spots:

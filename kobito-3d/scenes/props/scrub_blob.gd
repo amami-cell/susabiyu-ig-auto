@@ -196,12 +196,12 @@ func _remote_state(clean: float, pinned: bool) -> void:
 func _remote_progress(clean: float) -> void:
 	_clean = clean
 	_apply_visual(clean, true)
-	Sfx.play("hit", -6.0)
+	Sfx.play_at("hit", global_position + Vector3(0, 0.4, 0), -6.0)
 
 
 @rpc("authority", "call_local", "reliable")
 func _remote_pinned() -> void:
-	Sfx.play("swing", -8.0)
+	Sfx.play_at("swing", global_position + Vector3(0, 0.4, 0), -8.0)
 
 
 @rpc("authority", "call_local", "reliable")
@@ -216,7 +216,7 @@ func _remote_resist() -> void:
 func _remote_purified() -> void:
 	_dead = true
 	remove_from_group("scrub_blob")
-	Sfx.play("heal")
+	Sfx.play_at("heal", global_position + Vector3(0, 0.4, 0))
 	Sfx.play("levelup", -12.0)
 	# 澄んだ光にして昇天
 	for c in _mound.get_children():
