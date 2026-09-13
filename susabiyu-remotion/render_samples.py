@@ -180,6 +180,13 @@ def main():
         m2 = _re.search(r'(\d{1,3})\s*(?:s\b|sec)', base, _re.I)
         return int(m2.group(1)) if m2 else 0
 
+    import beat_detect as _bd
+    _beat_cache = {}
+
+    def _sub_or_append(src, pat, line):
+        """その行があれば置換、無ければ末尾に足す（古い typoData.ts でも落ちないように）。"""
+        return _re.sub(pat, line, src) if _re.search(pat, src) else (src.rstrip("\n") + "\n" + line + "\n")
+
     def _set_typo(cap, music_path, sample_no=0):
         # 写真はそのまま、typoData.ts の headline / music / musicStart / sampleNo だけ書き換える。
         s = _io.open("src/typoData.ts", encoding="utf-8").read()
@@ -192,8 +199,20 @@ def main():
             s = s.rstrip("\n") + ("\nexport const typoSampleNo = %d;\n" % sample_no)
         if music_path:
             rel = "music/normal/" + os.path.basename(music_path)
+            st = _mstart(music_path)
             s = _re.sub(r'export const typoMusic = ".*?";', 'export const typoMusic = "%s";' % rel, s)
-            s = _re.sub(r'export const typoMusicStart = \d+;', 'export const typoMusicStart = %d;' % _mstart(music_path), s)
+            s = _re.sub(r'export const typoMusicStart = \d+;', 'export const typoMusicStart = %d;' % st, s)
+            # 曲を差し替えたら拍の位置も取り直す（音ハメのテンプレが古い曲の拍で切ってしまうため）。
+            # 同じ曲なら解析は1回で済ませる（1曲あたり数秒かかる）。
+            if _beat_cache.get("path") != music_path:
+                bpm, beats = _bd.detect_or_default(music_path, st)
+                _beat_cache.clear(); _beat_cache.update(path=music_path, bpm=bpm, beats=beats)
+                print("[BEAT] %s bpm=%.1f 拍数=%d" % (os.path.basename(music_path), bpm, len(beats)))
+            arr = ", ".join("%.4f" % b for b in _beat_cache["beats"])
+            s = _sub_or_append(s, r'export const typoBpm = [\d.]+;',
+                               'export const typoBpm = %.2f;' % _beat_cache["bpm"])
+            s = _sub_or_append(s, r'export const typoBeats: number\[\] = \[[^\]]*\];',
+                               'export const typoBeats: number[] = [%s];' % arr)
         _io.open("src/typoData.ts", "w", encoding="utf-8").write(s)
 
     samples = []

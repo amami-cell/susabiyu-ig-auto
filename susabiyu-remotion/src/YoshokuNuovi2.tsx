@@ -17,9 +17,10 @@ import { AbsoluteFill, Img, staticFile, useCurrentFrame, interpolate } from "rem
 import { ytheme } from "./yoshokuTheme";
 import {
   mincho, serif, clamp, EASE, EASE_INOUT, fade, rise, Grain, Vignette,
-  Masthead, HandleMark, fitOneLine, splitLines, segNow, SAFE,
+  Masthead, HandleMark, fitOneLine, splitLines, segNow, SAFE, STORY_OPEN,
 } from "./yoshokuDesign";
-import { BODY, Shell, Caption, Photo, PaperLogo, dishes, nameOf } from "./YoshokuNuovi";
+import { typoBeats } from "./typoData";
+import { BODY, Shell, Caption, Photo, PaperLogo, dishes, nameOf, MAGOP_OPEN, MAGOP_DUR } from "./YoshokuNuovi";
 
 type P = { storeName?: string; handle?: string; theme?: string };
 const D = { storeName: "ナガグツ", handle: "@nagagutsu0427", theme: "italian" };
@@ -28,6 +29,29 @@ const CREAM = "#F4EEE2";
 // 写真の上に直接置く字の落ち影（Caption と同じ二枚重ね）。
 // 近くて濃い影で輪郭を残し、遠くて広い影で周りを沈める。
 const NSH = "0 2px 8px rgba(0,0,0,0.85), 0 4px 26px rgba(0,0,0,0.6)";
+
+/* ── 音ハメ（拍で切る）用のヘルパー ────────────────────────────────
+   typoBeats は fetch_typo.py / render_samples.py が音源から拾った拍の位置で、
+   単位は「曲の再生開始位置(typoMusicStart)からの相対秒」。
+   本編は OP のぶんだけ後から始まるので、そのぶん差し引いて本編フレームに直す。 */
+const FPS = 30;
+export function beatCuts(openFrames: number): number[] {
+  const off = openFrames / FPS;                    // 本編が始まる時点の、曲の中での位置（秒）
+  const raw = (typoBeats || []).map((t) => Math.round((t - off) * FPS)).filter((n) => n >= 0);
+  // 拍が細かすぎる/粗すぎる時のために、0.5秒未満の間隔は間引く
+  const cuts: number[] = [0];
+  for (const n of raw) if (n - cuts[cuts.length - 1] >= 15) cuts.push(n);
+  if (cuts.length < 4) return Array.from({ length: 40 }, (_, i) => i * 25);   // フォールバック
+  // 本編の終わりまで足りなければ、最後の間隔で伸ばす
+  const step = Math.max(15, cuts[cuts.length - 1] - cuts[cuts.length - 2]);
+  while (cuts[cuts.length - 1] < BODY) cuts.push(cuts[cuts.length - 1] + step);
+  return cuts;
+}
+export function cutIndex(cuts: number[], f: number): number {
+  let i = 0;
+  while (i + 1 < cuts.length && cuts[i + 1] <= f) i++;
+  return i;
+}
 
 /* ═══ No.24 セッティマーナ（今週の一皿） ═══════════════════════════════
    曜日の枡が並び、今日の枡だけが灯って、その日の皿へ寄る。
@@ -93,37 +117,39 @@ const EtichettaBody: React.FC<Required<P>> = ({ storeName, handle, theme }) => {
     <AbsoluteFill style={{ backgroundColor: "#1A1410" }}>
       <AbsoluteFill><Photo src={items[i].src} lf={local} seg={seg} from={1.16} to={1.24} bri={0.46} blur={16} /></AbsoluteFill>
       <AbsoluteFill style={{ background: "radial-gradient(58% 40% at 50% 52%, rgba(0,0,0,0.1) 0%, rgba(12,9,7,0.86) 78%)" }} />
-      {/* ラベル本体（生成りの紙） */}
+      {/* ラベル本体（生成りの紙）。画面いっぱいまで広げ、枠線は中に引く。
+          以前は左右150・上下380の小さな札だったので、要素も全部大きく取り直す。 */}
       <div style={{
-        position: "absolute", left: 150, right: 150, top: 380, height: 1140, background: "#F4EDDD",
-        boxShadow: "0 36px 90px rgba(0,0,0,0.66)", transform: "scale(" + grow + ")", opacity: fade(local, 0, 16),
+        position: "absolute", inset: 0, background: "#F4EDDD",
+        transform: "scale(" + grow + ")", opacity: fade(local, 0, 16),
       }}>
-        <div style={{ position: "absolute", inset: 22, border: "2px solid " + T.slab }} />
-        <div style={{ position: "absolute", inset: 34, border: "1px solid rgba(36,26,18,0.35)" }} />
+        <div style={{ position: "absolute", inset: 34, border: "3px solid " + T.slab }} />
+        <div style={{ position: "absolute", inset: 52, border: "1px solid rgba(36,26,18,0.35)" }} />
         {/* 上部の紋章＝店ロゴ */}
-        <div style={{ position: "absolute", top: 64, left: 0, right: 0, display: "flex", justifyContent: "center" }}>
-          <PaperLogo storeName={storeName} h={70} />
+        <div style={{ position: "absolute", top: 128, left: 0, right: 0, display: "flex", justifyContent: "center" }}>
+          <PaperLogo storeName={storeName} h={116} />
         </div>
-        <div style={{ position: "absolute", top: 168, left: 0, right: 0, textAlign: "center", fontFamily: serif, color: T.slab, fontSize: 24, letterSpacing: 10, fontWeight: 600 }}>OSTERIA · DAL 2011</div>
-        <div style={{ position: "absolute", top: 218, left: 120, right: 120, height: 1, background: "rgba(36,26,18,0.3)" }} />
+        <div style={{ position: "absolute", top: 300, left: 0, right: 0, textAlign: "center", fontFamily: serif, color: T.slab, fontSize: 30, letterSpacing: 12, fontWeight: 600 }}>OSTERIA · DAL 2011</div>
+        <div style={{ position: "absolute", top: 364, left: 190, right: 190, height: 1, background: "rgba(36,26,18,0.3)" }} />
         {/* 中央：料理の窓（ラベルに刷られた銅版画の見立て） */}
-        <div style={{ position: "absolute", left: 92, right: 92, top: 258, height: 460, overflow: "hidden", border: "1px solid rgba(36,26,18,0.3)" }}>
+        <div style={{ position: "absolute", left: 112, right: 112, top: 420, height: 760, overflow: "hidden", border: "1px solid rgba(36,26,18,0.3)" }}>
           <Photo src={items[i].src} lf={local} seg={seg} from={1.04} to={1.1} />
         </div>
         {/* 下部：料理名と年号 */}
-        <div style={{ position: "absolute", left: 92, right: 92, top: 768, textAlign: "center" }}>
+        <div style={{ position: "absolute", left: 112, right: 112, top: 1248, textAlign: "center" }}>
           <Caption d={items[i]} f={local} start={14} ink="#241A12" sub="rgba(36,26,18,0.78)" accent={T.slab}
-            w={1080 - 300 - 184} align="center" shadow={false} maxName={70} />
+            w={1080 - 224 - 60} align="center" shadow={false} maxName={84} />
         </div>
-        <div style={{ position: "absolute", left: 0, right: 0, bottom: 96, textAlign: "center", fontFamily: serif, color: T.slab, fontSize: 44, letterSpacing: 10, fontWeight: 600 }}>{year}</div>
-        <div style={{ position: "absolute", left: 0, right: 0, bottom: 56, textAlign: "center", fontFamily: serif, color: "rgba(36,26,18,0.6)", fontSize: 22, letterSpacing: 5 }}>{handle}</div>
+        <div style={{ position: "absolute", left: 0, right: 0, bottom: 168, textAlign: "center", fontFamily: serif, color: T.slab, fontSize: 56, letterSpacing: 12, fontWeight: 600 }}>{year}</div>
+        <div style={{ position: "absolute", left: 0, right: 0, bottom: 110, textAlign: "center", fontFamily: serif, color: "rgba(36,26,18,0.6)", fontSize: 26, letterSpacing: 6 }}>{handle}</div>
       </div>
       <Grain opacity={0.05} />
     </AbsoluteFill>
   );
 };
 export const YoshokuEtichetta: React.FC<P> = ({ storeName = D.storeName, handle = D.handle, theme = D.theme }) => (
-  <Shell v={7} base="#1A1410" storeName={storeName} handle={handle} theme={theme}>
+  // OP/CLOSE は雑誌風（表紙／裏表紙）。表紙に今日の4品を並べるのでOPは5.0秒取る。
+  <Shell v={9} base="#1A1410" storeName={storeName} handle={handle} theme={theme} openDur={MAGOP_OPEN}>
     <EtichettaBody storeName={storeName} handle={handle} theme={theme} />
   </Shell>
 );
@@ -158,7 +184,7 @@ const FuocoBody: React.FC<Required<P>> = ({ storeName, handle, theme }) => {
           }} />
         ))}
       </div>
-      <Masthead storeName={storeName} f={f} kicker="A FUOCO" accent={T.accent} logoH={78} />
+      <Masthead storeName={storeName} f={f} kicker="A FUOCO" accent={T.accent} logoH={140} top={SAFE.top - 150} />
       <div style={{ position: "absolute", left: SAFE.side, right: SAFE.side, bottom: 300, filter: "blur(" + tb + "px)" }}>
         <Caption d={items[i]} f={local} start={8} ink={T.ink} sub={T.sub} accent={T.accent} />
       </div>
@@ -270,10 +296,13 @@ export const YoshokuTessera: React.FC<P> = ({ storeName = D.storeName, handle = 
 const BattitoBody: React.FC<Required<P>> = ({ storeName, handle, theme }) => {
   const f = useCurrentFrame(); const T = ytheme(theme);
   const items = dishes(4);
-  const BEAT = 25;                                   // 25フレーム＝約0.83秒ごとに刻む
-  const b = Math.floor(f / BEAT);
+  // 音ハメ：曲の拍そのもので切る。typoBeats は「再生開始位置からの相対秒」なので、
+  // 本編の開始（＝OPの長さぶん曲が進んだところ）を引いて本編フレームに直す。
+  // 拍が拾えていない環境では 25フレーム（約0.83秒）の等間隔にフォールバックする。
+  const CUTS = beatCuts(STORY_OPEN);
+  const b = cutIndex(CUTS, f);
   const d = items[b % items.length];
-  const lb = f - b * BEAT;
+  const lb = f - (CUTS[b] ?? b * 25);
   // 拍ごとに寄り位置を変える（同じ皿でも別のカットに見える）
   const POS = ["50% 50%", "30% 35%", "70% 60%", "50% 28%"];
   const pop = interpolate(lb, [0, 8], [1.1, 1.02], { ...clamp, easing: EASE });
@@ -289,7 +318,7 @@ const BattitoBody: React.FC<Required<P>> = ({ storeName, handle, theme }) => {
       <AbsoluteFill style={{ background: "#FFF", opacity: interpolate(lb, [0, 4], [0.16, 0], clamp) }} />
       {/* 上下の帯だけ濃くする（明るい皿でロゴ下の伊語・料理名が飛ぶのを防ぐ）。真ん中は素のまま */}
       <AbsoluteFill style={{ background: "linear-gradient(180deg, rgba(8,7,5,0.86) 0%, rgba(8,7,5,0.62) 16%, rgba(8,7,5,0.04) 32%, rgba(8,7,5,0.08) 58%, rgba(8,7,5,0.6) 76%, rgba(8,7,5,0.96) 100%)" }} />
-      <Masthead storeName={storeName} f={f} kicker="A TEMPO" accent={T.accent} logoH={78} />
+      <Masthead storeName={storeName} f={f} kicker="A TEMPO" accent={T.accent} logoH={140} top={SAFE.top - 150} />
       {/* 料理名は拍ごとに出し直す（切り替わりが気持ちいい） */}
       <div style={{ position: "absolute", left: SAFE.side, right: SAFE.side, bottom: 320 }}>
         <div style={{ fontFamily: serif, color: T.accent, fontSize: 30, letterSpacing: 4, textTransform: "uppercase", fontWeight: 600, textShadow: NSH, opacity: fade(lb, 2, 8) }}>{d.sub || ""}</div>
@@ -409,7 +438,8 @@ export const YoshokuNastro: React.FC<P> = ({ storeName = D.storeName, handle = D
 // 登録用のひとまとめ（Root.tsx と prepare.py の並びをここに合わせる）
 export const NUOVI2_COMPS = [
   { id: "YoshokuSettimana", pattern: "yoshokusettimana", label: "No.24 洋食おしゃれ・今週の一皿", comp: YoshokuSettimana },
-  { id: "YoshokuEtichetta", pattern: "yoshokuetichetta", label: "No.25 洋食おしゃれ・ボトルのラベル", comp: YoshokuEtichetta },
+  // dur を持つものだけ既定の長さ(YNUOVI_DUR)から外れる（雑誌風OPで5.0秒ぶん長い）
+  { id: "YoshokuEtichetta", pattern: "yoshokuetichetta", label: "No.25 洋食おしゃれ・ボトルのラベル", comp: YoshokuEtichetta, dur: MAGOP_DUR },
   { id: "YoshokuFuoco", pattern: "yoshokufuoco", label: "No.26 洋食おしゃれ・ピントが合う", comp: YoshokuFuoco },
   { id: "YoshokuGira", pattern: "yoshokugira", label: "No.27 洋食おしゃれ・皿が回る", comp: YoshokuGira },
   { id: "YoshokuTessera", pattern: "yoshokutessera", label: "No.28 洋食おしゃれ・スタンプカード", comp: YoshokuTessera },
