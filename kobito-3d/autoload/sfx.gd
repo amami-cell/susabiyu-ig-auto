@@ -32,6 +32,8 @@ const BATTLE_RANGE := 9.0      # この距離に敵が来たら“戦闘”
 
 const CFG_PATH := "user://settings.cfg"
 var _master := 0.8          # 全体音量（0.0〜1.0）。設定スライダーで変える。保存される。
+var _music := 0.9           # BGM音量（Musicバス）。0で消音。保存される。
+var _sfx := 1.0             # 効果音音量（SFXバス）。0で消音。保存される。
 
 
 func _ready() -> void:
@@ -127,11 +129,42 @@ func set_master_volume(v: float) -> void:
 	cfg.save(CFG_PATH)
 
 
+## BGM（Musicバス）と 効果音（SFXバス）の音量。全体スライダー(Master)とは別に上下できる。
+func get_music_volume() -> float:
+	return _music
+
+
+func set_music_volume(v: float) -> void:
+	_music = clampf(v, 0.0, 1.0)
+	_apply_bus(BUS_MUSIC, _music)
+	var cfg := ConfigFile.new()
+	cfg.load(CFG_PATH)
+	cfg.set_value("audio", "music", _music)
+	cfg.save(CFG_PATH)
+
+
+func get_sfx_volume() -> float:
+	return _sfx
+
+
+func set_sfx_volume(v: float) -> void:
+	_sfx = clampf(v, 0.0, 1.0)
+	_apply_bus(BUS_SFX, _sfx)
+	var cfg := ConfigFile.new()
+	cfg.load(CFG_PATH)
+	cfg.set_value("audio", "sfx", _sfx)
+	cfg.save(CFG_PATH)
+
+
 func _load_settings() -> void:
 	var cfg := ConfigFile.new()
 	if cfg.load(CFG_PATH) == OK:
 		_master = clampf(float(cfg.get_value("audio", "master", 0.8)), 0.0, 1.0)
+		_music = clampf(float(cfg.get_value("audio", "music", 0.9)), 0.0, 1.0)
+		_sfx = clampf(float(cfg.get_value("audio", "sfx", 1.0)), 0.0, 1.0)
 	_apply_master()
+	_apply_bus(BUS_MUSIC, _music)
+	_apply_bus(BUS_SFX, _sfx)
 
 
 func _apply_master() -> void:
@@ -141,6 +174,18 @@ func _apply_master() -> void:
 	else:
 		AudioServer.set_bus_mute(idx, false)
 		AudioServer.set_bus_volume_db(idx, linear_to_db(_master))
+
+
+## 指定バスの音量（線形0..1）を適用。0はミュート＝-infのプチノイズを避ける。
+func _apply_bus(bus_name: String, v: float) -> void:
+	var idx := AudioServer.get_bus_index(bus_name)
+	if idx < 0:
+		return
+	if v <= 0.001:
+		AudioServer.set_bus_mute(idx, true)
+	else:
+		AudioServer.set_bus_mute(idx, false)
+		AudioServer.set_bus_volume_db(idx, linear_to_db(v))
 
 
 # ---------------------------------------------------------------- BGM

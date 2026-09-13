@@ -83,6 +83,10 @@ func _ready() -> void:
 	_vbox.move_child(vol, 4)
 	vol.value_changed.connect(func(v: float) -> void: Sfx.set_master_volume(v))
 
+	# BGM／効果音の個別スライダー（バス分割済みなので別々に上下できる）。全体スライダーの下に置く。
+	var music_s := _add_sub_volume("BGM 音量", Sfx.get_music_volume(), func(v: float) -> void: Sfx.set_music_volume(v), vol)
+	_add_sub_volume("効果音 音量", Sfx.get_sfx_volume(), func(v: float) -> void: Sfx.set_sfx_volume(v), music_s)
+
 	_transport.add_item("ENet（PC/Android・低遅延・おすすめ）", Net.Transport.ENET)
 	_transport.add_item("WebSocket（ブラウザでも動く）", Net.Transport.WEBSOCKET)
 	_transport.selected = 1 if Net.transport == Net.Transport.WEBSOCKET else 0
@@ -109,6 +113,26 @@ func _ready() -> void:
 
 
 # ------------------------------------------------------------ 見た目（絵本の表紙）
+
+## ラベル＋スライダーを1組、基準ノード(after)の直後に差し込む共通処理（音量の小スライダー用）。
+## 差し込んだスライダーを返す＝続けて次を その直後に置ける（順番を保つ）。
+func _add_sub_volume(label_text: String, initial: float, on_change: Callable, after: Control) -> Control:
+	var lbl := Label.new()
+	lbl.text = label_text
+	UIKit.style_label(lbl, 15, UIKit.INK_SOFT)
+	_vbox.add_child(lbl)
+	_vbox.move_child(lbl, after.get_index() + 1)
+	var s := HSlider.new()
+	s.min_value = 0.0
+	s.max_value = 1.0
+	s.step = 0.05
+	s.value = initial
+	s.custom_minimum_size = Vector2(0, 34)
+	_vbox.add_child(s)
+	_vbox.move_child(s, lbl.get_index() + 1)
+	s.value_changed.connect(on_change)
+	return s
+
 
 func _dress_title() -> void:
 	# パネル内の小さな題字は隠し、画面上部に大きな題字＋サブタイトルを置く。
@@ -219,6 +243,41 @@ func _draw() -> void:
 		var y := (s.y * 0.7 + 0.05) * h + sin(_t * 0.8 + i) * 8.0
 		draw_circle(Vector2(x, y), 4.0, Color(1.0, 0.9, 0.6, 0.85))
 		draw_circle(Vector2(x, y), 8.0, Color(1.0, 0.9, 0.6, 0.18))
+
+	# 生きた表紙：小人の家族が 丘を のんびり歩く（左→右へ、少し速さを変えて隊列に）。
+	var walk_y := h * 0.80
+	var fam := [Color(0.45, 0.78, 0.5), Color(0.95, 0.55, 0.7), Color(0.6, 0.7, 0.95), Color(0.95, 0.85, 0.5)]
+	for i in fam.size():
+		var speed := 20.0 + i * 5.0
+		var wx := fposmod(_t * speed + i * (w * 0.24), w + 80.0) - 40.0
+		var bob := absf(sin(_t * 4.0 + i)) * 3.0
+		_draw_walker(Vector2(wx, walk_y - bob), fam[i], _t * 6.0 + i * 1.7)
+
+	# ちょうちょ が 1匹 ひらひら横切る＝空にも動きを。
+	var bx := fposmod(_t * 42.0 + w * 0.3, w + 60.0) - 30.0
+	var by := h * 0.46 + sin(_t * 1.8) * 46.0
+	_draw_butterfly(Vector2(bx, by), Color(0.96, 0.78, 0.9), _t)
+
+
+## 小さな小人がてくてく歩く（頭＋体＋振れる脚＋足元の影）。手描きふうの表紙に生きた動きを。
+func _draw_walker(p: Vector2, col: Color, phase: float) -> void:
+	draw_circle(p + Vector2(0, 11), 7.0, Color(0.0, 0.0, 0.0, 0.12))   # 足元の影
+	var sw := sin(phase) * 3.0
+	draw_line(p + Vector2(-2, 5), p + Vector2(-3 + sw, 13), col.darkened(0.35), 2.5)
+	draw_line(p + Vector2(2, 5), p + Vector2(3 - sw, 13), col.darkened(0.35), 2.5)
+	draw_circle(p, 7.0, col)                                          # 体
+	draw_circle(p + Vector2(0, -11), 5.5, col.lightened(0.12))        # 頭
+	# ちいさな目（進行方向＝右向き）
+	draw_circle(p + Vector2(2.2, -12), 1.1, Color(0.1, 0.1, 0.12))
+
+
+## ひらひら舞うちょうちょ（羽ばたきで羽の開き具合が変わる）。加算なしの軽い円で。
+func _draw_butterfly(p: Vector2, col: Color, t: float) -> void:
+	var f := 0.45 + 0.55 * absf(sin(t * 11.0))   # 羽ばたき（開閉）
+	draw_circle(p, 2.0, Color(0.3, 0.2, 0.28))   # 胴
+	for sx in [-1.0, 1.0]:
+		draw_circle(p + Vector2(6.5 * sx * f, -3.0), 5.0, col)          # 上ばね
+		draw_circle(p + Vector2(5.5 * sx * f, 3.5), 3.8, col.darkened(0.08))   # 下ばね
 
 
 ## なだらかな丘を1枚。baseline=丘のてっぺんの高さ、amp=うねりの大きさ、freq=波の細かさ。
