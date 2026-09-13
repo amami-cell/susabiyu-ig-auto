@@ -626,11 +626,17 @@ func _remote_healed() -> void:
 	if garden != null and garden.has_method("bloom_at"):
 		garden.bloom_at(global_position)
 
-	# 近くで浄化に立ち会った“自分”のカメラに、ふわっと寄る小さなごほうびの間を返す。
+	# 中ボス/ボスの浄化は“山場”＝光の柱が立ちのぼり、カメラのごほうびも大きく。
+	var big := stats.is_midboss
+	if big:
+		_spawn_purify_pillar()
+
+	# 近くで浄化に立ち会った“自分”のカメラに、ふわっと寄るごほうびの間を返す（山場は大きく）。
+	var reach := 22.0 if big else 14.0
 	for p in get_tree().get_nodes_in_group("player"):
 		if p.get("is_local") and p.has_method("reward_pulse") \
-				and p.global_position.distance_to(global_position) < 14.0:
-			p.reward_pulse()
+				and p.global_position.distance_to(global_position) < reach:
+			p.reward_pulse(2.4 if big else 1.0)
 			break
 
 	# 見えている全部品（BugLook のパーツ含む）を澄んだ光へ＝色がはっきり変わる。
@@ -687,6 +693,37 @@ func _spawn_purify_ring() -> void:
 	tw.tween_property(ring, "scale", Vector3(4.5, 4.5, 4.5), 0.4)
 	tw.parallel().tween_property(mat, "albedo_color:a", 0.0, 0.45)
 	tw.tween_callback(ring.queue_free)
+
+
+## 浄化の光の柱：中ボス/ボスを癒やした山場に、澄んだ光が天へ立ちのぼって消える。
+## 加算光の円柱1本＝軽い。web fill-rate に配慮して細め・短命。
+func _spawn_purify_pillar() -> void:
+	var world := get_parent()
+	if world == null:
+		return
+	var pillar := MeshInstance3D.new()
+	var cm := CylinderMesh.new()
+	cm.top_radius = 0.9
+	cm.bottom_radius = 1.25
+	cm.height = 9.0
+	cm.radial_segments = 10
+	pillar.mesh = cm
+	var mat := StandardMaterial3D.new()
+	mat.albedo_color = Color(0.8, 1.0, 0.85, 0.5)
+	mat.emission_enabled = true
+	mat.emission = Color(0.7, 1.0, 0.8)
+	mat.emission_energy_multiplier = 2.2
+	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	mat.cull_mode = BaseMaterial3D.CULL_DISABLED
+	pillar.material_override = mat
+	world.add_child(pillar)
+	pillar.global_position = global_position + Vector3(0.0, 4.5, 0.0)
+	pillar.scale = Vector3(0.2, 1.0, 0.2)
+	var tw := create_tween()
+	tw.tween_property(pillar, "scale", Vector3(1.3, 1.0, 1.3), 0.25).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+	tw.parallel().tween_property(mat, "albedo_color:a", 0.0, 0.9)
+	tw.tween_callback(pillar.queue_free)
 
 
 ## キラキラ：澄んだ光の粒がふわっと外へ舞い上がって消える。

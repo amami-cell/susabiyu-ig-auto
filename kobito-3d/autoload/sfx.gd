@@ -197,10 +197,29 @@ func _process(delta: float) -> void:
 	_battle = move_toward(_battle, target, delta * rate)
 
 	var r := clampf(WorldState.recovery, 0.0, 1.0)
-	_bgm_battle.volume_db = lerpf(-60.0, -7.0, _battle)
+	# ボス（中ボス）が近いと“山場”＝戦闘曲をさらに前へ＋わずかに速く（高揚）。
+	var boss := _boss_near()
+	var battle_top := -3.0 if boss else -7.0
+	_bgm_battle.volume_db = lerpf(-60.0, battle_top, _battle)
+	_bgm_battle.pitch_scale = move_toward(_bgm_battle.pitch_scale, 1.07 if boss else 1.0, delta * 0.5)
 	# 戦闘中は穏やかな層を少し下げて、戦闘曲を主役に
 	_bgm_shine.volume_db = lerpf(-60.0, -10.0, r) - _battle * 10.0
 	_bgm_pad.volume_db = lerpf(-16.0, -11.0, r) - _battle * 3.0
+
+
+## 中ボス（is_midboss）が生きて近くに居るか＝“山場”か。各自の端末で判定。
+func _boss_near() -> bool:
+	var players := get_tree().get_nodes_in_group("player")
+	if players.is_empty():
+		return false
+	for b in get_tree().get_nodes_in_group("bug"):
+		var st: Variant = b.get("stats")
+		if st == null or not st.is_midboss:
+			continue
+		for p in players:
+			if b.global_position.distance_to(p.global_position) < BATTLE_RANGE * 1.6:
+				return true
+	return false
 
 
 ## 敵（虫）がどれかのプレイヤーの近くにいるか＝戦闘中か。各自の端末で判定。

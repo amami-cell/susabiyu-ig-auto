@@ -625,9 +625,10 @@ func fov_kick(amount: float) -> void:
 
 
 ## 浄化が成功した“やった！”の間：近くで虫が澄んだ瞬間、ふわっと寄って戻る小さなごほうび。
-func reward_pulse() -> void:
-	fov_kick(-3.0)
-	shake(0.05)
+## strength=大きいほど寄りと揺れが強い（ボス浄化などの山場で大きく）。
+func reward_pulse(strength: float = 1.0) -> void:
+	fov_kick(-3.0 * strength)
+	shake(0.05 * strength)
 
 
 func orbit_camera(amount: float) -> void:
@@ -768,6 +769,9 @@ func gain_xp(amount: int) -> void:
 		leveled = true
 	if leveled:
 		Sfx.play("levelup", -3.0)
+		if is_local:
+			fov_kick(-5.0)   # レベルアップの“やった！”＝画角がキュッと寄る達成の間
+			shake(0.06)
 	stats_changed.emit()
 
 
