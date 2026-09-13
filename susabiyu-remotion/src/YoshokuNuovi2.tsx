@@ -25,6 +25,9 @@ type P = { storeName?: string; handle?: string; theme?: string };
 const D = { storeName: "ナガグツ", handle: "@nagagutsu0427", theme: "italian" };
 
 const CREAM = "#F4EEE2";
+// 写真の上に直接置く字の落ち影（Caption と同じ二枚重ね）。
+// 近くて濃い影で輪郭を残し、遠くて広い影で周りを沈める。
+const NSH = "0 2px 8px rgba(0,0,0,0.85), 0 4px 26px rgba(0,0,0,0.6)";
 
 /* ═══ No.24 セッティマーナ（今週の一皿） ═══════════════════════════════
    曜日の枡が並び、今日の枡だけが灯って、その日の皿へ寄る。
@@ -289,8 +292,8 @@ const BattitoBody: React.FC<Required<P>> = ({ storeName, handle, theme }) => {
       <Masthead storeName={storeName} f={f} kicker="A TEMPO" accent={T.accent} logoH={78} />
       {/* 料理名は拍ごとに出し直す（切り替わりが気持ちいい） */}
       <div style={{ position: "absolute", left: SAFE.side, right: SAFE.side, bottom: 320 }}>
-        <div style={{ fontFamily: serif, color: T.accent, fontSize: 30, letterSpacing: 4, textTransform: "uppercase", fontWeight: 600, opacity: fade(lb, 2, 8) }}>{d.sub || ""}</div>
-        <div style={{ marginTop: 8, fontFamily: mincho, color: T.ink, fontSize: fitOneLine(nameOf(d), 84, 1080 - SAFE.side * 2, 30), fontWeight: 700, letterSpacing: 1, whiteSpace: "nowrap", textShadow: "0 3px 22px rgba(0,0,0,0.55)", opacity: fade(lb, 3, 8) }}>{nameOf(d)}</div>
+        <div style={{ fontFamily: serif, color: T.accent, fontSize: 30, letterSpacing: 4, textTransform: "uppercase", fontWeight: 600, textShadow: NSH, opacity: fade(lb, 2, 8) }}>{d.sub || ""}</div>
+        <div style={{ marginTop: 8, fontFamily: mincho, color: T.ink, fontSize: fitOneLine(nameOf(d), 84, 1080 - SAFE.side * 2, 30), fontWeight: 700, letterSpacing: 1, whiteSpace: "nowrap", textShadow: NSH, opacity: fade(lb, 3, 8) }}>{nameOf(d)}</div>
       </div>
       {/* 拍のカウンター（4つ玉） */}
       <div style={{ position: "absolute", left: SAFE.side, bottom: 254, display: "flex", gap: 10 }}>
@@ -383,7 +386,7 @@ const NastroBody: React.FC<Required<P>> = ({ storeName, handle, theme }) => {
       </div>
       {/* 説明文は足元の暗いところへ（グラデが効いている高さ）。 */}
       {items[i].desc ? (
-        <div style={{ position: "absolute", left: SAFE.side, right: SAFE.side, bottom: 300, fontFamily: mincho, color: T.ink, fontSize: 34, lineHeight: 1.44, letterSpacing: 1, textShadow: "0 3px 22px rgba(0,0,0,0.75)", opacity: fade(local, 34, 18) }}>
+        <div style={{ position: "absolute", left: SAFE.side, right: SAFE.side, bottom: 300, fontFamily: mincho, color: T.ink, fontSize: 34, lineHeight: 1.44, letterSpacing: 1, textShadow: NSH, opacity: fade(local, 34, 18) }}>
           {splitLines(items[i].desc || "").map((l, k) => <div key={k} style={{ whiteSpace: "nowrap" }}>{l}</div>)}
         </div>
       ) : null}

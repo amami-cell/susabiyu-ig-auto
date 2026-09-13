@@ -69,7 +69,9 @@ export const Caption: React.FC<{
   d: Item; f: number; start?: number; ink: string; sub: string; accent: string;
   w?: number; align?: "left" | "center"; shadow?: boolean; maxName?: number;
 }> = ({ d, f, start = 0, ink, sub, accent, w = 1080 - SAFE.side * 2, align = "left", shadow = true, maxName = 84 }) => {
-  const sh = shadow ? "0 3px 22px rgba(0,0,0,0.55)" : "none";
+  // 落ち影は「近くて濃い影」＋「遠くて広い影」の二枚重ね。
+  // 22pxのぼけ影1枚だけだと、伊語サブ(30px)のような細い字が明るい料理の上で消えていた。
+  const sh = shadow ? "0 2px 8px rgba(0,0,0,0.85), 0 4px 26px rgba(0,0,0,0.6)" : "none";
   const nm = nameOf(d);
   return (
     <div style={{ textAlign: align, ...rise(f, start, { dist: 18 }) }}>
