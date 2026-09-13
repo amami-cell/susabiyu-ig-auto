@@ -17,6 +17,10 @@ on:
         description: "DRY (1=ON)"
         required: false
         default: "0"
+# 多重起動防止（手動dispatchとcron/他店舗方式と揃える）: 同グループは同時に1つだけ
+concurrency:
+  group: susabiyu-post
+  cancel-in-progress: false
 jobs:
   post:
     runs-on: ubuntu-latest

@@ -3,6 +3,10 @@ on:
   workflow_dispatch:
   schedule:
     - cron: '*/30 * * * *'   # 30分ごとに redo枠を確実に処理（安全網）
+# 多重起動防止（手動dispatchとcron/他店舗方式と揃える）: 同グループは同時に1つだけ
+concurrency:
+  group: susabiyu-redo-scan
+  cancel-in-progress: false
 jobs:
   scan:
     runs-on: ubuntu-latest
