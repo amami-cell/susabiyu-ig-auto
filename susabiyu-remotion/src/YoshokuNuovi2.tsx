@@ -369,7 +369,8 @@ const NastroBody: React.FC<Required<P>> = ({ storeName, handle, theme }) => {
   return (
     <AbsoluteFill style={{ backgroundColor: T.base }}>
       <AbsoluteFill><Photo src={items[i].src} lf={local} seg={seg} from={1.04} to={1.12} /></AbsoluteFill>
-      <AbsoluteFill style={{ background: "linear-gradient(180deg, rgba(10,8,5,0.66) 0%, rgba(10,8,5,0.02) 26%, rgba(10,8,5,0.1) 56%, rgba(10,8,5,0.72) 82%, rgba(10,8,5,0.94) 100%)" }} />
+      {/* 上下の帯だけ濃くする（明るい皿でロゴ下の伊語・料理名が飛ぶのを防ぐ）。真ん中は素のまま */}
+      <AbsoluteFill style={{ background: "linear-gradient(180deg, rgba(10,8,5,0.86) 0%, rgba(10,8,5,0.62) 16%, rgba(10,8,5,0.06) 32%, rgba(10,8,5,0.08) 58%, rgba(10,8,5,0.62) 76%, rgba(10,8,5,0.96) 100%)" }} />
       {/* 斜めのリボン（左下→右上に掛かる） */}
       <div style={{ position: "absolute", left: -140, right: -140, top: 820, transform: "translateX(" + inX + "px) rotate(-11deg)" }}>
         <div style={{ height: 176, background: T.slab, boxShadow: "0 18px 46px rgba(0,0,0,0.5)", display: "flex", alignItems: "center", justifyContent: "center" }}>
@@ -382,17 +383,17 @@ const NastroBody: React.FC<Required<P>> = ({ storeName, handle, theme }) => {
         <div style={{ position: "absolute", left: 0, right: 0, top: -8, height: 6, background: CREAM, opacity: 0.85 }} />
         <div style={{ position: "absolute", left: 0, right: 0, bottom: -8, height: 6, background: CREAM, opacity: 0.85 }} />
       </div>
-      {/* 伊語サブは帯のすぐ上に、濃い下敷きを敷いて置く。
-          明るい写真に直に置くと（実際そうなっていて）字が飛んで読めないため。 */}
-      <div style={{ position: "absolute", left: SAFE.side, top: 730, opacity: fade(local, 24, 16) }}>
-        <span style={{ display: "inline-block", background: "rgba(12,9,6,0.6)", padding: "8px 20px", fontFamily: serif, color: T.accent, fontSize: 30, letterSpacing: 4, textTransform: "uppercase", fontWeight: 600 }}>{items[i].sub || ""}</span>
+      {/* 伊語サブと説明文は足元にまとめる（グラデが効いている高さ）。
+          はじめは帯のすぐ上に下敷きを敷いて置いていたが、灰色の箱が帯の角に
+          かぶって見え方が悪かった。他テンプレと同じ「伊語→説明文」の並びにする。 */}
+      <div style={{ position: "absolute", left: SAFE.side, right: SAFE.side, bottom: 300 }}>
+        <div style={{ fontFamily: serif, color: T.accent, fontSize: 30, letterSpacing: 4, textTransform: "uppercase", fontWeight: 600, marginBottom: 10, textShadow: NSH, opacity: fade(local, 24, 16) }}>{items[i].sub || ""}</div>
+        {items[i].desc ? (
+          <div style={{ fontFamily: mincho, color: T.ink, fontSize: 34, lineHeight: 1.44, letterSpacing: 1, textShadow: NSH, opacity: fade(local, 34, 18) }}>
+            {splitLines(items[i].desc || "").map((l, k) => <div key={k} style={{ whiteSpace: "nowrap" }}>{l}</div>)}
+          </div>
+        ) : null}
       </div>
-      {/* 説明文は足元の暗いところへ（グラデが効いている高さ）。 */}
-      {items[i].desc ? (
-        <div style={{ position: "absolute", left: SAFE.side, right: SAFE.side, bottom: 300, fontFamily: mincho, color: T.ink, fontSize: 34, lineHeight: 1.44, letterSpacing: 1, textShadow: NSH, opacity: fade(local, 34, 18) }}>
-          {splitLines(items[i].desc || "").map((l, k) => <div key={k} style={{ whiteSpace: "nowrap" }}>{l}</div>)}
-        </div>
-      ) : null}
       <Masthead storeName={storeName} f={f} kicker="IL NOSTRO PIATTO" accent={T.accent} logoH={78} />
       <HandleMark handle={handle} accent={T.accent} f={f} start={26} />
       <Grain opacity={0.05} />

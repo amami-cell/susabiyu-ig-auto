@@ -230,7 +230,8 @@ const CicchettiBody: React.FC<Required<P>> = ({ storeName, handle, theme }) => {
         ))}
       </AbsoluteFill>
       {/* カウンターの陰（上下）＝並んだ皿を見ている目線 */}
-      <AbsoluteFill style={{ background: "linear-gradient(180deg, rgba(10,8,5,0.8) 0%, rgba(10,8,5,0.05) 26%, rgba(10,8,5,0.1) 58%, rgba(10,8,5,0.92) 100%)" }} />
+      {/* 上下の帯だけ濃くする（明るい皿でロゴ下の伊語・料理名が飛ぶのを防ぐ）。真ん中は素のまま */}
+      <AbsoluteFill style={{ background: "linear-gradient(180deg, rgba(10,8,5,0.86) 0%, rgba(10,8,5,0.62) 16%, rgba(10,8,5,0.06) 32%, rgba(10,8,5,0.08) 58%, rgba(10,8,5,0.6) 76%, rgba(10,8,5,0.96) 100%)" }} />
       <Masthead storeName={storeName} f={f} kicker="CICCHETTI" accent={T.accent} logoH={78} />
       {/* 下の帯だけは動かさない＝止まった台の上を皿が流れていく */}
       <div style={{ position: "absolute", left: 0, right: 0, bottom: 250, height: 4, background: T.slab, opacity: 0.9 }} />
@@ -325,7 +326,8 @@ const TricoloreBody: React.FC<Required<P>> = ({ storeName, handle, theme }) => {
   return (
     <AbsoluteFill style={{ backgroundColor: "#141210" }}>
       <AbsoluteFill><Photo src={items[i].src} lf={local} seg={seg} from={1.1} to={1.02} bri={0.98} /></AbsoluteFill>
-      <AbsoluteFill style={{ background: "linear-gradient(180deg, rgba(10,8,6,0.66) 0%, rgba(10,8,6,0.06) 30%, rgba(10,8,6,0.12) 62%, rgba(10,8,6,0.9) 100%)" }} />
+      {/* 上下の帯だけ濃くする（明るい皿でロゴ下の伊語・料理名が飛ぶのを防ぐ）。真ん中は素のまま */}
+      <AbsoluteFill style={{ background: "linear-gradient(180deg, rgba(10,8,6,0.86) 0%, rgba(10,8,6,0.62) 16%, rgba(10,8,6,0.06) 32%, rgba(10,8,6,0.08) 58%, rgba(10,8,6,0.6) 76%, rgba(10,8,6,0.96) 100%)" }} />
       {/* 3本の帯が時間差で右→左に走り抜ける＝その裏で皿が入れ替わっている */}
       {bars.map((c, k) => {
         const s = seg - 26 + k * 5;
@@ -675,7 +677,8 @@ const PassioBody: React.FC<Required<P>> = ({ storeName, handle, theme }) => {
   return (
     <AbsoluteFill style={{ backgroundColor: "#0F0D0B" }}>
       <AbsoluteFill><Photo src={items[i].src} lf={local} seg={seg} from={1.14} to={1.04} /></AbsoluteFill>
-      <AbsoluteFill style={{ background: "linear-gradient(180deg, rgba(8,7,5,0.62) 0%, rgba(8,7,5,0.04) 30%, rgba(8,7,5,0.1) 60%, rgba(8,7,5,0.9) 100%)" }} />
+      {/* 上下の帯だけ濃くする（明るい皿でロゴ下の伊語・料理名が飛ぶのを防ぐ）。真ん中は素のまま */}
+      <AbsoluteFill style={{ background: "linear-gradient(180deg, rgba(8,7,5,0.86) 0%, rgba(8,7,5,0.62) 16%, rgba(8,7,5,0.04) 32%, rgba(8,7,5,0.08) 58%, rgba(8,7,5,0.6) 76%, rgba(8,7,5,0.96) 100%)" }} />
       {/* 左右の扉（木の縦板＋真鍮の把手） */}
       {[0, 1].map((s) => (
         <div key={s} style={{
