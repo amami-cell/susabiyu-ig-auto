@@ -1,0 +1,57 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scenes/ui/lobby.gd" id="1_lobby"]
+
+[node name="Lobby" type="Control"]
+anchor_right = 1.0
+anchor_bottom = 1.0
+script = ExtResource("1_lobby")
+
+[node name="Bg" type="ColorRect" parent="."]
+anchor_right = 1.0
+anchor_bottom = 1.0
+color = Color(0.11, 0.13, 0.11, 1)
+
+[node name="Panel" type="PanelContainer" parent="."]
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -270.0
+offset_top = -215.0
+offset_right = 270.0
+offset_bottom = 215.0
+
+[node name="VBox" type="VBoxContainer" parent="Panel"]
+theme_override_constants/separation = 12
+
+[node name="Title" type="Label" parent="Panel/VBox"]
+theme_override_font_sizes/font_size = 28
+horizontal_alignment = 1
+text = "小人一家と汚れた世界"
+
+[node name="NameEdit" type="LineEdit" parent="Panel/VBox"]
+placeholder_text = "なまえ（夫 / 妻 など）"
+text = "夫"
+
+[node name="Transport" type="OptionButton" parent="Panel/VBox"]
+
+[node name="SoloButton" type="Button" parent="Panel/VBox"]
+custom_minimum_size = Vector2(0, 52)
+text = "ひとりで始める（あとから参加できます）"
+
+[node name="HostButton" type="Button" parent="Panel/VBox"]
+custom_minimum_size = Vector2(0, 52)
+text = "ホストする（自分の庭に呼ぶ）"
+
+[node name="AddrEdit" type="LineEdit" parent="Panel/VBox"]
+placeholder_text = "相手のIP（例 192.168.1.5）"
+
+[node name="JoinButton" type="Button" parent="Panel/VBox"]
+custom_minimum_size = Vector2(0, 52)
+text = "参加する"
+
+[node name="Status" type="Label" parent="Panel/VBox"]
+autowrap_mode = 3
+horizontal_alignment = 1
+text = ""

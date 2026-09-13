@@ -1,0 +1,24 @@
+[gd_scene load_steps=4 format=3]
+
+[ext_resource type="Script" path="res://scenes/actors/bug.gd" id="1_bug"]
+
+[sub_resource type="CapsuleMesh" id="CapsuleMesh_bug"]
+radius = 0.18
+height = 0.55
+
+[sub_resource type="CapsuleShape3D" id="CapsuleShape3D_bug"]
+radius = 0.18
+height = 0.55
+
+[node name="Bug" type="CharacterBody3D"]
+collision_layer = 4
+collision_mask = 3
+script = ExtResource("1_bug")
+
+[node name="Body" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 0.0001, 1, 0, -1, 0.0001, 0, 0.2, 0)
+mesh = SubResource("CapsuleMesh_bug")
+
+[node name="Collision" type="CollisionShape3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.28, 0)
+shape = SubResource("CapsuleShape3D_bug")
