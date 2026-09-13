@@ -15,3 +15,5 @@ export const typoUptempo = "bgm.mp3";
 export const typoLogo = "";
 export const typoLogoColor = "";
 export const typoLogoRound = "";
+export const typoBpm = 120.00;
+export const typoBeats: number[] = [0.0000, 0.5000, 1.0000, 1.5000, 2.0000, 2.5000, 3.0000, 3.5000];

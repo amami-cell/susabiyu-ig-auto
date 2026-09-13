@@ -18,16 +18,17 @@ import { typoPhotos, typoMusic, typoMusicStart, typoLogoColor } from "./typoData
 import { ytheme } from "./yoshokuTheme";
 import {
   mincho, serif, clamp, EASE, EASE_INOUT, fade, rise, Grain, Vignette,
-  Masthead, HandleMark, StoreLogo, Slides, fitOneLine, fitLines, splitLines, segNow, SAFE,
+  Masthead, HandleMark, StoreLogo, StoreLogoColor, Slides, fitOneLine, fitLines, splitLines, segNow, SAFE,
   STORY_OPEN, STORY_END, STORY_XF,
 } from "./yoshokuDesign";
 import { StoryOpenXF, StoryEndV } from "./YoshokuOpStyles";
 
 export const BODY = 400;                                   // 本編 400f（4品×100f＝約13.3秒）
 export const YNUOVI_DUR = STORY_OPEN + BODY + STORY_END;   // 90+400+150 = 640 = 約21.3秒
-// OPを長く取るテンプレ用（No.23 は表紙に今日の4品を並べるので、書き終わるまで待たせる）
-export const PASSIO_OPEN = STORY_OPEN + 60;                // 150f = 5.0秒
-export const PASSIO_DUR = PASSIO_OPEN + BODY + STORY_END;  // 700f = 約23.3秒
+// 雑誌風のOP/CLOSE(v9)を付けるテンプレ用。表紙に今日の4品を並べるので、
+// 書き終わるまで待たせる（No.23・No.25）。
+export const MAGOP_OPEN = STORY_OPEN + 60;                // 150f = 5.0秒
+export const MAGOP_DUR = MAGOP_OPEN + BODY + STORY_END;   // 700f = 約23.3秒
 
 export type Item = { src?: string; caption?: string; sub?: string; disp?: string; desc?: string };
 
@@ -239,7 +240,7 @@ const CicchettiBody: React.FC<Required<P>> = ({ storeName, handle, theme }) => {
       {/* カウンターの陰（上下）＝並んだ皿を見ている目線 */}
       {/* 上下の帯だけ濃くする（明るい皿でロゴ下の伊語・料理名が飛ぶのを防ぐ）。真ん中は素のまま */}
       <AbsoluteFill style={{ background: "linear-gradient(180deg, rgba(10,8,5,0.86) 0%, rgba(10,8,5,0.62) 16%, rgba(10,8,5,0.06) 32%, rgba(10,8,5,0.08) 58%, rgba(10,8,5,0.6) 76%, rgba(10,8,5,0.96) 100%)" }} />
-      <Masthead storeName={storeName} f={f} kicker="CICCHETTI" accent={T.accent} logoH={132} />
+      <Masthead storeName={storeName} f={f} kicker="CICCHETTI" accent={T.accent} logoH={140} top={SAFE.top - 150} />
       {/* 下の帯だけは動かさない＝止まった台の上を皿が流れていく */}
       <div style={{ position: "absolute", left: 0, right: 0, bottom: 250, height: 4, background: T.slab, opacity: 0.9 }} />
       <div style={{ position: "absolute", left: SAFE.side, right: SAFE.side, bottom: 300 }}>
@@ -341,7 +342,7 @@ const TricoloreBody: React.FC<Required<P>> = ({ storeName, handle, theme }) => {
         const x = interpolate(local, [s, s + 30], [1180, -1180], { ...clamp, easing: EASE_INOUT });
         return <div key={k} style={{ position: "absolute", top: 0, bottom: 0, left: 0, width: 1080, background: c, transform: "translateX(" + x + "px)" }} />;
       })}
-      <Masthead storeName={storeName} f={f} kicker="OSTERIA" accent={T.accent} logoH={132} />
+      <Masthead storeName={storeName} f={f} kicker="OSTERIA" accent={T.accent} logoH={140} top={SAFE.top - 150} />
       {/* 料理名は帯が抜けた直後に、下から勢いよく */}
       <div style={{ position: "absolute", left: SAFE.side, right: SAFE.side, bottom: 300 }}>
         <Caption d={items[i]} f={local} start={4} ink={T.ink} sub={T.sub} accent={T.accent} maxName={90} />
@@ -376,7 +377,9 @@ const ProvinoBody: React.FC<Required<P>> = ({ storeName, handle, theme }) => {
   // 以前は「カット終わりの12フレーム前に出きって、そのまま次のカットへ切り替わる」形で、
   // ①引き伸ばした絵を見ている時間が短い ②戻りがパッと切り替わる、の2つが起きていた。
   // 出る→見せる→戻る を1本の値で持ち、戻り終わってから次のカットへ渡す。
-  const blow = interpolate(local, [26, 62, seg - 30, seg - 6], [0, 1, 1, 0], { ...clamp, easing: EASE_INOUT });
+  // 出る→見せる→戻る。前回は [26,62,seg-30,seg-6] で、出きって戻り始めるまでが
+  // 8フレーム(0.27秒)しかなく「まだ短い」と言われた。見せている時間を44フレーム(1.5秒)取る。
+  const blow = interpolate(local, [12, 42, seg - 14, seg - 2], [0, 1, 1, 0], { ...clamp, easing: EASE_INOUT });
   const bx = gx + (i % cols) * (FW + GAP), by = gy + Math.floor(i / cols) * (FH + GAP);
   return (
     <AbsoluteFill style={{ backgroundColor: "#0E0D0C" }}>
@@ -415,7 +418,7 @@ const ProvinoBody: React.FC<Required<P>> = ({ storeName, handle, theme }) => {
       <Masthead storeName={storeName} f={f} kicker="PROVINO" accent={T.accent} logoH={78} />
       {/* 料理名は引き伸ばした絵と一緒に出入りする（戻りでも置き去りにならない） */}
       <div style={{ position: "absolute", left: SAFE.side, right: SAFE.side, bottom: 300, opacity: blow }}>
-        <Caption d={items[i]} f={local} start={34} ink={T.ink} sub={T.sub} accent={T.accent} />
+        <Caption d={items[i]} f={local} start={16} ink={T.ink} sub={T.sub} accent={T.accent} />
       </div>
       <HandleMark handle={handle} accent={T.accent} f={f} start={20} />
       <Grain opacity={0.07} />
@@ -502,13 +505,16 @@ const NumeriBody: React.FC<Required<P>> = ({ storeName, handle, theme }) => {
   const numY = interpolate(local, [0, 34], [70, 0], { ...clamp, easing: EASE });
   return (
     <AbsoluteFill style={{ backgroundColor: T.base }}>
-      {/* 写真は右側の縦長。左に数字を大きく置く。
-          左の余白を372→232まで詰めて写真の面積を広げ、寄りも 1.06〜1.14 → 1.0〜1.05 に
-          弱める（料理が近すぎて何の皿か分からなくなっていた）。 */}
-      <div style={{ position: "absolute", left: 232, right: 0, top: 0, bottom: 0, overflow: "hidden" }}>
-        <Photo src={items[i].src} lf={local} seg={seg} from={1.0} to={1.05} />
+      {/* 写真は右側の板。画面の高さいっぱい(1920)に対して幅848だと縦横比が0.44になり、
+          横長の料理写真を cover で敷くと左右が大きく切れる（「見切れすぎ」の原因）。
+          高さを1020に詰めて0.83まで戻し、寄りも 1.0〜1.03 まで弱める＝引きで見せる。 */}
+      <div style={{ position: "absolute", left: 232, right: 0, top: 380, height: 1020, overflow: "hidden" }}>
+        <Photo src={items[i].src} lf={local} seg={seg} from={1.0} to={1.03} />
       </div>
-      <AbsoluteFill style={{ background: "linear-gradient(90deg, " + T.base + " 0%, " + T.base + "F2 24%, " + T.base + "33 50%, rgba(0,0,0,0) 100%)" }} />
+      {/* 左の暗幕は「数字を置く帯」まで。以前は50%まで掛かっていて写真が沈んでいたので、
+          真っ黒な帯が終わる位置(=写真の左端 21%)からグラデーションを始めて、
+          34%で切る＝写真そのものは素の明るさで見せる。 */}
+      <AbsoluteFill style={{ background: "linear-gradient(90deg, " + T.base + " 0%, " + T.base + " 20%, " + T.base + "E6 23%, " + T.base + "26 32%, rgba(0,0,0,0) 42%)" }} />
       <AbsoluteFill style={{ background: "linear-gradient(180deg, rgba(10,8,5,0.6) 0%, rgba(0,0,0,0) 28%, rgba(10,8,5,0.86) 100%)" }} />
       <Masthead storeName={storeName} f={f} kicker="I NUMERI" accent={T.accent} logoH={78} />
       {/* 特大ナンバー */}
@@ -561,11 +567,10 @@ const TendaBody: React.FC<{ storeName: string; handle: string }> = ({ storeName,
             <div key={k} style={{ width: 1080 / SCAL, height: 68, borderRadius: "0 0 50% 50%", background: k % 2 === 0 ? GREEN : CREAM }} />
           ))}
         </div>
-        {/* ひさしの真ん中に文字ロゴを大きく（縞に負けないよう濃い下敷きを敷く） */}
-        <div style={{ position: "absolute", left: 0, right: 0, top: 92, display: "flex", justifyContent: "center" }}>
-          <div style={{ background: "#241A12", border: "2px solid rgba(244,238,226,0.5)", padding: "20px 52px", boxShadow: "0 10px 26px rgba(0,0,0,0.4)" }}>
-            <StoreLogo storeName={storeName} height={132} />
-          </div>
+        {/* ひさしの真ん中に、色付きの文字ロゴだけを大きく置く（下敷き・縁は無し）。
+            大きさは以前の看板の外寸ぶん＝176px。 */}
+        <div style={{ position: "absolute", left: 0, right: 0, top: 88, display: "flex", justifyContent: "center" }}>
+          <StoreLogoColor storeName={storeName} height={176} />
         </div>
       </div>
       {/* 店名の代わりに置いていた TERRAZZA は、ひさしの下へ小さく回す */}
@@ -725,7 +730,7 @@ const PassioBody: React.FC<Required<P>> = ({ storeName, handle, theme }) => {
       <div style={{ position: "absolute", left: SAFE.side, right: SAFE.side, bottom: 300, opacity: fade(local, 34, 18) }}>
         <Caption d={items[i]} f={local} start={34} ink={T.ink} sub={T.sub} accent={T.accent} />
       </div>
-      <Masthead storeName={storeName} f={f} kicker="ENTRATA" accent={T.accent} logoH={78} />
+      <Masthead storeName={storeName} f={f} kicker="ENTRATA" accent={T.accent} logoH={140} top={SAFE.top - 150} />
       <HandleMark handle={handle} accent={T.accent} f={f} start={40} />
       <Vignette strength={0.36} />
       <Grain opacity={0.05} />
@@ -734,7 +739,7 @@ const PassioBody: React.FC<Required<P>> = ({ storeName, handle, theme }) => {
 };
 export const YoshokuPassio: React.FC<P> = ({ storeName = D.storeName, handle = D.handle, theme = D.theme }) => (
   // 表紙に今日の4品を並べるOPなので、書き終わるまで待たせる（3.0秒→5.0秒）。
-  <Shell v={9} base="#0F0D0B" storeName={storeName} handle={handle} theme={theme} openDur={PASSIO_OPEN}>
+  <Shell v={9} base="#0F0D0B" storeName={storeName} handle={handle} theme={theme} openDur={MAGOP_OPEN}>
     <PassioBody storeName={storeName} handle={handle} theme={theme} />
   </Shell>
 );
@@ -753,5 +758,5 @@ export const NUOVI_COMPS = [
   { id: "YoshokuMedaglione", pattern: "yoshokumedaglione", label: "No.21 洋食おしゃれ・丸窓の紋章", comp: YoshokuMedaglione },
   { id: "YoshokuMuro", pattern: "yoshokumuro", label: "No.22 洋食おしゃれ・石壁の壁書き", comp: YoshokuMuro },
   // dur を持つものだけ既定の長さ(YNUOVI_DUR)から外れる
-  { id: "YoshokuPassio", pattern: "yoshokupassio", label: "No.23 洋食おしゃれ・扉が開く", comp: YoshokuPassio, dur: PASSIO_DUR },
+  { id: "YoshokuPassio", pattern: "yoshokupassio", label: "No.23 洋食おしゃれ・扉が開く", comp: YoshokuPassio, dur: MAGOP_DUR },
 ];

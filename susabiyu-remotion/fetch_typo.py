@@ -437,6 +437,17 @@ _mstart = _music_start_sec(music)
 print("MUSIC_START:", _mstart, "秒（ファイル名から）")
 lines.append('export const typoMusicStart = %d;' % _mstart)
 
+# 音ハメ用の拍の位置（再生開始位置からの相対秒）。拾えなければ120BPMの等間隔。
+try:
+    import beat_detect as _bd
+    _bpm, _beats = _bd.detect_or_default(os.path.join("public", music), _mstart)
+    print("BEAT: bpm=%.1f 拍数=%d" % (_bpm, len(_beats)))
+except Exception as _e:
+    print("[BEAT] スキップ:", _e)
+    _bpm, _beats = 120.0, [round(i * 0.5, 4) for i in range(48)]
+lines.append('export const typoBpm = %.2f;' % _bpm)
+lines.append('export const typoBeats: number[] = [%s];' % ", ".join("%.4f" % b for b in _beats))
+
 
 def _fetch_group_photo():
     """店舗の「集合」フォルダ（スタッフ集合写真）から1枚取得して public/typo/group.jpg に保存し、

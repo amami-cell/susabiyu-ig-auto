@@ -103,7 +103,7 @@ export const RemotionRoot: React.FC = () => {
       {/* No.24〜No.31：さらに追加。長さ・共通ルールは No.12〜23 と同じ。 */}
       {NUOVI2_COMPS.map((c) => (
         <Composition key={c.id} id={c.id} component={c.comp} fps={FPS} width={1080} height={1920}
-          durationInFrames={YNUOVI_DUR} defaultProps={{ storeName: STORE, handle: "@susabiyu_sanjyo", theme: "neutral" }} />
+          durationInFrames={(c as { dur?: number }).dur || YNUOVI_DUR} defaultProps={{ storeName: STORE, handle: "@susabiyu_sanjyo", theme: "neutral" }} />
       ))}
       {/* OP/CLOSEの「地」比較用プレビュー（短尺）。選ばれた案を STORY_BG に設定して全10本へ反映する。 */}
       <Composition id="YoshokuOpBlur" component={YoshokuOpBlur} fps={FPS} width={1080} height={1920} durationInFrames={YOP_DUR} defaultProps={{ storeName: STORE, handle: "@susabiyu_sanjyo", theme: "neutral" }} />

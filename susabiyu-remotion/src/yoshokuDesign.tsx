@@ -179,10 +179,12 @@ export const Kicker: React.FC<{ text: string; color: string; f: number; start: n
 
 // マストヘッド（左上）：店舗ロゴを主役サイズで置き、その下に小さなラテンのキッカー。
 // エディトリアルの“表紙の頭”。全テンプレでロゴ位置を左上に統一＝ブランドの一貫性。
-export const Masthead: React.FC<{ storeName: string; f: number; kicker?: string; accent: string; tint?: string; logoH?: number }> = ({
-  storeName, f, kicker, accent, tint, logoH = 78,
+// top は既定 SAFE.top-74（=176）。No.9(大見出しタイポ)と同じ「もっと左上・大きめ」に
+// したいテンプレは top={SAFE.top - 150} logoH={140} を渡す。
+export const Masthead: React.FC<{ storeName: string; f: number; kicker?: string; accent: string; tint?: string; logoH?: number; top?: number }> = ({
+  storeName, f, kicker, accent, tint, logoH = 78, top = SAFE.top - 74,
 }) => (
-  <div style={{ position: "absolute", top: SAFE.top - 74, left: SAFE.side, ...rise(f, 6, { dist: 12 }) }}>
+  <div style={{ position: "absolute", top, left: SAFE.side, ...rise(f, 6, { dist: 12 }) }}>
     <StoreLogo storeName={storeName} height={logoH} tint={tint} />
     {/* テラコッタの小文字は明るい料理（オイルサーディン等）に重なると消える。
         落ち影を敷いておく＝暗い画では見えないが、明るい画では字の輪郭が残る。 */}
