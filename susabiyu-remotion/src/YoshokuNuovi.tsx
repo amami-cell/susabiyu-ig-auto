@@ -563,7 +563,7 @@ const TendaBody: React.FC<{ storeName: string; handle: string }> = ({ storeName,
         </div>
         {/* ひさしの真ん中に文字ロゴを大きく（縞に負けないよう濃い下敷きを敷く） */}
         <div style={{ position: "absolute", left: 0, right: 0, top: 92, display: "flex", justifyContent: "center" }}>
-          <div style={{ background: "rgba(20,16,10,0.46)", padding: "20px 52px" }}>
+          <div style={{ background: "#241A12", border: "2px solid rgba(244,238,226,0.5)", padding: "20px 52px", boxShadow: "0 10px 26px rgba(0,0,0,0.4)" }}>
             <StoreLogo storeName={storeName} height={132} />
           </div>
         </div>
