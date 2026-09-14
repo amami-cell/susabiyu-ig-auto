@@ -443,8 +443,10 @@ try:
     _bpm, _beats = _bd.detect_or_default(os.path.join("public", music), _mstart)
     # 拍とは別に「曲がここで入る」節目（フレーズの頭・サビの入り）も拾う。
     # 絵の切り替えはこちらに乗せる＝間隔がバラバラの、曲に合った切り替わりになる。
-    _acc = _bd.accents_or_default(os.path.join("public", music), _mstart, _beats)
-    print("BEAT: bpm=%.1f 拍数=%d 節目=%d" % (_bpm, len(_beats), len(_acc)))
+    import pattern_music as _pm_bl
+    _bl = _pm_bl.bar_lock(music)
+    _acc = _bd.accents_or_default(os.path.join("public", music), _mstart, _beats, bar_lock=_bl)
+    print("BEAT: bpm=%.1f 拍数=%d 節目=%d 小節の頭だけ=%s" % (_bpm, len(_beats), len(_acc), _bl))
 except Exception as _e:
     print("[BEAT] スキップ:", _e)
     _bpm, _beats = 120.0, [round(i * 0.5, 4) for i in range(48)]

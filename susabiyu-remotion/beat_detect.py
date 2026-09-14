@@ -15,12 +15,12 @@ SR, HOP, WIN = 22050, 512, 1024
 
 
 def _envelope(path, max_sec=60.0, start_sec=0.0):
-    """(全帯域のフラックス, 低音だけのフラックス, フレームレート) を返す。
+    """スペクトラルフラックス（アタックの強さ）の時系列と、そのフレームレートを返す。
 
-    低音だけのぶんを別に持つのは「小節の頭」を当てるため。全帯域で一番強い拍は
-    たいていスネア（2拍4拍＝バックビート）になり、そこで画を切ると小節の頭より
-    後ろで切れる＝音楽が先に行って画が遅れて見える。キックは低音に出るので、
-    低音の強い拍を小節の頭とみなす。"""
+    以前ここで低音だけのフラックスも返し、そこから「小節の頭」を推定していたが、
+    曲によって見当違いの位相を掴み、切り替えが丸ごと1〜3拍ずれる事故になった
+    （Somebody で実際に発生）。位相は別の信号から当てにいかず、実際に節目を
+    選ぶのと同じ指標だけで決める。"""
     import numpy as np
     # -ss を -i の前に置いて高速シーク。頭から60秒しか見ていなかったため、
     # 「1分23秒～」のように再生開始が60秒より後の曲だと拍が1つも使えず、
@@ -31,23 +31,18 @@ def _envelope(path, max_sec=60.0, start_sec=0.0):
         capture_output=True).stdout
     x = np.frombuffer(raw, dtype=np.float32)
     if len(x) < SR * 8:
-        return None, None, 0.0
+        return None, 0.0
     n = (len(x) - WIN) // HOP
     fenv = SR / float(HOP)          # 包絡線のフレームレート（約43/秒）
     hann = np.hanning(WIN)
-    # 22050Hz/1024点なので1本あたり約21.5Hz。先頭8本＝およそ170Hzまで＝キックの帯域。
-    nlow = 8
     prev = None
     env = np.zeros(n)
-    low = np.zeros(n)
     for i in range(n):
         mag = np.abs(np.fft.rfft(x[i * HOP:i * HOP + WIN] * hann))
         if prev is not None:
-            d = np.maximum(mag - prev, 0)
-            env[i] = d.sum()                  # スペクトラルフラックス＝アタックの強さ
-            low[i] = d[:nlow].sum()           # 低音だけ＝キックの手がかり
+            env[i] = np.maximum(mag - prev, 0).sum()   # スペクトラルフラックス＝アタックの強さ
         prev = mag
-    return env, low, fenv
+    return env, fenv
 
 
 def detect(path, max_sec=60.0, start_sec=0.0):
@@ -56,7 +51,7 @@ def detect(path, max_sec=60.0, start_sec=0.0):
     そこから max_sec 秒ぶんだけ解析する（曲の頭ではなく、実際に流すところを見る）。"""
     import numpy as np
     sr, hop, win = SR, HOP, WIN
-    env, _low, fenv = _envelope(path, max_sec, start_sec)
+    env, fenv = _envelope(path, max_sec, start_sec)
     if env is None:
         return None
     n = len(env)
@@ -95,7 +90,7 @@ def detect(path, max_sec=60.0, start_sec=0.0):
 
 
 def accents(path, max_sec=60.0, start_sec=0.0, beats=None,
-            min_gap=1.15, max_gap=4.5, thr_pct=88.0, lead_sec=0.05):
+            min_gap=1.15, max_gap=4.5, thr_pct=88.0, lead_sec=0.05, bar_lock=False):
     """曲の「ここで入る」という節目（フレーズの頭・サビの入り）の秒を返す。
 
     拍(detect)とは別物。拍は等間隔の格子なので、そこに絵を乗せると曲のどこでも
@@ -107,6 +102,7 @@ def accents(path, max_sec=60.0, start_sec=0.0, beats=None,
       ②2秒の移動中央値を土台にして、そこからどれだけ跳ねたかを見る
         （曲全体が盛り上がっている区間でも、その中の"入り"だけが立つ）
       ③拍の格子の上から、強い拍だけを選ぶ（＝必ず拍に乗る／間隔はバラバラ）
+        bar_lock=True の曲だけ、さらに小節の頭に限定する
       ④近すぎるものは強い方を残す（min_gap）
       ⑤空きすぎた所は拍を足して埋める（切り替わらない動画にしない）
       ⑥lead_sec ぶん前へ出す
@@ -117,7 +113,7 @@ def accents(path, max_sec=60.0, start_sec=0.0, beats=None,
     そこで既定で1.5コマぶん(0.05秒)だけ前へ出す。
     """
     import numpy as np
-    env, low, fenv = _envelope(path, max_sec, start_sec)
+    env, fenv = _envelope(path, max_sec, start_sec)
     if env is None or len(env) < 16 or env.max() <= 0:
         return []
     # ①勢いにならす
@@ -137,41 +133,41 @@ def accents(path, max_sec=60.0, start_sec=0.0, beats=None,
     #   二次的な打点を掴んでしまい、耳が“入り”と感じる位置より後ろにずれる
     #   （＝音楽が先に行って画が遅れて見える）。拍の上に限定すれば必ず拍に
     #   ピタリと乗り、しかも強い拍だけを採るので間隔はバラバラのまま保てる。
-    #   さらに「小節の頭に限定」する。全帯域で一番強い拍はバックビート（2拍4拍の
-    #   スネア）になる曲が多く、そこで切ると小節の頭より後ろで切れる＝やはり
-    #   画が遅れて見える（French_Toast で実際に出た）。キックは低音に出るので、
-    #   低音が強い拍の位置を小節の頭とみなし、そこだけを候補にする。
+    #
+    #   bar_lock について：曲によっては、拍の中でいちばん強いのがバックビート
+    #   （2拍4拍のスネア）で、そこで切ると小節の頭より後ろになる（French_Toast）。
+    #   その曲だけ「小節の頭」に限定する。ただし小節の頭の位置は、低音など別の
+    #   信号から当てにいってはいけない。見当違いの位相を掴むと切り替えが丸ごと
+    #   1〜3拍ずれる事故になる（Somebody で実際に起きた）。ここでは実際に節目を
+    #   選ぶのと同じ nov を使い、いちばん節目が集まる位置を小節の頭とみなす。
     cand = []
     allcand = []
     if beats and len(beats) >= 8:
         w = max(1, int(round(0.10 * fenv)))     # その拍の前後0.1秒の強さで評価
-        def _peak(arr, sec):
+        def _peak(sec):
             i = int(round(sec * fenv))
-            if i < 0 or i >= len(arr):
+            if i < 0 or i >= len(nov):
                 return None
-            lo, hi = max(0, i - w), min(len(arr), i + w + 1)
-            return float(arr[lo:hi].max())
-        # 4拍のどの位置にキックが来ているか＝小節の頭を割り出す
-        phase, best = 0, -1.0
-        for p in range(4):
-            vs = [_peak(low, b) for k, b in enumerate(beats) if k % 4 == p]
-            vs = [v for v in vs if v is not None]
-            if vs and sum(vs) / len(vs) > best:
-                phase, best = p, sum(vs) / len(vs)
-        # 候補は「小節の頭」だけにする。半小節（小節の真ん中）も入れていたが、
-        # そこで切ると小節の途中で画が変わることになり、耳には“ずれている”と
-        # はっきり分かる（No.37 の 11.09→13.21秒＝1.5小節の所で実際に出た）。
-        # 頭だけにすれば切り替えの間隔は必ず小節の整数倍になり、どこで切っても合う。
-        for k, b in enumerate(beats):
-            if (k - phase) % 4 != 0:
-                continue
-            v = _peak(nov, b)
-            if v is not None:
-                cand.append((float(b), v))
+            lo, hi = max(0, i - w), min(len(nov), i + w + 1)
+            return float(nov[lo:hi].max())
+        scored = [(k, float(b), _peak(b)) for k, b in enumerate(beats)]
+        scored = [(k, b, v) for k, b, v in scored if v is not None]
+        keep = scored
+        pct = 0.70
+        if bar_lock and scored:
+            # 節目がいちばん集まっている位置＝小節の頭（同じ指標で決めるので破綻しない）
+            phase, best = 0, -1.0
+            for p in range(4):
+                vs = [v for k, _b, v in scored if k % 4 == p]
+                if vs and sum(vs) / len(vs) > best:
+                    phase, best = p, sum(vs) / len(vs)
+            keep = [(k, b, v) for k, b, v in scored if (k - phase) % 4 == 0]
+            pct = 0.45                          # 候補が絞られたぶん緩める
+        cand = [(b, v) for _k, b, v in keep]
         if cand:
             allcand = list(cand)                # 空きを埋める時もここから選ぶ
             vals = sorted(v for _b, v in cand)
-            thr = vals[int(len(vals) * 0.45)]   # 候補が小節の頭に絞られたぶん緩める
+            thr = vals[int(len(vals) * pct)]
             cand = [(b, v) for b, v in cand if v >= thr and v > 0]
     if not cand:
         # 拍が使えない時だけ、従来どおり山のピークを拾う
@@ -213,11 +209,11 @@ def accents(path, max_sec=60.0, start_sec=0.0, beats=None,
     return [round(max(0.0, t - lead_sec), 4) for t in out]
 
 
-def accents_or_default(path, start_sec=0.0, beats=None, need=16):
+def accents_or_default(path, start_sec=0.0, beats=None, need=16, bar_lock=False):
     """節目の秒を返す。拾えなければ4拍ごと（小節の頭）にフォールバックする。
     ここで空を返すと絵が切り替わらなくなるので、必ず何か返す。"""
     try:
-        a = accents(path, start_sec=start_sec, beats=beats)
+        a = accents(path, start_sec=start_sec, beats=beats, bar_lock=bar_lock)
     except Exception as e:
         print("[ACCENT] 解析失敗:", e)
         a = []

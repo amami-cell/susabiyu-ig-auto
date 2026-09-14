@@ -243,9 +243,10 @@ def main():
                 bpm, beats = _bd.detect_or_default(music_path, st)
                 # 拍とは別に「曲がここで入る」という節目も拾う。等間隔の拍だけだと
                 # 曲のどこでも同じ顔で脈打つ動画になり、音ハメに見えないため。
-                acc = _bd.accents_or_default(music_path, st, beats)
+                _bl = _pm.bar_lock(music_path)
+                acc = _bd.accents_or_default(music_path, st, beats, bar_lock=_bl)
                 _beat_cache.clear(); _beat_cache.update(path=music_path, bpm=bpm, beats=beats, acc=acc)
-                print("[BEAT] %s bpm=%.1f 拍数=%d 節目=%d" % (os.path.basename(music_path), bpm, len(beats), len(acc)))
+                print("[BEAT] %s bpm=%.1f 拍数=%d 節目=%d 小節の頭だけ=%s" % (os.path.basename(music_path), bpm, len(beats), len(acc), _bl))
             arr = ", ".join("%.4f" % b for b in _beat_cache["beats"])
             acc = ", ".join("%.4f" % b for b in _beat_cache["acc"])
             s = _sub_or_append(s, r'export const typoBpm = [\d.]+;',
