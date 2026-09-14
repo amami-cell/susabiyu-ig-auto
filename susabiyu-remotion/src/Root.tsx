@@ -15,6 +15,7 @@ import { YoshokuMagazine, YMAGZ_DUR } from "./YoshokuMagazine";
 import { NUOVI_COMPS, YNUOVI_DUR } from "./YoshokuNuovi";
 import { NUOVI2_COMPS } from "./YoshokuNuovi2";
 import { FEED_COMPS, FEED_W, FEED_H, FEED_DUR } from "./YoshokuFeed";
+import { FEED2_COMPS } from "./YoshokuFeed2";
 import { MAGP_COMPS, MAGP_W, MAGP_H, MAGP_DUR } from "./YoshokuMagPages";
 import { SushiStory } from "./SushiStory";
 import { SimpleStory } from "./SimpleStory";
@@ -123,6 +124,10 @@ export const RemotionRoot: React.FC = () => {
       ))}
       {/* フィード投稿画像テンプレ（4:5・静止画）。デザイン候補を複数パターン。 */}
       {FEED_COMPS.map((f) => (
+        <Composition key={f.id} id={f.id} component={f.comp} fps={FPS} width={FEED_W} height={FEED_H} durationInFrames={FEED_DUR} defaultProps={{ storeName: STORE, handle: "@susabiyu_sanjyo", theme: "neutral" }} />
+      ))}
+      {/* 追加10種（イタリアン肉バル／デート利用とドリンク280円〜のコスパ） */}
+      {FEED2_COMPS.map((f) => (
         <Composition key={f.id} id={f.id} component={f.comp} fps={FPS} width={FEED_W} height={FEED_H} durationInFrames={FEED_DUR} defaultProps={{ storeName: STORE, handle: "@susabiyu_sanjyo", theme: "neutral" }} />
       ))}
       <Composition id="SushiStory" component={SushiStory} fps={FPS} width={1080} height={1920} durationInFrames={dur} defaultProps={{ storeName: STORE, handle: "@susabiyu_sanjyo" }} />

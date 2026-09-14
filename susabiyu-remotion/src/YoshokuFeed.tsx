@@ -19,24 +19,24 @@ export const FEED_DUR = 1; // 静止画（stillで1フレーム抜く）
 
 type P = { storeName?: string; handle?: string; theme?: string };
 const D = { storeName: "ナガグツ", handle: "@nagagutsu0427", theme: "italian" };
-const SIDE = 64;
+export const SIDE = 64;
 
 const EMPTY_DISH = { src: "", caption: "", sub: "", story: "", disp: "", desc: "", cut: "" };
-function dish() {
+export function dish() {
   return typoPhotos[0] || EMPTY_DISH;
 }
 // n品ぶん取り出す。写真が足りない時は最後の1枚で埋める（枠が空かないように）。
-function dishes(n: number) {
+export function dishes(n: number) {
   const p: any[] = typoPhotos.length ? (typoPhotos as any[]) : [EMPTY_DISH];
   return Array.from({ length: n }, (_, i) => p[i] || p[p.length - 1]);
 }
-function dispName(d: { disp?: string; caption?: string }) {
+export function dispName(d: { disp?: string; caption?: string }) {
   return (d.disp && d.disp.length ? d.disp : (d.caption || ""));
 }
-function jlen(s: string) { return Array.from(s || "").length; }
+export function jlen(s: string) { return Array.from(s || "").length; }
 
 // 料理写真（肉のシズル用に contrast/saturate を付与）。
-const Photo: React.FC<{ src: string; pos?: string; bri?: number; sat?: number; con?: number; style?: React.CSSProperties }> =
+export const Photo: React.FC<{ src: string; pos?: string; bri?: number; sat?: number; con?: number; style?: React.CSSProperties }> =
   ({ src, pos, bri = 1.10, sat = 1.14, con = 1.06, style }) => (
     <Img src={staticFile(src)} style={{
       width: "100%", height: "100%", objectFit: "cover", objectPosition: pos || "center",
@@ -46,14 +46,14 @@ const Photo: React.FC<{ src: string; pos?: string; bri?: number; sat?: number; c
 
 // 幅に合わせて1行に収まるフォントサイズを自動決定（＝“大きさは保ちつつ長い名前は少し詰める”）。
 // ｜がある名前は2行として一番長い行で計算する。minPx未満にはしない。
-function fitSize(text: string, maxPx: number, usableW: number, minPx = 46) {
+export function fitSize(text: string, maxPx: number, usableW: number, minPx = 46) {
   const arr = splitLines(text); const lines = arr.length ? arr : [text];
   const longest = Math.max(1, ...lines.map(jlen));
   return Math.max(minPx, Math.min(maxPx, Math.floor(usableW / longest)));
 }
 
 // 欧文サブ（小・Cormorant・大文字）＋極太明朝の料理名。横組み。
-const HeroName: React.FC<{
+export const HeroName: React.FC<{
   text: string; sub?: string; maxPx: number; usableW: number; color: string;
   subColor: string; align?: "left" | "center"; shadow?: string; minPx?: number;
 }> = ({ text, sub, maxPx, usableW, color, subColor, align = "left", shadow, minPx = 46 }) => {
@@ -88,14 +88,14 @@ const VName: React.FC<{ text: string; color: string; maxPx: number; availH: numb
   };
 
 // 店ロゴ（色付き文字ロゴ typoLogoColor があれば大きめに表示。無ければ明朝の店名＝和文serifバグ回避）。
-const Logo: React.FC<{ storeName: string; tint?: string; h?: number }> = ({ storeName, tint = "#F6EFE0", h = 132 }) => (
+export const Logo: React.FC<{ storeName: string; tint?: string; h?: number }> = ({ storeName, tint = "#F6EFE0", h = 132 }) => (
   typoLogoColor
     ? <Img src={staticFile(typoLogoColor)} style={{ height: h, width: "auto", maxWidth: 680, objectFit: "contain", filter: "drop-shadow(0 3px 16px rgba(0,0,0,0.6))" }} />
     : <div style={{ fontFamily: mincho, color: tint, fontSize: Math.round(h * 0.72), fontWeight: 700, letterSpacing: 2, lineHeight: 1, textShadow: "0 3px 16px rgba(0,0,0,0.5)" }}>{storeName}</div>
 );
 
 // ブランド・ロックアップ（左上・安全帯内）＝大きめ色付きロゴ＋その下に小さなラテンのキッカー。
-const Brand: React.FC<{ storeName: string; accent: string; tint?: string; logoH?: number; kicker?: string; shadow?: string; center?: boolean }> =
+export const Brand: React.FC<{ storeName: string; accent: string; tint?: string; logoH?: number; kicker?: string; shadow?: string; center?: boolean }> =
   ({ storeName, accent, tint = "#F6EFE0", logoH = 132, kicker = "MEAT BAR", shadow, center = false }) => (
     <div style={{ display: "flex", flexDirection: "column", alignItems: center ? "center" : "flex-start", gap: 10 }}>
       <Logo storeName={storeName} tint={tint} h={logoH} />
@@ -103,21 +103,21 @@ const Brand: React.FC<{ storeName: string; accent: string; tint?: string; logoH?
     </div>
   );
 
-const Handle: React.FC<{ handle: string; color: string; shadow?: string }> = ({ handle, color, shadow }) => (
+export const Handle: React.FC<{ handle: string; color: string; shadow?: string }> = ({ handle, color, shadow }) => (
   <div style={{ position: "absolute", right: SIDE, bottom: 54, fontFamily: serif, color, fontSize: 24, letterSpacing: 3, textShadow: shadow }}>{handle}</div>
 );
 
 // 暗幕を“さりげなく”まで薄くしたぶん、文字側の影を二段（近い濃い影＋広い柔らかい影）にして
 // 明るい写真の上でも料理名が浮くようにする。＝画面を暗くせずに可読性を確保する。
-const NAME_SHADOW = "0 2px 8px rgba(0,0,0,0.92), 0 6px 28px rgba(0,0,0,0.72)";
+export const NAME_SHADOW = "0 2px 8px rgba(0,0,0,0.92), 0 6px 28px rgba(0,0,0,0.72)";
 // 暗幕グラデを一切かけない案（A・C・F・G）で、文字を写真に直置きしても読ませるための影。
 // 画面を暗くする代わりに“文字の周りだけ”を締める：近い濃い影＋中間＋広く柔らかい影の三段。
-const BARE_SHADOW = "0 1px 3px rgba(0,0,0,0.95), 0 3px 12px rgba(0,0,0,0.9), 0 8px 34px rgba(0,0,0,0.8)";
+export const BARE_SHADOW = "0 1px 3px rgba(0,0,0,0.95), 0 3px 12px rgba(0,0,0,0.9), 0 8px 34px rgba(0,0,0,0.8)";
 
 // モルタル（塗り壁/コンクリート）色。真っ黒を避けた“少し明るい黒”。B・G の下地に使う。
-const MORTAR = "#33302C";
-const MORTAR_HI = "#3C3833";
-const MORTAR_LO = "#2A2723";
+export const MORTAR = "#33302C";
+export const MORTAR_HI = "#3C3833";
+export const MORTAR_LO = "#2A2723";
 
 // 装飾用のワイングラス（線画SVG）。C案の余白埋め・肉バル×ワインの世界観。
 const WineGlass: React.FC<{ style?: React.CSSProperties; stroke?: string }> = ({ style, stroke = "#E0673A" }) => (
@@ -166,7 +166,7 @@ const Ground: React.FC<{ left: number; top: number; w: number; h: number; a?: nu
 );
 
 // 脇役の料理名（枠幅に合わせて必ず1行に収める小さめの極太明朝）。
-const SmallName: React.FC<{ text: string; w: number; color: string; num?: string; numColor?: string }> =
+export const SmallName: React.FC<{ text: string; w: number; color: string; num?: string; numColor?: string }> =
   ({ text, w, color, num, numColor }) => {
     const one = (text || "").replace(/[｜\n]/g, "");
     const size = Math.max(22, Math.min(38, Math.floor(w / Math.max(1, jlen(one)))));

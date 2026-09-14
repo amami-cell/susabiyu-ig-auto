@@ -21,6 +21,18 @@ FEED_COMPS = [
     ("YoshokuFeedE", "フィード案E・サイドレール(テラコッタ帯)"),
     ("YoshokuFeedE2", "フィード案E2・サイドレール(オリーブ帯)"),
     ("YoshokuFeedE3", "フィード案E3・サイドレール(ゴールド帯)"),
+    # 追加10種（YoshokuFeed2.tsx）。イタリアン肉バル＝おしゃれ/デート利用と
+    # ドリンク280円〜のコスパ、両方を出せるように振り分けてある。
+    ("YoshokuFeedPrezzo", "画像1・丸い値札（280円〜）"),
+    ("YoshokuFeedBrindisi", "画像2・乾杯は280円から（上下2分割）"),
+    ("YoshokuFeedLavagna", "画像3・黒板の値札"),
+    ("YoshokuFeedTre", "画像4・3品を並べる"),
+    ("YoshokuFeedBiglietto", "画像5・半券（チケット）"),
+    ("YoshokuFeedVetrina", "画像6・アーチの窓（デート寄り）"),
+    ("YoshokuFeedNumero", "画像7・特大280（価格が主役）"),
+    ("YoshokuFeedMenu", "画像8・縦組みの品書き"),
+    ("YoshokuFeedDue", "画像9・ふたりでシェア（2枚並び）"),
+    ("YoshokuFeedTimbro", "画像10・クラフト紙に判子"),
 ]
 
 

@@ -52,6 +52,12 @@ export function cutIndex(cuts: number[], f: number): number {
   while (i + 1 < cuts.length && cuts[i + 1] <= f) i++;
   return i;
 }
+// n個に1つだけ拾う（拍→小節）。「拍ごとに切る」と画がうるさいので、
+// 絵の切り替えは小節（4拍ぶん）に落として、拍は別の要素に担当させる。
+export function everyNth(cuts: number[], n: number): number[] {
+  const out = cuts.filter((_, i) => i % n === 0);
+  return out.length >= 2 ? out : cuts;
+}
 
 /* ═══ No.24 セッティマーナ（今週の一皿） ═══════════════════════════════
    曜日の枡が並び、今日の枡だけが灯って、その日の皿へ寄る。
@@ -437,6 +443,142 @@ export const YoshokuNastro: React.FC<P> = ({ storeName = D.storeName, handle = D
   </Shell>
 );
 
+
+/* ═══════════════════════════════════════════════════════════════════════
+   音ハメの「静かな」3案（No.32〜34）。
+   No.29 は拍ごとに絵を切るので目がうるさい、という指摘への別案。
+   3案とも曲の拍には乗せたまま、拍に合わせて動くものを変えてある：
+     No.32 … 絵の切り替えを小節（4拍ぶん）に落とす＝切るが、頻度は1/4
+     No.33 … 絵は切らない。料理名が拍で1文字ずつ書かれる
+     No.34 … 絵は切らない。光が拍で呼吸し、皿は小節でそっと入れ替わる
+   ═══════════════════════════════════════════════════════════════════ */
+
+/* ── No.32 バッテレ（小節で切る） ──────────────────────────────────── */
+const BattereBody: React.FC<Required<P>> = ({ storeName, handle, theme }) => {
+  const f = useCurrentFrame(); const T = ytheme(theme);
+  const items = dishes(4);
+  const BARS = everyNth(beatCuts(STORY_OPEN), 4);   // 4拍に1回＝小節の頭だけで切る
+  const i = cutIndex(BARS, f);
+  const local = f - (BARS[i] ?? 0);
+  const seg = (BARS[i + 1] ?? BODY) - (BARS[i] ?? 0);
+  const d = items[i % items.length];
+  return (
+    <AbsoluteFill style={{ backgroundColor: "#100D0A" }}>
+      {/* 小節のあいだはゆっくり寄るだけ。動きは1つに絞る */}
+      <AbsoluteFill><Photo src={d.src} lf={local} seg={seg} from={1.0} to={1.05} bri={1.0} /></AbsoluteFill>
+      <AbsoluteFill style={{ background: "linear-gradient(180deg, rgba(8,7,5,0.86) 0%, rgba(8,7,5,0.62) 16%, rgba(8,7,5,0.04) 32%, rgba(8,7,5,0.08) 58%, rgba(8,7,5,0.6) 76%, rgba(8,7,5,0.96) 100%)" }} />
+      <Masthead storeName={storeName} f={f} kicker="A TEMPO" accent={T.accent} logoH={140} top={SAFE.top - 150} />
+      <div style={{ position: "absolute", left: SAFE.side, right: SAFE.side, bottom: 300 }}>
+        <Caption d={d} f={local} start={4} ink={T.ink} sub={T.sub} accent={T.accent} />
+      </div>
+      {/* 拍は「細い罫が伸びる」だけで示す＝画は切らないが音には乗っている */}
+      <div style={{ position: "absolute", left: SAFE.side, bottom: 262, height: 4, background: T.accent,
+        width: interpolate(local, [0, seg], [0, 1080 - SAFE.side * 2], clamp) }} />
+      <HandleMark handle={handle} accent={T.accent} f={f} start={20} />
+      <Grain opacity={0.05} />
+    </AbsoluteFill>
+  );
+};
+export const YoshokuBattere: React.FC<P> = ({ storeName = D.storeName, handle = D.handle, theme = D.theme }) => (
+  <Shell v={8} base="#100D0A" storeName={storeName} handle={handle} theme={theme}>
+    <BattereBody storeName={storeName} handle={handle} theme={theme} />
+  </Shell>
+);
+
+/* ── No.33 スクリット（拍で1文字ずつ書く） ────────────────────────── */
+const ScrittoBody: React.FC<Required<P>> = ({ storeName, handle, theme }) => {
+  const f = useCurrentFrame(); const T = ytheme(theme);
+  const items = dishes(4);
+  const BEATS = beatCuts(STORY_OPEN);
+  const BARS = everyNth(BEATS, 8);                 // 皿は8拍に1回だけ替わる（＝ほとんど切らない）
+  const i = cutIndex(BARS, f);
+  const local = f - (BARS[i] ?? 0);
+  const seg = (BARS[i + 1] ?? BODY) - (BARS[i] ?? 0);
+  const d = items[i % items.length];
+  const nm = nameOf(d);
+  const chars = Array.from(nm);
+  const size = fitOneLine(nm, 84, 1080 - SAFE.side * 2, 30);
+  // その皿になってから何拍たったか＝何文字まで書けたか
+  const since = BEATS.filter((b) => b >= (BARS[i] ?? 0) && b <= f).length;
+  return (
+    <AbsoluteFill style={{ backgroundColor: "#100D0A" }}>
+      <AbsoluteFill><Photo src={d.src} lf={local} seg={seg} from={1.02} to={1.07} bri={1.0} /></AbsoluteFill>
+      <AbsoluteFill style={{ background: "linear-gradient(180deg, rgba(8,7,5,0.86) 0%, rgba(8,7,5,0.62) 16%, rgba(8,7,5,0.04) 32%, rgba(8,7,5,0.1) 58%, rgba(8,7,5,0.66) 76%, rgba(8,7,5,0.96) 100%)" }} />
+      <Masthead storeName={storeName} f={f} kicker="A TEMPO" accent={T.accent} logoH={140} top={SAFE.top - 150} />
+      <div style={{ position: "absolute", left: SAFE.side, right: SAFE.side, bottom: 300 }}>
+        <div style={{ fontFamily: serif, color: T.accent, fontSize: 30, letterSpacing: 4, textTransform: "uppercase", fontWeight: 600, textShadow: NSH, opacity: fade(local, 2, 10) }}>{d.sub || ""}</div>
+        {/* 1拍につき1文字。書き終わったら、その皿のあいだはずっと出したまま */}
+        <div style={{ marginTop: 10, whiteSpace: "nowrap" }}>
+          {chars.map((c, k) => (
+            <span key={k} style={{
+              fontFamily: mincho, color: T.ink, fontSize: size, fontWeight: 700, letterSpacing: 1,
+              textShadow: NSH, opacity: k < since ? 1 : 0,
+            }}>{c}</span>
+          ))}
+        </div>
+        {d.desc ? (
+          <div style={{ marginTop: 16, fontFamily: mincho, color: T.sub, fontSize: 34, lineHeight: 1.44, letterSpacing: 1, textShadow: NSH, opacity: fade(local, 40, 20) }}>
+            {splitLines(d.desc).map((l, k) => <div key={k} style={{ whiteSpace: "nowrap" }}>{l}</div>)}
+          </div>
+        ) : null}
+      </div>
+      <HandleMark handle={handle} accent={T.accent} f={f} start={24} />
+      <Grain opacity={0.05} />
+    </AbsoluteFill>
+  );
+};
+export const YoshokuScritto: React.FC<P> = ({ storeName = D.storeName, handle = D.handle, theme = D.theme }) => (
+  <Shell v={6} base="#100D0A" storeName={storeName} handle={handle} theme={theme}>
+    <ScrittoBody storeName={storeName} handle={handle} theme={theme} />
+  </Shell>
+);
+
+/* ── No.34 レスピロ（拍で光が呼吸する） ───────────────────────────── */
+const RespiroBody: React.FC<Required<P>> = ({ storeName, handle, theme }) => {
+  const f = useCurrentFrame(); const T = ytheme(theme);
+  const items = dishes(4);
+  const BEATS = beatCuts(STORY_OPEN);
+  const BARS = everyNth(BEATS, 8);                 // 皿は8拍に1回だけ、重ねて入れ替わる
+  const i = cutIndex(BARS, f);
+  const local = f - (BARS[i] ?? 0);
+  const seg = (BARS[i + 1] ?? BODY) - (BARS[i] ?? 0);
+  // いま何拍目の中にいるか＝その拍の頭からの経過
+  const bi = cutIndex(BEATS, f);
+  const lb = f - (BEATS[bi] ?? 0);
+  const breathe = interpolate(lb, [0, 10], [1.012, 1.0], { ...clamp, easing: EASE });   // わずかに膨らんで戻る
+  const glow = interpolate(lb, [0, 12], [0.1, 0], clamp);                                // 拍の頭だけ淡く明るい
+  return (
+    <AbsoluteFill style={{ backgroundColor: "#100D0A" }}>
+      {/* 皿の入れ替わりはクロスディゾルブ（切らない）。拍は光と呼吸で示す */}
+      <AbsoluteFill style={{ transform: "scale(" + breathe + ")" }}>
+        <AbsoluteFill style={{ opacity: fade(local, 0, 20) }}>
+          <Photo src={d0(items, i).src} lf={local} seg={seg} from={1.02} to={1.08} bri={1.0} />
+        </AbsoluteFill>
+      </AbsoluteFill>
+      <AbsoluteFill style={{ background: "#FFF0DC", opacity: glow }} />
+      <AbsoluteFill style={{ background: "linear-gradient(180deg, rgba(8,7,5,0.86) 0%, rgba(8,7,5,0.62) 16%, rgba(8,7,5,0.04) 32%, rgba(8,7,5,0.08) 58%, rgba(8,7,5,0.6) 76%, rgba(8,7,5,0.96) 100%)" }} />
+      <Masthead storeName={storeName} f={f} kicker="A TEMPO" accent={T.accent} logoH={140} top={SAFE.top - 150} />
+      <div style={{ position: "absolute", left: SAFE.side, right: SAFE.side, bottom: 300 }}>
+        <Caption d={d0(items, i)} f={local} start={8} ink={T.ink} sub={T.sub} accent={T.accent} />
+      </div>
+      {/* 拍の玉（小さく4つ）。光より分かりやすい“拍の印” */}
+      <div style={{ position: "absolute", left: SAFE.side, bottom: 258, display: "flex", gap: 10 }}>
+        {[0, 1, 2, 3].map((k) => (
+          <div key={k} style={{ width: 10, height: 10, borderRadius: 5, background: k === bi % 4 ? T.accent : "rgba(246,239,224,0.24)" }} />
+        ))}
+      </div>
+      <HandleMark handle={handle} accent={T.accent} f={f} start={26} />
+      <Grain opacity={0.05} />
+    </AbsoluteFill>
+  );
+};
+function d0(items: ReturnType<typeof dishes>, i: number) { return items[i % items.length]; }
+export const YoshokuRespiro: React.FC<P> = ({ storeName = D.storeName, handle = D.handle, theme = D.theme }) => (
+  <Shell v={5} base="#100D0A" storeName={storeName} handle={handle} theme={theme}>
+    <RespiroBody storeName={storeName} handle={handle} theme={theme} />
+  </Shell>
+);
+
 // 登録用のひとまとめ（Root.tsx と prepare.py の並びをここに合わせる）
 export const NUOVI2_COMPS = [
   { id: "YoshokuSettimana", pattern: "yoshokusettimana", label: "No.24 洋食おしゃれ・今週の一皿", comp: YoshokuSettimana },
@@ -448,4 +590,8 @@ export const NUOVI2_COMPS = [
   { id: "YoshokuBattito", pattern: "yoshokubattito", label: "No.29 洋食おしゃれ・拍で刻む", comp: YoshokuBattito },
   { id: "YoshokuVetro", pattern: "yoshokuvetro", label: "No.30 洋食おしゃれ・雨のガラス越し", comp: YoshokuVetro },
   { id: "YoshokuNastro", pattern: "yoshokunastro", label: "No.31 洋食おしゃれ・斜めのリボン帯", comp: YoshokuNastro },
+  // 音ハメの静かな別案（No.29 が拍ごとに切ってうるさい、への回答）
+  { id: "YoshokuBattere", pattern: "yoshokubattere", label: "No.32 音ハメ・小節で切る", comp: YoshokuBattere },
+  { id: "YoshokuScritto", pattern: "yoshokuscritto", label: "No.33 音ハメ・拍で1文字ずつ書く", comp: YoshokuScritto },
+  { id: "YoshokuRespiro", pattern: "yoshokurespiro", label: "No.34 音ハメ・拍で光が呼吸する", comp: YoshokuRespiro },
 ];
