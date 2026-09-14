@@ -508,9 +508,13 @@ const BattereBody: React.FC<Required<P>> = ({ storeName, handle, theme }) => {
           大きく切り落とすぶん、必ず“ドアップ”になる。そこでこの案件で前にも
           使った「引き」の作りにする：奥に同じ写真をぼかして敷き（黒帯を出さない）、
           手前は料理の全体が入るように収める。 */}
-      <AbsoluteFill><Photo src={d.src} lf={local} seg={seg} from={1.26} to={1.32} bri={0.42} blur={26} /></AbsoluteFill>
+      {/* 奥の一枚は暗くしすぎない。0.42まで落とすと上下がほぼ黒になり、
+          手前の写真との境目が「黒帯の線」として出てしまう（実際に出た）。
+          明るいまま強くぼかせば、境目は“ピントの差”に見えて線にならない。
+          暗さは下の帯グラデ側で必要なぶんだけ作る。 */}
+      <AbsoluteFill><Photo src={d.src} lf={local} seg={seg} from={1.3} to={1.36} bri={0.82} blur={44} /></AbsoluteFill>
       <AbsoluteFill style={{ transform: "scale(" + land + ")" }}>
-        <Photo src={d.src} lf={local} seg={seg} from={1.2} to={1.26} bri={1.0} style={{ objectFit: "contain" }} />
+        <Photo src={d.src} lf={local} seg={seg} from={1.32} to={1.38} bri={1.0} style={{ objectFit: "contain" }} />
       </AbsoluteFill>
       {/* 明るい皿（黄色い絵皿・グリル肉）だと足元の文字が飛ぶので、写真全体を暗くせず
           “文字が乗る帯だけ”を締める。Caption は bottom:300 に置いてあり、実際に
