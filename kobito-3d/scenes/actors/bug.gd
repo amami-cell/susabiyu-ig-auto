@@ -355,9 +355,13 @@ func _think(delta: float) -> void:
 		velocity.z = 0.0
 		if _attack_cd <= 0.0:
 			# すぐ噛まず“タメ”に入る＝予告。避ける猶予をプレイヤーに与える。
+			# 大きい個体/中ボスは 動作が重い＝タメを長く＝読みやすく（乱戦でも公平に避けられる）。
+			var wind: float = ATTACK_WINDUP
+			if stats.is_midboss or stats.body_scale >= 1.6:
+				wind = 0.6
 			_attack_cd = stats.attack_interval
-			_windup_t = ATTACK_WINDUP
-			rpc("_remote_telegraph", ATTACK_WINDUP)
+			_windup_t = wind
+			rpc("_remote_telegraph", wind)
 
 	# 叩かれた勢い（ノックバック）を上乗せして減衰＝弾き飛ぶ手応え
 	velocity.x += _knockback.x
@@ -616,6 +620,8 @@ func _remote_lunge() -> void:
 func _remote_telegraph(windup: float) -> void:
 	if _dead:
 		return
+	# 音の予告＝乱戦や画面外の攻撃も“くるぞ”と分かる（軽い上昇音を小さく）。避けられた＝納得感。
+	Sfx.play_at("pickup", global_position + Vector3(0, 0.6, 0), -15.0)
 	var base := Vector3.ONE * stats.body_scale
 	var t := maxf(windup * 0.72, 0.05)
 	var tw := create_tween()
@@ -671,7 +677,12 @@ func _remote_healed() -> void:
 	if _hpbar != null:
 		_hpbar.visible = false
 	Sfx.play_at("heal", global_position + Vector3(0, 0.6, 0))
-	Sfx.play("levelup", -14.0)   # 澄んだ余韻
+	# コアテーマ「倒す でなく なかまにする」瞬間の固有音。ふつうの虫＝なかま化の音、
+	# 中ボス＝昇天(昇格)の音で 意味を分ける（以前はどちらも掃除と同じ levelup で埋もれていた）。
+	if stats.is_midboss:
+		Sfx.play("levelup", -12.0)
+	else:
+		Sfx.play_at("befriend", global_position + Vector3(0, 0.6, 0), -5.0)
 
 	# 浄化した その場所に、小さな花を永続で咲かせる＝「ここを治した」手あとが世界に残る。
 	var garden := get_tree().get_first_node_in_group("garden")

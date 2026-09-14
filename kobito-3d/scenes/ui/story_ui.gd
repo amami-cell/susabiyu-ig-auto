@@ -251,6 +251,7 @@ func show_banner(text: String) -> void:
 	tw.tween_property(_banner, "modulate:a", 1.0, 0.4)
 	# エンディングのバナーには「結果カード」を出す（余韻の後にふわっと・共有の起点）。
 	if "おわり" in text:
+		Sfx.play("ending", -3.0)   # 最大の頂点＝無音にしない、8.8秒の締めの余韻
 		_show_result_card()
 
 
@@ -427,11 +428,8 @@ func _celebrate_chapter(theme: String) -> void:
 		ft.tween_property(p, "modulate:a", 0.0, 0.6)
 		ft.tween_callback(p.queue_free)
 
-	# 締めの音（節目→昇格の きらめきを 少しずらして 重ねる）。
-	Sfx.play("milestone", -4.0)
-	var st := create_tween()
-	st.tween_interval(0.2)
-	st.tween_callback(func() -> void: Sfx.play("levelup", -9.0))
+	# 締めの音＝章クリア専用のファンファーレ（レベルアップ等の汎用音と混ざらない大節目の音）。
+	Sfx.play("chapter_clear", -3.0)
 
 
 ## Web：この作品を共有（対応端末はネイティブ共有、無ければURLをコピー）。

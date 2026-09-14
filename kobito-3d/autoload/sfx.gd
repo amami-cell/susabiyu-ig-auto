@@ -296,6 +296,10 @@ func _build_bank() -> void:
 	_bank["levelup"] = _make(_levelup())
 	_bank["milestone"] = _make(_milestone())
 	_bank["pickup"] = _make(_pickup())
+	_bank["befriend"] = _make(_befriend())         # なかまになった（浄化完了）専用
+	_bank["chapter_clear"] = _make(_chapter_clear())  # 章クリアのファンファーレ
+	_bank["ending"] = _make(_ending())             # 真エンディングの締め
+	_bank["alert"] = _make(_alert())               # 中ボス出現の警告
 	_bank["bgm_pad"] = _make_loop(_bgm_pad_wave())
 	_bank["bgm_shine"] = _make_loop(_bgm_shine_wave())
 	_bank["bgm_battle"] = _make_loop(_bgm_battle_wave())
@@ -472,7 +476,99 @@ func _arp(notes: Array, note_dur: float, total: float) -> PackedFloat32Array:
 		var env := pow(clampf(1.0 - lt, 0.0, 1.0), 1.8)
 		var f: float = notes[idx]
 		var tone := sin(TAU * f * (float(i) / RATE)) + sin(TAU * f * 2.0 * (float(i) / RATE)) * 0.35
-		out[i] = tone * env * 0.32
+		var atk := clampf(lt / 0.02, 0.0, 1.0)   # 音の頭に短いアタック＝“プチッ”を消す
+		out[i] = tone * env * atk * 0.32
+	return out
+
+
+## なかまになった：あたたかい上行2音（レ→上のラ＝完全5度）＋やわらかいビブラート＋
+## ふくらんで消える胴鳴り。「倒す でなく 救った・仲間が増えた」の固有のごほうび音。
+func _befriend() -> PackedFloat32Array:
+	var n := int(RATE * 0.6)
+	var out := PackedFloat32Array()
+	out.resize(n)
+	for i in n:
+		var t := float(i) / n
+		var ti := float(i) / RATE
+		var k := smoothstep(0.35, 0.62, t)              # レ→上のラ へなめらかに受け渡し
+		var f := lerpf(587.33, 880.0, k)
+		var vib := 1.0 + 0.005 * sin(TAU * 5.5 * ti)     # やわらかいビブラート
+		var bell := sin(TAU * f * vib * ti) * 0.6 + sin(TAU * f * 2.0 * ti) * 0.22
+		var body := sin(TAU * (f * 0.5) * ti) * 0.22 * sin(PI * clampf(t * 1.05, 0.0, 1.0))  # ぽわんと胴鳴り
+		var atk := clampf(t / 0.02, 0.0, 1.0)
+		var env := pow(1.0 - t, 1.1) * atk
+		out[i] = (bell + body) * env * 0.3
+	return out
+
+
+## 章クリアのファンファーレ：ド-ミ-ソ-上のド を順に鳴らして和音に育て、鐘の倍音＋
+## 到達のきらめきで締める。レベルアップより長く豪華＝数十分に一度の大節目にふさわしく。
+func _chapter_clear() -> PackedFloat32Array:
+	var notes := [523.25, 659.25, 783.99, 1046.5]   # ド ミ ソ 上のド
+	var onsets := [0.0, 0.14, 0.28, 0.44]           # 少しずつ重ねて和音に育てる
+	var total := 1.8
+	var n := int(RATE * total)
+	var out := PackedFloat32Array()
+	out.resize(n)
+	for i in n:
+		var ti := float(i) / RATE
+		var s := 0.0
+		for j in notes.size():
+			var lt: float = ti - float(onsets[j])
+			if lt < 0.0:
+				continue
+			var dur: float = total - float(onsets[j])
+			var env := pow(clampf(1.0 - lt / dur, 0.0, 1.0), 1.3) * clampf(lt / 0.01, 0.0, 1.0)
+			var f: float = notes[j]
+			s += (sin(TAU * f * ti) * 0.6 + sin(TAU * f * 2.0 * ti) * 0.25 + sin(TAU * f * 3.0 * ti) * 0.12) * env
+		var sparkle := sin(TAU * 2093.0 * ti) * 0.12 * clampf((ti - 0.4) / 0.2, 0.0, 1.0) * pow(clampf(1.0 - (ti - 0.4) / 1.4, 0.0, 1.0), 1.5)
+		out[i] = s * 0.26 + sparkle
+	return out
+
+
+## 真エンディング：I–IV–V–I（C–F–G–C）をゆっくり巡る和音＋きらめき＋長い締め。
+## 6章を越えた「〜おわり〜」の最大の頂点を無音にしないための、8.8秒の余韻。
+func _ending() -> PackedFloat32Array:
+	var prog := [
+		[261.63, 329.63, 392.0],          # C  (I)
+		[349.23, 440.0, 523.25],          # F  (IV)
+		[392.0, 493.88, 587.33],          # G  (V)
+		[261.63, 329.63, 392.0, 523.25],  # C  (I) ＋上のド
+	]
+	var seg := 2.2
+	var total := seg * prog.size()   # 8.8秒
+	var n := int(RATE * total)
+	var out := PackedFloat32Array()
+	out.resize(n)
+	for i in n:
+		var ti := float(i) / RATE
+		var ci := mini(int(ti / seg), prog.size() - 1)
+		var lt := ti - ci * seg
+		var chord: Array = prog[ci]
+		var s := 0.0
+		for f in chord:
+			s += sin(TAU * float(f) * ti) * 0.5 + sin(TAU * float(f) * 2.0 * ti) * 0.12
+		s /= chord.size()
+		var atk := clampf(lt / 0.18, 0.0, 1.0)
+		var shimmer := sin(TAU * 1568.0 * ti) * 0.06 * (0.5 + 0.5 * sin(TAU * 0.6 * ti))
+		var glob := clampf(ti / 0.6, 0.0, 1.0) * clampf((total - ti) / 1.6, 0.0, 1.0)
+		out[i] = (s * atk + shimmer) * glob * 0.5
+	return out
+
+
+## 警告スティンガー：下降2音（ミ→ラ）＋低いパルス。中ボス出現の「来た！」を一撃で伝える。
+func _alert() -> PackedFloat32Array:
+	var n := int(RATE * 0.45)
+	var out := PackedFloat32Array()
+	out.resize(n)
+	for i in n:
+		var t := float(i) / n
+		var ti := float(i) / RATE
+		var f := 659.25 if t < 0.45 else 440.0     # ミ→ラ
+		var env := _adsr(t, 0.02, 2.2)
+		var tone := sin(TAU * f * ti) * 0.6 + sin(TAU * f * 2.0 * ti) * 0.2
+		var pulse := sin(TAU * 110.0 * ti) * pow(1.0 - t, 4.0) * 0.4
+		out[i] = (tone * env + pulse) * 0.4
 	return out
 
 
@@ -539,7 +635,7 @@ func _bgm_shine_wave() -> PackedFloat32Array:
 		var t := float(i) / RATE
 		var idx := int(t / step) % notes.size()
 		var lt := t - float(int(t / step)) * step
-		var env := pow(clampf(1.0 - lt / step, 0.0, 1.0), 1.6)
+		var env := pow(clampf(1.0 - lt / step, 0.0, 1.0), 1.6) * clampf(lt / 0.008, 0.0, 1.0)
 		var f: float = notes[idx]
 		var bell := sin(TAU * f * t) * 0.6 + sin(TAU * f * 2.0 * t) * 0.25
 		var edge := clampf(minf(t, dur - t) / 0.05, 0.0, 1.0)
@@ -565,7 +661,7 @@ func _bgm_battle_wave() -> PackedFloat32Array:
 		# アルペジオ
 		var idx := int(t / step) % notes.size()
 		var lt := t - float(int(t / step)) * step
-		var env := pow(clampf(1.0 - lt / step, 0.0, 1.0), 1.4)
+		var env := pow(clampf(1.0 - lt / step, 0.0, 1.0), 1.4) * clampf(lt / 0.008, 0.0, 1.0)
 		var f: float = notes[idx]
 		var arp := (sin(TAU * f * t) * 0.5 + fposmod(f * t, 1.0) * 0.2) * env
 		var edge := clampf(minf(t, dur - t) / 0.04, 0.0, 1.0)

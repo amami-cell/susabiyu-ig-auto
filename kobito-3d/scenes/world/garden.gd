@@ -647,6 +647,9 @@ func _remote_spawn_bug(serial: int, stats_path: String, pos: Vector3, hp: int = 
 	bug.global_position = pos
 	if hp >= 0:
 		bug.set_hp(hp)   # 参加時の再送＝現在HPを反映（満タン表示のちらつき防止）
+	# 中ボス出現は“来た！”の警告音を全員に（新規出現時のみ＝参加時の再送 hp>=0 では鳴らさない）。
+	elif bug.stats != null and bug.stats.is_midboss:
+		Sfx.play("alert", -5.0)
 
 
 # ------------------------------------------------------------ なかま（浄化された虫）
