@@ -140,8 +140,9 @@ def accents(path, max_sec=60.0, start_sec=0.0, beats=None,
     #   さらに「小節の頭に限定」する。全帯域で一番強い拍はバックビート（2拍4拍の
     #   スネア）になる曲が多く、そこで切ると小節の頭より後ろで切れる＝やはり
     #   画が遅れて見える（French_Toast で実際に出た）。キックは低音に出るので、
-    #   低音が強い拍の位置を小節の頭とみなし、その位置と半小節だけを候補にする。
+    #   低音が強い拍の位置を小節の頭とみなし、そこだけを候補にする。
     cand = []
+    allcand = []
     if beats and len(beats) >= 8:
         w = max(1, int(round(0.10 * fenv)))     # その拍の前後0.1秒の強さで評価
         def _peak(arr, sec):
@@ -157,17 +158,20 @@ def accents(path, max_sec=60.0, start_sec=0.0, beats=None,
             vs = [v for v in vs if v is not None]
             if vs and sum(vs) / len(vs) > best:
                 phase, best = p, sum(vs) / len(vs)
+        # 候補は「小節の頭」だけにする。半小節（小節の真ん中）も入れていたが、
+        # そこで切ると小節の途中で画が変わることになり、耳には“ずれている”と
+        # はっきり分かる（No.37 の 11.09→13.21秒＝1.5小節の所で実際に出た）。
+        # 頭だけにすれば切り替えの間隔は必ず小節の整数倍になり、どこで切っても合う。
         for k, b in enumerate(beats):
-            if (k - phase) % 2 != 0:            # 小節の頭と半小節だけ（裏拍は捨てる）
+            if (k - phase) % 4 != 0:
                 continue
             v = _peak(nov, b)
-            if v is None:
-                continue
-            # 小節の頭を優先する（同じ強さなら頭が勝つように少し下駄をはかせる）
-            cand.append((float(b), v * (1.0 if (k - phase) % 4 == 0 else 0.82)))
+            if v is not None:
+                cand.append((float(b), v))
         if cand:
+            allcand = list(cand)                # 空きを埋める時もここから選ぶ
             vals = sorted(v for _b, v in cand)
-            thr = vals[int(len(vals) * 0.45)]   # 候補が小節頭/半小節に絞られたぶん緩める
+            thr = vals[int(len(vals) * 0.45)]   # 候補が小節の頭に絞られたぶん緩める
             cand = [(b, v) for b, v in cand if v >= thr and v > 0]
     if not cand:
         # 拍が使えない時だけ、従来どおり山のピークを拾う
@@ -181,6 +185,7 @@ def accents(path, max_sec=60.0, start_sec=0.0, beats=None,
             lo, hi = max(0, i - r), min(len(nov), i + r + 1)
             if v >= float(nov[lo:hi].max()):
                 cand.append((i / fenv, v))
+        allcand = list(cand)
     if not cand:
         return []
     # ④近すぎるものは強い方だけ残す
@@ -190,18 +195,19 @@ def accents(path, max_sec=60.0, start_sec=0.0, beats=None,
         if all(abs(t - p) >= min_gap for p in picked):
             picked.append(t)
     picked.sort()
-    # ⑤空きすぎた所を埋める
+    # ⑤空きすぎた所を埋める。
+    #   以前はここで「間の拍」を機械的に足していた。拍ならどれでも良いとしていたので
+    #   裏拍や小節の途中が入り、その1箇所だけ音とずれる原因になっていた。
+    #   埋める時も候補（小節の頭）の中から、その区間でいちばん強い所を選ぶ。
     out = []
     for t in picked:
-        if out and t - out[-1] > max_gap:
-            gap = t - out[-1]
-            m = int(gap // max_gap)
-            for j in range(1, m + 1):
-                mid = out[-1] + gap * j / (m + 1.0)
-                if beats:
-                    mid = min(beats, key=lambda x: abs(x - mid))
-                if mid - out[-1] >= min_gap and t - mid >= min_gap:
-                    out.append(mid)
+        while out and t - out[-1] > max_gap:
+            lo, hi = out[-1], t
+            inner = [(v, b) for b, v in allcand
+                     if b - lo >= min_gap and hi - b >= min_gap]
+            if not inner:
+                break
+            out.append(max(inner)[1])
         out.append(t)
     # ⑥ほんの少しだけ前へ出す（遅れて見えるのを防ぐ。0未満にはしない）
     return [round(max(0.0, t - lead_sec), 4) for t in out]
