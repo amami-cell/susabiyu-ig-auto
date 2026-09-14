@@ -1,4 +1,14 @@
-import re, os, shutil
+import re, os, shutil, sys
+
+# [SAFETY] このスクリプトは src/Root.tsx を1コンポジションに丸ごと上書きする（旧・単発デザイン適用用）。
+# 現在の Root.tsx には多数のコンポジションが登録されており、誤って実行すると全て失われる。
+# どのワークフローからも呼ばれていない。意図して使うときだけ APPLY_CONFIRM=1 を付けて実行すること。
+if os.environ.get("APPLY_CONFIRM") != "1":
+    sys.stderr.write(
+        "[SAFETY] apply_simple.py は src/Root.tsx を丸ごと上書きします（現在の全コンポジションが消えます）。\n"
+        "  意図する場合のみ APPLY_CONFIRM=1 を付けて実行してください。中止しました。\n"
+    )
+    raise SystemExit(1)
 
 store = "すさび湯 河原町三条店"
 old = "src/Root.tsx"
