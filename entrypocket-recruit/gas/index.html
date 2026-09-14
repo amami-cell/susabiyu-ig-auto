@@ -825,7 +825,7 @@
       var mEnd=mediaEndDate(start, media0);
       var end=(ex&&ex.end)?fmtYmd0(ex.end):(mEnd||(times.length?fmtYmd(new Date(Math.max.apply(null,times))):fmtYmd(new Date())));
       var apps=arr.length;
-      var hires=arr.filter(function(a){ return sameCode(a.statusCode,'80')||a.status==='採用'; }).length;
+      var hires=arr.filter(isHiredA).length;   // 採用判定は isHiredA に一本化（C-2。funnel==='入社' も含める）
       document.getElementById('modalTitle').textContent='募集終了：'+r.name;
       var f=function(lb,id,v){ return '<div class="rf-f"><label>'+lb+'</label><input id="'+id+'" type="text" inputmode="numeric" value="'+esc(v)+'"></div>'; };
       var ft=function(lb,id,v){ return '<div class="rf-f"><label>'+lb+'</label><input id="'+id+'" type="text" value="'+esc(v==null?'':v)+'"></div>'; };
@@ -1087,7 +1087,7 @@
       arr.forEach(function(x){
         var d=toDate(x.appliedAt); if(!d) return;
         if(st && d<st) return; if(endEx && d>=endEx) return;
-        a++; if(sameCode(x.statusCode,'80') || x.status==='採用') h++;
+        a++; if(isHiredA(x)) h++;   // 採用判定は isHiredA に一本化（C-2）
       });
       return {apps:a, hires:h};
     }

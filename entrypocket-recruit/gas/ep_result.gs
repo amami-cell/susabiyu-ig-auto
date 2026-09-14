@@ -382,7 +382,10 @@ function epEntryAutoCounts_(store, start, end) {
       if (cG != null && String(v[i][cG] || "") !== "") continue;
       var d = cA != null ? epDate_(v[i][cA]) : null;
       if (st && (!d || d < st)) continue; if (endEx && d && d >= endEx) continue;
-      a++; var sc = String(v[i][cC] || ""), sn = String(v[i][cN] || ""); if (sc === "80" || (sn.indexOf("採用") >= 0 && sn.indexOf("不採用") < 0)) h++;
+      // 採用判定はステータスコード"80"またはステータス名が厳密に"採用"のみ（C-4）。
+      // 以前は部分一致(indexOf)で「内定（採用予定）」等を誤って採用に数える恐れがあった。
+      // クライアントの isHiredA（statusCode 80 / status==='採用'）と揃える。
+      a++; var sc = String(v[i][cC] || ""), sn = String(v[i][cN] || "").trim(); if (sc === "80" || sn === "採用") h++;
     }
   }
   return { apps: a, hires: h };
