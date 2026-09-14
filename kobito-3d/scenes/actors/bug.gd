@@ -43,6 +43,10 @@ var _max_hp: int = 1
 
 var hp: int = 16
 var _target: Node3D = null
+# 索敵（誰を狙うか）は毎フレームやらない＝10Hzに間引く。移動/攻撃は毎tickのまま＝手触りは変えず、
+# ソロWeb（＝端末がサーバ）でボス戦18体規模の負荷を大きく減らす。前回の狙いは _target に保持。
+const AI_SCAN_INTERVAL := 0.1
+var _ai_accum := 0.0
 var _attack_cd := 0.0
 var _sync_accum := 0.0
 var _net_pos := Vector3.ZERO
@@ -196,6 +200,12 @@ func _bar_mat(col: Color) -> StandardMaterial3D:
 	return m
 
 
+## 後から参加した人の画面で、既存の虫を「現在HP」で作り直すため（満タン表示のちらつき防止）。
+func set_hp(v: int) -> void:
+	hp = clampi(v, 0, _max_hp)
+	_update_hpbar()
+
+
 func _update_hpbar() -> void:
 	if _hpbar == null or _hpbar_fill == null:
 		return
@@ -221,6 +231,9 @@ func _process(_dt: float) -> void:
 ## 遠景のドローコールを大きく減らす（web/gl_compatibility で効く）。近づけば元の見た目に戻る。
 ## 虫リグを持つ個体だけが対象（ボスは数が少ないので常に精細）。判定はローカルのカメラ距離。
 const LOD_DIST := 24.0
+# Webは 1パーツ=1ドローコール＝乱戦が重い。虫は player から 7〜16m に湧きカメラは6m後方なので、
+# 24mだと戦闘中の敵はほぼ全部フルリグのまま。Webだけ 13m に下げて melee 中も遠い個体を簡略化する。
+const LOD_DIST_WEB := 13.0
 var _lod_far := false
 func _update_lod() -> void:
 	if _vis == _body:
@@ -229,11 +242,13 @@ func _update_lod() -> void:
 	if cam == null:
 		return
 	# ヒステリシス：遠く(>24)で簡略化、近く(<21)で精細へ戻す＝境界でのちらつき防止。
+	var lod_d: float = LOD_DIST_WEB if OS.has_feature("web") else LOD_DIST
+	var hys: float = 2.0 if OS.has_feature("web") else 3.0
 	var d := cam.global_position.distance_to(global_position)
 	var far := _lod_far
-	if not _lod_far and d > LOD_DIST:
+	if not _lod_far and d > lod_d:
 		far = true
-	elif _lod_far and d < LOD_DIST - 3.0:
+	elif _lod_far and d < lod_d - hys:
 		far = false
 	if far == _lod_far:
 		return
@@ -265,7 +280,13 @@ func _think(delta: float) -> void:
 	_resist_hint_cd = maxf(0.0, _resist_hint_cd - delta)
 	if stats.is_midboss:
 		_stagger_t = maxf(0.0, _stagger_t - delta)
-	_target = _nearest_player()
+	# 索敵は10Hzに間引く。狙い先が消えた/倒れたときは即再選定＝反応の遅れを出さない。
+	if _target != null and (not is_instance_valid(_target) or _target.hp <= 0):
+		_target = null
+	_ai_accum -= delta
+	if _target == null or _ai_accum <= 0.0:
+		_ai_accum = AI_SCAN_INTERVAL
+		_target = _nearest_player()
 
 	var to_target := Vector3.ZERO
 	var dist := INF

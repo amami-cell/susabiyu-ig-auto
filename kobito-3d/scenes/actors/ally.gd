@@ -36,6 +36,13 @@ var role_desc := "いっしょに きれいにする"   # 図鑑に出す 役割
 var _sync_accum := 0.0
 var _net_pos := Vector3.ZERO
 var _help_cd := 0.0
+# 索敵（ボス/暴れ虫/プレイヤー探し）は毎フレームやらない＝10Hzに間引く。狙い先を覚えておき、
+# 移動と癒やしパルスは毎tickのまま＝手触りは変えず、ソロWebの負荷（1tickで最大3回の全走査）を減らす。
+const AI_SCAN_INTERVAL := 0.1
+var _scan_accum := 0.0
+var _c_boss: Node3D = null
+var _c_bug: Node3D = null
+var _c_player: Node3D = null
 var _bob := 0.0
 var _body: Node3D = null
 
@@ -261,9 +268,24 @@ func _think(delta: float) -> void:
 	var helping_bug := false
 	var bug_y := 0.0
 
+	# 索敵は10Hzに間引き、選んだ相手を覚えておく（毎tickの全走査をやめる）。
+	# 移動・距離判定・癒やしパルスは 覚えた相手の現在位置に対して毎tick続ける＝反応は変わらない。
+	_scan_accum -= delta
+	if _scan_accum <= 0.0:
+		_scan_accum = AI_SCAN_INTERVAL
+		_c_boss = _nearest_midboss()
+		_c_bug = _nearest_bug()
+		_c_player = _nearest_player()
+	if _c_boss != null and not is_instance_valid(_c_boss):
+		_c_boss = null
+	if _c_bug != null and not is_instance_valid(_c_bug):
+		_c_bug = null
+	if _c_player != null and not is_instance_valid(_c_player):
+		_c_player = null
+
 	# ⓪ 中ボスがいれば“押さえ役”に回る＝癒やしはプレイヤー主体（見せ場を残す）。
 	# ソロでも「押さえる人」ができるので、ひとりでも中ボスを癒やしきれる。
-	var boss := _nearest_midboss()
+	var boss := _c_boss
 	if boss != null:
 		var dbo: Vector3 = boss.global_position - global_position
 		dbo.y = 0.0
@@ -279,7 +301,7 @@ func _think(delta: float) -> void:
 					boss.stagger(owner_id)   # 押さえる＝暴れを止め、プレイヤーの「きれいに」を通す
 
 	# ① 近くに暴れ虫がいれば、手伝いに行く（中ボスに向かっていない時だけ）
-	var bug := _nearest_bug() if not has_goto else null
+	var bug := _c_bug if not has_goto else null
 	if bug != null:
 		var db: Vector3 = bug.global_position - global_position
 		db.y = 0.0
@@ -295,7 +317,7 @@ func _think(delta: float) -> void:
 
 	# ② いなければ、プレイヤーについていく
 	if not has_goto:
-		var p := _nearest_player()
+		var p := _c_player
 		if p != null:
 			var dp: Vector3 = p.global_position - global_position
 			dp.y = 0.0

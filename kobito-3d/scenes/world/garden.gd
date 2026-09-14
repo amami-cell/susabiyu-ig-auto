@@ -123,6 +123,7 @@ var _anim_t := 0.0
 # 接地影（ブロブシャドウ）。Webは実影オフで“紙人形が浮いて見える”のを、
 # 足元のやわらかい影で解消。全員ぶんを MultiMesh 1個＝1ドローコールで描く（軽い）。
 const SHADOW_MAX := 48
+const SHADOW_GROUPS := ["player", "child", "ally", "bug"]   # 毎フレーム配列を作らない＝GCポーズを減らす
 var _shadow_mm: MultiMesh = null
 
 # 舞台(biome)。"garden"=庭 / "ruins"=遺跡。main が session 開始時に設定。
@@ -363,7 +364,8 @@ func _on_peer_connected(id: int) -> void:
 	if not _is_server():
 		return
 	for bug in _bugs.get_children():
-		rpc_id(id, "_remote_spawn_bug", int(bug.name.trim_prefix("Bug")), bug.stats_path, bug.global_position)
+		# 現在HPも渡す＝後から参加した画面で「ボスが一瞬 満タン」に見えるのを防ぐ。
+		rpc_id(id, "_remote_spawn_bug", int(bug.name.trim_prefix("Bug")), bug.stats_path, bug.global_position, int(bug.hp))
 	# 今いる「なかま虫」も配る（後から参加した人の画面にも味方が居るように）
 	if _allies != null:
 		for ally in _allies.get_children():
@@ -634,13 +636,17 @@ func _live_bug_count() -> int:
 
 
 @rpc("authority", "call_local", "reliable")
-func _remote_spawn_bug(serial: int, stats_path: String, pos: Vector3) -> void:
+func _remote_spawn_bug(serial: int, stats_path: String, pos: Vector3, hp: int = -1) -> void:
+	if _bugs.has_node("Bug%d" % serial):
+		return   # 二重生成ガード（他のspawn RPCと同じ形＝再送/順序入替でも重複しない）
 	var bug := BugScene.instantiate()
 	bug.name = "Bug%d" % serial
 	bug.stats = load(stats_path)
 	bug.stats_path = stats_path
 	_bugs.add_child(bug)
 	bug.global_position = pos
+	if hp >= 0:
+		bug.set_hp(hp)   # 参加時の再送＝現在HPを反映（満タン表示のちらつき防止）
 
 
 # ------------------------------------------------------------ なかま（浄化された虫）
@@ -941,7 +947,7 @@ func _update_actor_shadows() -> void:
 		return
 	var flat := Basis(Vector3.RIGHT, -PI / 2.0)   # 板を地面へ寝かす
 	var i := 0
-	for grp in ["player", "child", "ally", "bug"]:
+	for grp in SHADOW_GROUPS:
 		for a in get_tree().get_nodes_in_group(grp):
 			if i >= SHADOW_MAX:
 				break

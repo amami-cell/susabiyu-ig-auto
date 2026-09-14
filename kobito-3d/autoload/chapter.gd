@@ -786,6 +786,23 @@ func save_label() -> String:
 # 癒やした虫の種類と累計を user://dex.cfg に記録（進行セーブとは別ファイル＝消えない収集）。
 # ＝「全種を なかまにする」というリプレイ動機＋テーマ（救う＝味方）の可視化。
 const DEX_PATH := "user://dex.cfg"
+# 図鑑はメモリに載せておき（_dex）、癒やすたびのディスクI/Oをやめる。
+# Webの user:// は IndexedDB＝1回の save が数ms級。heal/wave で十数体続けて癒やすと
+# 「癒やすたびにカクつく」原因になっていた。書き込みは 2.5秒デバウンス＋章の切れ目でまとめて。
+var _dex: Dictionary = {}
+var _dex_loaded := false
+var _dex_save_pending := false
+
+
+func _load_dex() -> void:
+	if _dex_loaded:
+		return
+	_dex_loaded = true
+	var cfg := ConfigFile.new()
+	if cfg.load(DEX_PATH) == OK and cfg.has_section("dex"):
+		for k in cfg.get_section_keys("dex"):
+			_dex[k] = int(cfg.get_value("dex", k, 0))
+
 
 ## サーバ側で、虫を1体癒やしたら記録（bug.cleanse から呼ぶ）。species_path 例: res://data/ant.tres
 func record_healed(species_path: String) -> void:
@@ -794,11 +811,10 @@ func record_healed(species_path: String) -> void:
 	var id := species_path.get_file().get_basename()
 	if id.is_empty():
 		return
-	var cfg := ConfigFile.new()
-	cfg.load(DEX_PATH)
-	var prev := int(cfg.get_value("dex", id, 0))
-	cfg.set_value("dex", id, prev + 1)
-	cfg.save(DEX_PATH)
+	_load_dex()
+	var prev := int(_dex.get(id, 0))
+	_dex[id] = prev + 1
+	_schedule_dex_save()
 	# はじめて癒やした種＝「なかまが増える＝物語が進む」の一歩。名前で祝う。
 	if prev == 0:
 		var nm := id
@@ -810,14 +826,28 @@ func record_healed(species_path: String) -> void:
 
 ## 図鑑UI用：{ species_id: 累計数 }。まだ癒やしていない種は含まれない。
 func dex_counts() -> Dictionary:
-	var out := {}
+	_load_dex()
+	return _dex.duplicate()
+
+
+## 図鑑の書き込みを 2.5秒後に1回だけ（連続で癒やしてもディスクは1回）。
+func _schedule_dex_save() -> void:
+	if _dex_save_pending:
+		return
+	_dex_save_pending = true
+	var t := get_tree().create_timer(2.5)
+	t.timeout.connect(_flush_dex)
+
+
+## メモリの図鑑をディスクへ書き出す（デバウンス満了・章の切れ目で呼ぶ）。
+func _flush_dex() -> void:
+	_dex_save_pending = false
+	if not _dex_loaded:
+		return
 	var cfg := ConfigFile.new()
-	if cfg.load(DEX_PATH) != OK:
-		return out
-	if cfg.has_section("dex"):
-		for k in cfg.get_section_keys("dex"):
-			out[k] = int(cfg.get_value("dex", k, 0))
-	return out
+	for k in _dex:
+		cfg.set_value("dex", String(k), int(_dex[k]))
+	cfg.save(DEX_PATH)
 
 
 func _has_progress() -> bool:
@@ -828,6 +858,8 @@ func _has_progress() -> bool:
 
 
 func _write_checkpoint() -> void:
+	if _dex_save_pending:
+		_flush_dex()   # 章の切れ目で図鑑もまとめて確定（デバウンス待ちの取りこぼし防止）
 	var cfg := ConfigFile.new()
 	cfg.load(SAVE_PATH)   # meta（cleared）は残す
 	cfg.set_value("progress", "schema", SAVE_SCHEMA)
