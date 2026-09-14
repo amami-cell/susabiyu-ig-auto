@@ -17,3 +17,6 @@ export const typoLogoColor = "";
 export const typoLogoRound = "";
 export const typoBpm = 120.00;
 export const typoBeats: number[] = [0.0000, 0.5000, 1.0000, 1.5000, 2.0000, 2.5000, 3.0000, 3.5000];
+// 曲の「ここで入る」節目（フレーズの頭・サビの入り）。等間隔の拍とは別物で間隔はバラバラ。
+// 絵の切り替えはこちらに乗せる。fetch_typo.py / render_samples.py が焼くたびに書き換える。
+export const typoAccents: number[] = [0.0000, 2.0000, 4.0000, 6.0000, 8.0000, 10.0000, 12.0000, 14.0000];

@@ -219,13 +219,19 @@ def main():
             # 同じ曲なら解析は1回で済ませる（1曲あたり数秒かかる）。
             if _beat_cache.get("path") != music_path:
                 bpm, beats = _bd.detect_or_default(music_path, st)
-                _beat_cache.clear(); _beat_cache.update(path=music_path, bpm=bpm, beats=beats)
-                print("[BEAT] %s bpm=%.1f 拍数=%d" % (os.path.basename(music_path), bpm, len(beats)))
+                # 拍とは別に「曲がここで入る」という節目も拾う。等間隔の拍だけだと
+                # 曲のどこでも同じ顔で脈打つ動画になり、音ハメに見えないため。
+                acc = _bd.accents_or_default(music_path, st, beats)
+                _beat_cache.clear(); _beat_cache.update(path=music_path, bpm=bpm, beats=beats, acc=acc)
+                print("[BEAT] %s bpm=%.1f 拍数=%d 節目=%d" % (os.path.basename(music_path), bpm, len(beats), len(acc)))
             arr = ", ".join("%.4f" % b for b in _beat_cache["beats"])
+            acc = ", ".join("%.4f" % b for b in _beat_cache["acc"])
             s = _sub_or_append(s, r'export const typoBpm = [\d.]+;',
                                'export const typoBpm = %.2f;' % _beat_cache["bpm"])
             s = _sub_or_append(s, r'export const typoBeats: number\[\] = \[[^\]]*\];',
                                'export const typoBeats: number[] = [%s];' % arr)
+            s = _sub_or_append(s, r'export const typoAccents: number\[\] = \[[^\]]*\];',
+                               'export const typoAccents: number[] = [%s];' % acc)
         _io.open("src/typoData.ts", "w", encoding="utf-8").write(s)
 
     samples = []
