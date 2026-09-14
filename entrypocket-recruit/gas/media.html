@@ -108,6 +108,25 @@
       t.onclick=function(){ var p=t.previousElementSibling; p.classList.toggle('open'); t.textContent=p.classList.contains('open')?'閉じる':'…もっと見る'; };
     });
   }
+  // 選考ステータスを色分け（未対応=赤/面接系=青/面接済=紫/採用=緑/見送り=灰）
+  function statusStyle(s){
+    s=String(s||'');
+    if(/採用|内定/.test(s)) return 'background:#dcfce7;color:#166534';
+    if(/見送|不採用|辞退|お断り/.test(s)) return 'background:#f1f5f9;color:#64748b';
+    if(/未対応|要初回|未読|未返信/.test(s)) return 'background:#fee2e2;color:#b91c1c';
+    if(/面接済|面接完了|1次面接済/.test(s)) return 'background:#ede9fe;color:#6d28d9';
+    if(/面接|日程|調整|確定|連絡/.test(s)) return 'background:#dbeafe;color:#1d4ed8';
+    return 'background:var(--accent2);color:var(--accent)';
+  }
+  function statusIcon(s){
+    s=String(s||'');
+    if(/採用|内定/.test(s)) return '✅';
+    if(/見送|不採用|辞退|お断り/.test(s)) return '🚫';
+    if(/未対応|要初回|未読|未返信/.test(s)) return '🔴';
+    if(/面接済|面接完了|1次面接済/.test(s)) return '☑️';
+    if(/面接|日程|調整|確定/.test(s)) return '📅';
+    return '📌';
+  }
   function cardHtml(x){
     var tel=String(x['電話']||'').replace(/[^\d]/g,'');
     var mail=String(x['メール']||'');
@@ -117,7 +136,7 @@
     var pr=String(x['自己PR']||'').trim();
     var c='';
     c+='<div class="card">';
-    c+='<div class="row1"><span class="nm">'+esc(x['氏名']||'（無名）')+'</span>'+(x['カナ']?'<span class="kana">'+esc(x['カナ'])+'</span>':'')+(status?'<span class="badge" style="background:var(--accent2);color:var(--accent)">📌 '+esc(status)+'</span>':'')+'<span class="date">'+esc(x['応募日時']||'')+'</span></div>';
+    c+='<div class="row1"><span class="nm">'+esc(x['氏名']||'（無名）')+'</span>'+(x['カナ']?'<span class="kana">'+esc(x['カナ'])+'</span>':'')+(status?'<span class="badge" style="'+statusStyle(status)+'">'+statusIcon(status)+' '+esc(status)+'</span>':'')+'<span class="date">'+esc(x['応募日時']||'')+'</span></div>';
     c+='<div class="meta">'+meta+'</div>';
     c+='<div class="contact">';
     if(tel) c+='<a href="tel:'+tel+'">📞 '+esc(x['電話'])+'</a>';

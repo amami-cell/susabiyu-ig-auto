@@ -41,8 +41,10 @@ function mediaImportText(media, csv) {
     if (res.newByStore && Object.keys(res.newByStore).length) {
       mediaNotifyNew_(media, res.newByStore);
     }
-    try { epLog_(started, "success", rows.length, MEDIA_LABEL[media] + "取り込み: 新規" + res.added + "件 / 全" + rows.length + "件"); } catch (e) { }
-    return { ok: true, media: media, rows: rows.length, added: res.added };
+    try { epLog_(started, "success", rows.length, MEDIA_LABEL[media] + "取り込み: 新規" + res.added + "件 / 更新" + res.updated + "件 / 全" + rows.length + "件"); } catch (e) { }
+    // header：選考ステータスの列が実際にCSVへ含まれているか確認用（取得ログに出る）
+    var hdr = ""; try { var rr = epSplitRecords_(csv); hdr = (rr[0] || []).slice(0, 40).join("|"); } catch (e) { }
+    return { ok: true, media: media, rows: rows.length, added: res.added, updated: res.updated, header: hdr };
   } catch (e) {
     try { epLog_(started, "fail", 0, MEDIA_LABEL[media] + "取り込み失敗: " + e); } catch (x) { }
     return { ok: false, media: media, error: String(e) };
@@ -51,19 +53,41 @@ function mediaImportText(media, csv) {
 
 /* ---------- パーサー ---------- */
 
+// CSVの見出し行から「選考ステータス」に相当する列を名前で検出して連結する。
+// （店ごとに設定する 選考ステップ/採用結果/選考状況 等。列位置が変わっても名前で拾える。）
+function mediaSelStatus_(header, cells) {
+  var wants = ["選考ステップ", "選考ステータス", "選考状況", "選考結果", "対応状況", "対応ステータス", "採用結果", "進捗状況", "進捗", "ステータス"];
+  var parts = [];
+  for (var j = 0; j < header.length; j++) {
+    var h = String(header[j] == null ? "" : header[j]).replace(/[\s　"']/g, "");
+    if (!h) continue;
+    for (var k = 0; k < wants.length; k++) {
+      if (h.indexOf(wants[k]) >= 0) {
+        var v = String(cells[j] == null ? "" : cells[j]).trim();
+        if (v && v !== "-" && v !== "--" && parts.indexOf(v) < 0) parts.push(v);
+        break;
+      }
+    }
+  }
+  return parts.join(" / ");
+}
+
 // 飲食店ドットコム: 店名,雇用形態,職種,応募日時,名前（カナ）,住所,年齢,性別,応募環境,電話番号,メール,現在の状況,転職時期,自己PR,希望連絡時間
+// ＋ 末尾等に「選考ステップ/採用結果」等があれば選考ステータスとして拾う（列名検出）。
 function mediaParseInshoku_(text) {
   var recs = epSplitRecords_(text);
+  var header = recs[0] || [];
   var out = [];
   for (var i = 1; i < recs.length; i++) {
     var c = recs[i]; if (!c || c.join("").trim() === "") continue;
     var g = function (n) { return (c[n] == null ? "" : String(c[n]).trim()); };
     var store = g(0); if (!store && !g(4)) continue;
     var nm = mediaSplitNameKana_(g(4));
+    var sel = mediaSelStatus_(header, c);
     out.push(mediaNorm_("inshoku", {
       store: store, name: nm.name, kana: nm.kana, appliedAt: g(3),
       employ: g(1), job: g(2), age: mediaAge_(g(6)), gender: g(7),
-      tel: g(9), email: g(10), address: g(5), status: g(11), pr: g(13)
+      tel: g(9), email: g(10), address: g(5), status: (sel || g(11)), pr: g(13)
     }));
   }
   return out;
@@ -72,6 +96,7 @@ function mediaParseInshoku_(text) {
 // グルメキャリー: 応募日,応募時間,エリア,氏名,氏名(カナ),性別,年齢,郵便番号,都道府県,市区町村,住所,電話番号,メール,希望連絡時間・連絡方法,取得資格,自己PR,応募先名（原稿名）,応募遷移,希望雇用形態,希望職種
 function mediaParseGourmet_(text) {
   var recs = epSplitRecords_(text);
+  var header = recs[0] || [];
   var out = [];
   for (var i = 1; i < recs.length; i++) {
     var c = recs[i]; if (!c || c.join("").trim() === "") continue;
@@ -79,10 +104,11 @@ function mediaParseGourmet_(text) {
     var store = g(17) || g(16); if (!store && !g(3)) continue;   // 店舗＝応募遷移
     var addr = [g(8), g(9), g(10)].filter(Boolean).join("");
     var applied = (g(0) + " " + g(1)).trim();
+    var sel = mediaSelStatus_(header, c);
     out.push(mediaNorm_("gourmet", {
       store: store, name: g(3), kana: g(4), appliedAt: applied,
       employ: g(18), job: g(19), age: mediaAge_(g(6)), gender: g(5),
-      tel: g(11), email: g(12), address: addr, status: g(14), pr: g(15)
+      tel: g(11), email: g(12), address: addr, status: (sel || g(14)), pr: g(15)
     }));
   }
   return out;
@@ -123,15 +149,27 @@ function mediaWrite_(media, rows) {
   var ss = SpreadsheetApp.getActiveSpreadsheet();
   var sh = epSheet_(ss, MEDIA_SHEET, MEDIA_HDR);
   var keyCol = MEDIA_HDR.indexOf("key");
-  var existing = {};
+  var stCol = MEDIA_HDR.indexOf("状況/資格");
+  var existing = {}, rowByKey = {}, curStatus = {};
   if (sh.getLastRow() > 1) {
-    var kv = sh.getRange(2, keyCol + 1, sh.getLastRow() - 1, 1).getValues();
-    for (var i = 0; i < kv.length; i++) existing[String(kv[i][0])] = 1;
+    var vv = sh.getRange(2, 1, sh.getLastRow() - 1, MEDIA_HDR.length).getValues();
+    for (var i = 0; i < vv.length; i++) {
+      var kk = String(vv[i][keyCol]);
+      existing[kk] = 1; rowByKey[kk] = i + 2;
+      curStatus[kk] = String(vv[i][stCol] == null ? "" : vv[i][stCol]).trim();
+    }
   }
   var now = Utilities.formatDate(new Date(), "Asia/Tokyo", "yyyy-MM-dd HH:mm:ss");
-  var add = [], newByStore = {};
+  var add = [], newByStore = {}, updated = 0;
   rows.forEach(function (r) {
-    if (existing[r.key]) return;
+    if (existing[r.key]) {
+      // 既存応募者：選考ステータスがサイト側で変わっていれば上書き更新（再取込のたびに最新化）
+      var ns = String(r.status || "").trim();
+      if (ns && rowByKey[r.key] && ns !== curStatus[r.key]) {
+        try { sh.getRange(rowByKey[r.key], stCol + 1).setValue(csvGuard_(ns)); updated++; curStatus[r.key] = ns; } catch (e) { }
+      }
+      return;
+    }
     existing[r.key] = 1;
     add.push([MEDIA_LABEL[media], r.store, r.name, r.kana, r.appliedAt, r.employ, r.job,
       (r.age == null ? "" : r.age), r.gender, r.tel, r.email, r.address, r.status, r.pr, now, r.key]);
@@ -139,7 +177,7 @@ function mediaWrite_(media, rows) {
   });
   if (add.length) sh.getRange(sh.getLastRow() + 1, 1, add.length, MEDIA_HDR.length)
     .setValues(add.map(function (row) { return row.map(csvGuard_); }));  // 数式インジェクション対策
-  return { added: add.length, newByStore: newByStore };
+  return { added: add.length, updated: updated, newByStore: newByStore };
 }
 
 /* ---------- 通知（新着応募） ---------- */
