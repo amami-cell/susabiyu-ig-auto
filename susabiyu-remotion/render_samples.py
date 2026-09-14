@@ -71,7 +71,26 @@ POSTER_SEC = {
 }
 
 
-def _poster_sec(pattern):
+# 音ハメのテンプレ（曲の節目で商品が切り替わる）。ポスターの位置は曲ごとに変わるので
+# 固定秒では当たり外れが出る（実際に No.37 は切り替わりの真上に当たり、料理名が
+# まだ出ていない絵になった）。この一覧に入っているものは節目から自動で決める。
+ACCENT_PATTERNS = ("yoshokubattere", "yoshokuritmo", "yoshokutempo", "yoshokuonda")
+# 本編の長さ（YoshokuNuovi.tsx の STORY_OPEN / BODY と揃える）
+_OPEN_SEC, _BODY_SEC = 3.0, 400 / 30.0
+
+
+def _poster_sec(pattern, acc=None):
+    """ポスターを抜く秒。音ハメのテンプレは「いちばん長い区間の中ほど」を選ぶ。
+    切り替わりの真上を避けられるので、料理名が出そろった絵が必ず取れる。"""
+    if pattern in ACCENT_PATTERNS and acc:
+        lo, hi = _OPEN_SEC, _OPEN_SEC + _BODY_SEC
+        cuts = [t for t in acc if lo <= t < hi]
+        if cuts:
+            spans = [(cuts[i + 1] - cuts[i], cuts[i]) for i in range(len(cuts) - 1)]
+            spans.append((hi - cuts[-1], cuts[-1]))
+            length, start = max(spans)
+            if length >= 1.0:
+                return round(start + length * 0.45, 2)   # 区間の中ほど
     return POSTER_SEC.get(pattern, POSTER_SEC_DEFAULT)
 
 
@@ -268,7 +287,7 @@ def main():
                 url = poster.up(mp4, cdn=True)
             else:
                 url = ""
-            pj = _poster_jpg(comp, props_arg, mp4, _poster_sec(pattern))
+            pj = _poster_jpg(comp, props_arg, mp4, _poster_sec(pattern, _beat_cache.get("acc")))
             purl = poster.up(pj, cdn=True) if pj else ""
             if is_video and not url:
                 # 動画のアップロードに失敗＝見本が“静止画になった動画”になる。黙って差し替えると
