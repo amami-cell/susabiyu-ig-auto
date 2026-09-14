@@ -13,6 +13,11 @@ import subprocess
 
 SR, HOP, WIN = 22050, 512, 1024
 
+# 解析窓の半分（約23ms）。窓の頭で立ち上がりを検出してしまう癖の補正で、
+# detect() が返す拍の秒にはこれが足してある。包絡線の添字と秒を行き来する時は
+# 必ずこれを付け外しする（片方だけ忘れると全体が23msずれる）。
+CORR = WIN / (2.0 * SR)
+
 
 def _envelope(path, max_sec=60.0, start_sec=0.0):
     """スペクトラルフラックス（アタックの強さ）の時系列と、そのフレームレートを返す。
@@ -84,7 +89,7 @@ def detect(path, max_sec=60.0, start_sec=0.0):
     t = off
     while t < n and len(beats) < 64:
         # 解析窓の半分ぶん早く検出される癖を補正（検証で平均約23ms）
-        beats.append(round(t / fenv + win / (2.0 * sr), 4))
+        beats.append(round(t / fenv + CORR, 4))
         t += P
     return bpm, beats
 
@@ -105,7 +110,8 @@ def accents(path, max_sec=60.0, start_sec=0.0, beats=None,
         bar_lock=True の曲だけ、さらに小節の頭に限定する
       ④近すぎるものは強い方を残す（min_gap）
       ⑤空きすぎた所は拍を足して埋める（切り替わらない動画にしない）
-      ⑥lead_sec ぶん前へ出す
+      ⑥すぐ後ろに格上の入りがある弱い節目は捨てる（鳴っていない小節で切らない）
+      ⑦lead_sec ぶん前へ出す
 
     lead_sec について：切り替えが音より後ろに来ると「音楽が先に行って画が
     遅れている」とはっきり分かるが、ほんの少し前に出ているぶんには
@@ -142,33 +148,51 @@ def accents(path, max_sec=60.0, start_sec=0.0, beats=None,
     #   選ぶのと同じ nov を使い、いちばん節目が集まる位置を小節の頭とみなす。
     cand = []
     allcand = []
+    snap = {}                                   # 実音の秒 → (格子からのズレ秒, 強さ)。ログ用
     if beats and len(beats) >= 8:
-        w = max(1, int(round(0.10 * fenv)))     # その拍の前後0.1秒の強さで評価
+        w = max(1, int(round(0.10 * fenv)))     # その拍の前後0.1秒の中を見る
         def _peak(sec):
-            i = int(round(sec * fenv))
+            """その拍の近くで実際にいちばん強く鳴っている「位置」と、その強さを返す。
+
+            以前はここで強さ（最大値）だけを返し、切る秒には拍の格子の値を
+            そのまま使っていた。だが detect() の拍は、推定した周期を頭から
+            等間隔に伸ばしただけのもので、実際の演奏とは少しずつ食い違う。
+            序盤は一致していて後半だけ外れる——No.32 が「4商品目まで完璧で
+            5商品目からずれる」と言われたのはこれ。強さを測った、まさにその
+            場所を切る秒にすれば、伸ばした格子の誤差は積み上がらない。"""
+            i = int(round((sec - CORR) * fenv))     # 拍の秒 → 包絡線の添字（補正を戻す）
             if i < 0 or i >= len(nov):
                 return None
             lo, hi = max(0, i - w), min(len(nov), i + w + 1)
-            return float(nov[lo:hi].max())
-        scored = [(k, float(b), _peak(b)) for k, b in enumerate(beats)]
-        scored = [(k, b, v) for k, b, v in scored if v is not None]
+            seg = nov[lo:hi]
+            j = int(np.argmax(seg))
+            v = float(seg[j])
+            # 打点が無い所で argmax を採ると雑音を掴んで逆にぶれる。弱い時は格子のまま。
+            t = (lo + j) / fenv + CORR if v >= 0.20 else float(sec)
+            return round(t, 4), v
+        scored = []
+        for k, b in enumerate(beats):
+            p = _peak(float(b))
+            if p is not None:
+                scored.append((k, p[0], p[1]))
+                snap[p[0]] = (round(p[0] - float(b), 4), p[1])
         keep = scored
         pct = 0.70
         if bar_lock and scored:
             # 節目がいちばん集まっている位置＝小節の頭（同じ指標で決めるので破綻しない）
             phase, best = 0, -1.0
             for p in range(4):
-                vs = [v for k, _b, v in scored if k % 4 == p]
+                vs = [v for k, _t, v in scored if k % 4 == p]
                 if vs and sum(vs) / len(vs) > best:
                     phase, best = p, sum(vs) / len(vs)
-            keep = [(k, b, v) for k, b, v in scored if (k - phase) % 4 == 0]
+            keep = [(k, t, v) for k, t, v in scored if (k - phase) % 4 == 0]
             pct = 0.45                          # 候補が絞られたぶん緩める
-        cand = [(b, v) for _k, b, v in keep]
+        cand = [(t, v) for _k, t, v in keep]
         if cand:
             allcand = list(cand)                # 空きを埋める時もここから選ぶ
-            vals = sorted(v for _b, v in cand)
+            vals = sorted(v for _t, v in cand)
             thr = vals[int(len(vals) * pct)]
-            cand = [(b, v) for b, v in cand if v >= thr and v > 0]
+            cand = [(t, v) for t, v in cand if v >= thr and v > 0]
     if not cand:
         # 拍が使えない時だけ、従来どおり山のピークを拾う
         r = max(1, int(round(0.35 * fenv)))
@@ -205,7 +229,35 @@ def accents(path, max_sec=60.0, start_sec=0.0, beats=None,
                 break
             out.append(max(inner)[1])
         out.append(t)
-    # ⑥ほんの少しだけ前へ出す（遅れて見えるのを防ぐ。0未満にはしない）
+    # ⑥「鳴っていない小節」では切らない。
+    #   すぐ後ろにずっと強い入りがあるのに、その手前の弱い小節で切ると、画だけが
+    #   先に変わって音が付いてこない。人はこれを「ずれている」と感じる。
+    #   No.32(swing_swing) の実測では、5商品目の切り替え(12.47秒)が曲中でいちばん
+    #   弱い打点(0.55)で、本当の入り(1.00)はその2秒後の14.53秒だった。弱い方を
+    #   捨てて、次の強い入りまで1品を持たせる。
+    #   条件を「すぐ後ろ(2.5秒以内)」「明らかに格上(1.4倍以上)」に絞ってあるので、
+    #   同じくらいの強さで淡々と続く所は従来どおり切る（承認済みの1〜4商品目は動かない）。
+    #   捨てた結果 max_gap を超える時は捨てない＝切り替わらなくなることはない。
+    if len(out) >= 3:
+        i = 1
+        while i < len(out) - 1:
+            a, b = snap.get(out[i]), snap.get(out[i + 1])
+            if (a and b and a[1] < 0.7 * b[1] and out[i + 1] - out[i] <= 2.5
+                    and out[i + 1] - out[i - 1] <= max_gap):
+                print("[ACCENT] %.2fs(%.2f) は捨てる：%.2f秒後に %.2f の入りがある"
+                      % (out[i], a[1], out[i + 1] - out[i], b[1]))
+                del out[i]
+            else:
+                i += 1
+    # 検証用。各節目について「格子から実音へどれだけ寄せたか(ms)」と「打点の強さ」を出す。
+    #   ・ズレが後半ほど大きい → 伸ばした格子が実際の演奏から離れていっていた
+    #   ・強さが落ちている所で切っている → そこは鳴っていないのに切っていた
+    # どちらなのかを推測ではなくログで判断できるようにしておく。
+    if snap:
+        print("[ACCENT][SNAP] " + " ".join(
+            "%.2fs%+dms(%.2f)" % (t, round(snap[t][0] * 1000), snap[t][1])
+            for t in out if t in snap))
+    # ⑦ほんの少しだけ前へ出す（遅れて見えるのを防ぐ。0未満にはしない）
     return [round(max(0.0, t - lead_sec), 4) for t in out]
 
 
