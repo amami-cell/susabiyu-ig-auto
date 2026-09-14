@@ -441,12 +441,17 @@ lines.append('export const typoMusicStart = %d;' % _mstart)
 try:
     import beat_detect as _bd
     _bpm, _beats = _bd.detect_or_default(os.path.join("public", music), _mstart)
-    print("BEAT: bpm=%.1f 拍数=%d" % (_bpm, len(_beats)))
+    # 拍とは別に「曲がここで入る」節目（フレーズの頭・サビの入り）も拾う。
+    # 絵の切り替えはこちらに乗せる＝間隔がバラバラの、曲に合った切り替わりになる。
+    _acc = _bd.accents_or_default(os.path.join("public", music), _mstart, _beats)
+    print("BEAT: bpm=%.1f 拍数=%d 節目=%d" % (_bpm, len(_beats), len(_acc)))
 except Exception as _e:
     print("[BEAT] スキップ:", _e)
     _bpm, _beats = 120.0, [round(i * 0.5, 4) for i in range(48)]
+    _acc = [round(i * 2.0, 4) for i in range(16)]
 lines.append('export const typoBpm = %.2f;' % _bpm)
 lines.append('export const typoBeats: number[] = [%s];' % ", ".join("%.4f" % b for b in _beats))
+lines.append('export const typoAccents: number[] = [%s];' % ", ".join("%.4f" % b for b in _acc))
 
 
 def _fetch_group_photo():

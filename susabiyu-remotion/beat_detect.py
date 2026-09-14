@@ -11,33 +11,46 @@
 import subprocess
 
 
-def detect(path, max_sec=60.0, start_sec=0.0):
-    """(bpm, [拍の秒…]) を返す。解析できなければ None。
-    秒は start_sec を 0 とした相対秒。start_sec は「その曲を再生し始める位置」で、
-    そこから max_sec 秒ぶんだけ解析する（曲の頭ではなく、実際に流すところを見る）。"""
+SR, HOP, WIN = 22050, 512, 1024
+
+
+def _envelope(path, max_sec=60.0, start_sec=0.0):
+    """スペクトラルフラックス（アタックの強さ）の時系列と、そのフレームレートを返す。
+    拍(detect)と節目(accents)で同じものを使うので、ここに切り出した。"""
     import numpy as np
-    sr = 22050
     # -ss を -i の前に置いて高速シーク。頭から60秒しか見ていなかったため、
     # 「1分23秒～」のように再生開始が60秒より後の曲だと拍が1つも使えず、
     # 拍に合っていない等間隔グリッドに落ちていた（音ハメにならない原因）。
     raw = subprocess.run(
         ["ffmpeg", "-v", "quiet", "-ss", str(max(0.0, start_sec)), "-t", str(max_sec),
-         "-i", path, "-ac", "1", "-ar", str(sr), "-f", "f32le", "-"],
+         "-i", path, "-ac", "1", "-ar", str(SR), "-f", "f32le", "-"],
         capture_output=True).stdout
     x = np.frombuffer(raw, dtype=np.float32)
-    if len(x) < sr * 8:
-        return None
-    hop, win = 512, 1024
-    n = (len(x) - win) // hop
-    fenv = sr / float(hop)          # 包絡線のフレームレート（約43/秒）
-    hann = np.hanning(win)
+    if len(x) < SR * 8:
+        return None, 0.0
+    n = (len(x) - WIN) // HOP
+    fenv = SR / float(HOP)          # 包絡線のフレームレート（約43/秒）
+    hann = np.hanning(WIN)
     prev = None
     env = np.zeros(n)
     for i in range(n):
-        mag = np.abs(np.fft.rfft(x[i * hop:i * hop + win] * hann))
+        mag = np.abs(np.fft.rfft(x[i * HOP:i * HOP + WIN] * hann))
         if prev is not None:
             env[i] = np.maximum(mag - prev, 0).sum()   # スペクトラルフラックス＝アタックの強さ
         prev = mag
+    return env, fenv
+
+
+def detect(path, max_sec=60.0, start_sec=0.0):
+    """(bpm, [拍の秒…]) を返す。解析できなければ None。
+    秒は start_sec を 0 とした相対秒。start_sec は「その曲を再生し始める位置」で、
+    そこから max_sec 秒ぶんだけ解析する（曲の頭ではなく、実際に流すところを見る）。"""
+    import numpy as np
+    sr, hop, win = SR, HOP, WIN
+    env, fenv = _envelope(path, max_sec, start_sec)
+    if env is None:
+        return None
+    n = len(env)
     env = env - env.mean()
     env[env < 0] = 0
     if env.max() <= 0:
@@ -70,6 +83,101 @@ def detect(path, max_sec=60.0, start_sec=0.0):
         beats.append(round(t / fenv + win / (2.0 * sr), 4))
         t += P
     return bpm, beats
+
+
+def accents(path, max_sec=60.0, start_sec=0.0, beats=None,
+            min_gap=1.15, max_gap=4.5, thr_pct=88.0):
+    """曲の「ここで入る」という節目（フレーズの頭・サビの入り）の秒を返す。
+
+    拍(detect)とは別物。拍は等間隔の格子なので、そこに絵を乗せると曲のどこでも
+    同じ顔でドッドッと脈打つだけになる。ここで欲しいのは
+    「10秒と12秒でダダーダーと入る、その入りの瞬間」＝間隔がバラバラな節目。
+
+    やっていること：
+      ①アタックの強さを0.12秒ならして「フレーズの勢い」にする
+      ②2秒の移動中央値を土台にして、そこからどれだけ跳ねたかを見る
+        （曲全体が盛り上がっている区間でも、その中の"入り"だけが立つ）
+      ③近傍で一番高く、かつ十分に強い点だけを拾う
+      ④近すぎるものは強い方を残す（min_gap）
+      ⑤拍が分かっていれば、そこへスナップして食いつきを良くする
+      ⑥空きすぎた所は拍を足して埋める（切り替わらない動画にしない）
+    """
+    import numpy as np
+    env, fenv = _envelope(path, max_sec, start_sec)
+    if env is None or len(env) < 16 or env.max() <= 0:
+        return []
+    # ①勢いにならす
+    k = max(1, int(round(0.12 * fenv)))
+    sm = np.convolve(env, np.ones(k) / float(k), mode="same")
+    # ②土台（2秒の移動中央値）からの跳ね
+    w = max(3, int(round(2.0 * fenv)) | 1)
+    pad = np.pad(sm, (w // 2, w // 2), mode="edge")
+    base = np.array([np.median(pad[i:i + w]) for i in range(len(sm))])
+    nov = sm - base
+    nov[nov < 0] = 0
+    if nov.max() <= 0:
+        return []
+    nov = nov / nov.max()
+    # ③近傍最大かつ十分強い点
+    r = max(1, int(round(0.35 * fenv)))
+    pos = nov[nov > 0]
+    thr = max(0.30, float(np.percentile(pos, thr_pct))) if len(pos) else 0.30
+    cand = []
+    for i in range(len(nov)):
+        v = float(nov[i])
+        if v < thr:
+            continue
+        lo, hi = max(0, i - r), min(len(nov), i + r + 1)
+        if v >= float(nov[lo:hi].max()):
+            cand.append((i / fenv, v))
+    if not cand:
+        return []
+    # ④近すぎるものは強い方だけ残す
+    cand.sort(key=lambda t: -t[1])
+    picked = []
+    for t, _v in cand:
+        if all(abs(t - p) >= min_gap for p in picked):
+            picked.append(t)
+    picked.sort()
+    # ⑤拍へスナップ（ズレが小さい時だけ。大きくズラすと逆に外れる）
+    if beats:
+        snapped = []
+        for t in picked:
+            b = min(beats, key=lambda x: abs(x - t))
+            snapped.append(b if abs(b - t) <= 0.12 else t)
+        picked = sorted(set(snapped))
+    # ⑥空きすぎた所を埋める
+    out = []
+    for t in picked:
+        if out and t - out[-1] > max_gap:
+            gap = t - out[-1]
+            m = int(gap // max_gap)
+            for j in range(1, m + 1):
+                mid = out[-1] + gap * j / (m + 1.0)
+                if beats:
+                    mid = min(beats, key=lambda x: abs(x - mid))
+                if mid - out[-1] >= min_gap and t - mid >= min_gap:
+                    out.append(mid)
+        out.append(t)
+    return [round(t, 4) for t in out]
+
+
+def accents_or_default(path, start_sec=0.0, beats=None, need=16):
+    """節目の秒を返す。拾えなければ4拍ごと（小節の頭）にフォールバックする。
+    ここで空を返すと絵が切り替わらなくなるので、必ず何か返す。"""
+    try:
+        a = accents(path, start_sec=start_sec, beats=beats)
+    except Exception as e:
+        print("[ACCENT] 解析失敗:", e)
+        a = []
+    if len(a) >= 3:
+        print("[ACCENT] 節目 %d 個: %s" % (len(a), ", ".join("%.2f" % t for t in a[:10])))
+        return a
+    print("[ACCENT] 節目を拾えず: 4拍ごと（小節の頭）へフォールバック")
+    b = list(beats or [])
+    if len(b) >= 8:
+        return [b[i] for i in range(0, len(b), 4)]
+    return [round(i * 2.0, 4) for i in range(need)]
 
 
 def detect_or_default(path, start_sec=0.0, need=48):

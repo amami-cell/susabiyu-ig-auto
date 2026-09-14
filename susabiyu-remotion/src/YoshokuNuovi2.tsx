@@ -19,7 +19,7 @@ import {
   mincho, serif, clamp, EASE, EASE_INOUT, fade, rise, Grain, Vignette,
   Masthead, HandleMark, fitOneLine, splitLines, segNow, SAFE, STORY_OPEN,
 } from "./yoshokuDesign";
-import { typoBeats } from "./typoData";
+import { typoBeats, typoAccents } from "./typoData";
 import { BODY, Shell, Caption, Photo, PaperLogo, dishes, nameOf, MAGOP_OPEN, MAGOP_DUR } from "./YoshokuNuovi";
 
 type P = { storeName?: string; handle?: string; theme?: string };
@@ -57,6 +57,23 @@ export function cutIndex(cuts: number[], f: number): number {
 export function everyNth(cuts: number[], n: number): number[] {
   const out = cuts.filter((_, i) => i % n === 0);
   return out.length >= 2 ? out : cuts;
+}
+
+/* 曲の「ここで入る」節目（typoAccents）を本編フレームに直したもの。
+   拍(beatCuts)は等間隔の格子なので、そこで切ると曲のどこでも同じ顔で
+   ドッドッと脈打つだけになり“音ハメ”に見えない。欲しいのは
+   「10秒と12秒でダダーダーと入る、その入りの瞬間」＝間隔がバラバラな節目。
+   絵の切り替えはこちらに乗せる。 */
+export function accentCuts(openFrames: number): number[] {
+  const off = openFrames / FPS;
+  const raw = (typoAccents || []).map((t) => Math.round((t - off) * FPS)).filter((n) => n >= 0);
+  const cuts: number[] = [0];
+  for (const n of raw) if (n - cuts[cuts.length - 1] >= 24) cuts.push(n);   // 0.8秒未満は詰めすぎ
+  if (cuts.length < 3) return everyNth(beatCuts(openFrames), 4);            // 拾えなければ小節頭へ
+  // 本編の終わりまで足りなければ、最後の間隔で伸ばす
+  const step = Math.max(45, cuts[cuts.length - 1] - cuts[cuts.length - 2]);
+  while (cuts[cuts.length - 1] < BODY) cuts.push(cuts[cuts.length - 1] + step);
+  return cuts;
 }
 
 /* ═══ No.24 セッティマーナ（今週の一皿） ═══════════════════════════════
@@ -453,43 +470,32 @@ export const YoshokuNastro: React.FC<P> = ({ storeName = D.storeName, handle = D
      No.34 … 絵は切らない。光が拍で呼吸し、皿は小節でそっと入れ替わる
    ═══════════════════════════════════════════════════════════════════ */
 
-/* ── No.32 バッテレ（小節で切る） ──────────────────────────────────── */
+/* ── No.32 バッテレ（曲の節目で商品が切り替わる） ────────────────────
+   「ドッドッとウーハーみたいに脈打つ編集ではなく、10秒と12秒でダダーダーと
+    入る、その入りの頭で商品が切り替わる音ハメにしてほしい」への作り直し。
+
+   前の版は等間隔の拍に画を乗せていたので、曲のどこでも同じ顔で脈打つだけだった。
+   ここでは typoAccents（曲のフレーズの頭・サビの入り）だけを切り替え点にする。
+   間隔はバラバラ＝曲が動いた所で画も動く。拍ごとの脈動は全部やめた。 */
 const BattereBody: React.FC<Required<P>> = ({ storeName, handle, theme }) => {
   const f = useCurrentFrame(); const T = ytheme(theme);
   const items = dishes(4);
-  const BEATS = beatCuts(STORY_OPEN);               // 拍そのもの
-  const BARS = everyNth(BEATS, 4);                  // 4拍に1回＝小節の頭だけで“切る”
-  const i = cutIndex(BARS, f);
-  const local = f - (BARS[i] ?? 0);
-  const seg = (BARS[i + 1] ?? BODY) - (BARS[i] ?? 0);
+  const CUTS = accentCuts(STORY_OPEN);              // 曲が「入る」瞬間だけ
+  const i = cutIndex(CUTS, f);
+  const local = f - (CUTS[i] ?? 0);
+  const seg = (CUTS[i + 1] ?? BODY) - (CUTS[i] ?? 0);
   const d = items[i % items.length];
 
-  // ── ここから拍そのものに乗せる動き ──────────────────────────────
-  // 以前は「罫が小節をまたいで滑らかに伸びる」だけで、小節の頭以外は音と無関係だった
-  // ＝音ハメに見えない。絵を切る頻度は変えないまま（うるさくしない）、
-  // 拍ごとに画面が動くようにする。
-  const bi = cutIndex(BEATS, f);
-  const lb = f - (BEATS[bi] ?? 0);                  // その拍が鳴ってから何フレーム
-  // BARS[i] は BEATS[4i] なので、小節の中で何拍目かはこの引き算で出る
-  const beatInBar = Math.max(0, Math.min(3, bi - i * 4));
-  const strong = beatInBar === 0;                   // 小節アタマ＝強拍
-
-  // 拍のたびに画がコッと詰まる。強拍は深く、弱拍は浅く＝4拍の粒が見える。
-  const punch = interpolate(lb, [0, strong ? 11 : 8], [strong ? 1.024 : 1.010, 1], { ...clamp, easing: EASE });
-  // 強拍だけ、ほんの一瞬明るくなる（点滅ではなく“息”の強弱）
-  const lift = strong ? interpolate(lb, [0, 10], [0.18, 0], clamp) : 0;
+  // 入りの瞬間だけ、絵が“スッと落ち着く”。脈打たせるのではなく、
+  // 切り替わった一発をはっきり見せて、あとは静かにゆっくり寄るだけ。
+  const land = interpolate(local, [0, 9], [1.055, 1], { ...clamp, easing: EASE });
   const W = 1080 - SAFE.side * 2;
-  // 罫は滑らかに伸ばさず、拍ごとに1/4ずつ階段状に進める＝拍が目で数えられる
-  const ruleW = interpolate(lb, [0, 6], [(beatInBar * W) / 4, ((beatInBar + 1) * W) / 4], { ...clamp, easing: EASE });
 
   return (
     <AbsoluteFill style={{ backgroundColor: "#100D0A" }}>
-      {/* 小節のあいだはゆっくり寄る。その上に、拍ごとの詰まりを重ねる */}
-      <AbsoluteFill style={{ transform: "scale(" + punch + ")" }}>
-        <Photo src={d.src} lf={local} seg={seg} from={1.0} to={1.05} bri={1.0} />
+      <AbsoluteFill style={{ transform: "scale(" + land + ")" }}>
+        <Photo src={d.src} lf={local} seg={seg} from={1.0} to={1.04} bri={1.0} />
       </AbsoluteFill>
-      {/* 強拍の“息”。白を薄く重ねるだけなので料理の色は変えない */}
-      {lift > 0 ? <AbsoluteFill style={{ background: "#FFF3E2", opacity: lift, mixBlendMode: "soft-light" }} /> : null}
       {/* 明るい皿（黄色い絵皿・グリル肉）だと足元の文字が飛ぶので、写真全体を暗くせず
           “文字が乗る帯だけ”を締める。Caption は bottom:300 に置いてあり、実際に
           文字があるのは画面の 75〜84% あたり。締め始めを 72% に前倒しして
@@ -497,22 +503,13 @@ const BattereBody: React.FC<Required<P>> = ({ storeName, handle, theme }) => {
       <AbsoluteFill style={{ background: "linear-gradient(180deg, rgba(8,7,5,0.86) 0%, rgba(8,7,5,0.62) 16%, rgba(8,7,5,0.04) 32%, rgba(8,7,5,0.06) 58%, rgba(8,7,5,0.70) 72%, rgba(8,7,5,0.90) 84%, rgba(8,7,5,0.97) 100%)" }} />
       <Masthead storeName={storeName} f={f} kicker="A TEMPO" accent={T.accent} logoH={140} top={SAFE.top - 150} />
       <div style={{ position: "absolute", left: SAFE.side, right: SAFE.side, bottom: 300 }}>
-        <Caption d={d} f={local} start={4} ink={T.ink} sub={T.sub} accent={T.accent} />
+        <Caption d={d} f={local} start={3} ink={T.ink} sub={T.sub} accent={T.accent} />
       </div>
-      {/* 拍を目で数えられるように：罫は1拍ごとに1/4ずつ階段状に進む（下地に残り分を薄く出す） */}
-      <div style={{ position: "absolute", left: SAFE.side, bottom: 262, height: 4, width: W, background: "rgba(255,243,226,0.16)" }} />
-      <div style={{ position: "absolute", left: SAFE.side, bottom: 262, height: 4, background: T.accent, width: ruleW }} />
-      {/* 4拍の点。いま鳴っている拍だけ灯る（強拍はひとまわり大きい） */}
-      <div style={{ position: "absolute", left: SAFE.side, bottom: 228, display: "flex", gap: 12 }}>
-        {[0, 1, 2, 3].map((k) => {
-          const on = k === beatInBar;
-          const sz = on && k === 0 ? 12 : on ? 10 : 7;
-          return <div key={k} style={{
-            width: sz, height: sz, borderRadius: "50%", alignSelf: "center",
-            background: on ? T.accent : "rgba(255,243,226,0.28)",
-          }} />;
-        })}
-      </div>
+      {/* 次の入りまでの残りを示す細い罫。節目で0に戻る＝切り替わりの予告になる。
+          拍ごとに刻まないので、うるさくならない。 */}
+      <div style={{ position: "absolute", left: SAFE.side, bottom: 262, height: 3, width: W, background: "rgba(255,243,226,0.14)" }} />
+      <div style={{ position: "absolute", left: SAFE.side, bottom: 262, height: 3, background: T.accent,
+        width: interpolate(local, [0, Math.max(1, seg)], [0, W], clamp) }} />
       <HandleMark handle={handle} accent={T.accent} f={f} start={20} />
       <Grain opacity={0.05} />
     </AbsoluteFill>
