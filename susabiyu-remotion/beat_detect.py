@@ -11,12 +11,18 @@
 import subprocess
 
 
-def detect(path, max_sec=60.0):
-    """(bpm, [拍の秒…]) を返す。解析できなければ None。"""
+def detect(path, max_sec=60.0, start_sec=0.0):
+    """(bpm, [拍の秒…]) を返す。解析できなければ None。
+    秒は start_sec を 0 とした相対秒。start_sec は「その曲を再生し始める位置」で、
+    そこから max_sec 秒ぶんだけ解析する（曲の頭ではなく、実際に流すところを見る）。"""
     import numpy as np
     sr = 22050
+    # -ss を -i の前に置いて高速シーク。頭から60秒しか見ていなかったため、
+    # 「1分23秒～」のように再生開始が60秒より後の曲だと拍が1つも使えず、
+    # 拍に合っていない等間隔グリッドに落ちていた（音ハメにならない原因）。
     raw = subprocess.run(
-        ["ffmpeg", "-v", "quiet", "-t", str(max_sec), "-i", path, "-ac", "1", "-ar", str(sr), "-f", "f32le", "-"],
+        ["ffmpeg", "-v", "quiet", "-ss", str(max(0.0, start_sec)), "-t", str(max_sec),
+         "-i", path, "-ac", "1", "-ar", str(sr), "-f", "f32le", "-"],
         capture_output=True).stdout
     x = np.frombuffer(raw, dtype=np.float32)
     if len(x) < sr * 8:
@@ -70,19 +76,17 @@ def detect_or_default(path, start_sec=0.0, need=48):
     """拍の配列を「再生開始位置(start_sec)からの相対秒」で返す。
     解析できなければ120BPM（0.5秒）の等間隔にフォールバックする（必ず値を返す）。"""
     try:
-        r = detect(path)
+        r = detect(path, start_sec=start_sec)   # 再生開始位置から解析＝返る秒はそのまま相対秒
     except Exception as e:
         print("[BEAT] 解析失敗:", e)
         r = None
     if not r:
         print("[BEAT] フォールバック: 120BPM等間隔")
         return 120.0, [round(i * 0.5, 4) for i in range(need)]
-    bpm, beats = r
+    bpm, rel = r
     per = 60.0 / bpm if bpm > 0 else 0.5
-    # 開始位置より前の拍は落とし、足りなければ最後の拍から等間隔で伸ばす
-    rel = [round(b - start_sec, 4) for b in beats if b >= start_sec - 1e-6]
     if not rel:
         rel = [0.0]
-    while len(rel) < need:
+    while len(rel) < need:                      # 足りなければ最後の拍から等間隔で伸ばす
         rel.append(round(rel[-1] + per, 4))
     return bpm, rel[:need]

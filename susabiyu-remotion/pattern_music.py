@@ -24,6 +24,9 @@ import os, re, glob
 # パターン名 → 音源ファイル名（拡張子なし。public/music/normal/ の中を探す）
 MUSIC = {
     "yoshokutrio": "49秒～　Somebody_(Prod._Khaim)",
+    # 音ハメのテンプレ。拍がはっきりしていて（130BPM）頭出しも0秒の曲を固定で当てる。
+    # 並び順まかせにすると焼き直すたびに曲が変わり、音ハメの意味が無くなる。
+    "yoshokubattito": "French_Toast",
 }
 
 # パターン名 → 画面に出すフック文言

@@ -21,7 +21,14 @@ from prepare import REG, PAT_JA  # パターン→(fetch,comp,is_video) と 日�
 DEFAULT_PATTERNS = list(stores.YOSHOKU_PATTERNS)
 # パターンごとの「全体の中での定位置」。音源と文言の割り当てをここで固定する＝
 # 一部だけ焼き直しても、そのテンプレの音楽・文言が入れ替わらない。
-FIXED_IX = {p: i for i, p in enumerate(DEFAULT_PATTERNS)}
+#
+# 並びは stores.YOSHOKU_PATTERNS（既定11件）の後ろに、REG にある残りの yoshoku* を
+# REG の定義順で足したもの。YOSHOKU_PATTERNS だけで作っていたため No.12 以降が
+# この表に入らず、結局「今回流した分の中での番号」に落ちて音楽が入れ替わっていた
+# （No.29 が French_Toast → 愛の傘下 になった）。新しいテンプレは REG の末尾に
+# 足せば既存の定位置は動かない。
+_ALL_YOSHOKU = DEFAULT_PATTERNS + [p for p in REG if p.startswith("yoshoku") and p not in DEFAULT_PATTERNS]
+FIXED_IX = {p: i for i, p in enumerate(_ALL_YOSHOKU)}
 
 
 def run(cmd):
