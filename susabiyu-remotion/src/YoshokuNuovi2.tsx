@@ -68,12 +68,22 @@ export function accentCuts(openFrames: number): number[] {
   const off = openFrames / FPS;
   const raw = (typoAccents || []).map((t) => Math.round((t - off) * FPS)).filter((n) => n >= 0);
   const cuts: number[] = [0];
-  for (const n of raw) if (n - cuts[cuts.length - 1] >= 24) cuts.push(n);   // 0.8秒未満は詰めすぎ
+  // 1品目だけは長めに持たせる。本編の頭は OP が重なって消えていく最中で、
+  // 料理がちゃんと見え始めるのは1秒ほど経ってから。そこへ最初の節目が
+  // すぐ来ると「1品目が一瞬で終わる」ことになる（実測1.0秒しかなかった）。
+  // 最初の節目が2秒以内なら1つ飛ばして、次の節目まで1品目を持たせる。
+  const FIRST_MIN = 60;
+  for (const n of raw) {
+    const need = cuts.length === 1 ? FIRST_MIN : 24;   // 2品目以降は0.8秒未満だけ詰めすぎ
+    if (n - cuts[cuts.length - 1] >= need) cuts.push(n);
+  }
   if (cuts.length < 3) return everyNth(beatCuts(openFrames), 4);            // 拾えなければ小節頭へ
   // 本編の終わりまで足りなければ、最後の間隔で伸ばす
   const step = Math.max(45, cuts[cuts.length - 1] - cuts[cuts.length - 2]);
   while (cuts[cuts.length - 1] < BODY) cuts.push(cuts[cuts.length - 1] + step);
-  return cuts;
+  // 終わり際の切り替えは落とす。本編の最後はクローズが重なって消えていく所なので、
+  // ここで皿が替わると「一瞬だけ出て消える」だけになる（実測0.7秒しか映らなかった）。
+  return cuts.filter((n, k) => k === 0 || BODY - n >= 45);
 }
 
 /* ═══ No.24 セッティマーナ（今週の一皿） ═══════════════════════════════
@@ -494,8 +504,13 @@ const BattereBody: React.FC<Required<P>> = ({ storeName, handle, theme }) => {
 
   return (
     <AbsoluteFill style={{ backgroundColor: "#100D0A" }}>
+      {/* 写真が寄りすぎていた。9:16に cover で入れると横長の料理写真は左右を
+          大きく切り落とすぶん、必ず“ドアップ”になる。そこでこの案件で前にも
+          使った「引き」の作りにする：奥に同じ写真をぼかして敷き（黒帯を出さない）、
+          手前は料理の全体が入るように収める。 */}
+      <AbsoluteFill><Photo src={d.src} lf={local} seg={seg} from={1.26} to={1.32} bri={0.42} blur={26} /></AbsoluteFill>
       <AbsoluteFill style={{ transform: "scale(" + land + ")" }}>
-        <Photo src={d.src} lf={local} seg={seg} from={1.0} to={1.04} bri={1.0} />
+        <Photo src={d.src} lf={local} seg={seg} from={1.2} to={1.26} bri={1.0} style={{ objectFit: "contain" }} />
       </AbsoluteFill>
       {/* 明るい皿（黄色い絵皿・グリル肉）だと足元の文字が飛ぶので、写真全体を暗くせず
           “文字が乗る帯だけ”を締める。Caption は bottom:300 に置いてあり、実際に
