@@ -158,16 +158,24 @@ def accents(path, max_sec=60.0, start_sec=0.0, beats=None,
             等間隔に伸ばしただけのもので、実際の演奏とは少しずつ食い違う。
             序盤は一致していて後半だけ外れる——No.32 が「4商品目まで完璧で
             5商品目からずれる」と言われたのはこれ。強さを測った、まさにその
-            場所を切る秒にすれば、伸ばした格子の誤差は積み上がらない。"""
+            場所を切る秒にすれば、伸ばした格子の誤差は積み上がらない。
+
+            採るのは山の「頂点」ではなく「立ち上がり」。nov は0.12秒ならして
+            あるうえ、打楽器の音は立ち上がりが鋭く減衰が緩いので、頂点は実際に
+            鳴り始めた所より後ろに来る。頂点に合わせると「音楽が先に行って画が
+            遅れている」に寄る（No.35 で毎回その指摘だった）。窓の中の最大値の
+            4割を最初に超えた所＝アタックの入口を使う。"""
             i = int(round((sec - CORR) * fenv))     # 拍の秒 → 包絡線の添字（補正を戻す）
             if i < 0 or i >= len(nov):
                 return None
             lo, hi = max(0, i - w), min(len(nov), i + w + 1)
             seg = nov[lo:hi]
-            j = int(np.argmax(seg))
-            v = float(seg[j])
-            # 打点が無い所で argmax を採ると雑音を掴んで逆にぶれる。弱い時は格子のまま。
-            t = (lo + j) / fenv + CORR if v >= 0.20 else float(sec)
+            v = float(seg.max())
+            # 打点が無い所で位置を採ると雑音を掴んで逆にぶれる。弱い時は格子のまま。
+            t = float(sec)
+            if v >= 0.20:
+                j = int(np.argmax(seg >= 0.4 * v))  # 最初に4割を超えた添字＝鳴り始め
+                t = (lo + j) / fenv + CORR
             return round(t, 4), v
         scored = []
         for k, b in enumerate(beats):
@@ -185,7 +193,10 @@ def accents(path, max_sec=60.0, start_sec=0.0, beats=None,
                 if vs and sum(vs) / len(vs) > best:
                     phase, best = p, sum(vs) / len(vs)
             keep = [(k, t, v) for k, t, v in scored if (k - phase) % 4 == 0]
-            pct = 0.45                          # 候補が絞られたぶん緩める
+            # 小節の頭は強弱で間引かず、全部使う。間引くと途中に3.7秒など切り替わらない
+            # 区間ができ、そこで「合っていない」と感じる（No.35 で実際にそうなった）。
+            # 承認をもらえた版も、小節ごとに切り替わり続ける作りだった。
+            pct = 0.0
         cand = [(t, v) for _k, t, v in keep]
         if cand:
             allcand = list(cand)                # 空きを埋める時もここから選ぶ
