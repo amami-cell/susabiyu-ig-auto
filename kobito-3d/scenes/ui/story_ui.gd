@@ -35,6 +35,7 @@ func _ready() -> void:
 	Chapter.dialogue.connect(show_dialogue)
 	Chapter.objective_changed.connect(set_objective)
 	Chapter.banner.connect(show_banner)
+	Chapter.chapter_cleared.connect(_celebrate_chapter)   # 舞台ごとに違う ごほうび演出
 	# プレイ時間の起点（結果カードで「じかん」を出す）。
 	Net.session_started.connect(func() -> void: _start_msec = Time.get_ticks_msec())
 	# セッション終了（タイトルへ戻る）時に、結果カード/ボタンが残らないよう片づける。
@@ -75,7 +76,7 @@ func _build() -> void:
 	# 「おはなし」ボタン（左上・小さめ）。バトル中に会話がたまっているときだけ出る。
 	# 押すと そのとき会話を読める＝自動で画面を覆わない（戦闘の視界と操作を守る）。
 	_talk_btn = Button.new()
-	_talk_btn.text = "💬 おはなし"
+	_talk_btn.text = "▶ おはなし"   # ※同梱フォント(IPAゴシック)に絵文字は無い＝収録記号だけを使う
 	_talk_btn.anchor_top = 0.0
 	_talk_btn.anchor_bottom = 0.0
 	_talk_btn.offset_left = 16.0
@@ -304,7 +305,7 @@ func _show_result_card() -> void:
 
 	var stat := Label.new()
 	stat.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	stat.text = "なかま ●×%d　　みどり %d%%\n咲かせた花 ✿×%d\nじかん %d:%02d　　%s" % [allies, green, blooms, secs / 60, secs % 60, who]
+	stat.text = "なかま ●×%d　　みどり %d%%\n咲かせた花 ＊×%d\nじかん %d:%02d　　%s" % [allies, green, blooms, secs / 60, secs % 60, who]
 	UIKit.style_label(stat, 22, UIKit.INK)
 	vb.add_child(stat)
 
@@ -350,6 +351,87 @@ func _show_result_card() -> void:
 	var tw := create_tween()
 	tw.tween_interval(2.0)   # 余韻のあとに ふわっと出す
 	tw.tween_property(_result_card, "modulate:a", 1.0, 0.6)
+
+
+## 章ごとの ごほうび演出のレシピ（舞台ごとに 記号・色・ひとこと・向きが違う）。
+## meadow=第1章の芽ぶき / bloom=第2章の最初の一輪 / water=みずべ / night=よる / house=いえ / sky=そら。
+## ★記号は 同梱フォント(IPAゴシック)に収録されているものだけを使う（絵文字は □ になるため不可）。
+const CELEBRATE := {
+	"meadow": {"marks": ["★", "☆", "◎", "○", "＊", "♪"], "tint": Color(0.6, 0.88, 0.42), "line": "はじまりの みどりが ひろがった", "rise": true},
+	"bloom":  {"marks": ["♥", "♡", "★", "☆", "◎", "＊"], "tint": Color(1.0, 0.72, 0.82), "line": "さいしょの 一輪が 咲いた", "rise": true},
+	"water":  {"marks": ["○", "◎", "◇", "☆", "♪", "○"], "tint": Color(0.52, 0.82, 1.0), "line": "川が すきとおった", "rise": true},
+	"night":  {"marks": ["★", "☆", "◆", "・", "☆", "★"], "tint": Color(1.0, 0.95, 0.6), "line": "よるに ひかりが もどった", "rise": true},
+	"house":  {"marks": ["★", "☆", "◆", "◇", "♪", "＊"], "tint": Color(1.0, 0.9, 0.72), "line": "ゆかに ひかりが さした", "rise": true},
+	"sky":    {"marks": ["★", "☆", "☁", "○", "♪", "☆"], "tint": Color(1.0, 0.86, 0.42), "line": "そらまで みどりが とどいた", "rise": false},
+}
+
+
+## 章の山場を越えた瞬間に呼ばれる（Chapter.chapter_cleared・全員の画面で同時）。
+## 舞台ごとに違う 記号が 画面いっぱいに 舞い、ひとこと が ふわっと出る＝章ごとの締めの差別化。
+func _celebrate_chapter(theme: String) -> void:
+	var t: Dictionary = CELEBRATE.get(theme, CELEBRATE["meadow"])
+
+	# 締めの ひとこと（バナーの少し下）。ふわっと出して、余韻ののち消す。
+	var line := Label.new()
+	line.text = String(t["line"])
+	line.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	line.set_anchors_preset(Control.PRESET_CENTER)
+	line.offset_left = -430
+	line.offset_right = 430
+	line.offset_top = 74
+	line.offset_bottom = 134
+	line.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	line.add_theme_font_size_override("font_size", 30)
+	line.add_theme_color_override("font_color", Color(1, 1, 0.92))
+	line.add_theme_color_override("font_outline_color", Color(0.1, 0.14, 0.1))
+	line.add_theme_constant_override("outline_size", 8)
+	line.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	line.modulate = Color(1, 1, 1, 0)
+	add_child(line)
+	var lt := create_tween()
+	lt.tween_property(line, "modulate:a", 1.0, 0.5)
+	lt.tween_interval(2.6)
+	lt.tween_property(line, "modulate:a", 0.0, 0.7)
+	lt.tween_callback(line.queue_free)
+
+	# 舞い散る 記号。Webは描画を軽く 少なめに。
+	var vp := get_viewport().get_visible_rect().size
+	var marks: Array = t["marks"]
+	var tint: Color = t["tint"]
+	var rise: bool = bool(t.get("rise", true))
+	var count := 10 if Net.is_web() else 18
+	for _i in count:
+		var p := Label.new()
+		p.text = String(marks[randi() % marks.size()])
+		p.add_theme_font_size_override("font_size", randi_range(26, 46))
+		p.modulate = Color(tint.r, tint.g, tint.b, 0.0)
+		p.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		add_child(p)
+		var x := randf_range(20.0, maxf(40.0, vp.x - 40.0))
+		var y0 := (vp.y + 40.0) if rise else -50.0
+		var y1 := -50.0 if rise else (vp.y + 40.0)
+		p.position = Vector2(x, y0)
+		var dur := randf_range(2.4, 3.8)
+		var sway := randf_range(-70.0, 70.0)
+		# 動き（落下/上昇＋横ゆれ＋回転）
+		var mt := create_tween()
+		mt.set_parallel(true)
+		mt.tween_property(p, "position:y", y1, dur)
+		mt.tween_property(p, "position:x", x + sway, dur).set_trans(Tween.TRANS_SINE)
+		mt.tween_property(p, "rotation", randf_range(-0.7, 0.7), dur)
+		# 明滅（すっと出て、消えぎわに ふっと消す）
+		var ft := create_tween()
+		ft.tween_interval(randf_range(0.0, 0.6))
+		ft.tween_property(p, "modulate:a", 0.95, 0.4)
+		ft.tween_interval(maxf(0.2, dur - 1.4))
+		ft.tween_property(p, "modulate:a", 0.0, 0.6)
+		ft.tween_callback(p.queue_free)
+
+	# 締めの音（節目→昇格の きらめきを 少しずらして 重ねる）。
+	Sfx.play("milestone", -4.0)
+	var st := create_tween()
+	st.tween_interval(0.2)
+	st.tween_callback(func() -> void: Sfx.play("levelup", -9.0))
 
 
 ## Web：この作品を共有（対応端末はネイティブ共有、無ければURLをコピー）。

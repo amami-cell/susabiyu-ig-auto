@@ -171,6 +171,8 @@ func sky_color() -> Color:
 func spawn_interval() -> float:
 	# 戦い（群れ/ボス）の最中は、回復が進んでも湧きを速めに保つ＝“最後の数体待ち”の間延びを防ぐ。
 	# 落ち着いた場面（掃除・探索）では従来どおり ゆっくり湧く（平和を保つ）。
+	# むずかしさで湧きの速さも変える（やさしいは長め＝のんびり／つよいは短め＝にぎやか）。
+	var m := Net.spawn_mult()
 	if Chapter.is_action_beat():
-		return lerpf(2.5, 5.0, recovery)
-	return lerpf(3.0, 12.0, recovery)
+		return lerpf(2.5, 5.0, recovery) * m
+	return lerpf(3.0, 12.0, recovery) * m

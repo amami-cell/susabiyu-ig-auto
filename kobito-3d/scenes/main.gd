@@ -441,10 +441,34 @@ func _run_selftest() -> void:
 		var wl := _garden.get_node_or_null("WaterLite")
 		water_ok = wl != null and (wl as Node3D).visible
 
+	# むずかしさ：3つの倍率テーブルが 単調（攻撃・体力は 上がる／湧きは 短くなる）で、
+	# set_difficulty が それらへ ちゃんと反映されるかを確認する（やさしい↔つよい）。
+	var diff_ok := true
+	if not (Net.DIFF_ATTACK[0] < Net.DIFF_ATTACK[1] and Net.DIFF_ATTACK[1] < Net.DIFF_ATTACK[2]):
+		diff_ok = false
+	if not (Net.DIFF_HP[0] < Net.DIFF_HP[1] and Net.DIFF_HP[1] < Net.DIFF_HP[2]):
+		diff_ok = false
+	if not (Net.DIFF_SPAWN[0] > Net.DIFF_SPAWN[1] and Net.DIFF_SPAWN[1] > Net.DIFF_SPAWN[2]):
+		diff_ok = false
+	Net.set_difficulty(0)
+	if not (is_equal_approx(Net.enemy_hp_mult(), Net.DIFF_HP[0]) and is_equal_approx(Net.difficulty, Net.DIFF_ATTACK[0]) and is_equal_approx(Net.spawn_mult(), Net.DIFF_SPAWN[0])):
+		diff_ok = false
+	Net.set_difficulty(2)
+	if not (Net.enemy_hp_mult() > 1.0 and Net.spawn_mult() < 1.0 and Net.difficulty > 1.0):
+		diff_ok = false
+	Net.set_difficulty(1)   # 既定（ふつう）へ戻す
+
+	# 章ごとの ごほうび演出：全6章の山場に celebrate テーマが 付いている（章ごとに 締めを 差別化）。
+	var cel_count := 0
+	for cb in Chapter.CH1:
+		if cb.has("celebrate"):
+			cel_count += 1
+	var celebrate_ok: bool = cel_count == 6
+
 	var ok: bool = _garden != null and players.size() == 1 and bugs.size() > 0 \
-		and WorldState.recovery > 0.0 and xp_gained and flight_ok and kids_ok and mother_ok and puzzle_ok and switch_ok and blob_ok and ring_ok and ally_ok and ally_species_ok and save_ok and boss_ok and boss_hold_ok and dex_ok and audio_ok and bloom_ok and water_ok and balance_ok
-	print("[selftest] 回復度=%.2f XP=%d 経験値=%s 飛行解禁=%s 子ども=%d(最寄り%.1f) 母=%s 石版=%s 扉=%s おそうじ=%s 輪=%s なかま=%s 種役割=%s セーブ=%s ボス召喚=%s ボス浄化=%s 図鑑=%s 音バス=%s 花あと=%s みずべ=%s ボス曲線=%s" % [
-		WorldState.recovery, xp_now, xp_gained, flight_ok, children.size(), nearest, mother_ok, puzzle_ok, switch_ok, blob_ok, ring_ok, ally_ok, ally_species_ok, save_ok, boss_ok, boss_hold_ok, dex_ok, audio_ok, bloom_ok, water_ok, balance_ok])
+		and WorldState.recovery > 0.0 and xp_gained and flight_ok and kids_ok and mother_ok and puzzle_ok and switch_ok and blob_ok and ring_ok and ally_ok and ally_species_ok and save_ok and boss_ok and boss_hold_ok and dex_ok and audio_ok and bloom_ok and water_ok and balance_ok and diff_ok and celebrate_ok
+	print("[selftest] 回復度=%.2f XP=%d 経験値=%s 飛行解禁=%s 子ども=%d(最寄り%.1f) 母=%s 石版=%s 扉=%s おそうじ=%s 輪=%s なかま=%s 種役割=%s セーブ=%s ボス召喚=%s ボス浄化=%s 図鑑=%s 音バス=%s 花あと=%s みずべ=%s ボス曲線=%s 難度=%s ごほうび=%s" % [
+		WorldState.recovery, xp_now, xp_gained, flight_ok, children.size(), nearest, mother_ok, puzzle_ok, switch_ok, blob_ok, ring_ok, ally_ok, ally_species_ok, save_ok, boss_ok, boss_hold_ok, dex_ok, audio_ok, bloom_ok, water_ok, balance_ok, diff_ok, celebrate_ok])
 	print("[selftest] %s" % ("OK" if ok else "NG"))
 	get_tree().quit(0 if ok else 1)
 
@@ -602,6 +626,17 @@ func _run_shot() -> void:
 		await get_tree().create_timer(1.2).timeout
 		await RenderingServer.frame_post_draw
 		get_viewport().get_texture().get_image().save_png("/tmp/shot_sky_clear.png")
+	# --celebshot を付けると 章クリアの ごほうび演出（舞台ごとの記号ふぶき）を撮る（開発確認用）。
+	# 収録フォントの記号だけで 描けているか＝□(豆腐)になっていないかを 目で確かめる。
+	if OS.get_cmdline_user_args().has("--celebshot") and _garden != null:
+		for pair in [["water", "water"], ["night", "night"], ["sky", "sky"]]:
+			_garden.set_biome(pair[0])
+			WorldState.set_recovery(0.9)
+			await get_tree().create_timer(0.4).timeout
+			Chapter.chapter_cleared.emit(pair[1])
+			await get_tree().create_timer(1.0).timeout
+			await RenderingServer.frame_post_draw
+			get_viewport().get_texture().get_image().save_png("/tmp/shot_celeb_%s.png" % pair[1])
 	# --puzzle を付けると石版パズルを専用カメラで撮る（開発確認用）
 	if OS.get_cmdline_user_args().has("--puzzle"):
 		var puzzle := _garden.get_node_or_null("StonePuzzle")

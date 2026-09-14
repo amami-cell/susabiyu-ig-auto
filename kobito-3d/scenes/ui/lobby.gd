@@ -675,7 +675,8 @@ func _sync_settings() -> void:
 	if _biome != null:
 		Net.world_biome = "ruins" if _biome.selected == 1 else "garden"
 	if _difficulty != null:
-		Net.difficulty = [0.6, 1.0, 1.5][_difficulty.selected]
+		# 攻撃力・体力・湧きの速さの3つをまとめて設定（参加者へも配られる）。
+		Net.set_difficulty(_difficulty.selected)
 
 
 func _on_continue() -> void:

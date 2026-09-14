@@ -44,7 +44,15 @@ var transport: Transport = Transport.ENET
 var force_offline := false
 var my_display_name := "夫"
 var world_biome := "garden"   # 舞台。ロビーで選ぶ（庭/遺跡）。ホストが決めて全員に配る
-var difficulty := 1.0         # 敵の攻撃力の倍率（やさしい0.6/ふつう1.0/つよい1.5）。サーバ基準
+
+# むずかしさ。0 やさしい / 1 ふつう / 2 つよい。ホスト(サーバ)が決めて全員へ配る。
+# 「敵の攻撃力・体力・湧きの速さ」の3つをまとめて動かす＝やさしいは のんびり、つよいは 歯ごたえ。
+# ★HPと湧きも全員一致させたいので、参加者にも difficulty を配る（_on_peer_connected）。
+var diff_index := 1
+var difficulty := 1.0         # 敵の攻撃力の倍率（後方互換で残す：bug.gd が参照）。サーバ基準
+const DIFF_ATTACK := [0.6, 1.0, 1.5]   # 攻撃力の倍率
+const DIFF_HP := [0.8, 1.0, 1.25]      # 体力の倍率（やさしいは少ない手数で癒やせる／つよいは手ごたえ）
+const DIFF_SPAWN := [1.30, 1.0, 0.80]  # 湧き間隔の倍率（小さいほど速い＝つよいは にぎやか）
 var is_online := false
 
 ## peer_id -> { "name": String, "role": int }
@@ -221,6 +229,7 @@ func _on_peer_connected(id: int) -> void:
 	for pid in roster:
 		rpc_id(id, "_remote_register", pid, roster[pid]["name"], roster[pid]["role"])
 	rpc_id(id, "_remote_biome", world_biome)
+	rpc_id(id, "_remote_difficulty", diff_index)   # 敵HP・湧きも全員一致させる
 	WorldState.send_to(id)
 
 
@@ -312,6 +321,31 @@ func _request_register(display_name: String) -> void:
 	var role := _register(id, display_name)
 	# 全員（自分含む）へ通知
 	rpc("_remote_register", id, display_name, role)
+
+
+## むずかしさを決める（ロビーで選ぶ）。3つの倍率をまとめて設定し、参加者へも配る。
+## サーバが正。ソロは自分＝サーバなので即反映。
+func set_difficulty(idx: int) -> void:
+	diff_index = clampi(idx, 0, DIFF_ATTACK.size() - 1)
+	difficulty = DIFF_ATTACK[diff_index]
+	if multiplayer.has_multiplayer_peer() and multiplayer.is_server():
+		rpc("_remote_difficulty", diff_index)
+
+
+## 敵の体力の倍率（やさしい0.8／ふつう1.0／つよい1.25）。bug.gd が出現時に掛ける。
+func enemy_hp_mult() -> float:
+	return DIFF_HP[clampi(diff_index, 0, DIFF_HP.size() - 1)]
+
+
+## 敵の湧き間隔の倍率（やさしいは長め＝のんびり／つよいは短め＝にぎやか）。world_state が掛ける。
+func spawn_mult() -> float:
+	return DIFF_SPAWN[clampi(diff_index, 0, DIFF_SPAWN.size() - 1)]
+
+
+@rpc("authority", "reliable")
+func _remote_difficulty(idx: int) -> void:
+	diff_index = clampi(idx, 0, DIFF_ATTACK.size() - 1)
+	difficulty = DIFF_ATTACK[diff_index]
 
 
 ## 遊んでいる途中で舞台を切り替える（章が進んで別の場所へ＝第3章で みずべ 等）。

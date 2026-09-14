@@ -9,6 +9,7 @@ extends Node
 signal dialogue(lines: PackedStringArray)   # 会話（1行ずつ送る）
 signal objective_changed(text: String)      # 画面上の目的表示（""で消す）
 signal banner(text: String)                 # 章クリア等の大きな中央表示
+signal chapter_cleared(theme: String)        # 章の山場を越えた瞬間＝舞台ごとに違うごほうび演出
 signal spawn_wave(n: int)                   # 群れ(ウェーブ)を湧かせる合図
 signal spawn_boss                           # 中ボスを湧かせる合図
 signal guide_changed(on: bool, pos: Vector3, kind: String)  # 「次にどこへ行くか」の道しるべ
@@ -113,7 +114,7 @@ const CH1 := [
 		],
 	},
 	{
-		"goal": "story", "banner": "第1章 クリア  「たどり着いた隙間」", "power": "carry",
+		"goal": "story", "banner": "第1章 クリア  「たどり着いた隙間」", "power": "carry", "celebrate": "meadow",
 		"lines": [
 			"父「この汚れた場所を、いつか“家”って 呼べるように」",
 			"カヤ「……まあ、少しは マシに なったかもな」",
@@ -152,7 +153,7 @@ const CH1 := [
 		],
 	},
 	{
-		"goal": "story", "banner": "みどりが よみがえる", "full_green": true,
+		"goal": "story", "banner": "みどりが よみがえる", "full_green": true, "celebrate": "bloom",
 		"lines": [
 			"——主が 静かに ほどけ、地の すみずみまで みどりが 走った。",
 			"——拾い集めた かけらが ひとつに なり、土の中で 芽を出す。最初の 一輪が、咲いた。",
@@ -202,7 +203,7 @@ const CH1 := [
 		],
 	},
 	{
-		"goal": "green", "v": 0.6, "biome": "water",
+		"goal": "green", "v": 0.6, "biome": "water", "celebrate": "water",
 		"lines": [
 			"——にごりが ほどけ、水が すきとおって いく。",
 			"つぼみ「見て！ 水の そこまで、みえるよ！」",
@@ -240,7 +241,7 @@ const CH1 := [
 		],
 	},
 	{
-		"goal": "green", "v": 0.6, "biome": "night",
+		"goal": "green", "v": 0.6, "biome": "night", "celebrate": "night",
 		"lines": [
 			"——ガが 静かに 羽を とじ、森じゅうの ホタルが いっせいに ともった。",
 			"つぼみ「うわあ…！ 星が、地面にも あるみたい！」",
@@ -278,7 +279,7 @@ const CH1 := [
 		],
 	},
 	{
-		"goal": "green", "v": 0.6, "biome": "house",
+		"goal": "green", "v": 0.6, "biome": "house", "celebrate": "house",
 		"lines": [
 			"——かたまりが ほどけ、ゆか下に あたたかい 光が さしこんだ。",
 			"つぼみ「わあ、ゆかが ぴかぴか！」",
@@ -316,7 +317,7 @@ const CH1 := [
 		],
 	},
 	{
-		"goal": "green", "v": 0.6, "biome": "sky",
+		"goal": "green", "v": 0.6, "biome": "sky", "celebrate": "sky",
 		"lines": [
 			"——アゲハが ゆっくり 舞いおり、空じゅうに 澄んだ 風が とおった。",
 			"つぼみ「風が、みどりの においが する！」",
@@ -640,6 +641,9 @@ func _set_beat(i: int, silent: bool = false) -> void:
 		if data.get("ending", false):
 			objective_changed.emit("")
 			banner.emit("『みどりのはじまり』  〜おわり〜")
+		# 章の山場を越えた瞬間＝舞台ごとに違う ごほうび演出（花ふぶき/ホタル/しずく…）。
+		if data.has("celebrate"):
+			chapter_cleared.emit(String(data["celebrate"]))
 	# 章の切れ目でセーブ（サーバのみ・庭のときだけ）。エンディングまで来たら「クリア」を記録。
 	# ★R2★ beat0（＝はじめから直後）では書かない＝「はじめから」で旧セーブを即消ししない。
 	if _is_server() and Net.world_biome == "garden" and not silent:

@@ -38,6 +38,9 @@ var _windup_t := 0.0               # >0＝タメ中（サーバのみ）
 ## どの .tres から作られたか。後から参加した人へ同じ虫を作り直してもらうために持っておく。
 var stats_path: String = "res://data/ant.tres"
 
+## むずかしさを反映した実際の最大体力（stats.max_hp × Net.enemy_hp_mult）。HPバー・段の芝居はこれ基準。
+var _max_hp: int = 1
+
 var hp: int = 16
 var _target: Node3D = null
 var _attack_cd := 0.0
@@ -72,7 +75,9 @@ func _ready() -> void:
 	add_to_group("bug")
 	if stats == null:
 		stats = load("res://data/ant.tres")
-	hp = stats.max_hp
+	# むずかしさで体力を増減（やさしい=少ない手数／つよい=手ごたえ）。全員 同じ倍率＝バーもそろう。
+	_max_hp = maxi(1, int(round(stats.max_hp * Net.enemy_hp_mult())))
+	hp = _max_hp
 	_net_pos = global_position
 
 	var mat := StandardMaterial3D.new()
@@ -194,7 +199,7 @@ func _bar_mat(col: Color) -> StandardMaterial3D:
 func _update_hpbar() -> void:
 	if _hpbar == null or _hpbar_fill == null:
 		return
-	var maxhp: int = maxi(1, stats.max_hp)
+	var maxhp: int = maxi(1, _max_hp)
 	var ratio := clampf(float(hp) / float(maxhp), 0.0, 1.0)
 	_hpbar_fill.scale.x = ratio
 	if _hp_num != null:
@@ -465,7 +470,7 @@ func stagger(_from_id: int) -> void:
 
 ## 浄化の進みに合わせて 3段の芝居（暴れる→弱る→泣く）。倒すのでなく“助けている”手触り。
 func _boss_story_barks() -> void:
-	var maxhp := maxi(1, stats.max_hp)
+	var maxhp := maxi(1, _max_hp)
 	var r := float(maxi(0, hp)) / float(maxhp)
 	if _stage == 0 and r <= 0.66:
 		_stage = 1
@@ -621,7 +626,7 @@ func _remote_whiff() -> void:
 ## 今の「きれいさ」を表す体の色。HPが減る＝汚れが拭われるほど、
 ## ヘドロ色(stats.body_color)から澄んだ色へ寄っていく＝「倒す」でなく「洗う」を体で見せる。
 func _cleanliness_color() -> Color:
-	var maxhp: int = maxi(1, stats.max_hp)
+	var maxhp: int = maxi(1, _max_hp)
 	var t := clampf(1.0 - float(hp) / float(maxhp), 0.0, 1.0)
 	return stats.body_color.lerp(Color(0.86, 1.0, 0.90), t * 0.5)
 
