@@ -175,7 +175,7 @@ const CH1 := [
 	},
 	# ───────── 第3章「にごった みずべ」 ─────────
 	{
-		"goal": "story", "banner": "第3章  「にごった みずべ」", "reset_recovery": 0.3,
+		"goal": "story", "banner": "第3章  「にごった みずべ」", "reset_recovery": 0.3, "biome": "water",
 		"lines": [
 			"つぼみ「川の 音…でも、へんな におい」",
 			"おじい「昔は 澄んで、めだかが およいでおった…」",
@@ -184,7 +184,7 @@ const CH1 := [
 		],
 	},
 	{
-		"goal": "heal", "n": 12, "wave": 6,
+		"goal": "heal", "n": 12, "wave": 6, "biome": "water",
 		"lines": [
 			"——にごった水から、ヘドロを まとった 水の虫が わいてくる。",
 			"カヤ「うわ、ぬるぬるしてる…！」",
@@ -193,7 +193,7 @@ const CH1 := [
 		],
 	},
 	{
-		"goal": "boss", "boss": true,
+		"goal": "boss", "boss": true, "biome": "water",
 		"lines": [
 			"——よどみの 底から、大きな 影が もちあがる。",
 			"スミレ「あれが…この 川を にごらせている おおもと！」",
@@ -202,7 +202,7 @@ const CH1 := [
 		],
 	},
 	{
-		"goal": "green", "v": 0.6,
+		"goal": "green", "v": 0.6, "biome": "water",
 		"lines": [
 			"——にごりが ほどけ、水が すきとおって いく。",
 			"つぼみ「見て！ 水の そこまで、みえるよ！」",
@@ -497,6 +497,9 @@ func _set_beat(i: int, silent: bool = false) -> void:
 	if not silent:
 		dialogue.emit(PackedStringArray(data.get("lines", [])))
 	if _is_server():
+		# 章で舞台が変わるとき（第3章＝みずべ 等）は 舞台を切り替える。復元(silent)でも適用。
+		if data.has("biome"):
+			Net.set_world_biome(String(data["biome"]))
 		if data.get("boss", false):
 			_boss_cleared = false   # 新しいボスに備えて判定をリセット
 			spawn_boss.emit()

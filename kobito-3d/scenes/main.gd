@@ -422,10 +422,17 @@ func _run_selftest() -> void:
 	# 浄化した場所に花が咲く（手あとが残る）経路を確認する＝虫を癒やすと bloom が増える
 	var bloom_ok: bool = _garden != null and _garden.has_method("blooms_placed") and _garden.blooms_placed() > 0
 
+	# 第3章「みずべ」：舞台を water に切り替えると 浅い水シートが出る経路を確認する（最後に実施）。
+	var water_ok := false
+	if _garden != null and _garden.has_method("set_biome"):
+		_garden.set_biome("water")
+		var wl := _garden.get_node_or_null("WaterLite")
+		water_ok = wl != null and (wl as Node3D).visible
+
 	var ok: bool = _garden != null and players.size() == 1 and bugs.size() > 0 \
-		and WorldState.recovery > 0.0 and xp_gained and flight_ok and kids_ok and mother_ok and puzzle_ok and switch_ok and blob_ok and ring_ok and ally_ok and ally_species_ok and save_ok and boss_ok and boss_hold_ok and dex_ok and audio_ok and bloom_ok
-	print("[selftest] 回復度=%.2f XP=%d 経験値=%s 飛行解禁=%s 子ども=%d(最寄り%.1f) 母=%s 石版=%s 扉=%s おそうじ=%s 輪=%s なかま=%s 種役割=%s セーブ=%s ボス召喚=%s ボス浄化=%s 図鑑=%s 音バス=%s 花あと=%s" % [
-		WorldState.recovery, xp_now, xp_gained, flight_ok, children.size(), nearest, mother_ok, puzzle_ok, switch_ok, blob_ok, ring_ok, ally_ok, ally_species_ok, save_ok, boss_ok, boss_hold_ok, dex_ok, audio_ok, bloom_ok])
+		and WorldState.recovery > 0.0 and xp_gained and flight_ok and kids_ok and mother_ok and puzzle_ok and switch_ok and blob_ok and ring_ok and ally_ok and ally_species_ok and save_ok and boss_ok and boss_hold_ok and dex_ok and audio_ok and bloom_ok and water_ok
+	print("[selftest] 回復度=%.2f XP=%d 経験値=%s 飛行解禁=%s 子ども=%d(最寄り%.1f) 母=%s 石版=%s 扉=%s おそうじ=%s 輪=%s なかま=%s 種役割=%s セーブ=%s ボス召喚=%s ボス浄化=%s 図鑑=%s 音バス=%s 花あと=%s みずべ=%s" % [
+		WorldState.recovery, xp_now, xp_gained, flight_ok, children.size(), nearest, mother_ok, puzzle_ok, switch_ok, blob_ok, ring_ok, ally_ok, ally_species_ok, save_ok, boss_ok, boss_hold_ok, dex_ok, audio_ok, bloom_ok, water_ok])
 	print("[selftest] %s" % ("OK" if ok else "NG"))
 	get_tree().quit(0 if ok else 1)
 
@@ -539,6 +546,17 @@ func _run_shot() -> void:
 		await get_tree().create_timer(1.5).timeout
 		await RenderingServer.frame_post_draw
 		get_viewport().get_texture().get_image().save_png("/tmp/shot_green.png")
+	# --water を付けると 第3章「みずべ」の見た目（にごり／澄み）を撮る（開発確認用）
+	if OS.get_cmdline_user_args().has("--water") and _garden != null:
+		_garden.set_biome("water")
+		WorldState.set_recovery(0.15)   # にごり
+		await get_tree().create_timer(1.2).timeout
+		await RenderingServer.frame_post_draw
+		get_viewport().get_texture().get_image().save_png("/tmp/shot_water_murky.png")
+		WorldState.set_recovery(0.9)     # 澄み
+		await get_tree().create_timer(1.2).timeout
+		await RenderingServer.frame_post_draw
+		get_viewport().get_texture().get_image().save_png("/tmp/shot_water_clear.png")
 	# --puzzle を付けると石版パズルを専用カメラで撮る（開発確認用）
 	if OS.get_cmdline_user_args().has("--puzzle"):
 		var puzzle := _garden.get_node_or_null("StonePuzzle")

@@ -314,6 +314,17 @@ func _request_register(display_name: String) -> void:
 	rpc("_remote_register", id, display_name, role)
 
 
+## 遊んでいる途中で舞台を切り替える（章が進んで別の場所へ＝第3章で みずべ 等）。
+## サーバが正。自分にも即反映し、参加者へは _remote_biome で配る。
+func set_world_biome(b: String) -> void:
+	if world_biome == b:
+		return
+	world_biome = b
+	biome_changed.emit(b)
+	if multiplayer.has_multiplayer_peer() and multiplayer.is_server():
+		rpc("_remote_biome", b)
+
+
 @rpc("authority", "reliable")
 func _remote_biome(biome: String) -> void:
 	world_biome = biome

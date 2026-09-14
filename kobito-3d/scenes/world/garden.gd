@@ -95,6 +95,10 @@ const CONIFER_COUNT := 130    # 針葉樹（とがった木）
 const BOULDER_COUNT := 110    # 岩
 var _hills: MultiMeshInstance3D = null
 var _water_mat: ShaderMaterial = null
+# 第3章の“浅い水”：プレイ面をおおう軽い半透明シート（web でも軽い1メッシュ）。
+# にごり→すきとおる を 回復度で表現。水辺(biome=="water")のときだけ出す。
+var _water_lite: MeshInstance3D = null
+var _water_lite_mat: StandardMaterial3D = null
 var _trees: Node3D = null
 # 木の葉を回復度で塗り替えるための保持（葉の色は建てたとき1回きりだと、
 # 汚れた世界でも森が青々として矛盾する→回復にあわせて病んだ色↔みずみずしい緑へ）。
@@ -138,6 +142,17 @@ const BIOMES := {
 		"sky_horizon": [Color(0.58, 0.58, 0.56), Color(0.95, 0.66, 0.45)],
 		"fog_col": [Color(0.56, 0.58, 0.57), Color(0.95, 0.8, 0.66)],
 		"fog_d": [0.028, 0.006],
+	},
+	"water": {
+		# 第3章「にごった みずべ」：砂の岸辺＋浅い水。回復で水が澄む（にごり→すきとおる）。
+		"pillars": false, "grass_frac": 0.5, "flowers": true, "tree_frac": 0.5, "bfly_frac": 0.7,
+		"soil": Color(0.44, 0.41, 0.31), "grass_col": Color(0.34, 0.52, 0.34),
+		"sun_c": Color(0.90, 0.95, 1.0), "sun_e": 1.1,
+		"water_shallow": Color(0.24, 0.50, 0.55), "water_deep": Color(0.08, 0.20, 0.28),
+		"sky_top": [Color(0.30, 0.40, 0.52), Color(0.34, 0.55, 0.72)],
+		"sky_horizon": [Color(0.55, 0.62, 0.62), Color(0.76, 0.86, 0.86)],
+		"fog_col": [Color(0.50, 0.58, 0.60), Color(0.72, 0.83, 0.86)],
+		"fog_d": [0.03, 0.008],
 	},
 	"ruins": {
 		"pillars": true, "grass_frac": 0.28, "flowers": false, "tree_frac": 0.35, "bfly_frac": 0.4,
@@ -749,7 +764,32 @@ func _setup_visuals() -> void:
 	_build_butterflies()
 	_build_actor_shadows()
 	_build_bloom()
+	_build_water_lite()
 	_apply_biome()
+
+
+## 第3章の浅い水：プレイ面をおおう半透明シート1枚（1ドローコール＝web でも軽い）。
+## 頂点アニメなし＝サクサク。ゆっくりUVを流して“水面”感だけ出す（_process、負荷ごく小）。
+func _build_water_lite() -> void:
+	var plane := PlaneMesh.new()
+	plane.size = Vector2(72.0, 72.0)   # 壁(半径24)の内側をおおう
+	_water_lite_mat = StandardMaterial3D.new()
+	_water_lite_mat.albedo_color = Color(0.22, 0.34, 0.30, 0.72)   # 初期＝にごり（回復で澄む）
+	_water_lite_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	_water_lite_mat.shading_mode = BaseMaterial3D.SHADING_MODE_PER_PIXEL
+	_water_lite_mat.roughness = 0.18
+	_water_lite_mat.metallic = 0.0
+	_water_lite_mat.metallic_specular = 0.6
+	_water_lite_mat.rim_enabled = false
+	_water_lite_mat.depth_draw_mode = BaseMaterial3D.DEPTH_DRAW_ALWAYS
+	_water_lite = MeshInstance3D.new()
+	_water_lite.name = "WaterLite"
+	_water_lite.mesh = plane
+	_water_lite.material_override = _water_lite_mat
+	_water_lite.position = Vector3(0.0, 0.07, 0.0)   # 地面のすぐ上＝浅い水に見える
+	_water_lite.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	_water_lite.visible = false
+	add_child(_water_lite)
 
 
 # ------------------------------------------------------------ 浄化の“あと”に咲く花
@@ -919,6 +959,8 @@ func _apply_biome() -> void:
 	if _water_mat != null:
 		_water_mat.set_shader_parameter("shallow", cfg["water_shallow"])
 		_water_mat.set_shader_parameter("deep", cfg["water_deep"])
+	if _water_lite != null:
+		_water_lite.visible = biome == "water"   # 水辺のときだけ浅い水を出す
 	_on_recovery_changed(WorldState.recovery)
 
 
@@ -1805,6 +1847,11 @@ func _on_recovery_changed(_value: float) -> void:
 	_update_butterfly_count(r)
 	if _water_mat != null:
 		_water_mat.set_shader_parameter("clarity", r)   # 回復ほど水が澄む
+	# 第3章の浅い水：回復で にごり(緑茶けた濃い)→ すきとおる(淡く青い)へ。
+	if _water_lite_mat != null:
+		var murky := Color(0.22, 0.34, 0.30, 0.72)
+		var clear := Color(0.42, 0.62, 0.68, 0.34)
+		_water_lite_mat.albedo_color = murky.lerp(clear, r)
 	_update_sky_fog(r)
 	_update_grass(r)
 	_update_flowers(r)
