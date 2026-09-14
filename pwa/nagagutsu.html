@@ -371,6 +371,13 @@
     📲 ホーム画面に追加すると<b>一瞬で起動</b>＆<b>通知</b>が使えます。<br>
     共有ボタン <b>⬆️</b> →「ホーム画面に追加」
   </div>
+  <!-- 見本を差し替えたのに古い一覧が出たままの時の逃げ道。
+       投稿管理(reels)側には前からあったが、見本ギャラリーのこの画面には無く、
+       端末に古いガワが残ると自力で直せなかった。 -->
+  <div style="text-align:center;padding:18px 12px 26px;font-size:12px;color:#8b93a2">
+    <span id="verlbl" style="opacity:.7"></span>
+    <a id="forceupd" style="color:#8ab4e0;text-decoration:underline;cursor:pointer;margin-left:8px">🔄 最新に更新</a>
+  </div>
   <script src="./config.nagagutsu.js?v=__BUILD__"></script>
   <script src="./app.js?v=__BUILD__"></script>
   <script>
@@ -392,6 +399,28 @@
         }).catch(function () {});
       });
     }
+    // 画面下：現在の版数表示＋「最新に更新」（SW解除＋キャッシュ全消去＋再取得）。
+    // 投稿管理(reels)側と同じ動き。見本を差し替えても古い一覧が残る端末の最終手段。
+    (function () {
+      var vl = document.getElementById("verlbl");
+      if (vl) vl.textContent = "バージョン " + (window.__APPV || "v?");
+      var fu = document.getElementById("forceupd");
+      if (!fu) return;
+      fu.onclick = function () {
+        fu.textContent = "更新中…";
+        var done = function () { location.reload(true); };
+        var jobs = [];
+        if (window.caches && caches.keys) jobs.push(caches.keys().then(function (ks) {
+          return Promise.all(ks.map(function (k) { return caches.delete(k); }));
+        }));
+        if (navigator.serviceWorker && navigator.serviceWorker.getRegistrations) jobs.push(
+          navigator.serviceWorker.getRegistrations().then(function (rs) {
+            return Promise.all(rs.map(function (r) { return r.unregister(); }));
+          }));
+        Promise.all(jobs).then(done).catch(done);
+        setTimeout(done, 2500);   // 念のため
+      };
+    })();
   </script>
 </body>
 </html>
