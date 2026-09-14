@@ -17,7 +17,8 @@ const KNOB_RADIUS := 74.0        # つまみの半径
 const DEAD_ZONE := 0.14
 const ORBIT_SPEED := 0.0072      # ドラッグ量→カメラ回転（やや速めで軽快に）
 
-var _stick_home := Vector2.ZERO  # プニコンの中心（左下に固定）
+var _stick_home := Vector2.ZERO  # プニコンの中心（触れた所に出る＝フローティング）
+var _stick_anchor := Vector2.ZERO  # 触れていない時の待機位置（左下）＝ここを基準に「左＝移動」判定
 var _stick_touch := -1           # 移動を担当している指のindex（-1＝なし）
 var _stick_value := Vector2.ZERO
 var _cam_touches := {}           # カメラを担当している指のindex集合（複数可）
@@ -62,6 +63,7 @@ func _release_all() -> void:
 	for a in ["move_left", "move_right", "move_forward", "move_back", "act_attack", "act_grab", "act_jump"]:
 		Input.action_release(a)
 	_stick_touch = -1
+	_stick_home = _stick_anchor
 	_cam_touches.clear()
 	_stick_value = Vector2.ZERO
 	queue_redraw()
@@ -71,9 +73,11 @@ func _release_all() -> void:
 func _update_home() -> void:
 	var vp := get_viewport_rect().size
 	# 下端(ホームバー/ジェスチャ帯)を避けて少し上げる＝誤爆しにくい
-	_stick_home = Vector2(STICK_RADIUS + 60.0, vp.y - STICK_RADIUS - 120.0)
+	_stick_anchor = Vector2(STICK_RADIUS + 60.0, vp.y - STICK_RADIUS - 120.0)
+	if _stick_touch == -1:
+		_stick_home = _stick_anchor   # 触れていない時は待機位置に置く
 	if _tut_move != null:
-		_tut_move.position = _stick_home + Vector2(-STICK_RADIUS, STICK_RADIUS + 6.0)
+		_tut_move.position = _stick_anchor + Vector2(-STICK_RADIUS, STICK_RADIUS + 6.0)
 		_tut_move.size = Vector2(STICK_RADIUS * 2.0, 30.0)
 	if _tut_act != null:
 		_tut_act.position = Vector2(vp.x - 470.0, vp.y - 210.0)
@@ -178,15 +182,18 @@ func _bind_button(btn: BaseButton, action: String) -> void:
 func _on_input(event: InputEvent) -> void:
 	if event is InputEventScreenTouch:
 		if event.pressed:
-			# 押した場所で役割を決める：プニコン円の中＝移動 / それ以外＝カメラ
-			if _stick_touch == -1 and event.position.distance_to(_stick_home) <= STICK_ZONE:
+			# 押した場所で役割を決める：左の待機ゾーン内＝移動 / それ以外＝カメラ。
+			# 移動なら“触れた場所”にプニコンを出す（フローティング）＝中心ズレで暴発しない。
+			if _stick_touch == -1 and event.position.distance_to(_stick_anchor) <= STICK_ZONE:
 				_stick_touch = event.index
+				_stick_home = event.position   # 触れた所を中心に
 				_update_stick(event.position)
 			else:
 				_cam_touches[event.index] = true
 		else:
 			if event.index == _stick_touch:
 				_stick_touch = -1
+				_stick_home = _stick_anchor   # 待機位置へ戻す
 				_stick_value = Vector2.ZERO
 				_apply_move(Vector2.ZERO)
 				queue_redraw()

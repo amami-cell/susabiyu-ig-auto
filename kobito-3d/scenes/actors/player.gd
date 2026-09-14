@@ -73,6 +73,7 @@ var is_local := false
 
 var _yaw := 0.0
 var _attack_cd := 0.0
+var _atk_buffer := 0.0   # 直近のタップを少し覚えておく＝CD中の入力を取りこぼさない
 var _hurt_time := 0.0
 var _sync_accum := 0.0
 var _age := 0.0
@@ -327,7 +328,13 @@ func _local_step(delta: float) -> void:
 	if absf(look_y) > 0.2:
 		orbit_camera_pitch(look_y * 1.6 * delta)
 
+	# 「きれいに」は押しっぱなしで連続浄化＝子どもの連打でも指を離さず続けられる。
+	# さらに直近のタップを 0.15秒 覚えて CD 明けに発火＝タップの取りこぼしをゼロに。
+	_atk_buffer = maxf(0.0, _atk_buffer - delta)
 	if Input.is_action_just_pressed("act_attack"):
+		_atk_buffer = 0.15
+	if _attack_cd <= 0.0 and (_atk_buffer > 0.0 or Input.is_action_pressed("act_attack")):
+		_atk_buffer = 0.0
 		_try_attack()
 	if Input.is_action_just_pressed("act_grab"):
 		_do_clean()
@@ -402,6 +409,14 @@ func _try_attack() -> void:
 	if _attack_cd > 0.0:
 		return
 	_attack_cd = ATTACK_COOLDOWN
+	# 狙い補正：ほぼ止まって振るとき、射程内の最寄りの虫へ向きを合わせる＝斬撃の光と当たりが
+	# 一致して「狙って澄ませた」満足感。移動中は移動の向きを優先＝操作を邪魔しない。
+	if Vector2(velocity.x, velocity.z).length() < 1.5:
+		var tgt := _nearest_bug_in_reach()
+		if tgt != null:
+			var to: Vector3 = tgt.global_position - global_position
+			if Vector2(to.x, to.z).length() > 0.05:
+				_yaw = atan2(-to.x, -to.z)
 	if state != State.FLY:
 		state = State.ATTACK
 	# 当たり判定はサーバが取る。ここは「殴った」という申告だけ。
@@ -480,6 +495,8 @@ func _remote_swing() -> void:
 	var connected := is_local and _target_in_reach()
 	shake(0.12 if connected else 0.06)
 	fov_kick(-5.5 if connected else -2.5)   # 届いた＝ぐっと寄る／空振り＝控えめ
+	if connected:
+		Input.vibrate_handheld(28)   # 触覚：当たった手応え（未対応端末では無害に無視）
 
 
 ## 浄化のひとはらい：前方に“澄んだ光の輪”がパッと広がって消える。攻撃＝倒すではなく
@@ -541,6 +558,8 @@ func _spawn_clean_sparkles() -> void:
 func _play_hurt_fx() -> void:
 	shake(0.16)   # 被弾＝しっかりゆれる
 	fov_kick(7.0)   # ぐっと“引く”＝突き放される衝撃（攻撃の“寄り”と逆向き）
+	if is_local:
+		Input.vibrate_handheld(45)   # 触覚：くらった（自分の小人だけ）
 	var anim := _body.get_node_or_null("Anim")
 	if anim != null and anim.has_method("hurt"):
 		anim.hurt()
@@ -614,6 +633,19 @@ func _target_in_reach() -> bool:
 	return false
 
 
+## 射程内でいちばん近い虫（狙い補正用）。居なければ null。
+func _nearest_bug_in_reach() -> Node3D:
+	var reach := ATTACK_RANGE * 1.15
+	var best: Node3D = null
+	var bd := reach
+	for b in get_tree().get_nodes_in_group("bug"):
+		var d: float = global_position.distance_to(b.global_position)
+		if d <= bd:
+			bd = d
+			best = b as Node3D
+	return best
+
+
 ## カメラを一瞬ゆらす（被弾・攻撃ヒットの手応え）。次のフレームから自然に減衰。
 func shake(amount: float) -> void:
 	_shake = maxf(_shake, amount)
@@ -629,6 +661,8 @@ func fov_kick(amount: float) -> void:
 func reward_pulse(strength: float = 1.0) -> void:
 	fov_kick(-3.0 * strength)
 	shake(0.05 * strength)
+	if strength >= 2.0:
+		Input.vibrate_handheld(60)   # 触覚：ボス浄化など山場の“やった！”
 
 
 func orbit_camera(amount: float) -> void:
@@ -718,7 +752,9 @@ func apply_damage(amount: int) -> void:
 		_since_down = 0.0
 		# ★守る動機★ 家族・相方・なかまが近くに居ると 早く起き上がれる（母「手をはなさないで」）。
 		# ひとりぼっちだと遅い＝“はぐれない”動機になる（罰ではなく協力の報酬）。
-		revive_time = 1.5 if _help_near() else 3.5
+		# 家族/なかまが近い＝早い(1.5)。ひとりでも 2.5秒に短縮（赤い“死に時間”を減らす＝
+		# 幼い子に罰と感じさせない・低ストレス方針）。“はぐれない”動機は 1.5 との差で保つ。
+		revive_time = 1.5 if _help_near() else 2.5
 		if multiplayer.has_multiplayer_peer() and multiplayer.is_server():
 			get_tree().create_timer(revive_time).timeout.connect(func() -> void:
 				if is_instance_valid(self):
