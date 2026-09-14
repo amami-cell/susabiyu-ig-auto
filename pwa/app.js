@@ -62,7 +62,10 @@
       if (!GAS || GAS.indexOf("PASTE_") === 0) { reject(new Error("GAS_URL未設定")); return; }
       var cb = "__sb_cb" + (++jcount) + "_" + Date.now();
       var s = document.createElement("script");
-      var to = setTimeout(function () { cleanup(); reject(new Error("timeout")); }, 15000);
+      // GAS(/exec)は遅い時がある。実測で schedlist が27秒かかり、15秒で切っていたため
+      // 「接続できませんでした／timeout」になっていた（GAS自体は生きている）。
+      // 待たせてでも出す方がよいので、実測の倍の余裕を持たせる。
+      var to = setTimeout(function () { cleanup(); reject(new Error("timeout")); }, 60000);
       function cleanup() { clearTimeout(to); delete window[cb]; if (s.parentNode) s.parentNode.removeChild(s); }
       var genAtSend = keyGen;   // この要求を投げた時点のキー世代
       window[cb] = function (data) { cleanup(); if (data && typeof data === "object") { try { data._gen = genAtSend; } catch (e) {} } resolve(data); };
