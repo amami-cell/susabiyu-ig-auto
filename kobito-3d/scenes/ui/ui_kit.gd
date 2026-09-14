@@ -80,7 +80,7 @@ static func style_label(l: Label, size: int, color: Color = INK, outline: int = 
 # stretch=canvas_items なので 3D の見た目は変えず、UIだけ大きくできる（小さなお子さん・年配の方に）。
 # ふつう1.0 / 大きい1.15 / とても大きい1.3 の3段。user://settings.cfg に保存し次回も復元。
 const _CFG := "user://settings.cfg"
-const UI_SCALES := [1.0, 1.15, 1.3]
+const UI_SCALES := [1.0, 1.2, 1.45]   # 弱視・幼児にも届くよう上限を拡張（clamp1.6内）
 
 static func apply_ui_scale(scale: float) -> void:
 	var ml := Engine.get_main_loop() as SceneTree

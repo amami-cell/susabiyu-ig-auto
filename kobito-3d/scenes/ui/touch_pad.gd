@@ -35,6 +35,7 @@ var _tut_active := false
 var _tut_armed := false
 var _moved_once := false
 var _acted_once := false
+var _tut_saved := false   # 「動く＋操作」を実際にしてから“既読”を保存する
 
 
 func _ready() -> void:
@@ -104,7 +105,7 @@ func _mark_tutorial_done() -> void:
 func _build_tutorial() -> void:
 	# 文言は環境で切替：タッチ＝スティック、PC＝キーボード/マウス。
 	if DisplayServer.is_touchscreen_available():
-		_tut_move = _hint_label("① スティックで うごく")
+		_tut_move = _hint_label("① スティックで うごく（画面を ドラッグ＝カメラ）")
 		_tut_act = _hint_label("② 虫は「きれいに」／ ゴミは「つかむ」")
 	else:
 		_tut_move = _hint_label("① WASD／やじるしで うごく（右ドラッグでカメラ）")
@@ -130,13 +131,18 @@ func _process(delta: float) -> void:
 		if is_visible_in_tree():
 			_tut_active = true
 			_tut_t = TUT_SECS
-			_mark_tutorial_done()   # 一度出したら次回から出さない
+			# ★見ただけ/未操作では“既読”にしない★ 実際に「動く＋操作」してから保存する。
+			# 起動直後に親が子へ手渡す間に自動で消えて二度と出ない、を防ぐ。
 			_update_home()
 		return
 	_tut_t -= delta
-	# 移動もアクションもした＝もう分かったので早めに畳む
-	if _moved_once and _acted_once and _tut_t > 1.2:
-		_tut_t = 1.2
+	# 移動もアクションもした＝理解できたので保存（次回から出さない）＋早めに畳む
+	if _moved_once and _acted_once:
+		if not _tut_saved:
+			_tut_saved = true
+			_mark_tutorial_done()
+		if _tut_t > 1.2:
+			_tut_t = 1.2
 	var a := clampf(_tut_t, 0.0, 1.0) if _tut_t < 1.0 else (0.6 + 0.4 * sin(_tut_t * 4.0))
 	if _tut_move != null:
 		_tut_move.modulate.a = a

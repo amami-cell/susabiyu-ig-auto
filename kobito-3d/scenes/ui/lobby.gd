@@ -64,6 +64,7 @@ func _ready() -> void:
 	_biome = OptionButton.new()
 	_biome.add_item("庭（家族の巣・緑がよく戻る）", 0)
 	_biome.add_item("遺跡（薄暗い石の世界・石版パズル）", 1)
+	_biome.custom_minimum_size = Vector2(0, 52)   # 指で押しやすい高さ（子ども・年配の方の誤タップ防止）
 	_vbox.add_child(_biome)
 	_vbox.move_child(_biome, 2)
 
@@ -74,6 +75,7 @@ func _ready() -> void:
 	_difficulty.add_item("つよい（歯ごたえ）", 2)
 	# 初回は やさしい を既定に（低ストレスが売り＝初見の離脱を防ぐ）。あとで変更可。
 	_difficulty.selected = 0 if Net.is_web() else 1
+	_difficulty.custom_minimum_size = Vector2(0, 52)
 	_vbox.add_child(_difficulty)
 	_vbox.move_child(_difficulty, 3)
 
@@ -100,13 +102,14 @@ func _ready() -> void:
 	# もじの大きさ（アクセシビリティ）：UI全体を一律で拡大＝小さなお子さん・年配の方にやさしく。
 	var size_label := Label.new()
 	size_label.text = "もじの 大きさ"
-	UIKit.style_label(size_label, 15, UIKit.INK_SOFT)
+	UIKit.style_label(size_label, 18, UIKit.INK)   # 視認性を上げる機能なので、他の設定と同格の濃さ・大きさに
 	_vbox.add_child(size_label)
 	_vbox.move_child(size_label, sfx_s.get_index() + 1)
 	var size_opt := OptionButton.new()
 	size_opt.add_item("ふつう", 0)
 	size_opt.add_item("大きい", 1)
 	size_opt.add_item("とても大きい", 2)
+	size_opt.custom_minimum_size = Vector2(0, 52)
 	var cur := UIKit.load_ui_scale()
 	size_opt.selected = UIKit.UI_SCALES.find(cur) if UIKit.UI_SCALES.has(cur) else 0
 	_vbox.add_child(size_opt)
