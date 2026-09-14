@@ -32,6 +32,11 @@ MUSIC = {
     "yoshokubattere": "swing_swing",         # 120BPM
     "yoshokuscritto": "French_Toast",        # 130BPM（拍がいちばん明瞭＝1文字ずつ書くのに向く）
     "yoshokurespiro": "スターリーディッシュ",  # 110BPM（ゆっくりめ＝呼吸に合う）
+    # No.32(swing_swing)と同じ作りで曲だけ違う3本。聴き比べて曲を選べるようにする。
+    # 曲ごとに節目の位置と間隔が変わるので、同じ作りでも切り替わりの粒が変わる。
+    "yoshokuritmo": "French_Toast",          # 130BPM 速め
+    "yoshokutempo": "スターリーディッシュ",    # 110BPM ゆっくりめ
+    "yoshokuonda": "Somebody_(Prod._Khaim)",  # 頭出し指定つき（名前の「49秒～」は _key で外れる）
 }
 
 # パターン名 → 画面に出すフック文言

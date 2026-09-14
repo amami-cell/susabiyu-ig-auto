@@ -541,6 +541,29 @@ export const YoshokuBattere: React.FC<P> = ({ storeName = D.storeName, handle = 
   </Shell>
 );
 
+/* ── No.35〜37 曲違いの音ハメ ──────────────────────────────────────
+   「同じような感じで他の音源で音ハメできる？」への回答。
+   作りは No.32 とまったく同じ（曲の節目で商品が切り替わる／脈打たせない）。
+   違うのは曲だけ。曲が変われば節目の位置も間隔も変わるので、同じ作りでも
+   テンポの出方・切り替わりの粒が変わる＝どの曲が店に合うかを選べる。
+   曲は pattern_music.py で固定する（並び順まかせだと焼くたびに変わり、
+   聴き比べにならないため）。OP/クローズだけ v を変えて見分けられるようにした。 */
+export const YoshokuRitmo: React.FC<P> = ({ storeName = D.storeName, handle = D.handle, theme = D.theme }) => (
+  <Shell v={4} base="#100D0A" storeName={storeName} handle={handle} theme={theme}>
+    <BattereBody storeName={storeName} handle={handle} theme={theme} />
+  </Shell>
+);
+export const YoshokuTempo: React.FC<P> = ({ storeName = D.storeName, handle = D.handle, theme = D.theme }) => (
+  <Shell v={6} base="#100D0A" storeName={storeName} handle={handle} theme={theme}>
+    <BattereBody storeName={storeName} handle={handle} theme={theme} />
+  </Shell>
+);
+export const YoshokuOnda: React.FC<P> = ({ storeName = D.storeName, handle = D.handle, theme = D.theme }) => (
+  <Shell v={7} base="#100D0A" storeName={storeName} handle={handle} theme={theme}>
+    <BattereBody storeName={storeName} handle={handle} theme={theme} />
+  </Shell>
+);
+
 /* ── No.33 スクリット（拍で1文字ずつ書く） ────────────────────────── */
 const ScrittoBody: React.FC<Required<P>> = ({ storeName, handle, theme }) => {
   const f = useCurrentFrame(); const T = ytheme(theme);
@@ -647,7 +670,11 @@ export const NUOVI2_COMPS = [
   { id: "YoshokuVetro", pattern: "yoshokuvetro", label: "No.30 洋食おしゃれ・雨のガラス越し", comp: YoshokuVetro },
   { id: "YoshokuNastro", pattern: "yoshokunastro", label: "No.31 洋食おしゃれ・斜めのリボン帯", comp: YoshokuNastro },
   // 音ハメの静かな別案（No.29 が拍ごとに切ってうるさい、への回答）
-  { id: "YoshokuBattere", pattern: "yoshokubattere", label: "No.32 音ハメ・小節で切る", comp: YoshokuBattere },
+  { id: "YoshokuBattere", pattern: "yoshokubattere", label: "No.32 音ハメ・曲の節目で商品が切り替わる", comp: YoshokuBattere },
   { id: "YoshokuScritto", pattern: "yoshokuscritto", label: "No.33 音ハメ・拍で1文字ずつ書く", comp: YoshokuScritto },
   { id: "YoshokuRespiro", pattern: "yoshokurespiro", label: "No.34 音ハメ・拍で光が呼吸する", comp: YoshokuRespiro },
+  // No.32 と同じ作りで曲だけ違う（聴き比べ用）。曲は pattern_music.py で固定。
+  { id: "YoshokuRitmo", pattern: "yoshokuritmo", label: "No.35 音ハメ・別の曲（French Toast）", comp: YoshokuRitmo },
+  { id: "YoshokuTempo", pattern: "yoshokutempo", label: "No.36 音ハメ・別の曲（スターリーディッシュ）", comp: YoshokuTempo },
+  { id: "YoshokuOnda", pattern: "yoshokuonda", label: "No.37 音ハメ・別の曲（Somebody）", comp: YoshokuOnda },
 ];
