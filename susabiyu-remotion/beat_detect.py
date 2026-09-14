@@ -15,8 +15,12 @@ SR, HOP, WIN = 22050, 512, 1024
 
 
 def _envelope(path, max_sec=60.0, start_sec=0.0):
-    """スペクトラルフラックス（アタックの強さ）の時系列と、そのフレームレートを返す。
-    拍(detect)と節目(accents)で同じものを使うので、ここに切り出した。"""
+    """(全帯域のフラックス, 低音だけのフラックス, フレームレート) を返す。
+
+    低音だけのぶんを別に持つのは「小節の頭」を当てるため。全帯域で一番強い拍は
+    たいていスネア（2拍4拍＝バックビート）になり、そこで画を切ると小節の頭より
+    後ろで切れる＝音楽が先に行って画が遅れて見える。キックは低音に出るので、
+    低音の強い拍を小節の頭とみなす。"""
     import numpy as np
     # -ss を -i の前に置いて高速シーク。頭から60秒しか見ていなかったため、
     # 「1分23秒～」のように再生開始が60秒より後の曲だと拍が1つも使えず、
@@ -27,18 +31,23 @@ def _envelope(path, max_sec=60.0, start_sec=0.0):
         capture_output=True).stdout
     x = np.frombuffer(raw, dtype=np.float32)
     if len(x) < SR * 8:
-        return None, 0.0
+        return None, None, 0.0
     n = (len(x) - WIN) // HOP
     fenv = SR / float(HOP)          # 包絡線のフレームレート（約43/秒）
     hann = np.hanning(WIN)
+    # 22050Hz/1024点なので1本あたり約21.5Hz。先頭8本＝およそ170Hzまで＝キックの帯域。
+    nlow = 8
     prev = None
     env = np.zeros(n)
+    low = np.zeros(n)
     for i in range(n):
         mag = np.abs(np.fft.rfft(x[i * HOP:i * HOP + WIN] * hann))
         if prev is not None:
-            env[i] = np.maximum(mag - prev, 0).sum()   # スペクトラルフラックス＝アタックの強さ
+            d = np.maximum(mag - prev, 0)
+            env[i] = d.sum()                  # スペクトラルフラックス＝アタックの強さ
+            low[i] = d[:nlow].sum()           # 低音だけ＝キックの手がかり
         prev = mag
-    return env, fenv
+    return env, low, fenv
 
 
 def detect(path, max_sec=60.0, start_sec=0.0):
@@ -47,7 +56,7 @@ def detect(path, max_sec=60.0, start_sec=0.0):
     そこから max_sec 秒ぶんだけ解析する（曲の頭ではなく、実際に流すところを見る）。"""
     import numpy as np
     sr, hop, win = SR, HOP, WIN
-    env, fenv = _envelope(path, max_sec, start_sec)
+    env, _low, fenv = _envelope(path, max_sec, start_sec)
     if env is None:
         return None
     n = len(env)
@@ -108,7 +117,7 @@ def accents(path, max_sec=60.0, start_sec=0.0, beats=None,
     そこで既定で1.5コマぶん(0.05秒)だけ前へ出す。
     """
     import numpy as np
-    env, fenv = _envelope(path, max_sec, start_sec)
+    env, low, fenv = _envelope(path, max_sec, start_sec)
     if env is None or len(env) < 16 or env.max() <= 0:
         return []
     # ①勢いにならす
@@ -128,18 +137,37 @@ def accents(path, max_sec=60.0, start_sec=0.0, beats=None,
     #   二次的な打点を掴んでしまい、耳が“入り”と感じる位置より後ろにずれる
     #   （＝音楽が先に行って画が遅れて見える）。拍の上に限定すれば必ず拍に
     #   ピタリと乗り、しかも強い拍だけを採るので間隔はバラバラのまま保てる。
+    #   さらに「小節の頭に限定」する。全帯域で一番強い拍はバックビート（2拍4拍の
+    #   スネア）になる曲が多く、そこで切ると小節の頭より後ろで切れる＝やはり
+    #   画が遅れて見える（French_Toast で実際に出た）。キックは低音に出るので、
+    #   低音が強い拍の位置を小節の頭とみなし、その位置と半小節だけを候補にする。
     cand = []
     if beats and len(beats) >= 8:
         w = max(1, int(round(0.10 * fenv)))     # その拍の前後0.1秒の強さで評価
-        for b in beats:
-            i = int(round(b * fenv))
-            if i < 0 or i >= len(nov):
+        def _peak(arr, sec):
+            i = int(round(sec * fenv))
+            if i < 0 or i >= len(arr):
+                return None
+            lo, hi = max(0, i - w), min(len(arr), i + w + 1)
+            return float(arr[lo:hi].max())
+        # 4拍のどの位置にキックが来ているか＝小節の頭を割り出す
+        phase, best = 0, -1.0
+        for p in range(4):
+            vs = [_peak(low, b) for k, b in enumerate(beats) if k % 4 == p]
+            vs = [v for v in vs if v is not None]
+            if vs and sum(vs) / len(vs) > best:
+                phase, best = p, sum(vs) / len(vs)
+        for k, b in enumerate(beats):
+            if (k - phase) % 2 != 0:            # 小節の頭と半小節だけ（裏拍は捨てる）
                 continue
-            lo, hi = max(0, i - w), min(len(nov), i + w + 1)
-            cand.append((float(b), float(nov[lo:hi].max())))
+            v = _peak(nov, b)
+            if v is None:
+                continue
+            # 小節の頭を優先する（同じ強さなら頭が勝つように少し下駄をはかせる）
+            cand.append((float(b), v * (1.0 if (k - phase) % 4 == 0 else 0.82)))
         if cand:
             vals = sorted(v for _b, v in cand)
-            thr = vals[int(len(vals) * 0.70)]   # 強い方から3割ほどの拍だけ
+            thr = vals[int(len(vals) * 0.45)]   # 候補が小節頭/半小節に絞られたぶん緩める
             cand = [(b, v) for b, v in cand if v >= thr and v > 0]
     if not cand:
         # 拍が使えない時だけ、従来どおり山のピークを拾う
