@@ -486,9 +486,10 @@ const BattereBody: React.FC<Required<P>> = ({ storeName, handle, theme }) => {
   const seg = (CUTS[i + 1] ?? BODY) - (CUTS[i] ?? 0);
   const d = items[i % items.length];
 
-  // 入りの瞬間だけ、絵が“スッと落ち着く”。脈打たせるのではなく、
-  // 切り替わった一発をはっきり見せて、あとは静かにゆっくり寄るだけ。
-  const land = interpolate(local, [0, 9], [1.055, 1], { ...clamp, easing: EASE });
+  // 切り替わりは“一発で着地”させる。以前は9コマかけて 1.055→1.0 と縮めており、
+  // 音が鳴った後も画が動き続けるぶん、遅れて切り替わったように見えていた。
+  // 5コマ・1.03 に詰めて、拍の直後にはほぼ静止しているようにする。
+  const land = interpolate(local, [0, 5], [1.03, 1], { ...clamp, easing: EASE });
   const W = 1080 - SAFE.side * 2;
 
   return (
