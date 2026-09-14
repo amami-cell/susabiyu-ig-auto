@@ -423,6 +423,18 @@ func _run_selftest() -> void:
 	var bloom_ok: bool = _garden != null and _garden.has_method("blooms_placed") and _garden.blooms_placed() > 0
 
 	# 第3章「みずべ」：舞台を water に切り替えると 浅い水シートが出る経路を確認する（最後に実施）。
+	# バランス：章順にボスHPが 単調に上がる（＝終盤ほど手ごたえ）かを確認する。
+	# 昔のラスボス(ヘドロの主)が中盤に来て“2番目が最難”になっていた不具合の再発防止。
+	var boss_order := ["queen_ant", "sludge_lord", "tagame", "moth", "dustlord", "ageha"]
+	var balance_ok := true
+	var prev_hp := -1
+	for bn in boss_order:
+		var st: EnemyStats = load("res://data/%s.tres" % bn)
+		if st == null or st.max_hp <= prev_hp:
+			balance_ok = false
+			break
+		prev_hp = st.max_hp
+
 	var water_ok := false
 	if _garden != null and _garden.has_method("set_biome"):
 		_garden.set_biome("water")
@@ -430,9 +442,9 @@ func _run_selftest() -> void:
 		water_ok = wl != null and (wl as Node3D).visible
 
 	var ok: bool = _garden != null and players.size() == 1 and bugs.size() > 0 \
-		and WorldState.recovery > 0.0 and xp_gained and flight_ok and kids_ok and mother_ok and puzzle_ok and switch_ok and blob_ok and ring_ok and ally_ok and ally_species_ok and save_ok and boss_ok and boss_hold_ok and dex_ok and audio_ok and bloom_ok and water_ok
-	print("[selftest] 回復度=%.2f XP=%d 経験値=%s 飛行解禁=%s 子ども=%d(最寄り%.1f) 母=%s 石版=%s 扉=%s おそうじ=%s 輪=%s なかま=%s 種役割=%s セーブ=%s ボス召喚=%s ボス浄化=%s 図鑑=%s 音バス=%s 花あと=%s みずべ=%s" % [
-		WorldState.recovery, xp_now, xp_gained, flight_ok, children.size(), nearest, mother_ok, puzzle_ok, switch_ok, blob_ok, ring_ok, ally_ok, ally_species_ok, save_ok, boss_ok, boss_hold_ok, dex_ok, audio_ok, bloom_ok, water_ok])
+		and WorldState.recovery > 0.0 and xp_gained and flight_ok and kids_ok and mother_ok and puzzle_ok and switch_ok and blob_ok and ring_ok and ally_ok and ally_species_ok and save_ok and boss_ok and boss_hold_ok and dex_ok and audio_ok and bloom_ok and water_ok and balance_ok
+	print("[selftest] 回復度=%.2f XP=%d 経験値=%s 飛行解禁=%s 子ども=%d(最寄り%.1f) 母=%s 石版=%s 扉=%s おそうじ=%s 輪=%s なかま=%s 種役割=%s セーブ=%s ボス召喚=%s ボス浄化=%s 図鑑=%s 音バス=%s 花あと=%s みずべ=%s ボス曲線=%s" % [
+		WorldState.recovery, xp_now, xp_gained, flight_ok, children.size(), nearest, mother_ok, puzzle_ok, switch_ok, blob_ok, ring_ok, ally_ok, ally_species_ok, save_ok, boss_ok, boss_hold_ok, dex_ok, audio_ok, bloom_ok, water_ok, balance_ok])
 	print("[selftest] %s" % ("OK" if ok else "NG"))
 	get_tree().quit(0 if ok else 1)
 

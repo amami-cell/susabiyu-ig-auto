@@ -5,7 +5,7 @@
 [resource]
 script = ExtResource("1_stats")
 display_name = "オオガ"
-max_hp = 170
+max_hp = 200
 move_speed = 1.5
 attack_power = 8
 attack_interval = 1.4

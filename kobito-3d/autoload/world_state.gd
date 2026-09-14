@@ -169,4 +169,8 @@ func sky_color() -> Color:
 
 ## 回復するほど敵の湧きは遅くなる（＝掃除の報酬）。
 func spawn_interval() -> float:
+	# 戦い（群れ/ボス）の最中は、回復が進んでも湧きを速めに保つ＝“最後の数体待ち”の間延びを防ぐ。
+	# 落ち着いた場面（掃除・探索）では従来どおり ゆっくり湧く（平和を保つ）。
+	if Chapter.is_action_beat():
+		return lerpf(2.5, 5.0, recovery)
 	return lerpf(3.0, 12.0, recovery)
