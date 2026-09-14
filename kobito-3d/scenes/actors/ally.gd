@@ -202,6 +202,18 @@ func _apply_species_role(sp: String) -> void:
 		"hotaru":
 			role_name = "ともしび"
 			role_desc = "飛べて、くらやみでも たよりになる光"
+		"dango":
+			role_name = "がんじょうな 盾"
+			role_desc = "癒やしの力が強く、少し広く とどく（甲羅）"
+		"kumo":
+			_speed = SPEED * 1.25
+			role_name = "すばしっこい"
+			role_desc = "8本足で 速く、手数で 癒やす"
+		"dustlord":
+			_heal_amt = 8
+			_reach = 2.4
+			role_name = "いえの ぬし"
+			role_desc = "大きな力で、広く 強く 癒やす"
 		"moth":
 			_heal_amt = 8
 			_reach = 2.4

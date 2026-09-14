@@ -39,6 +39,9 @@ const DEX_SPECIES := [
 	{"id": "tagame", "name": "タガメ", "color": Color(0.36, 0.31, 0.2), "role": "みずべの ぬし：大きくて力強い"},
 	{"id": "hotaru", "name": "ホタル", "color": Color(0.85, 1.0, 0.5), "role": "ともしび：くらやみを 照らす"},
 	{"id": "moth", "name": "オオガ", "color": Color(0.42, 0.36, 0.3), "role": "よるの ぬし：大きな羽で 力強い"},
+	{"id": "dango", "name": "ダンゴムシ", "color": Color(0.4, 0.42, 0.46), "role": "がんじょうな盾：癒やしが強い"},
+	{"id": "kumo", "name": "クモ", "color": Color(0.3, 0.26, 0.3), "role": "すばしっこい：8本足で 速い"},
+	{"id": "dustlord", "name": "ホコリのぬし", "color": Color(0.5, 0.47, 0.44), "role": "いえの ぬし：大きくて力強い"},
 	{"id": "sludge_lord", "name": "ヘドロの主", "color": Color(0.28, 0.34, 0.26), "role": "汚れのおおもと"},
 ]
 var _t := 0.0

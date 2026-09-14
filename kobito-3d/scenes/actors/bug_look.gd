@@ -269,7 +269,7 @@ static func _eye_mat() -> StandardMaterial3D:
 # ============================================================ 虫デザイン（採用版）
 ## 種類ごとの“虫らしい”見た目を root 直下の InsectRig に作る。
 ## root（＝Bodyノード）のスケール/演出をそのまま受け継ぐ設計＝つぶれ芝居も効く。素材ゼロ・低ポリ。
-const IB_KINDS := ["ant", "ladybug", "hopper", "beetle", "dragon", "butterfly", "bee", "worm", "skater", "diver", "tagame", "firefly", "moth"]
+const IB_KINDS := ["ant", "ladybug", "hopper", "beetle", "dragon", "butterfly", "bee", "worm", "skater", "diver", "tagame", "firefly", "moth", "pillbug", "spider", "dust"]
 
 # Web(gl_compatibility)は1パーツ＝1ドローコール。描画予算を守るため web だけ
 # 目のキャッチライト/触角の玉/脚の本数を間引く（シルエットは維持）。
@@ -402,6 +402,41 @@ static func decorate_insect(root: Node3D, color: Color, kind: String) -> void:
 				wl.material_override = mwm
 				wl.rotation.z = deg_to_rad(20.0) * sx
 				_ib_ball(rig, 0.08, Color(0.96, 0.9, 0.42), Vector3(0.46 * sx, 0.45, -0.06))   # 羽の目玉模様
+			_ib_legs(rig, dark)
+			_ib_face(head, 0.2, 0.09, dark, skin)
+		"pillbug":
+			# ダンゴムシ：丸まった 装甲の 節がならぶ かまぼこ形＋小さな頭＋短い脚。
+			for i in 5:
+				var seg := _ib_ball(rig, 0.2 - i * 0.02, color.lerp(dark, i * 0.06), Vector3(0, 0.22 + i * 0.02, 0.24 - i * 0.11), Vector3(1.15, 0.9, 0.7))
+				_ib_box(seg, dark, Vector3(0.02, 0.02, 0.02), Vector3(0, 0.2, 0))   # 節の筋（点）
+			head = _ib_ball(rig, 0.15, skin, Vector3(0, 0.2, -0.34))
+			for zi in [-0.28, -0.12, 0.04]:
+				for sx in [-1.0, 1.0]:
+					_ib_box(rig, dark, Vector3(0.03, 0.12, 0.03), Vector3(0.16 * sx, 0.06, zi), deg_to_rad(20.0) * sx)
+			_ib_face(head, 0.15, 0.06, dark, skin)
+		"spider":
+			# クモ：丸い胴＋8本の 曲がった脚＋小さな頭に たくさんの目。
+			var sbody := _ib_ball(rig, 0.24, color, Vector3(0, 0.3, 0.08), Vector3(1.0, 0.9, 1.05))
+			head = _ib_ball(rig, 0.15, color.lightened(0.06), Vector3(0, 0.28, -0.2))
+			for zi in [-0.14, -0.02, 0.1, 0.22]:
+				for sx in [-1.0, 1.0]:
+					_ib_box(rig, dark, Vector3(0.4, 0.03, 0.03), Vector3(0.26 * sx, 0.2, zi), deg_to_rad(-24.0) * sx)
+			# たくさんの目（クモらしさ・でも可愛く）
+			var white := Color(0.96, 0.97, 0.94)
+			var blk := Color(0.05, 0.04, 0.05)
+			for ex in [-0.06, 0.06]:
+				for ey in [0.02, -0.06]:
+					var e := _ib_ball(head, 0.035, white, Vector3(ex, 0.05 + ey, -0.12))
+					_ib_ball(head, 0.02, blk, Vector3(ex, 0.05 + ey, -0.15))
+					e.scale = Vector3(1, 1, 0.7)
+		"dust":
+			# ホコリのぬし（家ボス）：大きな ふわふわの 灰色玉＋からまった ゴミ（点々）＋大きな目＋小さな脚。
+			var db := _ib_ball(rig, 0.36, color, Vector3(0, 0.34, 0.04), Vector3(1.1, 1.0, 1.1))
+			for sp in [Vector3(0.2, 0.5, 0.1), Vector3(-0.22, 0.42, -0.05), Vector3(0.05, 0.6, -0.18), Vector3(-0.1, 0.3, 0.24)]:
+				_ib_ball(db, 0.06, dark, sp)                                   # からまった ゴミ
+			for sp2 in [Vector3(0.3, 0.4, 0.0), Vector3(-0.28, 0.36, 0.12)]:
+				_ib_box(db, dark.lightened(0.1), Vector3(0.02, 0.14, 0.02), sp2, deg_to_rad(24.0))   # ほつれた糸
+			head = _ib_ball(rig, 0.2, color.lightened(0.08), Vector3(0, 0.3, -0.3))
 			_ib_legs(rig, dark)
 			_ib_face(head, 0.2, 0.09, dark, skin)
 		"worm":

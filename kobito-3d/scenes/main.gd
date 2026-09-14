@@ -568,6 +568,17 @@ func _run_shot() -> void:
 		await get_tree().create_timer(1.2).timeout
 		await RenderingServer.frame_post_draw
 		get_viewport().get_texture().get_image().save_png("/tmp/shot_night_bright.png")
+	# --house を付けると 第5章「いえの なか」の見た目（薄暗い／掃除後）を撮る（開発確認用）
+	if OS.get_cmdline_user_args().has("--house") and _garden != null:
+		_garden.set_biome("house")
+		WorldState.set_recovery(0.15)
+		await get_tree().create_timer(1.2).timeout
+		await RenderingServer.frame_post_draw
+		get_viewport().get_texture().get_image().save_png("/tmp/shot_house_dusty.png")
+		WorldState.set_recovery(0.9)
+		await get_tree().create_timer(1.2).timeout
+		await RenderingServer.frame_post_draw
+		get_viewport().get_texture().get_image().save_png("/tmp/shot_house_clean.png")
 	# --puzzle を付けると石版パズルを専用カメラで撮る（開発確認用）
 	if OS.get_cmdline_user_args().has("--puzzle"):
 		var puzzle := _garden.get_node_or_null("StonePuzzle")
@@ -927,7 +938,7 @@ func _run_shot() -> void:
 		var specs := [
 			"res://data/ant.tres", "res://data/tentou.tres", "res://data/batta.tres",
 			"res://data/beetle.tres", "res://data/tonbo.tres", "res://data/chou.tres",
-			"res://data/hachi.tres", "res://data/amenbo.tres", "res://data/gengoro.tres", "res://data/hotaru.tres",
+			"res://data/hachi.tres", "res://data/amenbo.tres", "res://data/gengoro.tres", "res://data/hotaru.tres", "res://data/dango.tres", "res://data/kumo.tres",
 		]
 		var root := Node3D.new()
 		add_child(root)
@@ -968,6 +979,7 @@ func _run_shot() -> void:
 			{"path": "res://data/queen_ant.tres", "x": -5.6},
 			{"path": "res://data/tagame.tres", "x": -1.9},
 			{"path": "res://data/moth.tres", "x": 1.9},
+			{"path": "res://data/dustlord.tres", "x": 4.0},
 			{"path": "res://data/sludge_lord.tres", "x": 5.6},
 		]
 		var broot := Node3D.new()

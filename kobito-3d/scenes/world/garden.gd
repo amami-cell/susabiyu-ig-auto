@@ -154,6 +154,17 @@ const BIOMES := {
 		"fog_col": [Color(0.50, 0.58, 0.60), Color(0.72, 0.83, 0.86)],
 		"fog_d": [0.03, 0.008],
 	},
+	"house": {
+		# 第5章「いえの なか」：小人サイズの薄暗い室内（木の床・ホコリ）。掃除すると 明るく澄む。
+		"pillars": false, "grass_frac": 0.0, "flowers": false, "tree_frac": 0.0, "bfly_frac": 0.6,
+		"soil": Color(0.46, 0.35, 0.23), "grass_col": Color(0.42, 0.32, 0.22),
+		"sun_c": Color(1.0, 0.9, 0.74), "sun_e": 0.75,
+		"water_shallow": Color(0.30, 0.28, 0.24), "water_deep": Color(0.14, 0.12, 0.10),
+		"sky_top": [Color(0.18, 0.15, 0.13), Color(0.27, 0.23, 0.19)],
+		"sky_horizon": [Color(0.34, 0.28, 0.22), Color(0.52, 0.44, 0.34)],
+		"fog_col": [Color(0.33, 0.27, 0.22), Color(0.52, 0.45, 0.37)],
+		"fog_d": [0.05, 0.02],
+	},
 	"night": {
 		# 第4章「よるの もり」：暗い夜の森。きれいにするほど 月あかりが差して 明るくなる。
 		"pillars": false, "grass_frac": 0.6, "flowers": false, "tree_frac": 1.0, "bfly_frac": 0.4,
@@ -502,6 +513,8 @@ func _on_chapter_boss() -> void:
 		boss_path = "res://data/tagame.tres"
 	elif Net.world_biome == "night":
 		boss_path = "res://data/moth.tres"
+	elif Net.world_biome == "house":
+		boss_path = "res://data/dustlord.tres"
 	elif Chapter.beat >= 10:
 		boss_path = "res://data/sludge_lord.tres"
 	rpc("_remote_spawn_bug", _bug_serial, boss_path, pos)
@@ -1862,6 +1875,10 @@ func _on_recovery_changed(_value: float) -> void:
 	if _sun != null and biome == "night":
 		_sun.light_color = Color(0.42, 0.47, 0.66).lerp(Color(0.72, 0.80, 0.98), r)
 		_sun.light_energy = lerpf(0.35, 0.95, r)
+	elif _sun != null and biome == "house":
+		# 室内：薄暗い電球色 → 掃除して 明るく澄む（外の金色にはしない）。
+		_sun.light_color = Color(0.9, 0.82, 0.68).lerp(Color(1.0, 0.95, 0.86), r)
+		_sun.light_energy = lerpf(0.6, 1.05, r)
 	elif _sun != null and Net.world_biome != "ruins":
 		_sun.light_color = Color(0.86, 0.85, 0.82).lerp(Color(1.0, 0.86, 0.62), r)
 		_sun.light_energy = lerpf(0.95, 1.25, r)
