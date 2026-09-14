@@ -24,9 +24,14 @@ import os, re, glob
 # パターン名 → 音源ファイル名（拡張子なし。public/music/normal/ の中を探す）
 MUSIC = {
     "yoshokutrio": "49秒～　Somebody_(Prod._Khaim)",
-    # 音ハメのテンプレ。拍がはっきりしていて（130BPM）頭出しも0秒の曲を固定で当てる。
+    # 音ハメのテンプレ。拍がはっきりしていて頭出しも0秒の曲を固定で当てる。
     # 並び順まかせにすると焼き直すたびに曲が変わり、音ハメの意味が無くなる。
-    "yoshokubattito": "French_Toast",
+    # さらに、並び順で当たった曲が季節物（ジングルベル等）になることがあり、
+    # イタリアン肉バルの通年運用に合わない。ここで通年使える曲に固定しておく。
+    "yoshokubattito": "French_Toast",        # 130BPM
+    "yoshokubattere": "swing_swing",         # 120BPM
+    "yoshokuscritto": "French_Toast",        # 130BPM（拍がいちばん明瞭＝1文字ずつ書くのに向く）
+    "yoshokurespiro": "スターリーディッシュ",  # 110BPM（ゆっくりめ＝呼吸に合う）
 }
 
 # パターン名 → 画面に出すフック文言

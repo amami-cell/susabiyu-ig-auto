@@ -37,6 +37,10 @@ const D = {
 };
 const CREAM = "#F4EDDD";
 const INK_D = "#241A12";
+// 写真の上に直接置く欧文キッカー用の色。T.accent（深めのテラコッタ）のままだと
+// 明るい料理（黄色い絵皿・パスタ・トマトソース等）に完全に沈んで読めない。
+// テラコッタの色味は保ったまま明度だけ上げた“写真上用”のアクセント。
+const ACCENT_ON_PHOTO = "#FFCBAC";
 
 // 価格のロックアップ（¥ + 特大数字 + 〜）。数字は Cormorant＝欧文専用。
 const PriceTag: React.FC<{ price: string; note: string; color: string; sub: string; size?: number }> =
@@ -85,7 +89,7 @@ export const YoshokuFeedPrezzo: React.FC<P> = (p) => {
       </div>
       <div style={{ position: "absolute", left: SIDE, right: SIDE, bottom: 128 }}>
         <div style={{ width: 84, height: 6, background: T.accent, marginBottom: 20 }} />
-        <HeroName text={dispName(d)} sub={d.sub} maxPx={128} usableW={FEED_W - SIDE * 2 - R * 0.2} color={T.ink} subColor={T.accent} shadow={BARE_SHADOW} />
+        <HeroName text={dispName(d)} sub={d.sub} maxPx={128} usableW={FEED_W - SIDE * 2 - R * 0.2} color={T.ink} subColor={ACCENT_ON_PHOTO} shadow={BARE_SHADOW} />
         <div style={{ marginTop: 16 }}>
           <DrinkLine text={p.drinkItems || D.drinkItems} w={FEED_W - SIDE * 2} color="#F2E7D4" shadow={BARE_SHADOW} />
         </div>
@@ -139,11 +143,16 @@ export const YoshokuFeedBrindisi: React.FC<P> = (p) => {
 export const YoshokuFeedLavagna: React.FC<P> = (p) => {
   const { storeName = D.storeName, handle = D.handle, theme = D.theme } = p;
   const T = ytheme(theme); const d = dish();
-  const TOP = 880;
+  // 黒板は「値段の札」なので、中身（2行＋値札）が収まるぶんだけの高さにする。
+  // 以前は 880 から始めていて下半分が空き、料理名も写真のど真ん中に乗っていた。
+  const TOP = 960;
   return (
     <AbsoluteFill style={{ backgroundColor: "#20221F" }}>
       <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: TOP, overflow: "hidden" }}>
         <Photo src={d.src} />
+        {/* 料理名が乗る足元だけを締める（写真全体は明るいまま） */}
+        <div style={{ position: "absolute", left: 0, right: 0, bottom: 0, height: 300,
+          background: "linear-gradient(180deg, rgba(20,16,12,0) 0%, rgba(20,16,12,0.5) 55%, rgba(20,16,12,0.78) 100%)" }} />
       </div>
       <div style={{ position: "absolute", top: 24, left: 26 }}>
         <Brand storeName={storeName} accent={T.accent} shadow={BARE_SHADOW} />
@@ -164,8 +173,8 @@ export const YoshokuFeedLavagna: React.FC<P> = (p) => {
         <div style={{ position: "absolute", right: SIDE, bottom: 30, fontFamily: serif, color: "rgba(237,231,216,0.6)", fontSize: 22, letterSpacing: 3 }}>{handle}</div>
       </div>
       {/* 料理名は写真側の足元に置く（黒板と役割を分ける） */}
-      <div style={{ position: "absolute", left: SIDE, right: SIDE, top: TOP - 200 }}>
-        <HeroName text={dispName(d)} sub={d.sub} maxPx={96} minPx={34} usableW={FEED_W - SIDE * 2} color="#F8F1E2" subColor={T.accent} shadow={BARE_SHADOW} />
+      <div style={{ position: "absolute", left: SIDE, right: SIDE, top: TOP - 184 }}>
+        <HeroName text={dispName(d)} sub={d.sub} maxPx={96} minPx={34} usableW={FEED_W - SIDE * 2} color="#F8F1E2" subColor={ACCENT_ON_PHOTO} shadow={BARE_SHADOW} />
       </div>
       <Grain opacity={0.06} />
     </AbsoluteFill>
@@ -187,8 +196,10 @@ export const YoshokuFeedTre: React.FC<P> = (p) => {
       {/* 大きい1枚 */}
       <div style={{ position: "absolute", left: 0, right: 0, top: TOP, height: BIG_H, overflow: "hidden" }}>
         <Photo src={it[0].src} />
+        <div style={{ position: "absolute", left: 0, right: 0, bottom: 0, height: 210,
+          background: "linear-gradient(180deg, rgba(20,16,12,0) 0%, rgba(20,16,12,0.46) 55%, rgba(20,16,12,0.72) 100%)" }} />
         <div style={{ position: "absolute", left: SIDE, bottom: 22, right: SIDE }}>
-          <HeroName text={dispName(it[0])} sub={it[0].sub} maxPx={72} minPx={30} usableW={FEED_W - SIDE * 2} color="#F8F1E2" subColor={T.accent} shadow={BARE_SHADOW} />
+          <HeroName text={dispName(it[0])} sub={it[0].sub} maxPx={72} minPx={30} usableW={FEED_W - SIDE * 2} color="#F8F1E2" subColor={ACCENT_ON_PHOTO} shadow={BARE_SHADOW} />
         </div>
       </div>
       {/* 小さい2枚 */}
@@ -198,8 +209,10 @@ export const YoshokuFeedTre: React.FC<P> = (p) => {
           left: k === 1 ? 0 : (FEED_W + GAP) / 2, width: (FEED_W - GAP) / 2,
         }}>
           <Photo src={it[k].src} />
+          <div style={{ position: "absolute", left: 0, right: 0, bottom: 0, height: 150,
+            background: "linear-gradient(180deg, rgba(20,16,12,0) 0%, rgba(20,16,12,0.46) 55%, rgba(20,16,12,0.72) 100%)" }} />
           <div style={{ position: "absolute", left: 0, right: 0, bottom: 18 }}>
-            <SmallName text={dispName(it[k])} w={(FEED_W - GAP) / 2 - 40} color="#F8F1E2" num={"0" + (k + 1)} numColor={T.accent} />
+            <SmallName text={dispName(it[k])} w={(FEED_W - GAP) / 2 - 40} color="#F8F1E2" num={"0" + (k + 1)} />
           </div>
         </div>
       ))}
@@ -321,7 +334,7 @@ export const YoshokuFeedNumero: React.FC<P> = (p) => {
       </div>
       <div style={{ position: "absolute", left: SIDE, right: SIDE, bottom: 118, textAlign: "center" }}>
         <div style={{ width: 84, height: 5, background: T.accent, margin: "0 auto 16px" }} />
-        <HeroName text={dispName(d)} sub={d.sub} maxPx={62} minPx={28} usableW={FEED_W - SIDE * 2} color={T.ink} subColor={T.accent} align="center" shadow={BARE_SHADOW} />
+        <HeroName text={dispName(d)} sub={d.sub} maxPx={62} minPx={28} usableW={FEED_W - SIDE * 2} color={T.ink} subColor={ACCENT_ON_PHOTO} align="center" shadow={BARE_SHADOW} />
       </div>
       <Handle handle={handle} color={T.sub} shadow={BARE_SHADOW} />
       <Grain opacity={0.05} />
@@ -346,11 +359,15 @@ export const YoshokuFeedMenu: React.FC<P> = (p) => {
       <div style={{ position: "absolute", left: 34, top: 34 }}>
         <Logo storeName={storeName} h={104} />
       </div>
-      {/* 縦組みの品書き（右→左に3行） */}
-      <div style={{ position: "absolute", left: 30, right: PANEL - 380, top: 210, height: 780, display: "flex", flexDirection: "row-reverse", gap: 18, justifyContent: "flex-start" }}>
+      {/* 縦組みの品書き（右→左に3行）。
+          幅は「左パネルの中」に必ず収める。以前は right: PANEL-380 と書いていて、
+          これは画面右端からの距離になるため列が写真の上まで流れ出し、
+          長い品名は画面下にもはみ出していた。 */}
+      <div style={{ position: "absolute", left: 30, width: PANEL - 60, top: 200, height: 790, display: "flex", flexDirection: "row-reverse", gap: 22, justifyContent: "center" }}>
         {it.map((x, k) => {
           const nm = dispName(x).replace(/[｜\n]/g, "");
-          const size = Math.max(30, Math.min(52, Math.floor(760 / Math.max(1, jlen(nm)))));
+          // 縦組みなので「列の高さ ÷ 文字数」。番号のぶん(34px)を引いた実寸で決める。
+          const size = Math.max(24, Math.min(50, Math.floor(756 / Math.max(1, jlen(nm)))));
           return (
             <div key={k} style={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
               <div style={{ fontFamily: serif, color: T.accent, fontSize: 19, letterSpacing: 2, fontWeight: 600, marginBottom: 8 }}>{"0" + (k + 1)}</div>
@@ -380,7 +397,9 @@ export const YoshokuFeedMenu: React.FC<P> = (p) => {
 export const YoshokuFeedDue: React.FC<P> = (p) => {
   const { storeName = D.storeName, handle = D.handle, theme = D.theme } = p;
   const T = ytheme(theme); const it = dishes(2);
-  const H = 520, GAP = 8, TOP = 200;
+  // 写真2枚 + 足元の「ふたりで、シェア。」+ ドリンク1行が 1350 に収まる高さ。
+  // 520 だと足元の一行が画面下で切れていた（200+520*2+8+30+54 > 1350）。
+  const H = 470, GAP = 8, TOP = 200;
   return (
     <AbsoluteFill style={{ backgroundColor: MORTAR }}>
       <div style={{ position: "absolute", top: 24, left: 26 }}>
@@ -389,8 +408,10 @@ export const YoshokuFeedDue: React.FC<P> = (p) => {
       {[0, 1].map((k) => (
         <div key={k} style={{ position: "absolute", left: 0, right: 0, top: TOP + k * (H + GAP), height: H, overflow: "hidden" }}>
           <Photo src={it[k].src} />
+          <div style={{ position: "absolute", left: 0, right: 0, bottom: 0, height: 190,
+            background: "linear-gradient(180deg, rgba(20,16,12,0) 0%, rgba(20,16,12,0.46) 55%, rgba(20,16,12,0.72) 100%)" }} />
           <div style={{ position: "absolute", left: SIDE, bottom: 20, right: SIDE }}>
-            <HeroName text={dispName(it[k])} sub={it[k].sub} maxPx={64} minPx={28} usableW={FEED_W - SIDE * 2} color="#F8F1E2" subColor={T.accent} shadow={BARE_SHADOW} />
+            <HeroName text={dispName(it[k])} sub={it[k].sub} maxPx={64} minPx={28} usableW={FEED_W - SIDE * 2} color="#F8F1E2" subColor={ACCENT_ON_PHOTO} shadow={BARE_SHADOW} />
           </div>
         </div>
       ))}
@@ -402,8 +423,8 @@ export const YoshokuFeedDue: React.FC<P> = (p) => {
       }}>
         <span style={{ fontFamily: serif, color: "#FFF6E8", fontSize: 44, fontWeight: 600, lineHeight: 1 }}>&amp;</span>
       </div>
-      <div style={{ position: "absolute", left: SIDE, right: SIDE, top: TOP + H * 2 + GAP + 30, textAlign: "center" }}>
-        <div style={{ fontFamily: minchoBlack, fontWeight: 900, color: "#F8F1E2", fontSize: 54, letterSpacing: 2 }}>ふたりで、シェア。</div>
+      <div style={{ position: "absolute", left: SIDE, right: SIDE, top: TOP + H * 2 + GAP + 26, textAlign: "center" }}>
+        <div style={{ fontFamily: minchoBlack, fontWeight: 900, color: "#F8F1E2", fontSize: 54, letterSpacing: 2, lineHeight: 1.2 }}>ふたりで、シェア。</div>
         <div style={{ marginTop: 14, display: "flex", justifyContent: "center" }}>
           <DrinkLine text={(p.drinkItems || D.drinkItems) + "  ¥" + (p.drinkPrice || D.drinkPrice) + "〜（" + (p.drinkNote || D.drinkNote) + "）"} w={900} color="rgba(237,227,210,0.9)" max={26} />
         </div>

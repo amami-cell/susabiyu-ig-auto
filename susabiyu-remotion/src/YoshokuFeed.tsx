@@ -166,14 +166,17 @@ const Ground: React.FC<{ left: number; top: number; w: number; h: number; a?: nu
 );
 
 // 脇役の料理名（枠幅に合わせて必ず1行に収める小さめの極太明朝）。
-export const SmallName: React.FC<{ text: string; w: number; color: string; num?: string; numColor?: string }> =
-  ({ text, w, color, num, numColor }) => {
+// 写真の上に直接置く小さめの料理名。影が無いと明るい料理（パスタ・オイル煮など）で
+// 白文字が完全に飛ぶので、既定で三段影を付ける。番号も同様に影を持たせ、
+// テラコッタのままだと明るい写真で沈むので少し明るい色を既定にする。
+export const SmallName: React.FC<{ text: string; w: number; color: string; num?: string; numColor?: string; shadow?: string }> =
+  ({ text, w, color, num, numColor = "#FFD0B4", shadow = BARE_SHADOW }) => {
     const one = (text || "").replace(/[｜\n]/g, "");
     const size = Math.max(22, Math.min(38, Math.floor(w / Math.max(1, jlen(one)))));
     return (
       <div style={{ textAlign: "center" }}>
-        {num ? <div style={{ fontFamily: serif, color: numColor, fontSize: 19, letterSpacing: 4, fontWeight: 600, marginBottom: 6 }}>{num}</div> : null}
-        <div style={{ fontFamily: minchoBlack, fontWeight: 900, color, fontSize: size, lineHeight: 1.1, letterSpacing: -0.5, whiteSpace: "nowrap" }}>{one}</div>
+        {num ? <div style={{ fontFamily: serif, color: numColor, fontSize: 19, letterSpacing: 4, fontWeight: 600, marginBottom: 8, textShadow: shadow }}>{num}</div> : null}
+        <div style={{ fontFamily: minchoBlack, fontWeight: 900, color, fontSize: size, lineHeight: 1.1, letterSpacing: -0.5, whiteSpace: "nowrap", textShadow: shadow }}>{one}</div>
       </div>
     );
   };
