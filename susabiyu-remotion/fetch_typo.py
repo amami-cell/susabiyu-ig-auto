@@ -1,7 +1,7 @@
 import os, io, glob, json, sys, random
 
 FOOD_FOLDER = os.environ.get("GENRE_FOOD_ID") or "14oKNgdXee2NrI7Dkmbrlbid4f0_VZ5Cv"
-N_PHOTOS = 6  # No.9タイポは6品紹介。他テンプレは必要枚数だけ index する（余剰は未使用）。
+N_PHOTOS = 7  # No.9タイポは6品、No.29の音ハメは7品×2カット。他テンプレは必要枚数だけ index する。
 MIN_SIDE = 800
 OUT_DIR = os.path.join("public", "typo")
 NORMAL_DIR = os.path.join("public", "music", "normal")
