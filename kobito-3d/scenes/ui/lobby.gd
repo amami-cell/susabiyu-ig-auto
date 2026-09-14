@@ -85,7 +85,23 @@ func _ready() -> void:
 
 	# BGM／効果音の個別スライダー（バス分割済みなので別々に上下できる）。全体スライダーの下に置く。
 	var music_s := _add_sub_volume("BGM 音量", Sfx.get_music_volume(), func(v: float) -> void: Sfx.set_music_volume(v), vol)
-	_add_sub_volume("効果音 音量", Sfx.get_sfx_volume(), func(v: float) -> void: Sfx.set_sfx_volume(v), music_s)
+	var sfx_s := _add_sub_volume("効果音 音量", Sfx.get_sfx_volume(), func(v: float) -> void: Sfx.set_sfx_volume(v), music_s)
+
+	# もじの大きさ（アクセシビリティ）：UI全体を一律で拡大＝小さなお子さん・年配の方にやさしく。
+	var size_label := Label.new()
+	size_label.text = "もじの 大きさ"
+	UIKit.style_label(size_label, 15, UIKit.INK_SOFT)
+	_vbox.add_child(size_label)
+	_vbox.move_child(size_label, sfx_s.get_index() + 1)
+	var size_opt := OptionButton.new()
+	size_opt.add_item("ふつう", 0)
+	size_opt.add_item("大きい", 1)
+	size_opt.add_item("とても大きい", 2)
+	var cur := UIKit.load_ui_scale()
+	size_opt.selected = UIKit.UI_SCALES.find(cur) if UIKit.UI_SCALES.has(cur) else 0
+	_vbox.add_child(size_opt)
+	_vbox.move_child(size_opt, size_label.get_index() + 1)
+	size_opt.item_selected.connect(func(idx: int) -> void: UIKit.save_ui_scale(UIKit.UI_SCALES[idx]))
 
 	_transport.add_item("ENet（PC/Android・低遅延・おすすめ）", Net.Transport.ENET)
 	_transport.add_item("WebSocket（ブラウザでも動く）", Net.Transport.WEBSOCKET)

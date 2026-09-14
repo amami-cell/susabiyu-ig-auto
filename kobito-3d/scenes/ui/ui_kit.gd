@@ -72,3 +72,32 @@ static func style_label(l: Label, size: int, color: Color = INK, outline: int = 
 	if outline > 0:
 		l.add_theme_constant_override("outline_size", outline)
 		l.add_theme_color_override("font_outline_color", ocol)
+
+
+# ---------------------------------------------------------------- もじの大きさ（アクセシビリティ）
+#
+# 画面全体の2D（UI）を content_scale_factor で拡大＝すべての文字・ボタンが一律で大きくなる。
+# stretch=canvas_items なので 3D の見た目は変えず、UIだけ大きくできる（小さなお子さん・年配の方に）。
+# ふつう1.0 / 大きい1.15 / とても大きい1.3 の3段。user://settings.cfg に保存し次回も復元。
+const _CFG := "user://settings.cfg"
+const UI_SCALES := [1.0, 1.15, 1.3]
+
+static func apply_ui_scale(scale: float) -> void:
+	var ml := Engine.get_main_loop() as SceneTree
+	if ml != null and ml.root != null:
+		ml.root.content_scale_factor = clampf(scale, 0.8, 1.6)
+
+
+static func load_ui_scale() -> float:
+	var cfg := ConfigFile.new()
+	if cfg.load(_CFG) == OK:
+		return clampf(float(cfg.get_value("display", "ui_scale", 1.0)), 0.8, 1.6)
+	return 1.0
+
+
+static func save_ui_scale(scale: float) -> void:
+	var cfg := ConfigFile.new()
+	cfg.load(_CFG)                       # 音量など他設定は残す
+	cfg.set_value("display", "ui_scale", scale)
+	cfg.save(_CFG)
+	apply_ui_scale(scale)
