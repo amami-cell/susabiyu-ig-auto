@@ -466,10 +466,11 @@ const BattereBody: React.FC<Required<P>> = ({ storeName, handle, theme }) => {
     <AbsoluteFill style={{ backgroundColor: "#100D0A" }}>
       {/* 小節のあいだはゆっくり寄るだけ。動きは1つに絞る */}
       <AbsoluteFill><Photo src={d.src} lf={local} seg={seg} from={1.0} to={1.05} bri={1.0} /></AbsoluteFill>
-      {/* 明るい皿（トマトソースや黄色い絵皿）だと足元の文字が飛ぶので、
-          写真全体を暗くするのではなく“文字が乗る帯だけ”を急に締める。
-          58%までは今までどおりほぼ素のまま＝料理は明るいまま見せる。 */}
-      <AbsoluteFill style={{ background: "linear-gradient(180deg, rgba(8,7,5,0.86) 0%, rgba(8,7,5,0.62) 16%, rgba(8,7,5,0.04) 32%, rgba(8,7,5,0.08) 58%, rgba(8,7,5,0.34) 72%, rgba(8,7,5,0.82) 84%, rgba(8,7,5,0.97) 100%)" }} />
+      {/* 明るい皿（黄色い絵皿・グリル肉）だと足元の文字が飛ぶので、写真全体を暗くせず
+          “文字が乗る帯だけ”を締める。Caption は bottom:300 に置いてあり、実際に
+          文字があるのは画面の 75〜84% あたり。締め始めを 72% に前倒しして
+          そこを一気に濃くする（58% までは今までどおりほぼ素のまま＝料理は明るい）。 */}
+      <AbsoluteFill style={{ background: "linear-gradient(180deg, rgba(8,7,5,0.86) 0%, rgba(8,7,5,0.62) 16%, rgba(8,7,5,0.04) 32%, rgba(8,7,5,0.06) 58%, rgba(8,7,5,0.70) 72%, rgba(8,7,5,0.90) 84%, rgba(8,7,5,0.97) 100%)" }} />
       <Masthead storeName={storeName} f={f} kicker="A TEMPO" accent={T.accent} logoH={140} top={SAFE.top - 150} />
       <div style={{ position: "absolute", left: SAFE.side, right: SAFE.side, bottom: 300 }}>
         <Caption d={d} f={local} start={4} ink={T.ink} sub={T.sub} accent={T.accent} />
