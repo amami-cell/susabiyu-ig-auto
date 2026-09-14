@@ -408,6 +408,15 @@ func notify_dialogue_done() -> void:
 		_talk_done = true
 
 
+## 今のビートが“バトル（あばれ虫/群れ/ボス）”か。会話UIが、戦闘中は自動で出さず
+## 「おはなし」ボタンに ためる かどうかの判定に使う（進行は戦闘数で決まる＝会話は任意）。
+func is_action_beat() -> bool:
+	if not _active or beat < 0 or beat >= CH1.size():
+		return false
+	var b: Dictionary = CH1[beat]
+	return b.get("goal", "") in ["heal", "boss"] or b.has("wave")
+
+
 func _push_objective(text: String) -> void:
 	if text == _last_obj:
 		return

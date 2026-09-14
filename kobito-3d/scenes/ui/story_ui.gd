@@ -6,6 +6,10 @@ var _lines: PackedStringArray = []
 var _idx := 0
 var _auto := 0.0
 
+# バトル中の会話は自動で出さず、この「おはなし」ボタンで“読みたいとき”に読む＝戦闘の邪魔をしない。
+var _pending_lines: PackedStringArray = []
+var _talk_btn: Button = null
+
 var _obj: Label
 var _box: Panel
 var _text: Label
@@ -43,7 +47,10 @@ func _ready() -> void:
 			_title_btn = null
 		if _result_dim != null:
 			_result_dim.queue_free()
-			_result_dim = null)
+			_result_dim = null
+		_pending_lines = PackedStringArray()
+		if _talk_btn != null:
+			_talk_btn.visible = false)
 
 
 func _build() -> void:
@@ -64,6 +71,22 @@ func _build() -> void:
 	_obj.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_obj.visible = false   # 目的がまだ無いとき（タイトル画面など）は出さない＝空の緑バーを防ぐ
 	add_child(_obj)
+
+	# 「おはなし」ボタン（左上・小さめ）。バトル中に会話がたまっているときだけ出る。
+	# 押すと そのとき会話を読める＝自動で画面を覆わない（戦闘の視界と操作を守る）。
+	_talk_btn = Button.new()
+	_talk_btn.text = "💬 おはなし"
+	_talk_btn.anchor_top = 0.0
+	_talk_btn.anchor_bottom = 0.0
+	_talk_btn.offset_left = 16.0
+	_talk_btn.offset_top = 150.0
+	_talk_btn.offset_right = 168.0
+	_talk_btn.offset_bottom = 194.0
+	UIKit.style_button(_talk_btn, UIKit.GOLD, Color(0.82, 0.6, 0.24))
+	_talk_btn.add_theme_font_size_override("font_size", 18)
+	_talk_btn.visible = false
+	_talk_btn.pressed.connect(_open_pending)
+	add_child(_talk_btn)
 
 	_box = Panel.new()
 	_box.anchor_left = 0.0
@@ -147,6 +170,17 @@ func set_objective(text: String) -> void:
 
 
 func show_dialogue(lines: PackedStringArray) -> void:
+	# バトル中の会話は自動で出さない＝戦闘の視界と操作ボタンを覆わない。
+	# 代わりに「おはなし」ボタンに ためておき、読みたいときに読める。
+	if not lines.is_empty() and Chapter.has_method("is_action_beat") and Chapter.is_action_beat():
+		_pending_lines = lines
+		if _talk_btn != null:
+			_talk_btn.visible = true
+		return
+	# 落ち着いた場面（物語・掃除・収集・謎解き・エンディング等）は従来どおり自動で出す。
+	_pending_lines = PackedStringArray()
+	if _talk_btn != null:
+		_talk_btn.visible = false
 	_lines = lines
 	_idx = 0
 	if _lines.is_empty():
@@ -155,6 +189,21 @@ func show_dialogue(lines: PackedStringArray) -> void:
 	_box.visible = true
 	_catch.visible = true
 	_set_play_ui(false)   # お話中は操作ボタン等を隠して重なりを防ぐ
+	_show_line()
+
+
+## 「おはなし」ボタンで、ためておいたバトル中の会話を読む（読みたいときだけ）。
+func _open_pending() -> void:
+	if _pending_lines.is_empty():
+		return
+	if _talk_btn != null:
+		_talk_btn.visible = false
+	_lines = _pending_lines
+	_pending_lines = PackedStringArray()
+	_idx = 0
+	_box.visible = true
+	_catch.visible = true
+	_set_play_ui(false)
 	_show_line()
 
 
