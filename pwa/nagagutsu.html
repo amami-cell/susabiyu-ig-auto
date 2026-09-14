@@ -402,8 +402,11 @@
     // 画面下：現在の版数表示＋「最新に更新」（SW解除＋キャッシュ全消去＋再取得）。
     // 投稿管理(reels)側と同じ動き。見本を差し替えても古い一覧が残る端末の最終手段。
     (function () {
+      // このページは __APPV をどこでも設定していなかったので、いつ見ても「v?」と出ていた。
+      // ＝更新が届いたかどうかの判断に使えない。deploy_pwa が pwa/*.html の __BUILD__ を
+      // コミットSHAに置換するので、それをそのまま版数として出す（自動で最新になる）。
       var vl = document.getElementById("verlbl");
-      if (vl) vl.textContent = "バージョン " + (window.__APPV || "v?");
+      if (vl) vl.textContent = "バージョン " + (window.__APPV || "__BUILD__");
       var fu = document.getElementById("forceupd");
       if (!fu) return;
       fu.onclick = function () {
