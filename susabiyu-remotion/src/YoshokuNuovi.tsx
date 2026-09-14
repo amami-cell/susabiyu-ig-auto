@@ -29,6 +29,11 @@ export const YNUOVI_DUR = STORY_OPEN + BODY + STORY_END;   // 90+400+150 = 640 =
 // 書き終わるまで待たせる（No.23・No.25）。
 export const MAGOP_OPEN = STORY_OPEN + 60;                // 150f = 5.0秒
 export const MAGOP_DUR = MAGOP_OPEN + BODY + STORY_END;   // 700f = 約23.3秒
+// No.22 は1文字ずつ手書きするので、書き終わってから見せる間が要る。
+// 書く速さは変えずに「3品×130f」にして、書き終わり(約65f)のあと65f＝2.2秒ぶん止める。
+// 全体は 90+390+150 = 630f＝ちょうど21.0秒に収める。
+export const MURO_BODY = 390;
+export const MURO_DUR = STORY_OPEN + MURO_BODY + STORY_END;   // 630f = 21.0秒
 
 export type Item = { src?: string; caption?: string; sub?: string; disp?: string; desc?: string };
 
@@ -94,19 +99,20 @@ export const Caption: React.FC<{
 export const Shell: React.FC<{
   v: 4 | 5 | 6 | 7 | 8 | 9; base: string; storeName: string; handle: string; theme: string;
   openDur?: number;   // OPを長く取りたいテンプレだけ指定（既定は共通の3.0秒）
+  bodyDur?: number;   // 本編の長さを変えるテンプレだけ指定（既定は共通の400f）
   children: React.ReactNode;
-}> = ({ v, base, storeName, handle, theme, openDur = STORY_OPEN, children }) => {
-  const total = openDur + BODY + STORY_END;
+}> = ({ v, base, storeName, handle, theme, openDur = STORY_OPEN, bodyDur = BODY, children }) => {
+  const total = openDur + bodyDur + STORY_END;
   return (
     <AbsoluteFill style={{ backgroundColor: base }}>
       <Audio src={staticFile(typoMusic)} startFrom={Math.round((typoMusicStart || 0) * 30)}
         volume={(ff) => interpolate(ff, [0, 16, total - 30, total], [0, 0.8, 0.8, 0], clamp)} />
       {/* 本編を先に置き、その上にOPを重ねてディゾルブ（既存テンプレと同じ繋ぎ） */}
-      <Sequence from={openDur} durationInFrames={BODY}>{children}</Sequence>
+      <Sequence from={openDur} durationInFrames={bodyDur}>{children}</Sequence>
       <Sequence durationInFrames={openDur + STORY_XF}>
         <StoryOpenXF v={v} storeName={storeName} theme={theme} dur={openDur} />
       </Sequence>
-      <Sequence from={openDur + BODY - STORY_XF} durationInFrames={STORY_END + STORY_XF}>
+      <Sequence from={openDur + bodyDur - STORY_XF} durationInFrames={STORY_END + STORY_XF}>
         <StoryEndV v={v} storeName={storeName} handle={handle} theme={theme} />
       </Sequence>
     </AbsoluteFill>
@@ -326,6 +332,8 @@ export const YoshokuMaiolica: React.FC<P> = ({ storeName = D.storeName, handle =
    緑・白・赤の帯が画面を走り抜けて次の皿へ。テンポが速く、勢いで見せる1本。
    既存はどれもゆっくり溶ける繋ぎなので、速い切り替えはここだけ。 */
 const GREEN = "#2F6B47", RED = "#C0392B", CREAM = "#F4EEE2";
+// No.20 の日除けの縞。三色帯(No.16)の GREEN は国旗の緑なので別に持つ。
+const TENT = "#EF8F45";
 const TricoloreBody: React.FC<Required<P>> = ({ storeName, handle, theme }) => {
   const f = useCurrentFrame(); const T = ytheme(theme);
   const items = dishes(4);
@@ -559,12 +567,12 @@ const TendaBody: React.FC<{ storeName: string; handle: string }> = ({ storeName,
       <AbsoluteFill style={{ background: "linear-gradient(180deg, rgba(20,16,10,0.5) 0%, rgba(20,16,10,0) 26%, rgba(20,16,10,0.08) 58%, rgba(20,16,10,0.82) 100%)" }} />
       {/* ひさし：縞＋波型の裾 */}
       <div style={{ position: "absolute", left: 0, right: 0, top: 0, height: 360, transform: "translateY(" + down + "px)" }}>
-        <div style={{ position: "absolute", inset: 0, background: "repeating-linear-gradient(90deg, " + GREEN + " 0 " + (1080 / SCAL) + "px, " + CREAM + " " + (1080 / SCAL) + "px " + (1080 / SCAL) * 2 + "px)" }} />
+        <div style={{ position: "absolute", inset: 0, background: "repeating-linear-gradient(90deg, " + TENT + " 0 " + (1080 / SCAL) + "px, " + CREAM + " " + (1080 / SCAL) + "px " + (1080 / SCAL) * 2 + "px)" }} />
         <div style={{ position: "absolute", left: 0, right: 0, top: 0, height: 10, background: "rgba(0,0,0,0.25)" }} />
         {/* 裾の波（半円を並べる） */}
         <div style={{ position: "absolute", left: 0, right: 0, bottom: -34, height: 68, display: "flex" }}>
           {Array.from({ length: SCAL }).map((_, k) => (
-            <div key={k} style={{ width: 1080 / SCAL, height: 68, borderRadius: "0 0 50% 50%", background: k % 2 === 0 ? GREEN : CREAM }} />
+            <div key={k} style={{ width: 1080 / SCAL, height: 68, borderRadius: "0 0 50% 50%", background: k % 2 === 0 ? TENT : CREAM }} />
           ))}
         </div>
         {/* ひさしの真ん中に、色付きの文字ロゴだけを大きく置く（下敷き・縁は無し）。
@@ -644,8 +652,9 @@ export const YoshokuMedaglione: React.FC<P> = ({ storeName = D.storeName, handle
    料理名が手で書かれるように1文字ずつ現れ、写真は壁に貼った1枚だけ。 */
 const MuroBody: React.FC<Required<P>> = ({ storeName, handle, theme }) => {
   const f = useCurrentFrame(); const T = ytheme(theme);
-  const items = dishes(4);
-  const { i, local } = segNow(BODY, 4, f);   // 写真は Slides 側で刻むので seg は使わない
+  // 3品×130フレーム。1文字ずつ書く速さは変えず、書き終わってから止まる間を長く取る。
+  const items = dishes(3);
+  const { i, local } = segNow(MURO_BODY, 3, f);   // 写真は Slides 側で刻むので seg は使わない
   const nm = nameOf(items[i]);
   const chars = Array.from(nm);
   const size = fitOneLine(nm, 88, 1080 - SAFE.side * 2, 32);
@@ -657,7 +666,7 @@ const MuroBody: React.FC<Required<P>> = ({ storeName, handle, theme }) => {
       {/* 壁に留めた1枚（少し傾けて画鋲） */}
       {/* 貼り替えはクロスディゾルブ（パッと入れ替わらない） */}
       <div style={{ position: "absolute", left: 150, top: 430, width: 780, height: 720, transform: "rotate(-1.4deg)", boxShadow: "0 30px 70px rgba(0,0,0,0.66)", overflow: "hidden", border: "12px solid #EDE6D6" }}>
-        <Slides count={4} total={BODY} fade={26} render={(k, lf, sg) => (
+        <Slides count={3} total={MURO_BODY} fade={26} render={(k, lf, sg) => (
           <Photo src={items[k].src} lf={lf} seg={sg} from={1.02} to={1.08} />
         )} />
       </div>
@@ -690,7 +699,7 @@ const MuroBody: React.FC<Required<P>> = ({ storeName, handle, theme }) => {
   );
 };
 export const YoshokuMuro: React.FC<P> = ({ storeName = D.storeName, handle = D.handle, theme = D.theme }) => (
-  <Shell v={8} base="#232019" storeName={storeName} handle={handle} theme={theme}>
+  <Shell v={8} base="#232019" storeName={storeName} handle={handle} theme={theme} bodyDur={MURO_BODY}>
     <MuroBody storeName={storeName} handle={handle} theme={theme} />
   </Shell>
 );
@@ -756,7 +765,7 @@ export const NUOVI_COMPS = [
   { id: "YoshokuNumeri", pattern: "yoshokunumeri", label: "No.19 洋食おしゃれ・数字で見る", comp: YoshokuNumeri },
   { id: "YoshokuTenda", pattern: "yoshokutenda", label: "No.20 洋食おしゃれ・縞の日除け", comp: YoshokuTenda },
   { id: "YoshokuMedaglione", pattern: "yoshokumedaglione", label: "No.21 洋食おしゃれ・丸窓の紋章", comp: YoshokuMedaglione },
-  { id: "YoshokuMuro", pattern: "yoshokumuro", label: "No.22 洋食おしゃれ・石壁の壁書き", comp: YoshokuMuro },
+  { id: "YoshokuMuro", pattern: "yoshokumuro", label: "No.22 洋食おしゃれ・石壁の壁書き", comp: YoshokuMuro, dur: MURO_DUR },
   // dur を持つものだけ既定の長さ(YNUOVI_DUR)から外れる
   { id: "YoshokuPassio", pattern: "yoshokupassio", label: "No.23 洋食おしゃれ・扉が開く", comp: YoshokuPassio, dur: MAGOP_DUR },
 ];
