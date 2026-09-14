@@ -251,6 +251,16 @@ static func _mat(c: Color) -> StandardMaterial3D:
 	m.rim_enabled = true
 	m.rim = 0.22
 	m.rim_tint = 0.5
+	# 小人と同じ“絵本のトゥーン輪郭線”を虫にも（反転ハル）＝1画面の絵柄が統一され、地面から
+	# くっきり分離して可読性UP。Webはパーツ数×next_pass でドローコールが倍化するので除外。
+	if not OS.has_feature("web"):
+		var outline := StandardMaterial3D.new()
+		outline.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+		outline.albedo_color = Color(0.09, 0.08, 0.09)
+		outline.cull_mode = BaseMaterial3D.CULL_FRONT
+		outline.grow_enabled = true
+		outline.grow_amount = 0.012   # 小人より細めの輪郭
+		m.next_pass = outline
 	return m
 
 

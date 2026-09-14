@@ -81,6 +81,7 @@ var _flower_mm: MultiMesh = null
 var _grass_pos := PackedVector3Array()
 var _grass_h := PackedFloat32Array()
 var _grass_yaw := PackedFloat32Array()
+var _grass_col := PackedColorArray()   # 各草の“みずみずしい緑”。回復で枯れ色→この色へ寄せる
 var _plant_mm: MultiMesh = null
 var _plant_base := PackedVector3Array()
 var _plant_rot := PackedFloat32Array()
@@ -864,18 +865,15 @@ const _BLOOM_COLS := [
 ]
 
 func _build_bloom() -> void:
-	var head := CylinderMesh.new()
-	head.top_radius = 0.13
-	head.bottom_radius = 0.13
-	head.height = 0.04
-	head.radial_segments = 6
+	var head := _flower_head_mesh()   # 野の花と同じ花びらの星形＝“手あと”も花らしく
 	var mat := StandardMaterial3D.new()
 	mat.vertex_color_use_as_albedo = true
 	mat.roughness = 0.55
+	mat.cull_mode = BaseMaterial3D.CULL_DISABLED
 	mat.emission_enabled = true
 	mat.emission = Color(1, 1, 1)
-	mat.emission_energy_multiplier = 0.35   # 咲いたばかり＝ほんのり光る
-	head.material = mat
+	mat.emission_energy_multiplier = 0.5   # 今治した所が淡く灯る＝“手あと”を強調
+	head.surface_set_material(0, mat)
 	_bloom_mm = MultiMesh.new()
 	_bloom_mm.transform_format = MultiMesh.TRANSFORM_3D
 	_bloom_mm.use_colors = true
@@ -1633,9 +1631,51 @@ void fragment() {
 
 
 ## 草。回復度で「伸びる」。風で揺れ、根元が濃く穂先が明るい。
+## 草の刃：先細りの十字クアッド（2枚直交）。BoxMesh(角材)より“芝”に見える＝目線の高さの安っぽさ解消。
+## MultiMeshなのでドローコールは1のまま。y∈[-0.15,0.15]（既存の伸長トランスフォームに合わせる）。
+func _grass_blade_mesh() -> ArrayMesh:
+	var verts := PackedVector3Array()
+	var norms := PackedVector3Array()
+	var uvs := PackedVector2Array()
+	var idx := PackedInt32Array()
+	_grass_quad(verts, norms, uvs, idx, false)   # +Z 向きの面
+	_grass_quad(verts, norms, uvs, idx, true)    # +X 向きの面（直交）
+	var arr := []
+	arr.resize(Mesh.ARRAY_MAX)
+	arr[Mesh.ARRAY_VERTEX] = verts
+	arr[Mesh.ARRAY_NORMAL] = norms
+	arr[Mesh.ARRAY_TEX_UV] = uvs
+	arr[Mesh.ARRAY_INDEX] = idx
+	var m := ArrayMesh.new()
+	m.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arr)
+	return m
+
+
+func _grass_quad(verts: PackedVector3Array, norms: PackedVector3Array, uvs: PackedVector2Array, idx: PackedInt32Array, cross: bool) -> void:
+	var w0 := 0.032   # 根元の半幅
+	var w1 := 0.008   # 穂先の半幅（先細り）
+	var y0 := -0.15
+	var y1 := 0.15
+	var base := verts.size()
+	var n := Vector3(0, 0, 1)
+	if cross:
+		n = Vector3(1, 0, 0)
+		verts.append(Vector3(0, y0, -w0)); verts.append(Vector3(0, y0, w0))
+		verts.append(Vector3(0, y1, w1)); verts.append(Vector3(0, y1, -w1))
+	else:
+		verts.append(Vector3(-w0, y0, 0)); verts.append(Vector3(w0, y0, 0))
+		verts.append(Vector3(w1, y1, 0)); verts.append(Vector3(-w1, y1, 0))
+	for _k in 4:
+		norms.append(n)
+	# UV.y：根元=1(暗い)、穂先=0(明るい)＝既存フラグメントの陰影に合わせる
+	uvs.append(Vector2(0, 1)); uvs.append(Vector2(1, 1))
+	uvs.append(Vector2(1, 0)); uvs.append(Vector2(0, 0))
+	idx.append(base + 0); idx.append(base + 1); idx.append(base + 2)
+	idx.append(base + 0); idx.append(base + 2); idx.append(base + 3)
+
+
 func _build_grass() -> void:
-	var blade := BoxMesh.new()
-	blade.size = Vector3(0.045, 0.3, 0.045)
+	var blade := _grass_blade_mesh()
 
 	var mat := ShaderMaterial.new()
 	var sh := Shader.new()
@@ -1660,7 +1700,10 @@ void fragment() {
 }
 """
 	mat.shader = sh
-	blade.material = mat
+	# Webは 頂点のTIMEアニメ（cull_disabled 150本）が重い＝揺れをオフにして負荷を下げる。
+	if OS.has_feature("web"):
+		mat.set_shader_parameter("wind", 0.0)
+	blade.surface_set_material(0, mat)
 
 	_grass_mm = MultiMesh.new()
 	_grass_mm.transform_format = MultiMesh.TRANSFORM_3D
@@ -1680,6 +1723,7 @@ void fragment() {
 		_grass_h.append(h)
 		_grass_yaw.append(rng.randf_range(0.0, TAU))
 		var c := Color(0.26, 0.42, 0.16).lerp(Color(0.5, 0.72, 0.32), rng.randf())
+		_grass_col.append(c)
 		_grass_mm.set_instance_color(i, c)
 
 	var mmi := MultiMeshInstance3D.new()
@@ -1691,20 +1735,46 @@ void fragment() {
 	_update_grass(WorldState.recovery)
 
 
-## 花。花びららしく平たい形。回復30%から咲き始め100%で満開。
+## 花の頭：平たい円盤（＝コインに見える）をやめ、6枚の花びらの“星形”＋少し盛り上げた中心へ。
+## 目線の高さに来る掃除のごほうびを 花らしく格上げ。単色（インスタンス色）で MultiMesh を維持。
+func _flower_head_mesh() -> ArrayMesh:
+	var verts := PackedVector3Array()
+	var norms := PackedVector3Array()
+	var idx := PackedInt32Array()
+	verts.append(Vector3(0.0, 0.03, 0.0))   # 中心（少し盛り上げる＝ドーム感で光を拾う）
+	norms.append(Vector3.UP)
+	var petals := 6
+	var seg := petals * 2
+	for k in seg:
+		var a := TAU * float(k) / float(seg)
+		var rad := 0.14 if (k % 2 == 0) else 0.055   # 山=花びらの先 / 谷=花びらの間
+		verts.append(Vector3(cos(a) * rad, 0.0, sin(a) * rad))
+		norms.append(Vector3.UP)
+	for k in seg:
+		idx.append(0)
+		idx.append(1 + ((k + 1) % seg))
+		idx.append(1 + k)
+	var arr := []
+	arr.resize(Mesh.ARRAY_MAX)
+	arr[Mesh.ARRAY_VERTEX] = verts
+	arr[Mesh.ARRAY_NORMAL] = norms
+	arr[Mesh.ARRAY_INDEX] = idx
+	var m := ArrayMesh.new()
+	m.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arr)
+	return m
+
+
+## 花。花びららしい星形。回復30%から咲き始め100%で満開。
 func _build_flowers() -> void:
-	var head := CylinderMesh.new()
-	head.top_radius = 0.11
-	head.bottom_radius = 0.11
-	head.height = 0.035
-	head.radial_segments = 6
+	var head := _flower_head_mesh()
 	var mat := StandardMaterial3D.new()
 	mat.vertex_color_use_as_albedo = true
 	mat.roughness = 0.6
+	mat.cull_mode = BaseMaterial3D.CULL_DISABLED   # 上下どちらから見ても花びらが見える
 	mat.emission_enabled = true
 	mat.emission = Color(1, 1, 1)
-	mat.emission_energy_multiplier = 0.25   # ブルームでほんのり光る
-	head.material = mat
+	mat.emission_energy_multiplier = 0.3   # ブルームでほんのり光る
+	head.surface_set_material(0, mat)
 
 	_flower_mm = MultiMesh.new()
 	_flower_mm.transform_format = MultiMesh.TRANSFORM_3D
@@ -1744,12 +1814,18 @@ func _build_flowers() -> void:
 func _update_grass(r: float) -> void:
 	if _grass_mm == null:
 		return
-	var grow := clampf(r * 1.2, 0.0, 1.0)
+	# 汚れ時も草を消さず“枯れた短い草”を残す＝「空っぽ」でなく「汚い」に見せ、緑化の落差を最大化。
+	var grow := lerpf(0.42, 1.0, clampf(r * 1.2, 0.0, 1.0))
+	# 枯草(灰茶)→ みずみずしい緑（各草の基準色）へ。回復イベント時だけのループ＝毎フレーム負荷なし。
+	var withered := Color(0.44, 0.42, 0.26)
+	var recolor := _grass_col.size() == _grass_pos.size()
 	for i in _grass_pos.size():
 		var h := _grass_h[i] * grow
 		var basis := Basis(Vector3.UP, _grass_yaw[i]).scaled(Vector3(1.0, maxf(0.001, h), 1.0))
 		var origin: Vector3 = _grass_pos[i] + Vector3(0.0, 0.15 * h, 0.0)
 		_grass_mm.set_instance_transform(i, Transform3D(basis, origin))
+		if recolor and _grass_h[i] > 0.0:
+			_grass_mm.set_instance_color(i, withered.lerp(_grass_col[i], clampf(r * 1.1, 0.0, 1.0)))
 
 
 func _update_flowers(r: float) -> void:
@@ -1810,7 +1886,9 @@ func _build_butterflies() -> void:
 	sh.code = """
 shader_type spatial;
 render_mode cull_disabled, unshaded;
+varying float vx;
 void vertex() {
+	vx = abs(VERTEX.x);   // 羽ばたきで動かす前の“中心からの距離”を渡す
 	float phase = INSTANCE_CUSTOM.r * 6.2831;
 	float spd = 7.0 + INSTANCE_CUSTOM.g * 9.0;
 	float flap = 0.5 + 0.5 * sin(TIME * spd + phase);
@@ -1818,9 +1896,11 @@ void vertex() {
 	VERTEX.y += -abs(VERTEX.x) * (0.5 + 1.1 * flap);
 }
 void fragment() {
-	ALBEDO = COLOR.rgb;
-	// ふちを少し明るく＝やわらかい発光感（ブルームでほんのり光る）
-	EMISSION = COLOR.rgb * 0.35;
+	// 羽の外ふちを明るく2トーンに＝遠目でも“ひらひら”感が増す（羽の縁取り）。
+	float edge = clamp(vx / 0.14, 0.0, 1.0);
+	vec3 col = mix(COLOR.rgb, COLOR.rgb * 1.4, step(0.55, edge));
+	ALBEDO = col;
+	EMISSION = col * 0.35;
 }
 """
 	mat.shader = sh
@@ -1921,3 +2001,9 @@ func _on_recovery_changed(_value: float) -> void:
 	if env != null:
 		env.background_color = WorldState.sky_color()
 		# （ambient は AMBIENT_SOURCE_SKY のため ambient_light_color は無視される＝設定しない）
+		# ★色を取り戻す★ 汚れ時は彩度・コントラストを落として澱ませ、回復でパッと発色させる。
+		# 画面全体のグレーディング1本で「掃除で世界がよみがえる」の before→after を劇的にする。
+		# 暗所(夜/家)は沈みすぎないよう回復量を頭打ちに。
+		var gr := r if (biome != "night" and biome != "house") else minf(r, 0.85)
+		env.adjustment_saturation = lerpf(0.66, 1.28, gr)
+		env.adjustment_contrast = lerpf(1.04, 1.18, gr)
