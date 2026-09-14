@@ -177,6 +177,9 @@ def main():
     _pool = HOOKS.get(store.get("theme", ""), HOOKS["italian"])
     _tracks = sorted(_glob.glob("public/music/normal/*.mp3") + _glob.glob("public/music/normal/*.m4a") + _glob.glob("public/music/normal/*.wav"))
     print("[SAMPLE] 文言 %d / 音源 %d 種" % (len(_pool), len(_tracks)))
+    # 使える曲名を出しておく。pattern_music.py で曲を固定する時、綴りが実ファイルと
+    # 合っているかはログでしか確かめられない（音源はDriveから毎回落としてくるため）。
+    print("[MUSIC][LIST] " + " | ".join(os.path.splitext(os.path.basename(t))[0] for t in _tracks))
 
     def _mstart(path):
         base = os.path.splitext(os.path.basename(path or ""))[0]
