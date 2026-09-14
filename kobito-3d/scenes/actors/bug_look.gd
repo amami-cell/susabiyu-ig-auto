@@ -269,7 +269,7 @@ static func _eye_mat() -> StandardMaterial3D:
 # ============================================================ 虫デザイン（採用版）
 ## 種類ごとの“虫らしい”見た目を root 直下の InsectRig に作る。
 ## root（＝Bodyノード）のスケール/演出をそのまま受け継ぐ設計＝つぶれ芝居も効く。素材ゼロ・低ポリ。
-const IB_KINDS := ["ant", "ladybug", "hopper", "beetle", "dragon", "butterfly", "bee", "worm", "skater", "diver", "tagame", "firefly", "moth", "pillbug", "spider", "dust"]
+const IB_KINDS := ["ant", "ladybug", "hopper", "beetle", "dragon", "butterfly", "bee", "worm", "skater", "diver", "tagame", "firefly", "moth", "pillbug", "spider", "dust", "fluff", "swallowtail"]
 
 # Web(gl_compatibility)は1パーツ＝1ドローコール。描画予算を守るため web だけ
 # 目のキャッチライト/触角の玉/脚の本数を間引く（シルエットは維持）。
@@ -439,6 +439,36 @@ static func decorate_insect(root: Node3D, color: Color, kind: String) -> void:
 			head = _ib_ball(rig, 0.2, color.lightened(0.08), Vector3(0, 0.3, -0.3))
 			_ib_legs(rig, dark)
 			_ib_face(head, 0.2, 0.09, dark, skin)
+		"fluff":
+			# ワタムシ：ふわふわの綿毛玉＋小さな顔＋ちょこんと羽。風にのって ふよふよ。
+			var wball := _ib_ball(rig, 0.2, Color(0.95, 0.97, 1.0), Vector3(0, 0.34, 0.02), Vector3(1.1, 1.05, 1.1))
+			for ang in [0.0, 1.2, 2.4, 3.6, 4.8]:
+				_ib_box(wball, Color(0.98, 0.99, 1.0), Vector3(0.02, 0.16, 0.02), Vector3(cos(ang) * 0.16, 0.34, sin(ang) * 0.16), ang)   # 綿毛のとげ
+			head = _ib_ball(rig, 0.11, skin, Vector3(0, 0.3, -0.16))
+			_ib_wings(rig, 0.42, [0.04], 0.06, 0.24, Color(0.95, 0.98, 1.0))
+			_ib_face(head, 0.11, 0.05, dark, skin)
+		"swallowtail":
+			# オオアゲハ（空ボス）：大きな色あざやかな羽（尾つき）＋しま模様の胴＋大きな目。
+			for i in 3:
+				_ib_ball(rig, 0.13 - i * 0.01, (dark if i % 2 == 1 else color), Vector3(0, 0.34, 0.06 + i * 0.12), Vector3(1, 0.95, 1.0))
+			head = _ib_ball(rig, 0.16, skin, Vector3(0, 0.36, -0.22))
+			var awm := _wing_mat(color.lerp(Color(1, 1, 1), 0.15), 0.82)
+			var awm2 := _wing_mat(color.darkened(0.25), 0.8)
+			for sx in [-1.0, 1.0]:
+				var wu := _ib_ball(rig, 0.46, color, Vector3(0.44 * sx, 0.46, -0.06), Vector3(1.0, 0.08, 1.15))
+				wu.material_override = awm
+				wu.rotation.z = deg_to_rad(16.0) * sx
+				var wl := _ib_ball(rig, 0.3, color.lightened(0.1), Vector3(0.4 * sx, 0.36, 0.28), Vector3(0.9, 0.08, 0.9))
+				wl.material_override = awm
+				wl.rotation.z = deg_to_rad(22.0) * sx
+				# アゲハの“尾”＝下ばねの後ろへ伸びる
+				var tail := _ib_ball(rig, 0.14, color.darkened(0.1), Vector3(0.4 * sx, 0.34, 0.6), Vector3(0.6, 0.06, 1.4))
+				tail.material_override = awm2
+				tail.rotation.z = deg_to_rad(22.0) * sx
+				# 羽の帯・目玉模様
+				_ib_box(wu, color.darkened(0.35), Vector3(0.5, 0.005, 0.06), Vector3(0, 0.02, 0.0))
+				_ib_ball(wl, 0.09, Color(0.4, 0.55, 0.95), Vector3(0.1 * sx, 0.02, 0.16))
+			_ib_face(head, 0.16, 0.08, dark, skin)
 		"worm":
 			for i in 5:
 				_ib_ball(rig, 0.2 - i * 0.014, skin, Vector3(0, 0.22, 0.3 - i * 0.14))

@@ -312,7 +312,7 @@ func _show_result_card() -> void:
 	var dex_found := Chapter.dex_counts().size()
 	var dex := Label.new()
 	dex.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	var dex_total := 17   # なかま図鑑の全種数（hud.gd DEX_TOTAL / lobby.gd DEX_SPECIES と一致）
+	var dex_total := 19   # なかま図鑑の全種数（hud.gd DEX_TOTAL / lobby.gd DEX_SPECIES と一致）
 	if dex_found >= dex_total:
 		dex.text = "なかま図鑑　%d / %d しゅるい　コンプリート！" % [dex_total, dex_total]
 	else:

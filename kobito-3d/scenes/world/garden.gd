@@ -154,6 +154,17 @@ const BIOMES := {
 		"fog_col": [Color(0.50, 0.58, 0.60), Color(0.72, 0.83, 0.86)],
 		"fog_d": [0.03, 0.008],
 	},
+	"sky": {
+		# 第6章「そら」：雲の上の高い空。飛行で巡る。きれいにするほど 青空〜金色の夕やけへ。
+		"pillars": false, "grass_frac": 0.0, "flowers": false, "tree_frac": 0.0, "bfly_frac": 1.0,
+		"soil": Color(0.86, 0.9, 0.98), "grass_col": Color(0.92, 0.95, 1.0),
+		"sun_c": Color(1.0, 0.96, 0.86), "sun_e": 1.2,
+		"water_shallow": Color(0.55, 0.7, 0.85), "water_deep": Color(0.4, 0.55, 0.75),
+		"sky_top": [Color(0.34, 0.5, 0.76), Color(0.45, 0.63, 0.92)],
+		"sky_horizon": [Color(0.7, 0.78, 0.85), Color(0.99, 0.82, 0.58)],
+		"fog_col": [Color(0.78, 0.85, 0.93), Color(0.99, 0.9, 0.78)],
+		"fog_d": [0.02, 0.006],
+	},
 	"house": {
 		# 第5章「いえの なか」：小人サイズの薄暗い室内（木の床・ホコリ）。掃除すると 明るく澄む。
 		"pillars": false, "grass_frac": 0.0, "flowers": false, "tree_frac": 0.0, "bfly_frac": 0.6,
@@ -515,6 +526,8 @@ func _on_chapter_boss() -> void:
 		boss_path = "res://data/moth.tres"
 	elif Net.world_biome == "house":
 		boss_path = "res://data/dustlord.tres"
+	elif Net.world_biome == "sky":
+		boss_path = "res://data/ageha.tres"
 	elif Chapter.beat >= 10:
 		boss_path = "res://data/sludge_lord.tres"
 	rpc("_remote_spawn_bug", _bug_serial, boss_path, pos)

@@ -214,6 +214,14 @@ func _apply_species_role(sp: String) -> void:
 			_reach = 2.4
 			role_name = "いえの ぬし"
 			role_desc = "大きな力で、広く 強く 癒やす"
+		"wata":
+			role_name = "ふわふわ"
+			role_desc = "飛べて、風にのって ふよふよ 手伝う"
+		"ageha":
+			_heal_amt = 8
+			_reach = 2.5
+			role_name = "そらの ぬし"
+			role_desc = "大きな羽で、広く 強く 癒やす"
 		"moth":
 			_heal_amt = 8
 			_reach = 2.4
