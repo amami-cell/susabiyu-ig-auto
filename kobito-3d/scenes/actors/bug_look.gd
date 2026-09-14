@@ -269,7 +269,7 @@ static func _eye_mat() -> StandardMaterial3D:
 # ============================================================ 虫デザイン（採用版）
 ## 種類ごとの“虫らしい”見た目を root 直下の InsectRig に作る。
 ## root（＝Bodyノード）のスケール/演出をそのまま受け継ぐ設計＝つぶれ芝居も効く。素材ゼロ・低ポリ。
-const IB_KINDS := ["ant", "ladybug", "hopper", "beetle", "dragon", "butterfly", "bee", "worm", "skater", "diver", "tagame"]
+const IB_KINDS := ["ant", "ladybug", "hopper", "beetle", "dragon", "butterfly", "bee", "worm", "skater", "diver", "tagame", "firefly", "moth"]
 
 # Web(gl_compatibility)は1パーツ＝1ドローコール。描画予算を守るため web だけ
 # 目のキャッチライト/触角の玉/脚の本数を間引く（シルエットは維持）。
@@ -375,6 +375,35 @@ static func decorate_insect(root: Node3D, color: Color, kind: String) -> void:
 			for sx in [-1.0, 1.0]:
 				_ib_box(rig, dark, Vector3(0.07, 0.02, 0.22), Vector3(0.22 * sx, 0.1, 0.3), deg_to_rad(32.0) * sx)
 			_ib_face(head, 0.13, 0.055, dark, skin)
+		"firefly":
+			# ホタル：小さな胴＋光るおしり（発光）＋小さな羽。夜に映える。
+			_ib_ball(rig, 0.13, dark, Vector3(0, 0.28, 0.1), Vector3(1, 0.9, 1.2))
+			head = _ib_ball(rig, 0.12, skin, Vector3(0, 0.3, -0.16))
+			var fg := _ib_ball(rig, 0.14, Color(0.9, 1.0, 0.5), Vector3(0, 0.27, 0.32), Vector3(1, 0.9, 1.15))
+			var fgm := fg.material_override as StandardMaterial3D
+			if fgm != null:
+				fgm.emission_enabled = true
+				fgm.emission = Color(0.85, 1.0, 0.4)
+				fgm.emission_energy_multiplier = 3.2
+				fgm.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+			_ib_wings(rig, 0.4, [0.04], 0.06, 0.3, Color(0.92, 0.96, 0.8))
+			_ib_face(head, 0.12, 0.055, dark, skin)
+		"moth":
+			# オオガ（夜ボス）：ふさふさの大きな胴＋大きな4枚羽＋羽の目玉模様＋大きな目。
+			var mbody := _ib_ball(rig, 0.3, color, Vector3(0, 0.34, 0.08), Vector3(1.05, 0.95, 1.3))
+			_ib_ball(mbody, 0.12, color.lightened(0.1), Vector3(0, 0.4, -0.22))   # 毛の えり
+			head = _ib_ball(rig, 0.2, skin.darkened(0.08), Vector3(0, 0.36, -0.28))
+			var mwm := _wing_mat(color.lightened(0.16), 0.72)
+			for sx in [-1.0, 1.0]:
+				var wu := _ib_ball(rig, 0.42, color.lightened(0.08), Vector3(0.42 * sx, 0.44, -0.06), Vector3(1.0, 0.1, 1.15))
+				wu.material_override = mwm
+				wu.rotation.z = deg_to_rad(14.0) * sx
+				var wl := _ib_ball(rig, 0.3, color, Vector3(0.36 * sx, 0.34, 0.32), Vector3(0.9, 0.1, 0.95))
+				wl.material_override = mwm
+				wl.rotation.z = deg_to_rad(20.0) * sx
+				_ib_ball(rig, 0.08, Color(0.96, 0.9, 0.42), Vector3(0.46 * sx, 0.45, -0.06))   # 羽の目玉模様
+			_ib_legs(rig, dark)
+			_ib_face(head, 0.2, 0.09, dark, skin)
 		"worm":
 			for i in 5:
 				_ib_ball(rig, 0.2 - i * 0.014, skin, Vector3(0, 0.22, 0.3 - i * 0.14))

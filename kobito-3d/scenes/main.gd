@@ -557,6 +557,17 @@ func _run_shot() -> void:
 		await get_tree().create_timer(1.2).timeout
 		await RenderingServer.frame_post_draw
 		get_viewport().get_texture().get_image().save_png("/tmp/shot_water_clear.png")
+	# --night を付けると 第4章「よるの もり」の見た目（暗い／明るい）を撮る（開発確認用）
+	if OS.get_cmdline_user_args().has("--night") and _garden != null:
+		_garden.set_biome("night")
+		WorldState.set_recovery(0.15)
+		await get_tree().create_timer(1.2).timeout
+		await RenderingServer.frame_post_draw
+		get_viewport().get_texture().get_image().save_png("/tmp/shot_night_dark.png")
+		WorldState.set_recovery(0.9)
+		await get_tree().create_timer(1.2).timeout
+		await RenderingServer.frame_post_draw
+		get_viewport().get_texture().get_image().save_png("/tmp/shot_night_bright.png")
 	# --puzzle を付けると石版パズルを専用カメラで撮る（開発確認用）
 	if OS.get_cmdline_user_args().has("--puzzle"):
 		var puzzle := _garden.get_node_or_null("StonePuzzle")
@@ -916,7 +927,7 @@ func _run_shot() -> void:
 		var specs := [
 			"res://data/ant.tres", "res://data/tentou.tres", "res://data/batta.tres",
 			"res://data/beetle.tres", "res://data/tonbo.tres", "res://data/chou.tres",
-			"res://data/hachi.tres", "res://data/amenbo.tres", "res://data/gengoro.tres",
+			"res://data/hachi.tres", "res://data/amenbo.tres", "res://data/gengoro.tres", "res://data/hotaru.tres",
 		]
 		var root := Node3D.new()
 		add_child(root)
@@ -955,7 +966,8 @@ func _run_shot() -> void:
 	if OS.get_cmdline_user_args().has("--bossshot"):
 		var bspecs := [
 			{"path": "res://data/queen_ant.tres", "x": -5.6},
-			{"path": "res://data/tagame.tres", "x": 0.0},
+			{"path": "res://data/tagame.tres", "x": -1.9},
+			{"path": "res://data/moth.tres", "x": 1.9},
 			{"path": "res://data/sludge_lord.tres", "x": 5.6},
 		]
 		var broot := Node3D.new()

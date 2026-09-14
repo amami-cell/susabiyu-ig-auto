@@ -37,6 +37,8 @@ const DEX_SPECIES := [
 	{"id": "gengoro", "name": "ゲンゴロウ", "color": Color(0.18, 0.32, 0.24), "role": "がんじょうな盾：癒やしが強い"},
 	{"id": "queen_ant", "name": "女王アリ", "color": Color(0.55, 0.2, 0.22), "role": "女王の加護：とても強い癒やし"},
 	{"id": "tagame", "name": "タガメ", "color": Color(0.36, 0.31, 0.2), "role": "みずべの ぬし：大きくて力強い"},
+	{"id": "hotaru", "name": "ホタル", "color": Color(0.85, 1.0, 0.5), "role": "ともしび：くらやみを 照らす"},
+	{"id": "moth", "name": "オオガ", "color": Color(0.42, 0.36, 0.3), "role": "よるの ぬし：大きな羽で 力強い"},
 	{"id": "sludge_lord", "name": "ヘドロの主", "color": Color(0.28, 0.34, 0.26), "role": "汚れのおおもと"},
 ]
 var _t := 0.0

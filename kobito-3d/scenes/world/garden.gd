@@ -154,6 +154,17 @@ const BIOMES := {
 		"fog_col": [Color(0.50, 0.58, 0.60), Color(0.72, 0.83, 0.86)],
 		"fog_d": [0.03, 0.008],
 	},
+	"night": {
+		# 第4章「よるの もり」：暗い夜の森。きれいにするほど 月あかりが差して 明るくなる。
+		"pillars": false, "grass_frac": 0.6, "flowers": false, "tree_frac": 1.0, "bfly_frac": 0.4,
+		"soil": Color(0.14, 0.16, 0.18), "grass_col": Color(0.16, 0.28, 0.22),
+		"sun_c": Color(0.5, 0.55, 0.72), "sun_e": 0.5,
+		"water_shallow": Color(0.10, 0.16, 0.22), "water_deep": Color(0.04, 0.08, 0.14),
+		"sky_top": [Color(0.05, 0.06, 0.11), Color(0.10, 0.12, 0.22)],
+		"sky_horizon": [Color(0.11, 0.12, 0.19), Color(0.22, 0.24, 0.36)],
+		"fog_col": [Color(0.09, 0.11, 0.17), Color(0.18, 0.22, 0.34)],
+		"fog_d": [0.05, 0.02],
+	},
 	"ruins": {
 		"pillars": true, "grass_frac": 0.28, "flowers": false, "tree_frac": 0.35, "bfly_frac": 0.4,
 		"soil": Color(0.28, 0.28, 0.26), "grass_col": Color(0.30, 0.42, 0.28),
@@ -489,6 +500,8 @@ func _on_chapter_boss() -> void:
 	var boss_path := "res://data/queen_ant.tres"
 	if Net.world_biome == "water":
 		boss_path = "res://data/tagame.tres"
+	elif Net.world_biome == "night":
+		boss_path = "res://data/moth.tres"
 	elif Chapter.beat >= 10:
 		boss_path = "res://data/sludge_lord.tres"
 	rpc("_remote_spawn_bug", _bug_serial, boss_path, pos)
@@ -1845,7 +1858,11 @@ func _on_recovery_changed(_value: float) -> void:
 		# 開始(r=0)でも わずかに緑の気配を残す＝“泥”に見えない。回復でぐっと緑へ。
 		_ground_shader.set_shader_parameter("greenness", clampf(r * 0.86 + 0.12, 0.0, 1.0))
 	# 太陽も回復で“晴れて”いく：汚れ時は白茶けて弱く、満開で金色マジックアワー＝payoffが跳ねる。
-	if _sun != null and Net.world_biome != "ruins":
+	# 夜の森は「暗い→月あかりが差して明るく」＝クールで控えめに（浄化の光が映える）。
+	if _sun != null and biome == "night":
+		_sun.light_color = Color(0.42, 0.47, 0.66).lerp(Color(0.72, 0.80, 0.98), r)
+		_sun.light_energy = lerpf(0.35, 0.95, r)
+	elif _sun != null and Net.world_biome != "ruins":
 		_sun.light_color = Color(0.86, 0.85, 0.82).lerp(Color(1.0, 0.86, 0.62), r)
 		_sun.light_energy = lerpf(0.95, 1.25, r)
 	_update_butterfly_count(r)
