@@ -197,6 +197,44 @@ function mediaNotifyNew_(media, newByStore) {
   } catch (e) { Logger.log("media notify skip: " + e); }
 }
 
+/* ---------- 選考ステータス更新（サイト一覧ページから取得したものを反映） ---------- */
+// PCの取得スクリプトが飲食店ドットコムの応募者一覧ページから読み取った選考ステップ/採用結果を
+// 受け取り、氏名（＋応募日時）で既存応募者に照合して 状況/資格 を最新化する。
+// o = { api:'media_status', media:'inshoku', items:[{name, date, status}], key }
+function mediaStatusUpdate_(o) {
+  try {
+    if (typeof epIngestOk_ === "function" && !epIngestOk_(o && o.key)) return { ok: false, error: "forbidden" };
+    var media = String((o && o.media) || "inshoku").toLowerCase();
+    var label = MEDIA_LABEL[media] || MEDIA_LABEL.inshoku;
+    var items = (o && o.items) || [];
+    if (!items.length) return { ok: true, updated: 0 };
+    var ss = SpreadsheetApp.getActiveSpreadsheet();
+    var sh = ss.getSheetByName(MEDIA_SHEET);
+    if (!sh || sh.getLastRow() < 2) return { ok: true, updated: 0 };
+    var nameCol = MEDIA_HDR.indexOf("氏名"), dateCol = MEDIA_HDR.indexOf("応募日時"),
+      stCol = MEDIA_HDR.indexOf("状況/資格"), medCol = MEDIA_HDR.indexOf("媒体");
+    var vv = sh.getRange(2, 1, sh.getLastRow() - 1, MEDIA_HDR.length).getValues();
+    var norm = function (s) { return String(s == null ? "" : s).replace(/[\s　]/g, ""); };
+    var dkey = function (s) { var m = String(s == null ? "" : s).match(/(\d{4})\D+(\d{1,2})\D+(\d{1,2})/); return m ? (m[1] + "-" + ("0" + m[2]).slice(-2) + "-" + ("0" + m[3]).slice(-2)) : ""; };
+    var byName = {};
+    for (var i = 0; i < vv.length; i++) {
+      if (String(vv[i][medCol]) !== label) continue;
+      var nm = norm(vv[i][nameCol]); if (!nm) continue;
+      (byName[nm] = byName[nm] || []).push({ row: i + 2, date: dkey(vv[i][dateCol]), cur: String(vv[i][stCol] == null ? "" : vv[i][stCol]).trim() });
+    }
+    var updated = 0;
+    items.forEach(function (it) {
+      var nm = norm(it && it.name); if (!nm) return;
+      var st = String((it && it.status) || "").trim(); if (!st) return;
+      var cand = byName[nm]; if (!cand || !cand.length) return;
+      var target = cand[0];
+      if (cand.length > 1) { var d = dkey(it && it.date); if (d) { for (var k = 0; k < cand.length; k++) { if (cand[k].date === d) { target = cand[k]; break; } } } }
+      if (st !== target.cur) { try { sh.getRange(target.row, stCol + 1).setValue(csvGuard_(st)); updated++; target.cur = st; } catch (e) { } }
+    });
+    return { ok: true, updated: updated, received: items.length };
+  } catch (e) { return { ok: false, error: String(e) }; }
+}
+
 /* ---------- 表示用データ（別ページから読む） ---------- */
 
 /** 他媒体の応募者一覧をJSONで返す（新しい順）。 */

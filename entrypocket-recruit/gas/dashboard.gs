@@ -211,6 +211,7 @@ function doPost(e) {
     else if (o.api === 'media_importcsv') out = (typeof mediaImportCsvB64 === 'function') ? mediaImportCsvB64(o.media || '', o.b64 || '', o.key || '') : { ok: false, error: 'media import未対応' };
     else if (o.api === 'pc_alert') out = epPcAlert_(o);
     else if (o.api === 'inshoku_msgs') out = epInshokuMsgs_(o);
+    else if (o.api === 'media_status') out = (typeof mediaStatusUpdate_ === 'function') ? mediaStatusUpdate_(o) : { ok: false, error: 'media_status未対応' };
     else out = { ok: false, error: 'unknown api' };
   } catch (err) { out = { ok: false, error: String(err) }; }
   return ContentService.createTextOutput(JSON.stringify(out)).setMimeType(ContentService.MimeType.JSON);
