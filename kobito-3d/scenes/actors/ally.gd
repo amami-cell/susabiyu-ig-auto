@@ -182,6 +182,13 @@ func _apply_species_role(sp: String) -> void:
 			_help_interval = 0.7
 			role_name = "すばやい 手数"
 			role_desc = "飛べて、何度も つづけて 癒やす"
+		"amenbo":
+			_speed = SPEED * 1.3   # 水辺を すいすい＝いちばん速い
+			role_name = "すいすい"
+			role_desc = "水の上を すべるように 速く動く"
+		"gengoro":
+			role_name = "がんじょうな 盾"
+			role_desc = "癒やしの力が強く、少し広く とどく（甲羅）"
 		"queen_ant":
 			_heal_amt = 8
 			_reach = 2.3

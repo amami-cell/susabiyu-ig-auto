@@ -33,6 +33,8 @@ const DEX_SPECIES := [
 	{"id": "chou", "name": "チョウ", "color": Color(0.72, 0.52, 0.86), "role": "ひらひら：飛べて ひろくとどく"},
 	{"id": "tonbo", "name": "トンボ", "color": Color(0.32, 0.62, 0.72), "role": "空の担当：空の敵にとどく"},
 	{"id": "hachi", "name": "ハチ", "color": Color(0.92, 0.76, 0.24), "role": "すばやい手数：何度も癒やす"},
+	{"id": "amenbo", "name": "アメンボ", "color": Color(0.5, 0.56, 0.62), "role": "すいすい：水辺を すばやく"},
+	{"id": "gengoro", "name": "ゲンゴロウ", "color": Color(0.18, 0.32, 0.24), "role": "がんじょうな盾：癒やしが強い"},
 	{"id": "queen_ant", "name": "女王アリ", "color": Color(0.55, 0.2, 0.22), "role": "女王の加護：とても強い癒やし"},
 	{"id": "sludge_lord", "name": "ヘドロの主", "color": Color(0.28, 0.34, 0.26), "role": "汚れのおおもと"},
 ]

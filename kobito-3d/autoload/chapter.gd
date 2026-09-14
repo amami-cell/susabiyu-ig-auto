@@ -592,6 +592,9 @@ func wants_enemies() -> bool:
 ## 第2章：コガネムシ（硬い）＋トンボ/チョウ/ハチ（飛ぶ敵）。ラスボスはヘドロの主（別枠）。
 ## 自由プレイ（章オフ）は全部あり。ボスはこの表には含めない（Chapterの専用合図で湧く）。
 func allowed_bugs() -> Array:
+	# 水辺（第3章）は 水の虫。アメンボ・ゲンゴロウ＋水辺に集うトンボ・バッタ。
+	if Net.world_biome == "water":
+		return ["amenbo", "gengoro", "tonbo", "batta"]
 	if not _active:
 		return ["ant", "tentou", "batta", "beetle", "tonbo", "chou", "hachi"]
 	if beat <= 1:

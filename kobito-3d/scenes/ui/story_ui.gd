@@ -312,10 +312,11 @@ func _show_result_card() -> void:
 	var dex_found := Chapter.dex_counts().size()
 	var dex := Label.new()
 	dex.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	if dex_found >= 9:
-		dex.text = "なかま図鑑　9 / 9 しゅるい　コンプリート！"
+	var dex_total := 11   # なかま図鑑の全種数（hud.gd DEX_TOTAL / lobby.gd DEX_SPECIES と一致）
+	if dex_found >= dex_total:
+		dex.text = "なかま図鑑　%d / %d しゅるい　コンプリート！" % [dex_total, dex_total]
 	else:
-		dex.text = "なかま図鑑　%d / 9 しゅるい　（あと %d しゅるい！）" % [dex_found, 9 - dex_found]
+		dex.text = "なかま図鑑　%d / %d しゅるい　（あと %d しゅるい！）" % [dex_found, dex_total, dex_total - dex_found]
 	UIKit.style_label(dex, 20, UIKit.GOLD.darkened(0.35))
 	vb.add_child(dex)
 

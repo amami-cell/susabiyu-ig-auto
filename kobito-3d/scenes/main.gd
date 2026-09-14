@@ -916,7 +916,7 @@ func _run_shot() -> void:
 		var specs := [
 			"res://data/ant.tres", "res://data/tentou.tres", "res://data/batta.tres",
 			"res://data/beetle.tres", "res://data/tonbo.tres", "res://data/chou.tres",
-			"res://data/hachi.tres",
+			"res://data/hachi.tres", "res://data/amenbo.tres", "res://data/gengoro.tres",
 		]
 		var root := Node3D.new()
 		add_child(root)

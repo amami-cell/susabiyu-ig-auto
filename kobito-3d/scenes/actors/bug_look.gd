@@ -269,7 +269,7 @@ static func _eye_mat() -> StandardMaterial3D:
 # ============================================================ 虫デザイン（採用版）
 ## 種類ごとの“虫らしい”見た目を root 直下の InsectRig に作る。
 ## root（＝Bodyノード）のスケール/演出をそのまま受け継ぐ設計＝つぶれ芝居も効く。素材ゼロ・低ポリ。
-const IB_KINDS := ["ant", "ladybug", "hopper", "beetle", "dragon", "butterfly", "bee", "worm"]
+const IB_KINDS := ["ant", "ladybug", "hopper", "beetle", "dragon", "butterfly", "bee", "worm", "skater", "diver"]
 
 # Web(gl_compatibility)は1パーツ＝1ドローコール。描画予算を守るため web だけ
 # 目のキャッチライト/触角の玉/脚の本数を間引く（シルエットは維持）。
@@ -344,6 +344,24 @@ static func decorate_insect(root: Node3D, color: Color, kind: String) -> void:
 			head = _ib_ball(rig, 0.15, yellow, Vector3(0, 0.34, -0.18))
 			_ib_wings(rig, 0.4, [0.02, 0.18], 0.08, 0.32, Color(1, 1, 1))
 			_ib_face(head, 0.15, 0.075, color.darkened(0.5), yellow)
+		"skater":
+			# アメンボ（水すまし）：細長い胴＋前後に開いた 長い脚6本（水面をすべる姿）。
+			for zi in [0.26, 0.1, -0.06]:
+				_ib_ball(rig, 0.1, skin, Vector3(0, 0.26, zi), Vector3(0.9, 0.8, 1.25))
+			head = _ib_ball(rig, 0.12, skin, Vector3(0, 0.28, -0.24))
+			for zi in [-0.02, 0.12, 0.26]:
+				for sx in [-1.0, 1.0]:
+					_ib_box(rig, dark, Vector3(0.5, 0.03, 0.03), Vector3(0.32 * sx, 0.14, zi))
+			_ib_face(head, 0.12, 0.055, dark, skin)
+		"diver":
+			# ゲンゴロウ：つやのある平たいオーバルの甲羅＋オール状の後ろ脚（泳ぐ姿）。
+			head = _ib_ball(rig, 0.13, skin.darkened(0.1), Vector3(0, 0.24, -0.26))
+			var dshell := _ib_ball(rig, 0.3, color, Vector3(0, 0.3, 0.05), Vector3(1.02, 0.66, 1.42))
+			_ib_box(dshell, color.lightened(0.22), Vector3(0.02, 0.02, 0.5), Vector3(0, 0.34, 0.0))
+			_ib_legs(rig, dark)
+			for sx in [-1.0, 1.0]:
+				_ib_box(rig, dark, Vector3(0.07, 0.02, 0.22), Vector3(0.22 * sx, 0.1, 0.3), deg_to_rad(32.0) * sx)
+			_ib_face(head, 0.13, 0.055, dark, skin)
 		"worm":
 			for i in 5:
 				_ib_ball(rig, 0.2 - i * 0.014, skin, Vector3(0, 0.22, 0.3 - i * 0.14))
