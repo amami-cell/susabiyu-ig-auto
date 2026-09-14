@@ -295,17 +295,19 @@ export const YoshokuTessera: React.FC<P> = ({ storeName = D.storeName, handle = 
    既存のどれよりもテンポが速い（⑯三色帯は帯が主役、こちらは寄りの刻み）。 */
 const BattitoBody: React.FC<Required<P>> = ({ storeName, handle, theme }) => {
   const f = useCurrentFrame(); const T = ytheme(theme);
-  const items = dishes(4);
+  // 本編は拍で14カットほどになるので、4品を3回半まわすのではなく「7品×2カット」で組む。
+  const items = dishes(7);
   // 音ハメ：曲の拍そのもので切る。typoBeats は「再生開始位置からの相対秒」なので、
   // 本編の開始（＝OPの長さぶん曲が進んだところ）を引いて本編フレームに直す。
   // 拍が拾えていない環境では 25フレーム（約0.83秒）の等間隔にフォールバックする。
   const CUTS = beatCuts(STORY_OPEN);
   const b = cutIndex(CUTS, f);
-  const d = items[b % items.length];
+  const d = items[Math.floor(b / 2) % items.length];   // 1品につき2カット（寄りだけ変える）
   const lb = f - (CUTS[b] ?? b * 25);
-  // 拍ごとに寄り位置を変える（同じ皿でも別のカットに見える）
-  const POS = ["50% 50%", "30% 35%", "70% 60%", "50% 28%"];
-  const pop = interpolate(lb, [0, 8], [1.1, 1.02], { ...clamp, easing: EASE });
+  // 寄り位置は縦だけ振る。左右にずらすと料理の正面から外れて見えるため、
+  // 横は必ず中央(50%)に固定する。寄りも 1.1→1.02 では強すぎたので浅くする。
+  const POS = ["50% 50%", "50% 42%", "50% 50%", "50% 58%"];
+  const pop = interpolate(lb, [0, 8], [1.04, 1.0], { ...clamp, easing: EASE });
   return (
     <AbsoluteFill style={{ backgroundColor: "#100D0A" }}>
       <AbsoluteFill>
@@ -324,10 +326,10 @@ const BattitoBody: React.FC<Required<P>> = ({ storeName, handle, theme }) => {
         <div style={{ fontFamily: serif, color: T.accent, fontSize: 30, letterSpacing: 4, textTransform: "uppercase", fontWeight: 600, textShadow: NSH, opacity: fade(lb, 2, 8) }}>{d.sub || ""}</div>
         <div style={{ marginTop: 8, fontFamily: mincho, color: T.ink, fontSize: fitOneLine(nameOf(d), 84, 1080 - SAFE.side * 2, 30), fontWeight: 700, letterSpacing: 1, whiteSpace: "nowrap", textShadow: NSH, opacity: fade(lb, 3, 8) }}>{nameOf(d)}</div>
       </div>
-      {/* 拍のカウンター（4つ玉） */}
+      {/* 何品目かのカウンター（7つ玉＝7品ぶん） */}
       <div style={{ position: "absolute", left: SAFE.side, bottom: 254, display: "flex", gap: 10 }}>
-        {[0, 1, 2, 3].map((k) => (
-          <div key={k} style={{ width: 14, height: 14, borderRadius: 7, background: k === b % 4 ? T.accent : "rgba(246,239,224,0.28)" }} />
+        {items.map((_, k) => (
+          <div key={k} style={{ width: 14, height: 14, borderRadius: 7, background: k === Math.floor(b / 2) % items.length ? T.accent : "rgba(246,239,224,0.28)" }} />
         ))}
       </div>
       <HandleMark handle={handle} accent={T.accent} f={f} start={20} />
