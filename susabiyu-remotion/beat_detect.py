@@ -86,7 +86,7 @@ def detect(path, max_sec=60.0, start_sec=0.0):
 
 
 def accents(path, max_sec=60.0, start_sec=0.0, beats=None,
-            min_gap=1.15, max_gap=4.5, thr_pct=88.0):
+            min_gap=1.15, max_gap=4.5, thr_pct=88.0, lead_sec=0.05):
     """曲の「ここで入る」という節目（フレーズの頭・サビの入り）の秒を返す。
 
     拍(detect)とは別物。拍は等間隔の格子なので、そこに絵を乗せると曲のどこでも
@@ -97,10 +97,15 @@ def accents(path, max_sec=60.0, start_sec=0.0, beats=None,
       ①アタックの強さを0.12秒ならして「フレーズの勢い」にする
       ②2秒の移動中央値を土台にして、そこからどれだけ跳ねたかを見る
         （曲全体が盛り上がっている区間でも、その中の"入り"だけが立つ）
-      ③近傍で一番高く、かつ十分に強い点だけを拾う
+      ③拍の格子の上から、強い拍だけを選ぶ（＝必ず拍に乗る／間隔はバラバラ）
       ④近すぎるものは強い方を残す（min_gap）
-      ⑤拍が分かっていれば、そこへスナップして食いつきを良くする
-      ⑥空きすぎた所は拍を足して埋める（切り替わらない動画にしない）
+      ⑤空きすぎた所は拍を足して埋める（切り替わらない動画にしない）
+      ⑥lead_sec ぶん前へ出す
+
+    lead_sec について：切り替えが音より後ろに来ると「音楽が先に行って画が
+    遅れている」とはっきり分かるが、ほんの少し前に出ているぶんには
+    “合っている”と感じる。人の目は画の変化を捉えるのに一瞬かかるため。
+    そこで既定で1.5コマぶん(0.05秒)だけ前へ出す。
     """
     import numpy as np
     env, fenv = _envelope(path, max_sec, start_sec)
@@ -118,18 +123,36 @@ def accents(path, max_sec=60.0, start_sec=0.0, beats=None,
     if nov.max() <= 0:
         return []
     nov = nov / nov.max()
-    # ③近傍最大かつ十分強い点
-    r = max(1, int(round(0.35 * fenv)))
-    pos = nov[nov > 0]
-    thr = max(0.30, float(np.percentile(pos, thr_pct))) if len(pos) else 0.30
+    # ③「拍の格子の上から、強い拍だけを選ぶ」
+    #   自由に山のピークを拾うと、スイング系のように刻みや裏拍が強い曲では
+    #   二次的な打点を掴んでしまい、耳が“入り”と感じる位置より後ろにずれる
+    #   （＝音楽が先に行って画が遅れて見える）。拍の上に限定すれば必ず拍に
+    #   ピタリと乗り、しかも強い拍だけを採るので間隔はバラバラのまま保てる。
     cand = []
-    for i in range(len(nov)):
-        v = float(nov[i])
-        if v < thr:
-            continue
-        lo, hi = max(0, i - r), min(len(nov), i + r + 1)
-        if v >= float(nov[lo:hi].max()):
-            cand.append((i / fenv, v))
+    if beats and len(beats) >= 8:
+        w = max(1, int(round(0.10 * fenv)))     # その拍の前後0.1秒の強さで評価
+        for b in beats:
+            i = int(round(b * fenv))
+            if i < 0 or i >= len(nov):
+                continue
+            lo, hi = max(0, i - w), min(len(nov), i + w + 1)
+            cand.append((float(b), float(nov[lo:hi].max())))
+        if cand:
+            vals = sorted(v for _b, v in cand)
+            thr = vals[int(len(vals) * 0.70)]   # 強い方から3割ほどの拍だけ
+            cand = [(b, v) for b, v in cand if v >= thr and v > 0]
+    if not cand:
+        # 拍が使えない時だけ、従来どおり山のピークを拾う
+        r = max(1, int(round(0.35 * fenv)))
+        pos = nov[nov > 0]
+        thr = max(0.30, float(np.percentile(pos, thr_pct))) if len(pos) else 0.30
+        for i in range(len(nov)):
+            v = float(nov[i])
+            if v < thr:
+                continue
+            lo, hi = max(0, i - r), min(len(nov), i + r + 1)
+            if v >= float(nov[lo:hi].max()):
+                cand.append((i / fenv, v))
     if not cand:
         return []
     # ④近すぎるものは強い方だけ残す
@@ -139,14 +162,7 @@ def accents(path, max_sec=60.0, start_sec=0.0, beats=None,
         if all(abs(t - p) >= min_gap for p in picked):
             picked.append(t)
     picked.sort()
-    # ⑤拍へスナップ（ズレが小さい時だけ。大きくズラすと逆に外れる）
-    if beats:
-        snapped = []
-        for t in picked:
-            b = min(beats, key=lambda x: abs(x - t))
-            snapped.append(b if abs(b - t) <= 0.12 else t)
-        picked = sorted(set(snapped))
-    # ⑥空きすぎた所を埋める
+    # ⑤空きすぎた所を埋める
     out = []
     for t in picked:
         if out and t - out[-1] > max_gap:
@@ -159,7 +175,8 @@ def accents(path, max_sec=60.0, start_sec=0.0, beats=None,
                 if mid - out[-1] >= min_gap and t - mid >= min_gap:
                     out.append(mid)
         out.append(t)
-    return [round(t, 4) for t in out]
+    # ⑥ほんの少しだけ前へ出す（遅れて見えるのを防ぐ。0未満にはしない）
+    return [round(max(0.0, t - lead_sec), 4) for t in out]
 
 
 def accents_or_default(path, start_sec=0.0, beats=None, need=16):
