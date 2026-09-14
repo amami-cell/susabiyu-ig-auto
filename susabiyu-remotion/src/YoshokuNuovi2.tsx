@@ -487,14 +487,19 @@ export const YoshokuNastro: React.FC<P> = ({ storeName = D.storeName, handle = D
    前の版は等間隔の拍に画を乗せていたので、曲のどこでも同じ顔で脈打つだけだった。
    ここでは typoAccents（曲のフレーズの頭・サビの入り）だけを切り替え点にする。
    間隔はバラバラ＝曲が動いた所で画も動く。拍ごとの脈動は全部やめた。 */
-const BattereBody: React.FC<Required<P>> = ({ storeName, handle, theme }) => {
+const BattereBody: React.FC<Required<P> & { uniq?: boolean }> = ({ storeName, handle, theme, uniq }) => {
   const f = useCurrentFrame(); const T = ytheme(theme);
-  const items = dishes(4);
   const CUTS = accentCuts(STORY_OPEN);              // 曲が「入る」瞬間だけ
+  // uniq: 切り替わる回数ぶん別の皿を出す（同じ皿を2度出さない）。
+  //   既定は4品の使い回し。節目の数は曲によって変わるので4固定だと、5回目の
+  //   切り替えで1品目に戻る（No.32 は6回切り替わるので5・6番目が繰り返しだった）。
+  //   写真は N_PHOTOS=7 まで取ってあるので、切り替え数ぶん引いて全部バラバラにする。
+  //   採用済みの No.35/37 は承認された見え方を変えないため既定のまま。
+  const items = dishes(uniq ? Math.max(4, CUTS.length) : 4);
   const i = cutIndex(CUTS, f);
   const local = f - (CUTS[i] ?? 0);
   const seg = (CUTS[i + 1] ?? BODY) - (CUTS[i] ?? 0);
-  const d = items[i % items.length];
+  const d = uniq ? (items[i] ?? items[items.length - 1]) : items[i % items.length];
 
   // 切り替わりは“一発で着地”させる。以前は9コマかけて 1.055→1.0 と縮めており、
   // 音が鳴った後も画が動き続けるぶん、遅れて切り替わったように見えていた。
@@ -537,7 +542,8 @@ const BattereBody: React.FC<Required<P>> = ({ storeName, handle, theme }) => {
 };
 export const YoshokuBattere: React.FC<P> = ({ storeName = D.storeName, handle = D.handle, theme = D.theme }) => (
   <Shell v={8} base="#100D0A" storeName={storeName} handle={handle} theme={theme}>
-    <BattereBody storeName={storeName} handle={handle} theme={theme} />
+    {/* No.32 は「全てバラバラの商品で」の指定。切り替わる回数ぶん別の皿を出す。 */}
+    <BattereBody storeName={storeName} handle={handle} theme={theme} uniq />
   </Shell>
 );
 
