@@ -954,8 +954,9 @@ func _run_shot() -> void:
 	# --bossshot：中ボス(女王アリ)とボス(ヘドロの主)を decorate_boss の見た目で撮る。
 	if OS.get_cmdline_user_args().has("--bossshot"):
 		var bspecs := [
-			{"path": "res://data/queen_ant.tres", "x": -3.4},
-			{"path": "res://data/sludge_lord.tres", "x": 3.4},
+			{"path": "res://data/queen_ant.tres", "x": -5.6},
+			{"path": "res://data/tagame.tres", "x": 0.0},
+			{"path": "res://data/sludge_lord.tres", "x": 5.6},
 		]
 		var broot := Node3D.new()
 		add_child(broot)

@@ -484,9 +484,13 @@ func _on_chapter_boss() -> void:
 		pos.y = 1.0
 		pos.x = clampf(pos.x, -30.0, 30.0)   # 壁にめり込まない範囲へ
 		pos.z = clampf(pos.z, -30.0, 30.0)
-	# 第1章の中ボス＝女王アリ、第2章のラスボス＝ヘドロの主（別モデル・大きく・硬い）。
-	# beat 10 以降が第2章なので、そこからは主にする（クライマックスの使い回しを解消）。
-	var boss_path := "res://data/sludge_lord.tres" if Chapter.beat >= 10 else "res://data/queen_ant.tres"
+	# 章ごとのボス：第1章＝女王アリ、第2章＝ヘドロの主、第3章(みずべ)＝タガメ。
+	# 舞台(biome)と章(beat)で出し分け＝クライマックスごとに“ちがう主”。
+	var boss_path := "res://data/queen_ant.tres"
+	if Net.world_biome == "water":
+		boss_path = "res://data/tagame.tres"
+	elif Chapter.beat >= 10:
+		boss_path = "res://data/sludge_lord.tres"
 	rpc("_remote_spawn_bug", _bug_serial, boss_path, pos)
 
 

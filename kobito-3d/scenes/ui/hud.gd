@@ -7,7 +7,7 @@ extends Control
 
 var _player: Node = null
 
-const DEX_TOTAL := 11   # なかま図鑑の全種数（lobby.gd DEX_SPECIES と一致・第3章で水の虫2種を追加）
+const DEX_TOTAL := 12   # なかま図鑑の全種数（lobby.gd DEX_SPECIES と一致・第3章で水の虫2種＋タガメ）
 var _progress: Label = null   # 中期目標（飛行パーツ・図鑑）の常設表示
 
 # 「やられた→復活」をはっきり見せるための表示

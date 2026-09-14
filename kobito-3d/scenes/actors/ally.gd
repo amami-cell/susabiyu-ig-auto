@@ -194,6 +194,11 @@ func _apply_species_role(sp: String) -> void:
 			_reach = 2.3
 			role_name = "女王の 加護"
 			role_desc = "とても強い癒やしで みんなを助ける"
+		"tagame":
+			_heal_amt = 8
+			_reach = 2.4
+			role_name = "みずべの ぬし"
+			role_desc = "大きな力で、広く 強く 癒やす"
 		_:
 			if _role_fly:
 				role_name = "空の 担当"
