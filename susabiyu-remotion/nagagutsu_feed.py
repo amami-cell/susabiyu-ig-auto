@@ -259,10 +259,8 @@ def main():
         })
         print("  取得 %-28s 明るさ %.0f" % (nm[:28], dishes[-1]["bright"]))
 
-    used = _assign(dishes)
+    used = _assign(dishes)   # 内訳（連続箇所・A/Cを当てた写真の明るさ）は _assign 側で出す
     print("[FEED] デザイン割り当て:", {k.replace("YoshokuFeed", ""): v for k, v in used.items()})
-    dark = sum(1 for d in dishes if d["bright"] > BRIGHT_LIMIT)
-    print("[FEED] 明るすぎて下地なし案(A/C)を外した写真: %d品" % dark)
 
     # バンドルは1回だけ。あとは props を差し替えて全品を焼く（再バンドルしない）。
     entry = "src/index.ts"
