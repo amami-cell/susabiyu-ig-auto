@@ -292,6 +292,7 @@ func _local_step(delta: float) -> void:
 	elif grounded and _was_airborne:
 		Sfx.play("land", -12.0)         # 空中→着地
 		_land_squash()                  # ぺしゃっと潰れて戻る＝着地の重み
+		_spawn_ground_puff(1.0)         # 着地の土ぼこり＝ドスッと降りた手応え
 	_was_airborne = not grounded
 
 	# 飛行中のポーズ：ぐっと前傾（スーパーマン風）＋ゆらぎ。降りたら戻す。
@@ -319,6 +320,7 @@ func _local_step(delta: float) -> void:
 		if _step_t <= 0.0:
 			_step_t = 0.34
 			Sfx.play("step", -22.0)
+			_spawn_ground_puff(0.32)    # 走ると小さく土ぼこり＝地面を蹴っている手触り
 	else:
 		_step_t = 0.0
 
@@ -493,6 +495,40 @@ func _spawn_whistle_ring() -> void:
 	tw.tween_property(ring, "scale", Vector3(6.0, 6.0, 6.0), 0.6).set_trans(Tween.TRANS_QUART).set_ease(Tween.EASE_OUT)
 	tw.parallel().tween_property(m, "albedo_color:a", 0.0, 0.6)
 	tw.tween_callback(ring.queue_free)
+
+
+## 足元の土ぼこり／花粉パフ。着地で大・走行で小。地面に残す（足元に貼り付かない）＝
+## 既にある足音・着地音の“見た目の裏打ち”。汚れ時＝土色、回復で＝あたたかな花粉色。純見た目・自分だけ。
+func _spawn_ground_puff(strength: float) -> void:
+	if not is_local:
+		return
+	var world := get_parent()
+	if world == null:
+		return
+	var soft := UIKit.reduce_fx()
+	var puff := MeshInstance3D.new()
+	var pm := PlaneMesh.new()      # XZ平面・法線+Y＝地面に寝た円盤として使う
+	pm.size = Vector2(1.0, 1.0)
+	puff.mesh = pm
+	var r := clampf(WorldState.recovery, 0.0, 1.0)
+	var col := Color(0.62, 0.54, 0.40, 0.5).lerp(Color(0.86, 0.92, 0.55, 0.55), r)  # 土→花粉
+	var m := StandardMaterial3D.new()
+	m.albedo_color = col
+	m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	m.cull_mode = BaseMaterial3D.CULL_DISABLED
+	puff.material_override = m
+	world.add_child(puff)
+	puff.global_position = global_position + Vector3(0.0, 0.05, 0.0)
+	var s0 := (0.5 + 0.4 * strength) * (0.7 if soft else 1.0)
+	var s1 := s0 * (2.6 + 0.8 * strength)
+	puff.scale = Vector3(s0, 1.0, s0)
+	var dur := 0.45 + 0.1 * strength
+	var tw := create_tween()
+	tw.tween_property(puff, "scale", Vector3(s1, 1.0, s1), dur).set_trans(Tween.TRANS_QUART).set_ease(Tween.EASE_OUT)
+	tw.parallel().tween_property(puff, "global_position:y", global_position.y + 0.2, dur)   # ふわっと舞い上がる
+	tw.parallel().tween_property(m, "albedo_color:a", 0.0, dur)
+	tw.tween_callback(puff.queue_free)
 
 
 # ------------------------------------------------------------ 他人の小人
