@@ -53,6 +53,15 @@ jobs:
       - name: Commit changes + deploy
         run: |
           set -e
+          # 動作確認（--limit 指定）では一部の品しか焼けていない。その feed.json を本番へ
+          # 出すと他の品が消えるので、コミットしない。
+          if [ -n "${{ github.event.inputs.limit }}" ]; then
+            echo "limit指定＝動作確認のためコミットしません。"; exit 0
+          fi
+          # main 以外から手動実行した時に、そのブランチの内容を main へ push しない。
+          if [ "${{ github.ref }}" != "refs/heads/main" ]; then
+            echo "main 以外（${{ github.ref }}）からの実行のためコミットしません。"; exit 0
+          fi
           if [ -z "$(git status --porcelain -- pwa/nagagutsu)" ]; then
             echo "変更なし（Drive未更新）。コミットしません。"; exit 0
           fi
