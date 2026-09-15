@@ -1,0 +1,96 @@
+{
+ "store": "nagagutsu",
+ "count": 10,
+ "items": [
+  {
+   "vid": "dv_01.mp4",
+   "poster": "dv_01_poster.jpg",
+   "t": "洋食・音ハメ(小節で切る)",
+   "cap": "今夜は、肉。",
+   "tags": "",
+   "music": "swing_swing",
+   "pattern": "yoshokubattere"
+  },
+  {
+   "vid": "dv_02.mp4",
+   "poster": "dv_02_poster.jpg",
+   "t": "洋食・音ハメ(別の曲A)",
+   "cap": "旨いを、遠慮なく。",
+   "tags": "",
+   "music": "French_Toast",
+   "pattern": "yoshokuritmo"
+  },
+  {
+   "vid": "dv_03.mp4",
+   "poster": "dv_03_poster.jpg",
+   "t": "洋食・音ハメ(別の曲C)",
+   "cap": "日常に、ひと皿の贅沢。",
+   "tags": "",
+   "music": "49秒～　Somebody_(Prod._Khaim)",
+   "pattern": "yoshokuonda"
+  },
+  {
+   "vid": "dv_04.mp4",
+   "poster": "dv_04_poster.jpg",
+   "t": "洋食・おすすめ3品",
+   "cap": "日常に、ひと皿の贅沢。",
+   "tags": "",
+   "music": "49秒～　Somebody_(Prod._Khaim)",
+   "pattern": "yoshokutrio"
+  },
+  {
+   "vid": "dv_05.mp4",
+   "poster": "dv_05_poster.jpg",
+   "t": "洋食・本日の一皿",
+   "cap": "今夜は、肉。",
+   "tags": "",
+   "music": "1分23秒～　愛の傘下",
+   "pattern": "yoshokudish"
+  },
+  {
+   "vid": "dv_06.mp4",
+   "poster": "dv_06_poster.jpg",
+   "t": "洋食・黒板トラットリア",
+   "cap": "この一皿に乾杯を。",
+   "tags": "",
+   "music": "1分3秒～　Funky_droll_street",
+   "pattern": "yoshokuchalk"
+  },
+  {
+   "vid": "dv_07.mp4",
+   "poster": "dv_07_poster.jpg",
+   "t": "洋食・鉄板ジュ〜っと",
+   "cap": "肉と、赤と、いい夜と。",
+   "tags": "",
+   "music": "1分51秒～　Good_Evening_Sunset",
+   "pattern": "yoshokusizzle"
+  },
+  {
+   "vid": "dv_08.mp4",
+   "poster": "dv_08_poster.jpg",
+   "t": "洋食・シネマ",
+   "cap": "腹ペコ、集合。",
+   "tags": "",
+   "music": "26秒～　Just_the_Record",
+   "pattern": "yoshokucine"
+  },
+  {
+   "vid": "dv_09.mp4",
+   "poster": "dv_09_poster.jpg",
+   "t": "洋食・大見出しタイポ",
+   "cap": "いい夜の、はじまり。",
+   "tags": "",
+   "music": "French_Toast",
+   "pattern": "yoshokutype"
+  },
+  {
+   "vid": "dv_10.mp4",
+   "poster": "dv_10_poster.jpg",
+   "t": "洋食・本日OPEN案内",
+   "cap": "〜コスパ良く日常に贅沢を〜",
+   "tags": "",
+   "music": "paving_walkway",
+   "pattern": "yoshokuopen"
+  }
+ ]
+}
