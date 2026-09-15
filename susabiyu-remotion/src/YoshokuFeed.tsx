@@ -18,6 +18,10 @@ export const FEED_H = 1350;
 export const FEED_DUR = 1; // 静止画（stillで1フレーム抜く）
 
 type P = { storeName?: string; handle?: string; theme?: string };
+// 料理を props で差し込むための型。既定は typoData の1品目(dish())だが、it を渡せばその皿を描く。
+//   これが無いと「料理ごとに1枚ずつ焼く」たびに typoData.ts を書き換えて再バンドルが必要になり、
+//   55品で現実的な時間に収まらない。1回バンドルして props だけ差し替えれば全品を回せる。
+type PF = P & { it?: any };
 const D = { storeName: "ナガグツ", handle: "@nagagutsu0427", theme: "italian" };
 export const SIDE = 64;
 
@@ -182,8 +186,8 @@ export const SmallName: React.FC<{ text: string; w: number; color: string; num?:
   };
 
 // ①A フルブリード×ボトム暗幕（定番・最強のデフォルト）
-export const YoshokuFeedA: React.FC<P> = ({ storeName = D.storeName, handle = D.handle, theme = D.theme }) => {
-  const T = ytheme(theme); const d = dish();
+export const YoshokuFeedA: React.FC<PF> = ({ storeName = D.storeName, handle = D.handle, theme = D.theme, it }) => {
+  const T = ytheme(theme); const d = it || dish();
   return (
     <AbsoluteFill style={{ backgroundColor: T.base }}>
       <Photo src={d.src} />
@@ -204,8 +208,8 @@ export const YoshokuFeedA: React.FC<P> = ({ storeName = D.storeName, handle = D.
 
 // ②B ボトムバンド・エディトリアル（写真＋モルタル色のベタ帯・清潔で読みやすい）
 // 下の帯は“真っ黒”をやめ、少し明るいモルタル(コンクリート)色に。料理説明も帯の中へ。
-export const YoshokuFeedB: React.FC<P> = ({ storeName = D.storeName, handle = D.handle, theme = D.theme }) => {
-  const T = ytheme(theme); const d = dish();
+export const YoshokuFeedB: React.FC<PF> = ({ storeName = D.storeName, handle = D.handle, theme = D.theme, it }) => {
+  const T = ytheme(theme); const d = it || dish();
   return (
     <AbsoluteFill style={{ backgroundColor: MORTAR }}>
       <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: 940, overflow: "hidden" }}>
@@ -233,8 +237,8 @@ export const YoshokuFeedB: React.FC<P> = ({ storeName = D.storeName, handle = D.
 // ③C 雑誌エディトリアル（写真を主役に全面／クリームのキャプション枠を重ねる）
 // 旧版は左のテラコッタ面が大きすぎたので廃止。さらにクリームのキャプション枠も“背景色が目立ちすぎる”
 // ため廃止し、写真の下をやわらかく沈めて文字を直接置く誌面に変更（写真が主役／文字は左の罫で束ねる）。
-export const YoshokuFeedC: React.FC<P> = ({ storeName = D.storeName, handle = D.handle, theme = D.theme }) => {
-  const T = ytheme(theme); const d = dish();
+export const YoshokuFeedC: React.FC<PF> = ({ storeName = D.storeName, handle = D.handle, theme = D.theme, it }) => {
+  const T = ytheme(theme); const d = it || dish();
   const PANEL_W = 792;
   return (
     <AbsoluteFill style={{ backgroundColor: T.base }}>
@@ -325,12 +329,12 @@ const EBase: React.FC<P & { rail: string; railText?: string; it?: any; photo?: R
     </AbsoluteFill>
   );
 };
-export const YoshokuFeedE: React.FC<P> = (p) => <EBase {...p} rail={ytheme(p.theme || D.theme).slab} />;               // テラコッタ
+export const YoshokuFeedE: React.FC<PF> = (p) => <EBase {...p} rail={ytheme(p.theme || D.theme).slab} />;               // テラコッタ
 // 案E をそのまま動画の1ページとして使うための入口（料理と写真だけ差し替えられる）。
 // 作り直すと似て非なるものになるので、組み方は E 本体を1つだけ持つ。
 export const YoshokuFeedEAt: React.FC<P & { it?: any; photo?: React.ReactNode }> = (p) => <EBase {...p} rail={ytheme(p.theme || D.theme).slab} />;
-export const YoshokuFeedE2: React.FC<P> = (p) => <EBase {...p} rail="#4E7A3A" />;                                      // オリーブ/イタリアングリーン
-export const YoshokuFeedE3: React.FC<P> = (p) => <EBase {...p} rail="#B58A2E" />;                                      // 深めゴールド
+export const YoshokuFeedE2: React.FC<PF> = (p) => <EBase {...p} rail="#4E7A3A" />;                                      // オリーブ/イタリアングリーン
+export const YoshokuFeedE3: React.FC<PF> = (p) => <EBase {...p} rail="#B58A2E" />;                                      // 深めゴールド
 
 // ⑥F テラコッタ・リボン販促（全面写真＋「本日のおすすめ」ベタ帯＝集客の顔）
 export const YoshokuFeedF: React.FC<P> = ({ storeName = D.storeName, handle = D.handle, theme = D.theme }) => {
@@ -532,7 +536,7 @@ export const YoshokuFeedH3: React.FC<P> = ({ storeName = D.storeName, handle = D
   );
 };
 
-export const FEED_COMPS: { id: string; label: string; comp: React.FC<P> }[] = [
+export const FEED_COMPS: { id: string; label: string; comp: React.FC<PF> }[] = [
   { id: "YoshokuFeedA", label: "フィード案A・フルブリード(暗幕なし)", comp: YoshokuFeedA },
   { id: "YoshokuFeedB", label: "フィード案B・ボトムバンド・エディトリアル", comp: YoshokuFeedB },
   { id: "YoshokuFeedC", label: "フィード案C・雑誌エディトリアル(キャプション枠)", comp: YoshokuFeedC },
