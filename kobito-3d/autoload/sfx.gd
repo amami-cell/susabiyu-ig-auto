@@ -30,6 +30,7 @@ var _bgm_title: AudioStreamPlayer
 var _bgm_on := false
 var _battle := 0.0             # 戦闘度 0..1（敵が近いと上がる。曲をなめらかに切替）
 const BATTLE_RANGE := 9.0      # この距離に敵が来たら“戦闘”
+var _bird_t := 4.0             # 次に小鳥を鳴かせるまでの残り秒（回復が高いほど短く）
 
 const CFG_PATH := "user://settings.cfg"
 var _master := 0.8          # 全体音量（0.0〜1.0）。設定スライダーで変える。保存される。
@@ -289,6 +290,37 @@ func _process(delta: float) -> void:
 	_bgm_shine.volume_db = lerpf(-60.0, -7.0, r) - _battle * 12.0
 	_bgm_pad.volume_db = lerpf(-16.0, -11.0, r) - _battle * 3.0
 
+	_ambient_life(delta, r)
+
+
+## 世界が生き返るほど、たまに遠くで小鳥がさえずる。汚れている時は静寂＝
+## 「回復が“聞こえる”」payoff。戦闘中・夜/屋内/水辺では鳴かせない。各端末で判定・純演出。
+func _ambient_life(delta: float, r: float) -> void:
+	if r < 0.45:
+		_bird_t = randf_range(3.0, 6.0)   # まだ汚れている＝静けさ
+		return
+	if _battle > 0.35:
+		return                            # 戦闘の緊張を壊さない
+	var wb: String = Net.world_biome
+	if wb == "night" or wb == "house" or wb == "water":
+		return                            # 夜/屋内/水辺は小鳥の出番ではない
+	_bird_t -= delta
+	if _bird_t > 0.0:
+		return
+	# 回復が高いほど頻繁に（間隔 8秒→3秒）。ばらつかせて機械的に聞こえないように。
+	var k := clampf((r - 0.45) / 0.55, 0.0, 1.0)
+	_bird_t = lerpf(8.0, 3.0, k) * randf_range(0.7, 1.35)
+	var players := get_tree().get_nodes_in_group("player")
+	if players.is_empty():
+		return
+	var p := players[randi() % players.size()] as Node3D
+	if p == null:
+		return
+	var ang := randf() * TAU
+	var dist := randf_range(6.0, 12.0)
+	var pos: Vector3 = p.global_position + Vector3(cos(ang) * dist, randf_range(1.8, 3.6), sin(ang) * dist)
+	play_at("bird", pos, -17.0 - randf_range(0.0, 4.0))   # 遠くで控えめに
+
 
 ## 中ボス（is_midboss）が生きて近くに居るか＝“山場”か。各自の端末で判定。
 func _boss_near() -> bool:
@@ -363,6 +395,7 @@ func _build_bank() -> void:
 	_bank["milestone"] = _make(_milestone())
 	_bank["pickup"] = _make(_pickup())
 	_bank["befriend"] = _make(_befriend())         # なかまになった（浄化完了）専用
+	_bank["bird"] = _make(_birdsong())             # 環境音：世界が生き返った気配の小鳥
 	_bank["chapter_clear"] = _make(_chapter_clear())  # 章クリアのファンファーレ
 	_bank["ending"] = _make(_ending())             # 真エンディングの締め
 	_bank["alert"] = _make(_alert())               # 中ボス出現の警告
@@ -566,6 +599,37 @@ func _befriend() -> PackedFloat32Array:
 		var atk := clampf(t / 0.02, 0.0, 1.0)
 		var env := pow(1.0 - t, 1.1) * atk
 		out[i] = (bell + body) * env * 0.3
+	return out
+
+
+## 環境音の小鳥：2〜3音節の さえずり。各音節で周波数を素早く滑らせ（位相を積分＝
+## クリーンなグリッサンド）、ふくらんで消える包絡＋やわらかいビブラート。遠くで控えめに鳴らす。
+func _birdsong() -> PackedFloat32Array:
+	var total := 0.46
+	var n := int(RATE * total)
+	var out := PackedFloat32Array()
+	out.resize(n)
+	# 音節：開始秒 / 長さ / 始めの周波数 / 終わりの周波数（ピュルッと上下に滑る）
+	var syllables := [
+		{"start": 0.00, "dur": 0.13, "f0": 2500.0, "f1": 3600.0},
+		{"start": 0.18, "dur": 0.11, "f0": 3300.0, "f1": 2600.0},
+		{"start": 0.31, "dur": 0.10, "f0": 2900.0, "f1": 3400.0},
+	]
+	for sy in syllables:
+		var s0: int = int(float(sy["start"]) * RATE)
+		var sn: int = int(float(sy["dur"]) * RATE)
+		var phase := 0.0
+		for j in sn:
+			var idx := s0 + j
+			if idx >= n:
+				break
+			var u := float(j) / maxf(sn, 1)
+			var vib := 1.0 + 0.03 * sin(TAU * 24.0 * (float(j) / RATE))   # 小刻みなビブラート
+			var f: float = lerpf(float(sy["f0"]), float(sy["f1"]), u) * vib
+			phase += TAU * f / RATE                                        # 位相を積分＝滑らかなグリッサンド
+			var env := sin(PI * clampf(u, 0.0, 1.0))                       # ふくらんで消える（プチッ無し）
+			var tone := sin(phase) * 0.7 + sin(phase * 2.0) * 0.2
+			out[idx] += tone * env * 0.22
 	return out
 
 
