@@ -80,6 +80,8 @@ var _cloud_mmi: MeshInstance3D = null
 var _mote_mm: MultiMesh = null          # 空気に舞う花粉/ちり（回復で色・数が変わる）
 var _mote_mat: ShaderMaterial = null
 var _mote_n := 0
+var _crit_mm: MultiMesh = null          # 地面の小さな生き物（回復で数が増える）
+var _crit_n := 0
 var _ground_shader: ShaderMaterial = null
 var _grass_mm: MultiMesh = null
 var _flower_mm: MultiMesh = null
@@ -822,6 +824,7 @@ func _setup_visuals() -> void:
 	_build_boulders()
 	_build_butterflies()
 	_build_motes()   # 空気に舞う花粉/ちり（回復で 灰のちり→金の花粉）＝“生きた空気”
+	_build_critters()   # 地面を ちょこちょこ歩く 小さな生き物＝“戻ってきた命”
 	_build_actor_shadows()
 	_build_bloom()
 	_build_water_lite()
@@ -2019,6 +2022,70 @@ func _update_motes(r: float) -> void:
 		_mote_mat.set_shader_parameter("glow", lerpf(0.6, 1.3, r))
 
 
+## 地面の小さな生き物：小さな甲虫が ちょこちょこ歩き回る＝“戻ってきた命”。
+## 頂点シェーダで各個体を小さな楕円軌道に歩かせる（CPU負荷ゼロ・1ドローコール）。回復で数が増える。
+func _build_critters() -> void:
+	var body := SphereMesh.new()
+	body.radius = 0.07
+	body.height = 0.09       # 少し平たい甲虫の胴
+	body.radial_segments = 6
+	body.rings = 4
+	var mat := ShaderMaterial.new()
+	var sh := Shader.new()
+	sh.code = """
+shader_type spatial;
+render_mode cull_disabled;
+uniform vec3 body_col : source_color = vec3(0.22, 0.15, 0.11);
+void vertex(){
+	float ph = INSTANCE_CUSTOM.r * 6.2831;
+	float sp = 0.25 + INSTANCE_CUSTOM.g * 0.45;
+	float rad = 0.8 + INSTANCE_CUSTOM.b * 1.8;
+	// 楕円軌道でうろうろ＋ちょこちょこ小刻みに上下（歩く感じ）
+	VERTEX.x += cos(TIME * sp + ph) * rad;
+	VERTEX.z += sin(TIME * sp * 1.1 + ph) * rad * 0.7;
+	VERTEX.y += abs(sin(TIME * sp * 5.0 + ph)) * 0.025;
+}
+void fragment(){
+	// 上面を少し明るく＝甲虫のつや（真っ黒に潰れない）
+	float top = clamp(NORMAL.y * 0.5 + 0.5, 0.0, 1.0);
+	ALBEDO = body_col * mix(0.8, 1.35, top);
+	ROUGHNESS = 0.6;
+}
+"""
+	mat.shader = sh
+	body.surface_set_material(0, mat)
+
+	_crit_n = 12 if OS.has_feature("web") else 24
+	_crit_mm = MultiMesh.new()
+	_crit_mm.transform_format = MultiMesh.TRANSFORM_3D
+	_crit_mm.use_custom_data = true
+	_crit_mm.mesh = body
+	_crit_mm.instance_count = _crit_n
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 90210
+	for i in _crit_n:
+		var pos := Vector3(rng.randf_range(-28.0, 28.0), 0.09, rng.randf_range(-28.0, 28.0))
+		# 胴を少し平たく（甲虫らしく）
+		var basis := Basis().scaled(Vector3(1.0, 0.6, 1.3))
+		_crit_mm.set_instance_transform(i, Transform3D(basis, pos))
+		_crit_mm.set_instance_custom_data(i, Color(rng.randf(), rng.randf(), rng.randf(), rng.randf()))
+	var mmi := MultiMeshInstance3D.new()
+	mmi.name = "Critters"
+	mmi.multimesh = _crit_mm
+	mmi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	mmi.extra_cull_margin = 40.0
+	add_child(mmi)
+	_update_critters(WorldState.recovery)
+
+
+## 回復で 地面の生き物の数を増やす（汚れ時は少し、緑で にぎやか）。空(sky)には出さない。
+func _update_critters(r: float) -> void:
+	if _crit_mm == null:
+		return
+	var on := biome != "sky"
+	_crit_mm.visible_instance_count = int(_crit_n * lerpf(0.2, 1.0, r)) if on else 0
+
+
 ## 蝶。回復するほど数が増える“命”。羽ばたきは頂点シェーダ、飛行はCPUで軽く。
 func _build_butterflies() -> void:
 	var wing := PlaneMesh.new()
@@ -2140,6 +2207,7 @@ func _on_recovery_changed(_value: float) -> void:
 	_update_grass(r)
 	_update_flowers(r)
 	_update_motes(r)
+	_update_critters(r)
 	_update_plants(r)
 	_update_tree_leaves(r)
 	var env := _env.environment
