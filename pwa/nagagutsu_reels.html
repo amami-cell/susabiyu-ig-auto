@@ -203,7 +203,7 @@
 <div class="modal" id="tagmodal">
   <div class="sheet">
     <h3>ハッシュタグを編集</h3>
-    <div class="sub">タップで選択／解除。★＝人気の目安、点線＝インバウンド向け。「今の地域のおすすめ」で地域の人気タグを取得できます。</div>
+    <div class="sub">タップで選択／解除。★＝人気の目安、点線＝インバウンド向け。「今の梅田・大阪のおすすめ」で地域の人気タグを取得できます。</div>
     <div id="tagbody"></div>
     <button class="sheetclose" id="tagclose">この内容で決定</button>
   </div>
@@ -246,11 +246,18 @@
   var ACCOUNT = CFG.ACCOUNT || "nagagutsu";   // 予約投稿タブ J列 / AcctTokens と一致
   var COMMON = "#ナガグツ #イタリアン #肉バル #肉料理 #ワインに合う #パスタ #バル #ディナー #デート #女子会 #italianfood #pasta #winebar";
   // 店舗情報テンプレ（各投稿のキャプション末尾に自動追加）。空行の見えない文字(U+2061)はInstagramで改行を保持するため。
-  // ※営業時間・住所・アクセスは店舗情報確定後に記入（phase2）。
+  // 値は店舗受付（記入用）シートの「入力用」タブ・ナガグツ行から取得（2026-09）。
   var TEMPLATE = [
     "▪️▪️▪️▪️▪️▪️▪️▪️▪️▪️▪️▪️▪️▪️▪️▪️",
     "⁡",
     "ナガグツ（イタリアン・肉バル）",
+    "⁡",
+    "営業時間：日〜木 11:30〜24:00",
+    "金土祝前 11:30〜翌5:00",
+    "⁡",
+    "📍大阪府大阪市北区堂山町8-8 梅田エイトビル 1F",
+    "⁡",
+    "🚶各線梅田駅より徒歩8分／大阪メトロ谷町線 中崎町駅 徒歩5分",
     "⁡",
     "▪️▪️▪️▪️▪️▪️▪️▪️▪️▪️▪️▪️▪️▪️▪️▪️",
     "⁡",
@@ -326,11 +333,16 @@
   var DEFAULT=["イタリアン","肉バル","肉料理","ワインに合う","ナガグツ","italianfood","pasta"]; // 国内5＋インバウンド2＝7
   var STAR={3:"★★★",2:"★★",1:"★"}, RANKTTL={3:"人気 大",2:"人気 中",1:"人気 小（上位ねらい）"};
 
-  /* ---------- 地域おすすめタグ（所在地確定後に設定・phase2） ---------- */
+  /* ---------- 地域おすすめタグ（梅田・大阪。店舗受付シートのエリア=梅田・堂山町より） ---------- */
   var REGIONAL=[], REG_LIVE=false, REG_UPDATED=0, REG_NEXT=0, REG_COOLDOWN_DAYS=7;
   var REG_LS={t:"ng_reg_tags",u:"ng_reg_up",n:"ng_reg_nx",l:"ng_reg_live"};
-  var REGION_NAME="";
-  var REGION_POOL=[];
+  var REGION_NAME="梅田（大阪）";
+  var REGION_POOL=[
+    {t:"梅田ディナー",r:3},{t:"大阪グルメ",r:3},{t:"梅田グルメ",r:3},{t:"梅田ごはん",r:2},
+    {t:"大阪ディナー",r:2},{t:"梅田バル",r:2},{t:"梅田肉バル",r:2},{t:"中崎町グルメ",r:1},
+    {t:"大阪デート",r:1},{t:"梅田飲み",r:1},
+    {t:"osakafood",r:3,inb:1},{t:"osakagourmet",r:2,inb:1},{t:"umeda",r:2,inb:1},{t:"osakajapan",r:1,inb:1}
+  ];
   function fmtDT(ms){ if(!ms) return "—"; var d=new Date(ms); return (d.getMonth()+1)+"/"+d.getDate()+" "+d.getHours()+":"+("0"+d.getMinutes()).slice(-2); }
   function fmtDate(ms){ if(!ms) return "—"; var d=new Date(ms); return (d.getMonth()+1)+"/"+d.getDate(); }
   function regApply(res,now){ if(res&&res.ok&&res.tags&&res.tags.length){ REGIONAL=res.tags; REG_LIVE=!!res.live; REG_UPDATED=res.updatedAt||now||0; REG_NEXT=res.nextAt||0; return true; } return false; }
@@ -340,8 +352,9 @@
 
   /* ---------- 候補データ（実データ接続時は cands で差し替え可能） ---------- */
   // フィード候補は全て「加工済みの投稿画像(feed_01〜12)」＝ロゴ＋見出しデザイン入り。生写真は出さない。
-  // ナガグツの見本メニューは店舗の実メニュー確定後に投入（phase2）。
-  // それまでは空＝見本グリッドは非表示。実データ連携時は cands / feed.json で差し替わる。
+  // フィード／リールとも起動時は空。下の loadFeedJson / loadReelJson が
+  // pwa/nagagutsu/feed.json（全55品・加工済み）と reel.json（動画10本）を読んで流し込む。
+  // ＝素材が増減しても HTML を書き換えずに済む（ぎふやはここに直書きだが方式を変えた）。
   var FEED = [];
   var REEL = [];
 
@@ -351,7 +364,7 @@
   function renderTagEditor(){
     var sel=GSEL, body=document.getElementById("tagbody");
     var now=Date.now(), cd=(REG_NEXT&&now<REG_NEXT);
-    var btnTxt=cd?("🔒 取得済み（次回取得可能 "+fmtDate(REG_NEXT)+"）"):"🔄 今の地域のおすすめを取得";
+    var btnTxt=cd?("🔒 取得済み（次回取得可能 "+fmtDate(REG_NEXT)+"）"):"🔄 今の梅田・大阪のおすすめを取得";
     var html='<div class="tebar">選択中 <b class="tesel">'+Object.keys(sel).length+'</b> 個 ／ 点線＝インバウンド</div>'+
       '<button class="fetchbtn'+(cd?" cd":"")+'" id="fetchreg">'+btnTxt+'</button>'+
       '<div class="fetchnote">※「今の人気（Instagram調べ）」はInstagram Graph APIの制限で、ハッシュタグ検索が7日で30個まで。1人が取得すると全員に共有され、次回取得可能日が出ます。'+(LIVE?"":"（見本モードでは地域おすすめを表示）")+'</div>';
@@ -578,7 +591,7 @@
     hint.innerHTML = (kind==="feed"
       ? "次に投稿する<b>おすすめを3つ</b>だけ表示（同じジャンル＝串かつ・どて焼きなどが続かないよう自動で分散）。他の料理は「全商品から選ぶ」で。"
       : "リール候補です（現在は準備中・形のみ）。<b>今すぐ投稿</b> または <b>日時を決めて予約</b>できます。")
-      + "<br>※ナガグツ（@nagagutsu0427）" + (LIVE?"：実データ連携中。":"：現在は見本モードです。") + "投稿は毎日12時・18時・20時に自動投稿予定。";
+      + "<br>※ナガグツ（@nagagutsu0427）" + (LIVE?"：実データ連携中。":"：現在は見本モードです。") + "投稿は毎日12時・18時・20時に自動投稿中。";
     wrap.appendChild(hint);
     var list = kind==="feed"?FEED:REEL;
     function renderList(){
