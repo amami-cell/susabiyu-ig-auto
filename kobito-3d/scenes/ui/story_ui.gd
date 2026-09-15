@@ -513,6 +513,8 @@ func _celebrate_chapter(theme: String) -> void:
 	var tint: Color = t["tint"]
 	var rise: bool = bool(t.get("rise", true))
 	var count := 10 if Net.is_web() else 18
+	if UIKit.reduce_fx():
+		count = int(count * 0.45)   # えんしゅつ ひかえめ：記号ふぶきを控えめに
 	for _i in count:
 		var p := Label.new()
 		p.text = String(marks[randi() % marks.size()])

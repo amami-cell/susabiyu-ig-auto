@@ -101,3 +101,28 @@ static func save_ui_scale(scale: float) -> void:
 	cfg.set_value("display", "ui_scale", scale)
 	cfg.save(_CFG)
 	apply_ui_scale(scale)
+
+
+# ------------------------------------------------------------ えんしゅつ ひかえめ（アクセシビリティ）
+#
+# 赤い被弾フラッシュ・画面ゆれ・記号ふぶき等の“強い演出”を弱める。光過敏の子や 刺激に敏感な人へ。
+# 家族・子ども向けだからこそ「誰も脱落しない」を看板に。起動時に読み込み、各所が reduce_fx() を見る。
+static var _reduce_fx := false
+
+static func load_reduce_fx() -> void:
+	var cfg := ConfigFile.new()
+	if cfg.load(_CFG) == OK:
+		_reduce_fx = bool(cfg.get_value("display", "reduce_fx", false))
+
+
+static func save_reduce_fx(on: bool) -> void:
+	_reduce_fx = on
+	var cfg := ConfigFile.new()
+	cfg.load(_CFG)
+	cfg.set_value("display", "reduce_fx", on)
+	cfg.save(_CFG)
+
+
+static func reduce_fx() -> bool:
+	return _reduce_fx
+

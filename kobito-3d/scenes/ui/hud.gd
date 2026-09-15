@@ -104,7 +104,8 @@ func _panel_behind(target: Control, bg: Color, border: Color, radius: int) -> Pa
 ## 「やられた…／もうすぐ 起きあがる（数字）」の中央表示。復活したら「ふっかつ！」。
 func _build_downed() -> void:
 	_downed_dim = ColorRect.new()
-	_downed_dim.color = Color(0.45, 0.06, 0.06, 0.4)   # 画面を赤く沈める＝“やられた”が一目で
+	# ダウン暗転：ふだんは赤く沈める。えんしゅつ ひかえめ時は やわらかい低彩度で（刺激を抑える）。
+	_downed_dim.color = Color(0.2, 0.2, 0.25, 0.25) if UIKit.reduce_fx() else Color(0.45, 0.06, 0.06, 0.4)
 	_downed_dim.set_anchors_preset(Control.PRESET_FULL_RECT)
 	_downed_dim.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_downed_dim.visible = false
@@ -150,7 +151,11 @@ func _process(delta: float) -> void:
 	_hp_bar.value = _player.hp
 	# HPが減った瞬間＝赤フラッシュ（中央視界で被弾が分かる）。復活での回復は無視。
 	if _last_hp >= 0 and _player.hp < _last_hp and _player.hp > 0 and _hurt_flash != null:
-		_hurt_flash.color.a = 0.32
+		# えんしゅつ ひかえめ：中央全面の赤い明滅をやめ、周縁だけ ごく淡い低彩度に（光過敏配慮）。
+		if UIKit.reduce_fx():
+			_hurt_flash.color = Color(0.55, 0.35, 0.4, 0.14)
+		else:
+			_hurt_flash.color = Color(0.8, 0.1, 0.1, 0.32)
 		var tw := create_tween()
 		tw.tween_property(_hurt_flash, "color:a", 0.0, 0.35)
 	_last_hp = _player.hp

@@ -13,6 +13,7 @@ var _garden: Node3D = null
 
 func _ready() -> void:
 	UIKit.apply_ui_scale(UIKit.load_ui_scale())   # もじの大きさ設定を最初に反映
+	UIKit.load_reduce_fx()                        # えんしゅつ ひかえめ 設定を読み込む
 	_setup_gamepad()
 	_show_lobby(true)
 	_build_vignette()

@@ -116,6 +116,17 @@ func _ready() -> void:
 	_vbox.move_child(size_opt, size_label.get_index() + 1)
 	size_opt.item_selected.connect(func(idx: int) -> void: UIKit.save_ui_scale(UIKit.UI_SCALES[idx]))
 
+	# えんしゅつ ひかえめ（光過敏・刺激に敏感な子へ）：赤い被弾フラッシュ・画面ゆれ・記号ふぶきを弱める。
+	var fx_btn := CheckButton.new()
+	fx_btn.text = "えんしゅつ ひかえめ（ひかり・ゆれ）"
+	fx_btn.custom_minimum_size = Vector2(0, 52)
+	fx_btn.add_theme_font_size_override("font_size", 18)
+	UIKit.load_reduce_fx()
+	fx_btn.button_pressed = UIKit.reduce_fx()
+	_vbox.add_child(fx_btn)
+	_vbox.move_child(fx_btn, size_opt.get_index() + 1)
+	fx_btn.toggled.connect(func(on: bool) -> void: UIKit.save_reduce_fx(on))
+
 	_transport.add_item("ENet（PC/Android・低遅延・おすすめ）", Net.Transport.ENET)
 	_transport.add_item("WebSocket（ブラウザでも動く）", Net.Transport.WEBSOCKET)
 	_transport.selected = 1 if Net.transport == Net.Transport.WEBSOCKET else 0

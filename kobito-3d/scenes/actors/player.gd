@@ -701,11 +701,15 @@ func _nearest_bug_in_reach() -> Node3D:
 
 ## カメラを一瞬ゆらす（被弾・攻撃ヒットの手応え）。次のフレームから自然に減衰。
 func shake(amount: float) -> void:
+	if UIKit.reduce_fx():
+		amount *= 0.2   # えんしゅつ ひかえめ：ゆれを大きく抑える（光/揺れ過敏へ）
 	_shake = maxf(_shake, amount)
 
 
 ## 画角を一瞬だけ動かす（マイナス=寄る/プラス=引く）。奥行きの手応え。0へ自然に戻る。
 func fov_kick(amount: float) -> void:
+	if UIKit.reduce_fx():
+		amount *= 0.3
 	_fov_kick = clampf(_fov_kick + amount, -8.0, 10.0)
 
 
