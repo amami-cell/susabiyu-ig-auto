@@ -115,24 +115,42 @@ func _flash_green(peak: float) -> void:
 ## 映画的なビネット（周辺減光）。全機種で効く軽い画面演出＝“今っぽさ”が出る。
 ## 3Dの上・HUDの下に敷く。中央は透明、周辺だけ暗い放射グラデ。
 func _build_vignette() -> void:
-	var grad := Gradient.new()
-	grad.set_offset(0, 0.62)
-	grad.set_color(0, Color(0, 0, 0, 0))
-	grad.add_point(1.0, Color(0.02, 0.02, 0.04, 0.30))
-	var tex := GradientTexture2D.new()
-	tex.gradient = grad
-	tex.fill = GradientTexture2D.FILL_RADIAL
-	tex.fill_from = Vector2(0.5, 0.5)
-	tex.fill_to = Vector2(1.25, 1.25)
-	tex.width = 256
-	tex.height = 256
-
-	var rect := TextureRect.new()
+	# 絵本の質感を画面全体に通す“印刷風”オーバレイ（乗算）：周辺減光＋紙の粒子＋生成りの紙色。
+	# UIの下・3Dの上に敷く＝ゲーム世界だけ 紙に刷ったように見え、UIは くっきりのまま。
+	# 「えんしゅつ ひかえめ」時は 粒子の明滅を止め、減光も弱める（光/ちらつき過敏へ）。
+	var soft := UIKit.reduce_fx()
+	var rect := ColorRect.new()
 	rect.name = "Vignette"
-	rect.texture = tex
-	rect.stretch_mode = TextureRect.STRETCH_SCALE
-	rect.set_anchors_preset(Control.PRESET_FULL_RECT)
+	var mat := ShaderMaterial.new()
+	var sh := Shader.new()
+	sh.code = """
+shader_type canvas_item;
+render_mode blend_mul;
+uniform float vig = 0.34;
+uniform float grain = 0.045;
+uniform float flick = 1.0;
+float hash(vec2 p){ return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
+void fragment(){
+	vec2 d = UV - vec2(0.5);
+	float r = length(d) * 1.32;
+	float v = 1.0 - vig * smoothstep(0.55, 1.05, r);          // 中央=1・周辺で暗く（紙のふち）
+	float g = hash(floor(FRAGCOORD.xy) + vec2(floor(TIME * 6.0 * flick) * 1.7));
+	float gr = 1.0 - grain * (g - 0.5);                        // ±grain の紙の粒子
+	vec3 paper = vec3(1.0, 0.992, 0.975);                     // ほんのり生成りの紙色
+	COLOR = vec4(paper * v * gr, 1.0);
+}
+"""
+	mat.shader = sh
+	mat.set_shader_parameter("vig", 0.22 if soft else 0.34)
+	mat.set_shader_parameter("grain", 0.0 if soft else 0.045)
+	mat.set_shader_parameter("flick", 0.0 if soft else 1.0)
+	rect.material = mat
+	rect.color = Color(1, 1, 1, 1)
 	rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	rect.size = get_viewport().get_visible_rect().size
+	get_viewport().size_changed.connect(func() -> void:
+		if is_instance_valid(rect):
+			rect.size = get_viewport().get_visible_rect().size)
 	$UI.add_child(rect)
 	$UI.move_child(rect, 0)   # 3Dの上・他UIの下
 
