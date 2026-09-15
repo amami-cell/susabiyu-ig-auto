@@ -487,7 +487,7 @@ export const YoshokuNastro: React.FC<P> = ({ storeName = D.storeName, handle = D
    前の版は等間隔の拍に画を乗せていたので、曲のどこでも同じ顔で脈打つだけだった。
    ここでは typoAccents（曲のフレーズの頭・サビの入り）だけを切り替え点にする。
    間隔はバラバラ＝曲が動いた所で画も動く。拍ごとの脈動は全部やめた。 */
-const BattereBody: React.FC<Required<P> & { uniq?: boolean }> = ({ storeName, handle, theme, uniq }) => {
+const BattereBody: React.FC<Required<P> & { uniq?: boolean; lead?: number }> = ({ storeName, handle, theme, uniq, lead }) => {
   const f = useCurrentFrame(); const T = ytheme(theme);
   const CUTS = accentCuts(STORY_OPEN);              // 曲が「入る」瞬間だけ
   // uniq: 切り替わる回数ぶん別の皿を出す（同じ皿を2度出さない）。
@@ -496,8 +496,12 @@ const BattereBody: React.FC<Required<P> & { uniq?: boolean }> = ({ storeName, ha
   //   写真は N_PHOTOS=7 まで取ってあるので、切り替え数ぶん引いて全部バラバラにする。
   //   採用済みの No.35/37 は承認された見え方を変えないため既定のまま。
   const items = dishes(uniq ? Math.max(4, CUTS.length) : 4);
-  const i = cutIndex(CUTS, f);
-  const local = f - (CUTS[i] ?? 0);
+  // lead: 画の切り替えを拍より数フレームだけ前へ出す（No.32専用）。
+  //   人の目には「画が音より少し遅れる」と“遅い”に見えるので、わずかに先行させて
+  //   拍の頭にピタッと着地して見えるようにする。0（既定）＝No.35/37は従来どおり。
+  const LEAD = lead ?? 0;
+  const i = cutIndex(CUTS, f + LEAD);
+  const local = f - ((CUTS[i] ?? 0) - LEAD);
   const seg = (CUTS[i + 1] ?? BODY) - (CUTS[i] ?? 0);
   const d = uniq ? (items[i] ?? items[items.length - 1]) : items[i % items.length];
 
@@ -542,8 +546,9 @@ const BattereBody: React.FC<Required<P> & { uniq?: boolean }> = ({ storeName, ha
 };
 export const YoshokuBattere: React.FC<P> = ({ storeName = D.storeName, handle = D.handle, theme = D.theme }) => (
   <Shell v={8} base="#100D0A" storeName={storeName} handle={handle} theme={theme}>
-    {/* No.32 は「全てバラバラの商品で」の指定。切り替わる回数ぶん別の皿を出す。 */}
-    <BattereBody storeName={storeName} handle={handle} theme={theme} uniq />
+    {/* No.32 は「全てバラバラの商品で」の指定。切り替わる回数ぶん別の皿を出す。
+        画が少し遅く見えたので lead=2 コマだけ切り替えを前倒しして拍に着地させる。 */}
+    <BattereBody storeName={storeName} handle={handle} theme={theme} uniq lead={2} />
   </Shell>
 );
 
