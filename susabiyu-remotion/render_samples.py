@@ -258,6 +258,14 @@ def main():
         _io.open("src/typoData.ts", "w", encoding="utf-8").write(s)
 
     samples = []
+    reels = []
+    # REEL_OUT を指定すると、CDNへ上げる代わりに「そのフォルダへ dv_NN.mp4 として保存」する。
+    # 確認アプリのリールタブは pwa/<account>/reel.json ＋ ローカル動画を読む（ぎふやと同じ作り）。
+    # 見本ではなく“そのまま投稿する動画”なので、No.Nバッジは焼かない（下の _set_typo で 0 を渡す）。
+    _reel_out = os.environ.get("REEL_OUT", "").strip()
+    if _reel_out:
+        os.makedirs(_reel_out, exist_ok=True)
+        print("[REEL] ローカル保存モード:", _reel_out)
     degraded = []  # 動画のはずが静止画で代替になったパターン（末尾で警告する）
     for idx, pattern in enumerate(patterns):
         if pattern not in REG:
@@ -273,7 +281,8 @@ def main():
         cap = _pm.hook(pattern) or (_pool[ix % len(_pool)] if _pool else "")
         mp = _pm.music_path(pattern, _tracks) or (_tracks[ix % len(_tracks)] if _tracks else "")
         music_name = os.path.splitext(os.path.basename(mp))[0] if mp else ""
-        _set_typo(cap, mp, ix + 1)   # このパターン用にキャプション＆音源＆見本番号(No.idx+1)を差し込む
+        # リール用は投稿そのものなので見本番号(No.N)のバッジを焼かない
+        _set_typo(cap, mp, 0 if _reel_out else ix + 1)
         print("\n=========== 見本レンダリング: %s (%s) | 文言=%s | 音源=%s(+%ds) ==========="
               % (pattern, comp, cap, music_name or "既定", _mstart(mp)))
         try:
@@ -285,11 +294,24 @@ def main():
                     os.remove("out/post.mp4")
                 run("npx remotion render " + comp + " out/post.mp4 --crf 26 --timeout 180000 --concurrency 4" + props_arg)
                 mp4 = "out/post.mp4"
-                url = poster.up(mp4, cdn=True)
+                url = "" if _reel_out else poster.up(mp4, cdn=True)
             else:
                 url = ""
             pj = _poster_jpg(comp, props_arg, mp4, _poster_sec(pattern, _beat_cache.get("acc")))
-            purl = poster.up(pj, cdn=True) if pj else ""
+            purl = "" if _reel_out else (poster.up(pj, cdn=True) if pj else "")
+            if _reel_out:
+                import shutil as _sh
+                nm = "dv_%02d" % (len(reels) + 1)
+                if mp4:
+                    _sh.copyfile(mp4, os.path.join(_reel_out, nm + ".mp4"))
+                # ポスターは必ず "<動画名>_poster.jpg"。確認アプリ側が動画名から
+                # .mp4 → _poster.jpg と読み替えてサムネを探すため（ぎふやと同じ規則）。
+                if pj:
+                    _sh.copyfile(pj, os.path.join(_reel_out, nm + "_poster.jpg"))
+                reels.append({"vid": nm + ".mp4", "poster": nm + "_poster.jpg", "t": label,
+                              "cap": cap, "tags": "", "music": music_name, "pattern": pattern})
+                print("[REEL] 保存 %s <- %s (%s)" % (nm, pattern, music_name or "既定"))
+                continue
             if is_video and not url:
                 # 動画のアップロードに失敗＝見本が“静止画になった動画”になる。黙って差し替えると
                 # 気づかないまま確認アプリに並ぶので、ログ末尾でも分かるよう明示的に警告する。
@@ -306,6 +328,18 @@ def main():
         except Exception as e:
             print("[SAMPLE] 失敗（継続）:", pattern, e)
 
+    if _reel_out:
+        rj = os.path.join(_reel_out, "reel.json")
+        open(rj, "w", encoding="utf-8").write(json.dumps(
+            {"store": account or "susabiyu", "count": len(reels), "items": reels},
+            ensure_ascii=False, indent=1))
+        print("[REEL] %d本を保存 -> %s" % (len(reels), rj))
+        try:
+            import make_thumbs
+            make_thumbs.main(_reel_out)     # dv_NN_poster.thumb/.card.webp
+        except Exception as _e:
+            print("[REEL] WebP生成スキップ（表示は原寸へフォールバック）:", _e)
+        return
     open("out/samples.json", "w", encoding="utf-8").write(json.dumps(samples, ensure_ascii=False, indent=2))
     print("\n===== SAMPLES(JSON) ここから =====")
     print("window.GIFUYA.SAMPLES = " + json.dumps(samples, ensure_ascii=False) + ";")

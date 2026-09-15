@@ -1,0 +1,93 @@
+name: nagagutsu-reels
+# ナガグツの「リールタブ」の素材を作る（ぎふやの gifuya-stories に相当）。
+#   ・採用済み中心の10テンプレを動画で焼いて pwa/nagagutsu/dv_NN.mp4
+#   ・ポスターは dv_NN_poster.jpg（確認アプリが動画名から読み替えて探す規則）
+#   ・reel.json を書き出す（リールタブがこれを読む）
+# 見本ギャラリーと違い「そのまま投稿する動画」なので No.N バッジは焼かない。
+# 容量：1本4〜9MBなので10本で+40MB前後。ぎふや(211MB)より軽く保つため本数を絞っている。
+on:
+  schedule:
+    - cron: '0 20 * * 1'   # 毎週火 05:00 JST（ぎふやの週次 日20:00 UTC とずらす）
+  workflow_dispatch:
+    inputs:
+      patterns:
+        description: "対象パターン（カンマ区切り。空=既定の10本）"
+        required: false
+        default: ""
+permissions:
+  contents: write
+  actions: write
+concurrency:
+  group: nagagutsu-reels
+  cancel-in-progress: false
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 55
+    defaults:
+      run:
+        working-directory: susabiyu-remotion
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: susabiyu-remotion/package-lock.json
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install Python deps
+        run: pip install google-api-python-client google-auth requests jpholiday Pillow boto3 numpy
+      - name: Install Node deps
+        run: npm ci
+      - name: Install ffmpeg
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg
+      - name: Write creds.json
+        run: echo "$GOOGLE_CREDS_B64" | base64 -d > creds.json
+        env:
+          GOOGLE_CREDS_B64: ${{ secrets.GOOGLE_CREDS_B64 }}
+      - name: Render reels
+        env:
+          STORE_ACCOUNT: nagagutsu
+          # 採用済み(No.32/35/37 音ハメ・No.7 おすすめ3品)を先頭に、
+          # 残りは見た目の系統が重ならないように選ぶ（定番/黒板/シズル/シネマ/タイポ/告知）。
+          PATTERNS: ${{ github.event.inputs.patterns || 'yoshokubattere,yoshokuritmo,yoshokuonda,yoshokutrio,yoshokudish,yoshokuchalk,yoshokusizzle,yoshokucine,yoshokutype,yoshokuopen' }}
+          REEL_OUT: ../pwa/nagagutsu
+          # 見本づくりと同じく「使った」に数えない（本番投稿の候補を痩せさせない）
+          USAGE_SKIP: "1"
+          GOOGLE_CREDS_B64: ${{ secrets.GOOGLE_CREDS_B64 }}
+          SHEET_ID: ${{ secrets.SHEET_ID }}
+          REQ_SHEET_ID: ${{ secrets.REQ_SHEET_ID }}
+          GH_MEDIA_REPO: ${{ secrets.GH_MEDIA_REPO }}
+          GH_MEDIA_TOKEN: ${{ secrets.GH_MEDIA_TOKEN }}
+          R2_PUBLIC_BASE: ${{ secrets.R2_PUBLIC_BASE }}
+        run: |
+          python render_samples.py creds.json
+          rm -f creds.json
+      - name: Commit changes + deploy
+        working-directory: .
+        run: |
+          set -e
+          if [ "${{ github.ref }}" != "refs/heads/main" ]; then
+            echo "main 以外（${{ github.ref }}）からの実行のためコミットしません。"; exit 0
+          fi
+          if [ -z "$(git status --porcelain -- pwa/nagagutsu)" ]; then
+            echo "変更なし。コミットしません。"; exit 0
+          fi
+          cur=$(grep -oE 'susabiyu-v[0-9]+' pwa/sw.js | grep -oE '[0-9]+' | head -1)
+          nxt=$((cur + 1))
+          sed -i "s/susabiyu-v$cur/susabiyu-v$nxt/" pwa/sw.js
+          vcur=$(grep -oE '\?v=[0-9]+' pwa/nagagutsu_reels.html | grep -oE '[0-9]+' | head -1)
+          vnxt=$((vcur + 1))
+          sed -i "s/?v=$vcur/?v=$vnxt/" pwa/nagagutsu_reels.html
+          echo "sw v$cur -> v$nxt / media ?v=$vcur -> ?v=$vnxt"
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add pwa/nagagutsu pwa/sw.js pwa/nagagutsu_reels.html
+          git commit -m "ナガグツ: リール素材を焼き直し＋キャッシュv$nxt"
+          git push origin HEAD:main
+          curl -sS -X POST -H "Authorization: Bearer ${{ github.token }}" \
+            -H "Accept: application/vnd.github+json" \
+            "${{ github.api_url }}/repos/${{ github.repository }}/actions/workflows/deploy_pwa.yml/dispatches" \
+            -d '{"ref":"main"}'
