@@ -285,7 +285,8 @@ func _process(delta: float) -> void:
 	_bgm_battle.volume_db = lerpf(-60.0, battle_top, _battle)
 	_bgm_battle.pitch_scale = move_toward(_bgm_battle.pitch_scale, 1.07 if boss else 1.0, delta * 0.5)
 	# 戦闘中は穏やかな層を少し下げて、戦闘曲を主役に
-	_bgm_shine.volume_db = lerpf(-60.0, -10.0, r) - _battle * 10.0
+	# きらめき層＝主題歌の旋律。回復で しっかり戻る（-7db まで）＝「あの曲が帰ってきた」と分かる音量に。
+	_bgm_shine.volume_db = lerpf(-60.0, -7.0, r) - _battle * 12.0
 	_bgm_pad.volume_db = lerpf(-16.0, -11.0, r) - _battle * 3.0
 
 
@@ -654,19 +655,20 @@ func _chord_at(freqs: Array, t: float) -> float:
 	return s
 
 
-## きらめき層：和音の上をやさしく歌うオルゴール旋律（16秒・非反復の長いフレーズ）。
-## Cメジャー・ペンタトニックなので土台のどの和音にも自然に溶ける。回復度で音量が上がる。
+## きらめき層＝主題歌のライトモチーフ：土台の和音の上で タイトルの旋律が歌う。
+## 回復度で音量が上がる＝掃除して世界が緑に還るほど「あの主題歌」が戻ってくる（音楽が世界に反応）。
+## 16秒・和音(C-G-Am-F 各4秒)に 4音ずつ乗せて ぴたりと調和する“主題の一節”。
 func _bgm_shine_wave() -> PackedFloat32Array:
 	var dur := 16.0
 	var n := int(RATE * dur)
 	var out := PackedFloat32Array()
 	out.resize(n)
-	# 24音の長い旋律（ド・レ・ミ・ソ・ラ＝ペンタトニック）。上下にゆれて“歌”に聞こえるように。
+	# タイトル主題歌の冒頭フレーズ（_title_theme_wave と同じ旋律）。和音ごとに4音＝きれいに溶ける。
 	var notes := [
-		523.25, 587.33, 659.25, 783.99, 659.25, 587.33,   # C付近
-		783.99, 880.0, 783.99, 659.25, 587.33, 523.25,     # G付近（少し高く）
-		659.25, 587.33, 523.25, 440.0, 523.25, 587.33,     # Am付近（低め）
-		698.46, 659.25, 587.33, 523.25, 440.0, 392.0,      # F付近（やさしく降りる）
+		523.25, 659.25, 783.99, 659.25,   # ド ミ ソ ミ（C）
+		587.33, 698.46, 587.33, 493.88,   # レ ファ レ シ（G）
+		440.00, 523.25, 659.25, 523.25,   # ラ ド ミ ド（Am）
+		349.23, 440.00, 523.25, 392.00,   # ファ ラ ド ソ（F）
 	]
 	var step := dur / notes.size()
 	for i in n:
@@ -676,6 +678,7 @@ func _bgm_shine_wave() -> PackedFloat32Array:
 		var env := pow(clampf(1.0 - lt / step, 0.0, 1.0), 1.6) * clampf(lt / 0.008, 0.0, 1.0)
 		var f: float = notes[idx]
 		var bell := sin(TAU * f * t) * 0.6 + sin(TAU * f * 2.0 * t) * 0.25
+		bell += sin(TAU * f * 1.003 * t) * 0.1   # わずかなデチューン＝あたたかい厚み（主題歌と同じ質感）
 		var edge := clampf(minf(t, dur - t) / 0.05, 0.0, 1.0)
 		out[i] = bell * env * 0.5 * edge
 	return out
