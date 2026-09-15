@@ -141,6 +141,7 @@ STORES = {
         "handle": "@gold_kyotovolta",
         "region": "京都・ポルタ",           # 京都駅前ポルタ
         "theme": "french",               # 洋食おしゃれテンプレの配色（フレンチ＝黒×金＝GOLD）
+        "logo_color": True,               # ロゴは白黒化せず「色付きのまま」使用（ユーザー要望）
         "sheet_id": SANJO_SHEET_ID,       # 同一スプレッドシートを接尾辞タブで共用
         "tab_suffix": "_goldporta",
         "folders": {

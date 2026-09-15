@@ -587,9 +587,20 @@ def _fetch_store_logo():
         global _LOGO_COLOR
         _LOGO_COLOR = "store_logo_color.png"
         print("[LOGO] public/store_logo_color.png 保存(カラー)", im_c.size)
-        # ② 生成り版（暗背景の動画テンプレ用）＝暗いロゴはクリーム単色化して視認性を確保。
+        # ② 動画テンプレ用ロゴ。既定は暗背景で映える生成り単色化（暗いロゴの視認性確保）。
+        #    ただし stores.py で logo_color=True の店（GOLD等）は「色付きロゴをそのまま」使う
+        #    ＝生成り化しない（白黒版は作らない）。ユーザー要望：GOLDは色付きのまま。
+        _acct = os.environ.get("STORE_ACCOUNT", "").strip().lower()
+        _color_only = False
+        try:
+            import stores as _stx
+            _color_only = bool((_stx.get_store(_acct) or {}).get("logo_color"))
+        except Exception:
+            pass
         im_k = im_c.copy()
-        if avg < 150:
+        if _color_only:
+            print("[LOGO] logo_color 指定(%s): 生成り化せず色付きロゴをそのまま使用" % _acct)
+        elif avg < 150:
             CR, CG, CB = 0xF3, 0xEA, 0xD8
             pk = im_k.load(); w2, h2 = im_k.size
             for y in range(h2):
