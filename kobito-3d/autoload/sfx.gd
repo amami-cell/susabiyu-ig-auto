@@ -26,6 +26,7 @@ var _bank := {}             # name -> AudioStreamWAV
 var _bgm_pad: AudioStreamPlayer
 var _bgm_shine: AudioStreamPlayer
 var _bgm_battle: AudioStreamPlayer
+var _bgm_title: AudioStreamPlayer
 var _bgm_on := false
 var _battle := 0.0             # 戦闘度 0..1（敵が近いと上がる。曲をなめらかに切替）
 const BATTLE_RANGE := 9.0      # この距離に敵が来たら“戦闘”
@@ -60,16 +61,23 @@ func _ready() -> void:
 	_bgm_battle = AudioStreamPlayer.new()
 	_bgm_battle.bus = BUS_MUSIC
 	add_child(_bgm_battle)
+	_bgm_title = AudioStreamPlayer.new()   # タイトルの主題歌（ロビー中だけ）
+	_bgm_title.bus = BUS_MUSIC
+	add_child(_bgm_title)
 	_build_bank()
 	_load_settings()
 
 	# BGMはゲーム中だけ。回復度で“きらめき”の音量を上げる。
 	Net.session_started.connect(start_bgm)
-	Net.session_ended.connect(func(_reason: String) -> void: stop_bgm())
+	Net.session_ended.connect(func(_reason: String) -> void:
+		stop_bgm()
+		start_title())   # タイトルへ戻ったら 主題歌を再開
 	WorldState.recovery_changed.connect(_on_recovery_changed)
 	# 環境回復の節目・飛行解禁・なかま化など“いい知らせ”だけキラッと鳴らす。
 	# （以前は全 notice で鳴り、ボスの苦しい台詞やヒントでもごほうび音が鳴っていた不具合を修正）
 	WorldState.notice.connect(_on_notice)
+	# 起動直後＝タイトル画面。主題歌を鳴らす（Webは最初のタップで音が解禁されると鳴り始める）。
+	start_title()
 
 
 ## 名前で鳴らす。音量(db)を少し変えられる。存在しない名前は無視。
@@ -193,6 +201,7 @@ func _apply_bus(bus_name: String, v: float) -> void:
 func start_bgm() -> void:
 	if _bgm_on:
 		return
+	stop_title()   # ゲームが始まったら 主題歌は止めて、庭のBGMへバトンタッチ
 	_bgm_on = true
 	_battle = 0.0
 	_bgm_pad.stream = _bank.get("bgm_pad")
@@ -211,6 +220,22 @@ func stop_bgm() -> void:
 	_bgm_pad.stop()
 	_bgm_shine.stop()
 	_bgm_battle.stop()
+
+
+## タイトル画面の主題歌（手回しオルゴールの旋律）。ロビー中だけ流す。
+func start_title() -> void:
+	if _bgm_title == null or _bgm_title.playing:
+		return
+	if _bgm_on:
+		return   # ゲーム中は鳴らさない
+	_bgm_title.stream = _bank.get("bgm_title")
+	_bgm_title.volume_db = -13.0
+	_bgm_title.play()
+
+
+func stop_title() -> void:
+	if _bgm_title != null and _bgm_title.playing:
+		_bgm_title.stop()
 
 
 func _on_recovery_changed(_r: float) -> void:
@@ -303,6 +328,7 @@ func _build_bank() -> void:
 	_bank["bgm_pad"] = _make_loop(_bgm_pad_wave())
 	_bank["bgm_shine"] = _make_loop(_bgm_shine_wave())
 	_bank["bgm_battle"] = _make_loop(_bgm_battle_wave())
+	_bank["bgm_title"] = _make_loop(_title_theme_wave())
 
 
 ## 立ち上がり(attack)→やわらかく減衰する共通エンベロープ。t は 0..1。
@@ -667,6 +693,49 @@ func _bgm_battle_wave() -> PackedFloat32Array:
 		var edge := clampf(minf(t, dur - t) / 0.04, 0.0, 1.0)
 		out[i] = (pulse + arp * 0.5) * 0.5 * edge
 	return out
+
+
+## タイトルの主題歌『みどりのはじまり』：手回しオルゴールの旋律＋やわらかいパッド。
+## C–G–Am–F をゆっくり巡り、上のドまで昇って やさしく家へ帰る、覚えやすい一節（28秒ループ）。
+func _title_theme_wave() -> PackedFloat32Array:
+	var chord_dur := 7.0
+	var dur := chord_dur * _PAD_CHORDS.size()   # 28秒
+	var n := int(RATE * dur)
+	var out := PackedFloat32Array()
+	out.resize(n)
+	# オルゴールの旋律（ハ長調・32音）。前半で昇り、後半でそっと降りて主音へ帰る。
+	var mel := [
+		523.25, 659.25, 783.99, 659.25,   # ド ミ ソ ミ（C）
+		587.33, 698.46, 587.33, 493.88,   # レ ファ レ シ（G）
+		440.00, 523.25, 659.25, 523.25,   # ラ ド ミ ド（Am）
+		349.23, 440.00, 523.25, 392.00,   # ファ ラ ド ソ（F）
+		523.25, 659.25, 1046.50, 783.99,  # ド ミ 上のド ソ（C・昇る）
+		587.33, 783.99, 698.46, 587.33,   # レ ソ ファ レ（G）
+		659.25, 587.33, 523.25, 440.00,   # ミ レ ド ラ（Am・降りる）
+		349.23, 392.00, 329.63, 261.63,   # ファ ソ ミ ド（F→主音へ帰る）
+	]
+	var mstep := dur / float(mel.size())   # 0.875秒/音
+	for i in n:
+		var t := float(i) / RATE
+		# パッド（土台の和音）：7秒ごとに変わり、変わり目はクロスフェード。
+		var ci := int(t / chord_dur) % _PAD_CHORDS.size()
+		var lt := t - float(int(t / chord_dur)) * chord_dur
+		var pad := _chord_at(_PAD_CHORDS[ci], t)
+		if lt < 0.35:
+			var prev: Array = _PAD_CHORDS[(ci + _PAD_CHORDS.size() - 1) % _PAD_CHORDS.size()]
+			var k := lt / 0.35
+			pad = _chord_at(prev, t) * (1.0 - k) + pad * k
+		# 旋律（オルゴールの鐘）：基音＋オクターブ＋3倍音、頭にアタック、音符内で減衰。
+		var mi := int(t / mstep) % mel.size()
+		var mlt := t - float(int(t / mstep)) * mstep
+		var menv := clampf(mlt / 0.012, 0.0, 1.0) * pow(clampf(1.0 - mlt / (mstep * 0.92), 0.0, 1.0), 1.5)
+		var mf: float = mel[mi]
+		var bell := sin(TAU * mf * t) * 0.6 + sin(TAU * mf * 2.0 * t) * 0.22 + sin(TAU * mf * 3.0 * t) * 0.08
+		bell += sin(TAU * mf * 1.003 * t) * 0.12   # わずかなデチューン＝あたたかい厚み
+		var edge := clampf(minf(t, dur - t) / 0.06, 0.0, 1.0)
+		out[i] = (pad * 0.32 + bell * menv * 0.5) * edge * 0.5
+	return out
+
 
 
 func _make(samples: PackedFloat32Array) -> AudioStreamWAV:
