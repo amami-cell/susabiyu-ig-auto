@@ -1009,6 +1009,49 @@ def distdump(target=None):
     print("[DUMP] 完了")
 
 
+REQ_LABELS = ["表示名", "業態", "エリア", "住所", "営業時間", "アクセス", "電話",
+              "予約①", "予約②", "クチコミ", "公式URL", "紹介文", "キャッチ",
+              "定番タグ", "IGユーザーID", "定休日", "コース"]
+
+
+def reqdump(target=None):
+    """入力用シートの K〜AA 列（店舗情報）を読んで表示する。読み取りのみ・書き込まない。
+
+    確認アプリの投稿本文フッター（営業時間・住所・アクセス）と地域タグ機能は、ここが
+    埋まっていないと作れない。どの店のどの項目が空なのかをログで確かめるための口。"""
+    import re as _re
+    sid = (target or os.environ.get("REQ_SHEET_ID", "") or "").strip()
+    m = _re.search(r"/spreadsheets/d/([a-zA-Z0-9_-]+)", sid)
+    if m:
+        sid = m.group(1)
+    if not sid:
+        print("[REQDUMP] REQ_SHEET_ID が未設定です"); return
+    cr = _creds(); sp = _sheets(cr)
+    metas = sp.get(spreadsheetId=sid, fields="sheets.properties(sheetId,title,index)").execute().get("sheets", [])
+    tgt = None
+    for x in metas:
+        pr = x["properties"]
+        if pr.get("title") == "入力用" or pr.get("index") == 1:
+            tgt = pr; break
+    if not tgt:
+        tgt = metas[-1]["properties"]
+    tab = tgt["title"]
+    rows = sp.values().get(spreadsheetId=sid,
+                           range="'%s'!K1:AA60" % tab).execute().get("values", [])
+    print("[REQDUMP] タブ=%r 取得 %d 行" % (tab, len(rows)))
+    for i, r in enumerate(rows, start=1):
+        r = (r or []) + [""] * (len(REQ_LABELS) - len(r or []))
+        name = str(r[0]).strip()
+        if not name or name == REQ_LABELS[0] or "表示名" in name:
+            continue
+        filled = [(REQ_LABELS[j], str(r[j]).strip()) for j in range(len(REQ_LABELS)) if str(r[j]).strip()]
+        empty = [REQ_LABELS[j] for j in range(len(REQ_LABELS)) if not str(r[j]).strip()]
+        print("\n--- 行%d %s ---" % (i, name))
+        for k, v in filled:
+            print("    %-12s %s" % (k, v[:90]))
+        print("    [空] " + ("、".join(empty) if empty else "なし"))
+
+
 def reqcols(target=None):
     """一覧(入力用)シートに『アプリ完成形(三条/ぎふや相当)にするための追加項目』列(K〜Y)を付ける。
     見出しは既存ヘッダー行(5行目)に合わせる。三条(6行目)・ぎふや(29行目)は既知の値を記入例として投入、
@@ -1858,6 +1901,8 @@ if __name__ == "__main__":
         distdump(arg)
     elif mode == "reqcols":
         reqcols(arg)
+    elif mode == "reqdump":
+        reqdump(arg)
     elif mode == "drivefind":
         drivefind(arg)
     elif mode == "genredump":
