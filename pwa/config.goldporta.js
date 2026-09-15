@@ -19,7 +19,12 @@ window.GIFUYA = {
 // 実データ連携が有効か（GAS_URL が実物URLか）を判定するフラグ。
 window.GIFUYA_LIVE = /^https:\/\//.test((window.GIFUYA.GAS_URL || "").trim());
 
-// 見本ギャラリー（洋食おしゃれテンプレ YoshokuDish の試作。投稿は未実装＝確認専用）。
+// 見本ギャラリー（ナガグツと同じ動画テンプレを french テーマ＋GOLDの色付きロゴで焼いたもの）。
+// まずロゴ・テーマ確認用の代表4本。OKなら残り全テンプレ（料理/音ハメ/OP）を追加する。
+// ※音ハメ(battere)はGOLD音楽フォルダに曲が無く、現状は音が付いていない（曲追加後に焼き直す）。
 window.GIFUYA.SAMPLES = [
-  {"pattern": "yoshoku_fr_1", "url": "https://cdn.jsdelivr.net/gh/amami-cell/susabiyu-media@f3e74a354406336a2706d1c358bba47a44b5a6db/preview/20260828211134_9100.mp4", "poster": "https://cdn.jsdelivr.net/gh/amami-cell/susabiyu-media@d407126bf906d7b76c725f5435ba2e81bf7f41bd/preview/20260828211133_0338.jpg", "label": "洋食おしゃれ・本日の一皿（試作/フレンチ）", "enabled": 1}
+  {"pattern": "yoshokuopwine", "url": "https://cdn.jsdelivr.net/gh/amami-cell/susabiyu-media@b12b8ba8511ed90bf86c078e2b26027ef9837f89/preview/20260916022937_0296.mp4", "poster": "https://cdn.jsdelivr.net/gh/amami-cell/susabiyu-media@2c8d95c26fb8a4268686109571748e748b138be6/preview/20260916022940_7795.jpg", "label": "OP・ボルドー（フレンチ酒場／色ロゴ大）", "caption": "本物を、気軽に。", "enabled": 1},
+  {"pattern": "yoshokumagazine", "url": "https://cdn.jsdelivr.net/gh/amami-cell/susabiyu-media@f8ea7fbde44ae5846de84ae3f4986dd2cd98b9db/preview/20260916023055_5308.mp4", "poster": "https://cdn.jsdelivr.net/gh/amami-cell/susabiyu-media@ac7c2b3572e254b073b3f0e6a94b3ffb0665a72a/preview/20260916023058_7044.jpg", "label": "雑誌ストーリー（丸ロゴ＋横ロゴ）", "caption": "今宵は、贅沢に。", "enabled": 1},
+  {"pattern": "yoshokudish", "url": "https://cdn.jsdelivr.net/gh/amami-cell/susabiyu-media@9efdae43f148c98052d8f25ad930f2cf2655d5ef/preview/20260916023337_7550.mp4", "poster": "https://cdn.jsdelivr.net/gh/amami-cell/susabiyu-media@f63c9ab90c0ab792af44c806f3547864806a51f2/preview/20260916023340_1512.jpg", "label": "本日の一皿（左上に色ロゴ）", "caption": "今宵は、贅沢に。", "enabled": 1},
+  {"pattern": "yoshokubattere", "url": "https://cdn.jsdelivr.net/gh/amami-cell/susabiyu-media@57745634e11fc0ef598e1101db9e0a494df9d7f7/preview/20260916023621_1359.mp4", "poster": "https://cdn.jsdelivr.net/gh/amami-cell/susabiyu-media@9192c731e41b165e693849baaaf371cc11d06478/preview/20260916023624_7153.jpg", "label": "音ハメ（※音源は追加後に焼き直し）", "caption": "今宵は、贅沢に。", "enabled": 1}
 ];
