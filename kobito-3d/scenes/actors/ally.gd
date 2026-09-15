@@ -44,6 +44,9 @@ var _c_boss: Node3D = null
 var _c_bug: Node3D = null
 var _c_player: Node3D = null
 var _bob := 0.0
+var _hop := 0.0            # 暮らしの所作の“ぴょこっ”（bobに足す）
+var _idle_t := 0.0         # 次の所作までのカウント
+var _prev_pos := Vector3.ZERO   # 動いているか判定用
 var _body: Node3D = null
 
 
@@ -247,7 +250,18 @@ func _physics_process(delta: float) -> void:
 	# ふわふわ上下（見た目・全員の画面で）
 	_bob += delta * 4.0
 	if _body != null:
-		_body.position.y = 0.45 + sin(_bob) * 0.06
+		_body.position.y = 0.45 + sin(_bob) * 0.06 + _hop
+	# 暮らしの所作：ほぼ止まっている時、たまに ぴょこっ／きょろっ＝なかまが“生きてる”手触り。
+	# 純見た目・全員の画面で（位置は同期済み）＝netcode不要。
+	var spd := (global_position - _prev_pos).length() / maxf(delta, 0.0001)
+	_prev_pos = global_position
+	_idle_t -= delta
+	if spd < 0.6:
+		if _idle_t <= 0.0:
+			_idle_t = randf_range(3.0, 6.5)
+			_idle_flourish()
+	else:
+		_idle_t = maxf(_idle_t, 1.2)   # 動いた直後は少し置いてから
 	if not multiplayer.has_multiplayer_peer():
 		return
 	if multiplayer.is_server():
@@ -258,6 +272,20 @@ func _physics_process(delta: float) -> void:
 			rpc("_remote_state", global_position)
 	else:
 		global_position = global_position.lerp(_net_pos, clampf(delta * 10.0, 0.0, 1.0))
+
+
+## 暮らしの所作：ぴょこっと跳ねて きょろっと見回す（止まっている時だけ・純見た目）。
+func _idle_flourish() -> void:
+	if _body == null:
+		return
+	var th := create_tween()
+	th.tween_property(self, "_hop", 0.16, 0.14).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
+	th.tween_property(self, "_hop", 0.0, 0.28).set_trans(Tween.TRANS_BOUNCE).set_ease(Tween.EASE_OUT)
+	var by := _body.rotation.y
+	var ty := create_tween()
+	ty.tween_property(_body, "rotation:y", by + 0.5, 0.4).set_trans(Tween.TRANS_SINE)
+	ty.tween_property(_body, "rotation:y", by - 0.4, 0.5).set_trans(Tween.TRANS_SINE)
+	ty.tween_property(_body, "rotation:y", by, 0.4).set_trans(Tween.TRANS_SINE)
 
 
 func _think(delta: float) -> void:
