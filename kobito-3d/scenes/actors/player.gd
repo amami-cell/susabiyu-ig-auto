@@ -64,6 +64,8 @@ var _last_ground := Vector3.ZERO   # 直近で地面に居た位置（場外落�
 var _shake := 0.0                  # カメラ微振動の強さ（被弾・攻撃で立ち、毎フレーム減衰）
 var _fov_kick := 0.0               # 画角の“キュッ”（攻撃=寄る/被弾=引く）。0へ自然に戻る
 var _base_fov := 0.0               # 平常時の画角（初回に取得）
+var _cam_lead := Vector3.ZERO      # 進行方向へのカメラ先読み（なめらかに追従＝映画的な間）
+var _cam_speed_fov := 0.0          # 速度で広がる画角（スピード感）。0へ自然に戻る
 var _regen_frac := 0.0
 var level: int = 1
 var xp: int = 0
@@ -660,17 +662,32 @@ func _follow_camera(delta := 0.0) -> void:
 	# 距離一定の球面オフセット＝ヨー(左右)＋ピッチ(上下)で回せる。
 	var off := Vector3(0.0, sin(_cam_pitch), cos(_cam_pitch)) * CAM_DIST
 	off = off.rotated(Vector3.UP, _cam_rig.rotation.y)
-	var want := global_position + off
+	# 進行方向へカメラをわずかに“先読み”＝行く先が見え、止まった絵より映画的に動く。
+	# 生の速度でなく なめらかに追う（急な向き変えでカメラが暴れない）。ひかえめ時は控えめに。
+	var soft := UIKit.reduce_fx()
+	var vel_h := Vector3(velocity.x, 0.0, velocity.z)
+	var lead_scale := 0.10 if soft else 0.20
+	var lead_target := vel_h.limit_length(SPEED) * lead_scale
+	_cam_lead = _cam_lead.lerp(lead_target, clampf(delta * 3.5, 0.0, 1.0))
+	var want := global_position + off + _cam_lead
 	_cam_rig.global_position = _cam_rig.global_position.lerp(want, 0.14)
 	# 被弾・浄化の手応え：ごく短いカメラ微振動（時間停止なし＝固まる不具合とは無縁）。
 	if _shake > 0.001:
 		_cam_rig.global_position += Vector3(randf_range(-1.0, 1.0), randf_range(-1.0, 1.0), randf_range(-1.0, 1.0)) * _shake
 		_shake = maxf(0.0, _shake - 0.02)
-	_camera.look_at(global_position + Vector3.UP * 0.8, Vector3.UP)
+	# 注視点も少し先読み側へ寄せる＝「行く先を見ている」意図的なフレーミング。
+	# 静止時はごく淡い上下の“呼吸”＝止め絵にならず画面が生きる（ひかえめ時は止める）。
+	var look_at_pt := global_position + Vector3.UP * 0.8 + _cam_lead * 0.6
+	if not soft:
+		look_at_pt.y += sin(_age * 1.4) * 0.03
+	_camera.look_at(look_at_pt, Vector3.UP)
 	# 画角の“キュッ”：攻撃で少し寄り、被弾で少し引く。0へなめらかに戻る＝一撃ごとに奥行きの手応え。
 	if _base_fov <= 0.0:
 		_base_fov = _camera.fov
-	_camera.fov = _base_fov + _fov_kick
+	# 速度でほんのり広角＝スピード感（走ると世界が少し広がる）。ひかえめ時は無効。
+	var spd_target := 0.0 if soft else clampf(vel_h.length() / SPEED, 0.0, 1.0) * 2.2
+	_cam_speed_fov = lerp(_cam_speed_fov, spd_target, clampf(delta * 4.0, 0.0, 1.0))
+	_camera.fov = _base_fov + _fov_kick + _cam_speed_fov
 	if absf(_fov_kick) > 0.01:
 		_fov_kick = move_toward(_fov_kick, 0.0, delta * 45.0)   # physics tick 固定＝機種によらず一定
 	else:

@@ -273,7 +273,7 @@ func _on_notice(text: String) -> void:
 func _process(delta: float) -> void:
 	if not _bgm_on:
 		return
-	var target := 1.0 if _enemy_near() else 0.0
+	var target := _threat_level()
 	# 戦闘へは素早く(0.5秒)、平和へはゆっくり(2秒)戻す＝ピリッと入り、余韻を残す
 	var rate := (1.0 / 0.5) if target > _battle else (1.0 / 2.0)
 	_battle = move_toward(_battle, target, delta * rate)
@@ -315,6 +315,34 @@ func _enemy_near() -> bool:
 			if b.global_position.distance_to(p.global_position) < BATTLE_RANGE:
 				return true
 	return false
+
+
+## 危険の“強さ”を 0..1 で返す。最寄りの虫の近さ（主）＋近くの虫の数（従）で
+## なめらかに高まる＝サントラが on/off でなく、迫る危険に合わせて呼吸する。各端末で判定。
+const THREAT_CROWD := 4.0      # この数の虫が近いと「群れ」寄与が最大
+func _threat_level() -> float:
+	var players := get_tree().get_nodes_in_group("player")
+	if players.is_empty():
+		return 0.0
+	var closest := 1.0e9
+	var crowd := 0
+	for b in get_tree().get_nodes_in_group("bug"):
+		var bp: Vector3 = b.global_position
+		var nearest := 1.0e9
+		for p in players:
+			var d: float = bp.distance_to(p.global_position)
+			if d < nearest:
+				nearest = d
+		if nearest < BATTLE_RANGE:
+			crowd += 1
+			if nearest < closest:
+				closest = nearest
+	if crowd == 0:
+		return 0.0
+	var prox := clampf(1.0 - closest / BATTLE_RANGE, 0.0, 1.0)         # 迫るほど 1 へ
+	var crowd_f := clampf(float(crowd) / THREAT_CROWD, 0.0, 1.0)       # 群れるほど 1 へ
+	# 範囲に入った瞬間から気配(0.35)＋近さ(0.55)＋数(0.25)。上限は1にまとめる。
+	return clampf(0.35 + prox * 0.55 + crowd_f * 0.25, 0.0, 1.0)
 
 
 # ---------------------------------------------------------------- 音づくり
