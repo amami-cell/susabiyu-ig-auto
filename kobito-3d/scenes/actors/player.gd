@@ -338,6 +338,8 @@ func _local_step(delta: float) -> void:
 		_try_attack()
 	if Input.is_action_just_pressed("act_grab"):
 		_do_clean()
+	if Input.is_action_just_pressed("act_whistle"):
+		_do_whistle()
 
 
 ## 跳んだ瞬間：ぐーんと縦に伸びる（アンティシペーション→伸び）＝跳んだ手応え。
@@ -438,6 +440,57 @@ func _do_clean() -> void:
 		_server_clean_near(global_position)
 	else:
 		rpc_id(1, "_server_clean_near", global_position)
+
+
+## 笛：救った なかまを 自分の周りに呼び集める（“率いる”手触り）。合図の音とリングは全員に。
+func _do_whistle() -> void:
+	if multiplayer.is_server():
+		_server_whistle(global_position)
+	else:
+		rpc_id(1, "_server_whistle", global_position)
+	rpc("_remote_whistle_fx")   # 合図の音＋足元のリング（全員の画面で）
+
+
+@rpc("any_peer", "reliable")
+func _server_whistle(from: Vector3) -> void:
+	if not multiplayer.has_multiplayer_peer() or not multiplayer.is_server():
+		return
+	for a in get_tree().get_nodes_in_group("ally"):
+		if a.has_method("rally"):
+			a.rally(from)
+
+
+@rpc("any_peer", "call_local", "unreliable")
+func _remote_whistle_fx() -> void:
+	Sfx.play_at("whistle", global_position + Vector3(0, 0.7, 0), -5.0)
+	_spawn_whistle_ring()
+
+
+## 笛の合図：足元から やわらかい光の輪が ひろがって消える＝“呼んだ”のが見える。
+func _spawn_whistle_ring() -> void:
+	var ring := MeshInstance3D.new()
+	var tm := TorusMesh.new()
+	tm.inner_radius = 0.5
+	tm.outer_radius = 0.62
+	tm.rings = 24
+	tm.ring_segments = 8
+	ring.mesh = tm
+	var m := StandardMaterial3D.new()
+	m.albedo_color = Color(1.0, 0.92, 0.55, 0.9)
+	m.emission_enabled = true
+	m.emission = Color(1.0, 0.86, 0.5)
+	m.emission_energy_multiplier = 1.2
+	m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	ring.material_override = m
+	add_child(ring)
+	ring.rotation = Vector3(deg_to_rad(90.0), 0.0, 0.0)
+	ring.position = Vector3(0.0, 0.2, 0.0)
+	ring.scale = Vector3(0.4, 0.4, 0.4)
+	var tw := create_tween()
+	tw.tween_property(ring, "scale", Vector3(6.0, 6.0, 6.0), 0.6).set_trans(Tween.TRANS_QUART).set_ease(Tween.EASE_OUT)
+	tw.parallel().tween_property(m, "albedo_color:a", 0.0, 0.6)
+	tw.tween_callback(ring.queue_free)
 
 
 # ------------------------------------------------------------ 他人の小人

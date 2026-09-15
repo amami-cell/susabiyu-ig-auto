@@ -302,6 +302,17 @@ func _run_selftest() -> void:
 
 	# 虫を癒やすと「なかま虫」が生まれて一緒に戦う経路を確認する
 	var ally_ok: bool = get_tree().get_nodes_in_group("ally").size() > 0
+	# 笛（whistle）：なかまが プレイヤーの周りに集まる経路を確認する（入力アクション＋ rally）。
+	var whistle_ok: bool = InputMap.has_action("act_whistle")
+	if whistle_ok:
+		var _al := get_tree().get_nodes_in_group("ally")
+		if not _al.is_empty():
+			var a0 = _al[0]
+			if a0.has_method("rally"):
+				a0.rally(Vector3.ZERO)
+				whistle_ok = float(a0.get("_rally_t")) > 0.0
+			else:
+				whistle_ok = false
 	# 癒やした種類が なかまに伝わる（種の個性・役割）経路を確認する
 	var ally_species_ok := false
 	for a in get_tree().get_nodes_in_group("ally"):
@@ -466,9 +477,9 @@ func _run_selftest() -> void:
 	var celebrate_ok: bool = cel_count == 6
 
 	var ok: bool = _garden != null and players.size() == 1 and bugs.size() > 0 \
-		and WorldState.recovery > 0.0 and xp_gained and flight_ok and kids_ok and mother_ok and puzzle_ok and switch_ok and blob_ok and ring_ok and ally_ok and ally_species_ok and save_ok and boss_ok and boss_hold_ok and dex_ok and audio_ok and bloom_ok and water_ok and balance_ok and diff_ok and celebrate_ok
-	print("[selftest] 回復度=%.2f XP=%d 経験値=%s 飛行解禁=%s 子ども=%d(最寄り%.1f) 母=%s 石版=%s 扉=%s おそうじ=%s 輪=%s なかま=%s 種役割=%s セーブ=%s ボス召喚=%s ボス浄化=%s 図鑑=%s 音バス=%s 花あと=%s みずべ=%s ボス曲線=%s 難度=%s ごほうび=%s" % [
-		WorldState.recovery, xp_now, xp_gained, flight_ok, children.size(), nearest, mother_ok, puzzle_ok, switch_ok, blob_ok, ring_ok, ally_ok, ally_species_ok, save_ok, boss_ok, boss_hold_ok, dex_ok, audio_ok, bloom_ok, water_ok, balance_ok, diff_ok, celebrate_ok])
+		and WorldState.recovery > 0.0 and xp_gained and flight_ok and kids_ok and mother_ok and puzzle_ok and switch_ok and blob_ok and ring_ok and ally_ok and ally_species_ok and save_ok and boss_ok and boss_hold_ok and dex_ok and audio_ok and bloom_ok and water_ok and balance_ok and diff_ok and celebrate_ok and whistle_ok
+	print("[selftest] 回復度=%.2f XP=%d 経験値=%s 飛行解禁=%s 子ども=%d(最寄り%.1f) 母=%s 石版=%s 扉=%s おそうじ=%s 輪=%s なかま=%s 種役割=%s セーブ=%s ボス召喚=%s ボス浄化=%s 図鑑=%s 音バス=%s 花あと=%s みずべ=%s ボス曲線=%s 難度=%s ごほうび=%s 笛=%s" % [
+		WorldState.recovery, xp_now, xp_gained, flight_ok, children.size(), nearest, mother_ok, puzzle_ok, switch_ok, blob_ok, ring_ok, ally_ok, ally_species_ok, save_ok, boss_ok, boss_hold_ok, dex_ok, audio_ok, bloom_ok, water_ok, balance_ok, diff_ok, celebrate_ok, whistle_ok])
 	print("[selftest] %s" % ("OK" if ok else "NG"))
 	get_tree().quit(0 if ok else 1)
 

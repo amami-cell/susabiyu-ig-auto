@@ -47,6 +47,9 @@ var _bob := 0.0
 var _hop := 0.0            # 暮らしの所作の“ぴょこっ”（bobに足す）
 var _idle_t := 0.0         # 次の所作までのカウント
 var _prev_pos := Vector3.ZERO   # 動いているか判定用
+const RALLY_TIME := 4.0          # 笛で呼ばれてから 集まっている秒数
+var _rally_t := 0.0
+var _rally_pos := Vector3.ZERO
 var _body: Node3D = null
 
 
@@ -288,6 +291,12 @@ func _idle_flourish() -> void:
 	ty.tween_property(_body, "rotation:y", by, 0.4).set_trans(Tween.TRANS_SINE)
 
 
+## サーバから：プレイヤーの笛で、この位置の周りに集まる（数秒間）。
+func rally(pos: Vector3) -> void:
+	_rally_t = RALLY_TIME
+	_rally_pos = pos
+
+
 func _think(delta: float) -> void:
 	_help_cd = maxf(0.0, _help_cd - delta)
 
@@ -311,10 +320,19 @@ func _think(delta: float) -> void:
 	if _c_player != null and not is_instance_valid(_c_player):
 		_c_player = null
 
+	# 笛（whistle）で呼ばれている間は、プレイヤーの周りに集まる＝“救った命を率いる”手触り。
+	# 各個体は自分の角度でリング状に並ぶ（重ならない）。呼ばれている間は 少し速く動く。
+	_rally_t = maxf(0.0, _rally_t - delta)
+	var rallying := _rally_t > 0.0
+	if rallying:
+		var ang := float(name.hash() % 360) * 0.0174533
+		goto = _rally_pos + Vector3(cos(ang), 0.0, sin(ang)) * 2.2
+		has_goto = true
+
 	# ⓪ 中ボスがいれば“押さえ役”に回る＝癒やしはプレイヤー主体（見せ場を残す）。
 	# ソロでも「押さえる人」ができるので、ひとりでも中ボスを癒やしきれる。
 	var boss := _c_boss
-	if boss != null:
+	if boss != null and not rallying:
 		var dbo: Vector3 = boss.global_position - global_position
 		dbo.y = 0.0
 		if dbo.length() <= HELP_RANGE:
@@ -366,8 +384,9 @@ func _think(delta: float) -> void:
 		var dir: Vector3 = goto - global_position
 		dir.y = 0.0
 		dir = dir.normalized()
-		velocity.x = dir.x * _speed
-		velocity.z = dir.z * _speed
+		var sp := _speed * (1.6 if rallying else 1.0)   # 笛で呼ばれたら 少し速く駆けつける
+		velocity.x = dir.x * sp
+		velocity.z = dir.z * sp
 		if _body != null:
 			var yaw := atan2(-dir.x, -dir.z)
 			_body.rotation.y = lerp_angle(_body.rotation.y, yaw, clampf(delta * 10.0, 0.0, 1.0))

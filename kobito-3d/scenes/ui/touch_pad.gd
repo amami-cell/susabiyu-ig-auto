@@ -44,6 +44,7 @@ func _ready() -> void:
 	_bind_button($Buttons/BtnGrab, "act_grab")
 	_bind_button($Buttons/BtnJump, "act_jump")
 	_skin_buttons()
+	_add_whistle_button()
 	# 初回オンボーディング（操作の指し示し）。タッチでもPCでも出す＝文言を環境で切替。
 	if not _tutorial_done():
 		_build_tutorial()
@@ -61,7 +62,7 @@ func _on_visibility_changed() -> void:
 
 
 func _release_all() -> void:
-	for a in ["move_left", "move_right", "move_forward", "move_back", "act_attack", "act_grab", "act_jump"]:
+	for a in ["move_left", "move_right", "move_forward", "move_back", "act_attack", "act_grab", "act_jump", "act_whistle"]:
 		Input.action_release(a)
 	_stick_touch = -1
 	_stick_home = _stick_anchor
@@ -174,6 +175,27 @@ func _skin_buttons() -> void:
 		b.autowrap_mode = TextServer.AUTOWRAP_OFF
 		b.add_theme_font_size_override("font_size", 26)
 		b.add_theme_constant_override("outline_size", 0)
+
+
+## 「ふえ」ボタン（操作ボタンの少し上・右）＝救った なかまを 自分の周りに呼び集める。
+## 会話中は play_ui_extra グループごと隠す（他の操作UIと同じ扱い）。
+func _add_whistle_button() -> void:
+	var w := Button.new()
+	w.name = "BtnWhistle"
+	w.text = "ふえ"
+	w.anchor_left = 1.0
+	w.anchor_right = 1.0
+	w.anchor_top = 1.0
+	w.anchor_bottom = 1.0
+	w.offset_right = -30.0
+	w.offset_left = -160.0
+	w.offset_bottom = -232.0
+	w.offset_top = -332.0
+	UIKit.style_button(w, Color(0.85, 0.7, 0.95), Color(0.6, 0.45, 0.8))
+	w.add_theme_font_size_override("font_size", 26)
+	w.add_to_group("play_ui_extra")
+	add_child(w)
+	_bind_button(w, "act_whistle")
 
 
 func _bind_button(btn: BaseButton, action: String) -> void:

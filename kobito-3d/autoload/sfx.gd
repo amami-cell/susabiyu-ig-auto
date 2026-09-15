@@ -338,6 +338,7 @@ func _build_bank() -> void:
 	_bank["chapter_clear"] = _make(_chapter_clear())  # 章クリアのファンファーレ
 	_bank["ending"] = _make(_ending())             # 真エンディングの締め
 	_bank["alert"] = _make(_alert())               # 中ボス出現の警告
+	_bank["whistle"] = _make(_whistle())           # なかまを呼ぶ笛
 	_bank["bgm_pad"] = _make_loop(_bgm_pad_wave())
 	_bank["bgm_shine"] = _make_loop(_bgm_shine_wave())
 	_bank["bgm_battle"] = _make_loop(_bgm_battle_wave())
@@ -608,6 +609,26 @@ func _alert() -> PackedFloat32Array:
 		var tone := sin(TAU * f * ti) * 0.6 + sin(TAU * f * 2.0 * ti) * 0.2
 		var pulse := sin(TAU * 110.0 * ti) * pow(1.0 - t, 4.0) * 0.4
 		out[i] = (tone * env + pulse) * 0.4
+	return out
+
+
+## 笛：明るい呼び声（ソ→上のド）。なかまを集める合図。息づかいのビブラートつき。
+func _whistle() -> PackedFloat32Array:
+	var n := int(RATE * 0.4)
+	var out := PackedFloat32Array()
+	out.resize(n)
+	for i in n:
+		var t := float(i) / n
+		var ti := float(i) / RATE
+		var f := 784.0            # ソ
+		if t >= 0.45 and t < 0.55:
+			f = lerpf(784.0, 1046.5, (t - 0.45) / 0.1)   # なめらかに跳ねる
+		elif t >= 0.55:
+			f = 1046.5           # 上のド
+		var env := _adsr(t, 0.03, 2.0)
+		var tone := (sin(TAU * f * ti) * 0.6 + sin(TAU * f * 2.0 * ti) * 0.12)
+		tone *= 1.0 + 0.02 * sin(TAU * 6.0 * ti)   # 息づかい
+		out[i] = tone * env * 0.4
 	return out
 
 
