@@ -41,10 +41,12 @@ DESIGNS = [
     "YoshokuFeedA", "YoshokuFeedB", "YoshokuFeedC",
     "YoshokuFeedE", "YoshokuFeedE2", "YoshokuFeedE3",
 ]
-# 暗幕・下地を敷かず写真に直接字を置く案。明るい写真だと文字が負けるので条件付きで使う。
+# 暗幕・下地を敷かず写真に直接字を置く案。明るい写真だと文字が負ける。
+# 当初は「明るさが閾値を超えたら使わない」にしたが、料理写真は元々明るく、実データ
+# (112/136/154/158/181)では過半数が弾かれて案A・案Cが一度も使われなくなった＝均等が壊れる。
+# 禁止ではなく「暗い写真から順に割り当てる」に変える。全案が必ず出番を持ち、かつ
+# 下地なしの案は一番読みやすい（暗い）写真に回る。
 NO_SCRIM = {"YoshokuFeedA", "YoshokuFeedC"}
-# 文字が載る帯（下から40%）の明るさがこれを超えたら NO_SCRIM 系は避ける。
-BRIGHT_LIMIT = 138.0
 
 
 def _creds_path():
@@ -139,22 +141,64 @@ def _slug(name):
 
 
 def _assign(dishes):
-    """料理ごとにデザインを割り当てる（①連続回避 ②均等 ③写真に不向きな案を除外）。"""
+    """料理ごとにデザインを割り当てる。
+
+      ②均等   … 6案を品数ぶんの枠に均等配分する（必ず全案に出番がある）
+      ③適材適所 … 下地なしの案(A/C)の枠は、文字が載る帯が暗い＝いちばん読みやすい写真へ回す
+      ①連続回避 … 表示順で同じ案が隣り合ったら、後ろの品と入れ替えて散らす
+
+    dishes は表示順（料理名順）で渡す。割り当てはハッシュ順を使うので毎回同じ結果になる。
+    """
+    n = len(dishes)
+    if not n:
+        return {}
+    # ②枠を均等に作る。余りは料理名ハッシュで決まる順に配って、偏り方も固定する。
+    quota = []
+    for i in range(n):
+        quota.append(DESIGNS[i % len(DESIGNS)])
+    # ③下地なしの案の枠を、暗い写真から順に配る
+    dark_first = sorted(dishes, key=lambda it: (it["bright"], it["name"]))
+    ac = [d for d in quota if d in NO_SCRIM]
+    other = [d for d in quota if d not in NO_SCRIM]
+    # 明るさ順の前半（暗い側）に A/C、残りにその他。どちらもハッシュ順で安定させる。
+    ac.sort(key=lambda d: hashlib.md5(d.encode()).hexdigest())
+    other.sort(key=lambda d: hashlib.md5(d.encode()).hexdigest())
+    for i, it in enumerate(dark_first):
+        it["design_id"] = ac[i] if i < len(ac) else other[i - len(ac)]
+    # A/C を許す明るさの上限＝暗い側から数えて A/C 枠ぶんに入った写真の、いちばん明るい値。
+    # 下の入れ替えでこの線を越えて A/C が移らないようにする（越えると③が崩れる）。
+    ac_cut = dark_first[len(ac) - 1]["bright"] if ac else 0.0
+
+    def _ok(design, it):
+        return (design not in NO_SCRIM) or (it["bright"] <= ac_cut)
+
+    # ①表示順で同じ案が続いたら、以降の品と交換して崩す（交換相手も連続にならない物を選ぶ）
+    for i in range(1, n):
+        if dishes[i]["design_id"] != dishes[i - 1]["design_id"]:
+            continue
+        for j in range(i + 1, n):
+            a, b = dishes[i]["design_id"], dishes[j]["design_id"]
+            if b == a:
+                continue
+            if b == dishes[i - 1]["design_id"]:
+                continue
+            if j + 1 < n and dishes[j + 1]["design_id"] == a:
+                continue
+            if a == dishes[j - 1]["design_id"] and j - 1 != i:
+                continue
+            if not (_ok(b, dishes[i]) and _ok(a, dishes[j])):
+                continue                      # 下地なしの案を明るい写真へ移さない
+            dishes[i]["design_id"], dishes[j]["design_id"] = b, a
+            break
     used = {d: 0 for d in DESIGNS}
-    prev = None
     for it in dishes:
-        allowed = [d for d in DESIGNS
-                   if not (d in NO_SCRIM and it["bright"] > BRIGHT_LIMIT)]
-        if not allowed:                      # 念のため（全部弾かれたら制約を緩める）
-            allowed = list(DESIGNS)
-        cand = [d for d in allowed if d != prev] or allowed
-        # 使用回数が少ない順 → 同数なら料理名のハッシュで決める（毎回同じ結果になる）
-        h = _slug(it["name"])
-        cand.sort(key=lambda d: (used[d], hashlib.md5((h + d).encode()).hexdigest()))
-        pick = cand[0]
-        it["design_id"] = pick
-        used[pick] += 1
-        prev = pick
+        used[it["design_id"]] += 1
+    runs = sum(1 for i in range(1, n) if dishes[i]["design_id"] == dishes[i - 1]["design_id"])
+    print("[FEED] 連続して同じ案になった箇所: %d" % runs)
+    acb = [it["bright"] for it in dishes if it["design_id"] in NO_SCRIM]
+    if acb:
+        print("[FEED] 下地なし案(A/C)を当てた写真の明るさ: 最小%.0f 最大%.0f 平均%.0f"
+              % (min(acb), max(acb), sum(acb) / len(acb)))
     return used
 
 
@@ -267,6 +311,15 @@ def main():
     with open(os.path.join(OUT_DIR, "feed.json"), "w", encoding="utf-8") as fp:
         json.dump(feed, fp, ensure_ascii=False, indent=1)
     print("[FEED] %d品を書き出し（加工済み %d）→ pwa/%s/feed.json" % (len(items), ok, ACCOUNT))
+
+    # 軽量版WebP（thumb 360px / card 960px）。三条もぎふやも持っている。
+    # これが無いとアプリのグリッドが原寸JPEGを何十枚も読むことになり、一覧が重くなる。
+    # 投稿には原寸JPEGを使うので、投稿画質は落ちない。
+    try:
+        import make_thumbs
+        make_thumbs.main(OUT_DIR)
+    except Exception as e:
+        print("[FEED] WebP生成スキップ（表示は原寸へフォールバック）:", e)
 
 
 if __name__ == "__main__":
