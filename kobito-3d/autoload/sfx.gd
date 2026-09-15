@@ -647,24 +647,37 @@ const _PAD_CHORDS := [
 func _bgm_pad_wave() -> PackedFloat32Array:
 	var chord_dur := 4.0
 	var dur := chord_dur * _PAD_CHORDS.size()   # 16秒
+	# ループの継ぎ目で音量がカクッと沈む“脈打ち”を消す：各周波数を「16秒でちょうど整数回」振動する
+	# 値に丸める（ズレ0.1%未満＝耳では同じ）。これで両端を0へ落とすフェードが不要になり、シームレスに。
+	var chords := []
+	for ch in _PAD_CHORDS:
+		var sc := []
+		for f in ch:
+			sc.append(_loopfreq(float(f), dur))
+		chords.append(sc)
+	var trf := _loopfreq(0.18, dur)   # トレモロ（息づかい）も整数周期に
 	var n := int(RATE * dur)
 	var out := PackedFloat32Array()
 	out.resize(n)
 	var fade := 0.35   # 和音の変わり目のクロスフェード時間
 	for i in n:
 		var t := float(i) / RATE
-		var ci := int(t / chord_dur) % _PAD_CHORDS.size()
+		var ci := int(t / chord_dur) % chords.size()
 		var lt := t - float(int(t / chord_dur)) * chord_dur   # この和音の中の経過
-		var tr := 0.85 + 0.15 * sin(TAU * 0.18 * t)           # ゆっくりトレモロ（息づかい）
-		var s := _chord_at(_PAD_CHORDS[ci], t)
+		var tr := 0.85 + 0.15 * sin(TAU * trf * t)            # ゆっくりトレモロ（息づかい）
+		var s := _chord_at(chords[ci], t)
 		# 和音の頭では前の和音から、終わりでは次の和音へ、なめらかに混ぜる
 		if lt < fade:
-			var prev: Array = _PAD_CHORDS[(ci + _PAD_CHORDS.size() - 1) % _PAD_CHORDS.size()]
+			var prev: Array = chords[(ci + chords.size() - 1) % chords.size()]
 			var k := lt / fade
 			s = _chord_at(prev, t) * (1.0 - k) + s * k
-		var edge := clampf(minf(t, dur - t) / 0.05, 0.0, 1.0)
-		out[i] = s * tr * 0.5 * edge
+		out[i] = s * tr * 0.5   # 継ぎ目フェード不要（周波数を整数周期に丸めた＝シームレス）
 	return out
+
+
+## ループ用：周波数を「dur秒でちょうど整数回」振動する値へ丸める（継ぎ目の不連続＝脈打ちを無くす）。
+func _loopfreq(f: float, dur: float) -> float:
+	return maxf(1.0, round(f * dur)) / dur
 
 
 ## 和音（周波数の配列）を時刻 t で合成。根音を厚く、上の音ほど控えめ。
