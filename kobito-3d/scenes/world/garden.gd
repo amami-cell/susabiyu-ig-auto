@@ -107,6 +107,7 @@ var _water_mat: ShaderMaterial = null
 # にごり→すきとおる を 回復度で表現。水辺(biome=="water")のときだけ出す。
 var _water_lite: MeshInstance3D = null
 var _water_lite_mat: StandardMaterial3D = null
+var _fish_t := 2.0   # 次の魚の跳ねまでのカウント
 var _trees: Node3D = null
 # 木の葉を回復度で塗り替えるための保持（葉の色は建てたとき1回きりだと、
 # 汚れた世界でも森が青々として矛盾する→回復にあわせて病んだ色↔みずみずしい緑へ）。
@@ -314,6 +315,7 @@ func _process(delta: float) -> void:
 	_update_butterflies(delta)   # 見た目だけ＝全員の画面で回す（サーバ判定の前）
 	_update_beacon(delta)        # 道しるべの光の柱をふわっと動かす（見た目・全員）
 	_update_actor_shadows()      # 足元の接地影（全アクター・見た目のみ）
+	_update_water_life(delta)    # みずべ：魚の跳ね＋波紋（見た目・全員）＝生きた水面
 	if not _is_server():
 		return
 	_spawn_timer -= delta
@@ -853,6 +855,90 @@ func _build_water_lite() -> void:
 	_water_lite.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	_water_lite.visible = false
 	add_child(_water_lite)
+
+
+## みずべの生き物：水面のどこかで ときどき 魚が跳ねて 波紋がひろがる＝“生きた水”。純見た目・全員。
+func _update_water_life(delta: float) -> void:
+	if biome != "water" or _water_lite == null or not _water_lite.visible:
+		return
+	_fish_t -= delta
+	if _fish_t > 0.0:
+		return
+	_fish_t = randf_range(1.8, 3.8)
+	var c := Vector3.ZERO
+	var pl := _any_player()
+	if pl != null:
+		c = pl.global_position
+	var a := randf() * TAU
+	var r := randf_range(4.0, 14.0)
+	var p := c + Vector3(cos(a) * r, 0.07, sin(a) * r)
+	p.x = clampf(p.x, -33.0, 33.0)
+	p.z = clampf(p.z, -33.0, 33.0)
+	_spawn_fish_jump(p)
+
+
+## 魚が水面から跳ねて弧を描き、着水で波紋。回復ほど 澄んだ水に映える。
+func _spawn_fish_jump(pos: Vector3) -> void:
+	var fish := MeshInstance3D.new()
+	var body := SphereMesh.new()
+	body.radius = 0.11
+	body.height = 0.22
+	body.radial_segments = 7
+	body.rings = 4
+	fish.mesh = body
+	var m := StandardMaterial3D.new()
+	m.albedo_color = Color(0.75, 0.82, 0.9)
+	m.metallic = 0.4
+	m.metallic_specular = 0.7
+	m.roughness = 0.25
+	m.emission_enabled = true
+	m.emission = Color(0.7, 0.82, 0.95)
+	m.emission_energy_multiplier = 0.25
+	fish.material_override = m
+	fish.scale = Vector3(0.7, 0.55, 1.7)   # 魚らしく細長く
+	add_child(fish)
+	fish.position = pos
+	var fwd := Vector3(randf_range(-0.7, 0.7), 0.0, randf_range(-0.7, 0.7)).normalized()
+	var apex := pos + fwd * 0.7 + Vector3(0.0, randf_range(1.1, 1.8), 0.0)
+	var land := pos + fwd * 1.4
+	land.y = 0.07
+	fish.look_at(apex, Vector3.UP)
+	_spawn_ripple(pos)   # 跳ねた所の波紋
+	var tw := create_tween()
+	tw.tween_property(fish, "position", apex, 0.34).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
+	tw.parallel().tween_property(fish, "rotation:x", fish.rotation.x + 0.9, 0.34)
+	tw.tween_property(fish, "position", land, 0.34).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN)
+	tw.parallel().tween_property(fish, "rotation:x", fish.rotation.x + 1.8, 0.34)
+	tw.tween_callback(func() -> void:
+		_spawn_ripple(land)
+		fish.queue_free())
+
+
+## 水面にひろがって消える波紋の輪（水面に寝かせる）。
+func _spawn_ripple(pos: Vector3) -> void:
+	var ring := MeshInstance3D.new()
+	var tm := TorusMesh.new()
+	tm.inner_radius = 0.14
+	tm.outer_radius = 0.2
+	tm.rings = 18
+	tm.ring_segments = 6
+	ring.mesh = tm
+	var m := StandardMaterial3D.new()
+	m.albedo_color = Color(0.72, 0.9, 1.0, 0.55)
+	m.emission_enabled = true
+	m.emission = Color(0.62, 0.85, 1.0)
+	m.emission_energy_multiplier = 0.6
+	m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	ring.material_override = m
+	add_child(ring)
+	ring.rotation.x = deg_to_rad(90.0)   # 水面に寝かせる
+	ring.position = Vector3(pos.x, 0.085, pos.z)
+	ring.scale = Vector3(0.5, 0.5, 0.5)
+	var tw := create_tween()
+	tw.tween_property(ring, "scale", Vector3(4.5, 4.5, 4.5), 0.95).set_trans(Tween.TRANS_QUART).set_ease(Tween.EASE_OUT)
+	tw.parallel().tween_property(m, "albedo_color:a", 0.0, 0.95)
+	tw.tween_callback(ring.queue_free)
 
 
 # ------------------------------------------------------------ 浄化の“あと”に咲く花
