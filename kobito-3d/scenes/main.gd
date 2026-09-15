@@ -637,6 +637,12 @@ func _run_shot() -> void:
 			await get_tree().create_timer(1.0).timeout
 			await RenderingServer.frame_post_draw
 			get_viewport().get_texture().get_image().save_png("/tmp/shot_celeb_%s.png" % pair[1])
+	# --pageshot を付けると 章の始まりの「ページめくり」を 覆った瞬間で撮る（開発確認用）。
+	if OS.get_cmdline_user_args().has("--pageshot"):
+		Chapter.banner.emit("第3章  「にごった みずべ」")
+		await get_tree().create_timer(0.55).timeout   # めくって覆い切った頃
+		await RenderingServer.frame_post_draw
+		get_viewport().get_texture().get_image().save_png("/tmp/shot_page.png")
 	# --puzzle を付けると石版パズルを専用カメラで撮る（開発確認用）
 	if OS.get_cmdline_user_args().has("--puzzle"):
 		var puzzle := _garden.get_node_or_null("StonePuzzle")

@@ -238,6 +238,18 @@ func stop_title() -> void:
 		_bgm_title.stop()
 
 
+## 真エンディングの主題歌リプライズ：庭のBGMを止めて 主題歌を そっと流す（結果カードの下で）。
+## タイトルで聞いた旋律が最後に帰ってくる＝物語の締めの感情を強める。
+func ending_reprise() -> void:
+	stop_bgm()
+	if _bgm_title == null:
+		return
+	_bgm_title.stream = _bank.get("bgm_title")
+	_bgm_title.volume_db = -12.0
+	if not _bgm_title.playing:
+		_bgm_title.play()
+
+
 func _on_recovery_changed(_r: float) -> void:
 	pass   # 音量は _process でまとめて（回復度＋戦闘度から）決める
 

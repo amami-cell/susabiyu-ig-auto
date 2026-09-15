@@ -245,6 +245,10 @@ func _hide_box() -> void:
 
 
 func show_banner(text: String) -> void:
+	# 章の始まりのタイトル（「第X章 …」でクリアでない）は 絵本の“ページめくり”で見せる。
+	if ("第" in text) and ("章" in text) and not ("クリア" in text):
+		_page_turn(text)
+		return
 	_banner.text = text
 	_banner.visible = true
 	_banner.modulate = Color(1, 1, 1, 0)
@@ -257,10 +261,52 @@ func show_banner(text: String) -> void:
 		_show_result_card()
 
 
+## 章の始まりを 絵本の“ページめくり”で見せる：クリーム色のページが右から差し込み、章タイトルを
+## 中央に載せて めくり返す。全機種で軽い（Panel＋Label のスライドのみ）。
+func _page_turn(title: String) -> void:
+	var w := size.x
+	var page := Panel.new()
+	page.set_anchors_preset(Control.PRESET_FULL_RECT)
+	page.add_theme_stylebox_override("panel", UIKit.panel(UIKit.CREAM_SOLID, UIKit.GREEN_DK, 0, 0, 0))
+	page.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	page.position.x = w   # 画面右の外から
+	add_child(page)
+	# ページの綴じ目（先端）に細い影＝紙をめくる立体感。
+	var spine := ColorRect.new()
+	spine.color = Color(0.1, 0.14, 0.1, 0.28)
+	spine.anchor_top = 0.0
+	spine.anchor_bottom = 1.0
+	spine.offset_left = 0.0
+	spine.offset_right = 26.0
+	spine.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	page.add_child(spine)
+	# 章タイトル（ページの中央）。
+	var lbl := Label.new()
+	lbl.text = title
+	lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	lbl.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	lbl.set_anchors_preset(Control.PRESET_FULL_RECT)
+	lbl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	lbl.add_theme_font_size_override("font_size", 46)
+	lbl.add_theme_color_override("font_color", UIKit.GREEN_DK)
+	lbl.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	page.add_child(lbl)
+	Sfx.play("pickup", -12.0)   # 紙をめくる小さな合図
+	var tw := create_tween()
+	tw.tween_property(page, "position:x", 0.0, 0.5).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)  # めくって覆う
+	tw.tween_interval(1.1)                                                                                  # タイトルを見せる間
+	tw.tween_property(page, "position:x", -w, 0.5).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_IN)     # めくり切って世界へ
+	tw.tween_callback(page.queue_free)
+
+
 ## エンディング後だけ出すクリア結果カード：なかま数・みどり%・じかん・なまえ＋共有／タイトル。
 func _show_result_card() -> void:
 	if _result_card != null:
 		return
+	# 主題歌のリプライズ：エンディングの和音が landing してから、タイトルの旋律を そっと帰す。
+	var rt := create_tween()
+	rt.tween_interval(3.2)
+	rt.tween_callback(Sfx.ending_reprise)
 	var allies := get_tree().get_nodes_in_group("ally").size()
 	var green := int(round(WorldState.recovery * 100.0))
 	var secs := (Time.get_ticks_msec() - _start_msec) / 1000 if _start_msec > 0 else 0
