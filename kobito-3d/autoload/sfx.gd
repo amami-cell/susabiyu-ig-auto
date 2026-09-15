@@ -301,15 +301,24 @@ func _ambient_life(delta: float, r: float) -> void:
 		return
 	if _battle > 0.35:
 		return                            # 戦闘の緊張を壊さない
+	# 舞台ごとに“生きた気配”の音を選ぶ：昼の草原＝小鳥／夜の森＝虫の音／水辺＝しずく。
+	# 屋内は静かに（音を出さない）。回復するほど どの舞台も 賑わっていく。
 	var wb: String = Net.world_biome
-	if wb == "night" or wb == "house" or wb == "water":
-		return                            # 夜/屋内/水辺は小鳥の出番ではない
+	var snd := "bird"
+	var fast := 8.0
+	var slow := 3.0
+	if wb == "night":
+		snd = "cricket";   fast = 5.5; slow = 2.5   # 夜は虫が よく鳴く
+	elif wb == "water":
+		snd = "waterdrop"; fast = 6.0; slow = 3.0
+	elif wb == "house":
+		return                                       # 屋内は静けさを保つ
 	_bird_t -= delta
 	if _bird_t > 0.0:
 		return
-	# 回復が高いほど頻繁に（間隔 8秒→3秒）。ばらつかせて機械的に聞こえないように。
+	# 回復が高いほど頻繁に。ばらつかせて機械的に聞こえないように。
 	var k := clampf((r - 0.45) / 0.55, 0.0, 1.0)
-	_bird_t = lerpf(8.0, 3.0, k) * randf_range(0.7, 1.35)
+	_bird_t = lerpf(fast, slow, k) * randf_range(0.7, 1.35)
 	var players := get_tree().get_nodes_in_group("player")
 	if players.is_empty():
 		return
@@ -319,7 +328,7 @@ func _ambient_life(delta: float, r: float) -> void:
 	var ang := randf() * TAU
 	var dist := randf_range(6.0, 12.0)
 	var pos: Vector3 = p.global_position + Vector3(cos(ang) * dist, randf_range(1.8, 3.6), sin(ang) * dist)
-	play_at("bird", pos, -17.0 - randf_range(0.0, 4.0))   # 遠くで控えめに
+	play_at(snd, pos, -17.0 - randf_range(0.0, 4.0))   # 遠くで控えめに
 
 
 ## 中ボス（is_midboss）が生きて近くに居るか＝“山場”か。各自の端末で判定。
@@ -396,6 +405,8 @@ func _build_bank() -> void:
 	_bank["pickup"] = _make(_pickup())
 	_bank["befriend"] = _make(_befriend())         # なかまになった（浄化完了）専用
 	_bank["bird"] = _make(_birdsong())             # 環境音：世界が生き返った気配の小鳥
+	_bank["cricket"] = _make(_cricket())           # 環境音：夜の虫の音（回復した森）
+	_bank["waterdrop"] = _make(_waterdrop())       # 環境音：水辺のしずく（澄んだ水）
 	_bank["chapter_clear"] = _make(_chapter_clear())  # 章クリアのファンファーレ
 	_bank["ending"] = _make(_ending())             # 真エンディングの締め
 	_bank["alert"] = _make(_alert())               # 中ボス出現の警告
@@ -630,6 +641,40 @@ func _birdsong() -> PackedFloat32Array:
 			var env := sin(PI * clampf(u, 0.0, 1.0))                       # ふくらんで消える（プチッ無し）
 			var tone := sin(phase) * 0.7 + sin(phase * 2.0) * 0.2
 			out[idx] += tone * env * 0.22
+	return out
+
+
+## 環境音の虫の音（夜）：高い音を速く脈打たせる“チリチリ”トリル＋ふくらんで消える包絡。控えめ。
+func _cricket() -> PackedFloat32Array:
+	var total := 0.5
+	var n := int(RATE * total)
+	var out := PackedFloat32Array()
+	out.resize(n)
+	var f := 4600.0
+	for i in n:
+		var t := float(i) / n
+		var ti := float(i) / RATE
+		var pulse := pow(0.5 + 0.5 * sin(TAU * 34.0 * ti), 3.0)   # 34Hzで脈打つ＝くっきりトリル
+		var env := sin(PI * clampf(t, 0.0, 1.0))
+		var tone := sin(TAU * f * ti) * 0.7 + sin(TAU * f * 1.5 * ti) * 0.2
+		out[i] = tone * pulse * env * 0.14
+	return out
+
+
+## 環境音の水滴（水辺）：素早く音程が下がる“ピチョン”＋残響のように尾を引く減衰。
+func _waterdrop() -> PackedFloat32Array:
+	var total := 0.35
+	var n := int(RATE * total)
+	var out := PackedFloat32Array()
+	out.resize(n)
+	var phase := 0.0
+	for i in n:
+		var t := float(i) / n
+		var f := lerpf(1400.0, 620.0, pow(t, 0.35))   # 立ち上がりで素早く下がる＝しずく特有の音
+		phase += TAU * f / RATE
+		var env := pow(1.0 - t, 2.2)
+		var atk := clampf(t / 0.006, 0.0, 1.0)         # ごく短いアタック＝“コツッ”
+		out[i] = sin(phase) * env * atk * 0.2
 	return out
 
 
