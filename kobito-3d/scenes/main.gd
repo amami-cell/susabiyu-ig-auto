@@ -637,6 +637,13 @@ func _run_shot() -> void:
 			await get_tree().create_timer(1.0).timeout
 			await RenderingServer.frame_post_draw
 			get_viewport().get_texture().get_image().save_png("/tmp/shot_celeb_%s.png" % pair[1])
+	# --covershot：エンディングの 締めの見開き＋結果カードの重なりを撮る（開発確認用）。
+	if OS.get_cmdline_user_args().has("--covershot"):
+		WorldState.set_full()
+		Chapter.banner.emit("『みどりのはじまり』  〜おわり〜")
+		await get_tree().create_timer(1.2).timeout    # 締めの見開きが 出きった頃
+		await RenderingServer.frame_post_draw
+		get_viewport().get_texture().get_image().save_png("/tmp/shot_cover_end.png")
 	# --pageshot を付けると 章の始まりの「ページめくり」を 覆った瞬間で撮る（開発確認用）。
 	if OS.get_cmdline_user_args().has("--pageshot"):
 		Chapter.banner.emit("第3章  「にごった みずべ」")

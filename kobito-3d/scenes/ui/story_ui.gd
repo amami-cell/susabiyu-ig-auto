@@ -36,8 +36,11 @@ func _ready() -> void:
 	Chapter.objective_changed.connect(set_objective)
 	Chapter.banner.connect(show_banner)
 	Chapter.chapter_cleared.connect(_celebrate_chapter)   # 舞台ごとに違う ごほうび演出
-	# プレイ時間の起点（結果カードで「じかん」を出す）。
-	Net.session_started.connect(func() -> void: _start_msec = Time.get_ticks_msec())
+	# プレイ時間の起点（結果カードで「じかん」を出す）。＋物語モードは「本を開く」映画的な入り。
+	Net.session_started.connect(func() -> void:
+		_start_msec = Time.get_ticks_msec()
+		if Net.world_biome == "garden" and not Chapter.free_play:
+			_open_cover())
 	# セッション終了（タイトルへ戻る）時に、結果カード/ボタンが残らないよう片づける。
 	Net.session_ended.connect(func(_r: String) -> void:
 		if _result_card != null:
@@ -258,7 +261,68 @@ func show_banner(text: String) -> void:
 	# エンディングのバナーには「結果カード」を出す（余韻の後にふわっと・共有の起点）。
 	if "おわり" in text:
 		Sfx.play("ending", -3.0)   # 最大の頂点＝無音にしない、8.8秒の締めの余韻
-		_show_result_card()
+		_show_result_card()        # 先に用意（結果カード・暗幕）
+		_closing_spread()          # その上に 締めの見開き＝フェードアウトで 結果カードへ開く
+
+
+## 表紙／裏表紙の一枚（クリーム色のページに 大きなタイトル＋副題）。開始と終了の“映画的な両端”に使う。
+func _cover_page(title: String, subtitle: String) -> Panel:
+	var page := Panel.new()
+	page.set_anchors_preset(Control.PRESET_FULL_RECT)
+	page.add_theme_stylebox_override("panel", UIKit.panel(UIKit.CREAM_SOLID, UIKit.GREEN_DK, 0, 0, 0))
+	page.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var vb := VBoxContainer.new()
+	vb.set_anchors_preset(Control.PRESET_CENTER)
+	vb.alignment = BoxContainer.ALIGNMENT_CENTER
+	vb.offset_left = -480.0
+	vb.offset_right = 480.0
+	vb.offset_top = -100.0
+	vb.offset_bottom = 100.0
+	vb.add_theme_constant_override("separation", 16)
+	page.add_child(vb)
+	var t := Label.new()
+	t.text = title
+	t.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	t.add_theme_font_size_override("font_size", 60)
+	t.add_theme_color_override("font_color", UIKit.GREEN_DK)
+	vb.add_child(t)
+	var s := Label.new()
+	s.text = subtitle
+	s.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	s.add_theme_font_size_override("font_size", 26)
+	s.add_theme_color_override("font_color", UIKit.GOLD.darkened(0.3))
+	vb.add_child(s)
+	add_child(page)
+	return page
+
+
+## 本を開く：開始時、表紙が めくれて世界へ（絵本の“映画的な入り”＋シーンの組み上がりも隠す）。
+func _open_cover() -> void:
+	var w := size.x
+	var page := _cover_page("みどりのはじまり", "〜 小人一家の えほん 〜")
+	var spine := ColorRect.new()
+	spine.color = Color(0.1, 0.14, 0.1, 0.28)
+	spine.anchor_top = 0.0
+	spine.anchor_bottom = 1.0
+	spine.offset_left = 0.0
+	spine.offset_right = 26.0
+	spine.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	page.add_child(spine)
+	var tw := create_tween()
+	tw.tween_interval(2.0)                                                                                # 表紙を見せる間
+	tw.tween_property(page, "position:x", -w, 0.7).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_IN)   # めくって世界へ
+	tw.tween_callback(page.queue_free)
+
+
+## 本を閉じる：エンディングで 締めの見開き（〜おわり〜）を ふわっと出して、結果カードへ渡す。
+func _closing_spread() -> void:
+	var page := _cover_page("みどりのはじまり", "〜 おわり 〜")
+	page.modulate = Color(1, 1, 1, 0)
+	var tw := create_tween()
+	tw.tween_property(page, "modulate:a", 1.0, 0.9)   # 世界が しずかに 紙へ
+	tw.tween_interval(2.4)
+	tw.tween_property(page, "modulate:a", 0.0, 1.4)   # 結果カードへ 引き渡す
+	tw.tween_callback(page.queue_free)
 
 
 ## 章の始まりを 絵本の“ページめくり”で見せる：クリーム色のページが右から差し込み、章タイトルを
