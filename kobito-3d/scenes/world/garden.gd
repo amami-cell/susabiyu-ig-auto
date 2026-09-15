@@ -75,6 +75,11 @@ var _allies: Node3D = null   # なかま虫の入れ物（_ready で作る＝シ
 const GRASS_COUNT := 5200        # グラフィック最大：芝を密に（MultiMesh 1ドローコール）
 const FLOWER_COUNT := 240
 var _sky_mat: ProceduralSkyMaterial = null
+var _cloud_mat: ShaderMaterial = null   # 空のやわらかい雲（回復で色・量が変わる）
+var _cloud_mmi: MeshInstance3D = null
+var _mote_mm: MultiMesh = null          # 空気に舞う花粉/ちり（回復で色・数が変わる）
+var _mote_mat: ShaderMaterial = null
+var _mote_n := 0
 var _ground_shader: ShaderMaterial = null
 var _grass_mm: MultiMesh = null
 var _flower_mm: MultiMesh = null
@@ -809,12 +814,14 @@ func _setup_visuals() -> void:
 	_build_terrain_skirt()
 	# 遠景の山なみは MultiMesh 1ドローコールで軽い＝Webでも“広い世界”を残す（第一印象の要）。
 	_build_distant_hills()
+	_build_clouds()   # 空に流れる雲（回復で 灰→白→夕やけ）＝空の間延びを解消・絵本感UP
 	# 水面は頂点アニメで重めなので Web ではスキップ（サクサク優先）。
 	if not OS.has_feature("web"):
 		_build_water()
 	_build_trees()
 	_build_boulders()
 	_build_butterflies()
+	_build_motes()   # 空気に舞う花粉/ちり（回復で 灰のちり→金の花粉）＝“生きた空気”
 	_build_actor_shadows()
 	_build_bloom()
 	_build_water_lite()
@@ -1466,6 +1473,63 @@ func _update_plants(r: float) -> void:
 		_plant_mm.set_instance_transform(i, Transform3D(b, _plant_base[i]))
 
 
+## 空に流れる雲を作る（大きな半球ドーム＋スクロールする fbm ノイズ）。unshaded・透明・1ドロー。
+## 回復で 灰の曇天 → 白い浮き雲 → 夕やけの淡いピンク。屋外biome(庭/みずべ/そら)だけ表示。
+func _build_clouds() -> void:
+	var dome := SphereMesh.new()
+	dome.radius = 150.0
+	dome.height = 300.0
+	dome.is_hemisphere = true
+	dome.radial_segments = 24
+	dome.rings = 12
+	var mat := ShaderMaterial.new()
+	var sh := Shader.new()
+	sh.code = """
+shader_type spatial;
+render_mode unshaded, cull_front, depth_draw_never, depth_test_disabled;
+uniform vec3 cloud_col : source_color = vec3(1.0);
+uniform float coverage = 0.5;
+uniform float alpha = 0.9;
+varying vec3 vpos;
+float hash(vec2 p){ return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
+float vnoise(vec2 p){
+	vec2 i = floor(p); vec2 f = fract(p);
+	vec2 u = f * f * (3.0 - 2.0 * f);
+	return mix(mix(hash(i), hash(i + vec2(1.0, 0.0)), u.x),
+			   mix(hash(i + vec2(0.0, 1.0)), hash(i + vec2(1.0, 1.0)), u.x), u.y);
+}
+float fbm(vec2 p){
+	float v = 0.0; float a = 0.5;
+	for(int k = 0; k < 3; k++){ v += a * vnoise(p); p *= 2.0; a *= 0.5; }
+	return v;
+}
+void vertex(){ vpos = VERTEX; }
+void fragment(){
+	vec3 d = normalize(vpos);
+	// 空の“平らな雲の層”へ射影＝遠近がついて自然に広がる。ゆっくり流れる。
+	vec2 uv = d.xz / (d.y + 0.55) * 0.5 + vec2(TIME * 0.008, TIME * 0.005);
+	float n = fbm(uv * 1.3);
+	float c = smoothstep(1.0 - coverage, 1.0 - coverage + 0.2, n);
+	// 雲に陰影＝立体感（濃い所はやや暗く、盛り上がりは明るく）。
+	float shade = mix(0.72, 1.05, smoothstep(0.35, 0.95, n));
+	// 低い三人称カメラでは 空は“地平のすぐ上の帯”しか見えない＝そこに雲を出す。
+	float horizon = smoothstep(-0.02, 0.10, d.y);
+	ALBEDO = cloud_col * shade;
+	ALPHA = c * alpha * horizon;
+}
+"""
+	mat.shader = sh
+	dome.surface_set_material(0, mat)
+	_cloud_mat = mat
+	var mmi := MeshInstance3D.new()
+	mmi.name = "Clouds"
+	mmi.mesh = dome
+	mmi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	mmi.extra_cull_margin = 200.0   # 常に描く（カメラが中に居るため）
+	add_child(mmi)
+	_cloud_mmi = mmi
+
+
 ## 空・霧・トーン・ブルーム。汚れているほど灰色・濃霧、回復で青空・澄んだ空気。
 ## トーンマップ(フィルミック)とわずかなブルームで、色が“作り込まれて”見える。
 func _setup_sky_fog() -> void:
@@ -1848,6 +1912,16 @@ func _update_sky_fog(r: float) -> void:
 	var fog1: Color = cfg["fog_col"][1]
 	var fd0: float = cfg["fog_d"][0]
 	var fd1: float = cfg["fog_d"][1]
+	# 雲：屋外(庭/みずべ/そら)だけ表示。汚れ時は灰色の曇天で多め、回復で白い浮き雲→夕やけの淡いピンクへ。
+	if _cloud_mmi != null:
+		var outdoor := biome == "garden" or biome == "water" or biome == "sky"
+		_cloud_mmi.visible = outdoor
+		if outdoor and _cloud_mat != null:
+			var base := Color(0.55, 0.56, 0.60).lerp(Color(1.0, 0.99, 0.96), clampf(r * 1.3, 0.0, 1.0))
+			var warm := base.lerp(Color(1.0, 0.85, 0.72), smoothstep(0.65, 1.0, r) * 0.6)
+			_cloud_mat.set_shader_parameter("cloud_col", warm)
+			_cloud_mat.set_shader_parameter("coverage", lerpf(0.62, 0.42, r))
+			_cloud_mat.set_shader_parameter("alpha", lerpf(0.85, 0.7, r))
 	if _is_ruins():
 		# 遺跡：薄暗く苔むした空気。回復しても“青空”にはならず、澄んだ翠に。
 		if _sky_mat != null:
@@ -1873,6 +1947,76 @@ func _update_sky_fog(r: float) -> void:
 		# 遠景に金色のもや（大気遠近）で奥行きを出す。回復で澄んで遠くまで見える。
 		env.fog_light_color = fog0.lerp(fog1, r)
 		env.fog_density = lerpf(fd0, fd1, r)   # 濃い茶霧を薄め、手前の濁りを抜く
+
+
+## 空気に舞う花粉/ちり：目線の高さの空間に 小さな光の粒がゆっくり漂う＝“生きた空気”。
+## 頂点シェーダで漂わせる（CPU負荷ゼロ・1ドローコール）。回復で 灰のちり→金の花粉、数も増える。
+func _build_motes() -> void:
+	var dot := SphereMesh.new()
+	dot.radius = 0.05
+	dot.height = 0.1
+	dot.radial_segments = 5
+	dot.rings = 3
+	var mat := ShaderMaterial.new()
+	var sh := Shader.new()
+	sh.code = """
+shader_type spatial;
+render_mode unshaded, cull_disabled, depth_draw_never;
+uniform vec3 mote_col : source_color = vec3(1.0, 0.95, 0.7);
+uniform float glow = 1.6;
+varying float tw;
+void vertex(){
+	float ph = INSTANCE_CUSTOM.r * 6.2831;
+	float sp = 0.3 + INSTANCE_CUSTOM.g * 0.6;
+	// ゆるやかな漂い（水平の8の字＋上下のふわり）
+	VERTEX.x += sin(TIME * sp + ph) * 0.5;
+	VERTEX.z += cos(TIME * sp * 0.8 + ph) * 0.5;
+	VERTEX.y += sin(TIME * 0.4 + ph) * 0.3;
+	tw = 0.45 + 0.55 * sin(TIME * (1.0 + INSTANCE_CUSTOM.b * 3.0) + INSTANCE_CUSTOM.a * 6.2831);
+}
+void fragment(){
+	ALBEDO = mote_col;
+	EMISSION = mote_col * glow;
+	ALPHA = tw;   // きらめき（明滅）＝光を拾う粒
+}
+"""
+	mat.shader = sh
+	mat.set_shader_parameter("mote_col", Color(0.7, 0.72, 0.66))
+	dot.surface_set_material(0, mat)
+	_mote_mat = mat
+
+	_mote_n = 40 if OS.has_feature("web") else 90
+	_mote_mm = MultiMesh.new()
+	_mote_mm.transform_format = MultiMesh.TRANSFORM_3D
+	_mote_mm.use_custom_data = true
+	_mote_mm.mesh = dot
+	_mote_mm.instance_count = _mote_n
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 424242
+	for i in _mote_n:
+		var pos := Vector3(rng.randf_range(-30.0, 30.0), rng.randf_range(0.6, 4.5), rng.randf_range(-30.0, 30.0))
+		_mote_mm.set_instance_transform(i, Transform3D(Basis.IDENTITY, pos))
+		_mote_mm.set_instance_custom_data(i, Color(rng.randf(), rng.randf(), rng.randf(), rng.randf()))
+	var mmi := MultiMeshInstance3D.new()
+	mmi.name = "Motes"
+	mmi.multimesh = _mote_mm
+	mmi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	mmi.extra_cull_margin = 40.0
+	add_child(mmi)
+	_update_motes(WorldState.recovery)
+
+
+## 回復で 花粉/ちり の色と数を変える。汚れ時は少なめの灰のちり、回復で金の花粉が増えて舞う。
+func _update_motes(r: float) -> void:
+	if _mote_mm == null:
+		return
+	# 遺跡は屋外だが特殊：うっすら胞子だけ。屋内(house)は ほこり。夜は 少なめの光の粉。
+	_mote_mm.visible_instance_count = int(_mote_n * lerpf(0.35, 1.0, r))
+	if _mote_mat != null:
+		var dust := Color(0.62, 0.63, 0.58)      # くすんだ灰のちり
+		var pollen := Color(1.0, 0.9, 0.55)       # あたたかい金の花粉
+		_mote_mat.set_shader_parameter("mote_col", dust.lerp(pollen, clampf(r * 1.15, 0.0, 1.0)))
+		_mote_mat.set_shader_parameter("glow", lerpf(0.6, 1.3, r))
 
 
 ## 蝶。回復するほど数が増える“命”。羽ばたきは頂点シェーダ、飛行はCPUで軽く。
@@ -1995,6 +2139,7 @@ func _on_recovery_changed(_value: float) -> void:
 	_update_sky_fog(r)
 	_update_grass(r)
 	_update_flowers(r)
+	_update_motes(r)
 	_update_plants(r)
 	_update_tree_leaves(r)
 	var env := _env.environment
