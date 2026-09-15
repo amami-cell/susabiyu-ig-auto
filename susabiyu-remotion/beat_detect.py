@@ -55,7 +55,6 @@ def detect(path, max_sec=60.0, start_sec=0.0):
     秒は start_sec を 0 とした相対秒。start_sec は「その曲を再生し始める位置」で、
     そこから max_sec 秒ぶんだけ解析する（曲の頭ではなく、実際に流すところを見る）。"""
     import numpy as np
-    sr, hop, win = SR, HOP, WIN
     env, fenv = _envelope(path, max_sec, start_sec)
     if env is None:
         return None
