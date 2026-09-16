@@ -372,6 +372,17 @@ func _refresh_title_state() -> void:
 		_vbox.move_child(fp, _join.get_index() + 1)
 		fp.pressed.connect(_on_free_play)
 
+	# れんしゅう（たたかいなし）＝いつでも選べる やさしい入口。小さな子・初見・刺激に敏感な子へ。
+	if _vbox.get_node_or_null("PeacefulButton") == null:
+		var pc := Button.new()
+		pc.name = "PeacefulButton"
+		pc.text = "れんしゅう（たたかいなし）"
+		pc.custom_minimum_size = Vector2(0, 52)
+		UIKit.style_button(pc, Color(0.72, 0.88, 0.78), UIKit.GREEN_DK)
+		_vbox.add_child(pc)
+		_vbox.move_child(pc, _solo.get_index() + 1)
+		pc.pressed.connect(_on_peaceful)
+
 	# 一度でも通しクリアしていたら、小さく誇らしく表示（左上）
 	if Chapter.cleared and get_node_or_null("ClearedBadge") == null:
 		var badge := Label.new()
@@ -756,6 +767,14 @@ func _on_free_play() -> void:
 	_sync_settings()
 	Net.world_biome = "garden"   # のんびり庭は 庭に固定
 	Chapter.start_free_play()
+	Net.start_solo()
+
+
+## れんしゅう（たたかいなし）：庭に固定・章オフ・敵ゼロで始める。掃除と収集だけの安心の入口。
+func _on_peaceful() -> void:
+	_sync_settings()
+	Net.world_biome = "garden"
+	Chapter.start_peaceful()
 	Net.start_solo()
 
 

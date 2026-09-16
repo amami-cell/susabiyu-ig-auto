@@ -27,6 +27,7 @@ const SAVE_TMP := "user://save.cfg.tmp"   # アトミック保存の一時ファ
 const SAVE_SCHEMA := 1                     # セーブ形式の版。将来 形式を変えたら上げる。
 var cleared := false            # 一度でも通しクリアしたか（タイトルに小さく出す）
 var free_play := false          # のんびり庭（クリア後のごほうび）＝章の進行を止めた平和モード
+var peaceful := false           # れんしゅうモード＝敵ゼロ（掃除と収集だけ）。小さな子・初見の安心の入口
 var _want_continue := false     # タイトルで「つづきから」を押した
 var _pending_continue := false  # セッション開始後、庭が組み上がってから復元する合図
 
@@ -378,7 +379,10 @@ func _on_session_started() -> void:
 		_active = false
 		guide_on = false
 		guide_changed.emit(false, Vector3.ZERO, "")
-		objective_changed.emit("のんびり庭：すきなだけ 虫を「きれいに」して 花を さかせよう")
+		if peaceful:
+			objective_changed.emit("れんしゅう：すきなだけ 虫を「きれいに」して 花を さかせよう（たたかいなし）")
+		else:
+			objective_changed.emit("のんびり庭：すきなだけ 虫を「きれいに」して 花を さかせよう")
 		if _is_server():
 			WorldState.set_recovery(0.9)   # 最初から みどり豊か
 		return
@@ -736,6 +740,8 @@ func allowed_bugs() -> Array:
 
 
 func ambient_spawn_ok() -> bool:
+	if peaceful:
+		return false  # れんしゅうモード＝敵を一切 湧かせない（掃除と収集だけ）
 	if not _active:
 		return true   # 自由プレイ（遺跡など）は従来どおり
 	if beat < 0 or beat >= CH1.size():
@@ -752,11 +758,13 @@ func ambient_spawn_ok() -> bool:
 func continue_game() -> void:
 	_want_continue = true
 	free_play = false
+	peaceful = false
 
 
 func start_new() -> void:
 	_want_continue = false
 	free_play = false
+	peaceful = false
 
 
 ## クリア後のごほうび「のんびり庭」：章の進行なし・最初からみどり豊か・敵はやさしく湧くだけ。
@@ -764,6 +772,15 @@ func start_new() -> void:
 func start_free_play() -> void:
 	_want_continue = false
 	free_play = true
+	peaceful = false
+
+
+## れんしゅうモード：戦闘ゼロの平和サンドボックス（掃除と収集だけ）。free_play の上に peaceful を重ねる。
+## 小さな子・初見・刺激に敏感な子でも安心して 世界を きれいにできる やさしい入口。
+func start_peaceful() -> void:
+	_want_continue = false
+	free_play = true
+	peaceful = true
 
 
 ## 途中経過のセーブがあるか（タイトルで「つづきから」を出すか）。
