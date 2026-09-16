@@ -418,12 +418,16 @@ func _show_result_card() -> void:
 
 	_result_card = Panel.new()
 	_result_card.set_anchors_preset(Control.PRESET_CENTER)
-	_result_card.offset_left = -260
-	_result_card.offset_right = 260
-	_result_card.offset_top = -180
-	_result_card.offset_bottom = 190
+	_result_card.offset_left = -280
+	_result_card.offset_right = 280
+	_result_card.offset_top = -210
+	_result_card.offset_bottom = 210
 	_result_card.add_theme_stylebox_override("panel", UIKit.panel(UIKit.CREAM, UIKit.GREEN_DK, 24, 4, 22))
 	_result_card.modulate = Color(1, 1, 1, 0)
+	# 登場の“ふわっ”：中心から少しだけ大きくなって着地（共有スクショ映え）。ひかえめ時はフェードのみ。
+	if not UIKit.reduce_fx():
+		_result_card.pivot_offset = Vector2(280, 210)
+		_result_card.scale = Vector2(0.9, 0.9)
 	add_child(_result_card)
 
 	var vb := VBoxContainer.new()
@@ -440,6 +444,21 @@ func _show_result_card() -> void:
 	ttl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	UIKit.style_label(ttl, 30, UIKit.GREEN_DK)
 	vb.add_child(ttl)
+
+	# 本のタイトルを入れて 共有スクショだけで「これは何のゲームか」が分かるように。
+	var sub := Label.new()
+	sub.text = "絵本『みどりのはじまり』"
+	sub.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	UIKit.style_label(sub, 18, UIKit.GREEN_DK)
+	vb.add_child(sub)
+
+	# みどり回復に応じた ★評価（1〜3）＝一目で伝わる成績・共有の話のタネ。
+	var stars_n := 1 + (1 if green >= 70 else 0) + (1 if green >= 95 else 0)
+	var stars := Label.new()
+	stars.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	stars.text = "★".repeat(stars_n) + "☆".repeat(3 - stars_n)
+	UIKit.style_label(stars, 34, UIKit.GOLD)
+	vb.add_child(stars)
 
 	var stat := Label.new()
 	stat.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
@@ -489,6 +508,8 @@ func _show_result_card() -> void:
 	var tw := create_tween()
 	tw.tween_interval(2.0)   # 余韻のあとに ふわっと出す
 	tw.tween_property(_result_card, "modulate:a", 1.0, 0.6)
+	if not UIKit.reduce_fx():
+		tw.parallel().tween_property(_result_card, "scale", Vector2.ONE, 0.6).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 
 
 ## 章ごとの ごほうび演出のレシピ（舞台ごとに 記号・色・ひとこと・向きが違う）。
