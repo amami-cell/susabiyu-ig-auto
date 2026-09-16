@@ -378,6 +378,26 @@ def fresh_token_for(account="", validate=True):
     print("[TOKEN] アカウント '%s' のトークンが無効。再発行が必要です。" % account)
     return ""
 
+def acct_clear(account):
+    """AcctTokens の account 行の保存トークンを空にする（誤登録トークンのキャッシュ破棄用）。
+    誤ってキャッシュされたトークンは“有効な別アカウント”だと _me_ok を通ってしまい、
+    Secret を差し替えても切り替わらない。ここで空にして基底(Secret)から取り直させる。"""
+    if not (HAS_G and SHEET_ID):
+        print("[TOKEN] シート未接続（クリア不可）"); return False
+    sh = _sheets()
+    if not sh:
+        print("[TOKEN] 認証情報なし（クリア不可）"); return False
+    idx, _, _, _ = _acct_row(sh, account)
+    if not idx:
+        print("[TOKEN] アカウント '%s' の保存行なし（クリア不要）" % account); return True
+    try:
+        sh.values().update(spreadsheetId=SHEET_ID, range="%s!A%d:D%d" % (ACCT_TAB, idx, idx),
+                           valueInputOption="RAW", body={"values": [[account, "", "", ""]]}).execute()
+        print("[TOKEN] アカウント '%s' の保存トークンをクリア（Secretから取り直します）" % account); return True
+    except Exception as e:
+        print("[TOKEN] アカウント '%s' クリア失敗: %s" % (account, e)); return False
+
+
 def guard_account(account):
     """店舗別トークンの点検＆延命（token_guard から呼ぶ）。生存はTrue。"""
     t = fresh_token_for(account)
