@@ -3,13 +3,13 @@ name: goldporta-post
 # GitHub cron 遅延に強くするため、各cronはスロット時刻(JST)を明示して post_approved に渡す。
 # 承認/差し替え/やめる/作り直しは確認アプリ→GAS→シートに反映済みの状態を尊重して投稿する。
 on:
-  schedule:
-    # 【根本対策】cron分は「00分」を避ける（GitHubは毎時00分が最混雑で遅延しやすい）。他店と分もずらす。
-    # IGトークン(IG_ACCESS_TOKEN_GOLDPORTA)未設定の間は post_approved が安全にスキップする設計。
-    # トークン登録だけで本投稿が始まる（go-liveのトークン以外を先行有効化）。
-    - cron: '17 2 * * *'   # JST 11:00 枠（02:17 UTC）
-    - cron: '33 9 * * *'   # JST 18:00 枠（09:33 UTC）
-    - cron: '53 11 * * *'  # JST 20:00 枠（11:53 UTC）
+  # ⏸ ユーザー要望により GOLDの自動投稿は一時停止中（動画確認が済むまで）。
+  #   再開時は下の schedule のコメントを外す（prepare は動かしたまま＝承認待ちは生成される）。
+  # schedule:
+  #   # 【根本対策】cron分は「00分」を避ける（GitHubは毎時00分が最混雑で遅延しやすい）。他店と分もずらす。
+  #   - cron: '17 2 * * *'   # JST 11:00 枠（02:17 UTC）
+  #   - cron: '33 9 * * *'   # JST 18:00 枠（09:33 UTC）
+  #   - cron: '53 11 * * *'  # JST 20:00 枠（11:53 UTC）
   workflow_dispatch:
     inputs:
       datetime:
