@@ -19,10 +19,26 @@ def main():
         open("creds.json", "wb").write(base64.b64decode(os.environ["GOOGLE_CREDS_B64"])); creds = "creds.json"
     poster.SHEET_ID = os.environ.get("SHEET_ID", poster.SHEET_ID)
 
-    if args and args[0].strip().lower() == "reset":
+    # 引数はワークフローから1文字列で来ることがあるので、まとめて空白分割で解釈する。
+    rest = " ".join(a for a in args).split()
+    mode = rest[0].strip().lower() if rest else ""
+
+    if mode == "reset":
         ok = poster.token_reset()
         print("[GUARD] reset:", "復旧OK ✅" if ok else "復旧NG（Secretのトークンも無効＝新規再発行が必要）")
         return
+
+    if mode == "resetacct":
+        # 店舗別キャッシュ(AcctTokens)をクリアして基底(Secret)から取り直す。
+        # 対象は引数指定（例 "resetacct nagagutsu goldporta"）。無指定なら全 IG_ACCESS_TOKEN_<X>。
+        targets = [x.strip().lower() for x in rest[1:] if x.strip()]
+        if not targets:
+            targets = sorted(k[len("IG_ACCESS_TOKEN_"):].lower()
+                             for k in os.environ if k.startswith("IG_ACCESS_TOKEN_") and os.environ.get(k))
+        for acc in targets:
+            poster.acct_clear(acc)
+        print("[GUARD] resetacct 対象:", ", ".join(targets) or "(なし)")
+        # このあと通常点検に落ちて、Secretから取り直した結果（正しい@ユーザー名）を表示する。
 
     t = poster.fresh_token()
     ok, me = poster._me_ok(t)
