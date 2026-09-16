@@ -537,14 +537,25 @@ func _remote_hit(amount: int = 0) -> void:
 	_update_hpbar()
 	var base := Vector3.ONE * stats.body_scale
 	var tw := create_tween()
-	tw.tween_property(_body, "scale", base * Vector3(1.7, 0.5, 1.7), 0.04)   # 大きくつぶれる
+	tw.tween_property(_body, "scale", base * Vector3(1.7, 0.5, 1.7), 0.035)   # 大きくつぶれる
+	tw.tween_interval(0.05)   # ヒットストップ風の“溜め”：一瞬つぶれたまま止まる＝当たった重み（時間停止なし・この虫だけ）
 	tw.tween_property(_body, "scale", base, 0.18).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 	var tw2 := create_tween()
 	tw2.tween_property(_body, "position:y", 0.7, 0.06)   # 大きく跳ねる
+	tw2.tween_interval(0.05)   # 溜めのあいだ 高さも保持＝スケールの溜めと同期
 	tw2.tween_property(_body, "position:y", 0.0, 0.2).set_trans(Tween.TRANS_BOUNCE).set_ease(Tween.EASE_OUT)
 	_spawn_hit_spark()
 	if amount > 0:
 		_spawn_damage_number(amount)
+	# 近くで叩いた“自分”のカメラに ごく小さな手応え（画角パンチ＋微振動）＝一撃ごとに刺さる。
+	# 中ボスへの一撃は少し強め。reward_pulse（なかま化）とは別＝毎ヒットの punch。
+	var kick := 1.6 if stats.is_midboss else 1.0
+	for p in get_tree().get_nodes_in_group("player"):
+		if p.get("is_local") and p.has_method("fov_kick") \
+				and p.global_position.distance_to(global_position) < 3.6:
+			p.fov_kick(-1.2 * kick)
+			p.shake(0.018 * kick)
+			break
 
 
 ## ヒット火花：叩いた瞬間、白〜黄の光がパッと弾けて消える（当たった位置＝虫の中心上）。
