@@ -51,6 +51,7 @@ var _attack_cd := 0.0
 var _sync_accum := 0.0
 var _net_pos := Vector3.ZERO
 var _dead := false
+var _rare := false               # 隠し要素：きらきら光るレア個体（低確率）。癒やすと特別なごほうび
 var _age := 0.0
 var _body_mat: StandardMaterial3D = null   # 発光脈動用
 var _knockback := Vector3.ZERO   # 叩かれて弾き飛ぶ勢い（減衰する）
@@ -491,9 +492,13 @@ func cleanse(amount: int, healer_id: int) -> void:
 	if stats.is_midboss:
 		Chapter.notify_boss_cleared()
 		WorldState.notice.emit("（正気に もどった）「…ありがとう。もう、こわくない」")
+	# レア個体は とくべつなごほうび：ボーナス経験値＋みんなへ お祝いの一言。
+	var xp_reward: int = stats.xp_reward + (12 if _rare else 0)
+	if _rare and not stats.is_midboss:
+		WorldState.notice.emit("★ レアな なかまが 来てくれた！　（とくべつ）")
 	for p in get_tree().get_nodes_in_group("player"):
 		if p.name.to_int() == healer_id:
-			p.rpc("gain_xp", stats.xp_reward)
+			p.rpc("gain_xp", xp_reward)
 			p.rpc("heal_hp", 8)   # 癒やす＝自分も少し回復（回復手段が分かりやすい）
 			break
 	# 癒やした虫は「なかま」になって一緒に戦う（中ボスは昇天のみ＝仲間化しない）。
@@ -702,6 +707,34 @@ func _flash_bug(c: Color) -> void:
 	tw.tween_property(mat, "albedo_color", _cleanliness_color(), 0.18)
 
 
+## 隠し要素：この個体を“レア”にする（金色に きらめく オーラ）。サーバが低確率で決め、
+## _remote_spawn_bug（call_local）経由で 全員の画面に同じレアが出る＝見つけた人みんなで「あっ！」。
+func make_rare() -> void:
+	if _rare:
+		return
+	_rare = true
+	var aura := MeshInstance3D.new()
+	aura.name = "RareAura"
+	var q := QuadMesh.new()
+	q.size = Vector2(1.5, 1.5) * stats.body_scale
+	aura.mesh = q
+	var m := StandardMaterial3D.new()
+	m.albedo_color = Color(1.0, 0.92, 0.42, 0.5)
+	m.emission_enabled = true
+	m.emission = Color(1.0, 0.9, 0.45)
+	m.emission_energy_multiplier = 2.6
+	m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	m.billboard_mode = BaseMaterial3D.BILLBOARD_ENABLED
+	aura.material_override = m
+	aura.position = Vector3(0.0, 0.6 * stats.body_scale, 0.0)
+	add_child(aura)
+	# ふわっと明滅＝“きらめき”。ループするTweenで軽く。
+	var tw := create_tween().set_loops()
+	tw.tween_property(aura, "scale", Vector3.ONE * 1.28, 0.7).set_trans(Tween.TRANS_SINE)
+	tw.tween_property(aura, "scale", Vector3.ONE * 0.86, 0.7).set_trans(Tween.TRANS_SINE)
+
+
 @rpc("authority", "call_local", "reliable")
 func _remote_healed() -> void:
 	# 癒やし完了＝“浄化”：体ぜんぶが澄んだ光になり、キラキラ舞い上がり、光の輪が広がって、
@@ -717,6 +750,10 @@ func _remote_healed() -> void:
 		Sfx.play("levelup", -12.0)
 	else:
 		Sfx.play_at("befriend", global_position + Vector3(0, 0.6, 0), -5.0)
+	# レア個体は 追加の きらめきと 祝い音＝「特別な子だった」余韻（全員の画面で）。
+	if _rare:
+		Sfx.play("milestone", -3.0)
+		_spawn_sparkles(20)
 
 	# 浄化した その場所に、小さな花を永続で咲かせる＝「ここを治した」手あとが世界に残る。
 	var garden := get_tree().get_first_node_in_group("garden")

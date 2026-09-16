@@ -579,7 +579,8 @@ func _spawn_bug() -> void:
 	_bug_serial += 1
 	# ★プレイヤーの周りに湧かせる★（遠い固定地点だと最後の数体が見つからず“詰み”に見えた）。
 	var pos := _ring_pos_near_player(10.0, 16.0)
-	rpc("_remote_spawn_bug", _bug_serial, _pick_stats_path(), pos)
+	var rare := randf() < 0.03   # 約3%＝たまに出会える隠しレア個体（普通の湧きのみ・ボス/雑魚召喚は除外）
+	rpc("_remote_spawn_bug", _bug_serial, _pick_stats_path(), pos, -1, rare)
 
 
 ## 湧かせる虫の種類を選ぶ。
@@ -648,7 +649,7 @@ func _live_bug_count() -> int:
 
 
 @rpc("authority", "call_local", "reliable")
-func _remote_spawn_bug(serial: int, stats_path: String, pos: Vector3, hp: int = -1) -> void:
+func _remote_spawn_bug(serial: int, stats_path: String, pos: Vector3, hp: int = -1, rare: bool = false) -> void:
 	if _bugs.has_node("Bug%d" % serial):
 		return   # 二重生成ガード（他のspawn RPCと同じ形＝再送/順序入替でも重複しない）
 	var bug := BugScene.instantiate()
@@ -657,6 +658,8 @@ func _remote_spawn_bug(serial: int, stats_path: String, pos: Vector3, hp: int = 
 	bug.stats_path = stats_path
 	_bugs.add_child(bug)
 	bug.global_position = pos
+	if rare and bug.has_method("make_rare"):
+		bug.make_rare()   # 隠し要素：きらめくレア個体（全員の画面で同じ個体がレアに）
 	if hp >= 0:
 		bug.set_hp(hp)   # 参加時の再送＝現在HPを反映（満タン表示のちらつき防止）
 	# 中ボス出現は“来た！”の警告音を全員に（新規出現時のみ＝参加時の再送 hp>=0 では鳴らさない）。
