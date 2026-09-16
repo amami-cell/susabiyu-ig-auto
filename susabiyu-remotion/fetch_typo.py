@@ -168,8 +168,10 @@ def _story_for(caption):
         acct = os.environ.get("STORE_ACCOUNT", "").strip().lower()
         _STORY_FN = (lambda _nm: "")
         try:
-            if acct == "nagagutsu":
-                import nagagutsu_captions as _nc
+            _mod = {"nagagutsu": "nagagutsu_captions", "goldporta": "goldporta_captions"}.get(acct)
+            if _mod:
+                import importlib
+                _nc = importlib.import_module(_mod)
                 _STORY_FN = _nc.story_for
         except Exception as _e:
             print("[STORY] キャプション体系スキップ:", _e)
@@ -187,8 +189,10 @@ def _sub_for(caption):
         acct = os.environ.get("STORE_ACCOUNT", "").strip().lower()
         _SUB_FN = (lambda _nm: "")
         try:
-            if acct == "nagagutsu":
-                import nagagutsu_captions as _nc
+            _mod = {"nagagutsu": "nagagutsu_captions", "goldporta": "goldporta_captions"}.get(acct)
+            if _mod:
+                import importlib
+                _nc = importlib.import_module(_mod)
                 _SUB_FN = _nc.sub_for
         except Exception as _e:
             print("[SUB] 欧文サブ体系スキップ:", _e)
@@ -206,8 +210,10 @@ def _name_disp(caption):
         acct = os.environ.get("STORE_ACCOUNT", "").strip().lower()
         _DISP_FN = (lambda _nm: _nm)
         try:
-            if acct == "nagagutsu":
-                import nagagutsu_captions as _nc
+            _mod = {"nagagutsu": "nagagutsu_captions", "goldporta": "goldporta_captions"}.get(acct)
+            if _mod:
+                import importlib
+                _nc = importlib.import_module(_mod)
                 _DISP_FN = _nc.name_broken
         except Exception as _e:
             print("[DISP] 改行体系スキップ:", _e)
@@ -225,8 +231,10 @@ def _desc_for(caption):
         acct = os.environ.get("STORE_ACCOUNT", "").strip().lower()
         _DESC_FN = (lambda _nm: "")
         try:
-            if acct == "nagagutsu":
-                import nagagutsu_captions as _nc
+            _mod = {"nagagutsu": "nagagutsu_captions", "goldporta": "goldporta_captions"}.get(acct)
+            if _mod:
+                import importlib
+                _nc = importlib.import_module(_mod)
                 _DESC_FN = _nc.desc_for
         except Exception as _e:
             print("[DESC] 説明書き体系スキップ:", _e)
@@ -405,8 +413,11 @@ lines.append('export const typoHeadline = "%s";' % esc(headline))
 # フィード画像に小さく添えるブランドの一言キャッチ（ナガグツのみ／他店は空）。
 _catch = ""
 try:
-    if os.environ.get("STORE_ACCOUNT", "").strip().lower() == "nagagutsu" and items:
-        import nagagutsu_captions as _ncc
+    _acct2 = os.environ.get("STORE_ACCOUNT", "").strip().lower()
+    _cmod = {"nagagutsu": "nagagutsu_captions", "goldporta": "goldporta_captions"}.get(_acct2)
+    if _cmod and items:
+        import importlib
+        _ncc = importlib.import_module(_cmod)
         _catch = _ncc.catch(items[0].get("caption", ""))
         print("[CATCH] フィード用キャッチ:", _catch)
 except Exception as _e:
