@@ -786,6 +786,7 @@ func save_label() -> String:
 # 癒やした虫の種類と累計を user://dex.cfg に記録（進行セーブとは別ファイル＝消えない収集）。
 # ＝「全種を なかまにする」というリプレイ動機＋テーマ（救う＝味方）の可視化。
 const DEX_PATH := "user://dex.cfg"
+const DEX_TOTAL := 19   # なかま図鑑の全種数（hud.gd DEX_TOTAL / lobby.gd DEX_SPECIES と一致）
 # 図鑑はメモリに載せておき（_dex）、癒やすたびのディスクI/Oをやめる。
 # Webの user:// は IndexedDB＝1回の save が数ms級。heal/wave で十数体続けて癒やすと
 # 「癒やすたびにカクつく」原因になっていた。書き込みは 2.5秒デバウンス＋章の切れ目でまとめて。
@@ -822,6 +823,19 @@ func record_healed(species_path: String) -> void:
 		if st != null and "display_name" in st:
 			nm = st.display_name
 		WorldState.notice.emit("%s が なかまに なった！　（ずかんに 記録）" % nm)
+		_dex_milestone(_dex.size())   # 図鑑の節目/コンプを祝う（新種のときだけ判定）
+
+
+## 図鑑の節目のごほうび：5/10/15種で応援、全種そろったら特別なコンプリート祝い。
+## 収集は「もう一周する動機」＝この一言と音で 達成の手ごたえを積む。全合成・追加アセットゼロ。
+func _dex_milestone(distinct: int) -> void:
+	if distinct >= DEX_TOTAL:
+		WorldState.notice.emit("ずかん コンプリート！　ぜんぶの なかまに 会えたね　★")
+		Sfx.play("ending", -6.0)         # 最上位の祝い（主題歌の締め）
+		chapter_cleared.emit("bloom")    # 花ふぶきのごほうび演出（舞台別クリアと同じ気持ちよさ）
+	elif distinct == 5 or distinct == 10 or distinct == 15:
+		WorldState.notice.emit("ずかん %d しゅるい！　この調子　◎" % distinct)
+		Sfx.play("milestone", -4.0)
 
 
 ## 図鑑UI用：{ species_id: 累計数 }。まだ癒やしていない種は含まれない。
