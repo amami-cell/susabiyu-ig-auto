@@ -111,6 +111,8 @@ var _sky_birds: MultiMeshInstance3D = null   # 第6章「そら」＝遠くを�
 var _sky_bird_n := 0   # 鳥の総数（回復で visible_instance_count を動かす）
 var _water_rays: Node3D = null   # 第3章「みずべ」＝水面に差すサンシャフト。water舞台だけ表示
 var _water_ray_mat: StandardMaterial3D = null   # 水辺の光芒の共有マテリアル（澄むほど強い）
+var _night_rays: Node3D = null   # 第4章「よる」＝月あかりの光の帯（ムーンビーム）。night舞台だけ表示
+var _night_ray_mat: StandardMaterial3D = null   # 夜の光芒の共有マテリアル（澄むほど差してくる）
 var _water_mat: ShaderMaterial = null
 # 第3章の“浅い水”：プレイ面をおおう軽い半透明シート（web でも軽い1メッシュ）。
 # にごり→すきとおる を 回復度で表現。水辺(biome=="water")のときだけ出す。
@@ -856,6 +858,7 @@ func _setup_visuals() -> void:
 	_build_sky_rays()         # 第6章「そら」＝雲を貫くサンシャフト（光芒／sky舞台だけ表示）
 	_build_sky_birds()        # 第6章「そら」＝遠くを渡る鳥影（sky舞台だけ表示・回復で増える）
 	_build_water_rays()       # 第3章「みずべ」＝水面に差すサンシャフト（water舞台だけ表示）
+	_build_night_rays()       # 第4章「よる」＝月あかりの光の帯（night舞台だけ表示）
 	_build_water_lite()
 	_apply_biome()
 
@@ -1136,6 +1139,8 @@ func _apply_biome() -> void:
 		_water_lite.visible = biome == "water"   # 水辺のときだけ浅い水を出す
 	if _water_rays != null:
 		_water_rays.visible = biome == "water"   # 水辺のときだけ水面のサンシャフトを出す
+	if _night_rays != null:
+		_night_rays.visible = biome == "night"   # 夜のときだけ月あかりの光の帯を出す
 	# 第5章「いえの中」＝屋内一式を出し、屋外の背景（遠景の丘）は隠す＝“部屋の中”に見せる。
 	var indoors := biome == "house"
 	if _house != null:
@@ -1741,6 +1746,56 @@ func _update_water_rays(r: float) -> void:
 	a.a = lerpf(0.03, 0.10, r)
 	_water_ray_mat.albedo_color = a
 	_water_ray_mat.emission_energy_multiplier = lerpf(0.3, 0.65, r)
+
+
+## 第4章「よる」＝月あかりの光の帯（ムーンビーム）。加算合成の光の帯を高い夜空から地面へ。
+## 夜は暗いので 加算光がよく映える＝色は青白く・濃さは控えめ。回復で月あかりが差してくる。
+func _build_night_rays() -> void:
+	_night_rays = Node3D.new()
+	_night_rays.name = "NightRays"
+	var m := StandardMaterial3D.new()
+	m.albedo_color = Color(0.74, 0.83, 1.0, 0.03)
+	m.emission_enabled = true
+	m.emission = Color(0.70, 0.80, 1.0)
+	m.emission_energy_multiplier = 0.4
+	m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	m.blend_mode = BaseMaterial3D.BLEND_MODE_ADD          # 加算＝月の光として夜景に足される
+	m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	m.cull_mode = BaseMaterial3D.CULL_DISABLED
+	_night_ray_mat = m
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 40404
+	var n := 4 if OS.has_feature("web") else 6
+	for i in n:
+		# 月（斜め上）から 地面(y≈0.3)の散らばった着地点へ。中央の遊び場は少し避ける。
+		var lx := rng.randf_range(-24.0, 24.0)
+		var lz := rng.randf_range(-28.0, 6.0)
+		if absf(lx) < 8.0 and absf(lz) < 8.0:
+			lz -= 13.0
+		var land := Vector3(lx, 0.3, lz)
+		var top := land + Vector3(rng.randf_range(-6.0, 4.0), rng.randf_range(21.0, 27.0), rng.randf_range(3.0, 9.0))
+		var beam := MeshInstance3D.new()
+		var bm := BoxMesh.new()
+		var w := rng.randf_range(2.0, 3.6)
+		bm.size = Vector3(w, 0.12, top.distance_to(land))
+		beam.mesh = bm
+		beam.material_override = m
+		beam.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		_night_rays.add_child(beam)
+		beam.position = (top + land) * 0.5
+		beam.look_at_from_position(beam.position, land, Vector3.UP)
+	_night_rays.visible = false   # night舞台のときだけ _apply_biome で出す
+	add_child(_night_rays)
+
+
+## 夜の光芒の濃さを回復度で動かす（よどんだ闇＝ほぼ差さない／澄む＝月あかりが差してくる）。
+func _update_night_rays(r: float) -> void:
+	if _night_ray_mat == null:
+		return
+	var a := _night_ray_mat.albedo_color
+	a.a = lerpf(0.012, 0.06, r)
+	_night_ray_mat.albedo_color = a
+	_night_ray_mat.emission_energy_multiplier = lerpf(0.2, 0.5, r)
 
 
 ## 低ポリの木立。うねる丘の上に散らす（背景の森）。まるい木＋とがった木の2種で単調さを消す。
@@ -2795,6 +2850,7 @@ func _on_recovery_changed(_value: float) -> void:
 	_update_sky_rays(r)
 	_update_sky_birds(r)
 	_update_water_rays(r)
+	_update_night_rays(r)
 	_update_grass(r)
 	_update_flowers(r)
 	_update_motes(r)
