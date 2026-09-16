@@ -149,10 +149,11 @@ STORES = {
         "tab_suffix": "_goldporta",
         "folders": {
             "food": "1cN2-XeB3cah8Em96yTFwaDFh3zFLGqVZ",          # GOLD京都ポルタ「画像」フォルダ
-            # GOLD専用の音楽フォルダは空だったため、当面はナガグツの音楽を流用（ユーザー了承）。
-            # ジャズ/スウィング系でフレンチ酒場にも合う。GOLD専用曲をDriveに入れたら差し替える。
-            "music_uptempo": "1t0WsEon0ZGzB1q_C_U7CtVF_0303G2l0",  # ←ナガグツ音楽を流用
-            "music_normal": "1t0WsEon0ZGzB1q_C_U7CtVF_0303G2l0",
+            # GOLD専用の音楽フォルダ「GOLD京都ポルタ 音楽」（サービスアカウント所有＝CIが読める）。
+            # 配下は アップテンポ/ノーマル のサブフォルダ構成。親を指定して再帰収集で全曲を拾う
+            # （曲はナガグツと同一なので、この切替で動画の再レンダは不要）。
+            "music_uptempo": "1FgAPshzvZgtB4vMLrJfMOh2YGCWgEQuH",  # GOLD京都ポルタ 音楽（親）
+            "music_normal": "1FgAPshzvZgtB4vMLrJfMOh2YGCWgEQuH",
         },
         "patterns": YOSHOKU_PATTERNS,     # 洋食おしゃれテンプレのみ（和の大衆テンプレは使わない）
         # 「画像」配下の非料理サブフォルダは料理として使わない（ロゴ/外観内観/コース集合/ドリンク）。
