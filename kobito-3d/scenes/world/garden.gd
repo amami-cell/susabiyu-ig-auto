@@ -87,6 +87,8 @@ var _petal_n := 0                        # 花びらの総数（回復で visibl
 var _ruins_dust: MultiMeshInstance3D = null   # 遺跡＝風に流れる砂ぼこり（荒れた乾いた空気）。ruins舞台だけ表示
 var _ruins_dust_n := 0                    # 砂ぼこりの総数（荒れているほど多い＝回復で減る）
 var _ruins_dust_mat: ShaderMaterial = null
+var _house_dust: MultiMeshInstance3D = null   # 第5章「いえ」＝サンビームに舞う 暖かな塵の光。house舞台だけ表示
+var _house_dust_n := 0                    # 光の塵の総数（掃除して明るくなるほど 光を拾って増える）
 var _crit_mm: MultiMesh = null          # 地面の小さな生き物（回復で数が増える）
 var _crit_n := 0
 var _ground_shader: ShaderMaterial = null
@@ -865,6 +867,7 @@ func _setup_visuals() -> void:
 	_build_fireflies()   # 第4章「よる」＝またたく蛍（night舞台だけ・回復で戻る）
 	_build_petals()   # 第1章「みどりの庭」＝満開の春に舞い散る花びら（garden舞台だけ・回復で増える）
 	_build_ruins_dust()   # 遺跡＝風に流れる砂ぼこり（ruins舞台だけ・荒れているほど多い）
+	_build_house_dust()   # 第5章「いえ」＝サンビームに舞う 暖かな塵の光（house舞台だけ）
 	_build_critters()   # 地面を ちょこちょこ歩く 小さな生き物＝“戻ってきた命”
 	_build_actor_shadows()
 	_build_bloom()
@@ -1168,6 +1171,8 @@ func _apply_biome() -> void:
 		_petals.visible = biome == "garden"   # みどりの庭のときだけ 花びらを舞わせる
 	if _ruins_dust != null:
 		_ruins_dust.visible = biome == "ruins"   # 遺跡のときだけ 砂ぼこりを流す
+	if _house_dust != null:
+		_house_dust.visible = biome == "house"   # いえのときだけ サンビームの光の塵を出す
 	# 第5章「いえの中」＝屋内一式を出し、屋外の背景（遠景の丘）は隠す＝“部屋の中”に見せる。
 	var indoors := biome == "house"
 	if _house != null:
@@ -3014,6 +3019,77 @@ func _update_ruins_dust(r: float) -> void:
 		_ruins_dust_mat.set_shader_parameter("strength", lerpf(0.16, 0.55, dry))
 
 
+## 第5章「いえ」＝窓から差すサンビームの中に舞う 暖かな塵の光。
+## 光の帯の体積(窓→床)に 金色の小さな塵を漂わせ、きらめかせる＝陽の差す部屋の あの空気。
+## 掃除して明るくなるほど 光を拾って増える（回復リンク）。house舞台だけ表示。
+func _build_house_dust() -> void:
+	var dot := SphereMesh.new()
+	dot.radius = 0.045
+	dot.height = 0.09
+	dot.radial_segments = 5
+	dot.rings = 3
+	var mat := ShaderMaterial.new()
+	var sh := Shader.new()
+	sh.code = """
+shader_type spatial;
+render_mode unshaded, cull_disabled, depth_draw_never, blend_add;
+uniform vec3 dust_col : source_color = vec3(1.0, 0.88, 0.6);
+uniform float glow = 1.4;
+varying float tw;
+void vertex(){
+	float ph = INSTANCE_CUSTOM.r * 6.2831;
+	float sp = 0.15 + INSTANCE_CUSTOM.g * 0.25;      // ごくゆっくり ただよう
+	VERTEX.x += sin(TIME * sp + ph) * 0.5;
+	VERTEX.z += cos(TIME * sp * 0.7 + ph) * 0.4;
+	VERTEX.y += sin(TIME * 0.12 + ph) * 0.6;         // ふわりと 上下
+	tw = 0.35 + 0.65 * pow(max(sin(TIME * (0.8 + INSTANCE_CUSTOM.b * 2.0) + ph), 0.0), 1.5);
+}
+void fragment(){
+	ALBEDO = dust_col;
+	EMISSION = dust_col * glow * tw;
+	ALPHA = tw;   // 光を拾って きらめく塵
+}
+"""
+	mat.shader = sh
+	mat.set_shader_parameter("dust_col", Color(1.0, 0.88, 0.6))
+	mat.set_shader_parameter("glow", 1.4)
+	dot.surface_set_material(0, mat)
+
+	_house_dust_n = 26 if OS.has_feature("web") else 46
+	var mm := MultiMesh.new()
+	mm.transform_format = MultiMesh.TRANSFORM_3D
+	mm.use_custom_data = true
+	mm.mesh = dot
+	mm.instance_count = _house_dust_n
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 51515
+	# サンビームの体積（窓 win_pt(-1,6,-21.4)→床 floor_pt(3.5,0.1,-11)）に沿って散らす。
+	var win_pt := Vector3(-1.0, 6.0, -21.4)
+	var floor_pt := Vector3(3.5, 0.1, -11.0)
+	for i in _house_dust_n:
+		var f := rng.randf()
+		var along := win_pt.lerp(floor_pt, f)
+		var jitter := Vector3(rng.randf_range(-2.0, 2.0), rng.randf_range(-1.2, 1.2), rng.randf_range(-1.6, 1.6))
+		mm.set_instance_transform(i, Transform3D(Basis.IDENTITY, along + jitter))
+		mm.set_instance_custom_data(i, Color(rng.randf(), rng.randf(), rng.randf(), 0.0))
+	mm.visible_instance_count = 0   # 掃除して明るくなるほど 増える（_update_house_dust）
+	var mmi := MultiMeshInstance3D.new()
+	mmi.name = "HouseDust"
+	mmi.multimesh = mm
+	mmi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	mmi.extra_cull_margin = 20.0
+	mmi.visible = false   # house舞台のときだけ _apply_biome で出す
+	_house_dust = mmi
+	add_child(mmi)
+
+
+## 光の塵の量を回復度で動かす（薄暗い部屋＝ひかえめ／掃除して明るい＝光を拾ってきらめく）。
+func _update_house_dust(r: float) -> void:
+	if _house_dust == null or _house_dust.multimesh == null:
+		return
+	_house_dust.multimesh.visible_instance_count = int(round(_house_dust_n * lerpf(0.35, 1.0, clampf(r, 0.0, 1.0))))
+
+
 ## 地面の小さな生き物：小さな甲虫が ちょこちょこ歩き回る＝“戻ってきた命”。
 ## 頂点シェーダで各個体を小さな楕円軌道に歩かせる（CPU負荷ゼロ・1ドローコール）。回復で数が増える。
 func _build_critters() -> void:
@@ -3205,6 +3281,7 @@ func _on_recovery_changed(_value: float) -> void:
 	_update_fireflies(r)
 	_update_petals(r)
 	_update_ruins_dust(r)
+	_update_house_dust(r)
 	_update_grass(r)
 	_update_flowers(r)
 	_update_motes(r)
