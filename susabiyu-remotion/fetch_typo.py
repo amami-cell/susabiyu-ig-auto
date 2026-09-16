@@ -387,10 +387,14 @@ lines.append('export const typoSampleNo = 0;')
 # 投稿本文（Instagramキャプション）。ナガグツは料理体系から自動生成、他店は空（従来どおり）。
 _post_cap = ""
 try:
-    if os.environ.get("STORE_ACCOUNT", "").strip().lower() == "nagagutsu":
-        import nagagutsu_captions as _ncp
+    _acct = os.environ.get("STORE_ACCOUNT", "").strip().lower()
+    # 投稿本文を持つ店：ナガグツ＝元気お姉さん／GOLD＝ソムリエお姉さん。他店は空（従来どおり）。
+    _capmod = {"nagagutsu": "nagagutsu_captions", "goldporta": "goldporta_captions"}.get(_acct)
+    if _capmod:
+        import importlib
         import stores as _st
-        _handle = (_st.get_store("nagagutsu") or {}).get("handle", "")
+        _ncp = importlib.import_module(_capmod)
+        _handle = (_st.get_store(_acct) or {}).get("handle", "")
         _post_cap = _ncp.post_caption([it["caption"] for it in items], handle=_handle)
         print("[POST-CAP] 投稿本文を生成:", _post_cap.replace("\n", " / ")[:80], "...")
 except Exception as _e:
