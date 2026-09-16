@@ -167,6 +167,61 @@ def story_for(name):
     return caption_for(name)["story"]
 
 
+# ── フィード画像に焼く用のヘルパー（nagagutsu_feed.py が呼ぶ）──────────
+# 料理名の上に小さく添える欧文サブ（フランス語）。キーワードでジャンルを判定。
+def sub_for(name):
+    d = clean(name)
+    if any(k in d for k in _KW_DESSERT):
+        return "DESSERT"
+    if "パスタ" in d or "リゾット" in d or "ニョッキ" in d or "ペンネ" in d:
+        return "PÂTES"
+    if any(k in d for k in ("カルパッチョ", "マリネ", "冷製", "サラダ", "カプレーゼ")):
+        return "ENTRÉE"
+    if any(k in d for k in _KW_WHITE) and any(k in d for k in ("魚", "鮮魚", "貝", "海老", "エビ", "蛸", "タコ", "サーモン", "牡蠣", "帆立", "ムール")):
+        return "POISSON"
+    if any(k in d for k in _KW_RED_BODY):
+        return "VIANDE"
+    if any(k in d for k in ("パテ", "テリーヌ", "生ハム", "リエット", "シャルキュトリ", "チーズ")):
+        return "APÉRO"
+    return "BISTRO"
+
+
+def name_broken(name):
+    """表示用の料理名。長い名前の改行は描画側の自動フィットに任せる（GOLDは手動指定なし）。"""
+    return clean(name)
+
+
+# 画像に焼く“こだわり／説明書き”（絵文字なしの短い一文）。
+_DESC_TABLE = [
+    (("名物", "看板"), "当店自慢の看板料理。"),
+    (("グリル", "ロースト", "炭火", "オーブン", "焼き"), "香ばしく焼き上げた一皿。"),
+    (("カルパッチョ", "マリネ", "冷製", "冷菜", "サラダ", "カプレーゼ"), "素材の持ち味を活かした一皿。"),
+    (("アヒージョ",), "ガーリックオイルで旨みを引き出して。"),
+    (("パスタ", "スパゲ", "ペンネ", "ニョッキ", "リゾット"), "本日のパスタ。"),
+    (("パテ", "テリーヌ", "生ハム", "リエット"), "ワインが進む、大人の前菜。"),
+    (("デザート", "ドルチェ", "ケーキ", "タルト", "ブリュレ", "ティラミス", "ジェラート"), "食後の甘いお楽しみに。"),
+    (("煮込み", "ほほ", "すね"), "じっくり煮込んだ、とろける一皿。"),
+    (("フリット", "揚げ", "ポテト"), "できたてが一番おいしい一皿。"),
+]
+
+
+def desc_for(name):
+    d = clean(name)
+    for keys, txt in _DESC_TABLE:
+        if any(k in d for k in keys):
+            return txt
+    return "ワインと共に、ごゆっくり。"
+
+
+def catch(seed=""):
+    """フィード画像に添えるブランドの一言キャッチ（決定論的に1本）。"""
+    pool = ["今宵は、ワインと。", "ビストロの、いい夜を。", "京都駅前で、ちょっと贅沢。",
+            "ワインと料理を、気軽に。", "金曜の夜は、フレンチで。"]
+    s = clean(seed)
+    h = sum(ord(c) for c in s) if s else 0
+    return pool[h % len(pool)]
+
+
 def post_caption(names, handle=""):
     """投稿本文（Instagramキャプション）。先頭料理のソムリエ本文＋フッター＋集客タグ。
     並び：本文 → 店舗情報フッター → ハッシュタグ（一番下に1箇所）。"""

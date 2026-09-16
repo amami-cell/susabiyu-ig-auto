@@ -210,7 +210,11 @@ def run(cmd):
 def main():
     creds = _creds_path()
     store = stores.get_store(ACCOUNT)
-    import nagagutsu_captions as nc
+    # 店舗ごとのキャプション体系を使う（ナガグツ＝元気お姉さん／GOLD＝ソムリエお姉さん）。
+    # 未定義の店は nagagutsu_captions にフォールバック（従来どおり動く）。
+    import importlib
+    _capmod = {"nagagutsu": "nagagutsu_captions", "goldporta": "goldporta_captions"}.get(ACCOUNT, "nagagutsu_captions")
+    nc = importlib.import_module(_capmod)
 
     limit = 0
     for i, a in enumerate(sys.argv):

@@ -1,0 +1,86 @@
+name: goldporta-feed
+# GOLD京都ポルタの「フィード投稿画面」の素材を作る（ナガグツの nagagutsu-feed に相当）。
+#   ・Driveの料理写真を4:5に整えて pwa/goldporta/f_*.jpg
+#   ・承認済みフィードデザイン6案を料理ごとに割り当てて焼き込み（french テーマ） → fd_*.jpg
+#   ・feed.json を書き出す（確認アプリの予約作成フィードがこれを読む）
+#   ・キャプションは goldporta_captions（ソムリエお姉さんトーン）
+#   ・変更があればキャッシュ版数を上げてコミット → deploy_pwa を発火
+on:
+  schedule:
+    - cron: '10 20 * * *'   # 毎日 05:10 JST（ナガグツ04:50・ぎふや04:30とずらす）
+  workflow_dispatch:
+    inputs:
+      limit:
+        description: "先頭N品だけ焼く（空=全品／動作確認用）"
+        required: false
+        default: ""
+permissions:
+  contents: write
+  actions: write
+concurrency:
+  group: goldporta-feed
+  cancel-in-progress: false
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 50
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: susabiyu-remotion/package-lock.json
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install Python deps
+        run: pip install google-api-python-client google-auth Pillow
+      - name: Install Node deps
+        run: npm ci
+        working-directory: susabiyu-remotion
+      - name: Build feed assets
+        working-directory: susabiyu-remotion
+        env:
+          STORE_ACCOUNT: goldporta
+          GOOGLE_CREDS_B64: ${{ secrets.GOOGLE_CREDS_B64 }}
+        run: |
+          echo "$GOOGLE_CREDS_B64" | base64 -d > creds.json
+          LIM=""
+          if [ -n "${{ github.event.inputs.limit }}" ]; then LIM="--limit ${{ github.event.inputs.limit }}"; fi
+          python nagagutsu_feed.py creds.json $LIM
+          rm -f creds.json
+      - name: Commit changes + deploy
+        run: |
+          set -e
+          # 動作確認（--limit 指定）では一部の品しか焼けていない＝本番へ出すと他が消えるのでコミットしない。
+          if [ -n "${{ github.event.inputs.limit }}" ]; then
+            echo "limit指定＝動作確認のためコミットしません。"; exit 0
+          fi
+          # main 以外から手動実行した時に、そのブランチの内容を main へ push しない。
+          if [ "${{ github.ref }}" != "refs/heads/main" ]; then
+            echo "main 以外（${{ github.ref }}）からの実行のためコミットしません。"; exit 0
+          fi
+          if [ -z "$(git status --porcelain -- pwa/goldporta)" ]; then
+            echo "変更なし（Drive未更新）。コミットしません。"; exit 0
+          fi
+          cur=$(grep -oE 'susabiyu-v[0-9]+' pwa/sw.js | grep -oE '[0-9]+' | head -1)
+          nxt=$((cur + 1))
+          sed -i "s/susabiyu-v$cur/susabiyu-v$nxt/" pwa/sw.js
+          # 画像の中身が変わった時だけ ?v を上げる（reels 側にメディア ?v がある場合のみ）。
+          if grep -qE '\?v=[0-9]+' pwa/goldporta_reels.html; then
+            vcur=$(grep -oE '\?v=[0-9]+' pwa/goldporta_reels.html | grep -oE '[0-9]+' | head -1)
+            vnxt=$((vcur + 1))
+            sed -i "s/?v=$vcur/?v=$vnxt/" pwa/goldporta_reels.html
+            echo "media ?v=$vcur -> ?v=$vnxt"
+          fi
+          echo "sw v$cur -> v$nxt"
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add pwa/goldporta pwa/sw.js pwa/goldporta_reels.html
+          git commit -m "GOLD京都ポルタ: フィード素材をDriveから同期＋キャッシュv$nxt"
+          git push origin HEAD:main
+          curl -sS -X POST -H "Authorization: Bearer ${{ github.token }}" \
+            -H "Accept: application/vnd.github+json" \
+            "${{ github.api_url }}/repos/${{ github.repository }}/actions/workflows/deploy_pwa.yml/dispatches" \
+            -d '{"ref":"main"}'
