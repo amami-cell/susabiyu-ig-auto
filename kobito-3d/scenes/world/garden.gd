@@ -377,7 +377,8 @@ func _on_peer_connected(id: int) -> void:
 		return
 	for bug in _bugs.get_children():
 		# 現在HPも渡す＝後から参加した画面で「ボスが一瞬 満タン」に見えるのを防ぐ。
-		rpc_id(id, "_remote_spawn_bug", int(bug.name.trim_prefix("Bug")), bug.stats_path, bug.global_position, int(bug.hp))
+		# レア個体フラグも渡す＝後から参加した画面でも 金のオーラが正しく出る（漏れ修正）。
+		rpc_id(id, "_remote_spawn_bug", int(bug.name.trim_prefix("Bug")), bug.stats_path, bug.global_position, int(bug.hp), bool(bug.get("_rare")))
 	# 今いる「なかま虫」も配る（後から参加した人の画面にも味方が居るように）
 	if _allies != null:
 		for ally in _allies.get_children():

@@ -424,7 +424,8 @@ func apply_pending_continue() -> void:
 	_healed = int(cfg.get_value("progress", "healed", 0))
 	_seeds = int(cfg.get_value("progress", "seeds", 0))
 	var rec := float(cfg.get_value("progress", "recovery", 0.0))
-	var pl: Array = cfg.get_value("progress", "powers", [])
+	var pl_raw: Variant = cfg.get_value("progress", "powers", [])
+	var pl: Array = pl_raw if pl_raw is Array else []   # 破損/手編集セーブで powers が配列でなくても落ちない
 	WorldState.restore(rec, pl)
 	rpc("_set_beat", clampi(b, 0, CH1.size() - 1), true)
 
@@ -648,9 +649,12 @@ func _set_beat(i: int, silent: bool = false) -> void:
 		# 章の山場を越えた瞬間＝舞台ごとに違う ごほうび演出（花ふぶき/ホタル/しずく…）。
 		if data.has("celebrate"):
 			chapter_cleared.emit(String(data["celebrate"]))
-	# 章の切れ目でセーブ（サーバのみ・庭のときだけ）。エンディングまで来たら「クリア」を記録。
+	# 章の切れ目でセーブ（サーバのみ・キャンペーン進行中のみ）。エンディングまで来たら「クリア」を記録。
 	# ★R2★ beat0（＝はじめから直後）では書かない＝「はじめから」で旧セーブを即消ししない。
-	if _is_server() and Net.world_biome == "garden" and not silent:
+	# ※以前は「庭のときだけ」保存していたため、舞台が変わる第3〜6章のチェックポイントが
+	#   一切書かれず、つづきが第2章末まで巻き戻る不具合があった。_active（キャンペーン中）で判定に修正。
+	#   のんびり庭/れんしゅう/遺跡の自由あそびは _active=false なので保存しない（従来どおり）。
+	if _is_server() and _active and not silent:
 		if data.get("ending", false):
 			cleared = true
 			_save_meta()
@@ -841,6 +845,7 @@ func record_healed(species_path: String) -> void:
 			nm = st.display_name
 		WorldState.notice.emit("%s が なかまに なった！　（ずかんに 記録）" % nm)
 		_dex_milestone(_dex.size())   # 図鑑の節目/コンプを祝う（新種のときだけ判定）
+		_flush_dex()                  # 新種＝大事な解禁なので即保存（タブ閉じで失わない）
 	# 同じ種を集めるほど バッジが育つ（ブロンズ→シルバー→ゴールド）＝もっと集める動機。
 	_dex_tier_up(species_path, prev, prev + 1)
 
@@ -867,6 +872,7 @@ func _dex_tier_up(species_path: String, prev: int, now: int) -> void:
 			nm = st.display_name
 		WorldState.notice.emit("◆ %s が %s！　（%d ひき）" % [nm, DEX_TIER_NAMES[after - 1], now])
 		Sfx.play("levelup", -8.0)
+		_flush_dex()   # バッジ昇格＝大事な解禁なので即保存（タブ閉じで失わない）
 
 
 ## 図鑑の節目のごほうび：5/10/15種で応援、全種そろったら特別なコンプリート祝い。
@@ -905,6 +911,14 @@ func _flush_dex() -> void:
 	for k in _dex:
 		cfg.set_value("dex", String(k), int(_dex[k]))
 	cfg.save(DEX_PATH)
+
+
+## 終了時（タブ/ウィンドウを閉じる・アプリ終了）に、デバウンス待ちの図鑑を取りこぼさず書き出す。
+## のんびり庭/れんしゅう（＝図鑑埋めの主戦場）は章切れの保存がないため、この保険が効く。
+func _notification(what: int) -> void:
+	if what == NOTIFICATION_WM_CLOSE_REQUEST or what == NOTIFICATION_WM_GO_BACK_REQUEST or what == NOTIFICATION_PREDELETE:
+		if _dex_save_pending:
+			_flush_dex()
 
 
 func _has_progress() -> bool:

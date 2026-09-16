@@ -538,11 +538,11 @@ func _boss_story_barks() -> void:
 @rpc("authority", "call_local", "reliable")
 func _remote_staggered() -> void:
 	# 怯み＝「今だ！」の合図。ぶるっと縮んで戻る＝“きれいに”が通るサイン。
-	if _body != null:
+	if _vis != null:
 		var s: float = stats.body_scale
 		var tw := create_tween()
-		tw.tween_property(_body, "scale", Vector3.ONE * s * 0.86, 0.08)
-		tw.tween_property(_body, "scale", Vector3.ONE * s, 0.25).set_trans(Tween.TRANS_ELASTIC)
+		tw.tween_property(_vis, "scale", Vector3.ONE * s * 0.86, 0.08)
+		tw.tween_property(_vis, "scale", Vector3.ONE * s, 0.25).set_trans(Tween.TRANS_ELASTIC)
 	Sfx.play("swing", -6.0)
 
 
@@ -565,15 +565,17 @@ func _remote_hit(amount: int = 0) -> void:
 		hp = maxi(0, hp - amount)
 	_flash_bug(Color(0.95, 1.0, 0.96))   # 澄んだ白緑＝“汚れを拭った”ひと払い（傷つけではない）
 	_update_hpbar()
-	var base := Vector3.ONE * stats.body_scale
+	# 芝居は“見える本体”_vis に当てる（虫はリグ／ボスは胴＝_vis が正）。以前は隠れた _body を
+	# 動かしていて 通常の虫では つぶれ演出＝当たった手応えが見えていなかった不具合を修正。
+	var base := Vector3.ONE * stats.body_scale   # _vis の静止スケール（虫リグ／胴 共通）
 	var tw := create_tween()
-	tw.tween_property(_body, "scale", base * Vector3(1.7, 0.5, 1.7), 0.035)   # 大きくつぶれる
+	tw.tween_property(_vis, "scale", base * Vector3(1.7, 0.5, 1.7), 0.035)   # 大きくつぶれる
 	tw.tween_interval(0.05)   # ヒットストップ風の“溜め”：一瞬つぶれたまま止まる＝当たった重み（時間停止なし・この虫だけ）
-	tw.tween_property(_body, "scale", base, 0.18).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	tw.tween_property(_vis, "scale", base, 0.18).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 	var tw2 := create_tween()
-	tw2.tween_property(_body, "position:y", 0.7, 0.06)   # 大きく跳ねる
+	tw2.tween_property(_vis, "position:y", 0.7, 0.06)   # 大きく跳ねる（_vis の静止 y=0 は攻撃演出と共通）
 	tw2.tween_interval(0.05)   # 溜めのあいだ 高さも保持＝スケールの溜めと同期
-	tw2.tween_property(_body, "position:y", 0.0, 0.2).set_trans(Tween.TRANS_BOUNCE).set_ease(Tween.EASE_OUT)
+	tw2.tween_property(_vis, "position:y", 0.0, 0.2).set_trans(Tween.TRANS_BOUNCE).set_ease(Tween.EASE_OUT)
 	_spawn_hit_spark()
 	if amount > 0:
 		_spawn_damage_number(amount)
@@ -699,14 +701,27 @@ func _cleanliness_color() -> Color:
 	return stats.body_color.lerp(Color(0.86, 1.0, 0.90), t * 0.5)
 
 
-## 一瞬 c に光らせて、今のきれいさの色へ戻す共通処理。
+## 一瞬 c に光らせて 元の色へ戻す共通処理。
+## 胴が見える個体（ボス/ヘドロ）は胴マテリアルを、虫リグは 見えている各パーツを光らせる
+## （以前は隠れた _body だけを光らせ、通常の虫で 被弾フラッシュが見えていなかった不具合を修正）。
 func _flash_bug(c: Color) -> void:
-	var mat := _body.material_override as StandardMaterial3D
-	if mat == null:
+	if _vis == _body:
+		var mat := _body.material_override as StandardMaterial3D
+		if mat == null:
+			return
+		var tw := create_tween()
+		tw.tween_property(mat, "albedo_color", c, 0.04)
+		tw.tween_property(mat, "albedo_color", _cleanliness_color(), 0.18)
 		return
-	var tw := create_tween()
-	tw.tween_property(mat, "albedo_color", c, 0.04)
-	tw.tween_property(mat, "albedo_color", _cleanliness_color(), 0.18)
+	# 虫リグ：見えている各パーツを 一瞬 c に光らせ、それぞれ元の色へ戻す（見える手応え）。
+	for mi in _vis.find_children("*", "MeshInstance3D", true, false):
+		var m := (mi as MeshInstance3D).material_override as StandardMaterial3D
+		if m == null:
+			continue
+		var from: Color = m.albedo_color
+		var tw := create_tween()
+		tw.tween_property(m, "albedo_color", c, 0.04)
+		tw.tween_property(m, "albedo_color", from, 0.18)
 
 
 ## 隠し要素：この個体を“レア”にする（金色に きらめく オーラ）。サーバが低確率で決め、
@@ -787,10 +802,10 @@ func _remote_healed() -> void:
 
 	# ① 解き放たれる芝居：一瞬きゅっと縮んで“ほっ”と息をつき、ふわっと伸び上がる。
 	#    （以前の“横倒し”は変に見えたので、まっすぐ浄化される気持ちいい動きに作り直し）
-	var base := _body.scale
+	var base := _vis.scale
 	var pop := create_tween()
-	pop.tween_property(_body, "scale", base * Vector3(1.25, 0.72, 1.25), 0.08).set_ease(Tween.EASE_OUT)
-	pop.tween_property(_body, "scale", base * Vector3(0.82, 1.28, 0.82), 0.14).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	pop.tween_property(_vis, "scale", base * Vector3(1.25, 0.72, 1.25), 0.08).set_ease(Tween.EASE_OUT)
+	pop.tween_property(_vis, "scale", base * Vector3(0.82, 1.28, 0.82), 0.14).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 
 	# ② 少し間を置いてから浄化の演出（輪・キラキラ）＋救われて還っていく（昇って縮んで消える）。
 	var tween := create_tween()
@@ -826,7 +841,7 @@ func _spawn_ascend_trail() -> void:
 		var frac := float(i) / float(n)
 		s.global_position = base + Vector3(randf_range(-0.12, 0.12), frac * 1.6, randf_range(-0.12, 0.12))
 		s.scale = Vector3.ONE * randf_range(0.5, 0.9)
-		var tw := create_tween()
+		var tw := get_tree().create_tween()   # ツリーに紐づける＝虫が消えても最後まで走り queue_free が発火（リーク防止）
 		tw.tween_interval(frac * 0.5)                                    # 下から順に灯る
 		tw.tween_property(mat, "albedo_color:a", 0.9, 0.12)             # ふっと灯り
 		tw.tween_property(s, "global_position:y", s.global_position.y + 0.9, 0.5)  # さらに昇り
@@ -857,7 +872,7 @@ func _spawn_purify_ring() -> void:
 	ring.material_override = mat
 	world.add_child(ring)
 	ring.global_position = global_position + Vector3(0.0, 0.35, 0.0)
-	var tw := create_tween()
+	var tw := get_tree().create_tween()   # ツリー紐づけ＝虫消滅後も走り queue_free が発火（リーク防止）
 	tw.tween_property(ring, "scale", Vector3(4.5, 4.5, 4.5), 0.4)
 	tw.parallel().tween_property(mat, "albedo_color:a", 0.0, 0.45)
 	tw.tween_callback(ring.queue_free)
@@ -888,7 +903,7 @@ func _spawn_purify_pillar() -> void:
 	world.add_child(pillar)
 	pillar.global_position = global_position + Vector3(0.0, 4.5, 0.0)
 	pillar.scale = Vector3(0.2, 1.0, 0.2)
-	var tw := create_tween()
+	var tw := get_tree().create_tween()   # ツリー紐づけ＝虫消滅後も走り queue_free が発火（リーク防止）
 	tw.tween_property(pillar, "scale", Vector3(1.3, 1.0, 1.3), 0.25).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
 	tw.parallel().tween_property(mat, "albedo_color:a", 0.0, 0.9)
 	tw.tween_callback(pillar.queue_free)
@@ -919,7 +934,7 @@ func _spawn_sparkles(n: int) -> void:
 		var ang := TAU * float(i) / float(n) + randf_range(-0.3, 0.3)
 		var rad := randf_range(0.5, 1.2)
 		var target := origin + Vector3(cos(ang) * rad, randf_range(1.0, 2.0), sin(ang) * rad)
-		var tw := create_tween()
+		var tw := get_tree().create_tween()   # ツリー紐づけ＝虫消滅後も走り queue_free が発火（リーク防止）
 		tw.tween_property(s, "global_position", target, randf_range(0.45, 0.75)).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
 		tw.parallel().tween_property(mat, "albedo_color:a", 0.0, 0.7)
 		tw.tween_callback(s.queue_free)
