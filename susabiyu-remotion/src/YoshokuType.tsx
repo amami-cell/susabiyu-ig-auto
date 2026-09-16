@@ -43,7 +43,7 @@ export const YoshokuType: React.FC<{ storeName?: string; handle?: string; theme?
       {/* 背景：4品クロスフェード（ズーム抑制）＋明転オーバーレイ */}
       <AbsoluteFill>
         <Slides count={6} total={DUR} render={(i, local, seg) => (
-          <PhotoLayer src={items[i].src} frame={local} dur={seg} from={1.03} to={1.09} sat={1.08} brightness={1.03} />
+          <PhotoLayer src={items[i].src} frame={local} dur={seg} from={1.0} to={1.04} sat={1.08} brightness={1.03} />
         )} />
       </AbsoluteFill>
       <AbsoluteFill style={{ backgroundColor: "#000", opacity: darkO }} />

@@ -142,6 +142,9 @@ STORES = {
         "region": "京都・ポルタ",           # 京都駅前ポルタ
         "theme": "french",               # 洋食おしゃれテンプレの配色（フレンチ＝黒×金＝GOLD）
         "logo_color": True,               # ロゴは白黒化せず「色付きのまま」使用（ユーザー要望）
+        # 丸ロゴのファイル名ヒント（ユーザー明示：GOLDの gold_ロゴ2 / gold_ロゴ4 が丸ロゴ）。
+        # これで OP/CLOSE のエンブレムが横ワードマーク（文字ロゴ）に化けるのを防ぐ。
+        "round_logo_names": ["ロゴ2", "ロゴ4", "ロゴ２", "ロゴ４"],
         "sheet_id": SANJO_SHEET_ID,       # 同一スプレッドシートを接尾辞タブで共用
         "tab_suffix": "_goldporta",
         "folders": {
@@ -209,6 +212,9 @@ def apply_fetch_env(store):
             os.environ["GENRE_EXCLUDE_CATS"] = ",".join(excl)
         if store.get("food_flat"):
             os.environ["GENRE_FOOD_FLAT"] = "1"
+        rln = store.get("round_logo_names")
+        if rln:
+            os.environ["GENRE_LOGO_ROUND_NAMES"] = ",".join(rln)
 
 
 def render_props(store):

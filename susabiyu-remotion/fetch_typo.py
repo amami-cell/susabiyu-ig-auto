@@ -249,8 +249,12 @@ def _clean_caption(nm):
     """ファイル名から“ちゃんとした料理名”を作る（ぎふやの _dish_name と同じ思想＋汎用の除去）。
     カメラ/書き出しの機械的な連番・日付・コピー・おすすめ印・拡張子・区切り記号を除去し、
     アンダースコアは全角スペースへ。空になったら元の名前に戻す（＝最低限は表示）。"""
-    import os as _o
+    import os as _o, unicodedata as _ud
     n = _o.path.splitext(str(nm or ""))[0]
+    # 半角カナ(ﾊﾝｶｸ)は Shippori Mincho に字形が無く動画で□化する（例 海老タコMIXｱﾋｰｼﾞｮ）。
+    # 半角カナを含む時だけ NFKC で全角へ正規化（含まない名前は一切変えない＝既存店に無影響）。
+    if any(0xFF61 <= ord(c) <= 0xFF9F for c in n):
+        n = _ud.normalize("NFKC", n)
     for h in ("おすすめ", "オススメ", "お勧め", "オススメ料理", "★", "☆"):
         n = n.replace(h, "")
     n = _re_cap.sub(r'(?:IMG|DSC|DSCN|DCIM|PXL|MVIMG|GFY|MOV|VID)[-_ ]?\d+', '', n, flags=_re_cap.I)
@@ -635,10 +639,33 @@ def _fetch_store_logo():
         print("[LOGO] 取得スキップ:", e); return ""
 
 
+def _white_to_transparent(im, hi=246):
+    """ほぼ白の画素を透過にして（色はそのまま保持）返す。RGBAで受け取りRGBAを返す。"""
+    px = im.load(); W, H = im.size
+    for y in range(H):
+        for x in range(W):
+            r, g, b, a = px[x, y]
+            if a and min(r, g, b) >= hi:
+                px[x, y] = (r, g, b, 0)
+    return im
+
+
 def _fetch_round_logo():
-    """ロゴフォルダから「正方形に近い＝丸ロゴ（ブーツロゴ）」を1枚取得し、色そのままで
+    """ロゴフォルダから「丸ロゴ（ブーツ/エンブレム）」を1枚取得し、色そのままで
     public/store_logo_round.png に保存（白のみ透過）。相対パス "store_logo_round.png" を返す。
-    動画No.6の中央メダリオンに“色付きの丸ロゴ”として入れる用（横ワードマークとは別軸で選別）。"""
+    OP/CLOSE の中央エンブレムに“色付きの丸ロゴ”として入れる用（横ワードマークとは別軸で選別）。
+
+    【重要】以前は Drive メタデータの「画像キャンバスの縦横比」で正方形を選んでいた。
+    だが各ロゴは同じような正方形キャンバスに載っており、キャンバス比では丸ロゴと
+    “横ワードマーク（文字ロゴ）”を区別できず、文字ロゴを掴んで「丸ロゴのはずが文字ロゴ」に
+    なっていた。今回は候補を実際にDL→白を抜いた“中身のbbox縦横比”で判定する。
+    丸ロゴ＝中身がほぼ正方形、文字ロゴ＝中身が横長。これで確実に丸ロゴを選ぶ。
+    さらに店舗が丸ロゴのファイル名を知っている場合は GENRE_LOGO_ROUND_NAMES（カンマ区切りの
+    部分一致）で明示指定でき、その候補を最優先する（例 GOLD: "ロゴ2,ロゴ4"）。"""
+    try:
+        from PIL import Image
+    except ImportError:
+        Image = None
     try:
         def _find(fid, depth=0):
             for f in list_children(fid):
@@ -658,16 +685,64 @@ def _fetch_round_logo():
         if not imgs:
             return ""
 
-        def _sq(f):
-            nm = str(f.get("name", "")).lower()
-            m = f.get("imageMediaMetadata") or {}
-            w, h = m.get("width", 0) or 0, m.get("height", 0) or 0
-            ar = (w / h) if h else 999
-            s = -abs(ar - 1.0) * 100         # 1:1 に近いほど高得点＝丸ロゴ
-            if any(k in nm for k in ("丸", "round", "circle", "マーク", "mark", "icon")):
+        # 店舗が明示した丸ロゴのファイル名ヒント（部分一致・全半角の数字ゆらぎも許容）。
+        hints = [h.strip() for h in (os.environ.get("GENRE_LOGO_ROUND_NAMES", "") or "").split(",") if h.strip()]
+
+        def _name_hit(nm):
+            low = nm.lower()
+            for h in hints:
+                if h and (h.lower() in low):
+                    return True
+            return False
+
+        # 候補を実DL→白抜き後の中身bboxで縦横比を測る。丸ロゴ＝bboxが正方形に近い。
+        def _content_ar(fid):
+            """中身(bbox)の縦横比を返す。1.0=正方形。測れなければ None。"""
+            if Image is None:
+                return None
+            tmp = os.path.join(OUT_DIR, "_logo_round_probe")
+            try:
+                req = drive.files().get_media(fileId=fid)
+                buf = io.FileIO(tmp, "wb"); dl = MediaIoBaseDownload(buf, req)
+                done = False
+                while not done:
+                    _, done = dl.next_chunk()
+                buf.close()
+                im = Image.open(tmp).convert("RGBA")
+                im = _white_to_transparent(im)
+                bbox = im.getbbox()
+                if not bbox:
+                    return None
+                w = bbox[2] - bbox[0]; h = bbox[3] - bbox[1]
+                if h <= 0:
+                    return None
+                return w / h
+            except Exception:
+                return None
+            finally:
+                try:
+                    os.remove(tmp)
+                except Exception:
+                    pass
+
+        def _score(f):
+            nm = str(f.get("name", ""))
+            ar = _content_ar(f["id"])
+            if ar is None:                       # 測れない時はキャンバス比に退避
+                m = f.get("imageMediaMetadata") or {}
+                w, h = m.get("width", 0) or 0, m.get("height", 0) or 0
+                ar = (w / h) if h else 999
+            s = -abs(ar - 1.0) * 100             # 中身が正方形に近いほど高得点＝丸ロゴ
+            low = nm.lower()
+            if any(k in low for k in ("丸", "round", "circle", "マーク", "mark", "icon")):
                 s += 50
+            if hints and _name_hit(nm):
+                s += 1000                          # 店舗が名指しした丸ロゴを最優先
             return s
-        pick = sorted(imgs, key=_sq, reverse=True)[0]
+
+        ranked = sorted(imgs, key=_score, reverse=True)
+        pick = ranked[0]
+        print("[LOGO-ROUND] 候補:", ", ".join(str(x.get("name")) for x in ranked))
         print("[LOGO-ROUND] 採用:", pick.get("name"))
         raw = os.path.join(OUT_DIR, "_logo_round_raw")
         req = drive.files().get_media(fileId=pick["id"])
@@ -676,18 +751,10 @@ def _fetch_round_logo():
         while not done:
             _, done = dl.next_chunk()
         buf.close()
-        try:
-            from PIL import Image
-        except ImportError:
+        if Image is None:
             import shutil; shutil.copyfile(raw, os.path.join("public", "store_logo_round.png")); return "store_logo_round.png"
         im = Image.open(raw).convert("RGBA")
-        px = im.load(); W, H = im.size
-        HI = 246
-        for y in range(H):
-            for x in range(W):
-                r, g, b, a = px[x, y]
-                if a and min(r, g, b) >= HI:     # ほぼ白＝背景→透過（色はそのまま保持）
-                    px[x, y] = (r, g, b, 0)
+        im = _white_to_transparent(im)
         bbox = im.getbbox()
         if bbox:
             im = im.crop(bbox)
