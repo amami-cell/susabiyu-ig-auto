@@ -735,9 +735,41 @@ func _remote_healed() -> void:
 	tween.tween_interval(0.20)
 	tween.tween_callback(_spawn_purify_ring)
 	tween.parallel().tween_callback(_spawn_sparkles.bind(16))
+	tween.parallel().tween_callback(_spawn_ascend_trail)   # 還っていく 昇る光の軌跡
 	tween.tween_property(self, "global_position:y", global_position.y + 1.4, 0.6)
 	tween.parallel().tween_property(self, "scale", scale * 0.12, 0.6).set_ease(Tween.EASE_IN)
 	tween.tween_callback(queue_free)
+
+
+## 還っていく光の軌跡：昇天に合わせ、光の粒が下から順に灯って さらに昇り 消える＝
+## 「救われて空へ還る」ひとすじの光。ワールドに置く（本体は消えるので）。純見た目・軽い。
+func _spawn_ascend_trail() -> void:
+	var world := get_parent()
+	if world == null:
+		return
+	var base := global_position + Vector3(0.0, 0.4, 0.0)
+	var n := 5 if OS.has_feature("web") else 8
+	for i in n:
+		var s := MeshInstance3D.new()
+		s.mesh = _shared_spark_mesh()
+		var mat := StandardMaterial3D.new()
+		mat.albedo_color = Color(0.85, 1.0, 0.9, 0.0)   # 澄んだ白緑・最初は透明
+		mat.emission_enabled = true
+		mat.emission = Color(0.7, 1.0, 0.82)
+		mat.emission_energy_multiplier = 3.2
+		mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+		mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+		s.material_override = mat
+		world.add_child(s)
+		var frac := float(i) / float(n)
+		s.global_position = base + Vector3(randf_range(-0.12, 0.12), frac * 1.6, randf_range(-0.12, 0.12))
+		s.scale = Vector3.ONE * randf_range(0.5, 0.9)
+		var tw := create_tween()
+		tw.tween_interval(frac * 0.5)                                    # 下から順に灯る
+		tw.tween_property(mat, "albedo_color:a", 0.9, 0.12)             # ふっと灯り
+		tw.tween_property(s, "global_position:y", s.global_position.y + 0.9, 0.5)  # さらに昇り
+		tw.parallel().tween_property(mat, "albedo_color:a", 0.0, 0.5)   # 消える
+		tw.tween_callback(s.queue_free)
 
 
 ## 浄化の光の輪：足元から水平の輪がパッと広がって消える。
