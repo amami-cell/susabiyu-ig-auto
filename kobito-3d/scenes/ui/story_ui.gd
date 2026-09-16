@@ -358,7 +358,9 @@ func _page_turn(title: String) -> void:
 	page.set_anchors_preset(Control.PRESET_FULL_RECT)
 	page.add_theme_stylebox_override("panel", UIKit.panel(UIKit.CREAM_SOLID, UIKit.GREEN_DK, 0, 0, 0))
 	page.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	page.position.x = w   # 画面右の外から
+	# 最初から画面を覆う＝この不透明ページの裏で 舞台/回復が切り替わる（＝継ぎ目を一切見せない）。
+	# 通信で少し遅れて届くクライアント側の切替も、1.1秒の被覆の内側に収まる＝どの画面でも継ぎ目なし。
+	page.position.x = 0.0
 	add_child(page)
 	# ページの綴じ目（先端）に細い影＝紙をめくる立体感。
 	var spine := ColorRect.new()
@@ -382,9 +384,8 @@ func _page_turn(title: String) -> void:
 	page.add_child(lbl)
 	Sfx.play("pickup", -12.0)   # 紙をめくる小さな合図
 	var tw := create_tween()
-	tw.tween_property(page, "position:x", 0.0, 0.5).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)  # めくって覆う
-	tw.tween_interval(1.1)                                                                                  # タイトルを見せる間
-	tw.tween_property(page, "position:x", -w, 0.5).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_IN)     # めくり切って世界へ
+	tw.tween_interval(1.25)                                                                                # タイトルを見せる間（既に覆っている＝裏で切替）
+	tw.tween_property(page, "position:x", -w, 0.55).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_IN)   # めくり切って 新しい世界へ
 	tw.tween_callback(page.queue_free)
 
 
