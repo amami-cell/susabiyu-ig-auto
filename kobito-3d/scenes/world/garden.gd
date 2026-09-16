@@ -80,6 +80,8 @@ var _cloud_mmi: MeshInstance3D = null
 var _mote_mm: MultiMesh = null          # 空気に舞う花粉/ちり（回復で色・数が変わる）
 var _mote_mat: ShaderMaterial = null
 var _mote_n := 0
+var _fireflies: MultiMeshInstance3D = null   # 第4章「よる」＝またたく蛍。night舞台だけ表示（回復で戻る）
+var _firefly_n := 0                      # 蛍の総数（回復で visible_instance_count を動かす）
 var _crit_mm: MultiMesh = null          # 地面の小さな生き物（回復で数が増える）
 var _crit_n := 0
 var _ground_shader: ShaderMaterial = null
@@ -852,6 +854,7 @@ func _setup_visuals() -> void:
 	_build_boulders()
 	_build_butterflies()
 	_build_motes()   # 空気に舞う花粉/ちり（回復で 灰のちり→金の花粉）＝“生きた空気”
+	_build_fireflies()   # 第4章「よる」＝またたく蛍（night舞台だけ・回復で戻る）
 	_build_critters()   # 地面を ちょこちょこ歩く 小さな生き物＝“戻ってきた命”
 	_build_actor_shadows()
 	_build_bloom()
@@ -1144,6 +1147,8 @@ func _apply_biome() -> void:
 		_water_rays.visible = biome == "water"   # 水辺のときだけ水面のサンシャフトを出す
 	if _night_rays != null:
 		_night_rays.visible = biome == "night"   # 夜のときだけ月あかりの光の帯を出す
+	if _fireflies != null:
+		_fireflies.visible = biome == "night"   # 夜のときだけ蛍を出す
 	if _garden_rays != null:
 		_garden_rays.visible = biome == "garden"   # みどりの庭のときだけ木漏れ日を出す
 	# 第5章「いえの中」＝屋内一式を出し、屋外の背景（遠景の丘）は隠す＝“部屋の中”に見せる。
@@ -2721,6 +2726,73 @@ func _update_motes(r: float) -> void:
 		_mote_mat.set_shader_parameter("glow", lerpf(0.6, 1.3, r))
 
 
+## 第4章「よる」＝またたく蛍。花粉/ちりと同じ MultiMesh＋またたきシェーダの流儀で、
+## 夜の森に低く漂う 黄緑の光の粒。回復で戻ってくる（癒えた夜に蛍が帰る）。night舞台だけ表示。
+func _build_fireflies() -> void:
+	var dot := SphereMesh.new()
+	dot.radius = 0.09
+	dot.height = 0.18
+	dot.radial_segments = 6
+	dot.rings = 3
+	var mat := ShaderMaterial.new()
+	var sh := Shader.new()
+	sh.code = """
+shader_type spatial;
+render_mode unshaded, cull_disabled, depth_draw_never, blend_add;
+uniform vec3 fly_col : source_color = vec3(0.70, 1.0, 0.38);
+uniform float glow = 1.6;
+varying float tw;
+void vertex(){
+	float ph = INSTANCE_CUSTOM.r * 6.2831;
+	float sp = 0.18 + INSTANCE_CUSTOM.g * 0.35;      // ゆっくり・低く漂う
+	VERTEX.x += sin(TIME * sp + ph) * 0.7;
+	VERTEX.z += cos(TIME * sp * 0.8 + ph) * 0.7;
+	VERTEX.y += sin(TIME * 0.3 + ph) * 0.35;
+	// 蛍の点滅：ふだんは ほのかに灯り、ときどき ふわっと強く光る（下限を残して常に見える）。
+	float b = sin(TIME * (0.9 + INSTANCE_CUSTOM.b * 1.6) + INSTANCE_CUSTOM.a * 6.2831);
+	tw = 0.28 + 0.72 * pow(max(b, 0.0), 2.0);
+}
+void fragment(){
+	ALBEDO = fly_col;
+	EMISSION = fly_col * glow * tw;
+	ALPHA = tw;   // 加算合成＝夜に映える光の粒
+}
+"""
+	mat.shader = sh
+	mat.set_shader_parameter("fly_col", Color(0.70, 1.0, 0.38))
+	mat.set_shader_parameter("glow", 1.6)
+	dot.surface_set_material(0, mat)
+
+	_firefly_n = 26 if OS.has_feature("web") else 48
+	var mm := MultiMesh.new()
+	mm.transform_format = MultiMesh.TRANSFORM_3D
+	mm.use_custom_data = true
+	mm.mesh = dot
+	mm.instance_count = _firefly_n
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 565656
+	for i in _firefly_n:
+		var pos := Vector3(rng.randf_range(-28.0, 28.0), rng.randf_range(0.4, 3.2), rng.randf_range(-28.0, 28.0))
+		mm.set_instance_transform(i, Transform3D(Basis.IDENTITY, pos))
+		mm.set_instance_custom_data(i, Color(rng.randf(), rng.randf(), rng.randf(), rng.randf()))
+	mm.visible_instance_count = 0   # 回復で増やす（_update_fireflies）
+	var mmi := MultiMeshInstance3D.new()
+	mmi.name = "Fireflies"
+	mmi.multimesh = mm
+	mmi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	mmi.extra_cull_margin = 40.0
+	mmi.visible = false   # night舞台のときだけ _apply_biome で出す
+	_fireflies = mmi
+	add_child(mmi)
+
+
+## 蛍の数を回復度で動かす（よどんだ闇＝ほぼいない／澄む＝蛍がにぎやかに帰ってくる）。
+func _update_fireflies(r: float) -> void:
+	if _fireflies == null or _fireflies.multimesh == null:
+		return
+	_fireflies.multimesh.visible_instance_count = int(round(_firefly_n * clampf(r * 1.1 - 0.08, 0.0, 1.0)))
+
+
 ## 地面の小さな生き物：小さな甲虫が ちょこちょこ歩き回る＝“戻ってきた命”。
 ## 頂点シェーダで各個体を小さな楕円軌道に歩かせる（CPU負荷ゼロ・1ドローコール）。回復で数が増える。
 func _build_critters() -> void:
@@ -2908,6 +2980,7 @@ func _on_recovery_changed(_value: float) -> void:
 	_update_water_rays(r)
 	_update_night_rays(r)
 	_update_garden_rays(r)
+	_update_fireflies(r)
 	_update_grass(r)
 	_update_flowers(r)
 	_update_motes(r)
