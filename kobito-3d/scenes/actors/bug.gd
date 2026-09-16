@@ -73,6 +73,8 @@ var _stage := 0                     # 物語の段（0 暴れる →1 弱る →
 
 var _hpbar: Node3D = null        # 頭上のHPバー（ダメージが目で分かる）
 var _hpbar_fill: Node3D = null   # 緑の残量（xスケールで減る）
+var _hpbar_chip: Node3D = null   # ボス用：遅れて減る“ダメージチップ”（一撃で削れた分が見える）
+var _chip_tw: Tween = null
 
 
 func _ready() -> void:
@@ -151,6 +153,19 @@ func _build_hpbar() -> void:
 	bg.mesh = bgm
 	bg.material_override = _bar_mat(Color(0.5, 0.12, 0.12))
 	_hpbar.add_child(bg)
+	# ボス：遅れて減る“ダメージチップ”（淡い黄）。緑より先に置いて 背面に＝一撃で どれだけ削れたかが
+	# チャンクで残って見える（緑が即減り、黄がすっと追いつく）＝ボス戦の手応え。
+	if big:
+		_hpbar_chip = Node3D.new()
+		_hpbar_chip.position = Vector3(-W * 0.5, 0.0, 0.008)
+		_hpbar.add_child(_hpbar_chip)
+		var chip := MeshInstance3D.new()
+		var cm := QuadMesh.new()
+		cm.size = Vector2(W, H * 0.82)
+		chip.mesh = cm
+		chip.position = Vector3(W * 0.5, 0.0, 0.0)
+		chip.material_override = _bar_mat(Color(1.0, 0.92, 0.5))
+		_hpbar_chip.add_child(chip)
 	# 残量（緑）：左端を軸にして x スケールで減らす
 	_hpbar_fill = Node3D.new()
 	_hpbar_fill.position = Vector3(-W * 0.5, 0.0, 0.01)
@@ -212,6 +227,14 @@ func _update_hpbar() -> void:
 	var maxhp: int = maxi(1, _max_hp)
 	var ratio := clampf(float(hp) / float(maxhp), 0.0, 1.0)
 	_hpbar_fill.scale.x = ratio
+	# ボスのダメージチップ：緑は即減り、黄チップは少し遅れて追いつく＝削れたチャンクが見える。
+	if _hpbar_chip != null:
+		if _chip_tw != null and _chip_tw.is_valid():
+			_chip_tw.kill()
+		_hpbar_chip.scale.x = maxf(_hpbar_chip.scale.x, ratio)   # チップは緑より下がらない
+		_chip_tw = create_tween()
+		_chip_tw.tween_interval(0.12)
+		_chip_tw.tween_property(_hpbar_chip, "scale:x", ratio, 0.35).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_IN_OUT)
 	if _hp_num != null:
 		_hp_num.text = str(maxi(0, hp))
 	# 満タンの雑魚はバーを隠す＝Webのオーバードローを減らす（接近中の大半が満タン）。
