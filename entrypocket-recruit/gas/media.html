@@ -137,6 +137,7 @@
     var c='';
     c+='<div class="card">';
     c+='<div class="row1"><span class="nm">'+esc(x['氏名']||'（無名）')+'</span>'+(x['カナ']?'<span class="kana">'+esc(x['カナ'])+'</span>':'')+(status?'<span class="badge" style="'+statusStyle(status)+'">'+statusIcon(status)+' '+esc(status)+'</span>':'')+'<span class="date">'+esc(x['応募日時']||'')+'</span></div>';
+    c+='<div style="font-size:12.5px;color:var(--fg2);margin-top:2px;font-weight:700">🏪 '+esc(x['店舗']||'（店舗不明）')+'</div>';
     c+='<div class="meta">'+meta+'</div>';
     c+='<div class="contact">';
     if(tel) c+='<a href="tel:'+tel+'">📞 '+esc(x['電話'])+'</a>';
