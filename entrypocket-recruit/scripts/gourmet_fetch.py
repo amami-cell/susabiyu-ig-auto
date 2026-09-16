@@ -29,17 +29,31 @@ def log(*a):
     print(*a, flush=True)
 
 
-def post_csv(media, data: bytes) -> str:
-    b64 = base64.b64encode(data).decode()
-    payload = {"api": "media_importcsv", "media": media, "b64": b64}
+def gas_post(reqctx, payload) -> str:
+    """GASへPOST。Playwrightのブラウザ由来リクエスト(UA/クッキー/リダイレクト対応)で送る。
+    urllibだとGASの302リダイレクト処理で404になるため、こちらを使う。"""
     ingest = (os.environ.get("RECRUIT_INGEST_KEY") or "").strip()
     if ingest:
-        payload["key"] = ingest   # EP_INGEST_KEY をarmしている場合に必要（未設定なら無くても通る）
-    body = json.dumps(payload).encode()
-    req = urllib.request.Request(EXEC, data=body,
-                                 headers={"Content-Type": "text/plain;charset=utf-8"}, method="POST")
-    with urllib.request.urlopen(req, timeout=120) as r:
-        return r.read().decode("utf-8", "replace")
+        payload["key"] = ingest
+    r = reqctx.post(EXEC, data=json.dumps(payload),
+                    headers={"content-type": "text/plain;charset=utf-8"}, timeout=120000)
+    return (r.text() or "")[:600]
+
+
+def scrape_gourmet_status(page):
+    """応募メール一覧から各応募者の選考ステータス（無名selectの選択値）＋氏名を取得。"""
+    return page.evaluate(
+        "() => { const out=[]; document.querySelectorAll('select').forEach(sel=>{"
+        "if(sel.name) return;"  # 絞り込み(名前付き)は除外。応募者行のステータスselectは無名
+        "const opt=sel.options[sel.selectedIndex]; const status=(opt?opt.textContent:'').trim();"
+        "if(!status||status==='--'||status==='すべて') return;"
+        "let row=sel.closest('tr')||sel.closest('li')||sel.parentElement;"
+        "for(let k=0;k<6 && row && row.textContent.replace(/\\s+/g,'').length<12;k++){row=row.parentElement;}"
+        "const txt=row?row.textContent.replace(/\\s+/g,' ').trim():'';"
+        "const m=txt.match(/^(.+?)\\s*[（(]\\s*\\d+\\s*[）)]/);"
+        "const name=m?m[1].trim():'';"
+        "if(name) out.push({name:name, status:status.replace(/\\s+/g,'')});"
+        "}); return out; }")
 
 
 def do_login(page):
@@ -100,22 +114,15 @@ def main():
             page.wait_for_timeout(2000)
             log("list page: " + page.url + " / " + (page.title() or ""))
 
-            # --- 選考ステータス構造の調査（各selectの選択値と行テキストをログへ。後で本実装） ---
+            # --- 選考ステータスを一覧から取得（後段でGASへ反映） ---
+            gstatus = []
             try:
-                diag = page.evaluate(
-                    "() => { const out=[]; document.querySelectorAll('select').forEach(sel=>{"
-                    "const opt=sel.options[sel.selectedIndex]; const status=(opt?opt.textContent:'').trim();"
-                    "let row=sel.closest('tr')||sel.closest('li')||sel.parentElement;"
-                    "for(let k=0;k<5 && row && row.textContent.replace(/\\s+/g,'').length<12;k++){row=row.parentElement;}"
-                    "const txt=row?row.textContent.replace(/\\s+/g,' ').trim().slice(0,140):'';"
-                    "const opts=Array.from(sel.options).map(o=>o.textContent.trim()).slice(0,12);"
-                    "out.push({status, txt, selName:sel.name||'', selCls:sel.className||'', opts});"
-                    "}); return out.slice(0,60); }")
-                log("gourmet SELECTS=" + str(len(diag)))
-                for r in diag[:16]:
-                    log("  sel[" + str(r.get('selName')) + "|" + str(r.get('selCls')) + "] status=" + str(r.get('status')) + " opts=" + str(r.get('opts'))[:80] + " row=" + str(r.get('txt')))
+                gstatus = scrape_gourmet_status(page) or []
+                log("gourmet status scraped=" + str(len(gstatus)))
+                for r in gstatus[:6]:
+                    log("  " + str(r.get('name')) + " => " + str(r.get('status')))
             except Exception as e:
-                log("gourmet status diag err: " + str(e))
+                log("gourmet status scrape err: " + str(e))
 
             page.set_default_timeout(15000)
             # 確認ダイアログ(confirm/alert)は自動でOK
@@ -229,8 +236,19 @@ def main():
                 log("[FAIL] CSVを取得できず（サイズ不足）"); sys.exit(1)
             log("csv bytes = " + str(len(data)))
 
-            res = post_csv("gourmet", data)
+            res = gas_post(page.request, {"api": "media_importcsv", "media": "gourmet",
+                                          "b64": base64.b64encode(data).decode()})
             log("app response: " + res[:300])
+
+            # 選考ステータスをGASへ反映（氏名で照合して 状況/資格 を更新）
+            if gstatus:
+                try:
+                    sres = gas_post(page.request, {"api": "media_status", "media": "gourmet", "items": gstatus})
+                    log("status response: " + sres[:200])
+                except Exception as e:
+                    log("status post err: " + str(e))
+            else:
+                log("status: 取得0件（一覧にstatus selectが無い可能性）")
             log("=== done ===")
         except Exception as e:
             log("[ERROR] " + repr(e)); sys.exit(1)
