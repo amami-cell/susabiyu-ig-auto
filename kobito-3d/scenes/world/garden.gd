@@ -103,6 +103,7 @@ const TREE_COUNT := 150       # 広葉樹（まるい木）
 const CONIFER_COUNT := 130    # 針葉樹（とがった木）
 const BOULDER_COUNT := 110    # 岩
 var _hills: MultiMeshInstance3D = null
+var _house: Node3D = null   # 第5章「いえの中」の手続き屋内（床/壁/窓/梁/家具）。house舞台だけ表示
 var _water_mat: ShaderMaterial = null
 # 第3章の“浅い水”：プレイ面をおおう軽い半透明シート（web でも軽い1メッシュ）。
 # にごり→すきとおる を 回復度で表現。水辺(biome=="water")のときだけ出す。
@@ -843,6 +844,7 @@ func _setup_visuals() -> void:
 	_build_critters()   # 地面を ちょこちょこ歩く 小さな生き物＝“戻ってきた命”
 	_build_actor_shadows()
 	_build_bloom()
+	_build_house_interior()   # 第5章「いえの中」＝手続きの屋内（house舞台だけ表示）
 	_build_water_lite()
 	_apply_biome()
 
@@ -1121,6 +1123,12 @@ func _apply_biome() -> void:
 		_water_mat.set_shader_parameter("deep", cfg["water_deep"])
 	if _water_lite != null:
 		_water_lite.visible = biome == "water"   # 水辺のときだけ浅い水を出す
+	# 第5章「いえの中」＝屋内一式を出し、屋外の背景（遠景の丘）は隠す＝“部屋の中”に見せる。
+	var indoors := biome == "house"
+	if _house != null:
+		_house.visible = indoors
+	if _hills != null:
+		_hills.visible = not indoors   # 屋内では 遠景の丘を隠す（窓の外だけが外界）
 	_on_recovery_changed(WorldState.recovery)
 
 
@@ -1314,6 +1322,82 @@ func _build_distant_hills() -> void:
 	mmi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	_hills = mmi
 	add_child(mmi)
+
+
+## 第5章「いえの中」＝手続きの屋内。床/壁/窓（あたたかい昼の光）/天井の梁/家具のシルエットで
+## 「部屋の中」に見せる（以前は 茶色の平原＝草原と同構図で 屋内に見えなかった）。house舞台だけ表示。
+## 当たり判定は持たない背景＝プレイに干渉しない。梁だけ（天井は塞がない）＝飛行の邪魔をしない。全手続き・追加アセットゼロ。
+func _build_house_interior() -> void:
+	_house = Node3D.new()
+	_house.name = "HouseInterior"
+	add_child(_house)
+	var R := 22.0
+	var H := 12.0
+	# 床（あたたかい木）
+	var floor_mi := MeshInstance3D.new()
+	var fpm := PlaneMesh.new()
+	fpm.size = Vector2(R * 2.1, R * 2.1)
+	floor_mi.mesh = fpm
+	floor_mi.position = Vector3(0.0, 0.05, 0.0)
+	floor_mi.material_override = _wood_mat(Color(0.60, 0.47, 0.33))
+	floor_mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	_house.add_child(floor_mi)
+	# 壁 4枚（内向き）
+	var wall_col := Color(0.82, 0.70, 0.54)
+	_house_box(Vector3(R * 2.0, H, 0.4), Vector3(0.0, H * 0.5, -R), wall_col)   # 北
+	_house_box(Vector3(R * 2.0, H, 0.4), Vector3(0.0, H * 0.5, R), wall_col)    # 南
+	_house_box(Vector3(0.4, H, R * 2.0), Vector3(-R, H * 0.5, 0.0), wall_col)   # 西
+	_house_box(Vector3(0.4, H, R * 2.0), Vector3(R, H * 0.5, 0.0), wall_col)    # 東
+	# 北壁の窓（あたたかい昼の光）＝“おうち”の要。十字の枠付き。
+	var win := MeshInstance3D.new()
+	var wq := QuadMesh.new()
+	wq.size = Vector2(10.0, 6.5)
+	win.mesh = wq
+	win.position = Vector3(0.0, 5.5, -R + 0.35)
+	var wm := StandardMaterial3D.new()
+	wm.albedo_color = Color(1.0, 0.95, 0.82)
+	wm.emission_enabled = true
+	wm.emission = Color(1.0, 0.93, 0.74)
+	wm.emission_energy_multiplier = 1.6
+	wm.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	win.material_override = wm
+	win.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	_house.add_child(win)
+	var frame_col := Color(0.40, 0.28, 0.18)
+	_house_box(Vector3(11.0, 0.5, 0.3), Vector3(0.0, 5.5, -R + 0.3), frame_col)    # 窓の横桟
+	_house_box(Vector3(0.5, 7.5, 0.3), Vector3(0.0, 5.5, -R + 0.3), frame_col)     # 窓の縦桟
+	_house_box(Vector3(11.6, 0.6, 0.4), Vector3(0.0, 9.1, -R + 0.28), frame_col)   # 窓の上枠
+	# 天井の梁（rafters）＝屋内の証。塞がず梁だけ＝飛んでも邪魔にならない。
+	var beam_col := Color(0.44, 0.31, 0.21)
+	for bz in [-14.0, -6.0, 2.0, 10.0, 18.0]:
+		_house_box(Vector3(R * 2.0, 0.5, 0.7), Vector3(0.0, H - 0.6, float(bz)), beam_col)
+	# 家具のシルエット（あたたかい木）＝生活感。
+	var fur := Color(0.50, 0.36, 0.24)
+	_house_box(Vector3(3.4, 1.4, 2.0), Vector3(11.0, 0.7, -9.0), fur)    # テーブル
+	_house_box(Vector3(3.0, 6.0, 1.2), Vector3(-15.0, 3.0, 12.0), fur)   # 棚
+	_house_box(Vector3(1.4, 1.4, 1.4), Vector3(-8.0, 0.7, 4.0), fur)     # 箱/スツール
+	_house.visible = false   # house舞台のときだけ _apply_biome で出す
+
+
+## 屋内用の箱（当たり判定なし・toon木材）。
+func _house_box(sz: Vector3, pos: Vector3, col: Color) -> void:
+	var mi := MeshInstance3D.new()
+	var bm := BoxMesh.new()
+	bm.size = sz
+	mi.mesh = bm
+	mi.position = pos
+	mi.material_override = _wood_mat(col)
+	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	_house.add_child(mi)
+
+
+## 屋内のあたたかい木材（つや消し・セル陰影で絵本トゥーンに馴染む）。
+func _wood_mat(col: Color) -> StandardMaterial3D:
+	var m := StandardMaterial3D.new()
+	m.albedo_color = col
+	m.roughness = 0.92
+	m.diffuse_mode = BaseMaterial3D.DIFFUSE_TOON
+	return m
 
 
 ## 低ポリの木立。うねる丘の上に散らす（背景の森）。まるい木＋とがった木の2種で単調さを消す。
