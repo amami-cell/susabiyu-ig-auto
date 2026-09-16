@@ -109,6 +109,8 @@ var _sky_rays: Node3D = null   # 第6章「そら」＝雲を貫くサンシャ�
 var _sky_ray_mat: StandardMaterial3D = null   # 光芒の共有マテリアル（回復で濃さを変える）
 var _sky_birds: MultiMeshInstance3D = null   # 第6章「そら」＝遠くを渡る鳥影。sky舞台だけ表示（回復で増える）
 var _sky_bird_n := 0   # 鳥の総数（回復で visible_instance_count を動かす）
+var _water_rays: Node3D = null   # 第3章「みずべ」＝水面に差すサンシャフト。water舞台だけ表示
+var _water_ray_mat: StandardMaterial3D = null   # 水辺の光芒の共有マテリアル（澄むほど強い）
 var _water_mat: ShaderMaterial = null
 # 第3章の“浅い水”：プレイ面をおおう軽い半透明シート（web でも軽い1メッシュ）。
 # にごり→すきとおる を 回復度で表現。水辺(biome=="water")のときだけ出す。
@@ -853,6 +855,7 @@ func _setup_visuals() -> void:
 	_build_sky_clouds()       # 第6章「そら」＝ふわふわの雲の床（sky舞台だけ表示）
 	_build_sky_rays()         # 第6章「そら」＝雲を貫くサンシャフト（光芒／sky舞台だけ表示）
 	_build_sky_birds()        # 第6章「そら」＝遠くを渡る鳥影（sky舞台だけ表示・回復で増える）
+	_build_water_rays()       # 第3章「みずべ」＝水面に差すサンシャフト（water舞台だけ表示）
 	_build_water_lite()
 	_apply_biome()
 
@@ -1131,6 +1134,8 @@ func _apply_biome() -> void:
 		_water_mat.set_shader_parameter("deep", cfg["water_deep"])
 	if _water_lite != null:
 		_water_lite.visible = biome == "water"   # 水辺のときだけ浅い水を出す
+	if _water_rays != null:
+		_water_rays.visible = biome == "water"   # 水辺のときだけ水面のサンシャフトを出す
 	# 第5章「いえの中」＝屋内一式を出し、屋外の背景（遠景の丘）は隠す＝“部屋の中”に見せる。
 	var indoors := biome == "house"
 	if _house != null:
@@ -1686,6 +1691,56 @@ func _update_sky_birds(r: float) -> void:
 		return
 	var vis := int(round(_sky_bird_n * clampf(r * 1.15 - 0.12, 0.0, 1.0)))
 	_sky_birds.multimesh.visible_instance_count = vis
+
+
+## 第3章「みずべ」＝水面に差すサンシャフト。屋内サンビーム／そらの光芒と同じ加算合成の光の帯を
+## 高い空から水面へ何本か落とす。にごり＝ぼんやり／澄む＝きらめく強い陽射し（回復リンク）。
+func _build_water_rays() -> void:
+	_water_rays = Node3D.new()
+	_water_rays.name = "WaterRays"
+	var m := StandardMaterial3D.new()
+	m.albedo_color = Color(1.0, 0.97, 0.80, 0.05)
+	m.emission_enabled = true
+	m.emission = Color(1.0, 0.95, 0.74)
+	m.emission_energy_multiplier = 0.5
+	m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	m.blend_mode = BaseMaterial3D.BLEND_MODE_ADD          # 加算＝光として景色に足される
+	m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	m.cull_mode = BaseMaterial3D.CULL_DISABLED
+	_water_ray_mat = m
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 30303
+	var n := 5 if OS.has_feature("web") else 7
+	for i in n:
+		# 高い空(斜め)から 水面(y≈0.3)の散らばった着地点へ。中央の遊び場は少し避ける。
+		var lx := rng.randf_range(-26.0, 26.0)
+		var lz := rng.randf_range(-30.0, 6.0)
+		if absf(lx) < 8.0 and absf(lz) < 8.0:
+			lz -= 14.0
+		var land := Vector3(lx, 0.3, lz)                 # 水面の着地点
+		var top := land + Vector3(rng.randf_range(-5.0, 5.0), rng.randf_range(20.0, 26.0), rng.randf_range(2.0, 8.0))
+		var beam := MeshInstance3D.new()
+		var bm := BoxMesh.new()
+		var w := rng.randf_range(1.8, 3.4)
+		bm.size = Vector3(w, 0.12, top.distance_to(land))   # 幅・薄さ・（上→水面の）長さ
+		beam.mesh = bm
+		beam.material_override = m
+		beam.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		_water_rays.add_child(beam)
+		beam.position = (top + land) * 0.5
+		beam.look_at_from_position(beam.position, land, Vector3.UP)   # 箱の長さ(-Z)を水面へ向ける
+	_water_rays.visible = false   # water舞台のときだけ _apply_biome で出す
+	add_child(_water_rays)
+
+
+## 水辺の光芒の濃さを回復度で動かす（にごり＝うすい／澄む＝きらめく強い陽射し）。
+func _update_water_rays(r: float) -> void:
+	if _water_ray_mat == null:
+		return
+	var a := _water_ray_mat.albedo_color
+	a.a = lerpf(0.03, 0.10, r)
+	_water_ray_mat.albedo_color = a
+	_water_ray_mat.emission_energy_multiplier = lerpf(0.3, 0.65, r)
 
 
 ## 低ポリの木立。うねる丘の上に散らす（背景の森）。まるい木＋とがった木の2種で単調さを消す。
@@ -2739,6 +2794,7 @@ func _on_recovery_changed(_value: float) -> void:
 	_update_sky_fog(r)
 	_update_sky_rays(r)
 	_update_sky_birds(r)
+	_update_water_rays(r)
 	_update_grass(r)
 	_update_flowers(r)
 	_update_motes(r)
