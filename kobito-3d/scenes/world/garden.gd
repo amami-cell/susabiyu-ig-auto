@@ -113,6 +113,8 @@ var _water_rays: Node3D = null   # 第3章「みずべ」＝水面に差すサ�
 var _water_ray_mat: StandardMaterial3D = null   # 水辺の光芒の共有マテリアル（澄むほど強い）
 var _night_rays: Node3D = null   # 第4章「よる」＝月あかりの光の帯（ムーンビーム）。night舞台だけ表示
 var _night_ray_mat: StandardMaterial3D = null   # 夜の光芒の共有マテリアル（澄むほど差してくる）
+var _garden_rays: Node3D = null   # 第1章「みどりの庭」＝木漏れ日の光の帯。garden舞台だけ表示
+var _garden_ray_mat: StandardMaterial3D = null   # 庭の木漏れ日の共有マテリアル（茂るほど強い）
 var _water_mat: ShaderMaterial = null
 # 第3章の“浅い水”：プレイ面をおおう軽い半透明シート（web でも軽い1メッシュ）。
 # にごり→すきとおる を 回復度で表現。水辺(biome=="water")のときだけ出す。
@@ -859,6 +861,7 @@ func _setup_visuals() -> void:
 	_build_sky_birds()        # 第6章「そら」＝遠くを渡る鳥影（sky舞台だけ表示・回復で増える）
 	_build_water_rays()       # 第3章「みずべ」＝水面に差すサンシャフト（water舞台だけ表示）
 	_build_night_rays()       # 第4章「よる」＝月あかりの光の帯（night舞台だけ表示）
+	_build_garden_rays()      # 第1章「みどりの庭」＝木漏れ日の光の帯（garden舞台だけ表示）
 	_build_water_lite()
 	_apply_biome()
 
@@ -1141,6 +1144,8 @@ func _apply_biome() -> void:
 		_water_rays.visible = biome == "water"   # 水辺のときだけ水面のサンシャフトを出す
 	if _night_rays != null:
 		_night_rays.visible = biome == "night"   # 夜のときだけ月あかりの光の帯を出す
+	if _garden_rays != null:
+		_garden_rays.visible = biome == "garden"   # みどりの庭のときだけ木漏れ日を出す
 	# 第5章「いえの中」＝屋内一式を出し、屋外の背景（遠景の丘）は隠す＝“部屋の中”に見せる。
 	var indoors := biome == "house"
 	if _house != null:
@@ -1796,6 +1801,56 @@ func _update_night_rays(r: float) -> void:
 	a.a = lerpf(0.012, 0.06, r)
 	_night_ray_mat.albedo_color = a
 	_night_ray_mat.emission_energy_multiplier = lerpf(0.2, 0.5, r)
+
+
+## 第1章「みどりの庭」＝木漏れ日の光の帯。加算合成の光の帯を 森ごしの陽射しとして数本落とす。
+## くすんだ庭＝うすい／緑が茂るほど＝あたたかい木漏れ日（回復リンク）。garden舞台だけ表示。
+func _build_garden_rays() -> void:
+	_garden_rays = Node3D.new()
+	_garden_rays.name = "GardenRays"
+	var m := StandardMaterial3D.new()
+	m.albedo_color = Color(1.0, 0.94, 0.68, 0.05)
+	m.emission_enabled = true
+	m.emission = Color(1.0, 0.9, 0.6)
+	m.emission_energy_multiplier = 0.5
+	m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	m.blend_mode = BaseMaterial3D.BLEND_MODE_ADD          # 加算＝陽の光として景色に足される
+	m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	m.cull_mode = BaseMaterial3D.CULL_DISABLED
+	_garden_ray_mat = m
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 10101
+	var n := 5 if OS.has_feature("web") else 7
+	for i in n:
+		# 森（斜め上）から 草地(y≈0.3)の散らばった着地点へ。中央の遊び場は少し避ける。
+		var lx := rng.randf_range(-26.0, 26.0)
+		var lz := rng.randf_range(-30.0, 4.0)
+		if absf(lx) < 8.0 and absf(lz) < 8.0:
+			lz -= 14.0
+		var land := Vector3(lx, 0.3, lz)
+		var top := land + Vector3(rng.randf_range(-5.0, 6.0), rng.randf_range(20.0, 27.0), rng.randf_range(2.0, 9.0))
+		var beam := MeshInstance3D.new()
+		var bm := BoxMesh.new()
+		var w := rng.randf_range(1.6, 3.2)
+		bm.size = Vector3(w, 0.12, top.distance_to(land))
+		beam.mesh = bm
+		beam.material_override = m
+		beam.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		_garden_rays.add_child(beam)
+		beam.position = (top + land) * 0.5
+		beam.look_at_from_position(beam.position, land, Vector3.UP)
+	_garden_rays.visible = false   # garden舞台のときだけ _apply_biome で出す
+	add_child(_garden_rays)
+
+
+## 庭の木漏れ日の濃さを回復度で動かす（くすんだ庭＝うすい／茂る＝あたたかい木漏れ日）。
+func _update_garden_rays(r: float) -> void:
+	if _garden_ray_mat == null:
+		return
+	var a := _garden_ray_mat.albedo_color
+	a.a = lerpf(0.025, 0.09, r)
+	_garden_ray_mat.albedo_color = a
+	_garden_ray_mat.emission_energy_multiplier = lerpf(0.3, 0.62, r)
 
 
 ## 低ポリの木立。うねる丘の上に散らす（背景の森）。まるい木＋とがった木の2種で単調さを消す。
@@ -2851,6 +2906,7 @@ func _on_recovery_changed(_value: float) -> void:
 	_update_sky_birds(r)
 	_update_water_rays(r)
 	_update_night_rays(r)
+	_update_garden_rays(r)
 	_update_grass(r)
 	_update_flowers(r)
 	_update_motes(r)
