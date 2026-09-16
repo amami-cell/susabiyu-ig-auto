@@ -104,6 +104,7 @@ const CONIFER_COUNT := 130    # 針葉樹（とがった木）
 const BOULDER_COUNT := 110    # 岩
 var _hills: MultiMeshInstance3D = null
 var _house: Node3D = null   # 第5章「いえの中」の手続き屋内（床/壁/窓/梁/家具）。house舞台だけ表示
+var _sky_clouds: MultiMeshInstance3D = null   # 第6章「そら」の雲の床（ふわふわの雲海）。sky舞台だけ表示
 var _water_mat: ShaderMaterial = null
 # 第3章の“浅い水”：プレイ面をおおう軽い半透明シート（web でも軽い1メッシュ）。
 # にごり→すきとおる を 回復度で表現。水辺(biome=="water")のときだけ出す。
@@ -845,6 +846,7 @@ func _setup_visuals() -> void:
 	_build_actor_shadows()
 	_build_bloom()
 	_build_house_interior()   # 第5章「いえの中」＝手続きの屋内（house舞台だけ表示）
+	_build_sky_clouds()       # 第6章「そら」＝ふわふわの雲の床（sky舞台だけ表示）
 	_build_water_lite()
 	_apply_biome()
 
@@ -1127,8 +1129,12 @@ func _apply_biome() -> void:
 	var indoors := biome == "house"
 	if _house != null:
 		_house.visible = indoors
+	# 第6章「そら」＝雲の床を出す。
+	if _sky_clouds != null:
+		_sky_clouds.visible = biome == "sky"
+	# 遠景の丘は 屋内・そら では隠す（部屋の中／雲の上に 山が出ると おかしいため）。
 	if _hills != null:
-		_hills.visible = not indoors   # 屋内では 遠景の丘を隠す（窓の外だけが外界）
+		_hills.visible = not (indoors or biome == "sky")
 	_on_recovery_changed(WorldState.recovery)
 
 
@@ -1398,6 +1404,48 @@ func _wood_mat(col: Color) -> StandardMaterial3D:
 	m.roughness = 0.92
 	m.diffuse_mode = BaseMaterial3D.DIFFUSE_TOON
 	return m
+
+
+## 第6章「そら」＝ふわふわの雲の床。中央の遊び場は空け、外側ほど密に置いて“雲海に浮かぶ広場”に見せる
+## （以前は 白い地面＝雪原に見えていた）。フラット球のMultiMesh＝1ドローコールで軽い。sky舞台だけ表示。
+func _build_sky_clouds() -> void:
+	var puff := SphereMesh.new()
+	puff.radius = 1.0
+	puff.height = 2.0
+	puff.radial_segments = 10
+	puff.rings = 6
+	var mat := StandardMaterial3D.new()
+	mat.albedo_color = Color(0.95, 0.97, 1.0)
+	mat.roughness = 1.0
+	mat.emission_enabled = true
+	mat.emission = Color(0.86, 0.92, 1.0)
+	mat.emission_energy_multiplier = 0.35   # ほんのり発光＝光を含んだ雲
+	puff.material = mat
+
+	var mm := MultiMesh.new()
+	mm.transform_format = MultiMesh.TRANSFORM_3D
+	mm.mesh = puff
+	var n := 60 if OS.has_feature("web") else 110
+	mm.instance_count = n
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 60606
+	for i in n:
+		var ang := rng.randf() * TAU
+		var rad := rng.randf_range(9.0, 46.0)                       # 中央(遊び場)は空ける
+		var s := rng.randf_range(2.0, 5.5) * clampf(rad / 20.0, 0.7, 1.8)   # 遠いほど大きな雲塊
+		var y := rng.randf_range(-0.8, 0.4)
+		if rad >= 22.0:
+			y += rng.randf_range(0.0, 2.5)                          # 遠景は少し浮かせて“雲海”の起伏
+		var b := Basis(Vector3.UP, rng.randf() * TAU).scaled(Vector3(s, s * rng.randf_range(0.32, 0.5), s))
+		mm.set_instance_transform(i, Transform3D(b, Vector3(cos(ang) * rad, y, sin(ang) * rad)))
+
+	var mmi := MultiMeshInstance3D.new()
+	mmi.name = "SkyClouds"
+	mmi.multimesh = mm
+	mmi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	mmi.visible = false   # sky舞台のときだけ _apply_biome で出す
+	_sky_clouds = mmi
+	add_child(mmi)
 
 
 ## 低ポリの木立。うねる丘の上に散らす（背景の森）。まるい木＋とがった木の2種で単調さを消す。
