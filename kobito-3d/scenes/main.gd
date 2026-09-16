@@ -168,6 +168,7 @@ func _on_session_started() -> void:
 	_garden.biome = Net.world_biome
 	$World.add_child(_garden)
 	_show_lobby(false)
+	_transition_reveal()   # 生成りのページがふわっと開いて ゲームが現れる
 	# 庭が組み上がったので、「つづきから」を選んでいたらここで復元する。
 	Chapter.apply_pending_continue()
 
@@ -181,6 +182,23 @@ func _on_session_ended(_reason: String) -> void:
 		_pause = null
 	WorldState.reset()
 	_show_lobby(true)
+	_transition_reveal()   # ページが閉じて ロビーへ戻る
+
+
+## 画面遷移：生成りの紙で一度おおってから ふわっと開く（＝絵本のページが開く/閉じる）。
+## ロビー⇔ゲームの瞬時切替を やわらかい転換に。最前面に置き、遷移中は誤タップを吸う。
+func _transition_reveal(col: Color = Color(0.98, 0.965, 0.93)) -> void:
+	var cover := ColorRect.new()
+	cover.name = "Transition"
+	cover.color = col
+	cover.mouse_filter = Control.MOUSE_FILTER_STOP
+	cover.set_anchors_preset(Control.PRESET_FULL_RECT)
+	$UI.add_child(cover)
+	$UI.move_child(cover, $UI.get_child_count() - 1)   # 最前面（他UI・ビネットの上）
+	var tw := create_tween()
+	tw.tween_interval(0.05)
+	tw.tween_property(cover, "color:a", 0.0, 0.5).set_trans(Tween.TRANS_SINE)
+	tw.tween_callback(cover.queue_free)
 
 
 func _unhandled_input(event: InputEvent) -> void:
