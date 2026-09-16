@@ -147,7 +147,8 @@ def caption_for(name):
     """戻り値 dict: title / story（短句）/ cap（動画に焼く短い説明）/ post（SNS本文）/ tags。"""
     d = clean(name)
     opener = _OPENERS[_seed(name) % len(_OPENERS)]
-    desc = _desc_for(name)
+    # 本文の説明も“料理ごとの手書きdesc”を使う（動画と揃える／汎用の一文にしない）。
+    desc = desc_for(name)
     pair = pairing_for(name)
     # 本文（元気お姉さんより落ち着いた、ソムリエトーン。段落3つ）。
     post = "%s\n\n%s、%s\n\n%s" % (opener, d, desc, pair)
