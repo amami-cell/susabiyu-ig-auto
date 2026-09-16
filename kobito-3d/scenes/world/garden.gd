@@ -1229,6 +1229,7 @@ shader_type spatial;
 render_mode specular_schlick_ggx, cull_disabled;
 uniform vec3 shallow : source_color = vec3(0.20, 0.45, 0.52);
 uniform vec3 deep : source_color = vec3(0.06, 0.16, 0.24);
+uniform vec3 sky_reflect : source_color = vec3(0.64, 0.80, 0.93);   // 水面が映す空の色（GDScriptで空と揃える）
 uniform float clarity = 0.0;
 void vertex() {
 	VERTEX.y += sin(TIME * 0.6 + VERTEX.x * 0.12) * 0.06
@@ -1241,11 +1242,17 @@ void fragment() {
 	NORMAL = normalize(n);
 	float fres = pow(1.0 - clamp(dot(normalize(VIEW), NORMAL), 0.0, 1.0), 3.0);
 	vec3 base = mix(deep, shallow, clarity);
-	ALBEDO = mix(base, base * 1.5 + vec3(0.12), fres);
-	ROUGHNESS = mix(0.14, 0.04, clarity);
+	// 空を映す：浅い角度（水平方向）ほど 空の色を反射。澄むほど反射が強い＝鏡のような水面。
+	float rk = clamp(fres * (0.55 + 0.45 * clarity), 0.0, 1.0);
+	vec3 col = mix(base, sky_reflect, rk);
+	// きらめき：波の法線にのった高周波の散乱光（太陽のきらめき）。澄んだ水ほど強い。
+	float glint = pow(fres, 2.0) * (0.5 + 0.5 * sin(TIME * 3.0 + VERTEX.x * 3.1 + VERTEX.z * 2.7));
+	col += vec3(0.9, 0.95, 1.0) * glint * 0.16 * clarity;
+	ALBEDO = col;
+	ROUGHNESS = mix(0.16, 0.03, clarity);   // 澄むほど滑らか＝空をくっきり映す
 	SPECULAR = 1.0;
-	METALLIC = 0.0;
-	ALPHA = 0.92;
+	METALLIC = mix(0.0, 0.25, clarity);     // 澄むと少し鏡面寄り
+	ALPHA = mix(0.86, 0.95, clarity);
 }
 """
 	_water_mat.shader = sh
@@ -2048,6 +2055,12 @@ func _update_sky_fog(r: float) -> void:
 	var fog1: Color = cfg["fog_col"][1]
 	var fd0: float = cfg["fog_d"][0]
 	var fd1: float = cfg["fog_d"][1]
+	# 水面が映す空の色を 今の空と同期（水平方向の反射＝主に地平の色＋少し上空）。
+	# 汚れた空は くすんだ反射、澄んだ空は 明るい反射＝水が「今の空」を映す。
+	if _water_mat != null:
+		var horizon := sky_h0.lerp(sky_h1, r)
+		var top := sky_t0.lerp(sky_t1, r)
+		_water_mat.set_shader_parameter("sky_reflect", horizon.lerp(top, 0.35))
 	# 雲：屋外(庭/みずべ/そら)だけ表示。汚れ時は灰色の曇天で多め、回復で白い浮き雲→夕やけの淡いピンクへ。
 	if _cloud_mmi != null:
 		var outdoor := biome == "garden" or biome == "water" or biome == "sky"
