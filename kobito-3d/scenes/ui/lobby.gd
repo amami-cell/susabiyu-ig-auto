@@ -517,9 +517,13 @@ func _show_dex() -> void:
 		_dex = null
 	var counts := Chapter.dex_counts()
 	var found := 0
+	var total_caught := 0
 	for sp in DEX_SPECIES:
-		if int(counts.get(sp["id"], 0)) > 0:
+		var c := int(counts.get(sp["id"], 0))
+		if c > 0:
 			found += 1
+		total_caught += c
+	var comp := int(round(100.0 * float(found) / float(DEX_SPECIES.size())))
 
 	_dex = Control.new()
 	_dex.name = "Dex"
@@ -550,22 +554,40 @@ func _show_dex() -> void:
 
 	var head := Label.new()
 	head.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	head.text = "なかま図鑑　%d / %d しゅるい" % [found, DEX_SPECIES.size()]
+	head.text = "なかま図鑑　%d / %d しゅるい　コンプ %d%%" % [found, DEX_SPECIES.size(), comp]
 	UIKit.style_label(head, 26, UIKit.GREEN_DK)
 	vb.add_child(head)
 
+	# 累計とバッジの凡例＝「同じ種を集めるほど バッジが育つ」やり込みを一目で伝える。
+	var sub := Label.new()
+	sub.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	sub.text = "あつめた なかま ぜんぶで ×%d　／　バッジ：◆5 ◆◆15 ◆◆◆40" % total_caught
+	UIKit.style_label(sub, 15, UIKit.INK_SOFT)
+	vb.add_child(sub)
+
+	# 19種ぶんは1画面に収まらない＝スクロールできる一覧にする（溢れ・見切れの解消）。
+	var scroll := ScrollContainer.new()
+	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	vb.add_child(scroll)
+	var list := VBoxContainer.new()
+	list.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	list.add_theme_constant_override("separation", 6)
+	scroll.add_child(list)
+
+	var tier_cols := [Color(0.74, 0.52, 0.34), Color(0.68, 0.71, 0.76), UIKit.GOLD]  # 銅/銀/金
 	for sp in DEX_SPECIES:
 		var n := int(counts.get(sp["id"], 0))
 		var row := HBoxContainer.new()
 		row.add_theme_constant_override("separation", 12)
-		vb.add_child(row)
+		list.add_child(row)
 		var sw := ColorRect.new()
 		sw.custom_minimum_size = Vector2(30, 30)
 		sw.color = (sp["color"] as Color) if n > 0 else Color(0.5, 0.5, 0.5, 0.5)
 		row.add_child(sw)
 		# 名前＋役割（見つけていれば）を縦に。役割を見せる＝「この虫を集める意味」が伝わる。
 		var col := VBoxContainer.new()
-		col.custom_minimum_size = Vector2(300, 0)
+		col.custom_minimum_size = Vector2(258, 0)
 		col.add_theme_constant_override("separation", 0)
 		row.add_child(col)
 		var nm := Label.new()
@@ -577,8 +599,21 @@ func _show_dex() -> void:
 			role.text = str(sp.get("role", ""))
 			UIKit.style_label(role, 15, UIKit.INK_SOFT)
 			col.add_child(role)
+		# バッジ（段位）＝同じ種の累計で 銅→銀→金。集める手ごたえを見える化。
+		var tier := Chapter.dex_tier(n)
+		var badge := Label.new()
+		badge.custom_minimum_size = Vector2(96, 0)
+		if n <= 0:
+			badge.text = ""
+		elif tier == 0:
+			badge.text = "なかま"
+			UIKit.style_label(badge, 16, UIKit.INK_SOFT)
+		else:
+			badge.text = "◆".repeat(tier) + " " + str(Chapter.DEX_TIER_NAMES[tier - 1])
+			UIKit.style_label(badge, 16, tier_cols[tier - 1])
+		row.add_child(badge)
 		var cnt := Label.new()
-		cnt.text = ("なかまにした ×%d" % n) if n > 0 else "まだ 会っていない"
+		cnt.text = ("×%d" % n) if n > 0 else "まだ"
 		UIKit.style_label(cnt, 20, UIKit.GREEN_DK if n > 0 else Color(0.5, 0.5, 0.5))
 		row.add_child(cnt)
 

@@ -699,6 +699,16 @@ func _run_shot() -> void:
 		await get_tree().create_timer(3.6).timeout    # 余韻2.0＋フェード0.6の後に カードが出きった頃
 		await RenderingServer.frame_post_draw
 		get_viewport().get_texture().get_image().save_png("/tmp/shot_result.png")
+	# --dexshot：ロビーの なかま図鑑ビューア（バッジ・コンプ%）を開いて撮る（開発確認用）。
+	if OS.get_cmdline_user_args().has("--dexshot") and _lobby != null and _lobby.has_method("_show_dex"):
+		Chapter._load_dex()   # 見本の収集数を仕込んで バッジの段位を確認できるように
+		for pair in [["ant", 42], ["beetle", 18], ["chou", 7], ["hachi", 3], ["tonbo", 22], ["hotaru", 50], ["batta", 1]]:
+			Chapter._dex[pair[0]] = pair[1]
+		_show_lobby(true)
+		_lobby._show_dex()
+		await get_tree().create_timer(0.5).timeout
+		await RenderingServer.frame_post_draw
+		get_viewport().get_texture().get_image().save_png("/tmp/shot_dex.png")
 	# --pageshot を付けると 章の始まりの「ページめくり」を 覆った瞬間で撮る（開発確認用）。
 	if OS.get_cmdline_user_args().has("--pageshot"):
 		Chapter.banner.emit("第3章  「にごった みずべ」")
