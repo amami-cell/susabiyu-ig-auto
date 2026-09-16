@@ -105,6 +105,8 @@ const BOULDER_COUNT := 110    # 岩
 var _hills: MultiMeshInstance3D = null
 var _house: Node3D = null   # 第5章「いえの中」の手続き屋内（床/壁/窓/梁/家具）。house舞台だけ表示
 var _sky_clouds: MultiMeshInstance3D = null   # 第6章「そら」の雲の床（ふわふわの雲海）。sky舞台だけ表示
+var _sky_rays: Node3D = null   # 第6章「そら」＝雲を貫くサンシャフト（光芒）。sky舞台だけ表示
+var _sky_ray_mat: StandardMaterial3D = null   # 光芒の共有マテリアル（回復で濃さを変える）
 var _water_mat: ShaderMaterial = null
 # 第3章の“浅い水”：プレイ面をおおう軽い半透明シート（web でも軽い1メッシュ）。
 # にごり→すきとおる を 回復度で表現。水辺(biome=="water")のときだけ出す。
@@ -847,6 +849,7 @@ func _setup_visuals() -> void:
 	_build_bloom()
 	_build_house_interior()   # 第5章「いえの中」＝手続きの屋内（house舞台だけ表示）
 	_build_sky_clouds()       # 第6章「そら」＝ふわふわの雲の床（sky舞台だけ表示）
+	_build_sky_rays()         # 第6章「そら」＝雲を貫くサンシャフト（光芒／sky舞台だけ表示）
 	_build_water_lite()
 	_apply_biome()
 
@@ -1132,6 +1135,8 @@ func _apply_biome() -> void:
 	# 第6章「そら」＝雲の床を出す。
 	if _sky_clouds != null:
 		_sky_clouds.visible = biome == "sky"
+	if _sky_rays != null:
+		_sky_rays.visible = biome == "sky"
 	# 遠景の丘は 屋内・そら では隠す（部屋の中／雲の上に 山が出ると おかしいため）。
 	if _hills != null:
 		_hills.visible = not (indoors or biome == "sky")
@@ -1533,6 +1538,59 @@ void fragment() {
 	mmi.visible = false   # sky舞台のときだけ _apply_biome で出す
 	_sky_clouds = mmi
 	add_child(mmi)
+
+
+## 第6章「そら」＝雲を貫くサンシャフト（光芒）。屋内サンビームと同じ“加算合成の光の帯”を
+## 何本か斜めに平行に並べ、雲海の上から斜めに差し込ませる。回復で濃くなる（もや→強い陽射し）。
+func _build_sky_rays() -> void:
+	_sky_rays = Node3D.new()
+	_sky_rays.name = "SkyRays"
+	# 共有マテリアル（1本の光の帯）。回復で albedo.a / emission を _update_sky_rays が動かす。
+	var m := StandardMaterial3D.new()
+	m.albedo_color = Color(1.0, 0.96, 0.78, 0.05)
+	m.emission_enabled = true
+	m.emission = Color(1.0, 0.95, 0.72)
+	m.emission_energy_multiplier = 0.5
+	m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	m.blend_mode = BaseMaterial3D.BLEND_MODE_ADD          # 加算＝光として空に足される
+	m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	m.cull_mode = BaseMaterial3D.CULL_DISABLED
+	_sky_ray_mat = m
+	# 斜め上（太陽の方向）から 雲海へ差し込む平行光。少しずつ位置・幅・長さを散らして自然に。
+	var top := Vector3(-13.0, 26.0, -14.0)     # 光源側（高い空）
+	var down := Vector3(4.0, -2.0, 5.0)         # 着地側（雲海）＝平行方向
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 70707
+	var n := 6 if OS.has_feature("web") else 9
+	for i in n:
+		var off := Vector3(
+			rng.randf_range(-15.0, 15.0),
+			rng.randf_range(-2.0, 3.0),
+			rng.randf_range(-15.0, 15.0))
+		var a := top + off                       # この帯の“上端”
+		var b := down + off + Vector3(rng.randf_range(-3.0, 3.0), 0.0, rng.randf_range(-3.0, 3.0))
+		var beam := MeshInstance3D.new()
+		var bm := BoxMesh.new()
+		var w := rng.randf_range(1.6, 3.2)
+		bm.size = Vector3(w, 0.12, a.distance_to(b))   # 幅・薄さ・（上→下の）長さ
+		beam.mesh = bm
+		beam.material_override = m
+		beam.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		_sky_rays.add_child(beam)
+		beam.position = (a + b) * 0.5
+		beam.look_at_from_position(beam.position, b, Vector3.UP)   # 箱の長さ(-Z)を着地点へ向ける
+	_sky_rays.visible = false   # sky舞台のときだけ _apply_biome で出す
+	add_child(_sky_rays)
+
+
+## 光芒の濃さを回復度で動かす（もや＝うすい／澄む＝強い陽射し）。
+func _update_sky_rays(r: float) -> void:
+	if _sky_ray_mat == null:
+		return
+	var a := _sky_ray_mat.albedo_color
+	a.a = lerpf(0.035, 0.11, r)                 # 汚れ＝ぼんやり／回復＝くっきり
+	_sky_ray_mat.albedo_color = a
+	_sky_ray_mat.emission_energy_multiplier = lerpf(0.35, 0.7, r)
 
 
 ## 低ポリの木立。うねる丘の上に散らす（背景の森）。まるい木＋とがった木の2種で単調さを消す。
@@ -2584,6 +2642,7 @@ func _on_recovery_changed(_value: float) -> void:
 		var clear := Color(0.42, 0.62, 0.68, 0.34)
 		_water_lite_mat.albedo_color = murky.lerp(clear, r)
 	_update_sky_fog(r)
+	_update_sky_rays(r)
 	_update_grass(r)
 	_update_flowers(r)
 	_update_motes(r)
