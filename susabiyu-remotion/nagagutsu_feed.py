@@ -136,6 +136,14 @@ def _stem(name):
     return re.sub(r"\.(jpg|jpeg|png|webp)$", "", name or "", flags=re.I).strip()
 
 
+def _norm_dish(name):
+    """料理名の末尾に付いた分量表記（例「ウフマヨ 1個」「牡蠣 2個」「串カツ 3本」）を落とす。
+    メニュー名として不要な個数ラベルを表示・キャプションから除く（ユーザー要望）。"""
+    s = str(name or "").strip()
+    s = re.sub(r"[ 　]*[×xX]?[ 　]*[0-9０-９]+[ 　]*(個|本|貫|枚|皿|人前|串|杯|切れ|尾|セット)[ 　]*$", "", s)
+    return s.strip()
+
+
 def _slug(name):
     return hashlib.md5(name.encode("utf-8")).hexdigest()[:10]
 
@@ -233,7 +241,7 @@ def main():
     # 同じ料理名は1枚に（新しい方を採用）。料理名＝ファイル名から拡張子を落としたもの。
     best = {}
     for f, folder in found:
-        nm = _stem(f.get("name", ""))
+        nm = _norm_dish(_stem(f.get("name", "")))
         if not nm:
             continue
         cur = best.get(nm)
