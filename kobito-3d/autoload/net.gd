@@ -50,9 +50,10 @@ var world_biome := "garden"   # 舞台。ロビーで選ぶ（庭/遺跡）。�
 # ★HPと湧きも全員一致させたいので、参加者にも difficulty を配る（_on_peer_connected）。
 var diff_index := 1
 var difficulty := 1.0         # 敵の攻撃力の倍率（後方互換で残す：bug.gd が参照）。サーバ基準
-const DIFF_ATTACK := [0.6, 1.0, 1.5]   # 攻撃力の倍率
-const DIFF_HP := [0.8, 1.0, 1.25]      # 体力の倍率（やさしいは少ない手数で癒やせる／つよいは手ごたえ）
-const DIFF_SPAWN := [1.30, 1.0, 0.80]  # 湧き間隔の倍率（小さいほど速い＝つよいは にぎやか）
+# 4段目「たつじん」＝つよくてニューゲーム（通しクリア後にロビーで解禁）。上級/大人向けの手ごたえ。
+const DIFF_ATTACK := [0.6, 1.0, 1.5, 2.0]   # 攻撃力の倍率
+const DIFF_HP := [0.8, 1.0, 1.25, 1.6]      # 体力の倍率（やさしいは少ない手数で癒やせる／つよいは手ごたえ）
+const DIFF_SPAWN := [1.30, 1.0, 0.80, 0.62] # 湧き間隔の倍率（小さいほど速い＝つよいは にぎやか）
 var is_online := false
 
 ## peer_id -> { "name": String, "role": int }

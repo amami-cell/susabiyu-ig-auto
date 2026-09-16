@@ -73,6 +73,9 @@ func _ready() -> void:
 	_difficulty.add_item("やさしい（のんびり）", 0)
 	_difficulty.add_item("ふつう", 1)
 	_difficulty.add_item("つよい（歯ごたえ）", 2)
+	# つよくてニューゲーム＝通しクリア後だけ 4段目「たつじん」を解禁（上級/大人向けのごほうび）。
+	if Chapter.cleared:
+		_difficulty.add_item("たつじん（クリア後）", 3)
 	# 初回は やさしい を既定に（低ストレスが売り＝初見の離脱を防ぐ）。あとで変更可。
 	_difficulty.selected = 0 if Net.is_web() else 1
 	_difficulty.custom_minimum_size = Vector2(0, 52)
