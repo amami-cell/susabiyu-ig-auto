@@ -346,7 +346,7 @@ func _closing_spread() -> void:
 	var tw := create_tween()
 	tw.tween_property(page, "modulate:a", 1.0, 0.9)   # 世界が しずかに 紙へ
 	tw.tween_interval(2.4)
-	tw.tween_property(page, "modulate:a", 0.0, 1.4)   # 結果カードへ 引き渡す
+	tw.tween_property(page, "modulate:a", 0.0, 0.8)   # 結果カードへ 引き渡す（被り窓を短く＝タイトルが成績に重なる時間を最小化）
 	tw.tween_callback(page.queue_free)
 
 
@@ -508,6 +508,17 @@ func _show_result_card() -> void:
 
 	var tw := create_tween()
 	tw.tween_interval(2.0)   # 余韻のあとに ふわっと出す
+	# カードが出る瞬間に 競合するHUD（めあて・会話ボックス・中央バナー）を消す＝
+	# クリアの“共有の一枚”を すっきり見せる（結果カードに集中させる）。
+	tw.tween_callback(func() -> void:
+		if _obj != null:
+			_obj.visible = false
+		if _banner != null:
+			_banner.visible = false
+		if _box != null:
+			_box.visible = false
+		if _catch != null:
+			_catch.visible = false)
 	tw.tween_property(_result_card, "modulate:a", 1.0, 0.6)
 	if not UIKit.reduce_fx():
 		tw.parallel().tween_property(_result_card, "scale", Vector2.ONE, 0.6).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
@@ -566,6 +577,9 @@ func _celebrate_chapter(theme: String) -> void:
 		var p := Label.new()
 		p.text = String(marks[randi() % marks.size()])
 		p.add_theme_font_size_override("font_size", randi_range(26, 46))
+		# 濃い輪郭を付ける＝白い空／明るい背景でも 記号が埋もれず くっきり浮かぶ（空クリアの白飛び対策）。
+		p.add_theme_color_override("font_outline_color", Color(0.12, 0.13, 0.10, 0.9))
+		p.add_theme_constant_override("outline_size", 5)
 		p.modulate = Color(tint.r, tint.g, tint.b, 0.0)
 		p.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		add_child(p)
@@ -588,6 +602,10 @@ func _celebrate_chapter(theme: String) -> void:
 		ft.tween_interval(maxf(0.2, dur - 1.4))
 		ft.tween_property(p, "modulate:a", 0.0, 0.6)
 		ft.tween_callback(p.queue_free)
+
+	# 締めのひとことを 記号ふぶきより前面へ＝粒子が字幕に被って読めなくなるのを防ぐ（夜で顕著だった）。
+	if is_instance_valid(line):
+		move_child(line, get_child_count() - 1)
 
 	# 締めの音＝章クリア専用のファンファーレ（レベルアップ等の汎用音と混ざらない大節目の音）。
 	Sfx.play("chapter_clear", -3.0)

@@ -106,20 +106,31 @@ func _mark_tutorial_done() -> void:
 func _build_tutorial() -> void:
 	# 文言は環境で切替：タッチ＝スティック、PC＝キーボード/マウス。
 	if DisplayServer.is_touchscreen_available():
-		_tut_move = _hint_label("① スティックで うごく（画面を ドラッグ＝カメラ）")
-		_tut_act = _hint_label("② 虫は「きれいに」／ ゴミは「つかむ」")
+		_tut_move = _hint_label("① スティックで うごく（画面を ドラッグ＝カメラ）", 0)
+		_tut_act = _hint_label("② 虫は「きれいに」／ ゴミは「つかむ」", 1)
 	else:
-		_tut_move = _hint_label("① WASD／やじるしで うごく（右ドラッグでカメラ）")
-		_tut_act = _hint_label("② J＝きれいに（癒やす）／ E＝つかむ")
+		_tut_move = _hint_label("① WASD／やじるしで うごく（右ドラッグでカメラ）", 0)
+		_tut_act = _hint_label("② J＝きれいに（癒やす）／ E＝つかむ", 1)
 
 
-func _hint_label(text: String) -> Label:
+func _hint_label(text: String, row: int) -> Label:
 	var l := Label.new()
 	l.text = text
 	l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	l.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	l.modulate.a = 0.0
 	UIKit.style_label(l, 22, Color(1, 1, 1), 6, Color(0.1, 0.15, 0.1, 0.95))
+	# 画面中央やや上に 2行を縦に並べる＝上のHUD(みどり回復/めあて)とも 下の会話ボックスとも重ならない安全帯。
+	# （以前は位置未指定で 左上(0,0)に重なって出て、会話中も消えず“幽霊文字”に見えていた不具合を修正）
+	l.anchor_left = 0.5
+	l.anchor_right = 0.5
+	l.anchor_top = 0.0
+	l.anchor_bottom = 0.0
+	l.offset_left = -320.0
+	l.offset_right = 320.0
+	l.offset_top = 150.0 + float(row) * 46.0
+	l.offset_bottom = l.offset_top + 40.0
+	l.add_to_group("play_ui_extra")   # お話中は story_ui._set_play_ui が隠す＝会話ボックスと重ならない
 	add_child(l)
 	return l
 

@@ -216,12 +216,22 @@ func _dress_title() -> void:
 
 
 func _dress_panel() -> void:
-	# 生成りの絵本パネルへ。少し下寄せして題字の下に置く。
-	_panel.offset_top = -150.0
-	_panel.offset_bottom = 250.0
+	# 生成りの絵本パネルへ。少し下寄せして題字の下に置く。少し縦を広げて設定が入りやすく。
+	_panel.offset_top = -220.0
+	_panel.offset_bottom = 300.0
 	var sb := UIKit.panel(UIKit.CREAM, UIKit.GREEN_DK, 22, 4, 18)
 	_panel.add_theme_stylebox_override("panel", sb)
 	_vbox.add_theme_constant_override("separation", 12)
+
+	# 設定が多く 画面下で見切れる（最後のトグル/ボタンが押せない）ため、VBox をスクロール領域に入れる。
+	# 以降の _vbox.add_child(...) はそのまま効く（_vbox の参照は不変・親が変わるだけ）。
+	if _vbox.get_parent() == _panel:
+		var scroll := ScrollContainer.new()
+		scroll.name = "MenuScroll"
+		scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+		_panel.add_child(scroll)
+		_vbox.reparent(scroll, false)
+		_vbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 
 	# ボタンを絵本テイストに
 	_solo.text = "ひとりで始める"
