@@ -451,6 +451,7 @@ static func _skin_mat(c: Color) -> StandardMaterial3D:
 	m.metallic_specular = 0.42
 	m.subsurf_scatter_enabled = true
 	m.subsurf_scatter_strength = 0.4
+	m.diffuse_mode = BaseMaterial3D.DIFFUSE_TOON   # 肌もやわらかいセル陰影（SSSと併用＝やわtoon）
 	m.rim_enabled = true
 	m.rim = 0.3
 	m.rim_tint = 0.4
@@ -479,6 +480,8 @@ static func _hair_mat(c: Color) -> StandardMaterial3D:
 	m.albedo_color = c
 	m.roughness = 0.48
 	m.metallic_specular = 0.45
+	m.diffuse_mode = BaseMaterial3D.DIFFUSE_TOON     # 髪もセル陰影＋
+	m.specular_mode = BaseMaterial3D.SPECULAR_TOON   # くっきりした照り（トゥーンの髪ツヤ）
 	m.rim_enabled = true
 	m.rim = 0.5
 	m.rim_tint = 0.2
@@ -841,4 +844,7 @@ static func _clay(c: Color) -> StandardMaterial3D:
 	m.roughness = 0.92
 	m.metallic = 0.0
 	m.metallic_specular = 0.25
+	# 絵本のトゥーン統一：陰影を段階に（セル）＝Web主役も“1枚の絵本”の絵柄に。追加ドローコールなし。
+	m.diffuse_mode = BaseMaterial3D.DIFFUSE_TOON
+	m.specular_mode = BaseMaterial3D.SPECULAR_TOON
 	return m

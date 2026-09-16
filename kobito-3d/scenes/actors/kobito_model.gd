@@ -332,7 +332,7 @@ func _tint(root: Node, color: Color) -> void:
 			# 黒い輪郭線（裏面を膨らませて黒く塗る）。Vulkan/Mobile・PCきれい版で表示。
 			var ol := StandardMaterial3D.new()
 			ol.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-			ol.albedo_color = Color(0.08, 0.07, 0.08)
+			ol.albedo_color = Color(0.13, 0.09, 0.10)   # 絵本の温かいインク（真っ黒より馴染む）
 			ol.cull_mode = BaseMaterial3D.CULL_FRONT
 			ol.grow = true
 			ol.grow_amount = 0.16

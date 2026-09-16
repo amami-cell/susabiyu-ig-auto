@@ -256,9 +256,9 @@ static func _mat(c: Color) -> StandardMaterial3D:
 	if not OS.has_feature("web"):
 		var outline := StandardMaterial3D.new()
 		outline.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-		outline.albedo_color = Color(0.09, 0.08, 0.09)
+		outline.albedo_color = Color(0.13, 0.09, 0.10)   # 絵本の温かいインク（真っ黒より馴染む）
 		outline.cull_mode = BaseMaterial3D.CULL_FRONT
-		outline.grow_enabled = true
+		outline.grow = true                # ※旧 grow_enabled は Godot4で無効＝輪郭が出ていなかった不具合を修正
 		outline.grow_amount = 0.012   # 小人より細めの輪郭
 		m.next_pass = outline
 	return m
