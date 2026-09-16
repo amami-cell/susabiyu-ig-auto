@@ -662,6 +662,10 @@ func _remote_spawn_bug(serial: int, stats_path: String, pos: Vector3, hp: int = 
 	# 中ボス出現は“来た！”の警告音を全員に（新規出現時のみ＝参加時の再送 hp>=0 では鳴らさない）。
 	elif bug.stats != null and bug.stats.is_midboss:
 		Sfx.play("alert", -5.0)
+		# 各自の画面で ボス出現の映画的カメラ（注視点をボスへ寄せる＋画角引き＋ランブル）。
+		for p in get_tree().get_nodes_in_group("player"):
+			if p.get("is_local") and p.has_method("boss_entrance"):
+				p.boss_entrance(pos)
 
 
 # ------------------------------------------------------------ なかま（浄化された虫）

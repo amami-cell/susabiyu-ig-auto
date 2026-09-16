@@ -66,6 +66,8 @@ var _fov_kick := 0.0               # 画角の“キュッ”（攻撃=寄る/�
 var _base_fov := 0.0               # 平常時の画角（初回に取得）
 var _cam_lead := Vector3.ZERO      # 進行方向へのカメラ先読み（なめらかに追従＝映画的な間）
 var _cam_speed_fov := 0.0          # 速度で広がる画角（スピード感）。0へ自然に戻る
+var _boss_cam_t := 0.0             # ボス出現の演出カメラ 残り秒（>0で注視点をボスへ寄せる）
+var _boss_cam_pos := Vector3.ZERO  # そのとき見せるボスのワールド位置
 var _regen_frac := 0.0
 var level: int = 1
 var xp: int = 0
@@ -716,6 +718,13 @@ func _follow_camera(delta := 0.0) -> void:
 	var look_at_pt := global_position + Vector3.UP * 0.8 + _cam_lead * 0.6
 	if not soft:
 		look_at_pt.y += sin(_age * 1.4) * 0.03
+	# ボス出現の演出：数秒だけ 注視点をボスへ寄せる＝“来た！”を映画的に見せる。
+	# 山なりに強→弱（sin）で入って戻る。ひかえめ時は寄せを弱める（乗り物酔い配慮）。
+	if _boss_cam_t > 0.0:
+		_boss_cam_t = maxf(0.0, _boss_cam_t - delta)
+		var e := sin(clampf(_boss_cam_t / 1.3, 0.0, 1.0) * PI)
+		var bias := (0.18 if soft else 0.42) * e
+		look_at_pt = look_at_pt.lerp(_boss_cam_pos + Vector3.UP * 0.8, bias)
 	_camera.look_at(look_at_pt, Vector3.UP)
 	# 画角の“キュッ”：攻撃で少し寄り、被弾で少し引く。0へなめらかに戻る＝一撃ごとに奥行きの手応え。
 	if _base_fov <= 0.0:
@@ -773,6 +782,19 @@ func reward_pulse(strength: float = 1.0) -> void:
 	shake(0.05 * strength)
 	if strength >= 2.0:
 		Input.vibrate_handheld(60)   # 触覚：ボス浄化など山場の“やった！”
+
+
+## ボス出現の映画的カメラ：数秒だけ注視点をボスへ寄せ、画角を引いて“大きさ”を見せ、
+## 低い地鳴りのランブル。カメラ操作は奪わない（注視点の寄せのみ）＝酔いにくい。ひかえめ時は控えめ。
+func boss_entrance(boss_pos: Vector3) -> void:
+	if not is_local:
+		return
+	_boss_cam_pos = boss_pos
+	_boss_cam_t = 1.3
+	fov_kick(6.0)                    # ＋＝引く＝ボスの大きさを見せる
+	shake(0.05)                      # 地鳴りのような ひと揺れ
+	if not UIKit.reduce_fx():
+		Input.vibrate_handheld(90)   # 触覚：ボス登場の“来た！”
 
 
 func orbit_camera(amount: float) -> void:
