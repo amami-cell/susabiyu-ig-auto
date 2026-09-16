@@ -94,6 +94,7 @@ var _plant_base := PackedVector3Array()
 var _plant_rot := PackedFloat32Array()
 var _grass_mmi: MultiMeshInstance3D = null
 var _flower_mmi: MultiMeshInstance3D = null
+var _grass_mat: ShaderMaterial = null   # 踏み分け（プレイヤー位置）を毎フレーム渡すため保持
 var _pillars: Node3D = null
 
 # 遠景（オープンワールドの“広さ”を出す背景）：山なみ・水面・木立・うねる丘。
@@ -316,6 +317,7 @@ func _process(delta: float) -> void:
 	_update_beacon(delta)        # 道しるべの光の柱をふわっと動かす（見た目・全員）
 	_update_actor_shadows()      # 足元の接地影（全アクター・見た目のみ）
 	_update_water_life(delta)    # みずべ：魚の跳ね＋波紋（見た目・全員）＝生きた水面
+	_update_grass_tread()        # 草の踏み分け：プレイヤー位置をシェーダへ（見た目・全員）
 	if not _is_server():
 		return
 	_spawn_timer -= delta
@@ -1836,6 +1838,9 @@ func _build_grass() -> void:
 shader_type spatial;
 render_mode cull_disabled;
 uniform float wind = 0.10;
+// 踏み分け：xyz=プレイヤーのワールド位置 / w=有効(1)。近くの草の穂先を外へ倒し少し沈める。
+uniform vec4 treaders[4];
+uniform float tread_r = 1.35;   // この半径内の草が反応する
 void vertex() {
 	float base_x = MODEL_MATRIX[3].x;
 	float base_z = MODEL_MATRIX[3].z;
@@ -1844,6 +1849,26 @@ void vertex() {
 	float c = cos(TIME * 1.2 + base_z * 0.7);
 	VERTEX.x += s * wind * h;
 	VERTEX.z += c * wind * 0.6 * h;
+	// プレイヤーが近い草を踏み分ける（ワールド押しをモデル空間へ変換して当てる）。
+	vec3 wpush = vec3(0.0);
+	float sink = 0.0;
+	for (int i = 0; i < 4; i++) {
+		if (treaders[i].w < 0.5) { continue; }
+		vec2 d = vec2(base_x, base_z) - treaders[i].xz;
+		float dist = length(d);
+		if (dist < tread_r) {
+			float k = 1.0 - dist / tread_r;          // 近いほど強い 0..1
+			vec2 dir = dist > 0.001 ? d / dist : vec2(1.0, 0.0);
+			wpush += vec3(dir.x, 0.0, dir.y) * (k * 0.6);   // 外向きに倒す
+			sink += k * k * 0.22;                            // ぺたんと沈む
+		}
+	}
+	if (sink > 0.0) {
+		vec3 mpush = wpush * mat3(MODEL_MATRIX);   // ワールド押し→モデルX/Z（回転の逆写像）
+		VERTEX.x += mpush.x * h;
+		VERTEX.z += mpush.z * h;
+		VERTEX.y -= min(sink, 0.35) * h;
+	}
 }
 void fragment() {
 	float h = clamp((UV.y), 0.0, 1.0);
@@ -1854,8 +1879,10 @@ void fragment() {
 """
 	mat.shader = sh
 	# Webは 頂点のTIMEアニメ（cull_disabled 150本）が重い＝揺れをオフにして負荷を下げる。
+	# ※踏み分けは TIME 非依存・実プレイヤー数ぶんだけ（1〜2）＝軽いので Web でも残す。
 	if OS.has_feature("web"):
 		mat.set_shader_parameter("wind", 0.0)
+	_grass_mat = mat
 	blade.surface_set_material(0, mat)
 
 	_grass_mm = MultiMesh.new()
@@ -1979,6 +2006,22 @@ func _update_grass(r: float) -> void:
 		_grass_mm.set_instance_transform(i, Transform3D(basis, origin))
 		if recolor and _grass_h[i] > 0.0:
 			_grass_mm.set_instance_color(i, withered.lerp(_grass_col[i], clampf(r * 1.1, 0.0, 1.0)))
+
+
+## 草の踏み分け：プレイヤー全員のワールド位置を草シェーダの treaders[] へ毎フレーム渡す。
+## 見た目のみ・全員の画面で回る（位置は既に同期済み）＝netcode不要。最大4人ぶん。
+func _update_grass_tread() -> void:
+	if _grass_mat == null:
+		return
+	var arr := [Vector4.ZERO, Vector4.ZERO, Vector4.ZERO, Vector4.ZERO]
+	var n := 0
+	for p in get_tree().get_nodes_in_group("player"):
+		if n >= 4:
+			break
+		var pos: Vector3 = (p as Node3D).global_position
+		arr[n] = Vector4(pos.x, pos.y, pos.z, 1.0)
+		n += 1
+	_grass_mat.set_shader_parameter("treaders", arr)
 
 
 func _update_flowers(r: float) -> void:
