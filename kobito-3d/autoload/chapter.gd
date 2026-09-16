@@ -740,8 +740,8 @@ func allowed_bugs() -> Array:
 
 
 func ambient_spawn_ok() -> bool:
-	if peaceful:
-		return false  # れんしゅうモード＝敵を一切 湧かせない（掃除と収集だけ）
+	# ※れんしゅうモードでも虫は湧く。ただし bug.gd 側で「攻撃しない（追わない・噛まない）」＝
+	#   危なくないのに 癒やしの練習ができる。敵ゼロにすると“練習”にならないため この設計。
 	if not _active:
 		return true   # 自由プレイ（遺跡など）は従来どおり
 	if beat < 0 or beat >= CH1.size():

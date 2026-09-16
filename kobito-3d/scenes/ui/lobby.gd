@@ -780,4 +780,8 @@ func _on_peaceful() -> void:
 
 func _on_join() -> void:
 	_sync_settings()
+	# 参加側は ホストの進行に従う＝直前の のんびり庭/れんしゅう のフラグを持ち越さない
+	# （持ち越すと 参加直後だけ 目的表示や 本を開く導入が おかしくなる）。
+	Chapter.free_play = false
+	Chapter.peaceful = false
 	Net.join(_addr_edit.text.strip_edges())

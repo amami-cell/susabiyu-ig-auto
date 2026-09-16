@@ -333,7 +333,9 @@ func _think(delta: float) -> void:
 			velocity.y = -0.1
 
 	# 索敵範囲の外＝まだ襲わない。その場で止まる（開始直後の平和／プレイヤーが来たら戦う）。
-	if _target == null or dist > AGGRO_RANGE:
+	# ★れんしゅうモード（Chapter.peaceful）は 追わない・噛まない＝いつも“待ち”の平和な虫＝
+	#   危なくないのに 近づいて「きれいに」する練習ができる（癒やしはできる）。
+	if _target == null or dist > AGGRO_RANGE or Chapter.peaceful:
 		velocity.x = move_toward(velocity.x, 0.0, 8.0 * delta)
 		velocity.z = move_toward(velocity.z, 0.0, 8.0 * delta)
 		velocity.x += _knockback.x
