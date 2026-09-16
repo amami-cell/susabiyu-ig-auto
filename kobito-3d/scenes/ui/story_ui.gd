@@ -541,6 +541,42 @@ const CELEBRATE := {
 ## 舞台ごとに違う 記号が 画面いっぱいに 舞い、ひとこと が ふわっと出る＝章ごとの締めの差別化。
 func _celebrate_chapter(theme: String) -> void:
 	var t: Dictionary = CELEBRATE.get(theme, CELEBRATE["meadow"])
+	var vp := get_viewport().get_visible_rect().size
+
+	# “光があふれる”瞬間＝中央からふわっと広がる やわらかな光。記号ふぶきの前に、いちばん奥へ。
+	# ゆっくり出す(0.35s)＝ストロボにしない。えんしゅつ ひかえめ時は うんと淡く。
+	var tint: Color = t["tint"]
+	var grad := Gradient.new()
+	grad.set_color(0, Color(1, 1, 1, 1))
+	grad.set_color(1, Color(1, 1, 1, 0))
+	var gtex := GradientTexture2D.new()
+	gtex.gradient = grad
+	gtex.fill = GradientTexture2D.FILL_RADIAL
+	gtex.fill_from = Vector2(0.5, 0.5)
+	gtex.fill_to = Vector2(1.0, 0.5)
+	gtex.width = 256
+	gtex.height = 256
+	var glow := TextureRect.new()
+	glow.texture = gtex
+	glow.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	glow.stretch_mode = TextureRect.STRETCH_SCALE
+	# 画面より一回り大きく＝縁のケラレを出さず 全体を淡く満たす。
+	glow.size = vp * 1.6
+	glow.position = -vp * 0.3
+	glow.pivot_offset = glow.size * 0.5
+	glow.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var peak := 0.22 if UIKit.reduce_fx() else 0.5
+	glow.modulate = Color(minf(tint.r + 0.25, 1.0), minf(tint.g + 0.25, 1.0), minf(tint.b + 0.25, 1.0), 0.0)
+	glow.scale = Vector2(0.72, 0.72)
+	add_child(glow)
+	var gt := create_tween()
+	gt.set_parallel(true)
+	gt.tween_property(glow, "modulate:a", peak, 0.35).set_trans(Tween.TRANS_SINE)
+	gt.tween_property(glow, "scale", Vector2(1.2, 1.2), 1.1).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
+	var gt2 := create_tween()
+	gt2.tween_interval(0.5)
+	gt2.tween_property(glow, "modulate:a", 0.0, 1.1)
+	gt2.tween_callback(glow.queue_free)
 
 	# 締めの ひとこと（バナーの少し下）。ふわっと出して、余韻ののち消す。
 	var line := Label.new()
@@ -566,9 +602,7 @@ func _celebrate_chapter(theme: String) -> void:
 	lt.tween_callback(line.queue_free)
 
 	# 舞い散る 記号。Webは描画を軽く 少なめに。
-	var vp := get_viewport().get_visible_rect().size
 	var marks: Array = t["marks"]
-	var tint: Color = t["tint"]
 	var rise: bool = bool(t.get("rise", true))
 	var count := 10 if Net.is_web() else 18
 	if UIKit.reduce_fx():
