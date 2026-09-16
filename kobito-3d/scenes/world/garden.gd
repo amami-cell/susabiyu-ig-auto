@@ -1156,7 +1156,8 @@ func _apply_biome() -> void:
 	if _sky_rays != null:
 		_sky_rays.visible = biome == "sky"
 	if _sky_birds != null:
-		_sky_birds.visible = biome == "sky"
+		# 遠くを渡る鳥は 昼の屋外（そら・みどりの庭・みずべ）で 地平の上を渡る＝命の気配。
+		_sky_birds.visible = biome == "sky" or biome == "garden" or biome == "water"
 	# 遠景の丘は 屋内・そら では隠す（部屋の中／雲の上に 山が出ると おかしいため）。
 	if _hills != null:
 		_hills.visible = not (indoors or biome == "sky")
