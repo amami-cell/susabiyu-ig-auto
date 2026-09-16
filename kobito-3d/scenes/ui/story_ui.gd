@@ -169,8 +169,35 @@ func _build() -> void:
 
 
 func set_objective(text: String) -> void:
+	var was_vis := _obj.visible
 	_obj.text = text
 	_obj.visible = text != ""
+	# 初めて出るときだけ ふわっとフェードイン（残数の更新ごとには点滅させない）。
+	if _obj.visible and not was_vis:
+		_obj.modulate = Color(1, 1, 1, 0)
+		create_tween().tween_property(_obj, "modulate:a", 1.0, 0.25)
+
+
+## 会話ボックスを ふわっと出す：フェード＋下から少しスライド。ひかえめ時はスライドなし。
+func _appear_box() -> void:
+	_box.visible = true
+	_catch.visible = true
+	_box.modulate = Color(1, 1, 1, 1)
+	var rest_top := -196.0
+	var rest_bot := -24.0
+	if UIKit.reduce_fx():
+		_box.offset_top = rest_top
+		_box.offset_bottom = rest_bot
+		_box.modulate = Color(1, 1, 1, 0)
+		create_tween().tween_property(_box, "modulate:a", 1.0, 0.2)
+		return
+	_box.modulate = Color(1, 1, 1, 0)
+	_box.offset_top = rest_top + 42.0
+	_box.offset_bottom = rest_bot + 42.0
+	var tw := create_tween().set_parallel(true)
+	tw.tween_property(_box, "modulate:a", 1.0, 0.22)
+	tw.tween_property(_box, "offset_top", rest_top, 0.30).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
+	tw.tween_property(_box, "offset_bottom", rest_bot, 0.30).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
 
 
 func show_dialogue(lines: PackedStringArray) -> void:
@@ -190,8 +217,7 @@ func show_dialogue(lines: PackedStringArray) -> void:
 	if _lines.is_empty():
 		_hide_box()
 		return
-	_box.visible = true
-	_catch.visible = true
+	_appear_box()
 	_set_play_ui(false)   # お話中は操作ボタン等を隠して重なりを防ぐ
 	_show_line()
 
@@ -205,8 +231,7 @@ func _open_pending() -> void:
 	_lines = _pending_lines
 	_pending_lines = PackedStringArray()
 	_idx = 0
-	_box.visible = true
-	_catch.visible = true
+	_appear_box()
 	_set_play_ui(false)
 	_show_line()
 
