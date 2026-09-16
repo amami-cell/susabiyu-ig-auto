@@ -361,15 +361,17 @@ func _think(delta: float) -> void:
 				if bug.has_method("cleanse"):
 					bug.cleanse(_heal_amt, owner_id)   # 一緒に癒やす（手柄はプレイヤーへ）
 
-	# ② いなければ、プレイヤーについていく
+	# ② いなければ、プレイヤーについていく（各自の“持ち場”へ＝増えても団子にならない隊列）
 	if not has_goto:
 		var p := _c_player
 		if p != null:
-			var dp: Vector3 = p.global_position - global_position
+			var slot: Vector3 = p.global_position + _formation_offset()
+			var dp: Vector3 = slot - global_position
 			dp.y = 0.0
-			if dp.length() > FOLLOW_DIST:
+			# 持ち場から少し離れたら詰める（近ければ止まる＝ざわつかず 整って見える）。
+			if dp.length() > 0.6:
 				has_goto = true
-				goto = p.global_position
+				goto = slot
 
 	# 上下：飛ぶ種は 宙に浮いて 空の暴れ虫にも届く。地上の種は 重力で地面を歩く。
 	if _role_fly:
@@ -395,6 +397,20 @@ func _think(delta: float) -> void:
 		velocity.z = move_toward(velocity.z, 0.0, 10.0 * delta)
 
 	move_and_slide()
+
+
+## 隊列の“持ち場”オフセット：なかまが増えても団子にならないよう、各自を黄金角スパイラルで
+## プレイヤーの周りに散らす（自分の並び順から算出＝位置は同期済みなので netcode不要・各端末で同じ）。
+func _formation_offset() -> Vector3:
+	var allies := get_tree().get_nodes_in_group("ally")
+	if allies.size() <= 1:
+		return Vector3.ZERO
+	var idx := allies.find(self)
+	if idx < 0:
+		idx = 0
+	var ang := float(idx) * 2.399963      # 黄金角＝均等に散る（葉序）
+	var rad := 1.3 + 0.42 * sqrt(float(idx))   # 内から外へ緩く広がる渦
+	return Vector3(cos(ang) * rad, 0.0, sin(ang) * rad)
 
 
 func _nearest_bug() -> Node3D:
