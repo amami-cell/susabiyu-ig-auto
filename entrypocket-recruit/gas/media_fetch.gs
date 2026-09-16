@@ -87,7 +87,7 @@ function mediaParseInshoku_(text) {
     out.push(mediaNorm_("inshoku", {
       store: store, name: nm.name, kana: nm.kana, appliedAt: g(3),
       employ: g(1), job: g(2), age: mediaAge_(g(6)), gender: g(7),
-      tel: g(9), email: g(10), address: g(5), status: (sel || g(11)), pr: g(13)
+      tel: g(9), email: g(10), address: g(5), status: sel, pr: g(13)   // 状況/資格は選考ステータス専用。CSVの「現在の状況」で上書きしない（取得した選考状況を守る）
     }));
   }
   return out;
@@ -108,7 +108,7 @@ function mediaParseGourmet_(text) {
     out.push(mediaNorm_("gourmet", {
       store: store, name: g(3), kana: g(4), appliedAt: applied,
       employ: g(18), job: g(19), age: mediaAge_(g(6)), gender: g(5),
-      tel: g(11), email: g(12), address: addr, status: (sel || g(14)), pr: g(15)
+      tel: g(11), email: g(12), address: addr, status: sel, pr: g(15)   // 状況/資格は選考ステータス専用。CSVの「取得資格」で上書きしない（サイトの選考状況を守る）
     }));
   }
   return out;
