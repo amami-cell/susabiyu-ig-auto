@@ -824,6 +824,32 @@ func record_healed(species_path: String) -> void:
 			nm = st.display_name
 		WorldState.notice.emit("%s が なかまに なった！　（ずかんに 記録）" % nm)
 		_dex_milestone(_dex.size())   # 図鑑の節目/コンプを祝う（新種のときだけ判定）
+	# 同じ種を集めるほど バッジが育つ（ブロンズ→シルバー→ゴールド）＝もっと集める動機。
+	_dex_tier_up(species_path, prev, prev + 1)
+
+
+## 種ごとの累計数から バッジの段位(0〜3)を返す。UI/結果カードでも使う共通ものさし。
+const DEX_TIERS := [5, 15, 40]                       # この累計で ブロンズ/シルバー/ゴールド
+const DEX_TIER_NAMES := ["ブロンズ", "シルバー", "ゴールド"]
+func dex_tier(count: int) -> int:
+	var t := 0
+	for th in DEX_TIERS:
+		if count >= int(th):
+			t += 1
+	return t
+
+
+## バッジが1段 上がった瞬間だけ 祝う（同じ種を集め続ける やり込みの手ごたえ）。
+func _dex_tier_up(species_path: String, prev: int, now: int) -> void:
+	var before := dex_tier(prev)
+	var after := dex_tier(now)
+	if after > before:
+		var nm := species_path.get_file().get_basename()
+		var st: Variant = load(species_path)
+		if st != null and "display_name" in st:
+			nm = st.display_name
+		WorldState.notice.emit("◆ %s が %s！　（%d ひき）" % [nm, DEX_TIER_NAMES[after - 1], now])
+		Sfx.play("levelup", -8.0)
 
 
 ## 図鑑の節目のごほうび：5/10/15種で応援、全種そろったら特別なコンプリート祝い。
