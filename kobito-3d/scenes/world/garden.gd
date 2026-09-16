@@ -135,7 +135,7 @@ var _terrain_noise: FastNoiseLite = null
 # 蝶（回復するほど増えて舞う“命”）。純見た目・非同期（各自の画面でふわふわ飛ぶ）。
 # MultiMesh 1体＝1ドローコール。羽ばたきは頂点シェーダ（CPU負荷なし）、
 # 飛行経路だけ毎フレームCPUで更新（数十匹＝軽い）。
-const BUTTERFLY_COUNT := 30
+const BUTTERFLY_COUNT := 42   # みどりの庭を にぎやかに（Webは6に固定・per-frame更新でも軽い）
 var _bfly_mm: MultiMesh = null
 var _bfly_center := PackedVector3Array()
 var _bfly_radius := PackedFloat32Array()
@@ -205,7 +205,8 @@ const BIOMES := {
 	},
 	"night": {
 		# 第4章「よるの もり」：暗い夜の森。きれいにするほど 月あかりが差して 明るくなる。
-		"pillars": false, "grass_frac": 0.6, "flowers": false, "tree_frac": 1.0, "bfly_frac": 0.4,
+		# 蝶は昼の生き物＝夜はごく少なく（夜の主役は蛍）。
+		"pillars": false, "grass_frac": 0.6, "flowers": false, "tree_frac": 1.0, "bfly_frac": 0.18,
 		# 汚れ時でも 真っ黒に潰れないよう 床・月あかり・空(＝環境光源)を底上げ＝
 		# キャラ/地面/ゴミが見える“暗い夜”に（黒画面ではなく）。きれいにすると さらに月が差す。
 		"soil": Color(0.20, 0.22, 0.25), "grass_col": Color(0.18, 0.30, 0.24),
