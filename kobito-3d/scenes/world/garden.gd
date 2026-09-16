@@ -107,6 +107,8 @@ var _house: Node3D = null   # 第5章「いえの中」の手続き屋内（床/
 var _sky_clouds: MultiMeshInstance3D = null   # 第6章「そら」の雲の床（ふわふわの雲海）。sky舞台だけ表示
 var _sky_rays: Node3D = null   # 第6章「そら」＝雲を貫くサンシャフト（光芒）。sky舞台だけ表示
 var _sky_ray_mat: StandardMaterial3D = null   # 光芒の共有マテリアル（回復で濃さを変える）
+var _sky_birds: MultiMeshInstance3D = null   # 第6章「そら」＝遠くを渡る鳥影。sky舞台だけ表示（回復で増える）
+var _sky_bird_n := 0   # 鳥の総数（回復で visible_instance_count を動かす）
 var _water_mat: ShaderMaterial = null
 # 第3章の“浅い水”：プレイ面をおおう軽い半透明シート（web でも軽い1メッシュ）。
 # にごり→すきとおる を 回復度で表現。水辺(biome=="water")のときだけ出す。
@@ -850,6 +852,7 @@ func _setup_visuals() -> void:
 	_build_house_interior()   # 第5章「いえの中」＝手続きの屋内（house舞台だけ表示）
 	_build_sky_clouds()       # 第6章「そら」＝ふわふわの雲の床（sky舞台だけ表示）
 	_build_sky_rays()         # 第6章「そら」＝雲を貫くサンシャフト（光芒／sky舞台だけ表示）
+	_build_sky_birds()        # 第6章「そら」＝遠くを渡る鳥影（sky舞台だけ表示・回復で増える）
 	_build_water_lite()
 	_apply_biome()
 
@@ -1137,6 +1140,8 @@ func _apply_biome() -> void:
 		_sky_clouds.visible = biome == "sky"
 	if _sky_rays != null:
 		_sky_rays.visible = biome == "sky"
+	if _sky_birds != null:
+		_sky_birds.visible = biome == "sky"
 	# 遠景の丘は 屋内・そら では隠す（部屋の中／雲の上に 山が出ると おかしいため）。
 	if _hills != null:
 		_hills.visible = not (indoors or biome == "sky")
@@ -1600,6 +1605,87 @@ func _update_sky_rays(r: float) -> void:
 	a.a = lerpf(0.035, 0.11, r)                 # 汚れ＝ぼんやり／回復＝くっきり
 	_sky_ray_mat.albedo_color = a
 	_sky_ray_mat.emission_energy_multiplier = lerpf(0.35, 0.7, r)
+
+
+## 第6章「そら」＝遠くを渡る鳥影。小さな“くの字”シルエットを高い空に散らし、
+## 頂点シェーダで 羽ばたき＋ゆっくり周回（閉じた経路）させる＝CPU負荷ゼロ・1描画。
+## 空が澄むほど 鳥が増える（visible_instance_count／回復で命が戻る手応え）。
+func _build_sky_birds() -> void:
+	# かもめ型シルエット（縦向き・カメラ(+Z)を向く“m”）。左右の翼を薄い三角で作る。
+	# 遠景で正面から見えるように XY 平面に置く（水平だと真横から見えて消えるため）。
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	var cU := Vector3(0.0, 0.06, 0.0)     # 中央の峰（body）
+	var cL := Vector3(0.0, -0.04, 0.0)    # 中央の下辺
+	var lT := Vector3(-1.0, -0.28, 0.0)   # 左翼端（下がる）
+	var lI := Vector3(-0.12, -0.02, 0.0)  # 左の付け根
+	var rT := Vector3(1.0, -0.28, 0.0)    # 右翼端（下がる）
+	var rI := Vector3(0.12, -0.02, 0.0)   # 右の付け根
+	for tri in [[cU, cL, lI], [cU, lI, lT], [cU, rI, cL], [cU, rT, rI]]:
+		for v in tri:
+			st.set_normal(Vector3.BACK)
+			# UV.x に翼端らしさ(|x|)を入れて、頂点シェーダの羽ばたきに使う。
+			st.set_uv(Vector2(absf(v.x), 0.0))
+			st.add_vertex(v)
+	var bird_mesh := st.commit()
+
+	var mat := ShaderMaterial.new()
+	var sh := Shader.new()
+	sh.code = """
+shader_type spatial;
+render_mode unshaded, cull_disabled, shadows_disabled, depth_draw_opaque;
+uniform vec3 bird_col : source_color = vec3(0.20, 0.24, 0.32);
+void vertex() {
+	float ph = MODEL_MATRIX[3].x * 0.7 + MODEL_MATRIX[3].z * 0.5;   // 個体ごとの位相
+	// 羽ばたき：翼端(UV.x大)ほど上下に大きく動かす。
+	VERTEX.y += UV.x * sin(TIME * 4.0 + ph) * 0.5;
+	// ゆっくり渡る（閉じた経路）＝前方の空を横切っていく。
+	VERTEX.x += sin(TIME * 0.12 + ph) * 5.0;
+	VERTEX.z += cos(TIME * 0.10 + ph) * 3.0;
+	VERTEX.y += sin(TIME * 0.08 + ph * 1.3) * 1.2;   // 高さもゆらす
+}
+void fragment() {
+	ALBEDO = bird_col;
+}
+"""
+	mat.shader = sh
+	mat.set_shader_parameter("bird_col", Color(0.16, 0.19, 0.27))
+	bird_mesh.surface_set_material(0, mat)
+
+	var mm := MultiMesh.new()
+	mm.transform_format = MultiMesh.TRANSFORM_3D
+	mm.mesh = bird_mesh
+	var n := 5 if OS.has_feature("web") else 8
+	_sky_bird_n = n
+	mm.instance_count = n
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 90909
+	for i in n:
+		# 前方（カメラの向き＝-Z側）の空に散らす＝地平の上を渡っていくのが見える。
+		var px := rng.randf_range(-16.0, 16.0)
+		var pz := rng.randf_range(-34.0, -18.0)
+		var y := rng.randf_range(13.0, 19.0)            # 地平の丘より上の“ひらけた空”
+		var sc := rng.randf_range(1.8, 2.9)
+		# 正面(+Z)を向く縦シルエット。Y軸に少しだけ振って一様さを消す。
+		var b := Basis(Vector3.UP, rng.randf_range(-0.5, 0.5)).scaled(Vector3.ONE * sc)
+		mm.set_instance_transform(i, Transform3D(b, Vector3(px, y, pz)))
+	mm.visible_instance_count = 0   # 回復で増やす（_update_sky_birds）
+
+	var mmi := MultiMeshInstance3D.new()
+	mmi.name = "SkyBirds"
+	mmi.multimesh = mm
+	mmi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	mmi.visible = false   # sky舞台のときだけ _apply_biome で出す
+	_sky_birds = mmi
+	add_child(mmi)
+
+
+## 鳥の数を回復度で動かす（よごれた空＝ほぼいない／澄んだ空＝渡り鳥がにぎやか）。
+func _update_sky_birds(r: float) -> void:
+	if _sky_birds == null or _sky_birds.multimesh == null:
+		return
+	var vis := int(round(_sky_bird_n * clampf(r * 1.15 - 0.12, 0.0, 1.0)))
+	_sky_birds.multimesh.visible_instance_count = vis
 
 
 ## 低ポリの木立。うねる丘の上に散らす（背景の森）。まるい木＋とがった木の2種で単調さを消す。
@@ -2652,6 +2738,7 @@ func _on_recovery_changed(_value: float) -> void:
 		_water_lite_mat.albedo_color = murky.lerp(clear, r)
 	_update_sky_fog(r)
 	_update_sky_rays(r)
+	_update_sky_birds(r)
 	_update_grass(r)
 	_update_flowers(r)
 	_update_motes(r)
