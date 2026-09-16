@@ -82,6 +82,8 @@ var _mote_mat: ShaderMaterial = null
 var _mote_n := 0
 var _fireflies: MultiMeshInstance3D = null   # 第4章「よる」＝またたく蛍。night舞台だけ表示（回復で戻る）
 var _firefly_n := 0                      # 蛍の総数（回復で visible_instance_count を動かす）
+var _petals: MultiMeshInstance3D = null   # 第1章「みどりの庭」＝舞い散る花びら（満開の春＝季節感）。garden舞台だけ表示
+var _petal_n := 0                        # 花びらの総数（回復で visible_instance_count を動かす）
 var _crit_mm: MultiMesh = null          # 地面の小さな生き物（回復で数が増える）
 var _crit_n := 0
 var _ground_shader: ShaderMaterial = null
@@ -856,6 +858,7 @@ func _setup_visuals() -> void:
 	_build_butterflies()
 	_build_motes()   # 空気に舞う花粉/ちり（回復で 灰のちり→金の花粉）＝“生きた空気”
 	_build_fireflies()   # 第4章「よる」＝またたく蛍（night舞台だけ・回復で戻る）
+	_build_petals()   # 第1章「みどりの庭」＝満開の春に舞い散る花びら（garden舞台だけ・回復で増える）
 	_build_critters()   # 地面を ちょこちょこ歩く 小さな生き物＝“戻ってきた命”
 	_build_actor_shadows()
 	_build_bloom()
@@ -1152,6 +1155,8 @@ func _apply_biome() -> void:
 		_fireflies.visible = biome == "night"   # 夜のときだけ蛍を出す
 	if _garden_rays != null:
 		_garden_rays.visible = biome == "garden"   # みどりの庭のときだけ木漏れ日を出す
+	if _petals != null:
+		_petals.visible = biome == "garden"   # みどりの庭のときだけ 花びらを舞わせる
 	# 第5章「いえの中」＝屋内一式を出し、屋外の背景（遠景の丘）は隠す＝“部屋の中”に見せる。
 	var indoors := biome == "house"
 	if _house != null:
@@ -2794,6 +2799,71 @@ func _update_fireflies(r: float) -> void:
 	_fireflies.multimesh.visible_instance_count = int(round(_firefly_n * clampf(r * 1.1 - 0.08, 0.0, 1.0)))
 
 
+## 第1章「みどりの庭」＝舞い散る花びら（満開の春＝季節感）。頂点シェーダで
+## 高いところから ゆっくり落ちて→ひらひら舞って→ループ。緑が満ちるほど増える。garden舞台だけ表示。
+func _build_petals() -> void:
+	var quad := PlaneMesh.new()
+	quad.size = Vector2(0.16, 0.11)
+	var mat := ShaderMaterial.new()
+	var sh := Shader.new()
+	sh.code = """
+shader_type spatial;
+render_mode cull_disabled, unshaded, depth_draw_opaque;
+uniform vec3 petal_col : source_color = vec3(1.0, 0.82, 0.9);
+void vertex(){
+	float ph = INSTANCE_CUSTOM.r * 6.2831;
+	float sp = 0.4 + INSTANCE_CUSTOM.g * 0.5;
+	// 落下（高いところ→地面 でループ）。個体ごとに位相をずらす。
+	float fallT = fract(TIME * 0.045 + INSTANCE_CUSTOM.b);
+	float lx = VERTEX.x;   // 折り用に 元のローカルx(±0.08)を先に確保
+	VERTEX.y += mix(11.0, 0.2, fallT);
+	// ひらひら：横ゆれ＋クアッドを折って“舞う”感じ（羽ばたきに近い）。
+	VERTEX.x += sin(TIME * sp + ph) * 1.6;
+	VERTEX.z += cos(TIME * sp * 0.7 + ph) * 1.2;
+	VERTEX.y += lx * sin(TIME * (2.5 + INSTANCE_CUSTOM.g * 2.0) + ph) * 9.0;   // 舞い（羽の折り＝回転もどき）
+}
+void fragment(){
+	ALBEDO = petal_col;
+	EMISSION = petal_col * 0.25;
+}
+"""
+	mat.shader = sh
+	mat.set_shader_parameter("petal_col", Color(1.0, 0.82, 0.9))
+	quad.material = mat
+
+	_petal_n = 24 if OS.has_feature("web") else 44
+	var mm := MultiMesh.new()
+	mm.transform_format = MultiMesh.TRANSFORM_3D
+	mm.use_custom_data = true
+	mm.mesh = quad
+	mm.instance_count = _petal_n
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 777001
+	for i in _petal_n:
+		# 落下オフセットはシェーダ側。ベースは 遊び場に散らす（y=0基準）。
+		var pos := Vector3(rng.randf_range(-28.0, 28.0), 0.0, rng.randf_range(-28.0, 28.0))
+		var b := Basis(Vector3.UP, rng.randf() * TAU).scaled(Vector3.ONE * rng.randf_range(0.8, 1.4))
+		mm.set_instance_transform(i, Transform3D(b, pos))
+		mm.set_instance_custom_data(i, Color(rng.randf(), rng.randf(), rng.randf(), rng.randf()))
+	mm.visible_instance_count = 0   # 回復で増やす（_update_petals）
+	var mmi := MultiMeshInstance3D.new()
+	mmi.name = "Petals"
+	mmi.multimesh = mm
+	mmi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	mmi.extra_cull_margin = 40.0
+	mmi.visible = false   # garden舞台のときだけ _apply_biome で出す
+	_petals = mmi
+	add_child(mmi)
+
+
+## 花びらの数を回復度で動かす（くすんだ庭＝無し／みどりが満ちる＝満開の春に舞い散る）。
+func _update_petals(r: float) -> void:
+	if _petals == null or _petals.multimesh == null:
+		return
+	# 緑が十分に戻ってから ふえる（0.4→0.95 でフェードイン）＝“満開になった”ごほうび。
+	_petals.multimesh.visible_instance_count = int(round(_petal_n * smoothstep(0.4, 0.95, r)))
+
+
 ## 地面の小さな生き物：小さな甲虫が ちょこちょこ歩き回る＝“戻ってきた命”。
 ## 頂点シェーダで各個体を小さな楕円軌道に歩かせる（CPU負荷ゼロ・1ドローコール）。回復で数が増える。
 func _build_critters() -> void:
@@ -2982,6 +3052,7 @@ func _on_recovery_changed(_value: float) -> void:
 	_update_night_rays(r)
 	_update_garden_rays(r)
 	_update_fireflies(r)
+	_update_petals(r)
 	_update_grass(r)
 	_update_flowers(r)
 	_update_motes(r)
