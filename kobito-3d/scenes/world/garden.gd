@@ -1397,6 +1397,63 @@ func _build_house_interior() -> void:
 	# 壁の絵（額）＝おうちらしさ。北壁・窓の横に。
 	_house_box(Vector3(2.4, 1.8, 0.2), Vector3(-9.0, 6.0, -R + 0.3), Color(0.86, 0.78, 0.6))  # 額（明るい）
 	_house_box(Vector3(2.7, 2.1, 0.12), Vector3(-9.0, 6.0, -R + 0.24), Color(0.34, 0.24, 0.16))  # 額縁（濃い・背面）
+
+	# 窓から差す光の帯（サンビーム）＝あたたかい部屋の主役。加算合成の うすい光のリボン。
+	var win_pt := Vector3(-1.0, 6.0, -R + 0.6)   # 窓の中あたり
+	var floor_pt := Vector3(3.5, 0.1, -11.0)     # 床の着地点
+	var beam := MeshInstance3D.new()
+	var bmesh := BoxMesh.new()
+	bmesh.size = Vector3(4.6, 0.14, win_pt.distance_to(floor_pt))   # 幅・薄さ・（窓→床の）長さ
+	beam.mesh = bmesh
+	var beam_m := StandardMaterial3D.new()
+	beam_m.albedo_color = Color(1.0, 0.92, 0.66, 0.10)
+	beam_m.emission_enabled = true
+	beam_m.emission = Color(1.0, 0.9, 0.6)
+	beam_m.emission_energy_multiplier = 0.6
+	beam_m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	beam_m.blend_mode = BaseMaterial3D.BLEND_MODE_ADD     # 加算＝光として背景に足される
+	beam_m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	beam_m.cull_mode = BaseMaterial3D.CULL_DISABLED
+	beam.material_override = beam_m
+	beam.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	_house.add_child(beam)
+	beam.position = (win_pt + floor_pt) * 0.5
+	beam.look_at_from_position(beam.position, floor_pt, Vector3.UP)   # 箱の長さ(-Z)を床の着地点へ向ける
+	# 床の光だまり（着地点の あたたかい光）。
+	var pool := MeshInstance3D.new()
+	var ppm := PlaneMesh.new()
+	ppm.size = Vector2(6.0, 4.2)
+	pool.mesh = ppm
+	pool.position = Vector3(3.5, 0.12, -11.0)
+	var pool_m := StandardMaterial3D.new()
+	pool_m.albedo_color = Color(1.0, 0.9, 0.62, 0.34)
+	pool_m.emission_enabled = true
+	pool_m.emission = Color(1.0, 0.88, 0.55)
+	pool_m.emission_energy_multiplier = 0.5
+	pool_m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	pool_m.blend_mode = BaseMaterial3D.BLEND_MODE_ADD
+	pool_m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	pool.material_override = pool_m
+	pool.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	_house.add_child(pool)
+
+	# 小物＝生活のディテール。テーブルの上に 本とマグ、たんすの上に 植木鉢。
+	_house_box(Vector3(1.1, 0.28, 0.8), Vector3(10.5, 1.55, -9.2), Color(0.70, 0.30, 0.28))   # 赤い本
+	_house_box(Vector3(1.0, 0.24, 0.72), Vector3(10.7, 1.82, -9.1), Color(0.30, 0.48, 0.68))  # 青い本（重ね）
+	_house_box(Vector3(0.42, 0.55, 0.42), Vector3(11.7, 1.68, -8.5), Color(0.92, 0.92, 0.88))  # マグ
+	_house_box(Vector3(0.8, 0.8, 0.8), Vector3(13.0, 2.95, 6.0), Color(0.60, 0.36, 0.26))      # 植木鉢
+	var leaf := MeshInstance3D.new()
+	var lsphere := SphereMesh.new()
+	lsphere.radius = 0.75
+	lsphere.height = 1.3
+	lsphere.radial_segments = 8
+	lsphere.rings = 5
+	leaf.mesh = lsphere
+	leaf.position = Vector3(13.0, 3.95, 6.0)
+	leaf.material_override = _wood_mat(Color(0.32, 0.55, 0.30))   # 緑の葉
+	leaf.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	_house.add_child(leaf)
+
 	_house.visible = false   # house舞台のときだけ _apply_biome で出す
 
 
