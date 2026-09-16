@@ -257,7 +257,9 @@ def main():
         c = nc.caption_for(nm)
         dishes.append({
             "name": nm, "slug": sl, "img": raw_rel, "cat": folder or "料理",
-            "title": c.get("title") or nm, "cap": c.get("cap") or "", "tags": c.get("tags") or "",
+            # cap は確認アプリの予約作成が本文として使う。投稿本文(post)があればそれを優先
+            # （ナガグツ＝元気お姉さん／GOLD＝ソムリエお姉さん）。無ければ従来の短いcap。
+            "title": c.get("title") or nm, "cap": c.get("post") or c.get("cap") or "", "tags": c.get("tags") or "",
             "sub": nc.sub_for(nm) or "", "disp": nc.name_broken(nm) or nm, "desc": nc.desc_for(nm) or "",
             "bright": _text_band_brightness(im),
         })
