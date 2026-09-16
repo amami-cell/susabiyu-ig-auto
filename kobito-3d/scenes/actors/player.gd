@@ -32,6 +32,8 @@ static func _shared_clean_mesh() -> SphereMesh:
 	return _clean_mesh
 const GRAVITY := 14.0
 const JUMP_SPEED := 5.2
+const COYOTE_TIME := 0.10       # 地面を離れた直後でも 少しの間ジャンプできる＝ふちで跳べず落ちる取りこぼしを減らす
+const JUMP_BUFFER := 0.12       # 着地の直前に押したジャンプを 少し覚えておく＝着地ジャンプの取りこぼしを減らす
 const FLY_LIFT := 7.5          # 飛行中の上昇速度（ぐんぐん上がる）
 const FLY_CEILING := 16.0      # 上がりすぎ防止
 # 飛行の解禁は Lv ではなく「癒やして集めた5パーツ」で判定する（WorldState.has_flight）
@@ -85,6 +87,8 @@ var _held_trash: Node3D = null
 var _base_color := Color.WHITE   # 被弾フラッシュから戻す元の色
 var _step_t := 0.0               # 足音の間隔タイマー
 var _was_airborne := false       # 前フレーム空中だったか（着地/ジャンプ音の判定）
+var _coyote := 0.0               # 地面を離れてからの猶予（コヨーテタイム）
+var _jump_buffer := 0.0          # 着地前に押したジャンプの先行入力
 
 # 他人の小人を滑らかに寄せるための目標値
 var _net_pos := Vector3.ZERO
@@ -256,6 +260,16 @@ func _local_step(delta: float) -> void:
 	var flying := state == State.FLY
 	var wants_up := Input.is_action_pressed("act_jump")
 
+	# コヨーテタイム＆ジャンプ先行入力＝ふち／着地ぎわの取りこぼしを減らす（操作の手ざわり）。
+	if is_on_floor():
+		_coyote = COYOTE_TIME
+	else:
+		_coyote = maxf(0.0, _coyote - delta)
+	if Input.is_action_just_pressed("act_jump"):
+		_jump_buffer = JUMP_BUFFER
+	else:
+		_jump_buffer = maxf(0.0, _jump_buffer - delta)
+
 	if can_fly() and wants_up and not is_on_floor():
 		flying = true
 	if is_on_floor() and not wants_up:
@@ -270,8 +284,11 @@ func _local_step(delta: float) -> void:
 		velocity.y -= GRAVITY * delta
 		if is_on_floor():
 			velocity.y = -0.1
-			if wants_up:
-				velocity.y = JUMP_SPEED
+		# 地面 or 離れた直後(コヨーテ)に、押し続け or 直前バッファがあれば跳ぶ。
+		if _coyote > 0.0 and velocity.y <= 0.1 and (wants_up or _jump_buffer > 0.0):
+			velocity.y = JUMP_SPEED
+			_coyote = 0.0
+			_jump_buffer = 0.0
 
 	var target := dir * SPEED
 	velocity.x = move_toward(velocity.x, target.x, ACCEL * delta)
