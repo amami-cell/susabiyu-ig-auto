@@ -100,6 +100,23 @@ def main():
             page.wait_for_timeout(2000)
             log("list page: " + page.url + " / " + (page.title() or ""))
 
+            # --- 選考ステータス構造の調査（各selectの選択値と行テキストをログへ。後で本実装） ---
+            try:
+                diag = page.evaluate(
+                    "() => { const out=[]; document.querySelectorAll('select').forEach(sel=>{"
+                    "const opt=sel.options[sel.selectedIndex]; const status=(opt?opt.textContent:'').trim();"
+                    "let row=sel.closest('tr')||sel.closest('li')||sel.parentElement;"
+                    "for(let k=0;k<5 && row && row.textContent.replace(/\\s+/g,'').length<12;k++){row=row.parentElement;}"
+                    "const txt=row?row.textContent.replace(/\\s+/g,' ').trim().slice(0,140):'';"
+                    "const opts=Array.from(sel.options).map(o=>o.textContent.trim()).slice(0,12);"
+                    "out.push({status, txt, selName:sel.name||'', selCls:sel.className||'', opts});"
+                    "}); return out.slice(0,60); }")
+                log("gourmet SELECTS=" + str(len(diag)))
+                for r in diag[:16]:
+                    log("  sel[" + str(r.get('selName')) + "|" + str(r.get('selCls')) + "] status=" + str(r.get('status')) + " opts=" + str(r.get('opts'))[:80] + " row=" + str(r.get('txt')))
+            except Exception as e:
+                log("gourmet status diag err: " + str(e))
+
             page.set_default_timeout(15000)
             # 確認ダイアログ(confirm/alert)は自動でOK
             page.on("dialog", lambda d: (log("dialog: " + (d.message or "")[:100]), d.accept()))
