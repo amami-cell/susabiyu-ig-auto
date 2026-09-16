@@ -84,6 +84,9 @@ var _fireflies: MultiMeshInstance3D = null   # 第4章「よる」＝またた�
 var _firefly_n := 0                      # 蛍の総数（回復で visible_instance_count を動かす）
 var _petals: MultiMeshInstance3D = null   # 第1章「みどりの庭」＝舞い散る花びら（満開の春＝季節感）。garden舞台だけ表示
 var _petal_n := 0                        # 花びらの総数（回復で visible_instance_count を動かす）
+var _ruins_dust: MultiMeshInstance3D = null   # 遺跡＝風に流れる砂ぼこり（荒れた乾いた空気）。ruins舞台だけ表示
+var _ruins_dust_n := 0                    # 砂ぼこりの総数（荒れているほど多い＝回復で減る）
+var _ruins_dust_mat: ShaderMaterial = null
 var _crit_mm: MultiMesh = null          # 地面の小さな生き物（回復で数が増える）
 var _crit_n := 0
 var _ground_shader: ShaderMaterial = null
@@ -861,6 +864,7 @@ func _setup_visuals() -> void:
 	_build_motes()   # 空気に舞う花粉/ちり（回復で 灰のちり→金の花粉）＝“生きた空気”
 	_build_fireflies()   # 第4章「よる」＝またたく蛍（night舞台だけ・回復で戻る）
 	_build_petals()   # 第1章「みどりの庭」＝満開の春に舞い散る花びら（garden舞台だけ・回復で増える）
+	_build_ruins_dust()   # 遺跡＝風に流れる砂ぼこり（ruins舞台だけ・荒れているほど多い）
 	_build_critters()   # 地面を ちょこちょこ歩く 小さな生き物＝“戻ってきた命”
 	_build_actor_shadows()
 	_build_bloom()
@@ -1162,6 +1166,8 @@ func _apply_biome() -> void:
 		_garden_rays.visible = biome == "garden"   # みどりの庭のときだけ木漏れ日を出す
 	if _petals != null:
 		_petals.visible = biome == "garden"   # みどりの庭のときだけ 花びらを舞わせる
+	if _ruins_dust != null:
+		_ruins_dust.visible = biome == "ruins"   # 遺跡のときだけ 砂ぼこりを流す
 	# 第5章「いえの中」＝屋内一式を出し、屋外の背景（遠景の丘）は隠す＝“部屋の中”に見せる。
 	var indoors := biome == "house"
 	if _house != null:
@@ -2935,6 +2941,79 @@ func _update_petals(r: float) -> void:
 	_petals.multimesh.visible_instance_count = int(round(_petal_n * smoothstep(0.4, 0.95, r)))
 
 
+## 遺跡＝風に流れる砂ぼこり。乾いた土けむりが 低く 横に流れる＝荒れた・見放された空気。
+## 頂点シェーダで 主に横へ流し ループ（GPUのみ・1描画）。荒れているほど 多く濃い（回復で減る）。ruins舞台だけ表示。
+func _build_ruins_dust() -> void:
+	var dot := SphereMesh.new()
+	dot.radius = 0.06
+	dot.height = 0.12
+	dot.radial_segments = 5
+	dot.rings = 3
+	var mat := ShaderMaterial.new()
+	var sh := Shader.new()
+	sh.code = """
+shader_type spatial;
+render_mode unshaded, cull_disabled, depth_draw_never;
+uniform vec3 dust_col : source_color = vec3(0.80, 0.74, 0.60);
+uniform float strength = 0.5;
+varying float fade;
+void vertex(){
+	float ph = INSTANCE_CUSTOM.r * 6.2831;
+	float sp = 0.5 + INSTANCE_CUSTOM.g * 0.7;
+	// 主に横へ流れる乾いた土けむり（ループ）。上下は ごくわずか。
+	float flow = fract(TIME * 0.05 + INSTANCE_CUSTOM.b);
+	VERTEX.x += mix(-32.0, 32.0, flow);
+	VERTEX.z += sin(TIME * sp * 0.4 + ph) * 1.2;
+	VERTEX.y += sin(TIME * sp + ph) * 0.5;
+	// 端で ふっと消える（流れ切りの継ぎ目を隠す）＋粒ごとの またたき。
+	fade = sin(flow * 3.14159) * (0.6 + 0.4 * sin(TIME * sp * 1.7 + ph));
+}
+void fragment(){
+	ALBEDO = dust_col;
+	EMISSION = dust_col * 0.15;
+	ALPHA = clamp(fade, 0.0, 1.0) * strength;
+}
+"""
+	mat.shader = sh
+	mat.set_shader_parameter("dust_col", Color(0.80, 0.74, 0.60))
+	mat.set_shader_parameter("strength", 0.5)
+	dot.surface_set_material(0, mat)
+	_ruins_dust_mat = mat
+
+	_ruins_dust_n = 30 if OS.has_feature("web") else 60
+	var mm := MultiMesh.new()
+	mm.transform_format = MultiMesh.TRANSFORM_3D
+	mm.use_custom_data = true
+	mm.mesh = dot
+	mm.instance_count = _ruins_dust_n
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 13131
+	for i in _ruins_dust_n:
+		# 横流れはシェーダ側。ベースは 低い高さで散らす（z/yを散らして帯にする）。
+		var pos := Vector3(0.0, rng.randf_range(0.3, 3.0), rng.randf_range(-30.0, 30.0))
+		mm.set_instance_transform(i, Transform3D(Basis.IDENTITY, pos))
+		mm.set_instance_custom_data(i, Color(rng.randf(), rng.randf(), rng.randf(), 0.0))
+	mm.visible_instance_count = 0   # ruins かつ 荒れているほど 多く（_update_ruins_dust）
+	var mmi := MultiMeshInstance3D.new()
+	mmi.name = "RuinsDust"
+	mmi.multimesh = mm
+	mmi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	mmi.extra_cull_margin = 40.0
+	mmi.visible = false   # ruins舞台のときだけ _apply_biome で出す
+	_ruins_dust = mmi
+	add_child(mmi)
+
+
+## 砂ぼこりの量を回復度で動かす（荒れた遺跡＝濃く多い／みどりが戻る＝薄れて消える）。
+func _update_ruins_dust(r: float) -> void:
+	if _ruins_dust == null or _ruins_dust.multimesh == null:
+		return
+	var dry := 1.0 - smoothstep(0.15, 0.8, r)   # 荒れ＝1.0 / 緑が戻る＝0.0
+	_ruins_dust.multimesh.visible_instance_count = int(round(_ruins_dust_n * (0.25 + 0.75 * dry)))
+	if _ruins_dust_mat != null:
+		_ruins_dust_mat.set_shader_parameter("strength", lerpf(0.16, 0.55, dry))
+
+
 ## 地面の小さな生き物：小さな甲虫が ちょこちょこ歩き回る＝“戻ってきた命”。
 ## 頂点シェーダで各個体を小さな楕円軌道に歩かせる（CPU負荷ゼロ・1ドローコール）。回復で数が増える。
 func _build_critters() -> void:
@@ -3125,6 +3204,7 @@ func _on_recovery_changed(_value: float) -> void:
 	_update_garden_rays(r)
 	_update_fireflies(r)
 	_update_petals(r)
+	_update_ruins_dust(r)
 	_update_grass(r)
 	_update_flowers(r)
 	_update_motes(r)
