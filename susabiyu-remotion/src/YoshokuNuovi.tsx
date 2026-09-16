@@ -239,7 +239,8 @@ const CicchettiBody: React.FC<Required<P>> = ({ storeName, handle, theme }) => {
       <AbsoluteFill style={{ transform: "translateX(" + x + "px)", width: 1080 * 4 }}>
         {items.map((d, k) => (
           <div key={k} style={{ position: "absolute", left: k * 1080, top: 0, width: 1080, height: 1920, overflow: "hidden" }}>
-            <Photo src={d.src} lf={0} seg={1} from={1.04} to={1.04} bri={1.0} />
+            {/* 少し引きの構図に（寄りすぎ防止）：1.04→1.0 の等倍カバー */}
+            <Photo src={d.src} lf={0} seg={1} from={1.0} to={1.0} bri={1.0} />
           </div>
         ))}
       </AbsoluteFill>
@@ -332,13 +333,16 @@ export const YoshokuMaiolica: React.FC<P> = ({ storeName = D.storeName, handle =
    緑・白・赤の帯が画面を走り抜けて次の皿へ。テンポが速く、勢いで見せる1本。
    既存はどれもゆっくり溶ける繋ぎなので、速い切り替えはここだけ。 */
 const GREEN = "#2F6B47", RED = "#C0392B", CREAM = "#F4EEE2";
-// No.20 の日除けの縞。三色帯(No.16)の GREEN は国旗の緑なので別に持つ。
-const TENT = "#EF8F45";
+// No.16 テンダ（日除け）の縞。ユーザー要望で「緑＋白」（最初に出した緑）に戻す。
+// CREAM(白)と交互の縞になる。フレンチ酒場らしい緑の日除け。
+const TENT = GREEN;   // = #2F6B47（国旗の緑と同じ緑の日除け）
+// フランス国旗（トリコロール）＝青・白・赤。フレンチ酒場なので伊(緑白赤)から仏に。
+const FR_BLUE = "#0055A4", FR_WHITE = "#F7F4EE", FR_RED = "#EF4135";
 const TricoloreBody: React.FC<Required<P>> = ({ storeName, handle, theme }) => {
   const f = useCurrentFrame(); const T = ytheme(theme);
   const items = dishes(4);
   const { i, local, seg } = segNow(BODY, 4, f);
-  const bars = [GREEN, CREAM, RED];
+  const bars = [FR_BLUE, FR_WHITE, FR_RED];
   return (
     <AbsoluteFill style={{ backgroundColor: "#141210" }}>
       <AbsoluteFill><Photo src={items[i].src} lf={local} seg={seg} from={1.1} to={1.02} bri={0.98} /></AbsoluteFill>
@@ -350,7 +354,7 @@ const TricoloreBody: React.FC<Required<P>> = ({ storeName, handle, theme }) => {
         const x = interpolate(local, [s, s + 30], [1180, -1180], { ...clamp, easing: EASE_INOUT });
         return <div key={k} style={{ position: "absolute", top: 0, bottom: 0, left: 0, width: 1080, background: c, transform: "translateX(" + x + "px)" }} />;
       })}
-      <Masthead storeName={storeName} f={f} kicker="OSTERIA" accent={T.accent} logoH={140} top={SAFE.top - 150} />
+      <Masthead storeName={storeName} f={f} kicker="BISTROT" accent={T.accent} logoH={140} top={SAFE.top - 150} />
       {/* 料理名は帯が抜けた直後に、下から勢いよく */}
       <div style={{ position: "absolute", left: SAFE.side, right: SAFE.side, bottom: 300 }}>
         <Caption d={items[i]} f={local} start={4} ink={T.ink} sub={T.sub} accent={T.accent} maxName={90} />
