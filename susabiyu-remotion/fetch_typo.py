@@ -156,6 +156,22 @@ else:
         if _removed:
             print("[EXCLUDE] 非料理カテゴリを除外:", _removed)
 
+# ランチ（昼）カテゴリの扱い：ランチ画像は「昼枠（既定11:00）」専用。
+# それ以外のスロットではストーリー動画に使わない（＝ディナー枠に昼メニューを出さない）。
+# prepare.py が実投稿のスロット時刻を POST_SLOT_HOUR で渡す。見本レンダ（未設定）は制限しない。
+def _is_lunch_cat(name):
+    n = str(name or "")
+    return ("ランチ" in n) or ("lunch" in n.lower())
+
+_lunch_hour = os.environ.get("GENRE_LUNCH_HOUR", "11").strip() or "11"
+_slot_hour = os.environ.get("POST_SLOT_HOUR", "").strip()
+if _slot_hour.isdigit() and _lunch_hour.isdigit() and int(_slot_hour) != int(_lunch_hour):
+    _before = list(cats.keys())
+    cats = {k: v for k, v in cats.items() if not _is_lunch_cat(k)}
+    _dropped = [k for k in _before if k not in cats]
+    if _dropped:
+        print("[LUNCH] スロット%s時は昼枠(%s時)以外のためランチ画像を除外:" % (_slot_hour, _lunch_hour), _dropped)
+
 if not cats:
     print("NG: 条件を満たす画像が見つかりません。")
     raise SystemExit

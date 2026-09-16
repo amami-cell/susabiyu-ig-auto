@@ -134,26 +134,49 @@ _OPENERS = [
     "こんばんは、本日のおすすめです🍷",
 ]
 
+# ランチ（昼）向けのあいさつと締め。夜トーン（今宵/乾杯/ワインの提案）を避け、
+# 昼の気軽さで。ワインのペアリングは付けない（ランチなので押し売りしない）。
+_OPENERS_LUNCH = [
+    "こんにちは、本日のランチのおすすめです☀️",
+]
+_LUNCH_CLOSE = "京都駅からすぐ、気軽なランチにどうぞ☀️ ランチタイム（11:00〜）に提供しています。"
+# ランチ用の集客タグ（ワイン系を控えめにし、ランチ系を足す）。
+LUNCH_TAGS = "#GOLD京都ポルタ #フレンチ酒場 #ビストロ"
+LUNCH_POI_TAGS = ("#京都ランチ #京都駅ランチ #京都ポルタ #京都ポルタランチ #京都グルメ "
+                  "#京都フレンチ #京都ビストロ #京都駅グルメ #ランチ #フレンチ #京都カフェ #京都デート")
+
 
 def _seed(name):
     s = clean(name)
     return sum(ord(c) for c in s) if s else 0
 
 
-def caption_for(name):
-    """戻り値 dict: title / story（短句）/ cap（動画に焼く短い説明）/ post（SNS本文）/ tags。"""
+def caption_for(name, lunch=False):
+    """戻り値 dict: title / story（短句）/ cap（動画に焼く短い説明）/ post（SNS本文）/ tags。
+
+    lunch=True のとき（Driveの「ランチ」フォルダの料理）は、昼向けの文面にする：
+      ・あいさつを「こんにちは、本日のランチのおすすめです☀️」に
+      ・夜トーンのワインのペアリング文は付けない（代わりに昼の気軽な一文）
+      ・タグもランチ系に差し替える
+    """
     d = clean(name)
-    opener = _OPENERS[_seed(name) % len(_OPENERS)]
     # 本文の説明も“料理ごとの手書きdesc”を使う（動画と揃える／汎用の一文にしない）。
     desc = desc_for(name)
-    pair = pairing_for(name)
-    # 本文（元気お姉さんより落ち着いた、ソムリエトーン。段落3つ）。
-    post = "%s\n\n%s、%s\n\n%s" % (opener, d, desc, pair)
+    if lunch:
+        opener = _OPENERS_LUNCH[_seed(name) % len(_OPENERS_LUNCH)]
+        post = "%s\n\n%s、%s\n\n%s" % (opener, d, desc, _LUNCH_CLOSE)
+        tags = _uniq_tags(LUNCH_TAGS + " " + LUNCH_POI_TAGS)
+    else:
+        opener = _OPENERS[_seed(name) % len(_OPENERS)]
+        pair = pairing_for(name)
+        # 本文（元気お姉さんより落ち着いた、ソムリエトーン。段落3つ）。
+        post = "%s\n\n%s、%s\n\n%s" % (opener, d, desc, pair)
+        tags = _uniq_tags(BASE_TAGS)
     # 動画テンプレ用：story＝焼き込む短い一言（ナガグツ動画ルール準拠＝短い体言止め・料理ごとに変える）。
     #   cap は動画余白の説明（desc）と投稿本文の橋渡し用に短く保つ。
     cap = "%s\n%s" % (d, desc_for(d).rstrip("。"))
-    tags = _uniq_tags(BASE_TAGS)
-    return {"title": d, "story": story_for(name), "cap": cap, "post": post, "tags": tags}
+    tags_val = tags
+    return {"title": d, "story": story_for(name), "cap": cap, "post": post, "tags": tags_val}
 
 
 # ── 動画に焼き込む“短い一言”（story）──────────────────────────────

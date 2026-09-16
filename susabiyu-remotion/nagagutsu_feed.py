@@ -262,16 +262,21 @@ def main():
         raw_rel = "f_%s.jpg" % sl
         im = _save_45(_download(drive, f["id"]), os.path.join(OUT_DIR, raw_rel))
         im.save(os.path.join(PUB_DIR, sl + ".jpg"), "JPEG", quality=92)   # Remotion用
-        c = nc.caption_for(nm)
+        # 「ランチ」フォルダの料理は昼メニュー扱い＝フィード文面を昼向けにする（夜/ワイン提案を外す）。
+        is_lunch = ("ランチ" in str(folder or "")) or ("lunch" in str(folder or "").lower())
+        try:
+            c = nc.caption_for(nm, lunch=is_lunch)
+        except TypeError:
+            c = nc.caption_for(nm)   # lunch 引数に未対応の店（旧captions）でも動く
         dishes.append({
-            "name": nm, "slug": sl, "img": raw_rel, "cat": folder or "料理",
+            "name": nm, "slug": sl, "img": raw_rel, "cat": folder or "料理", "lunch": is_lunch,
             # cap は確認アプリの予約作成が本文として使う。投稿本文(post)があればそれを優先
             # （ナガグツ＝元気お姉さん／GOLD＝ソムリエお姉さん）。無ければ従来の短いcap。
             "title": c.get("title") or nm, "cap": c.get("post") or c.get("cap") or "", "tags": c.get("tags") or "",
             "sub": nc.sub_for(nm) or "", "disp": nc.name_broken(nm) or nm, "desc": nc.desc_for(nm) or "",
             "bright": _text_band_brightness(im),
         })
-        print("  取得 %-28s 明るさ %.0f" % (nm[:28], dishes[-1]["bright"]))
+        print("  取得 %-28s 明るさ %.0f%s" % (nm[:28], dishes[-1]["bright"], "  [ランチ]" if is_lunch else ""))
 
     used = _assign(dishes)   # 内訳（連続箇所・A/Cを当てた写真の明るさ）は _assign 側で出す
     print("[FEED] デザイン割り当て:", {k.replace("YoshokuFeed", ""): v for k, v in used.items()})

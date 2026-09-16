@@ -545,6 +545,9 @@ def main():
                 os.environ.pop("FIXED_MUSIC", None)
         except Exception as _e:
             print("[MUSIC] 固定割当スキップ:", _e)
+        # このスロットの時刻(JST)を fetch に渡す。ランチ画像は昼枠(既定11:00)専用にするため、
+        # fetch_typo が POST_SLOT_HOUR を見て、それ以外の枠ではランチ画像を候補から外す。
+        os.environ["POST_SLOT_HOUR"] = str(hour)
         run('python ' + fetch + ' "' + creds + '"')
         picked_json = ""
         try:
