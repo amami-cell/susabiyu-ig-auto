@@ -1382,6 +1382,21 @@ func _build_house_interior() -> void:
 	_house_box(Vector3(3.4, 1.4, 2.0), Vector3(11.0, 0.7, -9.0), fur)    # テーブル
 	_house_box(Vector3(3.0, 6.0, 1.2), Vector3(-15.0, 3.0, 12.0), fur)   # 棚
 	_house_box(Vector3(1.4, 1.4, 1.4), Vector3(-8.0, 0.7, 4.0), fur)     # 箱/スツール
+	_house_box(Vector3(1.4, 2.6, 1.4), Vector3(13.0, 1.3, 6.0), fur)     # たんす（東寄り）
+	_house_box(Vector3(2.2, 0.5, 1.4), Vector3(-12.0, 0.25, -8.0), fur)  # ローテーブル/踏み台
+	_house_box(Vector3(0.5, 3.0, 0.5), Vector3(9.0, 1.5, -13.0), fur.darkened(0.1))  # 帽子掛け/柱
+	# 床の敷物（あたたかい色の四角）＝部屋の中心を締める。
+	var rug := MeshInstance3D.new()
+	var rpm := PlaneMesh.new()
+	rpm.size = Vector2(9.0, 7.0)
+	rug.mesh = rpm
+	rug.position = Vector3(0.0, 0.09, 2.0)
+	rug.material_override = _wood_mat(Color(0.62, 0.40, 0.34))   # 赤茶の敷物
+	rug.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	_house.add_child(rug)
+	# 壁の絵（額）＝おうちらしさ。北壁・窓の横に。
+	_house_box(Vector3(2.4, 1.8, 0.2), Vector3(-9.0, 6.0, -R + 0.3), Color(0.86, 0.78, 0.6))  # 額（明るい）
+	_house_box(Vector3(2.7, 2.1, 0.12), Vector3(-9.0, 6.0, -R + 0.24), Color(0.34, 0.24, 0.16))  # 額縁（濃い・背面）
 	_house.visible = false   # house舞台のときだけ _apply_biome で出す
 
 
@@ -1414,12 +1429,27 @@ func _build_sky_clouds() -> void:
 	puff.height = 2.0
 	puff.radial_segments = 10
 	puff.rings = 6
-	var mat := StandardMaterial3D.new()
-	mat.albedo_color = Color(0.95, 0.97, 1.0)
-	mat.roughness = 1.0
-	mat.emission_enabled = true
-	mat.emission = Color(0.86, 0.92, 1.0)
-	mat.emission_energy_multiplier = 0.35   # ほんのり発光＝光を含んだ雲
+	# ゆっくり流れる雲＝生きた空。各パフを 位置で位相をずらして 上下＋横に ゆらす（頂点シェーダ＝CPU負荷ゼロ）。
+	var mat := ShaderMaterial.new()
+	var sh := Shader.new()
+	sh.code = """
+shader_type spatial;
+uniform vec3 cloud_col : source_color = vec3(0.95, 0.97, 1.0);
+uniform float glow = 0.35;
+void vertex() {
+	float ph = MODEL_MATRIX[3].x * 0.10 + MODEL_MATRIX[3].z * 0.13;
+	VERTEX.y += sin(TIME * 0.25 + ph) * 0.5;        // ゆっくり上下
+	VERTEX.x += sin(TIME * 0.18 + ph * 1.3) * 0.7;  // ゆっくり横へ流れる
+}
+void fragment() {
+	ALBEDO = cloud_col;
+	EMISSION = cloud_col * glow;
+	ROUGHNESS = 1.0;
+}
+"""
+	mat.shader = sh
+	mat.set_shader_parameter("cloud_col", Color(0.95, 0.97, 1.0))
+	mat.set_shader_parameter("glow", 0.35)
 	puff.material = mat
 
 	var mm := MultiMesh.new()
@@ -2299,7 +2329,14 @@ void fragment(){
 func _update_motes(r: float) -> void:
 	if _mote_mm == null:
 		return
-	# 遺跡は屋外だが特殊：うっすら胞子だけ。屋内(house)は ほこり。夜は 少なめの光の粉。
+	# 屋内(house)は“ホコリ”＝汚れているほど 多く舞い、きれいにすると 消える（屋外の花粉とは逆）。
+	if biome == "house":
+		_mote_mm.visible_instance_count = int(_mote_n * lerpf(1.0, 0.10, clampf(r * 1.1, 0.0, 1.0)))
+		if _mote_mat != null:
+			_mote_mat.set_shader_parameter("mote_col", Color(0.55, 0.50, 0.44))   # くすんだホコリ色
+			_mote_mat.set_shader_parameter("glow", 0.45)
+		return
+	# 屋外：回復で 花粉が増える（灰のちり→金の花粉）。遺跡はうっすら胞子。
 	_mote_mm.visible_instance_count = int(_mote_n * lerpf(0.35, 1.0, r))
 	if _mote_mat != null:
 		var dust := Color(0.62, 0.63, 0.58)      # くすんだ灰のちり
