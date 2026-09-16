@@ -1518,7 +1518,9 @@ void fragment() {
 	mm.transform_format = MultiMesh.TRANSFORM_3D
 	mm.mesh = puff
 	var n := 60 if OS.has_feature("web") else 110
-	mm.instance_count = n
+	# 遠景の低い雲バンク＝地平まで続く“雲海”の奥行き。大きく・低く・沈めて広げる（同じMultiMesh＝1描画のまま）。
+	var far := 26 if OS.has_feature("web") else 46
+	mm.instance_count = n + far
 	var rng := RandomNumberGenerator.new()
 	rng.seed = 60606
 	for i in n:
@@ -1530,6 +1532,13 @@ void fragment() {
 			y += rng.randf_range(0.0, 2.5)                          # 遠景は少し浮かせて“雲海”の起伏
 		var b := Basis(Vector3.UP, rng.randf() * TAU).scaled(Vector3(s, s * rng.randf_range(0.32, 0.5), s))
 		mm.set_instance_transform(i, Transform3D(b, Vector3(cos(ang) * rad, y, sin(ang) * rad)))
+	for j in far:
+		var ang2 := rng.randf() * TAU
+		var rad2 := rng.randf_range(48.0, 86.0)                     # 手前の雲の さらに外側＝地平線側
+		var s2 := rng.randf_range(6.0, 11.0)                        # 遠いので大きな雲塊にして“層”に見せる
+		var y2 := rng.randf_range(-4.0, -1.2)                       # 低く沈めて 手前より下＝雲海の水平が奥へ続く
+		var b2 := Basis(Vector3.UP, rng.randf() * TAU).scaled(Vector3(s2, s2 * rng.randf_range(0.24, 0.38), s2))
+		mm.set_instance_transform(n + j, Transform3D(b2, Vector3(cos(ang2) * rad2, y2, sin(ang2) * rad2)))
 
 	var mmi := MultiMeshInstance3D.new()
 	mmi.name = "SkyClouds"
