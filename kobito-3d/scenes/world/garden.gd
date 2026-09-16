@@ -117,6 +117,8 @@ var _water_rays: Node3D = null   # 第3章「みずべ」＝水面に差すサ�
 var _water_ray_mat: StandardMaterial3D = null   # 水辺の光芒の共有マテリアル（澄むほど強い）
 var _night_rays: Node3D = null   # 第4章「よる」＝月あかりの光の帯（ムーンビーム）。night舞台だけ表示
 var _night_ray_mat: StandardMaterial3D = null   # 夜の光芒の共有マテリアル（澄むほど差してくる）
+var _water_ripples: MultiMeshInstance3D = null   # 第3章「みずべ」＝水面のさざなみ（絶えず広がる小さな波紋）。water舞台だけ表示
+var _water_ripple_mat: ShaderMaterial = null   # さざなみの共有マテリアル（澄むほどくっきり）
 var _garden_rays: Node3D = null   # 第1章「みどりの庭」＝木漏れ日の光の帯。garden舞台だけ表示
 var _garden_ray_mat: StandardMaterial3D = null   # 庭の木漏れ日の共有マテリアル（茂るほど強い）
 var _water_mat: ShaderMaterial = null
@@ -868,6 +870,7 @@ func _setup_visuals() -> void:
 	_build_sky_birds()        # 第6章「そら」＝遠くを渡る鳥影（sky舞台だけ表示・回復で増える）
 	_build_water_rays()       # 第3章「みずべ」＝水面に差すサンシャフト（water舞台だけ表示）
 	_build_night_rays()       # 第4章「よる」＝月あかりの光の帯（night舞台だけ表示）
+	_build_water_ripples()    # 第3章「みずべ」＝水面のさざなみ（water舞台だけ表示）
 	_build_garden_rays()      # 第1章「みどりの庭」＝木漏れ日の光の帯（garden舞台だけ表示）
 	_build_water_lite()
 	_apply_biome()
@@ -1149,6 +1152,8 @@ func _apply_biome() -> void:
 		_water_lite.visible = biome == "water"   # 水辺のときだけ浅い水を出す
 	if _water_rays != null:
 		_water_rays.visible = biome == "water"   # 水辺のときだけ水面のサンシャフトを出す
+	if _water_ripples != null:
+		_water_ripples.visible = biome == "water"   # 水辺のときだけ さざなみを出す
 	if _night_rays != null:
 		_night_rays.visible = biome == "night"   # 夜のときだけ月あかりの光の帯を出す
 	if _fireflies != null:
@@ -1813,6 +1818,72 @@ func _update_night_rays(r: float) -> void:
 	a.a = lerpf(0.012, 0.06, r)
 	_night_ray_mat.albedo_color = a
 	_night_ray_mat.emission_energy_multiplier = lerpf(0.2, 0.5, r)
+
+
+## 第3章「みずべ」＝水面のさざなみ。フラットなクアッドに 広がって消える波紋の輪を
+## フラグメントで描き、個体ごとに位相をずらして 絶えず ひろがる（GPUのみ・1描画）。
+## 魚が跳ねる波紋(_spawn_ripple)とは別の“風のさざなみ”＝水面全体が生きて見える。water舞台だけ表示。
+func _build_water_ripples() -> void:
+	var quad := PlaneMesh.new()
+	quad.size = Vector2(1.0, 1.0)
+	var mat := ShaderMaterial.new()
+	var sh := Shader.new()
+	sh.code = """
+shader_type spatial;
+render_mode cull_disabled, unshaded, depth_draw_never, blend_add, shadows_disabled;
+uniform vec3 ripple_col : source_color = vec3(0.66, 0.86, 1.0);
+uniform float strength = 0.3;
+varying float vR;
+varying float vFade;
+void vertex(){
+	float sp = 0.22 + INSTANCE_CUSTOM.g * 0.22;
+	float t = fract(TIME * sp + INSTANCE_CUSTOM.r);   // 0→1 でループ
+	vR = t;                                           // 波紋の半径（0=中心, 1=縁）
+	vFade = (1.0 - t) * (1.0 - t);                    // 広がるほど 消えていく
+}
+void fragment(){
+	float d = distance(UV, vec2(0.5)) * 2.0;          // 0..1
+	float ring = smoothstep(0.10, 0.0, abs(d - vR));  // 半径vRの細い輪
+	float a = ring * vFade * strength;
+	ALBEDO = ripple_col;
+	EMISSION = ripple_col * a;
+	ALPHA = a;
+}
+"""
+	mat.shader = sh
+	mat.set_shader_parameter("ripple_col", Color(0.66, 0.86, 1.0))
+	mat.set_shader_parameter("strength", 0.3)
+	quad.material = mat
+	_water_ripple_mat = mat
+
+	var n := 16 if OS.has_feature("web") else 28
+	var mm := MultiMesh.new()
+	mm.transform_format = MultiMesh.TRANSFORM_3D
+	mm.use_custom_data = true
+	mm.mesh = quad
+	mm.instance_count = n
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 20202
+	for i in n:
+		var pos := Vector3(rng.randf_range(-30.0, 30.0), 0.12, rng.randf_range(-30.0, 30.0))
+		var sz := rng.randf_range(3.0, 6.0)
+		var b := Basis(Vector3.UP, rng.randf() * TAU).scaled(Vector3(sz, 1.0, sz))
+		mm.set_instance_transform(i, Transform3D(b, pos))
+		mm.set_instance_custom_data(i, Color(rng.randf(), rng.randf(), 0.0, 0.0))
+	var mmi := MultiMeshInstance3D.new()
+	mmi.name = "WaterRipples"
+	mmi.multimesh = mm
+	mmi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	mmi.extra_cull_margin = 40.0
+	mmi.visible = false   # water舞台のときだけ _apply_biome で出す
+	_water_ripples = mmi
+	add_child(mmi)
+
+
+## さざなみの濃さを回復度で動かす（にごり＝ぼんやり／澄む＝くっきり）。
+func _update_water_ripples(r: float) -> void:
+	if _water_ripple_mat != null:
+		_water_ripple_mat.set_shader_parameter("strength", lerpf(0.16, 0.34, r))
 
 
 ## 第1章「みどりの庭」＝木漏れ日の光の帯。加算合成の光の帯を 森ごしの陽射しとして数本落とす。
@@ -3049,6 +3120,7 @@ func _on_recovery_changed(_value: float) -> void:
 	_update_sky_rays(r)
 	_update_sky_birds(r)
 	_update_water_rays(r)
+	_update_water_ripples(r)
 	_update_night_rays(r)
 	_update_garden_rays(r)
 	_update_fireflies(r)
