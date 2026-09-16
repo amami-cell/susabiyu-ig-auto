@@ -482,7 +482,7 @@ function epNotifyUntreated_(hours, dry) {
     var st = String(cS != null ? v[i][cS] : ''); if (!/未対応|新規/.test(st)) continue;
     var d = cA != null ? epDate_(v[i][cA]) : null, ageMs = d ? (now.getTime() - d.getTime()) : 0;
     if (ageMs < thr) continue;
-    // 古い未対応も除外しない（一番放置された人ほど気付かれなくなるのを防ぐ, A-14）。
+    if (d && ageMs > 30 * 86400000) continue;   // 応募から30日超の未対応はアラート対象外（要望により。データは残す）
     // 10日超は「長期放置」として別に数え、通知本文で強調する。
     cnt++; if (ageMs > oldest) oldest = ageMs;
     if (ageMs > 10 * 86400000) longCnt++;

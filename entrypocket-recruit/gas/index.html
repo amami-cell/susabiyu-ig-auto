@@ -664,10 +664,12 @@
         '<div style="background:var(--line);border-radius:5px;height:7px;overflow:hidden;margin-bottom:6px"><div id="todoBar" style="width:'+pct+'%;height:100%;background:var(--green)"></div></div>'+
         rows+'<div class="lnote" style="margin-top:6px">チェックは端末に保存され、日付が変わると自動リセット。連絡・面接はタップで詳細へ。</div></div>';
     }
-    // 未対応アラートの対象＝新規/未対応。放置期間での除外はしない（一番放置された人ほど
-    // アラートから消えてしまうのを防ぐ, A-14）。10日超は「長期放置」として強調表示する。
+    // 未対応アラートの対象＝新規/未対応で、応募日が直近30日以内のもの（古い応募はアラート/件数から
+    // 除外。データ自体は残す）。10日超は「長期放置」として強調表示する。
     var LONG_NEGLECT_DAYS=10;
-    function untreatedList(){ return apps.filter(function(a){ return isUntreated(a.status); }); }
+    var UNTREATED_RECENT_DAYS=30;   // これより古い未対応はアラート対象外（要望により）
+    function isRecentUntreated(a){ if(!isUntreated(a.status)) return false; var d=toDate(a.appliedAt); return !d || (Date.now()-d.getTime())<=UNTREATED_RECENT_DAYS*86400000; }
+    function untreatedList(){ return apps.filter(isRecentUntreated); }
     function untreatedLongCount(){ var mx=LONG_NEGLECT_DAYS*86400000, now=Date.now();
       return untreatedList().filter(function(a){ var d=toDate(a.appliedAt); return d && (now-d.getTime())>mx; }).length; }
     // ⑥ 未対応（新規/未対応のまま）の応募アラート。放置時間つき・タップで詳細。
@@ -745,7 +747,7 @@
       var i=RECS.indexOf(r);
       var sub = r.latest ? ((r.live?'掲載中・':'')+'最新応募 '+fmtD(new Date(r.latest))+'　現応募'+r.appsArr.length+'名')
                          : (r.live ? '掲載中（EntryPocket・応募なし）' : '募集中（手動設定）');
-      var untreated=r.appsArr.filter(function(a){return isUntreated(a.status);}).length;
+      var untreated=r.appsArr.filter(isRecentUntreated).length;   // 直近30日以内の未対応のみ（古い分は除外）
       var chips=[ '<span>現応募者<b>'+r.appsArr.length+'</b></span>' ];
       if(untreated) chips.unshift('<span class="warnchip">未対応<b>'+untreated+'</b></span>');
       var stat=chips.join('');
@@ -1834,7 +1836,7 @@
       var now=Date.now(), D=86400000, reg=statRegion, stores={};
       function ensure(k,name){ if(!stores[k]) stores[k]={name:name||k,untOld:0,last7:0,prev7:0,hi:0,qu:0,unsub:false}; return stores[k]; }
       apps.forEach(function(a){ if(reg!=='all'&&appRegion(a)!==reg)return; var k=normStore(a.store); if(!k)return; var o=ensure(k,a.store), d=toDate(a.appliedAt);
-        if(isUntreated(a.status)&&d&&(now-d.getTime())>3*D) o.untOld++;
+        if(isUntreated(a.status)&&d&&(now-d.getTime())>3*D&&(now-d.getTime())<=UNTREATED_RECENT_DAYS*D) o.untOld++;   // 3〜30日の未対応のみ（30日超は対象外）
         if(d){ var age=(now-d.getTime())/D; if(age<7)o.last7++; else if(age<14)o.prev7++; } });
       postings.forEach(function(p){ if(reg!=='all'&&regionOf(p)!==reg)return; var k=normStore(p.store); if(!k)return; var o=ensure(k,p.store); o.hi+=num(p.hires); o.qu+=num(p.quit); if(isUnsubmitted(p))o.unsub=true; });
       var rows=[];
