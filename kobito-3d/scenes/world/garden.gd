@@ -1640,12 +1640,19 @@ func _build_sky_rays() -> void:
 	add_child(_sky_rays)
 
 
+## アクセシビリティ：えんしゅつ ひかえめ(reduce_fx)のとき、絶えず動く環境エフェクト
+## （花びら・蛍・砂ぼこり・鳥・さざなみ・光芒 等）の量／濃さを 一律に下げて 刺激をやわらげる。
+## 刺激に敏感な子でも“脱落しない”ための一段。0＝消しはせず ひかえめに残す。
+func _amb_fx() -> float:
+	return 0.4 if UIKit.reduce_fx() else 1.0
+
+
 ## 光芒の濃さを回復度で動かす（もや＝うすい／澄む＝強い陽射し）。
 func _update_sky_rays(r: float) -> void:
 	if _sky_ray_mat == null:
 		return
 	var a := _sky_ray_mat.albedo_color
-	a.a = lerpf(0.035, 0.11, r)                 # 汚れ＝ぼんやり／回復＝くっきり
+	a.a = lerpf(0.035, 0.11, r) * _amb_fx()     # 汚れ＝ぼんやり／回復＝くっきり（ひかえめ時はさらに淡く）
 	_sky_ray_mat.albedo_color = a
 	_sky_ray_mat.emission_energy_multiplier = lerpf(0.35, 0.7, r)
 
@@ -1727,7 +1734,7 @@ void fragment() {
 func _update_sky_birds(r: float) -> void:
 	if _sky_birds == null or _sky_birds.multimesh == null:
 		return
-	var vis := int(round(_sky_bird_n * clampf(r * 1.15 - 0.12, 0.0, 1.0)))
+	var vis := int(round(_sky_bird_n * clampf(r * 1.15 - 0.12, 0.0, 1.0) * _amb_fx()))
 	_sky_birds.multimesh.visible_instance_count = vis
 
 
@@ -1776,7 +1783,7 @@ func _update_water_rays(r: float) -> void:
 	if _water_ray_mat == null:
 		return
 	var a := _water_ray_mat.albedo_color
-	a.a = lerpf(0.03, 0.10, r)
+	a.a = lerpf(0.03, 0.10, r) * _amb_fx()
 	_water_ray_mat.albedo_color = a
 	_water_ray_mat.emission_energy_multiplier = lerpf(0.3, 0.65, r)
 
@@ -1826,7 +1833,7 @@ func _update_night_rays(r: float) -> void:
 	if _night_ray_mat == null:
 		return
 	var a := _night_ray_mat.albedo_color
-	a.a = lerpf(0.012, 0.06, r)
+	a.a = lerpf(0.012, 0.06, r) * _amb_fx()
 	_night_ray_mat.albedo_color = a
 	_night_ray_mat.emission_energy_multiplier = lerpf(0.2, 0.5, r)
 
@@ -1894,7 +1901,7 @@ void fragment(){
 ## さざなみの濃さを回復度で動かす（にごり＝ぼんやり／澄む＝くっきり）。
 func _update_water_ripples(r: float) -> void:
 	if _water_ripple_mat != null:
-		_water_ripple_mat.set_shader_parameter("strength", lerpf(0.16, 0.34, r))
+		_water_ripple_mat.set_shader_parameter("strength", lerpf(0.16, 0.34, r) * _amb_fx())
 
 
 ## 第1章「みどりの庭」＝木漏れ日の光の帯。加算合成の光の帯を 森ごしの陽射しとして数本落とす。
@@ -1942,7 +1949,7 @@ func _update_garden_rays(r: float) -> void:
 	if _garden_ray_mat == null:
 		return
 	var a := _garden_ray_mat.albedo_color
-	a.a = lerpf(0.025, 0.09, r)
+	a.a = lerpf(0.025, 0.09, r) * _amb_fx()
 	_garden_ray_mat.albedo_color = a
 	_garden_ray_mat.emission_energy_multiplier = lerpf(0.3, 0.62, r)
 
@@ -2878,7 +2885,7 @@ void fragment(){
 func _update_fireflies(r: float) -> void:
 	if _fireflies == null or _fireflies.multimesh == null:
 		return
-	_fireflies.multimesh.visible_instance_count = int(round(_firefly_n * clampf(r * 1.1 - 0.08, 0.0, 1.0)))
+	_fireflies.multimesh.visible_instance_count = int(round(_firefly_n * clampf(r * 1.1 - 0.08, 0.0, 1.0) * _amb_fx()))
 
 
 ## 第1章「みどりの庭」＝舞い散る花びら（満開の春＝季節感）。頂点シェーダで
@@ -2943,7 +2950,7 @@ func _update_petals(r: float) -> void:
 	if _petals == null or _petals.multimesh == null:
 		return
 	# 緑が十分に戻ってから ふえる（0.4→0.95 でフェードイン）＝“満開になった”ごほうび。
-	_petals.multimesh.visible_instance_count = int(round(_petal_n * smoothstep(0.4, 0.95, r)))
+	_petals.multimesh.visible_instance_count = int(round(_petal_n * smoothstep(0.4, 0.95, r) * _amb_fx()))
 
 
 ## 遺跡＝風に流れる砂ぼこり。乾いた土けむりが 低く 横に流れる＝荒れた・見放された空気。
@@ -3014,7 +3021,7 @@ func _update_ruins_dust(r: float) -> void:
 	if _ruins_dust == null or _ruins_dust.multimesh == null:
 		return
 	var dry := 1.0 - smoothstep(0.15, 0.8, r)   # 荒れ＝1.0 / 緑が戻る＝0.0
-	_ruins_dust.multimesh.visible_instance_count = int(round(_ruins_dust_n * (0.25 + 0.75 * dry)))
+	_ruins_dust.multimesh.visible_instance_count = int(round(_ruins_dust_n * (0.25 + 0.75 * dry) * _amb_fx()))
 	if _ruins_dust_mat != null:
 		_ruins_dust_mat.set_shader_parameter("strength", lerpf(0.16, 0.55, dry))
 
@@ -3087,7 +3094,7 @@ void fragment(){
 func _update_house_dust(r: float) -> void:
 	if _house_dust == null or _house_dust.multimesh == null:
 		return
-	_house_dust.multimesh.visible_instance_count = int(round(_house_dust_n * lerpf(0.35, 1.0, clampf(r, 0.0, 1.0))))
+	_house_dust.multimesh.visible_instance_count = int(round(_house_dust_n * lerpf(0.35, 1.0, clampf(r, 0.0, 1.0)) * _amb_fx()))
 
 
 ## 地面の小さな生き物：小さな甲虫が ちょこちょこ歩き回る＝“戻ってきた命”。
