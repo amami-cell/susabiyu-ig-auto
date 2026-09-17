@@ -3,7 +3,12 @@ name: susabiyu-list-cats
 # 現在の用途: ナガグツのフィード投稿画像テンプレ（4:5・複数デザイン候補）を静止画レンダリングして
 # 永続CDNへ納品し、確認アプリの見本「画像」タブ用の FEED SAMPLES(JSON) をログに出す。投稿はしない。
 on:
-  workflow_dispatch: {}
+  workflow_dispatch:
+    inputs:
+      account:
+        description: "店舗アカウント（nagagutsu / goldporta）"
+        required: false
+        default: "nagagutsu"
 permissions:
   contents: read
 jobs:
@@ -34,9 +39,9 @@ jobs:
         run: echo "$GOOGLE_CREDS_B64" | base64 -d > creds.json
         env:
           GOOGLE_CREDS_B64: ${{ secrets.GOOGLE_CREDS_B64 }}
-      - name: Render feed patterns (nagagutsu)
+      - name: Render feed patterns
         env:
-          STORE_ACCOUNT: nagagutsu
+          STORE_ACCOUNT: ${{ github.event.inputs.account || 'nagagutsu' }}
           # 見本(フィード画像)づくりも「使った」に数えない。
           USAGE_SKIP: "1"
           GOOGLE_CREDS_B64: ${{ secrets.GOOGLE_CREDS_B64 }}
