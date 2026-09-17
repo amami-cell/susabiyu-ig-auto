@@ -118,6 +118,7 @@ var _sky_cloud_mat: ShaderMaterial = null   # 雲海のシェーダ（drift をr
 var _rainbow: Node3D = null            # 隠し要素：よく浄化した昼の世界に ごくまれに架かる にじ（発見のごほうび）
 var _rainbow_t := 25.0                 # 次に にじ を判定するまでの間（秒）
 var _rainbow_mats: Array = []          # にじの7色マテリアル（フェード用）
+var _star_t := 12.0                    # 隠し要素：夜の ながれ星 を次に判定するまでの間（秒）
 var _sky_rays: Node3D = null   # 第6章「そら」＝雲を貫くサンシャフト（光芒）。sky舞台だけ表示
 var _sky_ray_mat: StandardMaterial3D = null   # 光芒の共有マテリアル（回復で濃さを変える）
 var _sky_birds: MultiMeshInstance3D = null   # 第6章「そら」＝遠くを渡る鳥影。sky舞台だけ表示（回復で増える）
@@ -351,6 +352,7 @@ func _process(delta: float) -> void:
 	_update_water_life(delta)    # みずべ：魚の跳ね＋波紋（見た目・全員）＝生きた水面
 	_update_grass_tread()        # 草の踏み分け：プレイヤー位置をシェーダへ（見た目・全員）
 	_maybe_rainbow(delta)        # 隠し要素：よく浄化した昼にごくまれに にじ（見た目・全員／各自で判定）
+	_maybe_shooting_star(delta)  # 隠し要素：夜空をまれに ながれ星（見た目・全員／各自で判定）
 	if not _is_server():
 		return
 	_spawn_timer -= delta
@@ -990,6 +992,66 @@ func _set_rainbow_alpha(a: float) -> void:
 			var c: Color = m.albedo_color
 			c.a = a
 			m.albedo_color = c
+
+
+## 隠し要素：夜空をまれに ながれ星 が一筋 流れる＝“見つけた人へのごほうび”。
+## 各自の画面で判定（純見た目）。night舞台のときだけ、たまに 高い夜空を すっと流れて消える。
+func _maybe_shooting_star(delta: float) -> void:
+	if biome != "night":
+		return
+	_star_t -= delta
+	if _star_t > 0.0:
+		return
+	_star_t = randf_range(16.0, 34.0)           # 次の判定まで
+	if randf() < 0.32:                          # 出るかは運＝“隠し”の発見感
+		_spawn_shooting_star()
+
+
+## ながれ星本体：頭が明るく尾が消える 光の筋を、高い夜空に すっと走らせて消す。
+func _spawn_shooting_star() -> void:
+	var streak := MeshInstance3D.new()
+	streak.name = "ShootingStar"
+	var bm := BoxMesh.new()
+	bm.size = Vector3(0.12, 0.12, 4.5)          # 細く長い＝光の筋。長さ方向は Z。
+	streak.mesh = bm
+	var mat := ShaderMaterial.new()
+	var sh := Shader.new()
+	sh.code = """
+shader_type spatial;
+render_mode unshaded, cull_disabled, depth_draw_never, blend_add, shadows_disabled;
+uniform float vis = 0.0;
+uniform vec3 star_col : source_color = vec3(0.85, 0.92, 1.0);
+varying float head;
+void vertex(){
+	head = clamp((2.25 - VERTEX.z) / 4.5, 0.0, 1.0);   // -Z=頭(1) / +Z=尾(0)
+}
+void fragment(){
+	ALBEDO = star_col;
+	EMISSION = star_col * 2.2;
+	ALPHA = vis * pow(head, 1.6);   // 頭が明るく 尾がすっと消える
+}
+"""
+	mat.shader = sh
+	mat.set_shader_parameter("vis", 0.0)
+	mat.set_shader_parameter("star_col", Color(0.85, 0.92, 1.0))
+	streak.material_override = mat
+	streak.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	add_child(streak)
+	# 高い夜空を 斜めに流れる。頭(-Z)を進行方向へ向ける。
+	var start := Vector3(randf_range(-22.0, -10.0), randf_range(6.0, 11.0), randf_range(-22.0, -15.0))
+	var endp := start + Vector3(randf_range(26.0, 40.0), randf_range(-5.0, -2.5), randf_range(-2.0, 4.0))
+	streak.position = start
+	streak.look_at_from_position(start, endp, Vector3.UP)   # 箱の-Z(頭)を 進む先へ
+	# 走る（位置）＋ ふっと灯って→消える（vis）を並行で。短くキレよく。
+	var mv := get_tree().create_tween()
+	mv.tween_property(streak, "position", endp, 0.72).set_trans(Tween.TRANS_SINE)
+	var vt := get_tree().create_tween()
+	vt.tween_method(func(v: float) -> void: mat.set_shader_parameter("vis", v), 0.0, 1.0, 0.12)
+	vt.tween_interval(0.34)
+	vt.tween_method(func(v: float) -> void: mat.set_shader_parameter("vis", v), 1.0, 0.0, 0.26)
+	vt.tween_callback(streak.queue_free)
+	# 静かな発見の合図。えんしゅつ ひかえめ でも 穏やかなため 出す。
+	WorldState.notice.emit("ながれ星！　おねがいごと を…")
 
 
 ## みずべの生き物：水面のどこかで ときどき 魚が跳ねて 波紋がひろがる＝“生きた水”。純見た目・全員。
