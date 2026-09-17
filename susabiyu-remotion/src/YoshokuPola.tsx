@@ -6,7 +6,7 @@ import { typoPhotos, typoMusic, typoMusicStart } from "./typoData";
 import { ytheme } from "./yoshokuTheme";
 import {
   mincho, serif, clamp, SAFE, EASE, fade,
-  Grain, Vignette, StoreLogo, fitOneLine,
+  Grain, Vignette, StoreLogo, fitOneLine, truncToWidth,
 } from "./yoshokuDesign";
 
 // ロゴが出てからの余韻を2秒(60f)伸ばした尺。ロゴの登場位置は POLA_LOGO_IN で固定するので、
@@ -83,10 +83,14 @@ export const YoshokuPola: React.FC<{ storeName?: string; handle?: string; theme?
             // 選択タイルはタップで軽く沈む
             const press = i === pick ? interpolate(f, [TAP, TAP + 8, TAP + 18], [1, 0.95, 1], clamp) : 1;
             const c = cards[i];
-            const nm = ((c.disp && c.disp.length) ? c.disp : c.caption).replace(/[｜\n]/g, "");
+            const rawNm = ((c.disp && c.disp.length) ? c.disp : c.caption).replace(/[｜\n]/g, "");
             // タイルの料理名は必ず1行。最大まで詰めて、入りきらない分は末尾を「…」で省略。
             // （グリッド表示は全商品名を出しきる必要が無い＝この画面だけの省略ルール）
-            const sz = fitOneLine(nm, 33, TW - 28, 22);
+            const sz = fitOneLine(rawNm, 33, TW - 28, 22);
+            // 「…」を JS 側で確定させた“固定文字列”にする。CSS の textOverflow だと
+            // タイルの拡大アニメ中に切り位置が毎フレーム揺れて「…」がガタつくため。
+            // letterSpacing:1px 分を見込んで少し狭め(TW-34)で詰める。
+            const nm = truncToWidth(rawNm, sz, TW - 34);
             return (
               <div key={i} style={{
                 position: "absolute", left: L.x - TW / 2, top: L.y - (PH + LH) / 2 + drop,
@@ -99,7 +103,7 @@ export const YoshokuPola: React.FC<{ storeName?: string; handle?: string; theme?
                   <Img src={staticFile(c.src)} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
                 </div>
                 <div style={{ height: LH, background: "linear-gradient(180deg, #2b2118 0%, #221a12 100%)", display: "flex", alignItems: "center", justifyContent: "center", padding: "0 14px" }}>
-                  <div style={{ width: "100%", fontFamily: mincho, color: "#F4EAD8", fontSize: sz, fontWeight: 700, letterSpacing: 1, lineHeight: 1.12, textAlign: "center", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{nm}</div>
+                  <div style={{ width: "100%", fontFamily: mincho, color: "#F4EAD8", fontSize: sz, fontWeight: 700, letterSpacing: 1, lineHeight: 1.12, textAlign: "center", whiteSpace: "nowrap", overflow: "hidden" }}>{nm}</div>
                 </div>
               </div>
             );

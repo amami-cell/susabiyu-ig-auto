@@ -437,6 +437,18 @@ export function fitOneLine(text: string, maxPx: number, usableW: number, minPx =
   return Math.max(minPx, Math.min(maxPx, Math.floor(usableW / n)));
 }
 
+// 指定サイズで幅に収まるよう“JS側で”末尾を「…」に詰める（＝固定文字列にする）。
+// CSS の text-overflow:ellipsis はタイルの拡大アニメ中に切り位置を毎フレーム再計算して
+// 「…」がガタつく（揺れる）ため、あらかじめ静的な文字列にしてしまう＝揺れない。
+// 和文は概ね1文字=1em想定。収まる名前はそのまま返す（省略しない）。
+export function truncToWidth(text: string, sizePx: number, usableW: number): string {
+  const s = (text || "").replace(/[｜\n]/g, "");
+  const chars = Array.from(s);
+  const cap = Math.max(1, Math.floor(usableW / Math.max(1, sizePx)));
+  if (chars.length <= cap) return s;                // 収まる→省略しない
+  return chars.slice(0, Math.max(1, cap - 1)).join("") + "…"; // 末尾1字分を「…」に充てる
+}
+
 // 文字数から見出しサイズを決める（2行前提・スマホでも読める下限を確保）。
 export function heroSize(text: string, big: number, small: number): number {
   const n = Array.from(text || "").length;
