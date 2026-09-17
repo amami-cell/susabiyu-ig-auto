@@ -115,6 +115,9 @@ var _hills: MultiMeshInstance3D = null
 var _house: Node3D = null   # 第5章「いえの中」の手続き屋内（床/壁/窓/梁/家具）。house舞台だけ表示
 var _sky_clouds: MultiMeshInstance3D = null   # 第6章「そら」の雲の床（ふわふわの雲海）。sky舞台だけ表示
 var _sky_cloud_mat: ShaderMaterial = null   # 雲海のシェーダ（drift をreduce_fxで下げる）
+var _rainbow: Node3D = null            # 隠し要素：よく浄化した昼の世界に ごくまれに架かる にじ（発見のごほうび）
+var _rainbow_t := 25.0                 # 次に にじ を判定するまでの間（秒）
+var _rainbow_mats: Array = []          # にじの7色マテリアル（フェード用）
 var _sky_rays: Node3D = null   # 第6章「そら」＝雲を貫くサンシャフト（光芒）。sky舞台だけ表示
 var _sky_ray_mat: StandardMaterial3D = null   # 光芒の共有マテリアル（回復で濃さを変える）
 var _sky_birds: MultiMeshInstance3D = null   # 第6章「そら」＝遠くを渡る鳥影。sky舞台だけ表示（回復で増える）
@@ -347,6 +350,7 @@ func _process(delta: float) -> void:
 	_update_actor_shadows()      # 足元の接地影（全アクター・見た目のみ）
 	_update_water_life(delta)    # みずべ：魚の跳ね＋波紋（見た目・全員）＝生きた水面
 	_update_grass_tread()        # 草の踏み分け：プレイヤー位置をシェーダへ（見た目・全員）
+	_maybe_rainbow(delta)        # 隠し要素：よく浄化した昼にごくまれに にじ（見た目・全員／各自で判定）
 	if not _is_server():
 		return
 	_spawn_timer -= delta
@@ -906,6 +910,86 @@ func _build_water_lite() -> void:
 	_water_lite.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	_water_lite.visible = false
 	add_child(_water_lite)
+
+
+## 隠し要素：よく浄化した昼の世界に ごくまれに にじ が架かる＝“見つけた人へのごほうび”。
+## 各自の画面で判定（純見た目）。回復が高い garden/water のときだけ、たまに架かって しばらくで消える。
+func _maybe_rainbow(delta: float) -> void:
+	if _rainbow != null:
+		return                                  # すでに架かっている
+	if biome != "garden" and biome != "water":
+		return
+	if WorldState.recovery < 0.72:
+		return                                  # よく浄化した世界だけ（＝ごほうび）
+	_rainbow_t -= delta
+	if _rainbow_t > 0.0:
+		return
+	_rainbow_t = randf_range(20.0, 40.0)        # 次の判定まで
+	if randf() < 0.35:                          # 出るかどうかは運＝“隠し”の発見感
+		_spawn_rainbow()
+
+
+## にじ本体：7色の細い弧（縦向きトーラス）を遠くの空に架け、ふわっと出て しばらくで消える。
+func _spawn_rainbow() -> void:
+	_rainbow = Node3D.new()
+	_rainbow.name = "Rainbow"
+	# 遠く・低くに置いて 上の弧だけ 地平の上に見せる（下半分は地面/丘の向こう）。
+	_rainbow.position = Vector3(randf_range(-6.0, 6.0), -8.0, -72.0)
+	_rainbow.rotation.y = randf_range(-0.12, 0.12)
+	add_child(_rainbow)
+	_rainbow_mats.clear()
+	var cols := [
+		Color(1.0, 0.35, 0.35),   # 赤（外）
+		Color(1.0, 0.62, 0.30),   # 橙
+		Color(1.0, 0.92, 0.40),   # 黄
+		Color(0.55, 0.90, 0.50),  # 緑
+		Color(0.45, 0.85, 1.0),   # 水
+		Color(0.45, 0.60, 1.0),   # 藍
+		Color(0.72, 0.52, 1.0),   # 紫（内）
+	]
+	for i in cols.size():
+		var ring := MeshInstance3D.new()
+		var tm := TorusMesh.new()
+		var rad := 34.0 - float(i) * 0.95        # 外(赤)ほど大きい
+		tm.inner_radius = rad - 0.5
+		tm.outer_radius = rad + 0.5
+		tm.rings = 40
+		tm.ring_segments = 5
+		ring.mesh = tm
+		var m := StandardMaterial3D.new()
+		var c: Color = cols[i]
+		c.a = 0.0                                # フェードインで上げる
+		m.albedo_color = c
+		# 加算だと明るい空で色が白飛びするので、透過(MIX)で“空にかかる淡い色帯”にする。
+		m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+		m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+		m.cull_mode = BaseMaterial3D.CULL_DISABLED
+		ring.material_override = m
+		ring.rotation.x = deg_to_rad(90.0)       # 横倒し→縦の弧（カメラ方向を向く）
+		ring.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		_rainbow.add_child(ring)
+		_rainbow_mats.append(m)
+	# 静かな発見の合図（rare個体と同じ notice 経路）。えんしゅつ ひかえめ でも 出す（穏やかなため）。
+	WorldState.notice.emit("そらに にじ が かかった…　（みつけた）")
+	# ふわっと出て → しばらく → ゆっくり消える。にじの濃さは 0.42 を上限に淡く。
+	var tw := get_tree().create_tween()
+	tw.tween_method(_set_rainbow_alpha, 0.0, 0.42, 2.5).set_trans(Tween.TRANS_SINE)
+	tw.tween_interval(7.0)
+	tw.tween_method(_set_rainbow_alpha, 0.42, 0.0, 3.0).set_trans(Tween.TRANS_SINE)
+	tw.tween_callback(func() -> void:
+		if _rainbow != null:
+			_rainbow.queue_free()
+			_rainbow = null
+		_rainbow_mats.clear())
+
+
+## にじ7色の濃さを 一括で動かす（フェード用）。
+func _set_rainbow_alpha(a: float) -> void:
+	for m in _rainbow_mats:
+		if m is StandardMaterial3D:
+			var c: Color = m.albedo_color
+			c.a = a
+			m.albedo_color = c
 
 
 ## みずべの生き物：水面のどこかで ときどき 魚が跳ねて 波紋がひろがる＝“生きた水”。純見た目・全員。
