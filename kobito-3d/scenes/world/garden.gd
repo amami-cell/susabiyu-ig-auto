@@ -119,6 +119,9 @@ var _rainbow: Node3D = null            # 隠し要素：よく浄化した昼の
 var _rainbow_t := 25.0                 # 次に にじ を判定するまでの間（秒）
 var _rainbow_mats: Array = []          # にじの7色マテリアル（フェード用）
 var _star_t := 12.0                    # 隠し要素：夜の ながれ星 を次に判定するまでの間（秒）
+var _clover: Node3D = null             # 隠し要素：草地にまれに生える 四つ葉のクローバー（見つけると花が咲く）
+var _clover_t := 30.0                  # 次に クローバー を判定するまでの間（秒）
+var _clover_life := 0.0                # 生えている クローバー が しぼむまでの残り（見つからないと消える）
 var _sky_rays: Node3D = null   # 第6章「そら」＝雲を貫くサンシャフト（光芒）。sky舞台だけ表示
 var _sky_ray_mat: StandardMaterial3D = null   # 光芒の共有マテリアル（回復で濃さを変える）
 var _sky_birds: MultiMeshInstance3D = null   # 第6章「そら」＝遠くを渡る鳥影。sky舞台だけ表示（回復で増える）
@@ -353,6 +356,7 @@ func _process(delta: float) -> void:
 	_update_grass_tread()        # 草の踏み分け：プレイヤー位置をシェーダへ（見た目・全員）
 	_maybe_rainbow(delta)        # 隠し要素：よく浄化した昼にごくまれに にじ（見た目・全員／各自で判定）
 	_maybe_shooting_star(delta)  # 隠し要素：夜空をまれに ながれ星（見た目・全員／各自で判定）
+	_update_clover(delta)        # 隠し要素：草地にまれに四つ葉のクローバー（近づくと発見＝花が咲く）
 	if not _is_server():
 		return
 	_spawn_timer -= delta
@@ -1052,6 +1056,107 @@ void fragment(){
 	vt.tween_callback(streak.queue_free)
 	# 静かな発見の合図。えんしゅつ ひかえめ でも 穏やかなため 出す。
 	WorldState.notice.emit("ながれ星！　おねがいごと を…")
+
+
+## 自分の小人（ローカルプレイヤー）を返す。無ければ null。
+func _local_player() -> Node3D:
+	for p in get_tree().get_nodes_in_group("player"):
+		if p.get("is_local"):
+			return p as Node3D
+	return null
+
+
+## 隠し要素：草地にまれに 四つ葉のクローバー が生える。近づいて見つけると その場に花が咲く＝
+## “探して見つける しあわせ”。各自の画面で判定（純見た目）。garden舞台で 少し緑が戻ってから。
+func _update_clover(delta: float) -> void:
+	# 生えている間：見つけたか（近づいたか）を判定。見つからなければ しばらくで しぼむ。
+	if _clover != null:
+		_clover_life -= delta
+		var t := 3.0 + Time.get_ticks_msec() * 0.001
+		_clover.position.y = 0.02 + sin(t * 1.6) * 0.015   # そよ風にゆれる
+		_clover.rotation.y += delta * 0.5
+		var lp := _local_player()
+		if lp != null and lp.global_position.distance_to(_clover.global_position) < 1.9:
+			_discover_clover()
+			return
+		if _clover_life <= 0.0:                              # 見つからず しぼむ（そっと消える）
+			_clover.queue_free()
+			_clover = null
+		return
+	if biome != "garden" or WorldState.recovery < 0.5:
+		return
+	_clover_t -= delta
+	if _clover_t > 0.0:
+		return
+	_clover_t = randf_range(28.0, 52.0)
+	if randf() < 0.4:
+		_spawn_clover()
+
+
+## 四つ葉のクローバー本体：4枚のハート型の葉＋細い茎。ごく控えめに きらめかせて“見つけやすさ”を少し。
+func _spawn_clover() -> void:
+	var lp := _local_player()
+	if lp == null:
+		return
+	var ang := randf() * TAU
+	var rad := randf_range(6.0, 15.0)
+	var pos: Vector3 = lp.global_position + Vector3(cos(ang) * rad, 0.0, sin(ang) * rad)
+	pos.x = clampf(pos.x, -34.0, 34.0)
+	pos.z = clampf(pos.z, -34.0, 34.0)
+	pos.y = 0.02
+	_clover = Node3D.new()
+	_clover.name = "Clover"
+	add_child(_clover)
+	_clover.position = pos
+	var leaf_mat := StandardMaterial3D.new()
+	leaf_mat.albedo_color = Color(0.36, 0.74, 0.30)
+	leaf_mat.emission_enabled = true
+	leaf_mat.emission = Color(0.40, 0.85, 0.35)
+	leaf_mat.emission_energy_multiplier = 0.35     # ほんのり光って“見つけやすさ”を少し
+	leaf_mat.roughness = 0.8
+	for i in 4:
+		var leaf := MeshInstance3D.new()
+		var sm := SphereMesh.new()
+		sm.radius = 0.12
+		sm.height = 0.24
+		sm.radial_segments = 8
+		sm.rings = 5
+		leaf.mesh = sm
+		leaf.material_override = leaf_mat
+		leaf.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		var la := float(i) * PI * 0.5
+		leaf.position = Vector3(cos(la) * 0.14, 0.20, sin(la) * 0.14)
+		leaf.scale = Vector3(1.35, 0.3, 1.0)       # 平たいハート型っぽく
+		leaf.rotation.y = la
+		leaf.rotation.z = 0.35                       # 少し立てる
+		_clover.add_child(leaf)
+	# 茎
+	var stem := MeshInstance3D.new()
+	var cyl := CylinderMesh.new()
+	cyl.top_radius = 0.015
+	cyl.bottom_radius = 0.02
+	cyl.height = 0.2
+	stem.mesh = cyl
+	var stem_mat := StandardMaterial3D.new()
+	stem_mat.albedo_color = Color(0.32, 0.6, 0.28)
+	stem.material_override = stem_mat
+	stem.position = Vector3(0.0, 0.1, 0.0)
+	stem.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	_clover.add_child(stem)
+	_clover_life = randf_range(22.0, 34.0)          # 見つからなければ しぼむまでの時間
+
+
+## クローバーを見つけた：その場に花が咲いて きらめく＝“しあわせ”のごほうび。
+func _discover_clover() -> void:
+	if _clover == null:
+		return
+	var pos: Vector3 = _clover.global_position
+	bloom_at(pos)                                   # 花が咲く（掃除の手あてと同じ演出）
+	Sfx.play_at("befriend", pos + Vector3(0, 0.4, 0), -6.0)   # やさしい発見の音（既存キー）
+	WorldState.notice.emit("よつばの クローバー、みつけた！　（しあわせ）")
+	_clover.queue_free()
+	_clover = null
+	_clover_t = randf_range(45.0, 80.0)             # 見つけたあとは しばらく出ない（希少感）
 
 
 ## みずべの生き物：水面のどこかで ときどき 魚が跳ねて 波紋がひろがる＝“生きた水”。純見た目・全員。
