@@ -271,6 +271,17 @@ def _clean_caption(nm):
     # 半角カナを含む時だけ NFKC で全角へ正規化（含まない名前は一切変えない＝既存店に無影響）。
     if any(0xFF61 <= ord(c) <= 0xFF9F for c in n):
         n = _ud.normalize("NFKC", n)
+    # 絵文字・ピクトグラム・矢印/装飾記号は Shippori Mincho に字形が無く動画で□化する。
+    # 料理名にこれらを“焼く”ことはまず無い（本文キャプション側の絵文字は別経路で無影響）。
+    # ファイル名にたまたま入っていても安全に取り除く＝将来のどんな命名でも□を出さない。
+    def _drawable(c):
+        o = ord(c)
+        if (0x1F000 <= o <= 0x1FAFF) or (0x2600 <= o <= 0x27BF) or (0x2190 <= o <= 0x21FF):
+            return False  # 絵文字/その他ピクトグラム/装飾/矢印
+        if o in (0x2728, 0x2764, 0x2B50, 0x266A, 0x2661, 0x2665, 0x2606, 0x2605, 0xFE0F, 0x200D, 0x20E3):
+            return False  # ✨❤⭐♪♡♥☆★・異体字セレクタ・ZWJ・囲みキーキャップ
+        return True
+    n = "".join(c for c in n if _drawable(c))
     for h in ("おすすめ", "オススメ", "お勧め", "オススメ料理", "★", "☆"):
         n = n.replace(h, "")
     n = _re_cap.sub(r'(?:IMG|DSC|DSCN|DCIM|PXL|MVIMG|GFY|MOV|VID)[-_ ]?\d+', '', n, flags=_re_cap.I)
