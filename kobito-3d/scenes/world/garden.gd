@@ -114,6 +114,7 @@ const BOULDER_COUNT := 110    # 岩
 var _hills: MultiMeshInstance3D = null
 var _house: Node3D = null   # 第5章「いえの中」の手続き屋内（床/壁/窓/梁/家具）。house舞台だけ表示
 var _sky_clouds: MultiMeshInstance3D = null   # 第6章「そら」の雲の床（ふわふわの雲海）。sky舞台だけ表示
+var _sky_cloud_mat: ShaderMaterial = null   # 雲海のシェーダ（drift をreduce_fxで下げる）
 var _sky_rays: Node3D = null   # 第6章「そら」＝雲を貫くサンシャフト（光芒）。sky舞台だけ表示
 var _sky_ray_mat: StandardMaterial3D = null   # 光芒の共有マテリアル（回復で濃さを変える）
 var _sky_birds: MultiMeshInstance3D = null   # 第6章「そら」＝遠くを渡る鳥影。sky舞台だけ表示（回復で増える）
@@ -1180,6 +1181,8 @@ func _apply_biome() -> void:
 	# 第6章「そら」＝雲の床を出す。
 	if _sky_clouds != null:
 		_sky_clouds.visible = biome == "sky"
+		if _sky_cloud_mat != null:
+			_sky_cloud_mat.set_shader_parameter("drift", _amb_fx())   # ひかえめ設定を毎回反映（読込順に依存しない）
 	if _sky_rays != null:
 		_sky_rays.visible = biome == "sky"
 	if _sky_birds != null:
@@ -1546,10 +1549,11 @@ func _build_sky_clouds() -> void:
 shader_type spatial;
 uniform vec3 cloud_col : source_color = vec3(0.95, 0.97, 1.0);
 uniform float glow = 0.35;
+uniform float drift = 1.0;   // えんしゅつ ひかえめ 時は 小さくして 雲の動きをおさえる（モーション配慮）
 void vertex() {
 	float ph = MODEL_MATRIX[3].x * 0.10 + MODEL_MATRIX[3].z * 0.13;
-	VERTEX.y += sin(TIME * 0.25 + ph) * 0.5;        // ゆっくり上下
-	VERTEX.x += sin(TIME * 0.18 + ph * 1.3) * 0.7;  // ゆっくり横へ流れる
+	VERTEX.y += sin(TIME * 0.25 + ph) * 0.5 * drift;        // ゆっくり上下
+	VERTEX.x += sin(TIME * 0.18 + ph * 1.3) * 0.7 * drift;  // ゆっくり横へ流れる
 }
 void fragment() {
 	ALBEDO = cloud_col;
@@ -1560,6 +1564,8 @@ void fragment() {
 	mat.shader = sh
 	mat.set_shader_parameter("cloud_col", Color(0.95, 0.97, 1.0))
 	mat.set_shader_parameter("glow", 0.35)
+	mat.set_shader_parameter("drift", _amb_fx())   # ひかえめ時は 雲の流れを 0.4 倍にしずめる
+	_sky_cloud_mat = mat
 	puff.material = mat
 
 	var mm := MultiMesh.new()
