@@ -322,13 +322,21 @@ func _draw() -> void:
 		draw_circle(Vector2(x, y), 8.0, Color(1.0, 0.9, 0.6, 0.18))
 
 	# 生きた表紙：小人の家族が 丘を のんびり歩く（左→右へ、少し速さを変えて隊列に）。
+	# 親は大きく・こどもは小さく・いちばん後ろに ちいさな子＝“家族の体温”を表紙に。
 	var walk_y := h * 0.80
-	var fam := [Color(0.45, 0.78, 0.5), Color(0.95, 0.55, 0.7), Color(0.6, 0.7, 0.95), Color(0.95, 0.85, 0.5)]
+	var fam := [
+		{"c": Color(0.45, 0.78, 0.5), "s": 1.18},   # とうさん（大きい）
+		{"c": Color(0.95, 0.55, 0.7), "s": 1.10},   # かあさん
+		{"c": Color(0.6, 0.7, 0.95), "s": 0.92},    # こども
+		{"c": Color(0.95, 0.85, 0.5), "s": 0.85},   # こども
+		{"c": Color(0.8, 0.62, 0.95), "s": 0.68},   # いちばん ちいさな子
+	]
 	for i in fam.size():
-		var speed := 20.0 + i * 5.0
-		var wx := fposmod(_t * speed + i * (w * 0.24), w + 80.0) - 40.0
-		var bob := absf(sin(_t * 4.0 + i)) * 3.0
-		_draw_walker(Vector2(wx, walk_y - bob), fam[i], _t * 6.0 + i * 1.7)
+		var speed := 20.0 + i * 4.0
+		var wx := fposmod(_t * speed + i * (w * 0.2), w + 80.0) - 40.0
+		var sc: float = fam[i]["s"]
+		var bob := absf(sin(_t * 4.0 + i)) * 3.0 * sc
+		_draw_walker(Vector2(wx, walk_y - bob), fam[i]["c"], _t * 6.0 + i * 1.7, sc)
 
 	# ちょうちょ が 1匹 ひらひら横切る＝空にも動きを。
 	var bx := fposmod(_t * 42.0 + w * 0.3, w + 60.0) - 30.0
@@ -337,15 +345,16 @@ func _draw() -> void:
 
 
 ## 小さな小人がてくてく歩く（頭＋体＋振れる脚＋足元の影）。手描きふうの表紙に生きた動きを。
-func _draw_walker(p: Vector2, col: Color, phase: float) -> void:
-	draw_circle(p + Vector2(0, 11), 7.0, Color(0.0, 0.0, 0.0, 0.12))   # 足元の影
-	var sw := sin(phase) * 3.0
-	draw_line(p + Vector2(-2, 5), p + Vector2(-3 + sw, 13), col.darkened(0.35), 2.5)
-	draw_line(p + Vector2(2, 5), p + Vector2(3 - sw, 13), col.darkened(0.35), 2.5)
-	draw_circle(p, 7.0, col)                                          # 体
-	draw_circle(p + Vector2(0, -11), 5.5, col.lightened(0.12))        # 頭
+## sc＝大きさ（親は大きく・こどもは小さく＝“家族”に見せる）。
+func _draw_walker(p: Vector2, col: Color, phase: float, sc: float = 1.0) -> void:
+	draw_circle(p + Vector2(0, 11 * sc), 7.0 * sc, Color(0.0, 0.0, 0.0, 0.12))   # 足元の影
+	var sw := sin(phase) * 3.0 * sc
+	draw_line(p + Vector2(-2 * sc, 5 * sc), p + Vector2(-3 * sc + sw, 13 * sc), col.darkened(0.35), 2.5 * sc)
+	draw_line(p + Vector2(2 * sc, 5 * sc), p + Vector2(3 * sc - sw, 13 * sc), col.darkened(0.35), 2.5 * sc)
+	draw_circle(p, 7.0 * sc, col)                                          # 体
+	draw_circle(p + Vector2(0, -11 * sc), 5.5 * sc, col.lightened(0.12))   # 頭
 	# ちいさな目（進行方向＝右向き）
-	draw_circle(p + Vector2(2.2, -12), 1.1, Color(0.1, 0.1, 0.12))
+	draw_circle(p + Vector2(2.2 * sc, -12 * sc), 1.1 * sc, Color(0.1, 0.1, 0.12))
 
 
 ## ひらひら舞うちょうちょ（羽ばたきで羽の開き具合が変わる）。加算なしの軽い円で。
