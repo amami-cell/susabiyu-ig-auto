@@ -318,6 +318,12 @@ def main():
                   % (nowj.hour, win_from, win_to))
             return
         late_min = (nowj - dt).total_seconds() / 60.0
+        # ③ まだ枠時刻より前なら投稿しない（＝先の枠を早出ししない）。
+        #    「窓内を頻繁にポーリングして各枠を1回だけ投げる」運用で、未来枠を誤爆させないため。
+        if late_min < -1:
+            print("[GUARD] 予定枠 %s はまだ先（%.0f分前）→ スキップ（枠pendingのまま／通知なし）"
+                  % (when_str, -late_min))
+            return
         if late_min > max_late:
             print("[GUARD] 予定枠 %s より %.0f分 遅延（許容 %d分 超）→ 遅延投稿を回避してスキップ（枠pendingのまま／通知なし）"
                   % (when_str, late_min, max_late))
