@@ -142,6 +142,12 @@ func _ready() -> void:
 	_join.pressed.connect(_on_join)
 	Net.status_changed.connect(func(t: String) -> void: _status.text = t)
 
+	# 初見のつかみ：主役の「はじめる」をなまえの すぐ下＝設定より上へ。
+	# 以前は 舞台/むずかしさ/音量/文字サイズ… の下に埋もれ、初見が スクロールしないと 始められなかった。
+	# 設定は下に残す（既定のままでも すぐ遊べる）。つづき/れんしゅう は _refresh_title_state が
+	# _solo の周りに並べるので、先に solo を上げておけば ひとかたまりで 上に来る。
+	_vbox.move_child(_solo, 2)
+
 	_refresh_title_state()
 	# 遊び終えてタイトルへ戻ったら「つづきから」やクリア表示を出し直す。
 	Net.session_ended.connect(func(_r: String) -> void: _refresh_title_state())
