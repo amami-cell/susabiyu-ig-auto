@@ -4,18 +4,21 @@
 <title>ナガグツ（イタリアン・肉バル）｜梅田・堂山町</title>
 <meta name="description" content="梅田・堂山町のイタリアン肉バル「ナガグツ」。こだわりの肉料理とワイン、気軽に楽しめる一皿を豊富にご用意。各線梅田駅 徒歩8分／中崎町駅 徒歩5分。">
 <style>
- :root{--wine:#7b1e2b;--gold:#e0b56e;--cream:#f3ece0;--card:rgba(255,255,255,.06);--line:rgba(243,236,224,.16)}
+ :root{--shu:#7b1e2b;--kin:#e0b56e;--cream:#f3ece0;--card:rgba(255,255,255,.06);--line:rgba(243,236,224,.16)}
  *{box-sizing:border-box;margin:0;padding:0}
- body{font-family:"Hiragino Mincho ProN","Yu Mincho",serif;color:var(--cream);background:radial-gradient(120% 60% at 50% -10%, rgba(123,30,43,.45), transparent 60%),linear-gradient(180deg,#20140f,#160d0a 45%,#100807);min-height:100vh;-webkit-font-smoothing:antialiased}
+ body{font-family:"Hiragino Mincho ProN","Yu Mincho",serif;color:var(--cream);background:radial-gradient(120% 60% at 50% -10%, rgba(123,30,43,.42), transparent 60%),linear-gradient(180deg,#20140f,#160d0a 45%,#100807);min-height:100vh;-webkit-font-smoothing:antialiased}
  .wrap{max-width:460px;margin:0 auto;padding:26px 18px 40px}
- .head{text-align:center;padding:10px 0 6px}
- .logo{font-family:"Georgia","Times New Roman",serif;font-size:40px;font-weight:900;letter-spacing:2px;color:var(--gold);text-shadow:0 4px 18px rgba(0,0,0,.5);line-height:1}
- .logo small{display:block;font-family:"Hiragino Mincho ProN",serif;font-size:22px;letter-spacing:8px;color:var(--cream);margin-top:8px}
- .name{margin-top:12px;font-size:15px;font-weight:700;letter-spacing:1px;color:#e9dcc4}
- .sub{margin-top:5px;font-size:12.5px;color:#c9b892;letter-spacing:1px;font-family:sans-serif}
- .handle{margin-top:10px;display:inline-block;font-family:sans-serif;font-size:12.5px;color:#f0d9ac;border:1px solid var(--line);border-radius:999px;padding:5px 14px;text-decoration:none}
- .lead{margin:16px 2px 2px;font-size:13.5px;line-height:1.8;color:#e4d6bd;text-align:center}
- .links{margin-top:18px;display:flex;flex-direction:column;gap:11px}
+ .head{text-align:center;padding:6px 0 4px}
+ .logo{font-family:"Georgia","Times New Roman",serif;font-size:42px;font-weight:900;letter-spacing:2px;color:var(--kin);text-shadow:0 4px 18px rgba(0,0,0,.55);line-height:1}
+ .logo small{display:block;font-family:"Hiragino Mincho ProN",serif;font-size:21px;letter-spacing:9px;color:var(--cream);margin-top:9px}
+ .name{margin-top:12px;font-size:15px;font-weight:800;letter-spacing:1px}
+ .sub{margin-top:5px;font-size:13px;color:#d9c9a6;letter-spacing:1px;font-family:sans-serif}
+ .handle{margin-top:9px;display:inline-block;font-family:sans-serif;font-size:12.5px;color:#f0d9ac;border:1px solid var(--line);border-radius:999px;padding:4px 12px;text-decoration:none}
+ .catch{margin:16px 2px 16px;text-align:center}
+ .catch .c1{font-size:16px;font-weight:900;color:var(--cream);letter-spacing:.02em;line-height:1.65}
+ .catch .c1 b{color:var(--kin)}
+ .catch .c2{margin-top:9px;font-family:sans-serif;font-size:11.5px;color:#cbbb95;line-height:1.9}
+ .links{margin-top:4px;display:flex;flex-direction:column;gap:11px}
  a.btn{display:flex;align-items:center;gap:12px;text-decoration:none;background:var(--card);border:1px solid var(--line);border-radius:14px;padding:15px 16px;color:var(--cream)}
  a.btn:active{transform:scale(.98)}
  a.btn .ic{font-size:22px;width:30px;text-align:center;flex:none}
@@ -25,70 +28,115 @@
  a.btn .ar{opacity:.5;font-family:sans-serif}
  a.primary{background:linear-gradient(135deg,#8f2432,#6d1a26);border-color:rgba(224,181,110,.5)}
  a.primary .ds{color:#f0d9c4}
- .seclab{margin:26px 2px 12px;font-family:sans-serif;font-weight:900;font-size:16px;letter-spacing:1px;display:flex;align-items:center;gap:8px;color:var(--gold)}
+ a.btn.review{background:linear-gradient(135deg,rgba(224,181,110,.16),rgba(224,181,110,.06));border-color:rgba(224,181,110,.45)}
+ a.btn.review .tt{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+ a.btn.review .stars{color:var(--kin);font-size:13px;letter-spacing:1px}
+ a.btn.review .ds{color:#e8cf9f}
+ .seclab{margin:26px 2px 12px;font-family:sans-serif;font-weight:900;font-size:16px;letter-spacing:1px;display:flex;align-items:center;gap:8px;color:var(--kin)}
  .seclab:before,.seclab:after{content:"";height:1px;background:var(--line);flex:1}
  .menu{display:grid;grid-template-columns:1fr 1fr;gap:10px}
  .m{background:var(--card);border:1px solid var(--line);border-radius:12px;overflow:hidden}
  .mi{aspect-ratio:4/5;background:#0b0705;overflow:hidden}
  .mi img{width:100%;height:100%;object-fit:cover;display:block}
- .mn{padding:9px 10px;font-size:12.5px;font-weight:700;font-family:sans-serif;color:#efe2c9;line-height:1.35;text-align:center}
- .info{margin-top:22px;background:var(--card);border:1px solid var(--line);border-radius:14px;padding:6px 14px}
- .info .row{display:flex;gap:12px;padding:11px 0;border-bottom:1px solid var(--line);font-size:13px;line-height:1.7}
- .info .row:last-child{border-bottom:0}
- .info .k{flex:none;width:74px;color:var(--gold);font-family:sans-serif;font-weight:800;font-size:12.5px}
+ .mn{font-family:sans-serif;font-weight:800;font-size:12.5px;padding:8px 9px 0;line-height:1.3}
+ .md{font-family:sans-serif;font-size:10.5px;color:#c2b18d;padding:3px 9px 10px;line-height:1.35}
+ .info{margin-top:24px;border-top:1px solid var(--line);padding-top:16px;font-family:sans-serif}
+ .info .row{display:flex;gap:10px;font-size:13px;color:#dccda9;padding:5px 2px}
+ .info .row .k{width:70px;color:#b7a681;flex:none}
  .contact{margin-top:16px;text-align:center}
- .contact a{color:var(--cream);font-family:sans-serif;font-size:14px;text-decoration:none;border:1px solid var(--line);border-radius:999px;padding:9px 18px;display:inline-block}
- .foot{margin-top:24px;text-align:center;font-size:11px;color:#9a8a6e;font-family:sans-serif;letter-spacing:1px}
- #iabbar{display:none;margin:0 0 14px;background:rgba(224,181,110,.12);border:1px solid rgba(224,181,110,.4);border-radius:12px;padding:11px 13px;font-family:sans-serif;font-size:12.5px;color:#f0d9ac}
- #iabbar b{cursor:pointer;text-decoration:underline}
- #iabhint{display:none;margin-top:7px;color:#e4d6bd}
-</style>
-</head><body>
+ .contact a{font-family:sans-serif;font-size:12px;color:#9a8a6a;text-decoration:none}
+ .foot{margin-top:14px;text-align:center;font-family:sans-serif;font-size:11px;color:#7c6f56}
+ .iabbar{display:none;position:sticky;top:0;z-index:60;background:#7b1e2b;color:#fff;padding:11px 14px;font-family:sans-serif;font-size:12.5px;line-height:1.5;text-align:center;box-shadow:0 3px 12px rgba(0,0,0,.45)}
+ .iabbar b{display:block;font-size:13.5px;margin-bottom:4px}
+ .iabbar .obtn{margin-top:6px;background:#fff;color:#7b1e2b;border:0;border-radius:999px;padding:7px 16px;font-weight:800;font-size:12.5px;font-family:sans-serif}
+ .iabhint{display:none;margin-top:7px;font-size:11.5px;color:#f2dcdc}
+</style></head><body>
+<div class="iabbar" id="iabbar"><b>アプリ内ブラウザで開いています</b>ご予約・口コミは外部ブラウザ（Safari / Chrome）だとスムーズです。<div><button class="obtn" onclick="openExternal()">ブラウザで開く</button></div><div class="iabhint" id="iabhint">iPhoneは右上の「•••」→「外部ブラウザで開く」でSafariが開きます（ログイン済みのGoogleがそのまま使えます）。</div></div>
 <div class="wrap">
- <div id="iabbar">アプリ内ブラウザで表示中です。地図や予約が開きにくい場合は <b onclick="openExternal()">ブラウザで開く</b>。
-  <div id="iabhint">右上「•••」→「ブラウザで開く（Safari）」をタップしてください。</div>
- </div>
-
  <div class="head">
   <div class="logo">NagaGutsu<small>ナガグツ</small></div>
   <div class="name">イタリアン・肉バル</div>
-  <div class="sub">梅田・堂山町｜東通り商店街</div>
+  <div class="sub">梅田・堂山町 ｜ 東通り商店街</div>
   <a class="handle" href="https://www.instagram.com/nagagutsu0427/" target="_blank" rel="noopener">@nagagutsu0427</a>
  </div>
-
- <p class="lead">こだわりの肉料理とワイン、<br>気軽に楽しめる一皿を豊富にご用意して<br>お待ちしております🍷</p>
-
  <div class="links">
-  <a class="btn primary" href="https://www.google.com/maps/reserve/v/dine/c/u7WNJPCVKLs?source=pa" target="_blank" rel="noopener">
-   <span class="ic">📅</span><span class="tx"><div class="tt">席を予約する</div><div class="ds">Google で今すぐ空席確認・予約</div></span><span class="ar">›</span></a>
-  <a class="btn" href="https://tabelog.com/osaka/A2701/A270101/27156084/" target="_blank" rel="noopener">
-   <span class="ic">📖</span><span class="tx"><div class="tt">コース・メニューを見る</div><div class="ds">食べログでメニュー・コースを確認</div></span><span class="ar">›</span></a>
-  <a class="btn" href="tel:0661309907">
-   <span class="ic">📞</span><span class="tx"><div class="tt">電話で予約・お問い合わせ</div><div class="ds">06-6130-9907</div></span><span class="ar">›</span></a>
-  <a class="btn" href="https://www.google.com/maps/search/?api=1&query=%E3%83%8A%E3%82%AC%E3%82%B0%E3%83%84%20%E6%A2%85%E7%94%B0%20%E5%A0%82%E5%B1%B1%E7%94%BA" target="_blank" rel="noopener">
-   <span class="ic">📍</span><span class="tx"><div class="tt">地図・クチコミ（Google）</div><div class="ds">大阪市北区堂山町8-8 梅田エイトビル1F</div></span><span class="ar">›</span></a>
-  <a class="btn" href="https://www.instagram.com/nagagutsu0427/" target="_blank" rel="noopener">
-   <span class="ic">📷</span><span class="tx"><div class="tt">Instagram</div><div class="ds">最新の一皿・お店の雰囲気はこちら</div></span><span class="ar">›</span></a>
+  <div class="catch">
+   <div class="c1">こだわりの肉料理 × <b>ワイン</b></div>
+   <div class="c2">気軽に楽しめる一皿を、豊富にご用意。<br>梅田・堂山町のイタリアン肉バル。<br>今宵は、ナガグツで乾杯を🍷</div>
+  </div>
+  <a class="btn primary" href="https://www.google.com/maps/reserve/v/dine/c/u7WNJPCVKLs?source=pa&hl=ja-JP" target="_blank" rel="noopener"><span class="ic">📅</span><span class="tx"><div class="tt">席を予約する（Google）</div><div class="ds">人数と日時だけ・約30秒で完了</div></span><span class="ar">›</span></a>
+  <a class="btn" href="https://tabelog.com/osaka/A2701/A270101/27156084/" target="_blank" rel="noopener"><span class="ic">📖</span><span class="tx"><div class="tt">コース・メニュー（食べログ）</div><div class="ds">メニュー・コース・詳しい情報はこちら</div></span><span class="ar">›</span></a>
+  <a class="btn" href="tel:0661309907"><span class="ic">📞</span><span class="tx"><div class="tt">電話で予約・お問い合わせ</div><div class="ds">06-6130-9907</div></span><span class="ar">›</span></a>
+  <a class="btn" href="https://www.instagram.com/nagagutsu0427/" target="_blank" rel="noopener"><span class="ic">📷</span><span class="tx"><div class="tt">Instagram</div><div class="ds">最新の一皿・お店の雰囲気 @nagagutsu0427</div></span><span class="ar">›</span></a>
+  <a class="btn" href="https://www.google.com/maps/search/?api=1&query=%E3%83%8A%E3%82%AC%E3%82%B0%E3%83%84%20%E6%A2%85%E7%94%B0%20%E5%A0%82%E5%B1%B1%E7%94%BA" target="_blank" rel="noopener"><span class="ic">📍</span><span class="tx"><div class="tt">地図・アクセス</div><div class="ds">Googleマップで開く（梅田・堂山町）</div></span><span class="ar">›</span></a>
+  <a class="btn review" href="https://www.google.com/maps?cid=4972239069435958698" target="_blank" rel="noopener"><span class="ic">⭐️</span><span class="tx"><div class="tt">口コミで応援する（Google）<span class="stars">★★★★★</span></div><div class="ds">あなたの声がスタッフの励みになります！</div></span><span class="ar">›</span></a>
  </div>
 
- <div class="seclab">おすすめの一皿</div>
+ <div class="seclab">🍽 おすすめメニュー</div>
+ <div style="font-family:sans-serif;font-size:11px;color:#b7a681;margin:-4px 2px 12px">写真の一部です。日により内容が変わります。</div>
  <div class="menu">
-  <div class="m"><div class="mi"><img loading="lazy" src="https://cdn.jsdelivr.net/gh/amami-cell/susabiyu-media@0ddc1dfd4f480af8554895319ebe216ec2faf7aa/preview/20260910151138_8681.jpg" alt="彩りたっぷりMIXアヒージョ"></div><div class="mn">彩りたっぷりMIXアヒージョ</div></div>
-  <div class="m"><div class="mi"><img loading="lazy" src="https://cdn.jsdelivr.net/gh/amami-cell/susabiyu-media@7e35f8cbac70c4bc783e3ace94303f92029cc13f/preview/20260910151238_3955.jpg" alt="濃厚カルボナーラ"></div><div class="mn">濃厚カルボナーラ</div></div>
-  <div class="m"><div class="mi"><img loading="lazy" src="https://cdn.jsdelivr.net/gh/amami-cell/susabiyu-media@c1ba128531dfaa5eb4a2501244ab1b5c6dc106ea/preview/20260910151451_7964.jpg" alt="海老ジェノベーゼニョッキ"></div><div class="mn">海老ジェノベーゼニョッキ</div></div>
-  <div class="m"><div class="mi"><img loading="lazy" src="https://cdn.jsdelivr.net/gh/amami-cell/susabiyu-media@0f0fb03654488ea500406f365d945acecd54c35f/preview/20260910181836_0871.jpg" alt="自家製ドルチェ"></div><div class="mn">自家製ドルチェ</div></div>
-  <div class="m"><div class="mi"><img loading="lazy" src="https://cdn.jsdelivr.net/gh/amami-cell/susabiyu-media@62207bf7daa61743978d5ef35af3bffcbe3d0047/preview/20260910153557_9033.jpg" alt="自家製ピクルス"></div><div class="mn">自家製ピクルス</div></div>
-  <div class="m"><div class="mi"><img loading="lazy" src="https://cdn.jsdelivr.net/gh/amami-cell/susabiyu-media@139c984270b559324f78c073ed1fcebac726e6d3/preview/20260910153814_3738.jpg" alt="王道ポモドーロ"></div><div class="mn">王道ポモドーロ</div></div>
+<div class="m"><div class="mi"><img loading="lazy" src="nagagutsu/f_38481c2daf.jpg" alt="MIXアヒージョ"></div><div class="mn">MIXアヒージョ</div><div class="md">ぐつぐつ、香る一皿</div></div>
+<div class="m"><div class="mi"><img loading="lazy" src="nagagutsu/f_8ada1a5a65.jpg" alt="きゅうりピクルス"></div><div class="mn">きゅうりピクルス</div><div class="md">箸休めに、ぽりぽり</div></div>
+<div class="m"><div class="mi"><img loading="lazy" src="nagagutsu/f_57dffa95fd.jpg" alt="たっぷりガーリックのポモドーロ"></div><div class="mn">たっぷりガーリックのポモドーロ</div><div class="md">香る、王道トマト</div></div>
+<div class="m"><div class="mi"><img loading="lazy" src="nagagutsu/f_cd0fe34a18.jpg" alt="アンチョビキャベツ"></div><div class="mn">アンチョビキャベツ</div><div class="md">無限に、いける</div></div>
+<div class="m"><div class="mi"><img loading="lazy" src="nagagutsu/f_0210ce7c06.jpg" alt="アーリオ・オーリオ・エ・ペペロンチーノ"></div><div class="mn">アーリオ・オーリオ・エ・ペペロンチーノ</div><div class="md">イタリアンの、原点</div></div>
+<div class="m"><div class="mi"><img loading="lazy" src="nagagutsu/f_8dcc5a5833.jpg" alt="イカスミリゾットのアランチーニ"></div><div class="mn">イカスミリゾットのアランチーニ</div><div class="md">黒に、驚く</div></div>
+<div class="m"><div class="mi"><img loading="lazy" src="nagagutsu/f_b9bc3fee2d.jpg" alt="エビフリット"></div><div class="mn">エビフリット</div><div class="md">サクッ、ぷりっ</div></div>
+<div class="m"><div class="mi"><img loading="lazy" src="nagagutsu/f_8df69b7418.jpg" alt="エリンギのソテーガーリックバターソース"></div><div class="mn">エリンギのソテーガーリックバターソース</div><div class="md">香り、じゅわり</div></div>
+<div class="m"><div class="mi"><img loading="lazy" src="nagagutsu/f_d1b1f95e71.jpg" alt="オイルサーディン"></div><div class="mn">オイルサーディン</div><div class="md">定番の、酒の肴</div></div>
+<div class="m"><div class="mi"><img loading="lazy" src="nagagutsu/f_d15f6089f6.jpg" alt="オリーブ盛り合わせ"></div><div class="mn">オリーブ盛り合わせ</div><div class="md">つまんで、乾杯</div></div>
+<div class="m"><div class="mi"><img loading="lazy" src="nagagutsu/f_451c96a60a.jpg" alt="カタラーナ"></div><div class="mn">カタラーナ</div><div class="md">香ばし、とろける</div></div>
+<div class="m"><div class="mi"><img loading="lazy" src="nagagutsu/f_6c532726e6.jpg" alt="カチョエペペ"></div><div class="mn">カチョエペペ</div><div class="md">チーズと、黒胡椒</div></div>
+<div class="m"><div class="mi"><img loading="lazy" src="nagagutsu/f_542d895316.jpg" alt="カプレーゼ"></div><div class="mn">カプレーゼ</div><div class="md">トマトと、モッツァレラ</div></div>
+<div class="m"><div class="mi"><img loading="lazy" src="nagagutsu/f_536174f1b0.jpg" alt="カルボナーラ"></div><div class="mn">カルボナーラ</div><div class="md">濃厚、追い卵黄</div></div>
+<div class="m"><div class="mi"><img loading="lazy" src="nagagutsu/f_62ea59a1c7.jpg" alt="クミン香るキャロットラペ"></div><div class="mn">クミン香るキャロットラペ</div><div class="md">箸休めに、一皿</div></div>
+<div class="m"><div class="mi"><img loading="lazy" src="nagagutsu/f_30db079e49.jpg" alt="グリルケバブ"></div><div class="mn">グリルケバブ</div><div class="md">がっつり、肉。</div></div>
+<div class="m"><div class="mi"><img loading="lazy" src="nagagutsu/f_6e7882caf6.jpg" alt="グリーンサラダ"></div><div class="mn">グリーンサラダ</div><div class="md">まずは、緑から</div></div>
+<div class="m"><div class="mi"><img loading="lazy" src="nagagutsu/f_ab2e35eb23.jpg" alt="ケバブポテト"></div><div class="mn">ケバブポテト</div><div class="md">背徳の、山盛り</div></div>
+<div class="m"><div class="mi"><img loading="lazy" src="nagagutsu/f_0c313daf38.jpg" alt="サーモンカルパッチョ　サラダ仕立て"></div><div class="mn">サーモンカルパッチョ　サラダ仕立て</div><div class="md">彩り、華やか</div></div>
+<div class="m"><div class="mi"><img loading="lazy" src="nagagutsu/f_b98df8ccc7.jpg" alt="ジェラート"></div><div class="mn">ジェラート</div><div class="md">ひんやり、〆に</div></div>
+<div class="m"><div class="mi"><img loading="lazy" src="nagagutsu/f_19242ccd2b.jpg" alt="スペイン風オムレツ"></div><div class="mn">スペイン風オムレツ</div><div class="md">ふんわり、具だくさん</div></div>
+<div class="m"><div class="mi"><img loading="lazy" src="nagagutsu/f_73472b14f1.jpg" alt="タコフリット"></div><div class="mn">タコフリット</div><div class="md">やわらか、ぷりっ</div></div>
+<div class="m"><div class="mi"><img loading="lazy" src="nagagutsu/f_092619d0de.jpg" alt="チーズ盛り合わせ"></div><div class="mn">チーズ盛り合わせ</div><div class="md">ワインの、相棒</div></div>
+<div class="m"><div class="mi"><img loading="lazy" src="nagagutsu/f_0f3308e879.jpg" alt="ティラミス"></div><div class="mn">ティラミス</div><div class="md">王道の、ドルチェ</div></div>
+<div class="m"><div class="mi"><img loading="lazy" src="nagagutsu/f_0aae837a91.jpg" alt="ブラウニー"></div><div class="mn">ブラウニー</div><div class="md">濃厚、チョコ</div></div>
+<div class="m"><div class="mi"><img loading="lazy" src="nagagutsu/f_d0e7b053d8.jpg" alt="ブロッコリーのしらすのマリナート"></div><div class="mn">ブロッコリーのしらすのマリナート</div><div class="md">さっぱり、旨み</div></div>
+<div class="m"><div class="mi"><img loading="lazy" src="nagagutsu/f_48b8336de1.jpg" alt="ペスカトーレ"></div><div class="mn">ペスカトーレ</div><div class="md">魚介、たっぷり</div></div>
+<div class="m"><div class="mi"><img loading="lazy" src="nagagutsu/f_c8a3f4b897.jpg" alt="ペンネゴルゴンゾーラ"></div><div class="mn">ペンネゴルゴンゾーラ</div><div class="md">濃厚、青カビ</div></div>
+<div class="m"><div class="mi"><img loading="lazy" src="nagagutsu/f_e144d587af.jpg" alt="ポテトサラダ"></div><div class="mn">ポテトサラダ</div><div class="md">定番の、安心</div></div>
+<div class="m"><div class="mi"><img loading="lazy" src="nagagutsu/f_c8879a34ef.jpg" alt="ポテトフライ"></div><div class="mn">ポテトフライ</div><div class="md">みんな、好き</div></div>
+<div class="m"><div class="mi"><img loading="lazy" src="nagagutsu/f_21d4bbb633.jpg" alt="マッシュルーム・ドライトマトのアヒージョ"></div><div class="mn">マッシュルーム・ドライトマトのアヒージョ</div><div class="md">旨み、凝縮</div></div>
+<div class="m"><div class="mi"><img loading="lazy" src="nagagutsu/f_899336c554.jpg" alt="ミックスナッツ"></div><div class="mn">ミックスナッツ</div><div class="md">つまむ手が、止まらない</div></div>
+<div class="m"><div class="mi"><img loading="lazy" src="nagagutsu/f_f2cc4f669b.jpg" alt="ミルクレープ"></div><div class="mn">ミルクレープ</div><div class="md">重なる、しあわせ</div></div>
+<div class="m"><div class="mi"><img loading="lazy" src="nagagutsu/f_a30fcd1743.jpg" alt="ムール貝白ワイン蒸し"></div><div class="mn">ムール貝白ワイン蒸し</div><div class="md">旨み、あふれる</div></div>
+<div class="m"><div class="mi"><img loading="lazy" src="nagagutsu/f_ad2648b137.jpg" alt="レーズンバター"></div><div class="mn">レーズンバター</div><div class="md">甘じょっぱ、罪。</div></div>
+<div class="m"><div class="mi"><img loading="lazy" src="nagagutsu/f_612f59bfd8.jpg" alt="ワタリガニのビスクソースパスタ"></div><div class="mn">ワタリガニのビスクソースパスタ</div><div class="md">濃厚、蟹の旨み</div></div>
+<div class="m"><div class="mi"><img loading="lazy" src="nagagutsu/f_06f7322235.jpg" alt="前菜盛り合わせ"></div><div class="mn">前菜盛り合わせ</div><div class="md">少しずつ、贅沢</div></div>
+<div class="m"><div class="mi"><img loading="lazy" src="nagagutsu/f_90626a66d5.jpg" alt="和牛すね肉の赤ワイン煮込み"></div><div class="mn">和牛すね肉の赤ワイン煮込み</div><div class="md">とろける、名物</div></div>
+<div class="m"><div class="mi"><img loading="lazy" src="nagagutsu/f_cae3b35cb5.jpg" alt="山芋チーズグラタン"></div><div class="mn">山芋チーズグラタン</div><div class="md">ふわとろ、熱々</div></div>
+<div class="m"><div class="mi"><img loading="lazy" src="nagagutsu/f_39fe1f7023.jpg" alt="山芋フリット"></div><div class="mn">山芋フリット</div><div class="md">ほくっ、さくっ</div></div>
+<div class="m"><div class="mi"><img loading="lazy" src="nagagutsu/f_d00246de95.jpg" alt="揚げニョッキ　アンチョビバターソース"></div><div class="mn">揚げニョッキ　アンチョビバターソース</div><div class="md">もちっ、旨塩</div></div>
+<div class="m"><div class="mi"><img loading="lazy" src="nagagutsu/f_d95e6fe33f.jpg" alt="本日のタルト"></div><div class="mn">本日のタルト</div><div class="md">本日の、ご褒美</div></div>
+<div class="m"><div class="mi"><img loading="lazy" src="nagagutsu/f_2cc30ff52f.jpg" alt="枝豆ペペロンチーノ"></div><div class="mn">枝豆ペペロンチーノ</div><div class="md">定番を、ひとひねり</div></div>
+<div class="m"><div class="mi"><img loading="lazy" src="nagagutsu/f_d74c114e96.jpg" alt="海老とブロッコリーのアヒージョ"></div><div class="mn">海老とブロッコリーのアヒージョ</div><div class="md">ぷりぷり、ぐつぐつ</div></div>
+<div class="m"><div class="mi"><img loading="lazy" src="nagagutsu/f_92393e0eb6.jpg" alt="海老ジェノベーゼニョッキ"></div><div class="mn">海老ジェノベーゼニョッキ</div><div class="md">香る、バジル</div></div>
+<div class="m"><div class="mi"><img loading="lazy" src="nagagutsu/f_3eb057dd88.jpg" alt="淡路牛のボロネーゼ"></div><div class="mn">淡路牛のボロネーゼ</div><div class="md">肉、たっぷり</div></div>
+<div class="m"><div class="mi"><img loading="lazy" src="nagagutsu/f_1183fc667e.jpg" alt="牛肩ロースのステーキ　バルサミコソース"></div><div class="mn">牛肩ロースのステーキ　バルサミコソース</div><div class="md">肉に、乾杯。</div></div>
+<div class="m"><div class="mi"><img loading="lazy" src="nagagutsu/f_9174cb204f.jpg" alt="玉ねぎ　キャラメルオニオンバター"></div><div class="mn">玉ねぎ　キャラメルオニオンバター</div><div class="md">とろり、甘い</div></div>
+<div class="m"><div class="mi"><img loading="lazy" src="nagagutsu/f_349024df04.jpg" alt="生ハム切り落とし"></div><div class="mn">生ハム切り落とし</div><div class="md">塩気が、進む</div></div>
+<div class="m"><div class="mi"><img loading="lazy" src="nagagutsu/f_83736f8584.jpg" alt="茄子のハーブトマト焼き"></div><div class="mn">茄子のハーブトマト焼き</div><div class="md">とろっと、香る</div></div>
+<div class="m"><div class="mi"><img loading="lazy" src="nagagutsu/f_da49585821.jpg" alt="蛸とセロリのマリネ　シチリア風"></div><div class="mn">蛸とセロリのマリネ　シチリア風</div><div class="md">さっぱり、シチリア</div></div>
+<div class="m"><div class="mi"><img loading="lazy" src="nagagutsu/f_85160d0a6d.jpg" alt="蛸とポテトのアヒージョ"></div><div class="mn">蛸とポテトのアヒージョ</div><div class="md">ぷりっ、ほくっ</div></div>
+<div class="m"><div class="mi"><img loading="lazy" src="nagagutsu/f_27d0e94069.jpg" alt="蜜揚げさつまいも　ハニーバター"></div><div class="mn">蜜揚げさつまいも　ハニーバター</div><div class="md">甘い、しあわせ</div></div>
+<div class="m"><div class="mi"><img loading="lazy" src="nagagutsu/f_1975bfc583.jpg" alt="豚肩ロースのソテー　トマトソース"></div><div class="mn">豚肩ロースのソテー　トマトソース</div><div class="md">ジューシー、王道</div></div>
  </div>
 
- <div class="seclab">店舗情報</div>
  <div class="info">
   <div class="row"><span class="k">営業時間</span><span>日〜木　11:30〜23:00<br>金・土・祝前日　11:30〜翌5:00</span></div>
-  <div class="row"><span class="k">住所</span><span>大阪府大阪市北区堂山町8-8<br>梅田エイトビル 1F</span></div>
-  <div class="row"><span class="k">アクセス</span><span>各線梅田駅より徒歩8分<br>大阪メトロ谷町線 中崎町駅 徒歩5分</span></div>
+  <div class="row"><span class="k">住所</span><span>大阪府大阪市北区堂山町8-8 梅田エイトビル 1F</span></div>
+  <div class="row"><span class="k">アクセス</span><span>各線梅田駅より徒歩8分／大阪メトロ谷町線 中崎町駅 徒歩5分</span></div>
   <div class="row"><span class="k">エリア</span><span>梅田・堂山町（東通り商店街）</span></div>
  </div>
-
  <div class="contact"><a href="tel:0661309907">お問い合わせ：06-6130-9907</a></div>
  <div class="foot">© NagaGutsu（イタリアン・肉バル）</div>
 </div>
@@ -109,12 +157,13 @@
     var h=(a.getAttribute("href")||"").toLowerCase();
     if(h.indexOf("google.com/maps/reserve")>=0) return "席予約(Google)";
     if(h.indexOf("tabelog.com")>=0) return "コース・メニュー(食べログ)";
+    if(h.indexOf("cid=")>=0) return "口コミ";
     if(h.indexOf("instagram.com")>=0) return "Instagram";
-    if(h.indexOf("google.com/maps")>=0 || h.indexOf("maps.app.goo.gl")>=0) return "地図・クチコミ";
+    if(h.indexOf("google.com/maps")>=0 || h.indexOf("maps.app.goo.gl")>=0) return "地図";
     if(h.indexOf("tel:")===0) return "電話";
     return "";
   }
-  send("view","");   // PV
+  send("view","");
   document.addEventListener("click",function(e){
     var a=e.target && e.target.closest ? e.target.closest("a[href]") : null;
     if(!a) return;
