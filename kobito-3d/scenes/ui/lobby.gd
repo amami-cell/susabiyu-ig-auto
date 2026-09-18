@@ -220,10 +220,28 @@ func _dress_title() -> void:
 	sub.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(sub)
 
+	# 初見のつかみ：この game の“独自の売り”を ひとことで。＝倒さない・掃除して みどりを取り戻す。
+	# 題字/サブタイトルだけでは伝わらない「たたかわない やさしいゲーム」を 一行で伝える。
+	var hook := Label.new()
+	hook.name = "Hook"
+	hook.text = "たたかわない。よごれを おとして、みどりを とりもどす。"
+	hook.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	hook.anchor_left = 0.0
+	hook.anchor_right = 1.0
+	hook.anchor_top = 0.0
+	hook.offset_top = 154.0
+	hook.offset_bottom = 182.0
+	hook.add_theme_font_size_override("font_size", 18)
+	hook.add_theme_color_override("font_color", Color(1.0, 0.98, 0.90))
+	hook.add_theme_color_override("font_outline_color", Color(0.2, 0.3, 0.2))
+	hook.add_theme_constant_override("outline_size", 8)
+	hook.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(hook)
+
 
 func _dress_panel() -> void:
-	# 生成りの絵本パネルへ。少し下寄せして題字の下に置く。少し縦を広げて設定が入りやすく。
-	_panel.offset_top = -220.0
+	# 生成りの絵本パネルへ。少し下寄せして題字＋ひとことフックの下に置く。縦は設定が入りやすい高さに。
+	_panel.offset_top = -176.0
 	_panel.offset_bottom = 300.0
 	var sb := UIKit.panel(UIKit.CREAM, UIKit.GREEN_DK, 22, 4, 18)
 	_panel.add_theme_stylebox_override("panel", sb)
