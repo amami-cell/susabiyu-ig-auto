@@ -38,6 +38,12 @@ STORES = [
      "logo": os.path.join(_HERE, "assets_gifuya_logo_white.png"), "reply": _REPLY},
     {"account": "", "name": "すさび湯三条",
      "logo": os.path.join(_HERE, "assets_susabiyu_logo_white.png"), "reply": _REPLY},
+    # ナガグツ・GOLD京都ポルタも対象。白ロゴPNGが未用意のため logo は当該ファイルが
+    # 置かれた時だけ焼く（無ければロゴなしで成立＝graceful）。深夜ガードは全店共通で10-22時JSTのみ。
+    {"account": "nagagutsu", "name": "ナガグツ",
+     "logo": os.path.join(_HERE, "assets_nagagutsu_logo_white.png"), "reply": _REPLY},
+    {"account": "goldporta", "name": "GOLD京都ポルタ",
+     "logo": os.path.join(_HERE, "assets_goldporta_logo_white.png"), "reply": _REPLY},
 ]
 ONLY = (os.environ.get("STORE_ACCOUNT") or "").strip()   # 指定時はその店舗だけ
 
