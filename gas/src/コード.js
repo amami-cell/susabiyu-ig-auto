@@ -877,7 +877,8 @@ function cands_() {
 }
 function regionalTags_(region, peek) {
   var COOLDOWN_MS = 7 * 24 * 3600 * 1000, LIMIT = 10;
-  var props = PropertiesService.getScriptProperties(), SK = "regstore_" + (region || "default");
+  // キャッシュキーは "regstore2_"（v2）。プール見直し時に旧キャッシュ(福岡等の誤タグ)を破棄して作り直す。
+  var props = PropertiesService.getScriptProperties(), SK = "regstore2_" + (region || "default");
   var saved = null; try { saved = JSON.parse(props.getProperty(SK) || "null"); } catch (e) {}
   if (peek) {
     return saved ? { ok: true, tags: saved.tags, updatedAt: saved.updatedAt, nextAt: saved.nextAt, live: saved.live, cooldown: Date.now() < saved.nextAt }
@@ -902,7 +903,32 @@ function regionalTags_(region, peek) {
     { t: "japanesefood", r: 2, inb: 1 }, { t: "izakaya", r: 2, inb: 1 }, { t: "tenjin", r: 1, inb: 1 },
     { t: "hakata", r: 1, inb: 1 }, { t: "visitfukuoka", r: 1, inb: 1 }, { t: "fukuoka", r: 3, inb: 1 }
   ];
-  var POOL = (/福岡|天神|博多|fukuoka|tenjin|hakata/i.test(String(region || ""))) ? POOL_FUKUOKA : POOL_KYOTO;
+  // 大阪・梅田（ナガグツ＝梅田・堂山町／中崎町）。京都・福岡のタグは混ぜない。
+  var POOL_OSAKA = [
+    { t: "梅田グルメ", r: 3 }, { t: "梅田ディナー", r: 3 }, { t: "大阪グルメ", r: 2 }, { t: "梅田飲み", r: 2 },
+    { t: "梅田バル", r: 2 }, { t: "大阪ディナー", r: 2 }, { t: "梅田居酒屋", r: 2 }, { t: "中崎町グルメ", r: 1 },
+    { t: "梅田肉バル", r: 1 }, { t: "大阪食べ歩き", r: 1 }, { t: "堂山町", r: 1 }, { t: "梅田デート", r: 1 },
+    { t: "osaka", r: 3, inb: 1 }, { t: "umeda", r: 3, inb: 1 }, { t: "osakafood", r: 2, inb: 1 },
+    { t: "osakagourmet", r: 2, inb: 1 }, { t: "japanesefood", r: 2, inb: 1 }, { t: "izakaya", r: 2, inb: 1 },
+    { t: "osakatrip", r: 1, inb: 1 }, { t: "visitosaka", r: 1, inb: 1 }, { t: "osakarestaurant", r: 1, inb: 1 }
+  ];
+  // 京都駅・ポルタ（GOLD京都ポルタ）。三条(河原町)用の POOL_KYOTO とは別に、駅前ワードを主にする。
+  var POOL_KYOTO_STATION = [
+    { t: "京都駅グルメ", r: 3 }, { t: "京都駅ディナー", r: 3 }, { t: "京都ポルタ", r: 3 }, { t: "京都駅", r: 2 },
+    { t: "京都グルメ", r: 2 }, { t: "京都ディナー", r: 2 }, { t: "京都フレンチ", r: 2 }, { t: "京都ビストロ", r: 2 },
+    { t: "京都駅ランチ", r: 1 }, { t: "京都ワイン", r: 1 }, { t: "京都駅前", r: 1 }, { t: "京都デート", r: 1 },
+    { t: "kyoto", r: 3, inb: 1 }, { t: "kyotostation", r: 3, inb: 1 }, { t: "kyotofood", r: 2, inb: 1 },
+    { t: "kyotogourmet", r: 2, inb: 1 }, { t: "japanesefood", r: 2, inb: 1 }, { t: "bistro", r: 2, inb: 1 },
+    { t: "kyotorestaurant", r: 1, inb: 1 }, { t: "visitkyoto", r: 1, inb: 1 }, { t: "kyotojapan", r: 1, inb: 1 }
+  ];
+  // 店ごとの地域から正しいプールを選ぶ（順序重要：福岡→大阪→京都駅→既定は京都(三条河原町)）。
+  // 三条="河原町三条（京都）"→京都、GOLD="京都（京都駅・ポルタ）"→京都駅、ナガグツ="梅田（大阪）"→大阪、ぎふや="天神（福岡）"→福岡。
+  var _r = String(region || "");
+  var POOL;
+  if (/福岡|天神|博多|中洲|大名|fukuoka|tenjin|hakata/i.test(_r)) POOL = POOL_FUKUOKA;
+  else if (/梅田|大阪|難波|中崎|堂山|umeda|osaka|namba/i.test(_r)) POOL = POOL_OSAKA;
+  else if (/京都駅|ポルタ|porta|kyotostation/i.test(_r)) POOL = POOL_KYOTO_STATION;
+  else POOL = POOL_KYOTO;
   var TOKEN = props.getProperty("IG_ACCESS_TOKEN"), IGUSER = props.getProperty("IG_USER_ID");
   var live = false, scored = [];
   for (var i = 0; i < POOL.length; i++) {
