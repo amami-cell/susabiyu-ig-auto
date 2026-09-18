@@ -4,11 +4,12 @@ name: gifuya-post
 # 承認/差し替え/やめる/作り直しは確認アプリ→GAS→シートに反映済みの状態を尊重して投稿する。
 on:
   schedule:
-    # 【根本対策】cron分を「00分」から外す（GitHubは毎時00分が最混雑で遅延しやすい）。
-    # 分をずらすと起動遅延が大幅に減る。DTは下のcaseで枠時刻(JST)へ明示マップするので投稿枠は不変。
-    - cron: '7 2 * * *'    # JST 11:00 枠（02:07 UTC）
-    - cron: '23 8 * * *'   # JST 17:00 枠（08:23 UTC）
-    - cron: '41 11 * * *'  # JST 20:00 枠（11:41 UTC）
+    # 【根本対策】GitHubのschedule発火は数時間遅れる/間引かれる（実測4〜5.7h）。疎なcronだと
+    # 発火が投稿許容窓(10-22時JST)を飛び越えて全枠スキップ＝未投稿になる。→ 窓の時間帯を
+    # 30分おきにポーリングし、毎回“その日の全枠(11/17/20時JST)”を試す。各枠は post_approved の
+    # ガードで「投稿済み/まだ枠前/窓外/大幅遅延」を判定し、窓内で最初に回った実行が1回だけ投稿。
+    # 深夜は窓ガード(10-22時)で絶対に出さない。
+    - cron: '*/30 1-13 * * *'   # UTC 01:00-13:30（＝JST 10:00-22:30）30分おき
   workflow_dispatch:
     inputs:
       datetime:
@@ -68,24 +69,27 @@ jobs:
           DRY: ${{ github.event.inputs.dry }}
           SCHED: ${{ github.event.schedule }}
           INPUT_DT: ${{ github.event.inputs.datetime }}
-          # 遅延ガード：スケジュール実行(cron)時のみ有効。GitHubのcron遅延で予定枠より
-          # 大幅に遅れた(既定120分超)場合は投稿せずスキップし、深夜の自動投稿を防ぐ。
-          # 手動 workflow_dispatch（＝アプリの「即投稿」）では未設定＝従来どおり時刻不問で投稿。
-          POST_SCHED_GUARD: ${{ github.event.schedule && '1' || '' }}
-          POST_MAX_LATE_MIN: "120"
+          # 深夜投稿ガード：自動投稿は 10:00〜22:00 JST の外では絶対に出さない。
+          # 全枠ループ（日時未指定）では必ずガードON＝未来枠の早出し/窓外(夜間)/二重を防ぐ。
+          # 日時を明示した手動 workflow_dispatch（アプリの「即投稿」）のときだけOFF＝その枠を即投稿。
+          POST_SCHED_GUARD: ${{ github.event.inputs.datetime == '' && '1' || '' }}
+          POST_WINDOW_FROM: "10"
+          POST_WINDOW_TO: "22"
+          POST_MAX_LATE_MIN: "600"
         run: |
-          DT="$INPUT_DT"
-          if [ -z "$DT" ] && [ -n "$SCHED" ]; then
-            # cron 遅延に強いよう、UTC日付＋スロット時刻(JST)を明示（全スロットともUTC日=JST日）。
-            D=$(date -u +%F)
-            case "$SCHED" in
-              "7 2 * * *")   DT="$D 11:00" ;;
-              "23 8 * * *")  DT="$D 17:00" ;;
-              "41 11 * * *") DT="$D 20:00" ;;
-            esac
+          # 手動で日時指定があればその1枠だけ即投稿（従来どおり）。
+          if [ -n "$INPUT_DT" ]; then
+            echo "対象日時(JST)=$INPUT_DT"
+            python post_approved.py creds.json "$INPUT_DT"
+            exit 0
           fi
-          echo "対象日時(JST)=$DT"
-          python post_approved.py creds.json "$DT"
+          # 通常は本日の全枠(11/17/20時JST)を順に試す。該当なし枠は post_approved 側でスキップ。JST日付で。
+          D=$(TZ=Asia/Tokyo date +%F)
+          for HH in 11 17 20; do
+            DT="$D ${HH}:00"
+            echo "=== 枠を試行: $DT ==="
+            python post_approved.py creds.json "$DT" || true
+          done
       - name: 失敗をLINE通知
         if: failure()
         env:

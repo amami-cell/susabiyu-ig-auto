@@ -1,12 +1,12 @@
 ﻿name: susabiyu-post
 on:
   schedule:
-    # 【根本対策】cron分を「00分」から外す（GitHubは毎時00分が最混雑で遅延しやすい）。
-    # 遅延で分がズレても、下のcaseで枠時刻(JST)へ明示マップするので投稿枠は不変。
-    - cron: '9 2 * * *'    # JST 11:00 枠（02:09 UTC・祝日）
-    - cron: '31 7 * * *'   # JST 16:00 枠（07:31 UTC・平日）
-    - cron: '21 9 * * *'   # JST 18:00 枠（09:21 UTC）
-    - cron: '51 11 * * *'  # JST 20:00 枠（11:51 UTC）
+    # 【根本対策】GitHubのschedule発火は数時間遅れる/間引かれる（実測4〜5.7h）。疎なcronだと
+    # 発火が投稿許容窓(10-22時JST)を飛び越えて全枠スキップ＝未投稿になる。→ 窓の時間帯を
+    # 30分おきにポーリングし、毎回“その日の全枠”を試す。各枠は post_approved のガードで
+    # 「投稿済み/まだ枠前/窓外/大幅遅延」を判定し、窓内で最初に回った実行が1回だけ投稿する。
+    # 深夜は窓ガード(10-22時)で絶対に出さない。
+    - cron: '*/30 1-13 * * *'   # UTC 01:00-13:30（＝JST 10:00-22:30）30分おき
   workflow_dispatch:
     inputs:
       datetime:
@@ -64,27 +64,30 @@ jobs:
           GH_MEDIA_TOKEN: ${{ secrets.GH_MEDIA_TOKEN }}
           GH_MEDIA_REPO: ${{ secrets.GH_MEDIA_REPO }}
           DRY: ${{ github.event.inputs.dry }}
-          # 深夜投稿ガード：スケジュール実行時のみ有効。自動投稿は 10:00〜22:00 JST の外では出さない。
-          # 手動 workflow_dispatch（アプリの「即投稿」）では未設定＝従来どおり時刻不問で投稿。
-          POST_SCHED_GUARD: ${{ github.event.schedule && '1' || '' }}
+          # 深夜投稿ガード：自動投稿は 10:00〜22:00 JST の外では絶対に出さない。
+          # 全枠ループ（日時未指定）では必ずガードON＝未来枠の早出し/窓外(夜間)/二重を防ぐ。
+          # 日時を明示した手動 workflow_dispatch（アプリの「即投稿」）のときだけOFF＝その枠を即投稿。
+          POST_SCHED_GUARD: ${{ github.event.inputs.datetime == '' && '1' || '' }}
           POST_WINDOW_FROM: "10"
           POST_WINDOW_TO: "22"
+          POST_MAX_LATE_MIN: "600"
           SCHED: ${{ github.event.schedule }}
           INPUT_DT: ${{ github.event.inputs.datetime }}
         run: |
-          # 手動datetime優先。スケジュールはcron→枠時刻(JST)へ明示マップ（cron分がズレても枠は不変）。
-          DT="$INPUT_DT"
-          if [ -z "$DT" ] && [ -n "$SCHED" ]; then
-            D=$(date -u +%F)   # 全枠ともUTC日=JST日
-            case "$SCHED" in
-              "9 2 * * *")   DT="$D 11:00" ;;
-              "31 7 * * *")  DT="$D 16:00" ;;
-              "21 9 * * *")  DT="$D 18:00" ;;
-              "51 11 * * *") DT="$D 20:00" ;;
-            esac
+          # 手動で日時指定があればその1枠だけ即投稿（従来どおり）。
+          if [ -n "$INPUT_DT" ]; then
+            echo "対象日時(JST)=$INPUT_DT"
+            python post_approved.py creds.json "$INPUT_DT"
+            exit 0
           fi
-          echo "対象日時(JST)=$DT"
-          python post_approved.py creds.json "$DT"
+          # 通常は本日の全枠(平日/祝日どちらの枠でも該当があれば投稿)を順に試す。
+          # 該当しない枠は post_approved 側で「該当枠なし→スキップ」になるので無害。JST日付で枠を作る。
+          D=$(TZ=Asia/Tokyo date +%F)
+          for HH in 11 16 18 20; do
+            DT="$D ${HH}:00"
+            echo "=== 枠を試行: $DT ==="
+            python post_approved.py creds.json "$DT" || true
+          done
       - name: 失敗をLINE通知
         if: failure()
         env:
