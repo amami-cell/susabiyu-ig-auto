@@ -507,7 +507,10 @@ func _show_result_card() -> void:
 	back.pressed.connect(func() -> void: Net.leave("タイトルに戻りました"))
 
 	var tw := create_tween()
-	tw.tween_interval(2.0)   # 余韻のあとに ふわっと出す
+	# 締めの見開き(みどりのはじまり/〜おわり〜)が“消え始める”のに合わせてカードを立ち上げる＝
+	# タイトルと成績が同時に くっきり重なる時間をなくし、見開き→カードの きれいな溶明にする
+	# （共有の一枚が 文字被りで汚れないように）。※ _closing_spread は 0.9+2.4=3.3秒で消え始める。
+	tw.tween_interval(3.3)
 	# カードが出る瞬間に 競合するHUD（めあて・会話ボックス・中央バナー）を消す＝
 	# クリアの“共有の一枚”を すっきり見せる（結果カードに集中させる）。
 	tw.tween_callback(func() -> void:
@@ -518,7 +521,12 @@ func _show_result_card() -> void:
 		if _box != null:
 			_box.visible = false
 		if _catch != null:
-			_catch.visible = false)
+			_catch.visible = false
+		# 画面上のプニコン（移動スティックの輪）や操作ボタンも消す＝“共有の一枚”をすっきり。
+		# 結果画面は終端なので操作UIは不要（進むのはカード上の「タイトルへ」だけ）。
+		var tp := get_node_or_null("../TouchPad")
+		if tp != null:
+			tp.visible = false)
 	tw.tween_property(_result_card, "modulate:a", 1.0, 0.6)
 	if not UIKit.reduce_fx():
 		tw.parallel().tween_property(_result_card, "scale", Vector2.ONE, 0.6).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)

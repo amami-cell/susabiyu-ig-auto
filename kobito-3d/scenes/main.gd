@@ -696,7 +696,7 @@ func _run_shot() -> void:
 	if OS.get_cmdline_user_args().has("--resultshot"):
 		WorldState.set_full()
 		Chapter.banner.emit("『みどりのはじまり』  〜おわり〜")
-		await get_tree().create_timer(3.6).timeout    # 余韻2.0＋フェード0.6の後に カードが出きった頃
+		await get_tree().create_timer(4.6).timeout    # 見開きが消えきり(4.1s)＋カードが出きった(3.9s)後の“きれいな一枚”
 		await RenderingServer.frame_post_draw
 		get_viewport().get_texture().get_image().save_png("/tmp/shot_result.png")
 	# --dexshot：ロビーの なかま図鑑ビューア（バッジ・コンプ%）を開いて撮る（開発確認用）。
