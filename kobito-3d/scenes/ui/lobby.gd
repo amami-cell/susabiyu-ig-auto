@@ -26,25 +26,25 @@ var _qr: Control = null
 
 # なかま図鑑の全種（id は data/*.tres のファイル名。色は見分け用の近似）。
 const DEX_SPECIES := [
-	{"id": "ant", "name": "アリ", "color": Color(0.42, 0.32, 0.26), "role": "すばしっこい：手数でついてくる"},
-	{"id": "beetle", "name": "コガネムシ", "color": Color(0.28, 0.46, 0.32), "role": "がんじょうな盾：癒やしが強い"},
-	{"id": "batta", "name": "バッタ", "color": Color(0.52, 0.66, 0.32), "role": "よくはねる：広めにとどく"},
-	{"id": "tentou", "name": "テントウ", "color": Color(0.82, 0.24, 0.22), "role": "がんじょうな盾：癒やしが強い"},
-	{"id": "chou", "name": "チョウ", "color": Color(0.72, 0.52, 0.86), "role": "ひらひら：飛べて ひろくとどく"},
-	{"id": "tonbo", "name": "トンボ", "color": Color(0.32, 0.62, 0.72), "role": "空の担当：空の敵にとどく"},
-	{"id": "hachi", "name": "ハチ", "color": Color(0.92, 0.76, 0.24), "role": "すばやい手数：何度も癒やす"},
-	{"id": "amenbo", "name": "アメンボ", "color": Color(0.5, 0.56, 0.62), "role": "すいすい：水辺を すばやく"},
-	{"id": "gengoro", "name": "ゲンゴロウ", "color": Color(0.18, 0.32, 0.24), "role": "がんじょうな盾：癒やしが強い"},
-	{"id": "queen_ant", "name": "女王アリ", "color": Color(0.55, 0.2, 0.22), "role": "女王の加護：とても強い癒やし"},
-	{"id": "tagame", "name": "タガメ", "color": Color(0.36, 0.31, 0.2), "role": "みずべの ぬし：大きくて力強い"},
-	{"id": "hotaru", "name": "ホタル", "color": Color(0.85, 1.0, 0.5), "role": "ともしび：くらやみを 照らす"},
-	{"id": "moth", "name": "オオガ", "color": Color(0.42, 0.36, 0.3), "role": "よるの ぬし：大きな羽で 力強い"},
-	{"id": "dango", "name": "ダンゴムシ", "color": Color(0.4, 0.42, 0.46), "role": "がんじょうな盾：癒やしが強い"},
-	{"id": "kumo", "name": "クモ", "color": Color(0.3, 0.26, 0.3), "role": "すばしっこい：8本足で 速い"},
-	{"id": "dustlord", "name": "ホコリのぬし", "color": Color(0.5, 0.47, 0.44), "role": "いえの ぬし：大きくて力強い"},
-	{"id": "wata", "name": "ワタムシ", "color": Color(0.9, 0.92, 0.96), "role": "ふわふわ：飛べて 風にのる"},
-	{"id": "ageha", "name": "オオアゲハ", "color": Color(0.95, 0.86, 0.3), "role": "そらの ぬし：大きな羽で 力強い"},
-	{"id": "sludge_lord", "name": "ヘドロの主", "color": Color(0.28, 0.34, 0.26), "role": "汚れのおおもと"},
+	{"id": "ant", "name": "アリ", "color": Color(0.42, 0.32, 0.26), "role": "すばしっこい：手数でついてくる", "hint": "にわ に いる"},
+	{"id": "beetle", "name": "コガネムシ", "color": Color(0.28, 0.46, 0.32), "role": "がんじょうな盾：癒やしが強い", "hint": "にわ の 草かげ"},
+	{"id": "batta", "name": "バッタ", "color": Color(0.52, 0.66, 0.32), "role": "よくはねる：広めにとどく", "hint": "草むら を はねる"},
+	{"id": "tentou", "name": "テントウ", "color": Color(0.82, 0.24, 0.22), "role": "がんじょうな盾：癒やしが強い", "hint": "にわ の 花 に"},
+	{"id": "chou", "name": "チョウ", "color": Color(0.72, 0.52, 0.86), "role": "ひらひら：飛べて ひろくとどく", "hint": "にわ を ひらひら"},
+	{"id": "tonbo", "name": "トンボ", "color": Color(0.32, 0.62, 0.72), "role": "空の担当：空の敵にとどく", "hint": "みずべ・そら を とぶ"},
+	{"id": "hachi", "name": "ハチ", "color": Color(0.92, 0.76, 0.24), "role": "すばやい手数：何度も癒やす", "hint": "にわ に いる"},
+	{"id": "amenbo", "name": "アメンボ", "color": Color(0.5, 0.56, 0.62), "role": "すいすい：水辺を すばやく", "hint": "みずべ を すいすい"},
+	{"id": "gengoro", "name": "ゲンゴロウ", "color": Color(0.18, 0.32, 0.24), "role": "がんじょうな盾：癒やしが強い", "hint": "みずべ の 中"},
+	{"id": "queen_ant", "name": "女王アリ", "color": Color(0.55, 0.2, 0.22), "role": "女王の加護：とても強い癒やし", "hint": "にわ の ぬし（山場）"},
+	{"id": "tagame", "name": "タガメ", "color": Color(0.36, 0.31, 0.2), "role": "みずべの ぬし：大きくて力強い", "hint": "みずべ の ぬし（山場）"},
+	{"id": "hotaru", "name": "ホタル", "color": Color(0.85, 1.0, 0.5), "role": "ともしび：くらやみを 照らす", "hint": "よる の 森 に"},
+	{"id": "moth", "name": "オオガ", "color": Color(0.42, 0.36, 0.3), "role": "よるの ぬし：大きな羽で 力強い", "hint": "よる の ぬし（山場）"},
+	{"id": "dango", "name": "ダンゴムシ", "color": Color(0.4, 0.42, 0.46), "role": "がんじょうな盾：癒やしが強い", "hint": "いえ の すみ"},
+	{"id": "kumo", "name": "クモ", "color": Color(0.3, 0.26, 0.3), "role": "すばしっこい：8本足で 速い", "hint": "いえ の くらがり"},
+	{"id": "dustlord", "name": "ホコリのぬし", "color": Color(0.5, 0.47, 0.44), "role": "いえの ぬし：大きくて力強い", "hint": "いえ の ぬし（山場）"},
+	{"id": "wata", "name": "ワタムシ", "color": Color(0.9, 0.92, 0.96), "role": "ふわふわ：飛べて 風にのる", "hint": "そら を ふわふわ"},
+	{"id": "ageha", "name": "オオアゲハ", "color": Color(0.95, 0.86, 0.3), "role": "そらの ぬし：大きな羽で 力強い", "hint": "そら の ぬし（山場）"},
+	{"id": "sludge_lord", "name": "ヘドロの主", "color": Color(0.28, 0.34, 0.26), "role": "汚れのおおもと", "hint": "汚れの おおもと（さいご）"},
 ]
 var _t := 0.0
 var _seeds: Array[Vector2] = []
@@ -677,6 +677,12 @@ func _show_dex() -> void:
 			role.text = str(sp.get("role", ""))
 			UIKit.style_label(role, 15, UIKit.INK_SOFT)
 			col.add_child(role)
+		else:
+			# まだ見つけていない虫にも “すみか”のヒントを添える＝「あそこに 行けば 会える」と集めたくさせる。
+			var hint := Label.new()
+			hint.text = "ヒント：" + str(sp.get("hint", "どこかに いる"))
+			UIKit.style_label(hint, 15, Color(0.55, 0.6, 0.5))
+			col.add_child(hint)
 		# バッジ（段位）＝同じ種の累計で 銅→銀→金。集める手ごたえを見える化。
 		var tier := Chapter.dex_tier(n)
 		var badge := Label.new()
