@@ -609,11 +609,32 @@ func _show_dex() -> void:
 	vb.add_theme_constant_override("separation", 6)
 	box.add_child(vb)
 
+	var complete := found >= DEX_SPECIES.size()
 	var head := Label.new()
 	head.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	head.text = "なかま図鑑　%d / %d しゅるい　コンプ %d%%" % [found, DEX_SPECIES.size(), comp]
+	if complete:
+		head.text += "　★コンプリート！★"
 	UIKit.style_label(head, 26, UIKit.GREEN_DK)
 	vb.add_child(head)
+
+	# 達成感：あつめた種類の進み具合を “のびる帯”で見える化（数字だけより 集めたくなる）。
+	# コンプで 金色に変わる＝やり込みのごほうびが 一目で分かる。
+	var bar := ProgressBar.new()
+	bar.min_value = 0.0
+	bar.max_value = float(DEX_SPECIES.size())
+	bar.value = float(found)
+	bar.show_percentage = false
+	bar.custom_minimum_size = Vector2(0, 20)
+	var bar_bg := StyleBoxFlat.new()
+	bar_bg.bg_color = Color(0.86, 0.84, 0.74)          # 生成りの受け皿
+	bar_bg.set_corner_radius_all(10)
+	var bar_fg := StyleBoxFlat.new()
+	bar_fg.bg_color = UIKit.GOLD if complete else UIKit.GREEN   # 進み＝緑／コンプ＝金
+	bar_fg.set_corner_radius_all(10)
+	bar.add_theme_stylebox_override("background", bar_bg)
+	bar.add_theme_stylebox_override("fill", bar_fg)
+	vb.add_child(bar)
 
 	# 累計とバッジの凡例＝「同じ種を集めるほど バッジが育つ」やり込みを一目で伝える。
 	var sub := Label.new()
