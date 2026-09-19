@@ -745,22 +745,40 @@ func _show_credits() -> void:
 	box.add_theme_stylebox_override("panel", UIKit.panel(UIKit.CREAM, UIKit.GREEN_DK, 20, 4, 22))
 	_credits.add_child(box)
 
-	var text := Label.new()
-	text.set_anchors_preset(Control.PRESET_FULL_RECT)
-	text.offset_left = 28
-	text.offset_top = 22
-	text.offset_right = -28
-	text.offset_bottom = -76
-	text.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	text.add_theme_font_size_override("font_size", 20)
-	text.add_theme_color_override("font_color", UIKit.INK)
-	text.text = "小人一家と汚れた世界\n〜 えほん『みどりのはじまり』 〜\n\n" \
-		+ "小さな家族が、汚れた世界を そうじして、\nみどりを とりもどす おはなし。\n\n" \
-		+ "フォント：IPAゴシック（IPAフォントライセンス v1.0）\n" \
-		+ "エンジン：Godot Engine\n" \
-		+ "3D・音：すべて手続き生成（外部素材なし）\n\n" \
-		+ "あそんでくれて ありがとう。"
-	box.add_child(text)
+	# 中身を 段組みで整える＝ただの文章より 読みやすく・作り手の想いが伝わる。
+	var vb := VBoxContainer.new()
+	vb.set_anchors_preset(Control.PRESET_FULL_RECT)
+	vb.offset_left = 28
+	vb.offset_top = 22
+	vb.offset_right = -28
+	vb.offset_bottom = -76
+	vb.add_theme_constant_override("separation", 8)
+	box.add_child(vb)
+
+	var _cline := func(t: String, sz: int, col: Color) -> void:
+		var l := Label.new()
+		l.text = t
+		l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		l.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		UIKit.style_label(l, sz, col)
+		vb.add_child(l)
+	var _cgap := func(px: int) -> void:
+		var s := Control.new()
+		s.custom_minimum_size = Vector2(0, px)
+		vb.add_child(s)
+
+	_cline.call("小人一家と汚れた世界", 26, UIKit.GREEN_DK)
+	_cline.call("〜 えほん『みどりのはじまり』 〜", 16, UIKit.INK_SOFT)
+	_cgap.call(6)
+	_cline.call("たたかわない。よごれを おとして、\nみどりを とりもどす 小さな家族の おはなし。", 18, UIKit.INK)
+	_cgap.call(6)
+	# いちばんの特色＝すべて手続き生成・素材ゼロ・無料 を いちばん目立つ緑で。
+	_cline.call("絵も 音も ステージも ぜんぶ プログラムで つくりました。\n外部の 画像・音源は ゼロ。ずっと 無料で あそべます。", 17, UIKit.GREEN_DK)
+	_cgap.call(6)
+	_cline.call("フォント：IPAゴシック（IPAフォントライセンス v1.0）\nエンジン：Godot Engine", 14, UIKit.INK_SOFT)
+	_cgap.call(6)
+	_cline.call("あそんでくれて ありがとう。", 20, UIKit.GREEN_DK)
 
 	var close := Button.new()
 	close.text = "とじる"
