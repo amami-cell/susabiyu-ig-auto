@@ -1,0 +1,988 @@
+extends Node
+## 効果音＋BGM（自動読み込み: Sfx）— すべてコードで波形を合成する。外部音源ファイルはゼロ。
+##
+## なぜ合成か：無料・容量ほぼゼロ・配信元に依存しない（＝このリポの方針どおり）。
+## 全機種（iPhone Web / Android / PC）で鳴る。呼び出しは Sfx.play("hit") の1行。
+##
+## 効果音は「振る/当てる/癒やす/噛む/被弾/歩く/跳ぶ/着地/昇格/節目」。
+## BGMは2層（土台パッド＋きらめき）で、環境回復度が上がるほど“きらめき”が増して明るくなる。
+
+const RATE := 32000
+const VOICES := 10          # 同時発音数（足りなければ古い声から使い回す）
+const VOICES_3D := 8        # 位置つき（3D）の同時発音数
+
+# バス構成：Master ─┬─ Music（BGM）
+#                    └─ SFX  （効果音・2D/3D共通）
+# 全体スライダーは Master を動かす＝両方まとめて上下。将来 BGM/SFX 個別スライダーも足しやすい。
+const BUS_SFX := "SFX"
+const BUS_MUSIC := "Music"
+
+var _players: Array[AudioStreamPlayer] = []
+var _players_3d: Array[AudioStreamPlayer3D] = []
+var _next := 0
+var _next_3d := 0
+var _bank := {}             # name -> AudioStreamWAV
+
+var _bgm_pad: AudioStreamPlayer
+var _bgm_shine: AudioStreamPlayer
+var _bgm_battle: AudioStreamPlayer
+var _bgm_title: AudioStreamPlayer
+var _bgm_on := false
+var _battle := 0.0             # 戦闘度 0..1（敵が近いと上がる。曲をなめらかに切替）
+const BATTLE_RANGE := 9.0      # この距離に敵が来たら“戦闘”
+var _bird_t := 4.0             # 次に小鳥を鳴かせるまでの残り秒（回復が高いほど短く）
+
+const CFG_PATH := "user://settings.cfg"
+var _master := 0.8          # 全体音量（0.0〜1.0）。設定スライダーで変える。保存される。
+var _music := 0.9           # BGM音量（Musicバス）。0で消音。保存される。
+var _sfx := 1.0             # 効果音音量（SFXバス）。0で消音。保存される。
+
+
+func _ready() -> void:
+	_unlock_web_audio()   # iPhone(Safari)対策：消音スイッチ・自動再生ブロックを外す
+	_ensure_buses()
+	for i in VOICES:
+		var p := AudioStreamPlayer.new()
+		p.bus = BUS_SFX
+		add_child(p)
+		_players.append(p)
+	for i in VOICES_3D:
+		var p3 := AudioStreamPlayer3D.new()
+		p3.bus = BUS_SFX
+		p3.max_distance = 34.0          # これより遠い音は聞こえない
+		p3.unit_size = 6.0              # 近づくほど大きく（減衰のなだらかさ）
+		p3.attenuation_model = AudioStreamPlayer3D.ATTENUATION_INVERSE_DISTANCE
+		add_child(p3)
+		_players_3d.append(p3)
+	_bgm_pad = AudioStreamPlayer.new()
+	_bgm_pad.bus = BUS_MUSIC
+	add_child(_bgm_pad)
+	_bgm_shine = AudioStreamPlayer.new()
+	_bgm_shine.bus = BUS_MUSIC
+	add_child(_bgm_shine)
+	_bgm_battle = AudioStreamPlayer.new()
+	_bgm_battle.bus = BUS_MUSIC
+	add_child(_bgm_battle)
+	_bgm_title = AudioStreamPlayer.new()   # タイトルの主題歌（ロビー中だけ）
+	_bgm_title.bus = BUS_MUSIC
+	add_child(_bgm_title)
+	_build_bank()
+	_load_settings()
+
+	# BGMはゲーム中だけ。回復度で“きらめき”の音量を上げる。
+	Net.session_started.connect(start_bgm)
+	Net.session_ended.connect(func(_reason: String) -> void:
+		stop_bgm()
+		start_title())   # タイトルへ戻ったら 主題歌を再開
+	WorldState.recovery_changed.connect(_on_recovery_changed)
+	# 環境回復の節目・飛行解禁・なかま化など“いい知らせ”だけキラッと鳴らす。
+	# （以前は全 notice で鳴り、ボスの苦しい台詞やヒントでもごほうび音が鳴っていた不具合を修正）
+	WorldState.notice.connect(_on_notice)
+	# 起動直後＝タイトル画面。主題歌を鳴らす（Webは最初のタップで音が解禁されると鳴り始める）。
+	start_title()
+
+
+## iPhone(Safari)で音が出ない2大原因を、Web版でだけ外す。
+##  ① マナー(消音)スイッチで WebAudio が消える → navigator.audioSession を "playback" に。
+##     （iOS 16.4+。これで消音スイッチが ON でもゲーム音が鳴る）
+##  ② 自動再生ブロック → 最初のタップで オーディオセッションを起こし、止まっていれば resume。
+## Godot 本体も入力で resume を試みるが、iOS はセッションの起こし直しが要ることがあるので
+## 無音の一瞬の発音でセッションを確実に起こす。非Webでは何もしない（安全）。
+func _unlock_web_audio() -> void:
+	if not OS.has_feature("web"):
+		return
+	JavaScriptBridge.eval("""
+	(function(){
+	  function setPlayback(){ try{ if(navigator.audioSession){ navigator.audioSession.type='playback'; } }catch(e){} }
+	  setPlayback();
+	  if (window.__kobitoAudioUnlock) return;
+	  window.__kobitoAudioUnlock = true;
+	  var unlock = function(){
+	    setPlayback();
+	    try {
+	      var Ctx = window.AudioContext || window.webkitAudioContext;
+	      if (Ctx){
+	        var c = window.__kobitoPrimeCtx || (window.__kobitoPrimeCtx = new Ctx());
+	        if (c.state !== 'running' && c.resume) c.resume();
+	        var o = c.createOscillator(); var g = c.createGain();
+	        g.gain.value = 0.0; o.connect(g); g.connect(c.destination);
+	        o.start(0); o.stop(c.currentTime + 0.02);
+	      }
+	    } catch(e){}
+	  };
+	  ['touchend','pointerdown','mousedown','keydown'].forEach(function(ev){
+	    window.addEventListener(ev, unlock, true);
+	  });
+	})();
+	""", true)
+
+
+## 名前で鳴らす。音量(db)を少し変えられる。存在しない名前は無視。
+func play(sound_name: String, volume_db: float = -7.0) -> void:
+	var stream: AudioStreamWAV = _bank.get(sound_name)
+	if stream == null:
+		return
+	var p := _players[_next]
+	_next = (_next + 1) % _players.size()
+	p.stream = stream
+	p.volume_db = volume_db
+	p.pitch_scale = randf_range(0.97, 1.04)   # 毎回わずかに変えて機械的な連打感を消す
+	p.play()
+
+
+## 位置つきで鳴らす＝どこで起きた音かが方向・距離で分かる（協力プレイで“相方の音”が聞こえる）。
+## 世界の出来事（敵の噛みつき/浄化、ゴミ片づけ等）向け。自分視点の音（足音・跳ぶ）は play() のままでよい。
+func play_at(sound_name: String, world_pos: Vector3, volume_db: float = -7.0) -> void:
+	var stream: AudioStreamWAV = _bank.get(sound_name)
+	if stream == null:
+		return
+	var p := _players_3d[_next_3d]
+	_next_3d = (_next_3d + 1) % _players_3d.size()
+	p.stream = stream
+	p.volume_db = volume_db
+	p.pitch_scale = randf_range(0.97, 1.04)
+	p.global_position = world_pos
+	p.play()
+
+
+## バス Music / SFX が無ければ作り、どちらも Master へ流す（＝全体スライダーで一括調整）。
+## default_bus_layout.tres に依存しない自己完結。既にあれば何もしない。
+func _ensure_buses() -> void:
+	for bus_name in [BUS_MUSIC, BUS_SFX]:
+		if AudioServer.get_bus_index(bus_name) == -1:
+			var idx := AudioServer.bus_count
+			AudioServer.add_bus(idx)
+			AudioServer.set_bus_name(idx, bus_name)
+			AudioServer.set_bus_send(idx, "Master")
+
+
+# ---------------------------------------------------------------- 全体音量（設定）
+#
+# Master バスの音量を1本のスライダーで調整。user://settings.cfg に保存し、次回も復元。
+# Web でも user:// は保持される（Godotが IndexedDB に保存）。
+
+func get_master_volume() -> float:
+	return _master
+
+
+func set_master_volume(v: float) -> void:
+	_master = clampf(v, 0.0, 1.0)
+	_apply_master()
+	var cfg := ConfigFile.new()
+	cfg.load(CFG_PATH)                    # 既存の他設定は残す
+	cfg.set_value("audio", "master", _master)
+	cfg.save(CFG_PATH)
+
+
+## BGM（Musicバス）と 効果音（SFXバス）の音量。全体スライダー(Master)とは別に上下できる。
+func get_music_volume() -> float:
+	return _music
+
+
+func set_music_volume(v: float) -> void:
+	_music = clampf(v, 0.0, 1.0)
+	_apply_bus(BUS_MUSIC, _music)
+	var cfg := ConfigFile.new()
+	cfg.load(CFG_PATH)
+	cfg.set_value("audio", "music", _music)
+	cfg.save(CFG_PATH)
+
+
+func get_sfx_volume() -> float:
+	return _sfx
+
+
+func set_sfx_volume(v: float) -> void:
+	_sfx = clampf(v, 0.0, 1.0)
+	_apply_bus(BUS_SFX, _sfx)
+	var cfg := ConfigFile.new()
+	cfg.load(CFG_PATH)
+	cfg.set_value("audio", "sfx", _sfx)
+	cfg.save(CFG_PATH)
+
+
+func _load_settings() -> void:
+	var cfg := ConfigFile.new()
+	if cfg.load(CFG_PATH) == OK:
+		_master = clampf(float(cfg.get_value("audio", "master", 0.8)), 0.0, 1.0)
+		_music = clampf(float(cfg.get_value("audio", "music", 0.9)), 0.0, 1.0)
+		_sfx = clampf(float(cfg.get_value("audio", "sfx", 1.0)), 0.0, 1.0)
+	_apply_master()
+	_apply_bus(BUS_MUSIC, _music)
+	_apply_bus(BUS_SFX, _sfx)
+
+
+func _apply_master() -> void:
+	var idx := AudioServer.get_bus_index("Master")
+	if _master <= 0.001:
+		AudioServer.set_bus_mute(idx, true)
+	else:
+		AudioServer.set_bus_mute(idx, false)
+		AudioServer.set_bus_volume_db(idx, linear_to_db(_master))
+
+
+## 指定バスの音量（線形0..1）を適用。0はミュート＝-infのプチノイズを避ける。
+func _apply_bus(bus_name: String, v: float) -> void:
+	var idx := AudioServer.get_bus_index(bus_name)
+	if idx < 0:
+		return
+	if v <= 0.001:
+		AudioServer.set_bus_mute(idx, true)
+	else:
+		AudioServer.set_bus_mute(idx, false)
+		AudioServer.set_bus_volume_db(idx, linear_to_db(v))
+
+
+# ---------------------------------------------------------------- BGM
+
+func start_bgm() -> void:
+	if _bgm_on:
+		return
+	stop_title()   # ゲームが始まったら 主題歌は止めて、庭のBGMへバトンタッチ
+	_bgm_on = true
+	_battle = 0.0
+	_bgm_pad.stream = _bank.get("bgm_pad")
+	_bgm_shine.stream = _bank.get("bgm_shine")
+	_bgm_battle.stream = _bank.get("bgm_battle")
+	_bgm_pad.volume_db = -14.0
+	_bgm_shine.volume_db = -60.0    # 最初は聞こえない（汚れている）
+	_bgm_battle.volume_db = -60.0   # 最初は聞こえない（戦闘してない）
+	_bgm_pad.play()
+	_bgm_shine.play()
+	_bgm_battle.play()
+
+
+func stop_bgm() -> void:
+	_bgm_on = false
+	_bgm_pad.stop()
+	_bgm_shine.stop()
+	_bgm_battle.stop()
+
+
+## タイトル画面の主題歌（手回しオルゴールの旋律）。ロビー中だけ流す。
+func start_title() -> void:
+	if _bgm_title == null or _bgm_title.playing:
+		return
+	if _bgm_on:
+		return   # ゲーム中は鳴らさない
+	_bgm_title.stream = _bank.get("bgm_title")
+	_bgm_title.volume_db = -13.0
+	_bgm_title.play()
+
+
+func stop_title() -> void:
+	if _bgm_title != null and _bgm_title.playing:
+		_bgm_title.stop()
+
+
+## 真エンディングの主題歌リプライズ：庭のBGMを止めて 主題歌を そっと流す（結果カードの下で）。
+## タイトルで聞いた旋律が最後に帰ってくる＝物語の締めの感情を強める。
+func ending_reprise() -> void:
+	stop_bgm()
+	if _bgm_title == null:
+		return
+	_bgm_title.stream = _bank.get("bgm_title")
+	_bgm_title.volume_db = -12.0
+	if not _bgm_title.playing:
+		_bgm_title.play()
+
+
+func _on_recovery_changed(_r: float) -> void:
+	pass   # 音量は _process でまとめて（回復度＋戦闘度から）決める
+
+
+## “いい知らせ”の通知だけ ごほうび音(milestone)を鳴らす。ヒントやボスの苦しい台詞では鳴らさない。
+func _on_notice(text: String) -> void:
+	var good := (
+		"環境回復" in text
+		or ("なかま" in text and "なった" in text)
+		or "きれいにした" in text
+		or "つばさ" in text
+		or "飛べる" in text
+		or "とべる" in text
+	)
+	if good:
+		play("milestone", -2.0)
+
+
+## 毎フレーム、BGMの3層をなめらかに混ぜる：
+## 回復度で“きらめき”を上げ、敵が近いと“戦闘曲”を前に出す（近づく＝すっと切替）。
+func _process(delta: float) -> void:
+	if not _bgm_on:
+		return
+	var target := _threat_level()
+	# 戦闘へは素早く(0.5秒)、平和へはゆっくり(2秒)戻す＝ピリッと入り、余韻を残す
+	var rate := (1.0 / 0.5) if target > _battle else (1.0 / 2.0)
+	_battle = move_toward(_battle, target, delta * rate)
+
+	var r := clampf(WorldState.recovery, 0.0, 1.0)
+	# ボス（中ボス）が近いと“山場”＝戦闘曲をさらに前へ＋わずかに速く（高揚）。
+	var boss := _boss_near()
+	var battle_top := -3.0 if boss else -7.0
+	_bgm_battle.volume_db = lerpf(-60.0, battle_top, _battle)
+	_bgm_battle.pitch_scale = move_toward(_bgm_battle.pitch_scale, 1.07 if boss else 1.0, delta * 0.5)
+	# 戦闘中は穏やかな層を少し下げて、戦闘曲を主役に
+	# きらめき層＝主題歌の旋律。回復で しっかり戻る（-7db まで）＝「あの曲が帰ってきた」と分かる音量に。
+	_bgm_shine.volume_db = lerpf(-60.0, -7.0, r) - _battle * 12.0
+	_bgm_pad.volume_db = lerpf(-16.0, -11.0, r) - _battle * 3.0
+
+	_ambient_life(delta, r)
+
+
+## 世界が生き返るほど、たまに遠くで小鳥がさえずる。汚れている時は静寂＝
+## 「回復が“聞こえる”」payoff。戦闘中・夜/屋内/水辺では鳴かせない。各端末で判定・純演出。
+func _ambient_life(delta: float, r: float) -> void:
+	if r < 0.45:
+		_bird_t = randf_range(3.0, 6.0)   # まだ汚れている＝静けさ
+		return
+	if _battle > 0.35:
+		return                            # 戦闘の緊張を壊さない
+	# 舞台ごとに“生きた気配”の音を選ぶ：昼の草原＝小鳥／夜の森＝虫の音／水辺＝しずく。
+	# 屋内は静かに（音を出さない）。回復するほど どの舞台も 賑わっていく。
+	var wb: String = Net.world_biome
+	var snd := "bird"
+	var fast := 8.0
+	var slow := 3.0
+	if wb == "night":
+		snd = "cricket";   fast = 5.5; slow = 2.5   # 夜は虫が よく鳴く
+	elif wb == "water":
+		snd = "waterdrop"; fast = 6.0; slow = 3.0
+	elif wb == "house":
+		return                                       # 屋内は静けさを保つ
+	_bird_t -= delta
+	if _bird_t > 0.0:
+		return
+	# 回復が高いほど頻繁に。ばらつかせて機械的に聞こえないように。
+	var k := clampf((r - 0.45) / 0.55, 0.0, 1.0)
+	_bird_t = lerpf(fast, slow, k) * randf_range(0.7, 1.35)
+	var players := get_tree().get_nodes_in_group("player")
+	if players.is_empty():
+		return
+	var p := players[randi() % players.size()] as Node3D
+	if p == null:
+		return
+	var ang := randf() * TAU
+	var dist := randf_range(6.0, 12.0)
+	var pos: Vector3 = p.global_position + Vector3(cos(ang) * dist, randf_range(1.8, 3.6), sin(ang) * dist)
+	play_at(snd, pos, -17.0 - randf_range(0.0, 4.0))   # 遠くで控えめに
+
+
+## 中ボス（is_midboss）が生きて近くに居るか＝“山場”か。各自の端末で判定。
+func _boss_near() -> bool:
+	var players := get_tree().get_nodes_in_group("player")
+	if players.is_empty():
+		return false
+	for b in get_tree().get_nodes_in_group("bug"):
+		var st: Variant = b.get("stats")
+		if st == null or not st.is_midboss:
+			continue
+		for p in players:
+			if b.global_position.distance_to(p.global_position) < BATTLE_RANGE * 1.6:
+				return true
+	return false
+
+
+## 敵（虫）がどれかのプレイヤーの近くにいるか＝戦闘中か。各自の端末で判定。
+func _enemy_near() -> bool:
+	var players := get_tree().get_nodes_in_group("player")
+	if players.is_empty():
+		return false
+	for b in get_tree().get_nodes_in_group("bug"):
+		for p in players:
+			if b.global_position.distance_to(p.global_position) < BATTLE_RANGE:
+				return true
+	return false
+
+
+## 危険の“強さ”を 0..1 で返す。最寄りの虫の近さ（主）＋近くの虫の数（従）で
+## なめらかに高まる＝サントラが on/off でなく、迫る危険に合わせて呼吸する。各端末で判定。
+const THREAT_CROWD := 4.0      # この数の虫が近いと「群れ」寄与が最大
+func _threat_level() -> float:
+	var players := get_tree().get_nodes_in_group("player")
+	if players.is_empty():
+		return 0.0
+	var closest := 1.0e9
+	var crowd := 0
+	for b in get_tree().get_nodes_in_group("bug"):
+		var bp: Vector3 = b.global_position
+		var nearest := 1.0e9
+		for p in players:
+			var d: float = bp.distance_to(p.global_position)
+			if d < nearest:
+				nearest = d
+		if nearest < BATTLE_RANGE:
+			crowd += 1
+			if nearest < closest:
+				closest = nearest
+	if crowd == 0:
+		return 0.0
+	var prox := clampf(1.0 - closest / BATTLE_RANGE, 0.0, 1.0)         # 迫るほど 1 へ
+	var crowd_f := clampf(float(crowd) / THREAT_CROWD, 0.0, 1.0)       # 群れるほど 1 へ
+	# 範囲に入った瞬間から気配(0.35)＋近さ(0.55)＋数(0.25)。上限は1にまとめる。
+	return clampf(0.35 + prox * 0.55 + crowd_f * 0.25, 0.0, 1.0)
+
+
+# ---------------------------------------------------------------- 音づくり
+#
+# float サンプル[-1,1]の配列で作り、16bit WAV に変換して貯める。
+# 「リアルで可愛い」= 立ち上がりの一撃(トランジェント)＋やわらかい胴鳴り＋鐘のような倍音、を層にする。
+
+func _build_bank() -> void:
+	_bank["swing"] = _make(_swing())
+	_bank["hit"] = _make(_hit())
+	_bank["heal"] = _make(_heal())
+	_bank["bite"] = _make(_bite())
+	_bank["hurt"] = _make(_hurt())
+	_bank["step"] = _make(_step())
+	_bank["jump"] = _make(_jump())
+	_bank["land"] = _make(_land())
+	_bank["levelup"] = _make(_levelup())
+	_bank["milestone"] = _make(_milestone())
+	_bank["pickup"] = _make(_pickup())
+	_bank["befriend"] = _make(_befriend())         # なかまになった（浄化完了）専用
+	_bank["bird"] = _make(_birdsong())             # 環境音：世界が生き返った気配の小鳥
+	_bank["cricket"] = _make(_cricket())           # 環境音：夜の虫の音（回復した森）
+	_bank["waterdrop"] = _make(_waterdrop())       # 環境音：水辺のしずく（澄んだ水）
+	_bank["chapter_clear"] = _make(_chapter_clear())  # 章クリアのファンファーレ
+	_bank["ending"] = _make(_ending())             # 真エンディングの締め
+	_bank["alert"] = _make(_alert())               # 中ボス出現の警告
+	_bank["whistle"] = _make(_whistle())           # なかまを呼ぶ笛
+	_bank["bgm_pad"] = _make_loop(_bgm_pad_wave())
+	_bank["bgm_shine"] = _make_loop(_bgm_shine_wave())
+	_bank["bgm_battle"] = _make_loop(_bgm_battle_wave())
+	_bank["bgm_title"] = _make_loop(_title_theme_wave())
+
+
+## 立ち上がり(attack)→やわらかく減衰する共通エンベロープ。t は 0..1。
+func _adsr(t: float, attack: float, decay_pow: float) -> float:
+	if t < attack:
+		return t / maxf(attack, 0.0001)
+	return pow(1.0 - (t - attack) / maxf(1.0 - attack, 0.0001), decay_pow)
+
+
+## 剣を振る：やわらかい“ヒュンッ”。風のノイズ＋高→低へすべる可愛い音程。
+func _swing() -> PackedFloat32Array:
+	var n := int(RATE * 0.2)
+	var out := PackedFloat32Array()
+	out.resize(n)
+	var prev := 0.0
+	for i in n:
+		var t := float(i) / n
+		var env := _adsr(t, 0.12, 2.4)
+		var white := randf() * 2.0 - 1.0
+		prev = lerpf(prev, white, 0.25)                       # ローパスで“空気”に
+		var whistle := sin(TAU * lerpf(1500.0, 520.0, t) * (float(i) / RATE))
+		out[i] = (prev * 0.5 + whistle * 0.5) * env * 0.5
+	return out
+
+
+## 当たる：可愛い“ポフッ！”。短い一撃＋やわらかい木のような胴鳴り（倍音つき）。
+func _hit() -> PackedFloat32Array:
+	var n := int(RATE * 0.16)
+	var out := PackedFloat32Array()
+	out.resize(n)
+	for i in n:
+		var t := float(i) / n
+		var click := (randf() * 2.0 - 1.0) * pow(1.0 - t, 12.0)   # 最初だけパチッ
+		var f := lerpf(430.0, 240.0, t)                           # ぽわんと下がる
+		var body := sin(TAU * f * (float(i) / RATE)) + sin(TAU * f * 2.0 * (float(i) / RATE)) * 0.4
+		var env := _adsr(t, 0.02, 3.0)
+		out[i] = (click * 0.5 + body * 0.5 * env) * 0.85
+	return out
+
+
+## 癒やし完了：オルゴール風“キラーン↑”。基音＋オクターブ＋5度で澄んだ鐘。上へすべる。
+func _heal(scale := 1.0) -> PackedFloat32Array:
+	var n := int(RATE * 0.5 * scale)
+	var out := PackedFloat32Array()
+	out.resize(n)
+	for i in n:
+		var t := float(i) / n
+		var env := pow(1.0 - t, 1.4)
+		var f := lerpf(740.0, 1100.0, sqrt(t))
+		var tone := sin(TAU * f * (float(i) / RATE))
+		tone += sin(TAU * f * 2.0 * (float(i) / RATE)) * 0.4       # オクターブ
+		tone += sin(TAU * f * 3.0 * (float(i) / RATE)) * 0.2       # さらに上
+		var shimmer := sin(TAU * 8.0 * t) * 0.05                   # ほのかな揺れ
+		out[i] = tone * (env + shimmer) * 0.3
+	return out
+
+
+## 敵が噛む：可愛い“むぐっ”。低くこもった二段の胴鳴り（角のとれた鋸）。
+func _bite() -> PackedFloat32Array:
+	var n := int(RATE * 0.16)
+	var out := PackedFloat32Array()
+	out.resize(n)
+	var prev := 0.0
+	for i in n:
+		var t := float(i) / n
+		var chomp := clampf(1.0 - absf(t - 0.4) * 2.2, 0.0, 1.0)
+		var f := 150.0 - 45.0 * t
+		var saw := fposmod(f * (float(i) / RATE), 1.0) * 2.0 - 1.0
+		prev = lerpf(prev, saw, 0.5)                              # 角を丸めて可愛く
+		out[i] = prev * chomp * 0.5
+	return out
+
+
+## 被弾：やわらかい“ぽすっ”。低い衝撃＋ごく軽いノイズ（痛々しくしすぎない）。
+func _hurt() -> PackedFloat32Array:
+	var n := int(RATE * 0.18)
+	var out := PackedFloat32Array()
+	out.resize(n)
+	for i in n:
+		var t := float(i) / n
+		var env := pow(1.0 - t, 2.2)
+		var thud := sin(TAU * lerpf(210.0, 70.0, sqrt(t)) * (float(i) / RATE))
+		var grit := (randf() * 2.0 - 1.0) * 0.2 * pow(1.0 - t, 6.0)
+		out[i] = (thud * 0.8 + grit) * env * 0.8
+	return out
+
+
+## 歩く：短くやわらかい“ぽ”。土を踏むイメージ（低いノイズの一瞬）。
+func _step() -> PackedFloat32Array:
+	var n := int(RATE * 0.07)
+	var out := PackedFloat32Array()
+	out.resize(n)
+	var prev := 0.0
+	for i in n:
+		var t := float(i) / n
+		var env := pow(1.0 - t, 5.0)
+		var noise := randf() * 2.0 - 1.0
+		prev = lerpf(prev, noise, 0.3)
+		var low := sin(TAU * 120.0 * (float(i) / RATE))
+		out[i] = (prev * 0.5 + low * 0.5) * env * 0.7
+	return out
+
+
+## 跳ぶ：可愛い“ぴょんっ↑”。音程が上へすべる。
+func _jump() -> PackedFloat32Array:
+	var n := int(RATE * 0.16)
+	var out := PackedFloat32Array()
+	out.resize(n)
+	for i in n:
+		var t := float(i) / n
+		var env := _adsr(t, 0.05, 2.0)
+		var f := lerpf(300.0, 720.0, t)
+		var tone := sin(TAU * f * (float(i) / RATE)) + sin(TAU * f * 2.0 * (float(i) / RATE)) * 0.3
+		out[i] = tone * env * 0.4
+	return out
+
+
+## 着地：やわらかい“とすっ↓”。音程が下へ、短く。
+func _land() -> PackedFloat32Array:
+	var n := int(RATE * 0.12)
+	var out := PackedFloat32Array()
+	out.resize(n)
+	for i in n:
+		var t := float(i) / n
+		var env := pow(1.0 - t, 3.0)
+		var f := lerpf(360.0, 150.0, t)
+		var tone := sin(TAU * f * (float(i) / RATE))
+		var dust := (randf() * 2.0 - 1.0) * 0.15 * pow(1.0 - t, 4.0)
+		out[i] = (tone * 0.8 + dust) * env * 0.6
+	return out
+
+
+## 昇格（レベルアップ）：明るい上昇アルペジオ ド-ミ-ソ-ド（鐘の音）。
+func _levelup() -> PackedFloat32Array:
+	var notes := [523.25, 659.25, 783.99, 1046.5]
+	return _arp(notes, 0.11, 0.42)
+
+
+## 環境回復の節目：きらめく和音（ド・ミ・ソ・上のド）＋ゆらぎ。
+func _milestone() -> PackedFloat32Array:
+	var n := int(RATE * 0.7)
+	var out := PackedFloat32Array()
+	out.resize(n)
+	var chord := [523.25, 659.25, 783.99, 1046.5]
+	for i in n:
+		var t := float(i) / n
+		var env := pow(1.0 - t, 1.3)
+		var s := 0.0
+		for f in chord:
+			s += sin(TAU * f * (float(i) / RATE))
+		s /= chord.size()
+		var sparkle := sin(TAU * 1568.0 * (float(i) / RATE)) * 0.15 * (0.6 + 0.4 * sin(TAU * 9.0 * t))
+		out[i] = (s + sparkle) * env * 0.34
+	return out
+
+
+## 拾う等の軽い合図：短い上昇2音。
+func _pickup() -> PackedFloat32Array:
+	return _arp([659.25, 987.77], 0.08, 0.18)
+
+
+## 音階を順に鳴らす小さなアルペジオを作る共通関数（鐘＝基音＋オクターブ）。
+func _arp(notes: Array, note_dur: float, total: float) -> PackedFloat32Array:
+	var n := int(RATE * total)
+	var out := PackedFloat32Array()
+	out.resize(n)
+	var step := int(RATE * note_dur)
+	for i in n:
+		var idx := mini(int(i / step), notes.size() - 1)
+		var lt := float(i - idx * step) / maxf(step, 1.0)
+		var env := pow(clampf(1.0 - lt, 0.0, 1.0), 1.8)
+		var f: float = notes[idx]
+		var tone := sin(TAU * f * (float(i) / RATE)) + sin(TAU * f * 2.0 * (float(i) / RATE)) * 0.35
+		var atk := clampf(lt / 0.02, 0.0, 1.0)   # 音の頭に短いアタック＝“プチッ”を消す
+		out[i] = tone * env * atk * 0.32
+	return out
+
+
+## なかまになった：あたたかい上行2音（レ→上のラ＝完全5度）＋やわらかいビブラート＋
+## ふくらんで消える胴鳴り。「倒す でなく 救った・仲間が増えた」の固有のごほうび音。
+func _befriend() -> PackedFloat32Array:
+	var n := int(RATE * 0.6)
+	var out := PackedFloat32Array()
+	out.resize(n)
+	for i in n:
+		var t := float(i) / n
+		var ti := float(i) / RATE
+		var k := smoothstep(0.35, 0.62, t)              # レ→上のラ へなめらかに受け渡し
+		var f := lerpf(587.33, 880.0, k)
+		var vib := 1.0 + 0.005 * sin(TAU * 5.5 * ti)     # やわらかいビブラート
+		var bell := sin(TAU * f * vib * ti) * 0.6 + sin(TAU * f * 2.0 * ti) * 0.22
+		var body := sin(TAU * (f * 0.5) * ti) * 0.22 * sin(PI * clampf(t * 1.05, 0.0, 1.0))  # ぽわんと胴鳴り
+		var atk := clampf(t / 0.02, 0.0, 1.0)
+		var env := pow(1.0 - t, 1.1) * atk
+		out[i] = (bell + body) * env * 0.3
+	return out
+
+
+## 環境音の小鳥：2〜3音節の さえずり。各音節で周波数を素早く滑らせ（位相を積分＝
+## クリーンなグリッサンド）、ふくらんで消える包絡＋やわらかいビブラート。遠くで控えめに鳴らす。
+func _birdsong() -> PackedFloat32Array:
+	var total := 0.46
+	var n := int(RATE * total)
+	var out := PackedFloat32Array()
+	out.resize(n)
+	# 音節：開始秒 / 長さ / 始めの周波数 / 終わりの周波数（ピュルッと上下に滑る）
+	var syllables := [
+		{"start": 0.00, "dur": 0.13, "f0": 2500.0, "f1": 3600.0},
+		{"start": 0.18, "dur": 0.11, "f0": 3300.0, "f1": 2600.0},
+		{"start": 0.31, "dur": 0.10, "f0": 2900.0, "f1": 3400.0},
+	]
+	for sy in syllables:
+		var s0: int = int(float(sy["start"]) * RATE)
+		var sn: int = int(float(sy["dur"]) * RATE)
+		var phase := 0.0
+		for j in sn:
+			var idx := s0 + j
+			if idx >= n:
+				break
+			var u := float(j) / maxf(sn, 1)
+			var vib := 1.0 + 0.03 * sin(TAU * 24.0 * (float(j) / RATE))   # 小刻みなビブラート
+			var f: float = lerpf(float(sy["f0"]), float(sy["f1"]), u) * vib
+			phase += TAU * f / RATE                                        # 位相を積分＝滑らかなグリッサンド
+			var env := sin(PI * clampf(u, 0.0, 1.0))                       # ふくらんで消える（プチッ無し）
+			var tone := sin(phase) * 0.7 + sin(phase * 2.0) * 0.2
+			out[idx] += tone * env * 0.22
+	return out
+
+
+## 環境音の虫の音（夜）：高い音を速く脈打たせる“チリチリ”トリル＋ふくらんで消える包絡。控えめ。
+func _cricket() -> PackedFloat32Array:
+	var total := 0.5
+	var n := int(RATE * total)
+	var out := PackedFloat32Array()
+	out.resize(n)
+	var f := 4600.0
+	for i in n:
+		var t := float(i) / n
+		var ti := float(i) / RATE
+		var pulse := pow(0.5 + 0.5 * sin(TAU * 34.0 * ti), 3.0)   # 34Hzで脈打つ＝くっきりトリル
+		var env := sin(PI * clampf(t, 0.0, 1.0))
+		var tone := sin(TAU * f * ti) * 0.7 + sin(TAU * f * 1.5 * ti) * 0.2
+		out[i] = tone * pulse * env * 0.14
+	return out
+
+
+## 環境音の水滴（水辺）：素早く音程が下がる“ピチョン”＋残響のように尾を引く減衰。
+func _waterdrop() -> PackedFloat32Array:
+	var total := 0.35
+	var n := int(RATE * total)
+	var out := PackedFloat32Array()
+	out.resize(n)
+	var phase := 0.0
+	for i in n:
+		var t := float(i) / n
+		var f := lerpf(1400.0, 620.0, pow(t, 0.35))   # 立ち上がりで素早く下がる＝しずく特有の音
+		phase += TAU * f / RATE
+		var env := pow(1.0 - t, 2.2)
+		var atk := clampf(t / 0.006, 0.0, 1.0)         # ごく短いアタック＝“コツッ”
+		out[i] = sin(phase) * env * atk * 0.2
+	return out
+
+
+## 章クリアのファンファーレ：ド-ミ-ソ-上のド を順に鳴らして和音に育て、鐘の倍音＋
+## 到達のきらめきで締める。レベルアップより長く豪華＝数十分に一度の大節目にふさわしく。
+func _chapter_clear() -> PackedFloat32Array:
+	var notes := [523.25, 659.25, 783.99, 1046.5]   # ド ミ ソ 上のド
+	var onsets := [0.0, 0.14, 0.28, 0.44]           # 少しずつ重ねて和音に育てる
+	var total := 1.8
+	var n := int(RATE * total)
+	var out := PackedFloat32Array()
+	out.resize(n)
+	for i in n:
+		var ti := float(i) / RATE
+		var s := 0.0
+		for j in notes.size():
+			var lt: float = ti - float(onsets[j])
+			if lt < 0.0:
+				continue
+			var dur: float = total - float(onsets[j])
+			var env := pow(clampf(1.0 - lt / dur, 0.0, 1.0), 1.3) * clampf(lt / 0.01, 0.0, 1.0)
+			var f: float = notes[j]
+			s += (sin(TAU * f * ti) * 0.6 + sin(TAU * f * 2.0 * ti) * 0.25 + sin(TAU * f * 3.0 * ti) * 0.12) * env
+		var sparkle := sin(TAU * 2093.0 * ti) * 0.12 * clampf((ti - 0.4) / 0.2, 0.0, 1.0) * pow(clampf(1.0 - (ti - 0.4) / 1.4, 0.0, 1.0), 1.5)
+		out[i] = s * 0.26 + sparkle
+	return out
+
+
+## 真エンディング：I–IV–V–I（C–F–G–C）をゆっくり巡る和音＋きらめき＋長い締め。
+## 6章を越えた「〜おわり〜」の最大の頂点を無音にしないための、8.8秒の余韻。
+func _ending() -> PackedFloat32Array:
+	var prog := [
+		[261.63, 329.63, 392.0],          # C  (I)
+		[349.23, 440.0, 523.25],          # F  (IV)
+		[392.0, 493.88, 587.33],          # G  (V)
+		[261.63, 329.63, 392.0, 523.25],  # C  (I) ＋上のド
+	]
+	var seg := 2.2
+	var total := seg * prog.size()   # 8.8秒
+	var n := int(RATE * total)
+	var out := PackedFloat32Array()
+	out.resize(n)
+	for i in n:
+		var ti := float(i) / RATE
+		var ci := mini(int(ti / seg), prog.size() - 1)
+		var lt := ti - ci * seg
+		var chord: Array = prog[ci]
+		var s := 0.0
+		for f in chord:
+			s += sin(TAU * float(f) * ti) * 0.5 + sin(TAU * float(f) * 2.0 * ti) * 0.12
+		s /= chord.size()
+		var atk := clampf(lt / 0.18, 0.0, 1.0)
+		var shimmer := sin(TAU * 1568.0 * ti) * 0.06 * (0.5 + 0.5 * sin(TAU * 0.6 * ti))
+		var glob := clampf(ti / 0.6, 0.0, 1.0) * clampf((total - ti) / 1.6, 0.0, 1.0)
+		out[i] = (s * atk + shimmer) * glob * 0.5
+	return out
+
+
+## 警告スティンガー：下降2音（ミ→ラ）＋低いパルス。中ボス出現の「来た！」を一撃で伝える。
+func _alert() -> PackedFloat32Array:
+	var n := int(RATE * 0.45)
+	var out := PackedFloat32Array()
+	out.resize(n)
+	for i in n:
+		var t := float(i) / n
+		var ti := float(i) / RATE
+		var f := 659.25 if t < 0.45 else 440.0     # ミ→ラ
+		var env := _adsr(t, 0.02, 2.2)
+		var tone := sin(TAU * f * ti) * 0.6 + sin(TAU * f * 2.0 * ti) * 0.2
+		var pulse := sin(TAU * 110.0 * ti) * pow(1.0 - t, 4.0) * 0.4
+		out[i] = (tone * env + pulse) * 0.4
+	return out
+
+
+## 笛：明るい呼び声（ソ→上のド）。なかまを集める合図。息づかいのビブラートつき。
+func _whistle() -> PackedFloat32Array:
+	var n := int(RATE * 0.4)
+	var out := PackedFloat32Array()
+	out.resize(n)
+	for i in n:
+		var t := float(i) / n
+		var ti := float(i) / RATE
+		var f := 784.0            # ソ
+		if t >= 0.45 and t < 0.55:
+			f = lerpf(784.0, 1046.5, (t - 0.45) / 0.1)   # なめらかに跳ねる
+		elif t >= 0.55:
+			f = 1046.5           # 上のド
+		var env := _adsr(t, 0.03, 2.0)
+		var tone := (sin(TAU * f * ti) * 0.6 + sin(TAU * f * 2.0 * ti) * 0.12)
+		tone *= 1.0 + 0.02 * sin(TAU * 6.0 * ti)   # 息づかい
+		out[i] = tone * env * 0.4
+	return out
+
+
+# --- BGM（4秒ループ・ペンタトニックでやさしく） ---
+
+## 土台のパッド：あたたかい4つの和音をゆっくり巡る（C→G→Am→F＝I–V–vi–IV）。
+## 16秒ループ＝“同じ4秒の繰り返し”感を消して、長く遊んでも耳になじむ。
+## 各和音は「根音＋5度＋オクターブ」を重ね、境目はなめらかにクロスフェード（プチノイズ防止）。
+const _PAD_CHORDS := [
+	[130.81, 196.00, 261.63],   # C  （ド・ソ・上のド）
+	[98.00, 146.83, 196.00],    # G  （ソ・レ・上のソ）
+	[110.00, 164.81, 220.00],   # Am （ラ・ミ・上のラ）
+	[87.31, 130.81, 174.61],    # F  （ファ・ド・上のファ）
+]
+
+func _bgm_pad_wave() -> PackedFloat32Array:
+	var chord_dur := 4.0
+	var dur := chord_dur * _PAD_CHORDS.size()   # 16秒
+	# ループの継ぎ目で音量がカクッと沈む“脈打ち”を消す：各周波数を「16秒でちょうど整数回」振動する
+	# 値に丸める（ズレ0.1%未満＝耳では同じ）。これで両端を0へ落とすフェードが不要になり、シームレスに。
+	var chords := []
+	for ch in _PAD_CHORDS:
+		var sc := []
+		for f in ch:
+			sc.append(_loopfreq(float(f), dur))
+		chords.append(sc)
+	var trf := _loopfreq(0.18, dur)   # トレモロ（息づかい）も整数周期に
+	var n := int(RATE * dur)
+	var out := PackedFloat32Array()
+	out.resize(n)
+	var fade := 0.35   # 和音の変わり目のクロスフェード時間
+	for i in n:
+		var t := float(i) / RATE
+		var ci := int(t / chord_dur) % chords.size()
+		var lt := t - float(int(t / chord_dur)) * chord_dur   # この和音の中の経過
+		var tr := 0.85 + 0.15 * sin(TAU * trf * t)            # ゆっくりトレモロ（息づかい）
+		var s := _chord_at(chords[ci], t)
+		# 和音の頭では前の和音から、終わりでは次の和音へ、なめらかに混ぜる
+		if lt < fade:
+			var prev: Array = chords[(ci + chords.size() - 1) % chords.size()]
+			var k := lt / fade
+			s = _chord_at(prev, t) * (1.0 - k) + s * k
+		out[i] = s * tr * 0.5   # 継ぎ目フェード不要（周波数を整数周期に丸めた＝シームレス）
+	return out
+
+
+## ループ用：周波数を「dur秒でちょうど整数回」振動する値へ丸める（継ぎ目の不連続＝脈打ちを無くす）。
+func _loopfreq(f: float, dur: float) -> float:
+	return maxf(1.0, round(f * dur)) / dur
+
+
+## 和音（周波数の配列）を時刻 t で合成。根音を厚く、上の音ほど控えめ。
+func _chord_at(freqs: Array, t: float) -> float:
+	var s := 0.0
+	var w := [0.5, 0.35, 0.2]
+	for j in freqs.size():
+		s += sin(TAU * float(freqs[j]) * t) * (w[j] if j < w.size() else 0.15)
+	return s
+
+
+## きらめき層＝主題歌のライトモチーフ：土台の和音の上で タイトルの旋律が歌う。
+## 回復度で音量が上がる＝掃除して世界が緑に還るほど「あの主題歌」が戻ってくる（音楽が世界に反応）。
+## 16秒・和音(C-G-Am-F 各4秒)に 4音ずつ乗せて ぴたりと調和する“主題の一節”。
+func _bgm_shine_wave() -> PackedFloat32Array:
+	var dur := 16.0
+	var n := int(RATE * dur)
+	var out := PackedFloat32Array()
+	out.resize(n)
+	# タイトル主題歌の冒頭フレーズ（_title_theme_wave と同じ旋律）。和音ごとに4音＝きれいに溶ける。
+	var notes := [
+		523.25, 659.25, 783.99, 659.25,   # ド ミ ソ ミ（C）
+		587.33, 698.46, 587.33, 493.88,   # レ ファ レ シ（G）
+		440.00, 523.25, 659.25, 523.25,   # ラ ド ミ ド（Am）
+		349.23, 440.00, 523.25, 392.00,   # ファ ラ ド ソ（F）
+	]
+	var step := dur / notes.size()
+	for i in n:
+		var t := float(i) / RATE
+		var idx := int(t / step) % notes.size()
+		var lt := t - float(int(t / step)) * step
+		var env := pow(clampf(1.0 - lt / step, 0.0, 1.0), 1.6) * clampf(lt / 0.008, 0.0, 1.0)
+		var f: float = notes[idx]
+		var bell := sin(TAU * f * t) * 0.6 + sin(TAU * f * 2.0 * t) * 0.25
+		bell += sin(TAU * f * 1.003 * t) * 0.1   # わずかなデチューン＝あたたかい厚み（主題歌と同じ質感）
+		var edge := clampf(minf(t, dur - t) / 0.05, 0.0, 1.0)
+		out[i] = bell * env * 0.5 * edge
+	return out
+
+
+## 戦闘BGM：敵と対峙したとき用の、少し緊張感のある駆けるループ（イ短調）。
+## 低音の刻み＋短調のアルペジオ。可愛さは残しつつ“来た！”と分かる。
+func _bgm_battle_wave() -> PackedFloat32Array:
+	var dur := 3.2
+	var n := int(RATE * dur)
+	var out := PackedFloat32Array()
+	out.resize(n)
+	# イ短調ペンタの駆けるアルペジオ（16分の刻み）
+	# 主題歌の“上へ昇る”輪郭を イ短調へ落とした短調変奏＝ボスは「主題が陰る」＝1曲で世界が呼吸する。
+	# ラ ド ミ ド（Am・主題のド ミ ソ ミ に対応）／ シ レ シ ソ（緊張して戻る）。
+	var notes := [440.0, 523.25, 659.25, 523.25, 493.88, 587.33, 493.88, 392.0]
+	var step := dur / 16.0
+	for i in n:
+		var t := float(i) / RATE
+		# 低音の刻み（8分）＝鼓動
+		var beat := fmod(t, 0.4) / 0.4
+		var pulse := sin(TAU * 110.0 * t) * pow(1.0 - beat, 3.0) * 0.5
+		# アルペジオ
+		var idx := int(t / step) % notes.size()
+		var lt := t - float(int(t / step)) * step
+		var env := pow(clampf(1.0 - lt / step, 0.0, 1.0), 1.4) * clampf(lt / 0.008, 0.0, 1.0)
+		var f: float = notes[idx]
+		var arp := (sin(TAU * f * t) * 0.5 + fposmod(f * t, 1.0) * 0.2) * env
+		var edge := clampf(minf(t, dur - t) / 0.04, 0.0, 1.0)
+		out[i] = (pulse + arp * 0.5) * 0.5 * edge
+	return out
+
+
+## タイトルの主題歌『みどりのはじまり』：手回しオルゴールの旋律＋やわらかいパッド。
+## C–G–Am–F をゆっくり巡り、上のドまで昇って やさしく家へ帰る、覚えやすい一節（28秒ループ）。
+func _title_theme_wave() -> PackedFloat32Array:
+	var chord_dur := 7.0
+	var dur := chord_dur * _PAD_CHORDS.size()   # 28秒
+	var n := int(RATE * dur)
+	var out := PackedFloat32Array()
+	out.resize(n)
+	# オルゴールの旋律（ハ長調・32音）。前半で昇り、後半でそっと降りて主音へ帰る。
+	var mel := [
+		523.25, 659.25, 783.99, 659.25,   # ド ミ ソ ミ（C）
+		587.33, 698.46, 587.33, 493.88,   # レ ファ レ シ（G）
+		440.00, 523.25, 659.25, 523.25,   # ラ ド ミ ド（Am）
+		349.23, 440.00, 523.25, 392.00,   # ファ ラ ド ソ（F）
+		523.25, 659.25, 1046.50, 783.99,  # ド ミ 上のド ソ（C・昇る）
+		587.33, 783.99, 698.46, 587.33,   # レ ソ ファ レ（G）
+		659.25, 587.33, 523.25, 440.00,   # ミ レ ド ラ（Am・降りる）
+		349.23, 392.00, 329.63, 261.63,   # ファ ソ ミ ド（F→主音へ帰る）
+	]
+	var mstep := dur / float(mel.size())   # 0.875秒/音
+	for i in n:
+		var t := float(i) / RATE
+		# パッド（土台の和音）：7秒ごとに変わり、変わり目はクロスフェード。
+		var ci := int(t / chord_dur) % _PAD_CHORDS.size()
+		var lt := t - float(int(t / chord_dur)) * chord_dur
+		var pad := _chord_at(_PAD_CHORDS[ci], t)
+		if lt < 0.35:
+			var prev: Array = _PAD_CHORDS[(ci + _PAD_CHORDS.size() - 1) % _PAD_CHORDS.size()]
+			var k := lt / 0.35
+			pad = _chord_at(prev, t) * (1.0 - k) + pad * k
+		# 旋律（オルゴールの鐘）：基音＋オクターブ＋3倍音、頭にアタック、音符内で減衰。
+		var mi := int(t / mstep) % mel.size()
+		var mlt := t - float(int(t / mstep)) * mstep
+		var menv := clampf(mlt / 0.012, 0.0, 1.0) * pow(clampf(1.0 - mlt / (mstep * 0.92), 0.0, 1.0), 1.5)
+		var mf: float = mel[mi]
+		var bell := sin(TAU * mf * t) * 0.6 + sin(TAU * mf * 2.0 * t) * 0.22 + sin(TAU * mf * 3.0 * t) * 0.08
+		bell += sin(TAU * mf * 1.003 * t) * 0.12   # わずかなデチューン＝あたたかい厚み
+		var edge := clampf(minf(t, dur - t) / 0.06, 0.0, 1.0)
+		out[i] = (pad * 0.32 + bell * menv * 0.5) * edge * 0.5
+	return out
+
+
+
+func _make(samples: PackedFloat32Array) -> AudioStreamWAV:
+	var wav := AudioStreamWAV.new()
+	wav.format = AudioStreamWAV.FORMAT_16_BITS
+	wav.mix_rate = RATE
+	wav.stereo = false
+	wav.data = _to_pcm(samples)
+	return wav
+
+
+func _make_loop(samples: PackedFloat32Array) -> AudioStreamWAV:
+	var wav := _make(samples)
+	wav.loop_mode = AudioStreamWAV.LOOP_FORWARD
+	wav.loop_begin = 0
+	wav.loop_end = samples.size()
+	return wav
+
+
+func _to_pcm(samples: PackedFloat32Array) -> PackedByteArray:
+	var data := PackedByteArray()
+	data.resize(samples.size() * 2)
+	for i in samples.size():
+		var v := int(clampf(samples[i], -1.0, 1.0) * 32767.0)
+		data.encode_s16(i * 2, v)
+	return data
