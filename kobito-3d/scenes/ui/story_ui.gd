@@ -5,6 +5,7 @@ extends Control
 var _lines: PackedStringArray = []
 var _idx := 0
 var _auto := 0.0
+var _reveal_tw: Tween = null   # セリフの1文字ずつ表示（タイプライター）
 
 # バトル中の会話は自動で出さず、この「おはなし」ボタンで“読みたいとき”に読む＝戦闘の邪魔をしない。
 var _pending_lines: PackedStringArray = []
@@ -262,6 +263,19 @@ func _show_line() -> void:
 		_speaker_tag.text = "  おはなし  "
 		_speaker_tag.add_theme_stylebox_override("normal", UIKit.panel(UIKit.GREEN_DK, UIKit.GREEN, 12, 0, 6))
 		_text.text = line
+	# タイプライター：1文字ずつ ふわっと出す（読み聞かせのリズム＝“えほん”らしさ）。
+	# 途中のタップは _advance で 全部出す（＝読み手のペースを尊重）。出しきるまで「つぎへ」は隠す。
+	if _reveal_tw != null and _reveal_tw.is_valid():
+		_reveal_tw.kill()
+	_text.visible_ratio = 0.0
+	if _hint != null:
+		_hint.visible = false
+	var rdur := clampf(float(_text.text.length()) * 0.04, 0.15, 1.8)
+	_reveal_tw = create_tween()
+	_reveal_tw.tween_property(_text, "visible_ratio", 1.0, rdur)
+	_reveal_tw.tween_callback(func() -> void:
+		if _hint != null:
+			_hint.visible = true)
 	# 自動送りは文の長さに比例（読み聞かせ・早い読者どちらも置き去りにしない）。タップで即次へ。
 	# 以前は一律4秒＝親が読み上げ切る前/子が読み切る前に流れて“えほん”が置き去りになっていた。
 	_auto = clampf(3.0 + float(line.length()) * 0.16, 4.5, 11.0)
@@ -285,6 +299,14 @@ func _speaker_color(name: String) -> Color:
 
 func _advance() -> void:
 	if not _box.visible:
+		return
+	# まだ出しきっていない＝1回目のタップは “全部出す”（次へは進めない）＝読み手のペースを尊重。
+	if _reveal_tw != null and _reveal_tw.is_valid():
+		_reveal_tw.kill()
+		_reveal_tw = null
+		_text.visible_ratio = 1.0
+		if _hint != null:
+			_hint.visible = true
 		return
 	_idx += 1
 	_show_line()
