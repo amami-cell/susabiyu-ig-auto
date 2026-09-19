@@ -271,16 +271,67 @@ func _on_recovery(value: float) -> void:
 		_recovery_ticks.queue_redraw()
 
 
-## 回復メーターに 25/50/75% の節目を刻む。到達済みは金色、これからはうっすら。
+## 回復メーターに“成長の節目”を刻む＝芽→つぼみ→花→満開。
+## 到達すると色づき、これからの節目はうっすら。「あと少しで次の姿（満開）」が
+## ひと目で分かって、掃除を続ける動機になる。
 func _draw_recovery_ticks() -> void:
 	var sz := _recovery_ticks.size
 	if sz.x <= 0.0:
 		return
-	for step: float in [0.25, 0.5, 0.75]:
-		var x: float = sz.x * step
-		var reached: bool = WorldState.recovery >= step
-		var col := Color(1.0, 0.85, 0.35, 0.95) if reached else Color(1, 1, 1, 0.35)
-		_recovery_ticks.draw_line(Vector2(x, 3.0), Vector2(x, sz.y - 3.0), col, 2.0)
+	var rec := WorldState.recovery
+	# [位置, 種類]。1.0＝右端の満開は少し内側に寄せて欠けないように。
+	var stages := [
+		[0.25, "sprout"],   # 芽（二葉）
+		[0.5,  "bud"],      # つぼみ
+		[0.75, "flower"],   # 花
+		[1.0,  "bloom"],    # 満開
+	]
+	for st: Array in stages:
+		var at: float = st[0]
+		var kind: String = st[1]
+		var x: float = clampf(sz.x * at, 9.0, sz.x - 9.0)
+		var reached: bool = rec >= at - 0.001
+		if at < 1.0:
+			var lcol := Color(1.0, 0.85, 0.35, 0.9) if reached else Color(1, 1, 1, 0.3)
+			_recovery_ticks.draw_line(Vector2(x, 3.0), Vector2(x, sz.y - 3.0), lcol, 2.0)
+		_draw_stage_icon(x, sz.y * 0.5, kind, reached)
+
+
+## 成長段階アイコン（バー内に小さく描く）。到達＝色づき、未到達＝うっすら白。
+func _draw_stage_icon(cx: float, cy: float, kind: String, reached: bool) -> void:
+	# 到達時は 明るい緑バーの上でも埋もれないよう“濃い緑”にする（コントラスト確保）。
+	var leaf := Color(0.14, 0.44, 0.16) if reached else Color(1, 1, 1, 0.28)
+	var stem := Color(0.10, 0.36, 0.13) if reached else Color(1, 1, 1, 0.24)
+	var petal := Color(1.0, 0.52, 0.68) if reached else Color(1, 1, 1, 0.30)
+	var core := Color(1.0, 0.84, 0.32) if reached else Color(1, 1, 1, 0.34)
+	var shade := Color(0.12, 0.2, 0.12, 0.45)   # どの背景でも読めるよう暗い縁を敷く
+	match kind:
+		"sprout":
+			_recovery_ticks.draw_line(Vector2(cx, cy + 5.0), Vector2(cx, cy - 1.0), stem, 2.0)
+			for dx: float in [-3.4, 3.4]:
+				_recovery_ticks.draw_circle(Vector2(cx + dx, cy - 2.0), 3.4, shade)
+				_recovery_ticks.draw_circle(Vector2(cx + dx, cy - 2.0), 2.7, leaf)
+		"bud":
+			_recovery_ticks.draw_line(Vector2(cx, cy + 5.0), Vector2(cx, cy - 1.0), stem, 2.0)
+			_recovery_ticks.draw_circle(Vector2(cx, cy - 3.0), 4.0, shade)
+			_recovery_ticks.draw_circle(Vector2(cx, cy - 3.0), 3.3, leaf)
+			_recovery_ticks.draw_circle(Vector2(cx, cy - 4.5), 2.0, petal)
+		"flower":
+			for i in 5:
+				var pa := TAU * float(i) / 5.0 - PI * 0.5
+				_recovery_ticks.draw_circle(Vector2(cx + cos(pa) * 4.4, cy - 2.0 + sin(pa) * 4.4), 3.0, shade)
+			for i in 5:
+				var pb := TAU * float(i) / 5.0 - PI * 0.5
+				_recovery_ticks.draw_circle(Vector2(cx + cos(pb) * 4.4, cy - 2.0 + sin(pb) * 4.4), 2.4, petal)
+			_recovery_ticks.draw_circle(Vector2(cx, cy - 2.0), 2.2, core)
+		"bloom":
+			for i in 6:
+				var ba := TAU * float(i) / 6.0
+				_recovery_ticks.draw_circle(Vector2(cx + cos(ba) * 5.4, cy - 1.0 + sin(ba) * 5.4), 3.6, shade)
+			for i in 6:
+				var bb := TAU * float(i) / 6.0
+				_recovery_ticks.draw_circle(Vector2(cx + cos(bb) * 5.4, cy - 1.0 + sin(bb) * 5.4), 2.9, petal)
+			_recovery_ticks.draw_circle(Vector2(cx, cy - 1.0), 3.0, core)
 
 
 func _on_roster() -> void:
