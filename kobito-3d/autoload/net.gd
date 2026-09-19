@@ -27,6 +27,14 @@ enum Transport { ENET, WEBSOCKET }
 const DEFAULT_PORT := 24567
 const MAX_PLAYERS := 4
 
+## 中継(Cloudflare Worker)経由の協力プレイ。携帯どうしは直接つながれない
+## （ブラウザは待ち受けできない）ので、両方が中継へ出ていって橋渡ししてもらう。
+## ここに自分の Worker の URL を入れると、携帯2台だけで協力プレイができる。
+##   例: "wss://kobito-relay.<あなたのサブドメイン>.workers.dev"
+## デプロイ手順は relay/README.md（push で自動デプロイ）。空なら user://settings.cfg の
+## [net] relay で上書きもできる（作り直しなしで差し替え可）。
+const RELAY_BASE := ""
+
 # 自動つなぎ直し（スマホは電波が一瞬切れるのが日常）。
 # 参加(client)側だけが対象。切れたら、覚えておいた相手へ数回つなぎ直す。
 const RECONNECT_TRIES := 3       # つなぎ直しを試す回数
@@ -66,6 +74,10 @@ var _last_address := ""
 var _last_port := DEFAULT_PORT
 var _intentional := false     # ユーザーが自分で退出した＝つなぎ直さない
 var _reconnecting := false    # つなぎ直しの最中（この間は通常の切断処理を止める）
+
+# 中継(RELAY)経由のとき用。つなぎ直しで同じ部屋へ戻れるように覚えておく。
+var _conn_kind := "enet"      # "enet" / "ws" / "relay"
+var _relay_code := ""
 
 
 const CFG_PATH := "user://settings.cfg"
@@ -171,9 +183,89 @@ func join(address: String, port: int = DEFAULT_PORT) -> Error:
 	return OK
 
 
+# ---------------------------------------------------------------- 中継(Cloudflare)協力プレイ
+#
+# 携帯2台“だけ”で遊ぶための道。両方が中継へ client 接続し、中継が橋渡しする。
+# ホスト側の携帯が Godot上の peer id=1（＝進行の正）になる。中継URLは RELAY_BASE。
+
+## 中継が使えるか（URLが設定済みか）。
+func relay_ready() -> bool:
+	return not _relay_base().is_empty()
+
+
+func _relay_base() -> String:
+	var base := RELAY_BASE
+	var cfg := ConfigFile.new()
+	if cfg.load(CFG_PATH) == OK:
+		base = String(cfg.get_value("net", "relay", base))
+	return base.strip_edges()
+
+
+func _relay_url(code: String, role: String) -> String:
+	var base := _relay_base().trim_suffix("/")
+	return "%s/r?room=%s&role=%s" % [base, code.uri_encode(), role]
+
+
+## 合言葉（部屋コード）を作る。読み違えにくい文字だけ・4桁。
+func make_room_code() -> String:
+	const POOL := "23456789ABCDEFGHJKLMNPQRSTUVWXYZ"   # 0/O/1/I を除く
+	var rng := RandomNumberGenerator.new()
+	rng.randomize()
+	var s := ""
+	for i in 4:
+		s += POOL[rng.randi() % POOL.length()]
+	return s
+
+
+## 中継ごしにホストになる（携帯でもOK）。合言葉を相手に伝える。
+func host_relay(code: String) -> Error:
+	if not relay_ready():
+		_emit_status("中継URLが未設定です（relay/README.md でデプロイ→URL設定）")
+		return ERR_UNAVAILABLE
+	_intentional = false
+	_reconnecting = false
+	_conn_kind = "relay"
+	_relay_code = code
+	_shutdown_peer()
+	var peer := RelayMultiplayerPeer.over_url(_relay_url(code, "host"), "host")
+	_peer = peer
+	multiplayer.multiplayer_peer = _peer
+	is_online = true
+	roster.clear()
+	_register(1, my_display_name)
+	_emit_status("あいことば「%s」で待っています（相手に伝えてね）" % code)
+	session_started.emit()
+	return OK
+
+
+## 中継ごしに参加する（携帯でもOK）。ホストと同じ合言葉を入れる。
+func join_relay(code: String) -> Error:
+	if not relay_ready():
+		_emit_status("中継URLが未設定です（relay/README.md でデプロイ→URL設定）")
+		return ERR_UNAVAILABLE
+	_conn_kind = "relay"
+	_relay_code = code
+	_last_address = code   # つなぎ直しの目印（中継では合言葉が住所）
+	_intentional = false
+	_reconnecting = false
+	_shutdown_peer()
+	var peer := RelayMultiplayerPeer.over_url(_relay_url(code, "join"), "join")
+	_peer = peer
+	multiplayer.multiplayer_peer = _peer
+	is_online = true
+	_emit_status("あいことば「%s」で つないでいます…" % code)
+	return OK
+
+
 ## クライアントとして接続を開く低レベル部（join と つなぎ直しで共用）。
 func _open_client(address: String, port: int) -> Error:
 	_shutdown_peer()
+	# 中継(RELAY)経由のつなぎ直しは、同じ合言葉の部屋へ参加し直す。
+	if _conn_kind == "relay":
+		_peer = RelayMultiplayerPeer.over_url(_relay_url(_relay_code, "join"), "join")
+		multiplayer.multiplayer_peer = _peer
+		is_online = true
+		return OK
 	var peer := _make_peer()
 	var err: Error
 	if transport == Transport.ENET:

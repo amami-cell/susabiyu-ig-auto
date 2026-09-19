@@ -23,6 +23,7 @@ var _difficulty: OptionButton = null
 var _credits: Control = null
 var _dex: Control = null
 var _qr: Control = null
+var _code_edit: LineEdit = null   # 中継協力プレイの「あいことば（部屋コード）」入力欄
 
 # なかま図鑑の全種（id は data/*.tres のファイル名。色は見分け用の近似）。
 const DEX_SPECIES := [
@@ -141,6 +142,26 @@ func _ready() -> void:
 	_host.pressed.connect(_on_host)
 	_join.pressed.connect(_on_join)
 	Net.status_changed.connect(func(t: String) -> void: _status.text = t)
+
+	# 「あいことば（部屋コード）」欄＝中継ごしの協力プレイ用。携帯2台だけで遊べる道。
+	# ふだんは隠しておき、中継URLが設定済み(_setup_for_browser)のときだけ見せる。
+	_code_edit = LineEdit.new()
+	_code_edit.name = "CodeEdit"
+	_code_edit.placeholder_text = "あいことば（4文字）"
+	_code_edit.alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_code_edit.max_length = 8
+	_code_edit.custom_minimum_size = Vector2(0, 56)
+	_code_edit.add_theme_font_size_override("font_size", 26)
+	_code_edit.visible = false
+	_vbox.add_child(_code_edit)
+	_vbox.move_child(_code_edit, _addr_edit.get_index() + 1)
+	# 入れた文字は大文字にそろえる（合言葉は大文字だけ＝読み違い防止）。
+	_code_edit.text_changed.connect(func(t: String) -> void:
+		var up := t.to_upper()
+		if up != t:
+			var c := _code_edit.caret_column
+			_code_edit.text = up
+			_code_edit.caret_column = c)
 
 	# 初見のつかみ：主役の「はじめる」をなまえの すぐ下＝設定より上へ。
 	# 以前は 舞台/むずかしさ/音量/文字サイズ… の下に埋もれ、初見が スクロールしないと 始められなかった。
@@ -814,16 +835,31 @@ func _setup_for_app() -> void:
 
 func _setup_for_browser() -> void:
 	_transport.visible = false
-	_host.visible = false
 	if _biome != null:
 		_biome.visible = false
-	# ★参加を1タップに★ 接続先はページ配信元から自動補完されるので、IP入力欄は隠す。
-	# （同じURLを開いた2台なら、住所を打たずに「参加する」だけでつながる。）
 	_addr_edit.text = Net.web_default_address()
 	_addr_edit.visible = false
 	_solo.text = "ひとりで始める（通信なし）"
-	_join.text = "ふたりで遊ぶ（ホストに参加）"
-	_status.text = "ふたりで遊ぶには、同じ画面（このURL）を開いたPC/Android側で先に\n「みんなで遊ぶ」を押してもらってください。あとは「参加する」だけ。"
+
+	if Net.relay_ready():
+		# ★携帯2台だけで協力プレイ★ 中継(Cloudflare)ごしにつながる。
+		# 片方が「あいことば」を作り、もう片方が同じ言葉を入れて参加する。
+		_host.visible = true
+		_host.text = "みんなで遊ぶ（あいことばを作る）"
+		_join.text = "あいことばで参加する"
+		_code_edit.visible = true
+		_status.text = "ふたりで遊ぶ：片方が「みんなで遊ぶ」を押すと あいことばが出ます。\nもう片方は その言葉を入れて「あいことばで参加する」。（携帯2台だけでOK）"
+		# 協力プレイの一式（ホスト／あいことば／参加）を「ひとりで始める」のすぐ下へ
+		# ひとかたまりで上げる＝スクロールしなくても見つかる。
+		var base := _solo.get_index()
+		_vbox.move_child(_host, base + 1)
+		_vbox.move_child(_code_edit, base + 2)
+		_vbox.move_child(_join, base + 3)
+	else:
+		# 中継URL未設定のとき＝従来どおり、PC/Androidをホストにして参加する道。
+		_host.visible = false
+		_join.text = "ふたりで遊ぶ（ホストに参加）"
+		_status.text = "ふたりで遊ぶには、同じ画面（このURL）を開いたPC/Android側で先に\n「みんなで遊ぶ」を押してもらってください。あとは「参加する」だけ。"
 
 
 func _sync_settings() -> void:
@@ -854,6 +890,14 @@ func _on_solo() -> void:
 func _on_host() -> void:
 	_sync_settings()
 	Chapter.start_new()
+	# 中継ごしのホスト（携帯でもOK）：あいことばを作って表示し、相手に伝えてもらう。
+	if Net.is_web() and Net.relay_ready():
+		var code := _code_edit.text.strip_edges()
+		if code.is_empty():
+			code = Net.make_room_code()
+		_code_edit.text = code
+		Net.host_relay(code)
+		return
 	if Net.host() == OK:
 		_status.text = "待ち受け中。相手の端末に %s を入力してもらう" % Net.local_ip_hint()
 
@@ -880,4 +924,12 @@ func _on_join() -> void:
 	# （持ち越すと 参加直後だけ 目的表示や 本を開く導入が おかしくなる）。
 	Chapter.free_play = false
 	Chapter.peaceful = false
+	# 中継ごしの参加（携帯でもOK）：ホストと同じ あいことば を入れる。
+	if Net.is_web() and Net.relay_ready():
+		var code := _code_edit.text.strip_edges()
+		if code.is_empty():
+			_status.text = "あいことばを入れてね（ホスト側の画面に出ています）"
+			return
+		Net.join_relay(code)
+		return
 	Net.join(_addr_edit.text.strip_edges())
