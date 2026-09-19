@@ -371,17 +371,48 @@ func _page_turn(title: String) -> void:
 	spine.offset_right = 26.0
 	spine.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	page.add_child(spine)
-	# 章タイトル（ページの中央）。
-	var lbl := Label.new()
-	lbl.text = title
-	lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	lbl.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	lbl.set_anchors_preset(Control.PRESET_FULL_RECT)
-	lbl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	lbl.add_theme_font_size_override("font_size", 46)
-	lbl.add_theme_color_override("font_color", UIKit.GREEN_DK)
-	lbl.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	page.add_child(lbl)
+	# 章タイトル（ページの中央）。「第X章」＋「タイトル」＋その章の“一言”を 縦に重ねて 物語へ引き込む。
+	var chap := title
+	var name := ""
+	var b := title.find("「")
+	if b >= 0:
+		chap = title.substr(0, b).strip_edges()   # 「第X章」
+		name = title.substr(b).strip_edges()        # 「…」
+	# 章ごとの ひとこと（舞台の情景を そっと予告＝没入）。タイトル文字列で引く。
+	var moods := {
+		"たどり着いた隙間": "小さな家族の、あたらしい すみか。",
+		"そとの世界へ": "とびらの むこうへ、はじめの 一歩。",
+		"にごった みずべ": "よどんだ 水を、すきとおる 水に。",
+		"よるの もり": "くらい 森に、月あかりを とりもどす。",
+		"いえの なか": "ほこりの 部屋に、あたたかい 陽を。",
+		"そら": "雲の うえまで、みどりを とどけよう。",
+	}
+	var mood := ""
+	for k in moods.keys():
+		if k in title:
+			mood = String(moods[k])
+			break
+
+	var center := CenterContainer.new()
+	center.set_anchors_preset(Control.PRESET_FULL_RECT)
+	center.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	page.add_child(center)
+	var col := VBoxContainer.new()
+	col.add_theme_constant_override("separation", 8)
+	center.add_child(col)
+	var _pl := func(t: String, sz: int, col_c: Color) -> void:
+		if t == "":
+			return
+		var l := Label.new()
+		l.text = t
+		l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		l.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		l.add_theme_font_size_override("font_size", sz)
+		l.add_theme_color_override("font_color", col_c)
+		col.add_child(l)
+	_pl.call(chap, 24, UIKit.GREEN)                 # 第X章（小さく）
+	_pl.call(name if name != "" else title, 46, UIKit.GREEN_DK)   # 「タイトル」（大きく）
+	_pl.call(mood, 20, UIKit.INK_SOFT)             # ひとこと（そっと）
 	Sfx.play("pickup", -12.0)   # 紙をめくる小さな合図
 	var tw := create_tween()
 	tw.tween_interval(1.25)                                                                                # タイトルを見せる間（既に覆っている＝裏で切替）
