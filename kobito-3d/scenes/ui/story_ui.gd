@@ -13,6 +13,7 @@ var _talk_btn: Button = null
 var _obj: Label
 var _box: Panel
 var _text: Label
+var _speaker_tag: Label = null   # 会話ボックス左上の名札＝“誰のセリフか”を 名前＋色で示す
 var _hint: Label
 var _catch: Button
 var _banner: Label
@@ -105,14 +106,14 @@ func _build() -> void:
 	_box.visible = false
 	add_child(_box)
 
-	# 会話ボックスの左上に“おはなし”の名札
-	var tag := Label.new()
-	tag.text = "  おはなし  "
-	tag.add_theme_stylebox_override("normal", UIKit.panel(UIKit.GREEN_DK, UIKit.GREEN, 12, 0, 6))
-	UIKit.style_label(tag, 18, Color(1, 1, 1))
-	tag.position = Vector2(14, -16)
-	tag.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_box.add_child(tag)
+	# 会話ボックスの左上の名札＝話者名を色つきで（誰のセリフか ひと目で）。地の文は「おはなし」。
+	_speaker_tag = Label.new()
+	_speaker_tag.text = "  おはなし  "
+	_speaker_tag.add_theme_stylebox_override("normal", UIKit.panel(UIKit.GREEN_DK, UIKit.GREEN, 12, 0, 6))
+	UIKit.style_label(_speaker_tag, 18, Color(1, 1, 1))
+	_speaker_tag.position = Vector2(14, -16)
+	_speaker_tag.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_box.add_child(_speaker_tag)
 
 	# タップ受けは会話ボックスの範囲だけ（画面中央〜左の移動操作は邪魔しない）
 	_catch = Button.new()
@@ -249,11 +250,37 @@ func _show_line() -> void:
 	if _idx >= _lines.size():
 		_hide_box()
 		return
-	_text.text = _lines[_idx]
+	var line: String = _lines[_idx]
+	# 「名前「セリフ」」形式なら 名前を色つき名札に出し、本文はセリフだけに＝“誰のセリフか”が分かる。
+	var qi := line.find("「")
+	var sp := line.substr(0, qi).strip_edges() if qi > 0 else ""
+	if sp != "" and sp.length() <= 6:
+		_speaker_tag.text = "  " + sp + "  "
+		_speaker_tag.add_theme_stylebox_override("normal", UIKit.panel(_speaker_color(sp), UIKit.GREEN, 12, 0, 6))
+		_text.text = line.substr(qi)   # 「…」だけ＝名前の重複を消して読みやすく
+	else:
+		_speaker_tag.text = "  おはなし  "
+		_speaker_tag.add_theme_stylebox_override("normal", UIKit.panel(UIKit.GREEN_DK, UIKit.GREEN, 12, 0, 6))
+		_text.text = line
 	# 自動送りは文の長さに比例（読み聞かせ・早い読者どちらも置き去りにしない）。タップで即次へ。
 	# 以前は一律4秒＝親が読み上げ切る前/子が読み切る前に流れて“えほん”が置き去りになっていた。
-	_auto = clampf(3.0 + float(_lines[_idx].length()) * 0.16, 4.5, 11.0)
+	_auto = clampf(3.0 + float(line.length()) * 0.16, 4.5, 11.0)
 	Sfx.play("pickup", -22.0)   # 文字送りの小さな合図
+
+
+## 話者ごとの名札の色（誰のセリフか 色でも分かる）。役割は固定色、子どもらは名前で葉色を少し変える。
+func _speaker_color(name: String) -> Color:
+	if name in ["父", "夫", "とうさん", "パパ", "おとう"]:
+		return Color(0.42, 0.60, 0.90)   # とうさん＝青
+	if name in ["母", "かあさん", "ママ", "おかあ"]:
+		return Color(0.90, 0.52, 0.68)   # かあさん＝桃
+	if name in ["おじい", "じい", "おじいちゃん", "そふ"]:
+		return Color(0.72, 0.56, 0.32)   # おじい＝茶
+	if name == "みんな":
+		return Color(0.5, 0.72, 0.5)     # 家族みんな＝みどり
+	# こども達＝葉っぱ色。名前で 色相をわずかに散らして 見分けやすく（緑〜黄緑の帯に収める）。
+	var h := absi(name.hash())
+	return Color.from_hsv(0.24 + float(h % 60) / 60.0 * 0.14, 0.55, 0.72)
 
 
 func _advance() -> void:
