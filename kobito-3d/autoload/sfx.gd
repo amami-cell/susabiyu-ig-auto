@@ -39,6 +39,7 @@ var _sfx := 1.0             # 効果音音量（SFXバス）。0で消音。保�
 
 
 func _ready() -> void:
+	_unlock_web_audio()   # iPhone(Safari)対策：消音スイッチ・自動再生ブロックを外す
 	_ensure_buses()
 	for i in VOICES:
 		var p := AudioStreamPlayer.new()
@@ -79,6 +80,41 @@ func _ready() -> void:
 	WorldState.notice.connect(_on_notice)
 	# 起動直後＝タイトル画面。主題歌を鳴らす（Webは最初のタップで音が解禁されると鳴り始める）。
 	start_title()
+
+
+## iPhone(Safari)で音が出ない2大原因を、Web版でだけ外す。
+##  ① マナー(消音)スイッチで WebAudio が消える → navigator.audioSession を "playback" に。
+##     （iOS 16.4+。これで消音スイッチが ON でもゲーム音が鳴る）
+##  ② 自動再生ブロック → 最初のタップで オーディオセッションを起こし、止まっていれば resume。
+## Godot 本体も入力で resume を試みるが、iOS はセッションの起こし直しが要ることがあるので
+## 無音の一瞬の発音でセッションを確実に起こす。非Webでは何もしない（安全）。
+func _unlock_web_audio() -> void:
+	if not OS.has_feature("web"):
+		return
+	JavaScriptBridge.eval("""
+	(function(){
+	  function setPlayback(){ try{ if(navigator.audioSession){ navigator.audioSession.type='playback'; } }catch(e){} }
+	  setPlayback();
+	  if (window.__kobitoAudioUnlock) return;
+	  window.__kobitoAudioUnlock = true;
+	  var unlock = function(){
+	    setPlayback();
+	    try {
+	      var Ctx = window.AudioContext || window.webkitAudioContext;
+	      if (Ctx){
+	        var c = window.__kobitoPrimeCtx || (window.__kobitoPrimeCtx = new Ctx());
+	        if (c.state !== 'running' && c.resume) c.resume();
+	        var o = c.createOscillator(); var g = c.createGain();
+	        g.gain.value = 0.0; o.connect(g); g.connect(c.destination);
+	        o.start(0); o.stop(c.currentTime + 0.02);
+	      }
+	    } catch(e){}
+	  };
+	  ['touchend','pointerdown','mousedown','keydown'].forEach(function(ev){
+	    window.addEventListener(ev, unlock, true);
+	  });
+	})();
+	""", true)
 
 
 ## 名前で鳴らす。音量(db)を少し変えられる。存在しない名前は無視。
