@@ -12,6 +12,7 @@ var _pending_lines: PackedStringArray = []
 var _talk_btn: Button = null
 
 var _obj: Label
+var _obj_tag: Label = null   # めあてバー左上の見出しチップ（めあて/れんしゅう 等）＝本文を短く読みやすく
 var _box: Panel
 var _text: Label
 var _speaker_tag: Label = null   # 会話ボックス左上の名札＝“誰のセリフか”を 名前＋色で示す
@@ -77,6 +78,15 @@ func _build() -> void:
 	_obj.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_obj.visible = false   # 目的がまだ無いとき（タイトル画面など）は出さない＝空の緑バーを防ぐ
 	add_child(_obj)
+
+	# めあての見出しチップ（金）。「めあて：」等の前置きを ここに移し、バー本文は 短い目標だけに。
+	_obj_tag = Label.new()
+	_obj_tag.text = "  めあて  "
+	_obj_tag.add_theme_stylebox_override("normal", UIKit.panel(UIKit.GOLD, Color(0.82, 0.6, 0.24), 12, 0, 6))
+	UIKit.style_label(_obj_tag, 16, Color(0.24, 0.18, 0.08))
+	_obj_tag.position = Vector2(14, -14)
+	_obj_tag.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_obj.add_child(_obj_tag)
 
 	# 「おはなし」ボタン（左上・小さめ）。バトル中に会話がたまっているときだけ出る。
 	# 押すと そのとき会話を読める＝自動で画面を覆わない（戦闘の視界と操作を守る）。
@@ -172,7 +182,16 @@ func _build() -> void:
 
 func set_objective(text: String) -> void:
 	var was_vis := _obj.visible
-	_obj.text = text
+	# 「〇〇：本文」を チップ(〇〇)＋本文 に分けて バーを短く。前置きが無ければ チップは「めあて」。
+	var body := text
+	var tag := "めあて"
+	var ci := text.find("：")
+	if ci > 0 and ci <= 8:
+		tag = text.substr(0, ci)
+		body = text.substr(ci + 1).strip_edges()
+	if _obj_tag != null:
+		_obj_tag.text = "  " + tag + "  "
+	_obj.text = body
 	_obj.visible = text != ""
 	# 初めて出るときだけ ふわっとフェードイン（残数の更新ごとには点滅させない）。
 	if _obj.visible and not was_vis:
