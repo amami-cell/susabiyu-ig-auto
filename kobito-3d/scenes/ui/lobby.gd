@@ -536,9 +536,17 @@ func _show_qr() -> void:
 	var note := Label.new()
 	note.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	note.text = "スマホのカメラで よみとると、同じゲームが ひらくよ。\n（ふたりで遊ぶとき用）"
+	# ふたりで遊ぶ導線を ①②の手順で やさしく（初見が つまずかないように）。
+	note.text = "① このQRを もう1台の カメラで よみとる\n② 同じゲームが ひらいたら「ふたりで遊ぶ」を おす"
 	UIKit.style_label(note, 18, UIKit.INK)
 	vb.add_child(note)
+
+	var note2 := Label.new()
+	note2.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	note2.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	note2.text = "※ 先に この画面がわで「みんなで遊ぶ」を おしておくと、すぐ つながります。"
+	UIKit.style_label(note2, 14, UIKit.INK_SOFT)
+	vb.add_child(note2)
 
 	var center := CenterContainer.new()
 	vb.add_child(center)
