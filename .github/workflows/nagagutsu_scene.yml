@@ -1,0 +1,50 @@
+name: nagagutsu-scene
+# ナガグツ：店の「外観・内観」写真をDriveから取得し、LP背景スライド用に保存する。
+#   pwa/nagagutsu/scene_*.jpg を作り、コミット→deploy_pwa を発火。手動実行のみ（重くない）。
+on:
+  workflow_dispatch: {}
+permissions:
+  contents: write
+concurrency:
+  group: nagagutsu-scene
+  cancel-in-progress: false
+jobs:
+  scene:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    defaults:
+      run:
+        working-directory: susabiyu-remotion
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install deps
+        run: pip install google-api-python-client google-auth Pillow
+      - name: Fetch scene photos
+        env:
+          GOOGLE_CREDS_B64: ${{ secrets.GOOGLE_CREDS_B64 }}
+        run: |
+          echo "$GOOGLE_CREDS_B64" | base64 -d > creds.json
+          python nagagutsu_scene.py creds.json
+          rm -f creds.json
+      - name: Commit + deploy
+        working-directory: .
+        run: |
+          set -e
+          if [ "${{ github.ref }}" != "refs/heads/main" ]; then
+            echo "main 以外（${{ github.ref }}）からの実行のためコミットしません。"; exit 0
+          fi
+          if [ -z "$(git status --porcelain -- pwa/nagagutsu)" ]; then
+            echo "変更なし。コミットしません。"; exit 0
+          fi
+          cur=$(grep -oE 'susabiyu-v[0-9]+' pwa/sw.js | grep -oE '[0-9]+' | head -1)
+          nxt=$((cur + 1))
+          sed -i "s/susabiyu-v$cur/susabiyu-v$nxt/" pwa/sw.js
+          echo "sw v$cur -> v$nxt"
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add pwa/nagagutsu pwa/sw.js
+          git commit -m "ナガグツ: 外観・内観写真をDriveから取得（LP背景スライド用 scene_*）＋キャッシュv$nxt"
+          git push origin HEAD:main
