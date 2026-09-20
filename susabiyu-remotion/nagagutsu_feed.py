@@ -36,17 +36,22 @@ PUB_DIR = os.path.join(HERE, "public", "nfeed")          # Remotion が staticFi
 TARGET_W, TARGET_H = 1080, 1350                          # 4:5
 MIN_SIDE = 700                                           # これ未満の小さい画像は使わない
 
-# 承認済みの6案（render_feed.py / YoshokuFeed.tsx の FEED_COMPS と一致させる）。
-DESIGNS = [
-    "YoshokuFeedA", "YoshokuFeedB", "YoshokuFeedC",
-    "YoshokuFeedE", "YoshokuFeedE2", "YoshokuFeedE3",
-]
-# 暗幕・下地を敷かず写真に直接字を置く案。明るい写真だと文字が負ける。
-# 当初は「明るさが閾値を超えたら使わない」にしたが、料理写真は元々明るく、実データ
-# (112/136/154/158/181)では過半数が弾かれて案A・案Cが一度も使われなくなった＝均等が壊れる。
-# 禁止ではなく「暗い写真から順に割り当てる」に変える。全案が必ず出番を持ち、かつ
-# 下地なしの案は一番読みやすい（暗い）写真に回る。
-NO_SCRIM = {"YoshokuFeedA", "YoshokuFeedC"}
+# デザイン案。店ごとに使う案を変える。
+# ・ナガグツ … ユーザー指定で「サイドレール(左オビ)3色＝テラコッタ/オリーブ/ゴールド」に統一。
+#   左上は店ロゴ画像(nagagutsu_logo.png)、左オビ＋料理名の体裁を全品で揃える（グリッドが1トーンに）。
+# ・その他(GOLD等) … 従来の6案のまま。
+if ACCOUNT == "nagagutsu":
+    DESIGNS = ["YoshokuFeedE", "YoshokuFeedE2", "YoshokuFeedE3"]
+    NO_SCRIM = set()   # サイドレール案は下地(左オビ+下グラデ)があるので明るさ制約は不要
+else:
+    DESIGNS = [
+        "YoshokuFeedA", "YoshokuFeedB", "YoshokuFeedC",
+        "YoshokuFeedE", "YoshokuFeedE2", "YoshokuFeedE3",
+    ]
+    # 暗幕・下地を敷かず写真に直接字を置く案。明るい写真だと文字が負ける。
+    # 禁止ではなく「暗い写真から順に割り当てる」に変える。全案が必ず出番を持ち、かつ
+    # 下地なしの案は一番読みやすい（暗い）写真に回る。
+    NO_SCRIM = {"YoshokuFeedA", "YoshokuFeedC"}
 
 
 def _creds_path():
@@ -303,6 +308,9 @@ def main():
               "sub": d["sub"], "desc": d["desc"], "story": "", "cut": ""}
         props = {"storeName": store["store_name"], "handle": store["handle"],
                  "theme": store.get("theme") or "italian", "it": it}
+        # ナガグツは左上を店ロゴ画像に（文字ロゴではなく丸ロゴ）。public/nagagutsu_logo.png を使う。
+        if ACCOUNT == "nagagutsu":
+            props["brandLogo"] = "nagagutsu_logo.png"
         open("out/_feed_props.json", "w", encoding="utf-8").write(
             json.dumps(props, ensure_ascii=False))
         png = "out/nfeed.png"

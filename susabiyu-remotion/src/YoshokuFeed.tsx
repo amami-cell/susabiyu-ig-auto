@@ -17,7 +17,7 @@ export const FEED_W = 1080;
 export const FEED_H = 1350;
 export const FEED_DUR = 1; // 静止画（stillで1フレーム抜く）
 
-type P = { storeName?: string; handle?: string; theme?: string };
+type P = { storeName?: string; handle?: string; theme?: string; brandLogo?: string };
 // 料理を props で差し込むための型。既定は typoData の1品目(dish())だが、it を渡せばその皿を描く。
 //   これが無いと「料理ごとに1枚ずつ焼く」たびに typoData.ts を書き換えて再バンドルが必要になり、
 //   55品で現実的な時間に収まらない。1回バンドルして props だけ差し替えれば全品を回せる。
@@ -304,7 +304,7 @@ export const YoshokuFeedD: React.FC<P> = ({ storeName = D.storeName, handle = D.
 // it / photo は「動画（No.11の1ページ目）から使うため」の任意の差し替え口。
 // 省略時は今までどおり typoPhotos[0] と静止画の <Photo> ＝ フィード投稿の見た目は変わらない。
 const EBase: React.FC<P & { rail: string; railText?: string; it?: any; photo?: React.ReactNode }> = ({
-  storeName = D.storeName, handle = D.handle, theme = D.theme, rail, railText = "#FDF6EA", it, photo,
+  storeName = D.storeName, handle = D.handle, theme = D.theme, rail, railText = "#FDF6EA", it, photo, brandLogo,
 }) => {
   const T = ytheme(theme); const d = it || dish(); const RAIL = 74;
   return (
@@ -319,7 +319,9 @@ const EBase: React.FC<P & { rail: string; railText?: string; it?: any; photo?: R
         <div style={{ writingMode: "vertical-rl", fontFamily: serif, color: railText, fontSize: 22, letterSpacing: 10, textTransform: "uppercase", fontWeight: 600 }}>NAGAGUTSU&nbsp;·&nbsp;MEAT&nbsp;BAR</div>
       </div>
       <div style={{ position: "absolute", top: 24, left: RAIL + 16 }}>
-        <Logo storeName={storeName} h={134} />
+        {brandLogo
+          ? <Img src={staticFile(brandLogo)} style={{ height: 150, width: 150, objectFit: "contain", filter: "drop-shadow(0 4px 18px rgba(0,0,0,0.6))" }} />
+          : <Logo storeName={storeName} h={134} />}
       </div>
       <div style={{ position: "absolute", left: RAIL + 40, right: SIDE, bottom: 150 }}>
         <HeroName text={dispName(d)} sub={d.sub} maxPx={140} usableW={FEED_W - RAIL - 40 - SIDE} color={T.ink} subColor="#F0DFC6" shadow={NAME_SHADOW} />
