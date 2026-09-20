@@ -12,6 +12,11 @@ var _garden: Node3D = null
 
 
 func _ready() -> void:
+	# ★スマホ発熱対策（最重要）★ ブラウザ(iPhone等)は上限なしだとGPUが全力で回り続けて
+	# 端末が熱くなる。30fpsに制限すると描画/計算がぐっと減り、発熱と電池もちが大きく改善する。
+	# 絵本ゲームなので30fpsでも手触りは十分。PC/Androidアプリは従来どおり（0=無制限）。
+	if OS.has_feature("web"):
+		Engine.max_fps = 30
 	UIKit.apply_ui_scale(UIKit.load_ui_scale())   # もじの大きさ設定を最初に反映
 	UIKit.load_reduce_fx()                        # えんしゅつ ひかえめ 設定を読み込む
 	_setup_gamepad()

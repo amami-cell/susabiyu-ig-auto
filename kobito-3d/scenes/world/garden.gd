@@ -1857,6 +1857,8 @@ void fragment() {
 ## 第6章「そら」＝雲を貫くサンシャフト（光芒）。屋内サンビームと同じ“加算合成の光の帯”を
 ## 何本か斜めに平行に並べ、雲海の上から斜めに差し込ませる。回復で濃くなる（もや→強い陽射し）。
 func _build_sky_rays() -> void:
+	if _skip_heavy_fx():
+		return
 	_sky_rays = Node3D.new()
 	_sky_rays.name = "SkyRays"
 	# 共有マテリアル（1本の光の帯）。回復で albedo.a / emission を _update_sky_rays が動かす。
@@ -1904,6 +1906,14 @@ func _amb_fx() -> float:
 	return 0.4 if UIKit.reduce_fx() else 1.0
 
 
+## ★スマホ発熱対策★ ブラウザ(iPhone等)では“ずっと半透明を重ね描きする”環境エフェクト
+## （光芒・蛍・さざなみ・砂ぼこり・鳥・花びら 等）が塗りつぶし負荷＝発熱源になる。
+## Webではこれらの飾りを作らない（更新側・_apply_biome側はすべて null を許容済み＝安全）。
+## 遊びに必要な要素（庭・虫・水面・小人）は残す。
+func _skip_heavy_fx() -> bool:
+	return OS.has_feature("web")
+
+
 ## 光芒の濃さを回復度で動かす（もや＝うすい／澄む＝強い陽射し）。
 func _update_sky_rays(r: float) -> void:
 	if _sky_ray_mat == null:
@@ -1918,6 +1928,8 @@ func _update_sky_rays(r: float) -> void:
 ## 頂点シェーダで 羽ばたき＋ゆっくり周回（閉じた経路）させる＝CPU負荷ゼロ・1描画。
 ## 空が澄むほど 鳥が増える（visible_instance_count／回復で命が戻る手応え）。
 func _build_sky_birds() -> void:
+	if _skip_heavy_fx():
+		return
 	# かもめ型シルエット（縦向き・カメラ(+Z)を向く“m”）。左右の翼を薄い三角で作る。
 	# 遠景で正面から見えるように XY 平面に置く（水平だと真横から見えて消えるため）。
 	var st := SurfaceTool.new()
@@ -1998,6 +2010,8 @@ func _update_sky_birds(r: float) -> void:
 ## 第3章「みずべ」＝水面に差すサンシャフト。屋内サンビーム／そらの光芒と同じ加算合成の光の帯を
 ## 高い空から水面へ何本か落とす。にごり＝ぼんやり／澄む＝きらめく強い陽射し（回復リンク）。
 func _build_water_rays() -> void:
+	if _skip_heavy_fx():
+		return
 	_water_rays = Node3D.new()
 	_water_rays.name = "WaterRays"
 	var m := StandardMaterial3D.new()
@@ -2048,6 +2062,8 @@ func _update_water_rays(r: float) -> void:
 ## 第4章「よる」＝月あかりの光の帯（ムーンビーム）。加算合成の光の帯を高い夜空から地面へ。
 ## 夜は暗いので 加算光がよく映える＝色は青白く・濃さは控えめ。回復で月あかりが差してくる。
 func _build_night_rays() -> void:
+	if _skip_heavy_fx():
+		return
 	_night_rays = Node3D.new()
 	_night_rays.name = "NightRays"
 	var m := StandardMaterial3D.new()
@@ -2099,6 +2115,8 @@ func _update_night_rays(r: float) -> void:
 ## フラグメントで描き、個体ごとに位相をずらして 絶えず ひろがる（GPUのみ・1描画）。
 ## 魚が跳ねる波紋(_spawn_ripple)とは別の“風のさざなみ”＝水面全体が生きて見える。water舞台だけ表示。
 func _build_water_ripples() -> void:
+	if _skip_heavy_fx():
+		return
 	var quad := PlaneMesh.new()
 	quad.size = Vector2(1.0, 1.0)
 	var mat := ShaderMaterial.new()
@@ -2164,6 +2182,8 @@ func _update_water_ripples(r: float) -> void:
 ## 第1章「みどりの庭」＝木漏れ日の光の帯。加算合成の光の帯を 森ごしの陽射しとして数本落とす。
 ## くすんだ庭＝うすい／緑が茂るほど＝あたたかい木漏れ日（回復リンク）。garden舞台だけ表示。
 func _build_garden_rays() -> void:
+	if _skip_heavy_fx():
+		return
 	_garden_rays = Node3D.new()
 	_garden_rays.name = "GardenRays"
 	var m := StandardMaterial3D.new()
@@ -2554,7 +2574,8 @@ func _setup_sky_fog() -> void:
 	env.tonemap_white = 1.4
 
 	# ブルームは“強い光だけ”に絞る（しきい値を上げ・量を下げ）＝全体の白もやを防ぐ。
-	env.glow_enabled = true
+	# ★スマホ発熱対策★ ブルームは全画面の後処理で iPhone(Web) では重い＝発熱源。Webでは切る。
+	env.glow_enabled = not OS.has_feature("web")
 	env.glow_intensity = 0.16
 	env.glow_strength = 0.9
 	env.glow_bloom = 0.02
@@ -3081,6 +3102,8 @@ func _update_motes(r: float) -> void:
 ## 第4章「よる」＝またたく蛍。花粉/ちりと同じ MultiMesh＋またたきシェーダの流儀で、
 ## 夜の森に低く漂う 黄緑の光の粒。回復で戻ってくる（癒えた夜に蛍が帰る）。night舞台だけ表示。
 func _build_fireflies() -> void:
+	if _skip_heavy_fx():
+		return
 	var dot := SphereMesh.new()
 	dot.radius = 0.09
 	dot.height = 0.18
@@ -3148,6 +3171,8 @@ func _update_fireflies(r: float) -> void:
 ## 第1章「みどりの庭」＝舞い散る花びら（満開の春＝季節感）。頂点シェーダで
 ## 高いところから ゆっくり落ちて→ひらひら舞って→ループ。緑が満ちるほど増える。garden舞台だけ表示。
 func _build_petals() -> void:
+	if _skip_heavy_fx():
+		return
 	var quad := PlaneMesh.new()
 	quad.size = Vector2(0.16, 0.11)
 	var mat := ShaderMaterial.new()
@@ -3213,6 +3238,8 @@ func _update_petals(r: float) -> void:
 ## 遺跡＝風に流れる砂ぼこり。乾いた土けむりが 低く 横に流れる＝荒れた・見放された空気。
 ## 頂点シェーダで 主に横へ流し ループ（GPUのみ・1描画）。荒れているほど 多く濃い（回復で減る）。ruins舞台だけ表示。
 func _build_ruins_dust() -> void:
+	if _skip_heavy_fx():
+		return
 	var dot := SphereMesh.new()
 	dot.radius = 0.06
 	dot.height = 0.12
@@ -3287,6 +3314,8 @@ func _update_ruins_dust(r: float) -> void:
 ## 光の帯の体積(窓→床)に 金色の小さな塵を漂わせ、きらめかせる＝陽の差す部屋の あの空気。
 ## 掃除して明るくなるほど 光を拾って増える（回復リンク）。house舞台だけ表示。
 func _build_house_dust() -> void:
+	if _skip_heavy_fx():
+		return
 	var dot := SphereMesh.new()
 	dot.radius = 0.045
 	dot.height = 0.09
