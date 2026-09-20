@@ -71,6 +71,19 @@
  .course .cbtn{margin-top:15px}
  .cpolicy{margin-top:14px;font-family:sans-serif;font-size:10.5px;color:#a89773;line-height:1.8;background:rgba(255,255,255,.03);border:1px solid var(--line);border-radius:12px;padding:12px 14px}
  .cpolicy b{color:#cbb98f;font-size:11px}
+ /* --- 背景：店の写真を暗くぼかして全面に（文字は暗幕で常に読みやすく） --- */
+ body::before{content:"";position:fixed;inset:0;z-index:-2;background:url(nagagutsu/f_06f7322235.jpg) center/cover no-repeat;filter:blur(7px) brightness(.42) saturate(1.05);transform:scale(1.08)}
+ body::after{content:"";position:fixed;inset:0;z-index:-1;background:radial-gradient(120% 60% at 50% -8%, rgba(123,30,43,.45), transparent 55%),linear-gradient(180deg, rgba(16,8,7,.72), rgba(16,8,7,.88) 55%, rgba(16,8,7,.95))}
+ body{background:#100807}
+ /* --- イタリア国旗アクセント（緑白赤）さりげなく --- */
+ .seclab:before,.seclab:after{background:linear-gradient(90deg,#1a8f4a 0 33%,#f3ece0 33% 66%,#c8102e 66% 100%)!important;height:2px!important;opacity:.85;border-radius:2px}
+ .course .ctag{position:relative;padding-left:15px}
+ .course .ctag:before{content:"";position:absolute;left:5px;top:50%;transform:translateY(-50%);width:4px;height:72%;border-radius:2px;background:linear-gradient(180deg,#1a8f4a 0 33%,#fff 33% 66%,#c8102e 66% 100%)}
+ /* --- 予約ボタン（トップの席予約）をもう一段目立たせる --- */
+ .links a.primary{position:relative;overflow:hidden;padding:19px 16px;background:linear-gradient(135deg,#a12a38,#7a1c28);border-color:rgba(224,181,110,.75);box-shadow:0 10px 30px rgba(161,42,56,.45),inset 0 0 0 1px rgba(224,181,110,.35)}
+ .links a.primary .tt{font-size:18px}
+ .links a.primary .ic{font-size:24px}
+ .links a.primary:before{content:"";position:absolute;left:0;top:0;bottom:0;width:6px;background:linear-gradient(180deg,#1a8f4a 0 33%,#fff 33% 66%,#c8102e 66% 100%);z-index:1}
 </style></head><body>
 <div class="iabbar" id="iabbar"><b>アプリ内ブラウザで開いています</b>ご予約・口コミは外部ブラウザ（Safari / Chrome）だとスムーズです。<div><button class="obtn" onclick="openExternal()">ブラウザで開く</button></div><div class="iabhint" id="iabhint">iPhoneは右上の「•••」→「外部ブラウザで開く」でSafariが開きます（ログイン済みのGoogleがそのまま使えます）。</div></div>
 <div class="wrap">
