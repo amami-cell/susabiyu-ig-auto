@@ -74,13 +74,15 @@
  /* --- 背景：店の写真を暗くぼかして全面に（文字は暗幕で常に読みやすく） --- */
  /* 背景スライドショー：料理写真がゆっくりフェードで巡回（シーンで変わる“味”） */
  #bg{position:fixed;inset:0;z-index:-2;overflow:hidden;background:#100807}
- #bg i{position:absolute;inset:0;background-size:cover;background-position:center;filter:blur(4px) brightness(.62) saturate(1.12);transform:scale(1.06);opacity:0;animation:bgcycle 45s infinite;will-change:opacity}
- #bg i:nth-child(1){background-image:url(nagagutsu/f_06f7322235.jpg);animation-delay:0s}
- #bg i:nth-child(2){background-image:url(nagagutsu/f_1183fc667e.jpg);animation-delay:9s}
- #bg i:nth-child(3){background-image:url(nagagutsu/f_90626a66d5.jpg);animation-delay:18s}
- #bg i:nth-child(4){background-image:url(nagagutsu/f_612f59bfd8.jpg);animation-delay:27s}
- #bg i:nth-child(5){background-image:url(nagagutsu/f_38481c2daf.jpg);animation-delay:36s}
- @keyframes bgcycle{0%{opacity:0}3%{opacity:1}18%{opacity:1}21%{opacity:0}100%{opacity:0}}
+ #bg i{position:absolute;inset:0;background-size:cover;background-position:center;filter:blur(4px) brightness(.62) saturate(1.12);transform:scale(1.06);opacity:0;animation:bgcycle 48s infinite;will-change:opacity}
+ /* 店内→料理→店内→料理…と交互に巡回（来店感＋料理の“味”） */
+ #bg i:nth-child(1){background-image:url(nagagutsu/scene_1.jpg);animation-delay:0s}
+ #bg i:nth-child(2){background-image:url(nagagutsu/f_1183fc667e.jpg);animation-delay:8s}
+ #bg i:nth-child(3){background-image:url(nagagutsu/scene_2.jpg);animation-delay:16s}
+ #bg i:nth-child(4){background-image:url(nagagutsu/f_90626a66d5.jpg);animation-delay:24s}
+ #bg i:nth-child(5){background-image:url(nagagutsu/scene_3.jpg);animation-delay:32s}
+ #bg i:nth-child(6){background-image:url(nagagutsu/f_38481c2daf.jpg);animation-delay:40s}
+ @keyframes bgcycle{0%{opacity:0}2%{opacity:1}14%{opacity:1}17%{opacity:0}100%{opacity:0}}
  @media (prefers-reduced-motion: reduce){#bg i{animation:none}#bg i:nth-child(1){opacity:1}}
  body::after{content:"";position:fixed;inset:0;z-index:-1;background:radial-gradient(120% 60% at 50% -8%, rgba(123,30,43,.4), transparent 55%),linear-gradient(180deg, rgba(16,8,7,.5), rgba(16,8,7,.66) 50%, rgba(16,8,7,.86))}
  body{background:#100807}
@@ -94,7 +96,7 @@
  .links a.primary .ic{font-size:24px}
  .links a.primary:before{content:"";position:absolute;left:0;top:0;bottom:0;width:6px;background:linear-gradient(180deg,#1a8f4a 0 33%,#fff 33% 66%,#c8102e 66% 100%);z-index:1}
 </style></head><body>
-<div id="bg"><i></i><i></i><i></i><i></i><i></i></div>
+<div id="bg"><i></i><i></i><i></i><i></i><i></i><i></i></div>
 <div class="iabbar" id="iabbar"><b>アプリ内ブラウザで開いています</b>ご予約・口コミは外部ブラウザ（Safari / Chrome）だとスムーズです。<div><button class="obtn" onclick="openExternal()">ブラウザで開く</button></div><div class="iabhint" id="iabhint">iPhoneは右上の「•••」→「外部ブラウザで開く」でSafariが開きます（ログイン済みのGoogleがそのまま使えます）。</div></div>
 <div class="wrap">
  <div class="head">
