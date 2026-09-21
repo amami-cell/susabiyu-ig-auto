@@ -200,7 +200,7 @@ const FuocoBody: React.FC<Required<P>> = ({ storeName, handle, theme }) => {
   const ringO = interpolate(local, [0, 26, 40], [0.5, 0.5, 0], clamp);
   return (
     <AbsoluteFill style={{ backgroundColor: T.base }}>
-      <AbsoluteFill><Photo src={items[i].src} lf={local} seg={seg} from={1.05} to={1.0} blur={bl} /></AbsoluteFill>
+      <AbsoluteFill><Photo src={items[i].src} lf={local} seg={seg} from={1.0} to={0.92} blur={bl} /></AbsoluteFill>
       {/* 上下の帯だけ濃くする（明るい皿でロゴ下の伊語・料理名が飛ぶのを防ぐ）。真ん中は素のまま */}
       <AbsoluteFill style={{ background: "linear-gradient(180deg, rgba(10,8,5,0.86) 0%, rgba(10,8,5,0.62) 16%, rgba(10,8,5,0.06) 32%, rgba(10,8,5,0.08) 58%, rgba(10,8,5,0.6) 76%, rgba(10,8,5,0.96) 100%)" }} />
       {/* ファインダーの枠（合焦すると消える） */}
