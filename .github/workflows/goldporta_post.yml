@@ -1,15 +1,15 @@
 name: goldporta-post
-# GOLD京都ポルタ：承認待ち_goldporta の該当枠を、そのスロット時刻に本投稿する（三条方式）。
-# GitHub cron 遅延に強くするため、各cronはスロット時刻(JST)を明示して post_approved に渡す。
-# 承認/差し替え/やめる/作り直しは確認アプリ→GAS→シートに反映済みの状態を尊重して投稿する。
+# GOLD京都ポルタ：承認待ち_goldporta の該当枠を、そのスロット時刻に本投稿する。
+# 【重要】GitHubのschedule発火は数時間遅れる/たまに間引かれる（実測4〜5.7h遅延）。
+# 1日3回の疎なcronだと、遅延で発火時刻が投稿許容窓(10-22時JST)を飛び越えてしまい
+# 全枠スキップ＝「ストーリーが全然上がらない」状態になる（ナガグツで実際に起きた事故）。
+# → 対策：窓の時間帯を30分おきに“頻繁にポーリング”し、毎回3枠すべてを試す。
+#   post_approved 側のガードが「投稿済み=skip / まだ枠前=skip / 窓外=skip / 大幅遅延=skip」を
+#   判定するので、各枠は窓内で最初に回った実行がちょうど1回だけ投稿する（二重投稿しない）。
 on:
-  # ⏸ ユーザー要望により GOLDの自動投稿は一時停止中（動画確認が済むまで）。
-  #   再開時は下の schedule のコメントを外す（prepare は動かしたまま＝承認待ちは生成される）。
-  # schedule:
-  #   # 【根本対策】cron分は「00分」を避ける（GitHubは毎時00分が最混雑で遅延しやすい）。他店と分もずらす。
-  #   - cron: '17 2 * * *'   # JST 11:00 枠（02:17 UTC）
-  #   - cron: '33 9 * * *'   # JST 18:00 枠（09:33 UTC）
-  #   - cron: '53 11 * * *'  # JST 20:00 枠（11:53 UTC）
+  schedule:
+    # UTC 01:00〜13:30 を30分おき ＝ JST 10:00〜22:30。全枠(11/18/20時JST)を毎回試す。
+    - cron: '*/30 1-13 * * *'
   workflow_dispatch:
     inputs:
       datetime:
@@ -69,22 +69,25 @@ jobs:
           DRY: ${{ github.event.inputs.dry }}
           SCHED: ${{ github.event.schedule }}
           INPUT_DT: ${{ github.event.inputs.datetime }}
-          # 遅延ガード：スケジュール実行時のみ有効。cron遅延で予定枠より大幅遅延(既定120分超)なら投稿せずスキップ（深夜投稿防止）。
-          POST_SCHED_GUARD: ${{ github.event.schedule && '1' || '' }}
-          POST_MAX_LATE_MIN: "120"
+          # 遅延/窓ガード：全枠ループ（INPUT_DT空）では必ずガードON＝未来枠の早出し/窓外/二重を防ぐ。
+          # 深夜投稿の防止は「投稿許容窓 10-22時JST」で担保。許容遅延は窓幅ぶん(600分)確保。
+          # 日時を明示した手動dispatch(INPUT_DTあり)のときだけガードOFF＝その枠を即投稿。
+          POST_SCHED_GUARD: ${{ github.event.inputs.datetime == '' && '1' || '' }}
+          POST_MAX_LATE_MIN: "600"
         run: |
-          DT="$INPUT_DT"
-          if [ -z "$DT" ] && [ -n "$SCHED" ]; then
-            # cron 遅延に強いよう、UTC日付＋スロット時刻(JST)を明示（全スロットともUTC日=JST日）。
-            D=$(date -u +%F)
-            case "$SCHED" in
-              "17 2 * * *")  DT="$D 11:00" ;;
-              "33 9 * * *")  DT="$D 18:00" ;;
-              "53 11 * * *") DT="$D 20:00" ;;
-            esac
+          # 手動dispatchで日時指定があればその1枠だけ（従来どおり／DRYもここ）。
+          if [ -n "$INPUT_DT" ]; then
+            echo "対象日時(JST)=$INPUT_DT"
+            python post_approved.py creds.json "$INPUT_DT"
+            exit 0
           fi
-          echo "対象日時(JST)=$DT"
-          python post_approved.py creds.json "$DT"
+          # 通常（cron/手動）は本日の全枠(11/18/20時JST)を順に試す。JST日付で枠を作る。
+          D=$(TZ=Asia/Tokyo date +%F)
+          for HH in 11 18 20; do
+            DT="$D ${HH}:00"
+            echo "=== 枠を試行: $DT ==="
+            python post_approved.py creds.json "$DT" || true
+          done
       - name: 失敗をLINE通知
         if: failure()
         env:
