@@ -2587,7 +2587,8 @@ func _setup_sky_fog() -> void:
 	env.adjustment_contrast = 1.16
 	env.adjustment_saturation = 1.2
 
-	env.fog_enabled = true
+	# ★スマホ発熱対策★ 霧は全画面の追加計算＝Webでは切って塗り負荷を減らす。
+	env.fog_enabled = not OS.has_feature("web")
 	env.fog_light_energy = 0.8
 
 	# PC「きれい版」(Forward+/Vulkan)だけ：接触影(AO)と反射で立体感を一段上げる。
