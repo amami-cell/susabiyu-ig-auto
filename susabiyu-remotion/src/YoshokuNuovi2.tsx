@@ -203,8 +203,8 @@ const FuocoBody: React.FC<Required<P>> = ({ storeName, handle, theme }) => {
       <AbsoluteFill><Photo src={items[i].src} lf={local} seg={seg} from={0.88} to={0.80} blur={bl} /></AbsoluteFill>
       {/* 上下の帯だけ濃くする（明るい皿でロゴ下の伊語・料理名が飛ぶのを防ぐ）。真ん中は素のまま */}
       <AbsoluteFill style={{ background: "linear-gradient(180deg, rgba(10,8,5,0.86) 0%, rgba(10,8,5,0.62) 16%, rgba(10,8,5,0.06) 32%, rgba(10,8,5,0.08) 58%, rgba(10,8,5,0.6) 76%, rgba(10,8,5,0.96) 100%)" }} />
-      {/* 引き（scale<1）で出る左右の地色を額縁として締める＝寄りすぎ解消しつつ余白を演出 */}
-      <AbsoluteFill style={{ boxShadow: "inset 0 0 210px 128px rgba(10,8,5,0.94)" }} />
+      {/* 引き（scale<1）で出る周囲は、縁を作らず端をやわらかく落とすだけ（薄く・細く） */}
+      <AbsoluteFill style={{ boxShadow: "inset 0 0 140px 18px rgba(10,8,5,0.6)" }} />
       {/* ファインダーの枠（合焦すると消える） */}
       <div style={{ position: "absolute", left: 180, right: 180, top: 560, height: 700, opacity: ringO, transform: "scale(" + ring + ")" }}>
         {[[0, 0, 1, 1], [1, 0, -1, 1], [0, 1, 1, -1], [1, 1, -1, -1]].map((c, k) => (
