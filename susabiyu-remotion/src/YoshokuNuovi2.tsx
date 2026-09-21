@@ -200,11 +200,14 @@ const FuocoBody: React.FC<Required<P>> = ({ storeName, handle, theme }) => {
   const ringO = interpolate(local, [0, 26, 40], [0.5, 0.5, 0], clamp);
   return (
     <AbsoluteFill style={{ backgroundColor: T.base }}>
+      {/* 引き（scale<1）で出る周囲は黒枠ではなく同じ料理のボケ拡大で埋める＝枠が出ない */}
+      <AbsoluteFill><Photo src={items[i].src} lf={local} seg={seg} from={1.34} to={1.26} bri={0.42} blur={36} /></AbsoluteFill>
+      {/* 主役：引いた皿（合焦アニメ） */}
       <AbsoluteFill><Photo src={items[i].src} lf={local} seg={seg} from={0.88} to={0.80} blur={bl} /></AbsoluteFill>
       {/* 上下の帯だけ濃くする（明るい皿でロゴ下の伊語・料理名が飛ぶのを防ぐ）。真ん中は素のまま */}
       <AbsoluteFill style={{ background: "linear-gradient(180deg, rgba(10,8,5,0.86) 0%, rgba(10,8,5,0.62) 16%, rgba(10,8,5,0.06) 32%, rgba(10,8,5,0.08) 58%, rgba(10,8,5,0.6) 76%, rgba(10,8,5,0.96) 100%)" }} />
-      {/* 引き（scale<1）で出る周囲は、縁を作らず端をやわらかく落とすだけ（薄く・細く） */}
-      <AbsoluteFill style={{ boxShadow: "inset 0 0 140px 18px rgba(10,8,5,0.6)" }} />
+      {/* 四隅をほんの少しだけ落として奥行き（枠は作らない・ごく弱め） */}
+      <AbsoluteFill style={{ boxShadow: "inset 0 0 150px 6px rgba(10,8,5,0.42)" }} />
       {/* ファインダーの枠（合焦すると消える） */}
       <div style={{ position: "absolute", left: 180, right: 180, top: 560, height: 700, opacity: ringO, transform: "scale(" + ring + ")" }}>
         {[[0, 0, 1, 1], [1, 0, -1, 1], [0, 1, 1, -1], [1, 1, -1, -1]].map((c, k) => (
