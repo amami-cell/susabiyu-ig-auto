@@ -201,7 +201,7 @@ const FuocoBody: React.FC<Required<P>> = ({ storeName, handle, theme }) => {
   return (
     <AbsoluteFill style={{ backgroundColor: T.base }}>
       {/* 引き（scale<1）で出る周囲は黒枠ではなく同じ料理のボケ拡大で埋める＝枠が出ない */}
-      <AbsoluteFill><Photo src={items[i].src} lf={local} seg={seg} from={1.34} to={1.26} bri={0.42} blur={36} /></AbsoluteFill>
+      <AbsoluteFill><Photo src={items[i].src} lf={local} seg={seg} from={1.28} to={1.2} bri={0.62} blur={26} /></AbsoluteFill>
       {/* 主役：引いた皿（合焦アニメ） */}
       <AbsoluteFill><Photo src={items[i].src} lf={local} seg={seg} from={0.88} to={0.80} blur={bl} /></AbsoluteFill>
       {/* 上下の帯だけ濃くする（明るい皿でロゴ下の伊語・料理名が飛ぶのを防ぐ）。真ん中は素のまま */}
