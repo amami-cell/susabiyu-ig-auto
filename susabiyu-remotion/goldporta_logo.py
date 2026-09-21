@@ -53,6 +53,18 @@ def main():
     # 透過を保つため RGBA に統一（白背景に潰さない）
     if im.mode != "RGBA":
         im = im.convert("RGBA")
+    # 「フレンチ酒場」は黒文字＝黒背景ヘッダーで消えるため、暗い画素だけクリーム色に置換する。
+    # 金色の "Gold"（明るめ）は据え置き。半透明の縁も自然に馴染むよう alpha 比率で混色。
+    CREAM = (244, 236, 217)
+    px = im.load()
+    W, H = im.size
+    for y in range(H):
+        for x in range(W):
+            r, g, b, a = px[x, y]
+            if a == 0:
+                continue
+            if max(r, g, b) < 95:            # ほぼ黒＝「フレンチ酒場」の文字
+                px[x, y] = (CREAM[0], CREAM[1], CREAM[2], a)
     if im.width > MAX_W:
         h = round(im.height * MAX_W / im.width)
         im = im.resize((MAX_W, h), Image.LANCZOS)
