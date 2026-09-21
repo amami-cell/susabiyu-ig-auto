@@ -1,0 +1,13 @@
+{
+  "name": "kobito-relay",
+  "private": true,
+  "version": "1.0.0",
+  "description": "kobito 協力プレイの中継(部屋ハブ) Cloudflare Worker",
+  "scripts": {
+    "deploy": "wrangler deploy",
+    "dev": "wrangler dev"
+  },
+  "devDependencies": {
+    "wrangler": "^4.0.0"
+  }
+}

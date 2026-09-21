@@ -1,0 +1,316 @@
+extends Control
+## スマホ操作パッド（本命の入力方法）
+##
+## ★設計の勘所★
+##   ここで押したボタンは Input.action_press() を叩く。
+##   つまり player.gd から見るとキーボードと完全に同じ。
+##
+##   左下 … 薄い丸スティック（プニコン）で移動。その円の中で触れた指を追う。
+##   それ以外の画面ぜんぶ … ドラッグでカメラ旋回。
+##   ★2本指の同時操作対応★ … 左下で移動しながら、別の指でカメラを回せる。
+##     指ごとに「どこで押したか」で役割を判定し、指(index)ごとに別々に反映する。
+##   右下の3ボタン（きれいに・つかむ・ジャンプ）は各自でタッチを受ける。
+
+const STICK_RADIUS := 200.0      # プニコンの見た目の半径（スマホで押しやすいよう大きめ）
+const STICK_ZONE := 360.0        # この円内でタッチ開始したら「移動」とみなす（広め＝取りこぼさない）
+const KNOB_RADIUS := 74.0        # つまみの半径
+const DEAD_ZONE := 0.14
+const ORBIT_SPEED := 0.0072      # ドラッグ量→カメラ回転（やや速めで軽快に）
+
+var _stick_home := Vector2.ZERO  # プニコンの中心（触れた所に出る＝フローティング）
+var _stick_anchor := Vector2.ZERO  # 触れていない時の待機位置（左下）＝ここを基準に「左＝移動」判定
+var _stick_touch := -1           # 移動を担当している指のindex（-1＝なし）
+var _stick_value := Vector2.ZERO
+var _cam_touches := {}           # カメラを担当している指のindex集合（複数可）
+
+@onready var _input: Control = $Input
+
+# 初回オンボーディング（操作の指し示し）。初めて庭に入ったときだけ数秒出す。
+const TUT_SECS := 8.0
+const SETTINGS_PATH := "user://settings.cfg"
+var _tut_move: Label = null
+var _tut_act: Label = null
+var _tut_t := 0.0
+var _tut_active := false
+var _tut_armed := false
+var _moved_once := false
+var _acted_once := false
+var _tut_saved := false   # 「動く＋操作」を実際にしてから“既読”を保存する
+
+
+func _ready() -> void:
+	_input.gui_input.connect(_on_input)
+	_bind_button($Buttons/BtnAttack, "act_attack")
+	_bind_button($Buttons/BtnGrab, "act_grab")
+	_bind_button($Buttons/BtnJump, "act_jump")
+	_skin_buttons()
+	_add_whistle_button()
+	# 初回オンボーディング（操作の指し示し）。タッチでもPCでも出す＝文言を環境で切替。
+	if not _tutorial_done():
+		_build_tutorial()
+		_tut_armed = true
+		set_process(true)
+	_update_home()
+	get_viewport().size_changed.connect(_update_home)
+	# 会話/ポーズ/ロビー復帰でUIが隠れたら、押しっぱなしの入力を解放（勝手に動くのを防ぐ）。
+	visibility_changed.connect(_on_visibility_changed)
+
+
+func _on_visibility_changed() -> void:
+	if not is_visible_in_tree():
+		_release_all()
+
+
+func _release_all() -> void:
+	for a in ["move_left", "move_right", "move_forward", "move_back", "act_attack", "act_grab", "act_jump", "act_whistle"]:
+		Input.action_release(a)
+	_stick_touch = -1
+	_stick_home = _stick_anchor
+	_cam_touches.clear()
+	_stick_value = Vector2.ZERO
+	queue_redraw()
+
+
+## プニコンの中心を左下に固定。画面サイズが変わっても置き直す。
+func _update_home() -> void:
+	var vp := get_viewport_rect().size
+	# 下端(ホームバー/ジェスチャ帯)を避けて少し上げる＝誤爆しにくい
+	_stick_anchor = Vector2(STICK_RADIUS + 60.0, vp.y - STICK_RADIUS - 120.0)
+	if _stick_touch == -1:
+		_stick_home = _stick_anchor   # 触れていない時は待機位置に置く
+	if _tut_move != null:
+		_tut_move.position = _stick_anchor + Vector2(-STICK_RADIUS, STICK_RADIUS + 6.0)
+		_tut_move.size = Vector2(STICK_RADIUS * 2.0, 30.0)
+	if _tut_act != null:
+		_tut_act.position = Vector2(vp.x - 470.0, vp.y - 210.0)
+		_tut_act.size = Vector2(450.0, 30.0)
+	queue_redraw()
+
+
+# ------------------------------------------------------------ 初回オンボーディング
+
+func _tutorial_done() -> bool:
+	var cfg := ConfigFile.new()
+	if cfg.load(SETTINGS_PATH) != OK:
+		return false
+	return bool(cfg.get_value("tutorial", "done", false))
+
+
+func _mark_tutorial_done() -> void:
+	var cfg := ConfigFile.new()
+	cfg.load(SETTINGS_PATH)   # 既存(なまえ/音量)を壊さないよう読んでから足す
+	cfg.set_value("tutorial", "done", true)
+	cfg.save(SETTINGS_PATH)
+
+
+func _build_tutorial() -> void:
+	# 文言は環境で切替：タッチ＝スティック、PC＝キーボード/マウス。
+	if DisplayServer.is_touchscreen_available():
+		_tut_move = _hint_label("① スティックで うごく（画面を ドラッグ＝カメラ）", 0)
+		_tut_act = _hint_label("② 虫は「きれいに」／ ゴミは「つかむ」", 1)
+	else:
+		_tut_move = _hint_label("① WASD／やじるしで うごく（右ドラッグでカメラ）", 0)
+		_tut_act = _hint_label("② J＝きれいに（癒やす）／ E＝つかむ", 1)
+
+
+func _hint_label(text: String, row: int) -> Label:
+	var l := Label.new()
+	l.text = text
+	l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	l.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	l.modulate.a = 0.0
+	UIKit.style_label(l, 22, Color(1, 1, 1), 6, Color(0.1, 0.15, 0.1, 0.95))
+	# 画面中央やや上に 2行を縦に並べる＝上のHUD(みどり回復/めあて)とも 下の会話ボックスとも重ならない安全帯。
+	# （以前は位置未指定で 左上(0,0)に重なって出て、会話中も消えず“幽霊文字”に見えていた不具合を修正）
+	l.anchor_left = 0.5
+	l.anchor_right = 0.5
+	l.anchor_top = 0.0
+	l.anchor_bottom = 0.0
+	l.offset_left = -320.0
+	l.offset_right = 320.0
+	l.offset_top = 150.0 + float(row) * 46.0
+	l.offset_bottom = l.offset_top + 40.0
+	l.add_to_group("play_ui_extra")   # お話中は story_ui._set_play_ui が隠す＝会話ボックスと重ならない
+	add_child(l)
+	return l
+
+
+func _process(delta: float) -> void:
+	if not _tut_armed:
+		return
+	# 庭に入って操作UIが見えたら開始（ロビー中は非表示なので出さない）
+	if not _tut_active:
+		if is_visible_in_tree():
+			_tut_active = true
+			_tut_t = TUT_SECS
+			# ★見ただけ/未操作では“既読”にしない★ 実際に「動く＋操作」してから保存する。
+			# 起動直後に親が子へ手渡す間に自動で消えて二度と出ない、を防ぐ。
+			_update_home()
+		return
+	_tut_t -= delta
+	# 移動もアクションもした＝理解できたので保存（次回から出さない）＋早めに畳む
+	if _moved_once and _acted_once:
+		if not _tut_saved:
+			_tut_saved = true
+			_mark_tutorial_done()
+		if _tut_t > 1.2:
+			_tut_t = 1.2
+	var a := clampf(_tut_t, 0.0, 1.0) if _tut_t < 1.0 else (0.6 + 0.4 * sin(_tut_t * 4.0))
+	if _tut_move != null:
+		_tut_move.modulate.a = a
+	if _tut_act != null:
+		_tut_act.modulate.a = a
+	queue_redraw()   # スティックのパルス表示を更新
+	if _tut_t <= 0.0:
+		_tut_active = false
+		_tut_armed = false
+		if _tut_move != null:
+			_tut_move.queue_free()
+		if _tut_act != null:
+			_tut_act.queue_free()
+		set_process(false)
+
+
+func _skin_buttons() -> void:
+	var a: Button = $Buttons/BtnAttack
+	var g: Button = $Buttons/BtnGrab
+	var j: Button = $Buttons/BtnJump
+	a.text = "きれいに"
+	g.text = "つかむ"
+	j.text = "ジャンプ"
+	UIKit.style_button(a, UIKit.GREEN, UIKit.GREEN_DK)
+	UIKit.style_button(g, UIKit.GOLD, Color(0.82, 0.6, 0.24))
+	UIKit.style_button(j, Color(0.62, 0.8, 1.0), Color(0.42, 0.6, 0.9))
+	for b in [a, g, j]:
+		b.custom_minimum_size = Vector2(158, 158)   # 押しやすい大きめ
+		b.autowrap_mode = TextServer.AUTOWRAP_OFF
+		b.add_theme_font_size_override("font_size", 26)
+		b.add_theme_constant_override("outline_size", 0)
+
+
+## 「ふえ」ボタン（操作ボタンの少し上・右）＝救った なかまを 自分の周りに呼び集める。
+## 会話中は play_ui_extra グループごと隠す（他の操作UIと同じ扱い）。
+func _add_whistle_button() -> void:
+	var w := Button.new()
+	w.name = "BtnWhistle"
+	w.text = "ふえ"
+	w.anchor_left = 1.0
+	w.anchor_right = 1.0
+	w.anchor_top = 1.0
+	w.anchor_bottom = 1.0
+	w.offset_right = -30.0
+	w.offset_left = -160.0
+	w.offset_bottom = -232.0
+	w.offset_top = -332.0
+	UIKit.style_button(w, Color(0.85, 0.7, 0.95), Color(0.6, 0.45, 0.8))
+	w.add_theme_font_size_override("font_size", 26)
+	w.add_to_group("play_ui_extra")
+	add_child(w)
+	_bind_button(w, "act_whistle")
+
+
+func _bind_button(btn: BaseButton, action: String) -> void:
+	btn.button_down.connect(func() -> void:
+		_acted_once = true
+		Input.action_press(action))
+	btn.button_up.connect(func() -> void: Input.action_release(action))
+
+
+# ------------------------------------------------------------ 入力（指ごとに役割分担）
+
+func _on_input(event: InputEvent) -> void:
+	if event is InputEventScreenTouch:
+		if event.pressed:
+			# 押した場所で役割を決める：左の待機ゾーン内＝移動 / それ以外＝カメラ。
+			# 移動なら“触れた場所”にプニコンを出す（フローティング）＝中心ズレで暴発しない。
+			if _stick_touch == -1 and event.position.distance_to(_stick_anchor) <= STICK_ZONE:
+				_stick_touch = event.index
+				_stick_home = event.position   # 触れた所を中心に
+				_update_stick(event.position)
+			else:
+				_cam_touches[event.index] = true
+		else:
+			if event.index == _stick_touch:
+				_stick_touch = -1
+				_stick_home = _stick_anchor   # 待機位置へ戻す
+				_stick_value = Vector2.ZERO
+				_apply_move(Vector2.ZERO)
+				queue_redraw()
+			else:
+				_cam_touches.erase(event.index)
+	elif event is InputEventScreenDrag:
+		if event.index == _stick_touch:
+			_update_stick(event.position)
+		elif _cam_touches.has(event.index):
+			_orbit(event.relative)
+	elif event is InputEventMouseMotion and (event.button_mask & MOUSE_BUTTON_MASK_LEFT):
+		# PC/デバッグ：左ドラッグでカメラ（タッチが無い環境の保険）。
+		# ★スマホ対策★ タッチはOSが“マウス”にも変換して二重に届く。指が乗っている間
+		#   （スティック中／カメラ中）はこのマウス扱いを無視＝プニコンを触ると画面が回る不具合を防ぐ。
+		if _stick_touch == -1 and _cam_touches.is_empty():
+			_orbit(event.relative)
+
+
+# ------------------------------------------------------------ 移動（プニコン）
+
+func _update_stick(pos: Vector2) -> void:
+	_moved_once = true
+	var offset := pos - _stick_home
+	_stick_value = offset / STICK_RADIUS
+	if _stick_value.length() > 1.0:
+		_stick_value = _stick_value.normalized()
+	_apply_move(_stick_value)
+	queue_redraw()
+
+
+func _apply_move(v: Vector2) -> void:
+	_press_axis("move_left", "move_right", v.x)
+	_press_axis("move_forward", "move_back", v.y)
+
+
+func _press_axis(neg: String, pos: String, value: float) -> void:
+	if value < -DEAD_ZONE:
+		Input.action_press(neg, minf(1.0, -value))
+		Input.action_release(pos)
+	elif value > DEAD_ZONE:
+		Input.action_press(pos, minf(1.0, value))
+		Input.action_release(neg)
+	else:
+		Input.action_release(neg)
+		Input.action_release(pos)
+
+
+# ------------------------------------------------------------ カメラ旋回
+
+func _orbit(rel: Vector2) -> void:
+	var player := _find_local_player()
+	if player == null:
+		return
+	if player.has_method("orbit_camera"):
+		player.orbit_camera(-rel.x * ORBIT_SPEED)
+	# 縦ドラッグで見上げ／見下ろし（下へドラッグ＝俯瞰）。横より少し緩やかに。
+	if player.has_method("orbit_camera_pitch"):
+		player.orbit_camera_pitch(rel.y * ORBIT_SPEED * 0.7)
+
+
+func _find_local_player() -> Node:
+	for p in get_tree().get_nodes_in_group("player"):
+		if p.is_local:
+			return p
+	return null
+
+
+# ------------------------------------------------------------ 見た目（プニコンは薄く常時表示）
+
+func _draw() -> void:
+	var home := _stick_home
+	# 初回オンボーディング中は、まだ触っていなければ土台をパルスで濃く＝「ここを触る」と分かる
+	var boost := 0.0
+	if _tut_active and not _moved_once:
+		boost = 0.22 * (0.5 + 0.5 * sin(_tut_t * 6.0))
+	draw_circle(home, STICK_RADIUS, Color(1, 1, 1, 0.10 + boost))    # 薄い土台（案内中は濃く）
+	draw_circle(home, STICK_RADIUS, Color(1, 1, 1, 0.30 + boost), false, 4.0)
+	var knob := home + _stick_value * STICK_RADIUS
+	var kcol := Color(1, 1, 1, 0.5 + boost) if _stick_touch != -1 else Color(1, 1, 1, 0.3 + boost)
+	draw_circle(knob, KNOB_RADIUS, kcol)
+	draw_circle(knob, KNOB_RADIUS, Color(1, 1, 1, 0.5 + boost), false, 3.0)

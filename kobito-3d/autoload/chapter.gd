@@ -1,0 +1,974 @@
+extends Node
+## 章の進行（自動読み込み: Chapter）— 物語を「頭から終わりまで」遊べる形にする骨組み。
+##
+## サーバが進行の正。ビート(場面)を進めるたびに全員へ配り、各自の画面で
+## 会話・目的・章クリアを表示する（StoryUI が受け取って描く）。
+## 各ビートは goal(達成条件)を1つ持ち、満たすと次へ。まずは第1章を通しで実装。
+## 章のボリュームは goal の数と目標値で決まる（＝ここを増やすだけで長くできる）。
+
+signal dialogue(lines: PackedStringArray)   # 会話（1行ずつ送る）
+signal objective_changed(text: String)      # 画面上の目的表示（""で消す）
+signal banner(text: String)                 # 章クリア等の大きな中央表示
+signal chapter_cleared(theme: String)        # 章の山場を越えた瞬間＝舞台ごとに違うごほうび演出
+signal spawn_wave(n: int)                   # 群れ(ウェーブ)を湧かせる合図
+signal spawn_boss                           # 中ボスを湧かせる合図
+signal guide_changed(on: bool, pos: Vector3, kind: String)  # 「次にどこへ行くか」の道しるべ
+
+# 道しるべ（今この瞬間、どこへ向かえばいいか）。サーバが対象の位置を計算して全員へ配り、
+# HUDの矢印＋距離と、世界の光の柱がそこを指す。＝「何をすればいいか分からない」を無くす。
+var guide_on := false
+var guide_pos := Vector3.ZERO
+var guide_kind := ""
+var _guide_accum := 0.0
+
+# セーブ（つづきから）。章の切れ目ごとに user://save.cfg へ書き、タイトルで続きを選べる。
+const SAVE_PATH := "user://save.cfg"
+const SAVE_TMP := "user://save.cfg.tmp"   # アトミック保存の一時ファイル
+const SAVE_SCHEMA := 1                     # セーブ形式の版。将来 形式を変えたら上げる。
+var cleared := false            # 一度でも通しクリアしたか（タイトルに小さく出す）
+var free_play := false          # のんびり庭（クリア後のごほうび）＝章の進行を止めた平和モード
+var peaceful := false           # れんしゅうモード＝敵ゼロ（掃除と収集だけ）。小さな子・初見の安心の入口
+var _want_continue := false     # タイトルで「つづきから」を押した
+var _pending_continue := false  # セッション開始後、庭が組み上がってから復元する合図
+
+# 第1章「たどり着いた隙間」。しっかり遊べる長さ＝掃除→癒やし→探索(収集)→謎解き→
+# 協力→群れ(ウェーブ)→女王アリ(中ボス)→みどり回復→クリア。
+# goal: clean / heal(n:累計) / collect(n) / puzzle / switch / wave(n)+heal / boss / green(v) / clear
+const CH1 := [
+	{
+		"goal": "clean",
+		"lines": [
+			"絵本『みどりのはじまり』",
+			"おじい「昔はな、地面は緑で、花が咲いておった…」",
+			"みんな「（また はじまった…）」  つぼみ「ほんと！？」",
+			"おじい「（手のひらの 小さな 種を にぎって）…この中に、入っておる。最後の、一粒じゃ」",
+			"つぼみ「……ちいさい。でも、だいじ なんだね」",
+			"——もっとひどい場所から逃げてきた家族は、",
+			"この排水溝のすきまに たどり着いた。",
+			"父「ここを 家にしよう。まずは 掃除だ」",
+			"母「つぼみ、こわくないよ。……ぜったい、手を はなさないで」",
+			"母「……さあ、みんなで やれば、ここも あったかい 家になるわ」",
+		],
+	},
+	{
+		"goal": "heal", "n": 4,
+		"lines": [
+			"カヤ「なんで こんな汚い所 掃除すんだよ…」",
+			"スミレ「文句言わないの。……虫が あばれてる！」",
+			"父「虫は ヘドロで 苦しんでるだけ。“きれいに”すれば——倒さなくても、“なかま”に なる」",
+			"母「痛いのを 抱えてるだけなの。……こわがらないで、そっとね」",
+			"おじい「昔の 者は 言うた。“こわいものほど、やさしく せい”とな」",
+		],
+	},
+	{
+		"goal": "collect", "n": 4,
+		"lines": [
+			"つぼみ「きらきらしてる…なに これ？」",
+			"おじい「わしの あの “最後の種”が、かけらに なって 散らばったんじゃ。",
+			"　ひとつ 残らず 拾っておくれ——緑を 取り戻す かぎじゃ」",
+			"カヤ「（つぼみ、楽しそうだな）…ちっ、しょうがねえ。俺も さがす」",
+		],
+	},
+	{
+		"goal": "puzzle",
+		"lines": [
+			"つぼみ「ねえ、この石…なにか もようが ある」",
+			"おじい「それは 昔ここが 緑だった しるしじゃ」",
+			"スミレ「順番に 踏んでみよう。数の とおりに」",
+		],
+	},
+	{
+		"goal": "switch",
+		"lines": [
+			"カヤ「うわ、重い とびら… ひとりじゃ 無理だ」",
+			"父「ふたつの台に 同時に乗るんだ。ひとりなら——」",
+			"スミレ「わたしが 手伝う！ 家族だもん」",
+			"母「そう、ひとりで 抱えないの。手を つなげば 重い扉も 動くわ」",
+		],
+	},
+	{
+		"goal": "heal", "n": 10, "wave": 6,
+		"lines": [
+			"——奥から ヘドロに侵された虫が どっと あふれてきた！",
+			"父「群れだ…！ みんな、癒やすんだ！」",
+			"カヤ「上等だ。ここは 俺たちの 家に するんだからな！」",
+			"母「かあさんも いっしょ。……手を、はなさないで」",
+		],
+	},
+	{
+		"goal": "boss", "boss": true,
+		"lines": [
+			"——地ひびき。大きな影が あらわれる。",
+			"スミレ「あれは…女王アリ！ ヘドロに 一番 侵されてる」",
+			"父「いちばん 苦しんでるんだ。みんなで 癒やそう！」",
+			"母「あんなに 大きいのに、ずっと 痛かったのね。……いま、助けるね」",
+		],
+	},
+	{
+		"goal": "green", "v": 0.6,
+		"lines": [
+			"——女王が 正気に もどり、隙間に みどりが あふれた。",
+			"——澄んだ 女王が、そっと 一家を 見た。もう、なかまだ。",
+			"つぼみ「わあ…！ みどり、ほんとに あった！」",
+			"おじい「な？　言ったろう」",
+			"母「つぼみ、見て。……あなたの手で もどった みどりよ」",
+		],
+	},
+	{
+		"goal": "story", "banner": "第1章 クリア  「たどり着いた隙間」", "power": "carry", "celebrate": "meadow",
+		"lines": [
+			"父「この汚れた場所を、いつか“家”って 呼べるように」",
+			"カヤ「……まあ、少しは マシに なったかもな」",
+			"母「“おかえり”って 言える場所が できたわね」",
+			"（父の 手に ちから。押す・運ぶが 強く なった）",
+		],
+	},
+	# ───────────── 第2章「そとの世界へ」 ─────────────
+	{
+		"goal": "story", "banner": "第2章  「そとの世界へ」", "reset_recovery": 0.3,
+		"lines": [
+			"つぼみ「ねえ、すきまの そとにも 世界が あるの？」",
+			"おじい「あるとも。じゃが 外は もっと ひどく 汚れておる…」",
+			"父「だからこそ 行くんだ。みどりを もっと 広げに」",
+			"母「みんな 一緒なら こわくない。……いきましょう」",
+		],
+	},
+	{
+		"goal": "heal", "n": 12, "wave": 6,
+		"lines": [
+			"——外の地面は 見わたすかぎり ヘドロだらけ。虫たちが うめいている。",
+			"カヤ「うわ…数が ぜんぜん ちがう」",
+			"父「ひるむな。一匹ずつ、ちゃんと 癒やしていこう」",
+			"つぼみ「見て、“なかま”の 虫たちも ついてきた！」",
+			"カヤ「…へっ。ひとりじゃ ないってことか」",
+		],
+	},
+	{
+		"goal": "boss", "boss": true,
+		"lines": [
+			"——地の底から、山のような ヘドロの主が もちあがる。",
+			"スミレ「あれが…この 汚れの おおもと！」",
+			"おじい「この におい…わしは 知っておる。わしらを 追い出した、あの 汚れじゃ」",
+			"父「逃げてきた あの日の おおもと…。だが 今日は 逃げない。癒やして やる」",
+			"母「そう、みんな いっしょ。……ここでも、手を はなさないで」",
+		],
+	},
+	{
+		"goal": "story", "banner": "みどりが よみがえる", "full_green": true, "celebrate": "bloom",
+		"lines": [
+			"——主が 静かに ほどけ、地の すみずみまで みどりが 走った。",
+			"——拾い集めた かけらが ひとつに なり、土の中で 芽を出す。最初の 一輪が、咲いた。",
+			"つぼみ「おじいの 種…ほんとに、咲いたよ！」",
+			"おじい「見ろ…これが “みどりのはじまり” じゃ」",
+			"母「わたしたちの 手で、世界が また、いきを した」",
+		],
+	},
+	# ───────── 幕あい：あたらしい たびへ（第1・2章のあと、外の世界へ）─────────
+	# ※ここまでが“ふるさとの物語”。ここから先は 汚れた場所を巡る 新しい旅（第3章〜）。
+	{
+		"goal": "story", "banner": "あたらしい たびへ",
+		"lines": [
+			"——みどりは、この 家から はじまった。でも 外には、まだ 汚れた 場所が ある。",
+			"つぼみ「ねえ！ また 汚れた 場所が あったら、」",
+			"みんな「——みんなで、みどりを とりもどしに いこう！」",
+			"父「よし。……つぎは、どこへ 行こうか」",
+			"おじい「におうな…。川じゃ。みずべが、にごっておる」",
+		],
+	},
+	# ───────── 第3章「にごった みずべ」 ─────────
+	{
+		"goal": "story", "banner": "第3章  「にごった みずべ」", "reset_recovery": 0.3, "biome": "water",
+		"lines": [
+			"つぼみ「川の 音…でも、へんな におい」",
+			"おじい「昔は 澄んで、めだかが およいでおった…」",
+			"父「水も よごれてしまったんだな。ここも、きれいに しよう」",
+			"母「そっとね。水の 虫たちも、きっと 苦しんでいる」",
+		],
+	},
+	{
+		"goal": "heal", "n": 12, "wave": 6, "biome": "water",
+		"lines": [
+			"——にごった水から、ヘドロを まとった 水の虫が わいてくる。",
+			"カヤ「うわ、ぬるぬるしてる…！」",
+			"スミレ「こわがらないで。“きれいに”すれば、また すいすい およげる」",
+			"母「みんな いっしょ。手を、はなさないで」",
+		],
+	},
+	{
+		"goal": "boss", "boss": true, "biome": "water",
+		"lines": [
+			"——よどみの 底から、大きな 影が もちあがる。",
+			"スミレ「あれが…この 川を にごらせている おおもと！」",
+			"父「逃げない。……この子も、癒やして やろう」",
+			"おじい「こわいものほど、やさしく せい。……のう」",
+		],
+	},
+	{
+		"goal": "green", "v": 0.6, "biome": "water", "celebrate": "water",
+		"lines": [
+			"——にごりが ほどけ、水が すきとおって いく。",
+			"つぼみ「見て！ 水の そこまで、みえるよ！」",
+			"おじい「めだかが、もどって きたぞ」",
+			"母「あなたたちの 手で、川も いきを した」",
+		],
+	},
+	# ───────── 第4章「よるの もり」 ─────────
+	{
+		"goal": "story", "banner": "第4章  「よるの もり」", "reset_recovery": 0.25, "biome": "night",
+		"lines": [
+			"——日が くれて、森は まっくら。ほのかな 光が、ちらちら 舞う。",
+			"つぼみ「わあ…光ってる！ ホタル？」",
+			"おじい「昔は もっと、たくさん 光っておった…。よごれて、消えかけておる」",
+			"父「暗くて こわいか？ ……だいじょうぶ。きれいにすれば、光が もどる」",
+			"母「そっとね。この子たちも、くらやみで さみしいの」",
+		],
+	},
+	{
+		"goal": "heal", "n": 13, "wave": 6, "biome": "night",
+		"lines": [
+			"——ヘドロに 侵された 夜の虫が、にぶい 光で 迫ってくる。",
+			"カヤ「暗くて 見えねぇ…！」",
+			"スミレ「“きれいに”すると、その子が ぱっと 明るくなる。それを たよりに」",
+			"母「ひとつ 光るたび、森が 少し あかるくなるわ」",
+		],
+	},
+	{
+		"goal": "boss", "boss": true, "biome": "night",
+		"lines": [
+			"——木々の おくから、大きな 羽ばたき。金いろの 目が ふたつ。",
+			"スミレ「大きな ガ…！ この森を くらませている ぬし」",
+			"父「こわくない。……この子も、光を なくして 迷っているだけだ」",
+			"おじい「こわいものほど、やさしく せい。……もう 何度目かのう」",
+		],
+	},
+	{
+		"goal": "green", "v": 0.6, "biome": "night", "celebrate": "night",
+		"lines": [
+			"——ガが 静かに 羽を とじ、森じゅうの ホタルが いっせいに ともった。",
+			"つぼみ「うわあ…！ 星が、地面にも あるみたい！」",
+			"おじい「これじゃ。わしが 見せたかった 夜は」",
+			"母「あなたたちの 手で、夜も いきを した」",
+		],
+	},
+	# ───────── 第5章「いえの なか」 ─────────
+	{
+		"goal": "story", "banner": "第5章  「いえの なか」", "reset_recovery": 0.25, "biome": "house",
+		"lines": [
+			"——すきま風に さそわれて、たどりついたのは 大きな 家の ゆか下。",
+			"カヤ「うわ、でっけえ…！ 天井、はるか 上じゃねえか」",
+			"つぼみ「ほこりが もこもこ…くしゃみ でそう」",
+			"父「人が すてた よごれが、たまっているんだ。ここも、そうじ しよう」",
+			"母「小さな わたしたちにも、できることが ある。ね」",
+		],
+	},
+	{
+		"goal": "heal", "n": 14, "wave": 6, "biome": "house",
+		"lines": [
+			"——ほこりに まみれた 家の虫が、もそもそ 出てくる。",
+			"スミレ「ダンゴムシに クモ…みんな ヘドロで 苦しそう」",
+			"カヤ「クモは ちょっと こわいけど…よし、“きれいに”だ！」",
+			"母「こわい 見た目でも、中身は やさしい。そっとね」",
+		],
+	},
+	{
+		"goal": "boss", "boss": true, "biome": "house",
+		"lines": [
+			"——ゆか下の おくで、もこもこが ふくらむ。糸と ゴミを まきこんだ 大きな かたまり。",
+			"スミレ「ホコリの ぬし…！ すてられた よごれが、ぜんぶ 集まってる」",
+			"父「だれかが 見すてた ものたちだ。……今度は、わしらが 手を さしのべる」",
+			"おじい「こわいものほど、やさしく せい。……いつもの じゃな」",
+		],
+	},
+	{
+		"goal": "green", "v": 0.6, "biome": "house", "celebrate": "house",
+		"lines": [
+			"——かたまりが ほどけ、ゆか下に あたたかい 光が さしこんだ。",
+			"つぼみ「わあ、ゆかが ぴかぴか！」",
+			"おじい「小さな 手でも、こんなに きれいに できるんじゃ」",
+			"母「あなたたちの 手で、この家も いきを した」",
+		],
+	},
+	# ───────── 第6章「そら」（最終章）─────────
+	{
+		"goal": "story", "banner": "第6章  「そら」", "reset_recovery": 0.25, "biome": "sky",
+		"lines": [
+			"——つばさを 広げ、一家は 雲の上まで のぼった。",
+			"つぼみ「たかい…！ 地面が、あんなに 小さい」",
+			"おじい「空も よごれておる。ここが、いちばん 上の 汚れじゃ」",
+			"父「ここを きれいにすれば、風が すみずみまで みどりを はこぶ」",
+			"母「みんな、飛べるように なったね。……いこう」",
+		],
+	},
+	{
+		"goal": "heal", "n": 16, "wave": 6, "biome": "sky",
+		"lines": [
+			"——風に のって、ヘドロを まとった 空の虫が 舞いあがる。",
+			"カヤ「空の うえでも 戦えるとはな…！」",
+			"スミレ「飛んで、追いかけて、“きれいに”！ なかまも 手伝ってくれる」",
+			"母「手を はなさないで。……空でも、いっしょ」",
+		],
+	},
+	{
+		"goal": "boss", "boss": true, "biome": "sky",
+		"lines": [
+			"——雲を やぶって、大きな 羽が ひろがる。金と黒の、みごとな もよう。",
+			"スミレ「オオアゲハ…！ 空の いちばん 高いところの ぬし」",
+			"父「これが 最後だ。……この子も、癒やして あげよう」",
+			"おじい「こわいものほど、やさしく せい。……よう おぼえたな」",
+		],
+	},
+	{
+		"goal": "green", "v": 0.6, "biome": "sky", "celebrate": "sky",
+		"lines": [
+			"——アゲハが ゆっくり 舞いおり、空じゅうに 澄んだ 風が とおった。",
+			"つぼみ「風が、みどりの においが する！」",
+			"おじい「そらまで とどいた。……ぜんぶ、つながったのじゃ」",
+			"母「あなたたちの 手で、空も いきを した」",
+		],
+	},
+	# ───────── 真エンディング（すべての章のあと）─────────
+	{
+		"goal": "ending", "ending": true,
+		"lines": [
+			"——めぐった 先ざきに、みどりが ひろがって いく。",
+			"——癒やした 虫たちが、どこまでも ついてくる。もう 敵じゃ ない。ぜんぶ、なかま。",
+			"父「ここも、あそこも。……世界ぜんぶが、いつか “家”に なる」",
+			"カヤ「ふん。……悪くない ながめだ」",
+			"つぼみ「かあさん、手 つなご。……もう、はなさないよ」",
+			"母「その日まで、手を はなさないで いようね」",
+			"『みどりのはじまり』  〜おわり〜",
+			"あそんでくれて ありがとう。",
+		],
+	},
+]
+
+var beat := -1
+var _healed := 0
+var _beat_heal_base := 0   # 今のhealビートに入った時点の累計。ビート内の達成数を測る基準
+var _seeds := 0
+var _beat_seed_base := 0   # 今のcollectビートに入った時点の累計（種の事前達成スキップ防止）
+var _boss_cleared := false
+var _active := false
+var _last_obj := "￿"
+var _beat_t := 0.0        # 今のビートの経過時間（会話ビートの送り用）
+var _last_beat := -99     # ビートが変わった瞬間を検知してタイマをリセット
+var _talk_done := false   # 会話ビートで、プレイヤーが会話を読み終えたか
+
+
+func _ready() -> void:
+	Net.session_started.connect(_on_session_started)
+	Net.session_ended.connect(func(_r: String) -> void:
+		_active = false
+		guide_on = false
+		guide_changed.emit(false, Vector3.ZERO, ""))
+	WorldState.creature_healed.connect(_on_creature_healed)
+	WorldState.seed_collected.connect(_on_seed_collected)
+	_load_meta()
+
+
+## サーバから：中ボスを癒やし終えた（bug.gd が呼ぶ）。
+func notify_boss_cleared() -> void:
+	if _is_server():
+		_boss_cleared = true
+
+
+func _on_session_started() -> void:
+	# のんびり庭（クリア後のごほうび）：章を回さず、最初からみどり豊かな平和サンドボックス。
+	# 敵は「章オフ」扱いで やさしく湧くだけ（ボス/ウェーブ/物語なし）。セーブも触らない。
+	if free_play:
+		_active = false
+		guide_on = false
+		guide_changed.emit(false, Vector3.ZERO, "")
+		if peaceful:
+			objective_changed.emit("れんしゅう：すきなだけ 虫を「きれいに」して 花を さかせよう（たたかいなし）")
+		else:
+			objective_changed.emit("のんびり庭：すきなだけ 虫を「きれいに」して 花を さかせよう")
+		if _is_server():
+			WorldState.set_recovery(0.9)   # 最初から みどり豊か
+		return
+	# 庭(ハブ)＝第1章の舞台のときだけ物語を回す。遺跡は自由あそび（目的だけ出す＝空に見えない）。
+	if Net.world_biome != "garden":
+		_active = false
+		objective_changed.emit("じゆうあそび：虫を「きれいに」で いやして なかまを ふやそう")
+		return
+	_active = true
+	_healed = 0
+	_seeds = 0
+	_boss_cleared = false
+	beat = -1
+	_last_obj = "￿"
+	if not _is_server():
+		return
+	if _want_continue and _has_progress():
+		# 「つづきから」：庭が組み上がってから復元する（wave/boss の合図を庭が受け取れるように）。
+		_pending_continue = true
+	else:
+		rpc("_set_beat", 0, false)
+
+
+## main が庭を組み立て終えた直後に呼ぶ：保留していた「つづきから」を実際に復元する。
+func apply_pending_continue() -> void:
+	if not _pending_continue or not _is_server():
+		return
+	_pending_continue = false
+	_want_continue = false
+	var cfg := ConfigFile.new()
+	if cfg.load(SAVE_PATH) != OK:
+		rpc("_set_beat", 0, false)
+		return
+	# 未来の版で保存されたセーブは正しく読めない＝壊れた続きを避け、最初から始める。
+	if int(cfg.get_value("progress", "schema", SAVE_SCHEMA)) > SAVE_SCHEMA:
+		rpc("_set_beat", 0, false)
+		return
+	var b := int(cfg.get_value("progress", "beat", 0))
+	_healed = int(cfg.get_value("progress", "healed", 0))
+	_seeds = int(cfg.get_value("progress", "seeds", 0))
+	var rec := float(cfg.get_value("progress", "recovery", 0.0))
+	var pl_raw: Variant = cfg.get_value("progress", "powers", [])
+	var pl: Array = pl_raw if pl_raw is Array else []   # 破損/手編集セーブで powers が配列でなくても落ちない
+	WorldState.restore(rec, pl)
+	rpc("_set_beat", clampi(b, 0, CH1.size() - 1), true)
+
+
+func _process(delta: float) -> void:
+	if not _active or not _is_server() or beat < 0 or beat >= CH1.size():
+		return
+	if beat != _last_beat:
+		_last_beat = beat
+		_beat_t = 0.0
+		_talk_done = false
+		_beat_heal_base = _healed   # このビートに入ってから癒やした数で判定する
+		_beat_seed_base = _seeds    # 種も同様＝寄り道で先に拾ってもcollectビートが即完了しない
+	_beat_t += delta
+	var b: Dictionary = CH1[beat]
+	var goal: String = b.get("goal", "")
+	var done := false
+	match goal:
+		"story":
+			# 会話だけのビート。読み終えたら（または保険で25秒で）次へ。
+			_push_objective("")
+			done = _talk_done or _beat_t >= 25.0
+		"ending":
+			_push_objective("")
+			done = false   # エンディングは終端
+		"clean":
+			_push_objective("めあて：光る ゴミに 近づいて「つかむ」で かたづける（のこり %d）" % _trash_count())
+			done = _trash_count() == 0
+		"heal":
+			var need: int = b.get("n", 1)
+			var done_here: int = _healed - _beat_heal_base   # このビートで癒やした数
+			_push_objective("めあて：あばれる虫を「きれいに」で いやす（のこり %d）" % maxi(0, need - done_here))
+			done = done_here >= need
+		"collect":
+			var need2: int = b.get("n", 1)
+			var got: int = _seeds - _beat_seed_base   # このビートで拾った数
+			_push_objective("めあて：おじいの “種のかけら”に ふれて あつめる（%d / %d）" % [mini(got, need2), need2])
+			done = got >= need2
+		"puzzle":
+			_push_objective("めあて：石版を 数の順に ふんで 灯す")
+			done = _prop_solved("StonePuzzle")
+		"switch":
+			_push_objective("めあて：はなれた2つの台に 同時に のる（ソロは子が手伝う）")
+			done = _prop_solved("SwitchPair")
+		"boss":
+			_push_objective("めあて：ボスを「きれいに」で いやす")
+			done = _boss_cleared
+		"green":
+			var v: float = b.get("v", 0.5)
+			_push_objective("めあて：虫を いやして みどりを もどす（%d%%）" % int(clampf(WorldState.recovery / v, 0.0, 1.0) * 100.0))
+			done = WorldState.recovery >= v
+		"clear":
+			done = false   # クリアビートは終端
+	if done:
+		rpc("_set_beat", beat + 1, false)
+
+	# 道しるべ（次の目的地）を計算して、変化したら全員へ配る（0.2秒ごと＝軽い）。
+	_guide_accum += delta
+	if _guide_accum >= 0.2:
+		_guide_accum = 0.0
+		var g := _guide_target(goal)
+		if g["on"] != guide_on or g["kind"] != guide_kind or (g["pos"] as Vector3).distance_to(guide_pos) > 0.4:
+			rpc("_set_guide", g["on"], g["pos"], g["kind"])
+
+
+## 今のゴールに応じて「向かうべき場所」を返す。{on, pos, kind}
+## clean=いちばん近いゴミ / heal・green=いちばん近い虫 / boss=ボス / collect=近い種 /
+## puzzle=石版 / switch=スイッチ台。会話・エンディング中は道しるべ無し。
+func _guide_target(goal: String) -> Dictionary:
+	var ref := _nearest_player_pos()
+	match goal:
+		"clean":
+			var t := _nearest_in_group("trash", ref)
+			if t != null:
+				return {"on": true, "pos": t.global_position, "kind": "clean"}
+		"heal", "green":
+			var g := _nearest_in_group("bug", ref)
+			if g != null:
+				return {"on": true, "pos": g.global_position, "kind": "heal"}
+		"boss":
+			# ★ボスだけを指す★ まわりの雑魚ではなく、中ボス本体へ矢印を向ける
+			# （以前は最寄りの虫を指し、プレイヤーがボスから離れてしまっていた）。
+			var gb := _find_boss()
+			if gb == null:
+				gb = _nearest_in_group("bug", ref)   # 保険：まだ出ていない一瞬など
+			if gb != null:
+				return {"on": true, "pos": gb.global_position, "kind": "boss"}
+		"collect":
+			var s := _nearest_in_group("seed", ref)
+			if s != null:
+				return {"on": true, "pos": s.global_position, "kind": "collect"}
+		"puzzle":
+			var pp := _prop_pos("StonePuzzle")
+			if pp.y < 1.0e8:
+				return {"on": true, "pos": pp, "kind": "puzzle"}
+		"switch":
+			var sp := _prop_pos("SwitchPair")
+			if sp.y < 1.0e8:
+				return {"on": true, "pos": sp, "kind": "switch"}
+	return {"on": false, "pos": Vector3.ZERO, "kind": ""}
+
+
+func _nearest_player_pos() -> Vector3:
+	var players := get_tree().get_nodes_in_group("player")
+	if players.is_empty():
+		return Vector3.ZERO
+	return (players[0] as Node3D).global_position
+
+
+## 中ボス本体（EnemyStats.is_midboss）を1体さがす。道しるべをボスへ向けるため。
+func _find_boss() -> Node3D:
+	for n in get_tree().get_nodes_in_group("bug"):
+		var n3 := n as Node3D
+		if n3 == null:
+			continue
+		var st: Variant = n3.get("stats")
+		if st != null and st.is_midboss:
+			return n3
+	return null
+
+
+func _nearest_in_group(group: String, ref: Vector3) -> Node3D:
+	var best: Node3D = null
+	var bd := 1.0e18
+	for n in get_tree().get_nodes_in_group(group):
+		var n3 := n as Node3D
+		if n3 == null:
+			continue
+		var d := n3.global_position.distance_to(ref)
+		if d < bd:
+			bd = d
+			best = n3
+	return best
+
+
+func _prop_pos(node_name: String) -> Vector3:
+	var garden := get_tree().get_first_node_in_group("garden")
+	if garden != null:
+		var p := garden.get_node_or_null(node_name) as Node3D
+		if p != null:
+			return p.global_position
+	return Vector3(0, 1.0e9, 0)   # 見つからない印
+
+
+## StoryUI から呼ばれる：会話を最後まで読み終えた。会話だけのビートを次へ進める合図。
+## サーバだけが進行を握るのでサーバ側でだけ立てる（参加者の読み終わりでは進めない）。
+func notify_dialogue_done() -> void:
+	if _is_server():
+		_talk_done = true
+
+
+## 今のビートが“バトル（あばれ虫/群れ/ボス）”か。会話UIが、戦闘中は自動で出さず
+## 「おはなし」ボタンに ためる かどうかの判定に使う（進行は戦闘数で決まる＝会話は任意）。
+func is_action_beat() -> bool:
+	if not _active or beat < 0 or beat >= CH1.size():
+		return false
+	var b: Dictionary = CH1[beat]
+	return b.get("goal", "") in ["heal", "boss"] or b.has("wave")
+
+
+func _push_objective(text: String) -> void:
+	if text == _last_obj:
+		return
+	_last_obj = text
+	rpc("_set_ui_objective", text)
+
+
+## 後から参加した人へ「今の目的・道しるべ」を配る（サーバのみ）。
+## _set_beat 全体は wave/boss の合図を再発火させてしまうので、演出を起こさない
+## 「現状配布」だけに絞る。
+func send_to(id: int) -> void:
+	if not _is_server():
+		return
+	var obj := _last_obj if _last_obj != "￿" else ""
+	rpc_id(id, "_set_ui_objective", obj)
+	rpc_id(id, "_set_guide", guide_on, guide_pos, guide_kind)
+
+
+# ---- サーバ → 全員 ----
+
+@rpc("authority", "call_local", "reliable")
+func _set_beat(i: int, silent: bool = false) -> void:
+	if i < 0 or i >= CH1.size():
+		return
+	beat = i
+	var data: Dictionary = CH1[i]
+	# silent=つづきから復元。会話・バナー・力通知・満開・wave・セーブを再発火させない
+	# （＝二重演出の防止）。ただしボスは“居ないと倒せない”ので復元でも湧かせる。
+	if not silent:
+		dialogue.emit(PackedStringArray(data.get("lines", [])))
+	if _is_server():
+		# 章で舞台が変わるとき（第3章＝みずべ 等）は 舞台を切り替える。復元(silent)でも適用。
+		if data.has("biome"):
+			Net.set_world_biome(String(data["biome"]))
+		if data.get("boss", false):
+			_boss_cleared = false   # 新しいボスに備えて判定をリセット
+			spawn_boss.emit()
+		if not silent:
+			if data.has("wave"):
+				spawn_wave.emit(int(data["wave"]))
+			if data.has("power"):
+				WorldState.grant_power(String(data["power"]))
+			if data.get("full_green", false) or data.get("ending", false):
+				WorldState.set_full()   # みどりを一気に満開へ
+			if data.has("reset_recovery"):
+				# 第2章＝“新しい汚れた世界”。回復を落として、また緑に戻す payoff を作る。
+				WorldState.set_recovery(float(data["reset_recovery"]))
+			# 静かな場面に入るときは残った雑魚を浄化して片づける（余韻/エンディングを汚さない）。
+			if data.get("goal", "") in ["story", "ending", "green"]:
+				var g := get_tree().get_first_node_in_group("garden")
+				if g != null and g.has_method("purify_lingering_bugs"):
+					g.purify_lingering_bugs()
+	# 大バナー（章クリア・章タイトル・エンディング等）は全員の画面に出す。
+	if not silent:
+		if data.has("banner"):
+			objective_changed.emit("")
+			banner.emit(String(data["banner"]))
+		if data.get("ending", false):
+			objective_changed.emit("")
+			banner.emit("『みどりのはじまり』  〜おわり〜")
+		# 章の山場を越えた瞬間＝舞台ごとに違う ごほうび演出（花ふぶき/ホタル/しずく…）。
+		if data.has("celebrate"):
+			chapter_cleared.emit(String(data["celebrate"]))
+	# 章の切れ目でセーブ（サーバのみ・キャンペーン進行中のみ）。エンディングまで来たら「クリア」を記録。
+	# ★R2★ beat0（＝はじめから直後）では書かない＝「はじめから」で旧セーブを即消ししない。
+	# ※以前は「庭のときだけ」保存していたため、舞台が変わる第3〜6章のチェックポイントが
+	#   一切書かれず、つづきが第2章末まで巻き戻る不具合があった。_active（キャンペーン中）で判定に修正。
+	#   のんびり庭/れんしゅう/遺跡の自由あそびは _active=false なので保存しない（従来どおり）。
+	if _is_server() and _active and not silent:
+		if data.get("ending", false):
+			cleared = true
+			_save_meta()
+			_clear_progress()   # 通しクリアしたら“つづき”は消す（また最初から遊べる）
+		elif i >= 1:
+			_write_checkpoint()
+
+
+@rpc("authority", "call_local", "reliable")
+func _set_ui_objective(text: String) -> void:
+	objective_changed.emit(text)
+
+
+## 道しるべの更新をサーバから全員へ。位置は速達でよいので unreliable。
+@rpc("authority", "call_local", "unreliable_ordered")
+func _set_guide(on: bool, pos: Vector3, kind: String) -> void:
+	guide_on = on
+	guide_pos = pos
+	guide_kind = kind
+	guide_changed.emit(on, pos, kind)
+
+
+# ---- 進行の材料 ----
+
+func _on_creature_healed() -> void:
+	if _is_server():
+		_healed += 1
+
+
+func _on_seed_collected() -> void:
+	if _is_server():
+		_seeds += 1
+
+
+func _trash_count() -> int:
+	return get_tree().get_nodes_in_group("trash").size()
+
+
+## パズル/スイッチが解けたか。プロップは "solvable" グループに入り solved を持つ。
+func _prop_solved(node_name: String) -> bool:
+	for p in get_tree().get_nodes_in_group("solvable"):
+		if p.name == node_name:
+			return bool(p.get("solved"))
+	return false
+
+
+## 今このビートで「まわりから虫が湧いてくる（アンビエント湧き）」を許すか。
+## 掃除・会話・エンディングの場面は 静かに保つ＝虫に邪魔されず、落ち着いて進められる。
+## （群れ・ボスは Chapter の専用合図で別途湧くので、ここでは関係ない。）
+## 今このビートは「虫を癒やして減らすのが目的」か（heal/green/wave）。
+## ＝敵がいないと進めないので、庭は“詰み防止”に敵を切らさないようにする。
+## ボスは専用に沸かせ続けるので含めない。
+func wants_enemies() -> bool:
+	if not _active or beat < 0 or beat >= CH1.size():
+		return false
+	return CH1[beat].get("goal", "") in ["heal", "green", "wave"]
+
+
+## 章の進行に合わせて「今 湧いてよい敵の種類」を返す（章ごとに少しずつ増える導入）。
+## 第1章：アリ→テントウ→バッタ（地上の弱い虫から）。中ボスは女王アリ（別枠で登場）。
+## 第2章：コガネムシ（硬い）＋トンボ/チョウ/ハチ（飛ぶ敵）。ラスボスはヘドロの主（別枠）。
+## 自由プレイ（章オフ）は全部あり。ボスはこの表には含めない（Chapterの専用合図で湧く）。
+func allowed_bugs() -> Array:
+	# 水辺（第3章）は 水の虫。アメンボ・ゲンゴロウ＋水辺に集うトンボ・バッタ。
+	if Net.world_biome == "water":
+		return ["amenbo", "gengoro", "tonbo", "batta"]
+	# 夜の森（第4章）は 夜の虫。ホタル＋チョウ(蛾)・トンボ。
+	if Net.world_biome == "night":
+		return ["hotaru", "chou", "tonbo"]
+	# 家の中（第5章）は 家の虫。ダンゴムシ・クモ＋アリ。
+	if Net.world_biome == "house":
+		return ["dango", "kumo", "ant"]
+	# そら（第6章）は 空の虫。ワタムシ＋トンボ・チョウ・ハチ（みんな飛ぶ）。
+	if Net.world_biome == "sky":
+		return ["wata", "tonbo", "chou", "hachi"]
+	if not _active:
+		return ["ant", "tentou", "batta", "beetle", "tonbo", "chou", "hachi"]
+	if beat <= 1:
+		return ["ant"]                                    # 序：アリだけ＝やさしく
+	if beat <= 4:
+		return ["ant", "tentou"]                          # テントウ登場
+	if beat <= 8:
+		return ["ant", "tentou", "batta"]                 # 第1章後半：バッタ
+	if beat <= 9:
+		return ["ant", "tentou", "batta", "beetle"]       # 第2章入口：硬いコガネムシ
+	return ["ant", "tentou", "batta", "beetle", "tonbo", "chou", "hachi"]  # 飛ぶ敵も
+
+
+func ambient_spawn_ok() -> bool:
+	# ※れんしゅうモードでも虫は湧く。ただし bug.gd 側で「攻撃しない（追わない・噛まない）」＝
+	#   危なくないのに 癒やしの練習ができる。敵ゼロにすると“練習”にならないため この設計。
+	if not _active:
+		return true   # 自由プレイ（遺跡など）は従来どおり
+	if beat < 0 or beat >= CH1.size():
+		return true
+	var goal: String = CH1[beat].get("goal", "")
+	# boss はボス本体＋召喚minionで敵を供給するので、周辺アンビエント湧きは止める
+	# （でないとボス＋雑魚8＋召喚14でソロが理不尽になる）。
+	return not (goal in ["clean", "story", "ending", "boss"])
+
+
+# ---------------------------------------------------------------- セーブ／つづきから
+
+## タイトルの「つづきから」を押した合図（この後 Net.start_solo/host する）。
+func continue_game() -> void:
+	_want_continue = true
+	free_play = false
+	peaceful = false
+
+
+func start_new() -> void:
+	_want_continue = false
+	free_play = false
+	peaceful = false
+
+
+## クリア後のごほうび「のんびり庭」：章の進行なし・最初からみどり豊か・敵はやさしく湧くだけ。
+## すきなだけ 虫を癒やして 花を咲かせて 図鑑を埋められる 平和なサンドボックス。
+func start_free_play() -> void:
+	_want_continue = false
+	free_play = true
+	peaceful = false
+
+
+## れんしゅうモード：戦闘ゼロの平和サンドボックス（掃除と収集だけ）。free_play の上に peaceful を重ねる。
+## 小さな子・初見・刺激に敏感な子でも安心して 世界を きれいにできる やさしい入口。
+func start_peaceful() -> void:
+	_want_continue = false
+	free_play = true
+	peaceful = true
+
+
+## 途中経過のセーブがあるか（タイトルで「つづきから」を出すか）。
+func has_save() -> bool:
+	return _has_progress()
+
+
+## タイトルに出す短い説明（「第2章のとちゅう」など）。
+func save_label() -> String:
+	if not _has_progress():
+		return ""
+	var cfg := ConfigFile.new()
+	cfg.load(SAVE_PATH)
+	var b := int(cfg.get_value("progress", "beat", 0))
+	var ch := 2 if b >= 9 else 1
+	return "第%d章のとちゅうから" % ch
+
+
+# ---------------------------------------------------------------- なかま図鑑
+# 癒やした虫の種類と累計を user://dex.cfg に記録（進行セーブとは別ファイル＝消えない収集）。
+# ＝「全種を なかまにする」というリプレイ動機＋テーマ（救う＝味方）の可視化。
+const DEX_PATH := "user://dex.cfg"
+const DEX_TOTAL := 19   # なかま図鑑の全種数（hud.gd DEX_TOTAL / lobby.gd DEX_SPECIES と一致）
+# 図鑑はメモリに載せておき（_dex）、癒やすたびのディスクI/Oをやめる。
+# Webの user:// は IndexedDB＝1回の save が数ms級。heal/wave で十数体続けて癒やすと
+# 「癒やすたびにカクつく」原因になっていた。書き込みは 2.5秒デバウンス＋章の切れ目でまとめて。
+var _dex: Dictionary = {}
+var _dex_loaded := false
+var _dex_save_pending := false
+
+
+func _load_dex() -> void:
+	if _dex_loaded:
+		return
+	_dex_loaded = true
+	var cfg := ConfigFile.new()
+	if cfg.load(DEX_PATH) == OK and cfg.has_section("dex"):
+		for k in cfg.get_section_keys("dex"):
+			_dex[k] = int(cfg.get_value("dex", k, 0))
+
+
+## サーバ側で、虫を1体癒やしたら記録（bug.cleanse から呼ぶ）。species_path 例: res://data/ant.tres
+func record_healed(species_path: String) -> void:
+	if not _is_server():
+		return
+	var id := species_path.get_file().get_basename()
+	if id.is_empty():
+		return
+	_load_dex()
+	var prev := int(_dex.get(id, 0))
+	_dex[id] = prev + 1
+	_schedule_dex_save()
+	# はじめて癒やした種＝「なかまが増える＝物語が進む」の一歩。名前で祝う。
+	if prev == 0:
+		var nm := id
+		var st: Variant = load(species_path)
+		if st != null and "display_name" in st:
+			nm = st.display_name
+		WorldState.notice.emit("%s が なかまに なった！　（ずかんに 記録）" % nm)
+		_dex_milestone(_dex.size())   # 図鑑の節目/コンプを祝う（新種のときだけ判定）
+		_flush_dex()                  # 新種＝大事な解禁なので即保存（タブ閉じで失わない）
+	# 同じ種を集めるほど バッジが育つ（ブロンズ→シルバー→ゴールド）＝もっと集める動機。
+	_dex_tier_up(species_path, prev, prev + 1)
+
+
+## 種ごとの累計数から バッジの段位(0〜3)を返す。UI/結果カードでも使う共通ものさし。
+const DEX_TIERS := [5, 15, 40]                       # この累計で ブロンズ/シルバー/ゴールド
+const DEX_TIER_NAMES := ["ブロンズ", "シルバー", "ゴールド"]
+func dex_tier(count: int) -> int:
+	var t := 0
+	for th in DEX_TIERS:
+		if count >= int(th):
+			t += 1
+	return t
+
+
+## バッジが1段 上がった瞬間だけ 祝う（同じ種を集め続ける やり込みの手ごたえ）。
+func _dex_tier_up(species_path: String, prev: int, now: int) -> void:
+	var before := dex_tier(prev)
+	var after := dex_tier(now)
+	if after > before:
+		var nm := species_path.get_file().get_basename()
+		var st: Variant = load(species_path)
+		if st != null and "display_name" in st:
+			nm = st.display_name
+		WorldState.notice.emit("◆ %s が %s！　（%d ひき）" % [nm, DEX_TIER_NAMES[after - 1], now])
+		Sfx.play("levelup", -8.0)
+		_flush_dex()   # バッジ昇格＝大事な解禁なので即保存（タブ閉じで失わない）
+
+
+## 図鑑の節目のごほうび：5/10/15種で応援、全種そろったら特別なコンプリート祝い。
+## 収集は「もう一周する動機」＝この一言と音で 達成の手ごたえを積む。全合成・追加アセットゼロ。
+func _dex_milestone(distinct: int) -> void:
+	if distinct >= DEX_TOTAL:
+		WorldState.notice.emit("ずかん コンプリート！　ぜんぶの なかまに 会えたね　★")
+		Sfx.play("ending", -6.0)         # 最上位の祝い（主題歌の締め）
+		chapter_cleared.emit("bloom")    # 花ふぶきのごほうび演出（舞台別クリアと同じ気持ちよさ）
+	elif distinct == 5 or distinct == 10 or distinct == 15:
+		WorldState.notice.emit("ずかん %d しゅるい！　この調子　◎" % distinct)
+		Sfx.play("milestone", -4.0)
+
+
+## 図鑑UI用：{ species_id: 累計数 }。まだ癒やしていない種は含まれない。
+func dex_counts() -> Dictionary:
+	_load_dex()
+	return _dex.duplicate()
+
+
+## 図鑑の書き込みを 2.5秒後に1回だけ（連続で癒やしてもディスクは1回）。
+func _schedule_dex_save() -> void:
+	if _dex_save_pending:
+		return
+	_dex_save_pending = true
+	var t := get_tree().create_timer(2.5)
+	t.timeout.connect(_flush_dex)
+
+
+## メモリの図鑑をディスクへ書き出す（デバウンス満了・章の切れ目で呼ぶ）。
+func _flush_dex() -> void:
+	_dex_save_pending = false
+	if not _dex_loaded:
+		return
+	var cfg := ConfigFile.new()
+	for k in _dex:
+		cfg.set_value("dex", String(k), int(_dex[k]))
+	cfg.save(DEX_PATH)
+
+
+## 終了時（タブ/ウィンドウを閉じる・アプリ終了）に、デバウンス待ちの図鑑を取りこぼさず書き出す。
+## のんびり庭/れんしゅう（＝図鑑埋めの主戦場）は章切れの保存がないため、この保険が効く。
+func _notification(what: int) -> void:
+	if what == NOTIFICATION_WM_CLOSE_REQUEST or what == NOTIFICATION_WM_GO_BACK_REQUEST or what == NOTIFICATION_PREDELETE:
+		if _dex_save_pending:
+			_flush_dex()
+
+
+func _has_progress() -> bool:
+	var cfg := ConfigFile.new()
+	if cfg.load(SAVE_PATH) != OK:
+		return false
+	return cfg.has_section_key("progress", "beat")
+
+
+func _write_checkpoint() -> void:
+	if _dex_save_pending:
+		_flush_dex()   # 章の切れ目で図鑑もまとめて確定（デバウンス待ちの取りこぼし防止）
+	var cfg := ConfigFile.new()
+	cfg.load(SAVE_PATH)   # meta（cleared）は残す
+	cfg.set_value("progress", "schema", SAVE_SCHEMA)
+	cfg.set_value("progress", "beat", beat)
+	cfg.set_value("progress", "healed", _healed)
+	cfg.set_value("progress", "seeds", _seeds)
+	cfg.set_value("progress", "recovery", WorldState.recovery)
+	cfg.set_value("progress", "powers", WorldState.powers_list())
+	# アトミック保存：一時ファイルに書いてから rename＝書き込み中にクラッシュ/タブ閉じでも
+	# save.cfg が半端に壊れない。rename できない環境（保険）は直接保存にフォールバック。
+	if cfg.save(SAVE_TMP) != OK:
+		cfg.save(SAVE_PATH)
+		return
+	var da := DirAccess.open("user://")
+	if da == null or da.rename("save.cfg.tmp", "save.cfg") != OK:
+		cfg.save(SAVE_PATH)
+
+
+func _clear_progress() -> void:
+	var cfg := ConfigFile.new()
+	cfg.load(SAVE_PATH)
+	if cfg.has_section("progress"):
+		cfg.erase_section("progress")
+	cfg.save(SAVE_PATH)
+
+
+func _save_meta() -> void:
+	var cfg := ConfigFile.new()
+	cfg.load(SAVE_PATH)
+	cfg.set_value("meta", "cleared", cleared)
+	cfg.save(SAVE_PATH)
+
+
+func _load_meta() -> void:
+	var cfg := ConfigFile.new()
+	if cfg.load(SAVE_PATH) == OK:
+		cleared = bool(cfg.get_value("meta", "cleared", false))
+
+
+func _is_server() -> bool:
+	return multiplayer.has_multiplayer_peer() and multiplayer.is_server()

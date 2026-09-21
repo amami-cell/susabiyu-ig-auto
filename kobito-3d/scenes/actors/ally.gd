@@ -1,0 +1,462 @@
+extends CharacterBody3D
+class_name Ally
+## なかま虫：浄化された虫が仲間になった姿。
+##
+## プレイヤーについてきて、近くの“暴れ虫”を見つけると寄っていって 一緒に癒やす。
+## テーマ「敵は悪者じゃない。救えば仲間になる」を、遊びで見せるための存在。
+##
+## 中身はサーバだけが動かし、クライアントは 10Hz で届く位置へ寄せるだけ（bug と同じ設計）。
+## HP は持たない（仲間は倒れない）。当たり判定は地面だけ＝誰ともぶつからずすり抜ける。
+
+const SYNC_HZ := 10.0
+const GRAVITY := 14.0
+const SPEED := 3.6
+const FOLLOW_DIST := 2.8      # これ以上プレイヤーから離れたら追う
+const HELP_RANGE := 10.0      # この距離内の暴れ虫を手伝いに行く
+const HELP_REACH := 1.7       # ここまで近づいたら癒やしのパルスを出す
+const HELP_INTERVAL := 1.0
+const HELP_AMOUNT := 4
+
+var owner_id: int = 1
+var tint: Color = Color(0.6, 1.0, 0.72)
+var species := ""              # 癒やした虫の種類id（例 "beetle"）。空なら仕掛け由来の汎用なかま。
+
+# 種ごとの役割（＝集めた種がゲーム内で活きる）。
+#   飛ぶ種  … 空の暴れ虫にも 届く（地上のなかまは 届かない）＝飛ぶ敵対策の切り札
+#   甲羅種  … じょうぶ。癒やしの力が強く、少し広く届く
+var _role_fly := false
+var _role_shell := false
+var _heal_amt := HELP_AMOUNT
+var _reach := HELP_REACH
+var _speed := SPEED               # 種によって動きの速さが変わる（アリは速い等）
+var _help_interval := HELP_INTERVAL   # 癒やしパルスの間隔（ハチは短い＝手数）
+var role_name := "なかま"          # 図鑑に出す ひとこと役割名
+var role_desc := "いっしょに きれいにする"   # 図鑑に出す 役割の説明
+
+var _sync_accum := 0.0
+var _net_pos := Vector3.ZERO
+var _help_cd := 0.0
+# 索敵（ボス/暴れ虫/プレイヤー探し）は毎フレームやらない＝10Hzに間引く。狙い先を覚えておき、
+# 移動と癒やしパルスは毎tickのまま＝手触りは変えず、ソロWebの負荷（1tickで最大3回の全走査）を減らす。
+const AI_SCAN_INTERVAL := 0.1
+var _scan_accum := 0.0
+var _c_boss: Node3D = null
+var _c_bug: Node3D = null
+var _c_player: Node3D = null
+var _bob := 0.0
+var _hop := 0.0            # 暮らしの所作の“ぴょこっ”（bobに足す）
+var _idle_t := 0.0         # 次の所作までのカウント
+var _prev_pos := Vector3.ZERO   # 動いているか判定用
+const RALLY_TIME := 4.0          # 笛で呼ばれてから 集まっている秒数
+var _rally_t := 0.0
+var _rally_pos := Vector3.ZERO
+var _body: Node3D = null
+
+
+func _ready() -> void:
+	add_to_group("ally")
+	var col := CollisionShape3D.new()
+	var sh := SphereShape3D.new()
+	sh.radius = 0.32
+	col.shape = sh
+	col.position.y = 0.4
+	add_child(col)
+	collision_layer = 0    # 誰も“なかま”にはぶつからない（すり抜けOK・見た目重視）
+	collision_mask = 1     # 地面(world=layer1)にだけ乗る
+	_build_look()
+	_net_pos = global_position
+	set_physics_process(true)
+
+
+## 浄化された虫は「ちび小人」の姿になって家族の仲間に（採用案F）。
+## 種の色(tint)を残して見分けられる。ふわっと光る＝救われた精霊。
+func _build_look() -> void:
+	_body = Node3D.new()
+	add_child(_body)
+	var glow := tint.lerp(Color(0.82, 1.0, 0.88), 0.4)
+	var skin := tint.lerp(Color(0.95, 0.9, 0.84), 0.5)
+	var dark := tint.darkened(0.32)
+	# 頭（ふわっと発光）＋体
+	var head := _a_ball(_body, 0.2, glow, Vector3(0.0, 0.6, -0.02), Vector3.ONE, 0.5)
+	_a_ball(_body, 0.18, skin, Vector3(0.0, 0.32, 0.0), Vector3(0.92, 1.15, 0.92), 0.15)
+	# 腕・脚
+	for sx in [-1.0, 1.0]:
+		_a_box(_body, dark, Vector3(0.05, 0.16, 0.05), Vector3(0.19 * sx, 0.34, 0.0), deg_to_rad(22.0) * sx)
+		_a_box(_body, dark.darkened(0.08), Vector3(0.06, 0.12, 0.06), Vector3(0.08 * sx, 0.08, 0.0), 0.0)
+	# 顔（うれしい目・ほっぺ・笑顔）
+	_a_face(head, 0.2, 0.082, dark)
+	# 飛ぶ種の子は ちび羽で見分け（役割：空の暴れ虫に届く）
+	if _role_fly:
+		var wmat := StandardMaterial3D.new()
+		wmat.albedo_color = Color(1, 1, 1, 0.6)
+		wmat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+		wmat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+		for sx in [-1.0, 1.0]:
+			var w := _a_ball(_body, 0.14, Color(1, 1, 1), Vector3(0.17 * sx, 0.44, 0.12), Vector3(0.5, 1.0, 0.24))
+			w.material_override = wmat
+			w.rotation.z = deg_to_rad(24.0) * sx
+
+
+func _a_ball(parent: Node3D, r: float, c: Color, pos: Vector3, sc := Vector3.ONE, emit := 0.0) -> MeshInstance3D:
+	var mi := MeshInstance3D.new()
+	var m := SphereMesh.new()
+	m.radius = r
+	m.height = r * 2.0
+	m.radial_segments = 9
+	m.rings = 6
+	mi.mesh = m
+	var mat := StandardMaterial3D.new()
+	mat.albedo_color = c
+	if emit > 0.0:
+		mat.emission_enabled = true
+		mat.emission = c
+		mat.emission_energy_multiplier = emit
+	mat.rim_enabled = true
+	mat.rim = 0.4
+	mi.material_override = mat
+	mi.position = pos
+	mi.scale = sc
+	parent.add_child(mi)
+	return mi
+
+
+func _a_box(parent: Node3D, c: Color, size: Vector3, pos: Vector3, roll: float) -> MeshInstance3D:
+	var mi := MeshInstance3D.new()
+	var m := BoxMesh.new()
+	m.size = size
+	mi.mesh = m
+	var mat := StandardMaterial3D.new()
+	mat.albedo_color = c
+	mi.material_override = mat
+	mi.position = pos
+	mi.rotation.z = roll
+	parent.add_child(mi)
+	return mi
+
+
+func _a_face(head: Node3D, r: float, eye_r: float, dark: Color) -> void:
+	var white := Color(0.96, 0.97, 0.94)
+	var blk := Color(0.08, 0.07, 0.09)
+	var exx := r * 0.42
+	var ezz := -r * 0.62
+	for sx in [-1.0, 1.0]:
+		_a_ball(head, eye_r, white, Vector3(exx * sx, r * 0.05, ezz), Vector3(1.0, 1.1, 0.8))
+		_a_ball(head, eye_r * 0.6, blk, Vector3(exx * sx, r * 0.05, ezz - eye_r * 0.5))
+		_a_ball(head, eye_r * 0.3, Color(1, 1, 1), Vector3(exx * sx - eye_r * 0.2, r * 0.05 + eye_r * 0.3, ezz - eye_r * 0.85), Vector3.ONE, 0.9)
+	for sx in [-1.0, 1.0]:
+		_a_ball(head, r * 0.14, Color(0.98, 0.6, 0.6), Vector3(r * 0.5 * sx, -r * 0.12, ezz * 0.8), Vector3(1.1, 0.7, 0.5))
+	_a_ball(head, r * 0.09, Color(0.4, 0.2, 0.24), Vector3(0.0, -r * 0.34, ezz * 0.9), Vector3(1.6, 0.7, 0.5))
+
+
+## _ready() より前に呼ばれる（garden が add_child する直前）＝見た目づくりに間に合う。
+func setup(o_id: int, col: Color, sp: String = "") -> void:
+	owner_id = o_id
+	tint = col
+	species = sp
+	_heal_amt = HELP_AMOUNT
+	_reach = HELP_REACH
+	if sp != "":
+		var path := "res://data/%s.tres" % sp
+		if ResourceLoader.exists(path):
+			var st: Variant = load(path)
+			if st != null:
+				_role_fly = bool(st.flies)
+				_role_shell = bool(st.shell)
+	if _role_shell:
+		_heal_amt = 6      # 甲羅のなかま＝じょうぶ。癒やしの力が強い
+		_reach = 2.1
+	_apply_species_role(sp)
+
+
+## 種ごとの個性（＝どの虫を集めるかに意味を持たせる）。数値は控えめに差をつける。
+## 役割名/説明は図鑑に出して「集める動機」を見せる。飛ぶ/甲羅の基本差はそのまま活かす。
+func _apply_species_role(sp: String) -> void:
+	match sp:
+		"ant":
+			_speed = SPEED * 1.28   # すばしっこい＝手数でついてくる
+			role_name = "すばしっこい"
+			role_desc = "動きが速く、手数で いっしょに きれいにする"
+		"beetle", "tentou":
+			role_name = "がんじょうな 盾"
+			role_desc = "癒やしの力が強く、少し広く とどく（甲羅）"
+		"batta":
+			_speed = SPEED * 1.15
+			_reach = HELP_REACH + 0.3
+			role_name = "よく はねる"
+			role_desc = "ぴょんと よく動いて、広めに とどく"
+		"tonbo":
+			role_name = "空の 担当"
+			role_desc = "飛べる＝空の暴れ虫にも とどく切り札"
+		"chou":
+			_reach = HELP_REACH + 0.6
+			role_name = "ひらひら"
+			role_desc = "飛べて、ひろく やさしく とどく"
+		"hachi":
+			_help_interval = 0.7
+			role_name = "すばやい 手数"
+			role_desc = "飛べて、何度も つづけて 癒やす"
+		"amenbo":
+			_speed = SPEED * 1.3   # 水辺を すいすい＝いちばん速い
+			role_name = "すいすい"
+			role_desc = "水の上を すべるように 速く動く"
+		"gengoro":
+			role_name = "がんじょうな 盾"
+			role_desc = "癒やしの力が強く、少し広く とどく（甲羅）"
+		"queen_ant":
+			_heal_amt = 8
+			_reach = 2.3
+			role_name = "女王の 加護"
+			role_desc = "とても強い癒やしで みんなを助ける"
+		"tagame":
+			_heal_amt = 8
+			_reach = 2.4
+			role_name = "みずべの ぬし"
+			role_desc = "大きな力で、広く 強く 癒やす"
+		"hotaru":
+			role_name = "ともしび"
+			role_desc = "飛べて、くらやみでも たよりになる光"
+		"dango":
+			role_name = "がんじょうな 盾"
+			role_desc = "癒やしの力が強く、少し広く とどく（甲羅）"
+		"kumo":
+			_speed = SPEED * 1.25
+			role_name = "すばしっこい"
+			role_desc = "8本足で 速く、手数で 癒やす"
+		"dustlord":
+			_heal_amt = 8
+			_reach = 2.4
+			role_name = "いえの ぬし"
+			role_desc = "大きな力で、広く 強く 癒やす"
+		"wata":
+			role_name = "ふわふわ"
+			role_desc = "飛べて、風にのって ふよふよ 手伝う"
+		"ageha":
+			_heal_amt = 8
+			_reach = 2.5
+			role_name = "そらの ぬし"
+			role_desc = "大きな羽で、広く 強く 癒やす"
+		"moth":
+			_heal_amt = 8
+			_reach = 2.4
+			role_name = "よるの ぬし"
+			role_desc = "大きな羽で、広く 強く 癒やす"
+		_:
+			if _role_fly:
+				role_name = "空の 担当"
+				role_desc = "飛べる＝空の暴れ虫にも とどく"
+			elif _role_shell:
+				role_name = "がんじょうな 盾"
+				role_desc = "癒やしの力が強く、少し広く とどく"
+
+
+func _physics_process(delta: float) -> void:
+	# ふわふわ上下（見た目・全員の画面で）
+	_bob += delta * 4.0
+	if _body != null:
+		_body.position.y = 0.45 + sin(_bob) * 0.06 + _hop
+	# 暮らしの所作：ほぼ止まっている時、たまに ぴょこっ／きょろっ＝なかまが“生きてる”手触り。
+	# 純見た目・全員の画面で（位置は同期済み）＝netcode不要。
+	var spd := (global_position - _prev_pos).length() / maxf(delta, 0.0001)
+	_prev_pos = global_position
+	_idle_t -= delta
+	if spd < 0.6:
+		if _idle_t <= 0.0:
+			_idle_t = randf_range(3.0, 6.5)
+			_idle_flourish()
+	else:
+		_idle_t = maxf(_idle_t, 1.2)   # 動いた直後は少し置いてから
+	if not multiplayer.has_multiplayer_peer():
+		return
+	if multiplayer.is_server():
+		_think(delta)
+		_sync_accum += delta
+		if _sync_accum >= 1.0 / SYNC_HZ:
+			_sync_accum = 0.0
+			rpc("_remote_state", global_position)
+	else:
+		global_position = global_position.lerp(_net_pos, clampf(delta * 10.0, 0.0, 1.0))
+
+
+## 暮らしの所作：ぴょこっと跳ねて きょろっと見回す（止まっている時だけ・純見た目）。
+func _idle_flourish() -> void:
+	if _body == null:
+		return
+	var th := create_tween()
+	th.tween_property(self, "_hop", 0.16, 0.14).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
+	th.tween_property(self, "_hop", 0.0, 0.28).set_trans(Tween.TRANS_BOUNCE).set_ease(Tween.EASE_OUT)
+	var by := _body.rotation.y
+	var ty := create_tween()
+	ty.tween_property(_body, "rotation:y", by + 0.5, 0.4).set_trans(Tween.TRANS_SINE)
+	ty.tween_property(_body, "rotation:y", by - 0.4, 0.5).set_trans(Tween.TRANS_SINE)
+	ty.tween_property(_body, "rotation:y", by, 0.4).set_trans(Tween.TRANS_SINE)
+
+
+## サーバから：プレイヤーの笛で、この位置の周りに集まる（数秒間）。
+func rally(pos: Vector3) -> void:
+	_rally_t = RALLY_TIME
+	_rally_pos = pos
+
+
+func _think(delta: float) -> void:
+	_help_cd = maxf(0.0, _help_cd - delta)
+
+	var goto := Vector3.ZERO
+	var has_goto := false
+	var helping_bug := false
+	var bug_y := 0.0
+
+	# 索敵は10Hzに間引き、選んだ相手を覚えておく（毎tickの全走査をやめる）。
+	# 移動・距離判定・癒やしパルスは 覚えた相手の現在位置に対して毎tick続ける＝反応は変わらない。
+	_scan_accum -= delta
+	if _scan_accum <= 0.0:
+		_scan_accum = AI_SCAN_INTERVAL
+		_c_boss = _nearest_midboss()
+		_c_bug = _nearest_bug()
+		_c_player = _nearest_player()
+	if _c_boss != null and not is_instance_valid(_c_boss):
+		_c_boss = null
+	if _c_bug != null and not is_instance_valid(_c_bug):
+		_c_bug = null
+	if _c_player != null and not is_instance_valid(_c_player):
+		_c_player = null
+
+	# 笛（whistle）で呼ばれている間は、プレイヤーの周りに集まる＝“救った命を率いる”手触り。
+	# 各個体は自分の角度でリング状に並ぶ（重ならない）。呼ばれている間は 少し速く動く。
+	_rally_t = maxf(0.0, _rally_t - delta)
+	var rallying := _rally_t > 0.0
+	if rallying:
+		var ang := float(name.hash() % 360) * 0.0174533
+		goto = _rally_pos + Vector3(cos(ang), 0.0, sin(ang)) * 2.2
+		has_goto = true
+
+	# ⓪ 中ボスがいれば“押さえ役”に回る＝癒やしはプレイヤー主体（見せ場を残す）。
+	# ソロでも「押さえる人」ができるので、ひとりでも中ボスを癒やしきれる。
+	var boss := _c_boss
+	if boss != null and not rallying:
+		var dbo: Vector3 = boss.global_position - global_position
+		dbo.y = 0.0
+		if dbo.length() <= HELP_RANGE:
+			has_goto = true
+			goto = boss.global_position
+			if _role_fly:
+				helping_bug = true
+				bug_y = boss.global_position.y
+			if dbo.length() < _reach + 0.8 and _help_cd <= 0.0:
+				_help_cd = _help_interval
+				if boss.has_method("stagger"):
+					boss.stagger(owner_id)   # 押さえる＝暴れを止め、プレイヤーの「きれいに」を通す
+
+	# ① 近くに暴れ虫がいれば、手伝いに行く（中ボスに向かっていない時だけ）
+	var bug := _c_bug if not has_goto else null
+	if bug != null:
+		var db: Vector3 = bug.global_position - global_position
+		db.y = 0.0
+		if db.length() <= HELP_RANGE:
+			has_goto = true
+			helping_bug = true
+			bug_y = bug.global_position.y
+			goto = bug.global_position
+			if db.length() < _reach and _help_cd <= 0.0:
+				_help_cd = _help_interval
+				if bug.has_method("cleanse"):
+					bug.cleanse(_heal_amt, owner_id)   # 一緒に癒やす（手柄はプレイヤーへ）
+
+	# ② いなければ、プレイヤーについていく（各自の“持ち場”へ＝増えても団子にならない隊列）
+	if not has_goto:
+		var p := _c_player
+		if p != null:
+			var slot: Vector3 = p.global_position + _formation_offset()
+			var dp: Vector3 = slot - global_position
+			dp.y = 0.0
+			# 持ち場から少し離れたら詰める（近ければ止まる＝ざわつかず 整って見える）。
+			if dp.length() > 0.6:
+				has_goto = true
+				goto = slot
+
+	# 上下：飛ぶ種は 宙に浮いて 空の暴れ虫にも届く。地上の種は 重力で地面を歩く。
+	if _role_fly:
+		var want_y := (bug_y + 0.2) if helping_bug else 1.3
+		velocity.y = clampf((want_y - global_position.y) * 3.0, -5.0, 5.0)
+	else:
+		velocity.y -= GRAVITY * delta
+		if is_on_floor():
+			velocity.y = -0.1
+
+	if has_goto:
+		var dir: Vector3 = goto - global_position
+		dir.y = 0.0
+		dir = dir.normalized()
+		var sp := _speed * (1.6 if rallying else 1.0)   # 笛で呼ばれたら 少し速く駆けつける
+		velocity.x = dir.x * sp
+		velocity.z = dir.z * sp
+		if _body != null:
+			var yaw := atan2(-dir.x, -dir.z)
+			_body.rotation.y = lerp_angle(_body.rotation.y, yaw, clampf(delta * 10.0, 0.0, 1.0))
+	else:
+		velocity.x = move_toward(velocity.x, 0.0, 10.0 * delta)
+		velocity.z = move_toward(velocity.z, 0.0, 10.0 * delta)
+
+	move_and_slide()
+
+
+## 隊列の“持ち場”オフセット：なかまが増えても団子にならないよう、各自を黄金角スパイラルで
+## プレイヤーの周りに散らす（自分の並び順から算出＝位置は同期済みなので netcode不要・各端末で同じ）。
+func _formation_offset() -> Vector3:
+	var allies := get_tree().get_nodes_in_group("ally")
+	if allies.size() <= 1:
+		return Vector3.ZERO
+	var idx := allies.find(self)
+	if idx < 0:
+		idx = 0
+	var ang := float(idx) * 2.399963      # 黄金角＝均等に散る（葉序）
+	var rad := 1.3 + 0.42 * sqrt(float(idx))   # 内から外へ緩く広がる渦
+	return Vector3(cos(ang) * rad, 0.0, sin(ang) * rad)
+
+
+func _nearest_bug() -> Node3D:
+	var best: Node3D = null
+	var bd := 1.0e9
+	for b in get_tree().get_nodes_in_group("bug"):
+		# 中ボスは手伝わない＝ボスの見せ場はプレイヤー主体で（なかま6体で勝手に浄化されない）。
+		var st: Variant = b.get("stats")
+		if st != null and st.is_midboss:
+			continue
+		# 空を飛ぶ暴れ虫は、飛べるなかま だけが手伝える（地上の子は届かない）＝飛ぶ種を集める意味。
+		if st != null and st.flies and not _role_fly:
+			continue
+		var dd: float = b.global_position.distance_to(global_position)
+		if dd < bd:
+			bd = dd
+			best = b
+	return best
+
+
+## いちばん近い中ボス（＝押さえに行く相手）。癒やしはしない＝見せ場はプレイヤー主体。
+func _nearest_midboss() -> Node3D:
+	var best: Node3D = null
+	var bd := 1.0e9
+	for b in get_tree().get_nodes_in_group("bug"):
+		var st: Variant = b.get("stats")
+		if st == null or not st.is_midboss:
+			continue
+		var dd: float = b.global_position.distance_to(global_position)
+		if dd < bd:
+			bd = dd
+			best = b
+	return best
+
+
+func _nearest_player() -> Node3D:
+	var best: Node3D = null
+	var bd := 1.0e9
+	for p in get_tree().get_nodes_in_group("player"):
+		var dd: float = p.global_position.distance_to(global_position)
+		if dd < bd:
+			bd = dd
+			best = p
+	return best
+
+
+@rpc("authority", "unreliable_ordered")
+func _remote_state(pos: Vector3) -> void:
+	_net_pos = pos
