@@ -7,13 +7,18 @@
  :root{--kin:#e0b56e;--kin2:#f0d27a;--cream:#f4ecd9;--card:rgba(255,255,255,.055);--line:rgba(224,181,110,.22)}
  *{box-sizing:border-box;margin:0;padding:0}
  body{font-family:"Hiragino Mincho ProN","Yu Mincho",serif;color:var(--cream);background:#0c0b09;min-height:100vh;-webkit-font-smoothing:antialiased}
- .wrap{max-width:460px;margin:0 auto;padding:26px 18px 40px}
+ .wrap{max-width:460px;margin:0 auto;padding:26px 18px 96px}
  .head{text-align:center;padding:16px 0 6px}
+ .logo{width:210px;height:auto;max-width:74%;margin:0 auto 4px;display:block;filter:drop-shadow(0 8px 22px rgba(0,0,0,.6))}
  .kicker{font-family:sans-serif;font-size:11px;letter-spacing:.42em;color:#cbb489;padding-left:.42em}
  .wordmark{margin:6px 0 2px;font-size:52px;font-weight:900;letter-spacing:.14em;padding-left:.14em;line-height:1;background:linear-gradient(180deg,#f6e3b0,#e0b56e 55%,#b8863c);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;text-shadow:0 6px 22px rgba(0,0,0,.5)}
  .sub{margin-top:10px;font-size:12.5px;color:#d9c9a6;letter-spacing:.08em;font-family:sans-serif}
  .handle{margin-top:11px;display:inline-block;font-family:sans-serif;font-size:12.5px;color:#f0d9ac;border:1px solid var(--line);border-radius:999px;padding:4px 12px;text-decoration:none}
- .catch{margin:18px 2px 16px;text-align:center}
+ .ekinaka{margin:14px 0 2px;display:flex;align-items:center;gap:9px;background:linear-gradient(135deg,rgba(224,181,110,.14),rgba(224,181,110,.05));border:1px solid var(--line);border-radius:12px;padding:11px 13px;font-family:sans-serif}
+ .ekinaka .eic{font-size:19px;flex:none}
+ .ekinaka .et{font-size:12.5px;color:#eeddb8;font-weight:800;line-height:1.5}
+ .ekinaka .et small{display:block;font-weight:400;color:#c3b189;font-size:11px;margin-top:2px}
+ .catch{margin:16px 2px 16px;text-align:center}
  .catch .c1{font-size:16px;font-weight:900;color:var(--cream);letter-spacing:.02em;line-height:1.65}
  .catch .c1 b{color:var(--kin)}
  .catch .c2{margin-top:9px;font-family:sans-serif;font-size:11.5px;color:#cbbb95;line-height:1.9}
@@ -42,6 +47,13 @@
  .course .ctt{margin-top:10px;font-size:18px;font-weight:900;line-height:1.4}
  .course .cdesc{margin-top:12px;font-family:sans-serif;font-size:12px;color:#d3c29c;line-height:1.75}
  .course .cbtn{margin-top:15px}
+ .pairs{display:flex;flex-direction:column;gap:10px}
+ .pair{display:flex;gap:12px;background:var(--card);border:1px solid var(--line);border-radius:14px;overflow:hidden;padding:10px}
+ .pair .pi{width:78px;height:78px;flex:none;border-radius:10px;overflow:hidden;background:#0b0907}
+ .pair .pi img{width:100%;height:100%;object-fit:cover;display:block}
+ .pair .ptx{flex:1;font-family:sans-serif;min-width:0}
+ .pair .pn{font-size:12.5px;font-weight:800;line-height:1.35}
+ .pair .pp{margin-top:5px;font-size:11px;color:#cdbc94;line-height:1.6}
  .menu{display:grid;grid-template-columns:1fr 1fr;gap:10px}
  .m{background:var(--card);border:1px solid var(--line);border-radius:12px;overflow:hidden}
  .mi{aspect-ratio:4/5;background:#0b0907;overflow:hidden}
@@ -54,6 +66,10 @@
  .contact{margin-top:16px;text-align:center}
  .contact a{font-family:sans-serif;font-size:12px;color:#9a8a6a;text-decoration:none}
  .foot{margin-top:14px;text-align:center;font-family:sans-serif;font-size:11px;color:#7c6f56;letter-spacing:.2em}
+ /* 追従予約バー（常に画面下・ワンタップ予約） */
+ .stickycta{position:fixed;left:0;right:0;bottom:0;z-index:55;max-width:460px;margin:0 auto;display:flex;align-items:center;justify-content:center;gap:8px;text-decoration:none;padding:15px 16px;font-family:sans-serif;font-weight:900;font-size:15.5px;color:#1a1206;background:linear-gradient(135deg,#f0d27a,#caa25a);box-shadow:0 -6px 22px rgba(0,0,0,.5);border-top:1px solid rgba(246,227,176,.6)}
+ .stickycta:active{filter:brightness(.96)}
+ .stickycta .sar{opacity:.7}
  .iabbar{display:none;position:sticky;top:0;z-index:60;background:#9c7327;color:#fff;padding:11px 14px;font-family:sans-serif;font-size:12.5px;line-height:1.5;text-align:center;box-shadow:0 3px 12px rgba(0,0,0,.45)}
  .iabbar b{display:block;font-size:13.5px;margin-bottom:4px}
  .iabbar .obtn{margin-top:6px;background:#fff;color:#9c7327;border:0;border-radius:999px;padding:7px 16px;font-weight:800;font-size:12.5px;font-family:sans-serif}
@@ -74,11 +90,13 @@
 <div class="iabbar" id="iabbar"><b>アプリ内ブラウザで開いています</b>ご予約・口コミは外部ブラウザ（Safari / Chrome）だとスムーズです。<div><button class="obtn" onclick="openExternal()">ブラウザで開く</button></div><div class="iabhint" id="iabhint">iPhoneは右上の「•••」→「外部ブラウザで開く」でSafariが開きます（ログイン済みのGoogleがそのまま使えます）。</div></div>
 <div class="wrap">
  <div class="head">
-  <div class="kicker">フレンチ酒場</div>
-  <div class="wordmark">GOLD</div>
+  <img class="logo" src="goldporta/lp_logo.png?v=g1" alt="フレンチ酒場GOLD京都ポルタ" onerror="this.style.display='none';var w=document.getElementById('wm');if(w)w.style.display='block';var k=document.getElementById('kk');if(k)k.style.display='block'">
+  <div class="kicker" id="kk" style="display:none">フレンチ酒場</div>
+  <div class="wordmark" id="wm" style="display:none">GOLD</div>
   <div class="sub">京都ポルタ B1F ｜ JR京都駅 徒歩2分</div>
   <a class="handle" href="https://www.instagram.com/gold_kyotovolta/" target="_blank" rel="noopener">@gold_kyotovolta</a>
  </div>
+ <div class="ekinaka"><span class="eic">🚉</span><span class="et">JR京都駅から徒歩2分・雨に濡れずアクセス<small>出張・観光・お買い物・乗り換えの前後に。京都駅ナカ（ポルタ B1F）</small></span></div>
  <div class="links">
   <div class="catch">
    <div class="c1">本格フレンチ × <b>ワイン</b></div>
@@ -87,11 +105,20 @@
   <a class="btn primary" href="https://autoreserve.com/ja/restaurants/kMqkX7PTqnXr23yDLm51" target="_blank" rel="noopener"><span class="ic">📅</span><span class="tx"><div class="tt">席を予約する</div><div class="ds">人数と日時だけ・かんたんネット予約</div></span><span class="ar">›</span></a>
   <a class="btn" href="https://www.instagram.com/gold_kyotovolta/" target="_blank" rel="noopener"><span class="ic">📷</span><span class="tx"><div class="tt">Instagram</div><div class="ds">最新の一皿・お店の雰囲気 @gold_kyotovolta</div></span><span class="ar">›</span></a>
   <a class="btn" href="https://www.google.com/maps/search/?api=1&query=%E3%83%95%E3%83%AC%E3%83%B3%E3%83%81%E9%85%92%E5%A0%B4GOLD%E4%BA%AC%E9%83%BD%E3%83%9D%E3%83%AB%E3%82%BF%20%E4%BA%AC%E9%83%BD%E3%83%9D%E3%83%AB%E3%82%BF" target="_blank" rel="noopener"><span class="ic">📍</span><span class="tx"><div class="tt">地図・アクセス</div><div class="ds">Googleマップで開く（京都ポルタ B1F）</div></span><span class="ar">›</span></a>
-  <a class="btn review" href="https://www.google.com/maps/search/?api=1&query=%E3%83%95%E3%83%AC%E3%83%B3%E3%83%81%E9%85%92%E5%A0%B4GOLD%E4%BA%AC%E9%83%BD%E3%83%9D%E3%83%AB%E3%82%BF" target="_blank" rel="noopener"><span class="ic">⭐️</span><span class="tx"><div class="tt">口コミで応援する（Google）<span class="stars">★★★★★</span></div><div class="ds">あなたの声がスタッフの励みになります！</div></span><span class="ar">›</span></a>
+  <a class="btn review" href="https://search.google.com/local/writereview?placeid=ChIJm0sNG0UJAWARUgkjgxNy8k4" target="_blank" rel="noopener"><span class="ic">⭐️</span><span class="tx"><div class="tt">口コミで応援する（Google）<span class="stars">★★★★★</span></div><div class="ds">タップで、そのままレビュー投稿画面へ</div></span><span class="ar">›</span></a>
  </div>
 
  <div class="seclab">🍷 コース・ご宴会</div>
  <div class="course"><div class="cbody"><span class="ctag">ご予約・ご宴会承ります</span><div class="ctt">コース・飲み放題のご予約</div><div class="cdesc">記念日・接待・女子会・二次会まで。本格フレンチとワインのコース、飲み放題プランをご用意しています。内容・最新のプランは食べログ、ご予約はネット予約から承ります。</div><a class="btn primary cbtn" href="https://autoreserve.com/ja/restaurants/kMqkX7PTqnXr23yDLm51" target="_blank" rel="noopener"><span class="ic">🈳</span><span class="tx"><div class="tt">空席確認・ご予約へ</div><div class="ds">かんたんネット予約</div></span><span class="ar">›</span></a><a class="btn cbtn" style="margin-top:10px" href="https://tabelog.com/kyoto/A2601/A260101/26038119/" target="_blank" rel="noopener"><span class="ic">📖</span><span class="tx"><div class="tt">コース内容を見る（食べログ）</div><div class="ds">最新のコース・宴会プラン</div></span><span class="ar">›</span></a></div></div>
+
+ <div class="seclab">🍷 ソムリエのペアリング</div>
+ <div style="font-family:sans-serif;font-size:11px;color:#b7a681;margin:-4px 2px 12px">料理に合う一杯を、ソムリエの目線で。グラスワインも各種ご用意しています。</div>
+ <div class="pairs">
+<div class="pair"><div class="pi"><img loading="lazy" src="goldporta/fd_3971da141f.jpg?v=g1" alt="きゅうりのピクルス"></div><div class="ptx"><div class="pn">きゅうりのピクルス</div><div class="pp">キリッと冷えた白ワインや、軽やかな赤とよく合います🥂 お好みの一杯と一緒に。</div></div></div>
+<div class="pair"><div class="pi"><img loading="lazy" src="goldporta/fd_d61ea24f68.jpg?v=g1" alt="じっくりロースト玉ねぎ～ブロヴァンス香草バター"></div><div class="ptx"><div class="pn">じっくりロースト玉ねぎ～ブロヴァンス香草バター</div><div class="pp">合わせるのは、しっかりタンニンのボルドー、または果実味豊かなローヌのシラー🍷 料理のコクと重なって、余韻が長く続きます。</div></div></div>
+<div class="pair"><div class="pi"><img loading="lazy" src="goldporta/fd_2e8b8b5a38.jpg?v=g1" alt="たっぷりチーズのシンプルフレンチフライ"></div><div class="ptx"><div class="pn">たっぷりチーズのシンプルフレンチフライ</div><div class="pp">合わせるなら、樽香のあるシャルドネを少し高めの12℃前後で🥂 コクのある白が、クリーミーな味わいと重なります。</div></div></div>
+<div class="pair"><div class="pi"><img loading="lazy" src="goldporta/fd_51d4f275d8.jpg?v=g1" alt="サーモンのマリネ"></div><div class="ptx"><div class="pn">サーモンのマリネ</div><div class="pp">合わせるなら、ソーヴィニヨン・ブランやシャブリのような酸のはっきりした辛口白を8〜10℃で🥂 素材の繊細な旨みを、すっと引き立ててくれます。</div></div></div>
+ </div>
 
  <div class="seclab">🍽 おすすめメニュー</div>
  <div style="font-family:sans-serif;font-size:11px;color:#b7a681;margin:-4px 2px 12px">写真の一部です。日により内容が変わります。</div>
@@ -157,6 +184,7 @@
  <div class="contact"><a href="tel:0753346764">お問い合わせ：075-334-6764</a></div>
  <div class="foot">© GOLD 京都ポルタ</div>
 </div>
+<a class="stickycta" href="https://autoreserve.com/ja/restaurants/kMqkX7PTqnXr23yDLm51" target="_blank" rel="noopener"><span>📅</span><span>席を予約する（かんたんネット予約）</span><span class="sar">›</span></a>
 <script>(function(){var ua=navigator.userAgent||"";var inApp=/Instagram|FBAN|FBAV|FB_IAB|Line\/|Twitter|; wv\)/i.test(ua);if(inApp){var b=document.getElementById("iabbar");if(b)b.style.display="block";}window.openExternal=function(){var url=location.href;var host=url.replace(/^https?:\/\//,"");if(/Android/i.test(ua)){location.href="intent://"+host+"#Intent;scheme=https;package=com.android.chrome;end";}else if(/iPhone|iPad|iPod/i.test(ua)){var hn=document.getElementById("iabhint");if(hn)hn.style.display="block";try{window.location.href="googlechromes://"+host;}catch(x){}}else{window.open(url,"_blank");}};})();</script>
 <script>
 (function(){
