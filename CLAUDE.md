@@ -5,6 +5,29 @@
 **コードを書いたら、ファイルを編集 → commit → push まで自分で行うこと。**
 「このコードを貼り付けてください」「デプロイしてください」とユーザーに依頼しない。
 
+## お客様向けLPの公開URLは「中立ドメイン」を必ず正とする（必須）
+お客様に渡す・Instagramプロフィールに載せる予約/アクセスLPのURLは、**必ず**店舗中立ドメイン
+**`https://yoyaku-pocket.github.io/<店舗スラッグ>/`** を「正（定義）」とする。
+`amami-cell.github.io/susabiyu-media/app/*.html` は**確認アプリ内部URL**であり、
+**お客様向けとして絶対に案内しない**（URLに `amami-cell` が入るのを嫌う）。
+
+- 公開先: 別リポ `yoyaku-pocket/yoyaku-pocket.github.io`（public・user/org pages）。
+  各店を `/<店舗スラッグ>/index.html` として置く＝URLは店舗スラッグだけ（`_lp` も付かない）。
+  ※LPの**ソースファイル名**（`pwa/sanjo.html` 等）と**公開スラッグ**は別物。URLはスラッグで決まる。
+- 公開スラッグ（確定済み）:
+  - 三条 = `susabiyu` → `https://yoyaku-pocket.github.io/susabiyu/`（ソース `pwa/sanjo.html`）
+  - ナガグツ = `nagagutsu` → `https://yoyaku-pocket.github.io/nagagutsu/`（ソース `pwa/nagagutsu_lp.html`）
+  - GOLD京都ポルタ = `gold` → `https://yoyaku-pocket.github.io/gold/`（ソース `pwa/gold.html`）
+- 公開/更新のやり方（手貼り不要・`deploy_pwa` の workflow_dispatch）:
+  `deploy_pwa.yml` を `publish_lp=1 / lp_owner=yoyaku-pocket / lp_owner_kind=org /
+  lp_store=<スラッグ> / lp_file=pwa/<LPファイル>` で dispatch すると、
+  中立リポに `<スラッグ>/index.html` を push ＋ Pages 有効化する（数分で反映）。
+  LPは画像内蔵の自己完結HTMLなので、毎日の app 再デプロイでは消えない。
+- **新店のLPを作ったら、この中立URLでの公開までを必ず1セットで行い、案内するURLは中立URLにする。**
+  （`amami-cell...app/` を案内して「amami-cellが嫌」と言わせない。過去に実際に起きた。）
+- 独自ドメイン（例 `gold.jp`）で頭を完全に消すにはドメイン取得＋DNS＝有料。無料枠方針では
+  `yoyaku-pocket.github.io/<スラッグ>/` が「amami-cell を出さない最短の無料形」。必要時のみ相談。
+
 ## 募集システム（エントリーポケット）のGASは自動デプロイ済み
 - 対象コード: `entrypocket-recruit/gas/`（`ep_fetch.gs` / `ep_write.gs` / `ep_result.gs` / `dashboard.gs` / `index.html` / `appsscript.json`）
 - 仕組み: `entrypocket-recruit/gas/**` を push すると GitHub Actions **`deploy-gas`** が
