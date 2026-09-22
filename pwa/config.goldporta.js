@@ -10,7 +10,7 @@ window.GIFUYA = {
   GAS_URL: "https://script.google.com/macros/s/AKfycbxKn_MUfPgJ0nA8LJPp6YGb2Jehp9G8CpckV5bOAhe3M53eBC3Kle3O3Bf7mFzUJ2TMQw/exec",
   MEDIA_BASE: "PASTE_MEDIA_BASE_HERE",
   STORE_NAME: "GOLD京都ポルタ",
-  HANDLE: "@gold_kyotovolta",
+  HANDLE: "@gold_kyotoporta",
   ACCOUNT: "goldporta",                        // 予約投稿タブ J列/AcctTokens と一致させる内部ID
   POLL_MS: 4000,
   // Web Push 公開鍵（三条と同じ鍵を共用。専用鍵ができたら差し替え）
