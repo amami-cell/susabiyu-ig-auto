@@ -40,7 +40,8 @@ MIN_SIDE = 700                                           # これ未満の小さ
 # ・ナガグツ … ユーザー指定で「サイドレール(左オビ)3色＝テラコッタ/オリーブ/ゴールド」に統一。
 #   左上は店ロゴ画像(nagagutsu_logo.png)、左オビ＋料理名の体裁を全品で揃える（グリッドが1トーンに）。
 # ・その他(GOLD等) … 従来の6案のまま。
-if ACCOUNT == "nagagutsu":
+if ACCOUNT in ("nagagutsu", "goldporta"):
+    # ナガグツ／GOLD京都ポルタ … サイドレール3種に統一（グリッドが1トーンで揃う・全部下地あり）。
     DESIGNS = ["YoshokuFeedE", "YoshokuFeedE2", "YoshokuFeedE3"]
     NO_SCRIM = set()   # サイドレール案は下地(左オビ+下グラデ)があるので明るさ制約は不要
 else:
@@ -311,6 +312,9 @@ def main():
         # ナガグツは左上を店ロゴ画像に（文字ロゴではなく丸ロゴ）。public/nagagutsu_logo.png を使う。
         if ACCOUNT == "nagagutsu":
             props["brandLogo"] = "nagagutsu_logo.png"
+        # GOLD京都ポルタ … サイドレールの縦書きラベルを店名に（既定のNAGAGUTSU表記を上書き）。
+        if ACCOUNT == "goldporta":
+            props["railLabel"] = "GOLD · KYOTO PORTA"
         open("out/_feed_props.json", "w", encoding="utf-8").write(
             json.dumps(props, ensure_ascii=False))
         png = "out/nfeed.png"

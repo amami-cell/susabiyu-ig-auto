@@ -17,7 +17,7 @@ export const FEED_W = 1080;
 export const FEED_H = 1350;
 export const FEED_DUR = 1; // 静止画（stillで1フレーム抜く）
 
-type P = { storeName?: string; handle?: string; theme?: string; brandLogo?: string };
+type P = { storeName?: string; handle?: string; theme?: string; brandLogo?: string; railLabel?: string };
 // 料理を props で差し込むための型。既定は typoData の1品目(dish())だが、it を渡せばその皿を描く。
 //   これが無いと「料理ごとに1枚ずつ焼く」たびに typoData.ts を書き換えて再バンドルが必要になり、
 //   55品で現実的な時間に収まらない。1回バンドルして props だけ差し替えれば全品を回せる。
@@ -305,6 +305,7 @@ export const YoshokuFeedD: React.FC<P> = ({ storeName = D.storeName, handle = D.
 // 省略時は今までどおり typoPhotos[0] と静止画の <Photo> ＝ フィード投稿の見た目は変わらない。
 const EBase: React.FC<P & { rail: string; railText?: string; it?: any; photo?: React.ReactNode }> = ({
   storeName = D.storeName, handle = D.handle, theme = D.theme, rail, railText = "#FDF6EA", it, photo, brandLogo,
+  railLabel = "NAGAGUTSU · MEAT BAR",
 }) => {
   const T = ytheme(theme); const d = it || dish(); const RAIL = 74;
   return (
@@ -316,7 +317,7 @@ const EBase: React.FC<P & { rail: string; railText?: string; it?: any; photo?: R
         <AbsoluteFill style={{ background: "linear-gradient(180deg, rgba(0,0,0,0) 0%, rgba(0,0,0,0) 74%, rgba(18,13,8,0.22) 88%, rgba(18,13,8,0.52) 100%)" }} />
       </div>
       <div style={{ position: "absolute", top: 0, bottom: 0, left: 0, width: RAIL, background: rail, display: "flex", alignItems: "center", justifyContent: "center" }}>
-        <div style={{ writingMode: "vertical-rl", fontFamily: serif, color: railText, fontSize: 22, letterSpacing: 10, textTransform: "uppercase", fontWeight: 600 }}>NAGAGUTSU&nbsp;·&nbsp;MEAT&nbsp;BAR</div>
+        <div style={{ writingMode: "vertical-rl", fontFamily: serif, color: railText, fontSize: 22, letterSpacing: 10, textTransform: "uppercase", fontWeight: 600 }}>{railLabel}</div>
       </div>
       <div style={{ position: "absolute", top: 24, left: RAIL + 16 }}>
         {brandLogo
