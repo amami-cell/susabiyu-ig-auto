@@ -138,7 +138,7 @@ STORES = {
     "goldporta": {
         "account": "goldporta",
         "store_name": "GOLD京都ポルタ",
-        "handle": "@gold_kyotovolta",
+        "handle": "@gold_kyotoporta",
         "region": "京都・ポルタ",           # 京都駅前ポルタ
         "theme": "french",               # 洋食おしゃれテンプレの配色（フレンチ＝黒×金＝GOLD）
         "logo_color": True,               # ロゴは白黒化せず「色付きのまま」使用（ユーザー要望）
