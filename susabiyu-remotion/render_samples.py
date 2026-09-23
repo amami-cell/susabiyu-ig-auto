@@ -192,6 +192,11 @@ def main():
             "今夜のごちそう。", "駅前で、ちょっと贅沢。", "〆まで、美しい。", "ビストロの、実力。",
             "いい夜の、幕開け。", "〜日常に、上質なひと皿を〜",
         ],
+        "wamodan": [
+            "今宵は、鮨と。", "旬を、ひと貫。", "町家で、静かに一献。", "京の粋を、ひと皿に。",
+            "握りたてを、どうぞ。", "上質を、気軽に。", "四条烏丸、京の夜。", "職人の、手しごと。",
+            "いい夜の、はじまり。", "〜京町家で、旬の鮨と和食を〜",
+        ],
     }
     _pool = HOOKS.get(store.get("theme", ""), HOOKS["italian"])
     _tracks = sorted(_glob.glob("public/music/normal/*.mp3") + _glob.glob("public/music/normal/*.m4a") + _glob.glob("public/music/normal/*.wav"))
