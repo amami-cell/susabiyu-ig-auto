@@ -12,6 +12,9 @@ export const YTHEMES: Record<string, YTheme> = {
   italian: { base: "#17110b", ink: "#F6EFE0", sub: "#D6C4A0", line: "#C0562F", accent: "#E0673A", slab: "#C9542E", label: "MEAT BAR", footBase: "#120d08" },
   // 既定：ニュートラルな上品ダーク
   neutral: { base: "#111113", ink: "#F2EFEA", sub: "#BFB9AE", line: "#CBB98F", accent: "#E4D6B4", slab: "#9C7A46", label: "RESTAURANT", footBase: "#0d0d0f" },
+  // 和モダン＝鮨処すさび湯（京町家・上品）：墨(base)×生成り(ink)×漆金(line/accent)、差し色は弁柄格子(slab)。
+  // 洋のオレンジ/クリームを廃し、落ち着いた金と暖かい生成りで「京の上質を気軽に」の質感。
+  wamodan: { base: "#141010", ink: "#F4EDDD", sub: "#CBBE9F", line: "#B4894B", accent: "#D8B36A", slab: "#7B3B2E", label: "SUSHI · KYOTO", footBase: "#100c0c" },
 };
 
 export const yclamp = { extrapolateLeft: "clamp" as const, extrapolateRight: "clamp" as const };

@@ -166,6 +166,32 @@ STORES = {
         "slots_holiday": [11, 18, 20],
         "slots_weekday": [11, 18, 20],
     },
+    # ── 鮨処すさび湯（京都・四条烏丸／寿司・日本料理）。GOLDと同じ food-only 方式・和モダン意匠 ──
+    "karasuma": {
+        "account": "karasuma",
+        "store_name": "鮨処すさび湯",
+        "handle": "@susabiyu_kyoto",
+        "region": "京都・四条烏丸",
+        "theme": "wamodan",              # 和モダン配色（墨×生成り×漆金／差し色=弁柄）
+        # ロゴは生成り化した白ワードマークを暗い和モダン地に載せる＝logo_colorは付けない。
+        "sheet_id": SANJO_SHEET_ID,       # 同一スプレッドシートを接尾辞タブで共用
+        "tab_suffix": "_karasuma",
+        "folders": {
+            "food": "1EuoC6HqqJS12cKXOsS-W8K5mzcU4lLR6",          # 鮨処すさび湯「画像」フォルダ
+            # 音楽フォルダ（アップテンポ/ノーマルのサブ構成。親を指定して再帰収集）。
+            "music_uptempo": "158tb3KZE8bjtBGz-8Y8RzbAWPt-daIY7",
+            "music_normal": "158tb3KZE8bjtBGz-8Y8RzbAWPt-daIY7",
+        },
+        "patterns": YOSHOKU_PATTERNS,     # 洋食おしゃれテンプレを和モダン配色で焼く
+        # 「画像」配下の非料理サブフォルダは料理として使わない。
+        "exclude_cats": ["ロゴ", "外観", "内観", "音楽", "集合", "コース", "ドリンク", "飲み"],
+        "food_flat": True,                # 「画像」直下は フード/ドリンク… のサブ構成＝再帰収集
+        "phrases_file": "phrases_karasuma.json",
+        "fallback_phrase": "今宵は、鮨処すさび湯で旬を一献。",
+        "pwa_url": "https://amami-cell.github.io/susabiyu-media/app/karasuma.html",
+        "slots_holiday": [11, 18, 20],
+        "slots_weekday": [11, 18, 20],
+    },
 }
 
 # fetch_*.py が読む Drive フォルダ環境変数（未設定なら各スクリプトの既定＝三条）。
