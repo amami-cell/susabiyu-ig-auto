@@ -1,0 +1,45 @@
+name: lp-report
+# LP（予約/アクセスLP）のアクセス定期レポート。
+#   スプレッドシート「LPアクセス」タブを集計し、LPを作っている全店（新店も自動）について
+#   表示/クリック/ユニーク訪問と内訳をログに出す。DM監視と同じく Actions ログを報告に使う。
+# schedule は保険（本番の報告は、セッションに紐づく定期トリガーが本WFを dispatch → ログを読む運用）。
+on:
+  workflow_dispatch:
+    inputs:
+      days:
+        description: "直近N日の窓（既定7）"
+        required: false
+        default: "7"
+  schedule:
+    - cron: '0 0 * * 1'   # 毎週月 09:00 JST（保険・ログ生成用）
+permissions:
+  contents: read
+concurrency:
+  group: lp-report
+  cancel-in-progress: false
+jobs:
+  report:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: susabiyu-remotion
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install deps
+        run: pip install google-api-python-client google-auth
+      - name: Write creds.json
+        run: echo "$GOOGLE_CREDS_B64" | base64 -d > creds.json
+        env:
+          GOOGLE_CREDS_B64: ${{ secrets.GOOGLE_CREDS_B64 }}
+      - name: LP report
+        env:
+          GOOGLE_CREDS_B64: ${{ secrets.GOOGLE_CREDS_B64 }}
+          SHEET_ID: ${{ secrets.SHEET_ID }}
+          DAYS: ${{ github.event.inputs.days || '7' }}
+        run: |
+          python lp_report.py
+          rm -f creds.json
