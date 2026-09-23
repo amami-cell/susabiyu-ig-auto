@@ -18,7 +18,6 @@ const HITO_OPEN = STORY_OPEN + 30;
 const HITO_END = STORY_END - 30;
 export const YHITOWA_DUR = HITO_OPEN + HITO_BODY + HITO_END;
 
-const SHU = "#A6362B";   // 朱（落款）
 
 const HitoWaBody: React.FC<{ storeName?: string; handle?: string; theme?: string }> = ({
   storeName = "鮨処すさび湯", handle = "@susabiyu_kyoto", theme = "wamodan",
@@ -34,7 +33,6 @@ const HitoWaBody: React.FC<{ storeName?: string; handle?: string; theme?: string
   const one = (nm || "").replace(/[｜\n]/g, "");
   const nameSize = fitOneLine(one, 84, 1080 - SAFE.side * 2 - 40, 40);
   const desc = it.desc || typoHeadline;
-  const sealIn = interpolate(f, [16, 40], [0, 1], { ...clamp, easing: EASE });
 
   return (
     <AbsoluteFill style={{ backgroundColor: T.base, fontFamily: mincho }}>
@@ -54,11 +52,7 @@ const HitoWaBody: React.FC<{ storeName?: string; handle?: string; theme?: string
 
       {/* 中央下：落款→料理名→金罫→説明文 */}
       <div key={seg.i} style={{ position: "absolute", left: SAFE.side, right: SAFE.side, bottom: 300, display: "flex", flexDirection: "column", alignItems: "center", ...rise(seg.local, 6, { dist: 20, blur: 5 }) }}>
-        {/* 朱の落款 */}
-        <div style={{ width: 62, height: 62, background: SHU, borderRadius: 6, display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 22, opacity: sealIn, transform: "scale(" + (0.9 + 0.1 * sealIn) + ")", boxShadow: "0 4px 16px rgba(0,0,0,0.4)" }}>
-          <div style={{ fontFamily: mincho, color: "#F6ECD8", fontSize: 30, fontWeight: 600, letterSpacing: 0 }}>鮨</div>
-        </div>
-        <div style={{ fontFamily: mincho, color: "#FBF5E7", fontSize: nameSize, fontWeight: 500, letterSpacing: 4, lineHeight: 1.2, whiteSpace: "nowrap", textAlign: "center", textShadow: "0 2px 18px rgba(0,0,0,0.55)" }}>{one}</div>
+                <div style={{ fontFamily: mincho, color: "#FBF5E7", fontSize: nameSize, fontWeight: 500, letterSpacing: 4, lineHeight: 1.2, whiteSpace: "nowrap", textAlign: "center", textShadow: "0 2px 18px rgba(0,0,0,0.55)" }}>{one}</div>
         <div style={{ marginTop: 22, width: 110, height: 1, background: T.accent, opacity: 0.85 * fade(f, 28) }} />
         <div style={{ marginTop: 20, opacity: fade(f, 38), maxWidth: 820 }}>
           <div style={{ fontFamily: mincho, color: "#F1E7D2", letterSpacing: 1.5, lineHeight: 1.5, textAlign: "center", textShadow: "0 2px 14px rgba(0,0,0,0.7)", fontSize: fitLines(desc, 40, 1080 - SAFE.side * 2 - 40, 26) }}>

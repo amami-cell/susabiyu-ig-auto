@@ -65,7 +65,7 @@ const TateWaBody: React.FC<{ storeName?: string; handle?: string; theme?: string
       </div>
 
       {/* 右：縦書きの料理名（大明朝）＋金の縦罫 */}
-      <div key={seg.i} style={{ position: "absolute", top: SAFE.top + 40, right: SAFE.side, display: "flex", alignItems: "flex-start", ...rise(seg.local, 6, { dist: 22, blur: 5 }) }}>
+      <div key={seg.i} style={{ position: "absolute", top: SAFE.top + 40, right: SAFE.side, display: "flex", alignItems: "flex-start", opacity: fade(seg.local, 6) }}>
         <div style={{ writingMode: "vertical-rl", textOrientation: "upright", fontFamily: mincho, color: "#FBF5E7", fontSize: tsz, fontWeight: 500, letterSpacing: 6, lineHeight: 1.5, maxHeight: 1180, textShadow: "0 2px 18px rgba(0,0,0,0.6)" }}>{one}</div>
         {/* 金の縦罫（上から引かれる） */}
         <div style={{ width: 3, marginLeft: 22, height: 360, background: T.accent, opacity: 0.9, transform: "scaleY(" + barGrow + ")", transformOrigin: "top" }} />
