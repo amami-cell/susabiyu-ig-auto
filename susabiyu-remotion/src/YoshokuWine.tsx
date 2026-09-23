@@ -87,9 +87,9 @@ export const YoshokuWine: React.FC<{ storeName?: string; handle?: string; theme?
       </div>
 
       {/* 中央：仕切り線＋丸ロゴ（上下の境目） */}
-      <div style={{ position: "absolute", top: HALF - 2, left: 0, right: 0, height: 4, background: "rgba(224,103,58,0.6)", opacity: midO }} />
+      <div style={{ position: "absolute", top: HALF - 2, left: 0, right: 0, height: 4, background: theme === "wamodan" ? T.accent : "rgba(224,103,58,0.6)", opacity: midO }} />
       <div style={{ position: "absolute", top: HALF - 135, left: 0, right: 0, display: "flex", justifyContent: "center", opacity: midO }}>
-        <div style={{ width: 270, height: 270, borderRadius: "50%", border: "3px solid " + T.accent, background: T.base + "E6", overflow: "hidden", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 22px 56px rgba(0,0,0,0.6)" }}>
+        <div style={{ width: 270, height: 270, borderRadius: "50%", border: "3px solid " + T.accent, background: theme === "wamodan" ? "#F1E9D8" : T.base + "E6", overflow: "hidden", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 22px 56px rgba(0,0,0,0.6)" }}>
           {/* レコード盤のように等速で時計回り。1回転しきったところが動画の終わり。 */}
           <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center", transform: "rotate(" + spin + "deg)" }}>
             {typoLogoRound

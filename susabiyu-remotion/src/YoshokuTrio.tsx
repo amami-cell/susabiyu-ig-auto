@@ -83,8 +83,8 @@ export const YoshokuTrio: React.FC<{ storeName?: string; handle?: string; theme?
   <AbsoluteFill style={{ backgroundColor: "#000" }}>
     {/* 音楽は全体（オープニング〜本編〜エンドロール）に通す */}
     <Audio src={staticFile(typoMusic)} startFrom={Math.round((typoMusicStart || 0) * 30)} volume={(ff) => interpolate(ff, [0, 16, YTRIO_DUR - 30, YTRIO_DUR], [0, 0.82, 0.82, 0], clamp)} />
-    <Sequence durationInFrames={STORY_OPEN}><StoryOpenV v={7} storeName={storeName} theme={theme} /></Sequence>
+    <Sequence durationInFrames={STORY_OPEN}><StoryOpenV v={theme === "wamodan" ? 9 : 7} storeName={storeName} theme={theme} /></Sequence>
     <Sequence from={STORY_OPEN} durationInFrames={TRIO_BODY}><TrioBody storeName={storeName} handle={handle} theme={theme} /></Sequence>
-    <Sequence from={STORY_OPEN + TRIO_BODY - STORY_XF} durationInFrames={STORY_END + STORY_XF}><StoryEndV v={7} storeName={storeName} handle={handle} theme={theme} /></Sequence>
+    <Sequence from={STORY_OPEN + TRIO_BODY - STORY_XF} durationInFrames={STORY_END + STORY_XF}><StoryEndV v={theme === "wamodan" ? 9 : 7} storeName={storeName} handle={handle} theme={theme} /></Sequence>
   </AbsoluteFill>
 );
