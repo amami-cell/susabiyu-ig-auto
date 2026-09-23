@@ -182,8 +182,12 @@ STORES = {
             "music_uptempo": "158tb3KZE8bjtBGz-8Y8RzbAWPt-daIY7",
             "music_normal": "158tb3KZE8bjtBGz-8Y8RzbAWPt-daIY7",
         },
-        # 黒板(yoshokuchalk)は雰囲気が和と合わないため除外（ユーザー指定2026-09）。
-        "patterns": [p for p in YOSHOKU_PATTERNS if p != "yoshokuchalk"],
+        # 和モダン専用テンプレ（tatewa=縦書き大明朝／magwa=和スタイリッシュ雑誌）を先頭に、
+        # 相性の良い色替えテンプレを続ける。黒板(chalk)と洋食の雑誌2種(mag/magazine)は不使用。
+        # 文字中心(type=大見出しタイポ／open=OPEN案内)は不要＝写真主役のみ（ユーザー指定）。
+        "patterns": ["yoshokutatewa", "yoshokumagwa", "yoshokuhitowa", "yoshokudish",
+                     "yoshokusizzle", "yoshokucine", "yoshokuwine", "yoshokutrio",
+                     "yoshokupola"],
         # 「画像」配下の非料理サブフォルダは料理として使わない。
         "exclude_cats": ["ロゴ", "外観", "内観", "音楽", "集合", "コース", "ドリンク", "飲み"],
         "food_flat": True,                # 「画像」直下は フード/ドリンク… のサブ構成＝再帰収集
