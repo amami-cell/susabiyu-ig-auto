@@ -182,7 +182,8 @@ STORES = {
             "music_uptempo": "158tb3KZE8bjtBGz-8Y8RzbAWPt-daIY7",
             "music_normal": "158tb3KZE8bjtBGz-8Y8RzbAWPt-daIY7",
         },
-        "patterns": YOSHOKU_PATTERNS,     # 洋食おしゃれテンプレを和モダン配色で焼く
+        # 黒板(yoshokuchalk)は雰囲気が和と合わないため除外（ユーザー指定2026-09）。
+        "patterns": [p for p in YOSHOKU_PATTERNS if p != "yoshokuchalk"],
         # 「画像」配下の非料理サブフォルダは料理として使わない。
         "exclude_cats": ["ロゴ", "外観", "内観", "音楽", "集合", "コース", "ドリンク", "飲み"],
         "food_flat": True,                # 「画像」直下は フード/ドリンク… のサブ構成＝再帰収集
