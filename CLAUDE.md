@@ -27,6 +27,9 @@
   （`amami-cell...app/` を案内して「amami-cellが嫌」と言わせない。過去に実際に起きた。）
 - 独自ドメイン（例 `gold.jp`）で頭を完全に消すにはドメイン取得＋DNS＝有料。無料枠方針では
   `yoyaku-pocket.github.io/<スラッグ>/` が「amami-cell を出さない最短の無料形」。必要時のみ相談。
+- **Instagramプロフィールのリンク登録は「スマホアプリからのみ」案内する。** オーナー環境では
+  PCブラウザ版からは編集できなかった（実測）。手順を出す時は最初から携帯アプリ前提で説明する
+  （プロフィールを編集→リンク→外部リンクを追加→URL貼付→完了）。PC手順を案内しない。
 
 ## 募集システム（エントリーポケット）のGASは自動デプロイ済み
 - 対象コード: `entrypocket-recruit/gas/`（`ep_fetch.gs` / `ep_write.gs` / `ep_result.gs` / `dashboard.gs` / `index.html` / `appsscript.json`）
