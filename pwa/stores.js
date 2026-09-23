@@ -23,7 +23,7 @@ window.SUSABIYU_STORES = [
   { id: "gold",         name: "GOLD梅田",             full: "フレンチ酒場GOLD",             short: "", icon: "icons/store_gold.png", initial: "G", url: "./store.html?id=gold", live: false },
   { id: "goldporta",    name: "GOLD京都ポルタ",       full: "GOLD京都ポルタ（フレンチ酒場）", short: "稼働中", icon: "icons/store_goldporta.png", initial: "G", url: "./goldporta.html", live: true },
   { id: "sannomiya",    name: "すさび湯/三宮店",      full: "すさび湯 三宮",                short: "", icon: "icons/store_susabiyu.png", initial: "湯", url: "./store.html?id=sannomiya", live: false },
-  { id: "karasuma",     name: "すさび湯/京都烏丸",    full: "すさび湯 京都烏丸",            short: "", icon: "icons/store_karasuma.png", initial: "鮨", url: "./karasuma.html", live: false },
+  { id: "karasuma",     name: "鮨処すさび湯",        full: "鮨処すさび湯（四条烏丸）",       short: "稼働中", icon: "icons/store_karasuma.png", initial: "鮨", url: "./karasuma.html", live: true },
   { id: "kadoma",       name: "門真Largo",            full: "門真Largo",                    short: "", icon: "icons/store_kadoma.png", initial: "門", url: "./store.html?id=kadoma", live: false },
   { id: "temmabashi",   name: "すさび湯/天満橋店",    full: "すさび湯 天満橋",              short: "", icon: "icons/store_susabiyu.png", initial: "湯", url: "./store.html?id=temmabashi", live: false },
   { id: "goldohatsu",   name: "GOLD/お初天神",        full: "フレンチ酒場GOLDお初",         short: "", icon: "icons/store_goldohatsu.png", initial: "G", url: "./store.html?id=goldohatsu", live: false },

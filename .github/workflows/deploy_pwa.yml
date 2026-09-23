@@ -72,6 +72,10 @@ jobs:
           if [ -n "$R2_PUBLIC_BASE" ] && [ -f pwa/config.goldporta.js ]; then
             sed -i "s#PASTE_MEDIA_BASE_HERE#${R2_PUBLIC_BASE%/}#" pwa/config.goldporta.js
           fi
+          # 鮨処すさび湯（karasuma）：同上（共有GAS・メディアベースのみ注入）
+          if [ -n "$R2_PUBLIC_BASE" ] && [ -f pwa/config.karasuma.js ]; then
+            sed -i "s#PASTE_MEDIA_BASE_HERE#${R2_PUBLIC_BASE%/}#" pwa/config.karasuma.js
+          fi
       - name: 見本データのURLにビルド印を付ける（端末の古いキャッシュを確実に外す）
         run: |
           # config.*.js / app.js はコミットSHAをクエリに付ける。URLが変わるので、
@@ -94,7 +98,7 @@ jobs:
             fi
           done
           # HTML: コメント削除＋CSSコメント削除（崩れ防止のため空白圧縮・JS圧縮はしない）
-          for h in index.html reels.html gifuya_reels.html gifuyatenjin.html nagagutsu_reels.html nagagutsu.html goldporta_reels.html goldporta.html; do
+          for h in index.html reels.html gifuya_reels.html gifuyatenjin.html nagagutsu_reels.html nagagutsu.html goldporta_reels.html goldporta.html karasuma_reels.html karasuma.html; do
             if [ -f "$h" ]; then
               npx -y html-minifier-terser "$h" --remove-comments --minify-css -o "$h.tmp" \
                 && mv "$h.tmp" "$h" && echo "stripped $h" \
