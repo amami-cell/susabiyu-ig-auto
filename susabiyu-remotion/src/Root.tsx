@@ -20,6 +20,11 @@ import { YoshokuShojiWa, YSHOJIWA_DUR } from "./YoshokuShojiWa";
 import { YoshokuJubakoWa, YJUBAKOWA_DUR } from "./YoshokuJubakoWa";
 import { YoshokuMinamoWa, YMINAMOWA_DUR } from "./YoshokuMinamoWa";
 import { YoshokuKoushiWa, YKOUSHIWA_DUR } from "./YoshokuKoushiWa";
+import { YoshokuHakuWa, YHAKUWA_DUR } from "./YoshokuHakuWa";
+import { YoshokuIchiWa, YICHIWA_DUR } from "./YoshokuIchiWa";
+import { YoshokuOugiWa, YOUGIWA_DUR } from "./YoshokuOugiWa";
+import { YoshokuIchimatsuWa, YICHIMATSUWA_DUR } from "./YoshokuIchimatsuWa";
+import { YoshokuByoubuWa, YBYOUBUWA_DUR } from "./YoshokuByoubuWa";
 import { YoshokuCine, YCINE_DUR } from "./YoshokuCine";
 import { YoshokuWine, YWINE_DUR } from "./YoshokuWine";
 import { YoshokuTrio, YTRIO_DUR } from "./YoshokuTrio";
@@ -119,6 +124,11 @@ export const RemotionRoot: React.FC = () => {
       <Composition id="YoshokuJubakoWa" component={YoshokuJubakoWa} fps={FPS} width={1080} height={1920} durationInFrames={YJUBAKOWA_DUR} defaultProps={{ storeName: "鮨処すさび湯", handle: "@susabiyu_kyoto", theme: "wamodan" }} />
       <Composition id="YoshokuMinamoWa" component={YoshokuMinamoWa} fps={FPS} width={1080} height={1920} durationInFrames={YMINAMOWA_DUR} defaultProps={{ storeName: "鮨処すさび湯", handle: "@susabiyu_kyoto", theme: "wamodan" }} />
       <Composition id="YoshokuKoushiWa" component={YoshokuKoushiWa} fps={FPS} width={1080} height={1920} durationInFrames={YKOUSHIWA_DUR} defaultProps={{ storeName: "鮨処すさび湯", handle: "@susabiyu_kyoto", theme: "wamodan" }} />
+      <Composition id="YoshokuHakuWa" component={YoshokuHakuWa} fps={FPS} width={1080} height={1920} durationInFrames={YHAKUWA_DUR} defaultProps={{ storeName: "鮨処すさび湯", handle: "@susabiyu_kyoto", theme: "wamodan" }} />
+      <Composition id="YoshokuIchiWa" component={YoshokuIchiWa} fps={FPS} width={1080} height={1920} durationInFrames={YICHIWA_DUR} defaultProps={{ storeName: "鮨処すさび湯", handle: "@susabiyu_kyoto", theme: "wamodan" }} />
+      <Composition id="YoshokuOugiWa" component={YoshokuOugiWa} fps={FPS} width={1080} height={1920} durationInFrames={YOUGIWA_DUR} defaultProps={{ storeName: "鮨処すさび湯", handle: "@susabiyu_kyoto", theme: "wamodan" }} />
+      <Composition id="YoshokuIchimatsuWa" component={YoshokuIchimatsuWa} fps={FPS} width={1080} height={1920} durationInFrames={YICHIMATSUWA_DUR} defaultProps={{ storeName: "鮨処すさび湯", handle: "@susabiyu_kyoto", theme: "wamodan" }} />
+      <Composition id="YoshokuByoubuWa" component={YoshokuByoubuWa} fps={FPS} width={1080} height={1920} durationInFrames={YBYOUBUWA_DUR} defaultProps={{ storeName: "鮨処すさび湯", handle: "@susabiyu_kyoto", theme: "wamodan" }} />
       <Composition id="YoshokuCine" component={YoshokuCine} fps={FPS} width={1080} height={1920} durationInFrames={YCINE_DUR} defaultProps={{ storeName: STORE, handle: "@susabiyu_sanjyo", theme: "neutral" }} />
       <Composition id="YoshokuWine" component={YoshokuWine} fps={FPS} width={1080} height={1920} durationInFrames={YWINE_DUR} defaultProps={{ storeName: STORE, handle: "@susabiyu_sanjyo", theme: "neutral" }} />
       <Composition id="YoshokuTrio" component={YoshokuTrio} fps={FPS} width={1080} height={1920} durationInFrames={YTRIO_DUR} defaultProps={{ storeName: STORE, handle: "@susabiyu_sanjyo", theme: "neutral" }} />
