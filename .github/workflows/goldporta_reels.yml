@@ -75,18 +75,32 @@ jobs:
           if [ -z "$(git status --porcelain -- pwa/goldporta)" ]; then
             echo "変更なし。コミットしません。"; exit 0
           fi
-          cur=$(grep -oE 'susabiyu-v[0-9]+' pwa/sw.js | grep -oE '[0-9]+' | head -1)
-          nxt=$((cur + 1))
-          sed -i "s/susabiyu-v$cur/susabiyu-v$nxt/" pwa/sw.js
-          vcur=$(grep -oE '\?v=[0-9]+' pwa/goldporta_reels.html | grep -oE '[0-9]+' | head -1)
-          vnxt=$((vcur + 1))
-          sed -i "s/?v=$vcur/?v=$vnxt/" pwa/goldporta_reels.html
-          echo "sw v$cur -> v$nxt / media ?v=$vcur -> ?v=$vnxt"
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add pwa/goldporta pwa/sw.js pwa/goldporta_reels.html
-          git commit -m "GOLD京都ポルタ: リール素材を焼き直し＋キャッシュv$nxt"
-          git push origin HEAD:main
+          # 焼いたリール素材を一旦stashに退避（レンダリング中にmainが進んでも安全にのせ直せるように）。
+          git add -A pwa/goldporta
+          git stash push -u -m reels -- pwa/goldporta
+          pushed=""
+          for i in 1 2 3 4 5; do
+            # 常に最新mainへ同期してから素材＋版数を作り直す（sw.js VER 競合を避ける）。
+            git fetch origin main
+            git reset --hard origin/main
+            git checkout stash@{0} -- pwa/goldporta
+            cur=$(grep -oE 'susabiyu-v[0-9]+' pwa/sw.js | grep -oE '[0-9]+' | head -1)
+            nxt=$((cur + 1))
+            sed -i "s/susabiyu-v$cur/susabiyu-v$nxt/" pwa/sw.js
+            vcur=$(grep -oE '\?v=[0-9]+' pwa/goldporta_reels.html | grep -oE '[0-9]+' | head -1)
+            vnxt=$((vcur + 1))
+            sed -i "s/?v=$vcur/?v=$vnxt/" pwa/goldporta_reels.html
+            echo "try$i: sw v$cur -> v$nxt / media ?v=$vcur -> ?v=$vnxt"
+            git add pwa/goldporta pwa/sw.js pwa/goldporta_reels.html
+            git commit -m "GOLD京都ポルタ: リール素材を焼き直し＋キャッシュv$nxt"
+            if git push origin HEAD:main; then pushed=1; break; fi
+            echo "push rejected（mainが進んだ）→ 最新へ同期して再試行 ($i)"
+            sleep $((2*i))
+          done
+          git stash drop || true
+          [ -n "$pushed" ] || { echo "ERROR: 再試行してもpush失敗"; exit 1; }
           curl -sS -X POST -H "Authorization: Bearer ${{ github.token }}" \
             -H "Accept: application/vnd.github+json" \
             "${{ github.api_url }}/repos/${{ github.repository }}/actions/workflows/deploy_pwa.yml/dispatches" \
