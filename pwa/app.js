@@ -789,13 +789,21 @@
     var sig = JSON.stringify(items.map(function (it) { return [it.pattern, it.url, it.enabled, it.label, it.poster ? 1 : 0]; }));
     if (sig === lastGallerySig && hasCards()) { applyAdminClass(); applyGalleryFilter(); return; }
     lastGallerySig = sig;
-    // 店舗ページで振り分け：烏丸=【鮨処】のみ／三条=それ以外のみ
-    var normal = items.filter(function (it) { return !isKarPat(it); });
-    var stored = items.filter(isKarPat);
-    // OP案は末尾へ回す（本編どうしの順番は元のまま）
-    normal = normal.filter(function (it) { return !isOpPat(it); })
-                   .concat(normal.filter(isOpPat));
-    var list = KAR ? stored : normal;
+    // 店舗ページで振り分け：烏丸=【鮨処】のみ／三条=それ以外のみ。
+    // ただし店舗専用configの静的見本(CFG.SAMPLES)は、その店の見本しか入っていないので
+    // 振り分けをせず全数表示する（KARの状態で見本が消えるのを防ぐ）。
+    var list;
+    if (CFG.SAMPLES) {
+      list = items.filter(function (it) { return !isOpPat(it); })
+                  .concat(items.filter(isOpPat));   // OP案だけ末尾へ
+    } else {
+      var normal = items.filter(function (it) { return !isKarPat(it); });
+      var stored = items.filter(isKarPat);
+      // OP案は末尾へ回す（本編どうしの順番は元のまま）
+      normal = normal.filter(function (it) { return !isOpPat(it); })
+                     .concat(normal.filter(isOpPat));
+      list = KAR ? stored : normal;
+    }
 
     // ── 差分更新：既にカードが並んでいるなら丸ごと作り直さない ──
     // （全消し→再構築するとスクロール位置が先頭に戻ってしまうため、
