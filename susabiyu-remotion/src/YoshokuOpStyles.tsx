@@ -8,7 +8,7 @@ import { AbsoluteFill, Audio, Img, Sequence, staticFile, useCurrentFrame, interp
 import { typoPhotos, typoMusic, typoMusicStart, typoGroup } from "./typoData";
 import { ytheme } from "./yoshokuTheme";
 import {
-  mincho, serif, clamp, EASE, fade, Grain, BrandMark, StoreLogo, StoreLogoColor, StoryBgLayer,
+  mincho, serif, clamp, EASE, fade, Grain, BrandMark, StoreLogo, StoreLogoColor, StoryBgLayer, LogoHalo,
   StoryOpening, StoryEndroll, fitOneLine,
   STORY_OPEN, STORY_END, STORY_XF,
 } from "./yoshokuDesign";
@@ -101,6 +101,7 @@ const Open5: React.FC<SP> = ({ storeName = DEF.storeName, theme = DEF.theme }) =
       ) : null}
       <AbsoluteFill style={{ background: "rgba(8,5,3," + scrim + ")" }} />
       <AbsoluteFill style={{ background: "radial-gradient(70% 46% at 50% 46%, rgba(0,0,0,0) 0%, rgba(0,0,0,0.35) 66%, rgba(0,0,0,0.66) 100%)" }} />
+      {theme === "wamodan" ? <div style={{ opacity: o }}><LogoHalo size={620} y={-30} /></div> : null}
       <AbsoluteFill style={{ display: "flex", alignItems: "center", justifyContent: "center", flexDirection: "column", gap: 20, opacity: o }}>
         <BrandMark storeName={storeName} ink={T.ink} size={300} />
         <div style={{ fontFamily: serif, color: T.accent, fontSize: 40, letterSpacing: 14, textTransform: "uppercase", fontWeight: 600 }}>{T.label}</div>
@@ -125,6 +126,7 @@ const End5: React.FC<SP> = ({ storeName = DEF.storeName, handle = DEF.handle, th
         </AbsoluteFill>
       ) : null}
       <AbsoluteFill style={{ background: "radial-gradient(70% 46% at 50% 46%, rgba(0,0,0,0.1) 0%, rgba(0,0,0,0.5) 66%, rgba(0,0,0,0.78) 100%)" }} />
+      {theme === "wamodan" ? <div style={{ opacity: fade(f, STORY_XF + 10, 26) }}><LogoHalo size={520} y={-20} /></div> : null}
       <AbsoluteFill style={{ display: "flex", alignItems: "center", justifyContent: "center", flexDirection: "column", gap: 18 }}>
         <div style={{ opacity: fade(f, STORY_XF + 10, 26) }}><BrandMark storeName={storeName} ink={T.ink} size={220} /></div>
         <CloseCopy storeName={storeName} handle={handle} ink={T.ink} accent={T.accent} f={f} start={STORY_XF + 20} />

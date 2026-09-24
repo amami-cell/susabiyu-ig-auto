@@ -64,8 +64,11 @@ const TateWaBody: React.FC<{ storeName?: string; handle?: string; theme?: string
         <div style={{ fontFamily: serif, color: T.accent, fontSize: 22, letterSpacing: 8 }}>SUSHI・KYOTO</div>
       </div>
 
-      {/* 右：縦書きの料理名（大明朝）＋金の縦罫 */}
-      <div key={seg.i} style={{ position: "absolute", top: SAFE.top + 40, right: SAFE.side, display: "flex", alignItems: "flex-start", opacity: fade(seg.local, 6) }}>
+      {/* 右：縦書きの料理名（大明朝）＋金の縦罫
+          ※カットごとに key で作り直すと切替の一瞬だけ名前が消える（＝「途中で消える」）ため、
+            key を外し opacity は最初に一度だけフェードイン。名前はカット境目で文字だけ差し替わり、
+            表示は途切れない。 */}
+      <div style={{ position: "absolute", top: SAFE.top + 40, right: SAFE.side, display: "flex", alignItems: "flex-start", opacity: fade(f, 12) }}>
         <div style={{ writingMode: "vertical-rl", textOrientation: "upright", fontFamily: mincho, color: "#FBF5E7", fontSize: tsz, fontWeight: 500, letterSpacing: 6, lineHeight: 1.5, maxHeight: 1180, textShadow: "0 2px 18px rgba(0,0,0,0.6)" }}>{one}</div>
         {/* 金の縦罫（上から引かれる） */}
         <div style={{ width: 3, marginLeft: 22, height: 360, background: T.accent, opacity: 0.9, transform: "scaleY(" + barGrow + ")", transformOrigin: "top" }} />

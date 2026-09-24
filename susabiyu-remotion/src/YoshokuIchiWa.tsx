@@ -41,6 +41,8 @@ const IchiWaBody: React.FC<{ storeName?: string; handle?: string; theme?: string
           <PhotoLayer src={items[i].src} frame={local} dur={segd} from={1.05} to={1.11} sat={1.04} />
         )} />
       </AbsoluteFill>
+      {/* 本編の入り：OPからの急な切替（1品目が突然現れる）を避け、地色からふわっと立ち上げる */}
+      <AbsoluteFill style={{ backgroundColor: T.base, opacity: interpolate(f, [0, 18], [1, 0], clamp), pointerEvents: "none" }} />
       {/* ごく控えめな四隅の沈み＝文字を浮かせる最小限だけ */}
       <AbsoluteFill style={{ background: "linear-gradient(90deg, rgba(8,6,4,0.5) 0%, rgba(8,6,4,0) 34%)" }} />
       <AbsoluteFill style={{ background: "linear-gradient(180deg, rgba(8,6,4,0.28) 0%, rgba(8,6,4,0) 24%, rgba(8,6,4,0) 66%, rgba(8,6,4,0.6) 100%)" }} />

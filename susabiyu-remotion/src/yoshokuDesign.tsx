@@ -292,9 +292,10 @@ export const StoryBgLayer: React.FC<{ bg?: StoryBg; theme?: string; dur?: number
   // どの案もごくゆっくり動かす（止め絵にしない・でも忙しくしない）
   const z = interpolate(f, [0, dur], [1.06, 1.14], { ...clamp, easing: EASE });
 
+  let bgEl: React.ReactNode;
   if (bg === "blur") {
     const src = (typoPhotos[0] && typoPhotos[0].src) || "";
-    return (
+    bgEl = (
       <AbsoluteFill style={{ backgroundColor: T.base }}>
         {src ? (
           <AbsoluteFill style={{ overflow: "hidden" }}>
@@ -311,10 +312,8 @@ export const StoryBgLayer: React.FC<{ bg?: StoryBg; theme?: string; dur?: number
         <Grain opacity={0.1} />
       </AbsoluteFill>
     );
-  }
-
-  if (bg === "mortar") {
-    return (
+  } else if (bg === "mortar") {
+    bgEl = (
       <AbsoluteFill style={{ background: "radial-gradient(115% 80% at 50% 38%, #3C3833 0%, #2E2B27 52%, #1E1C19 100%)" }}>
         {/* 塗り壁のムラ（コテ跡っぽい斜めの濃淡）＋細かな砂目 */}
         <AbsoluteFill style={{ opacity: 0.16, backgroundImage: "repeating-linear-gradient(118deg, rgba(255,255,255,0.10) 0 3px, transparent 3px 26px)" }} />
@@ -326,10 +325,8 @@ export const StoryBgLayer: React.FC<{ bg?: StoryBg; theme?: string; dur?: number
         <Grain opacity={0.09} />
       </AbsoluteFill>
     );
-  }
-
-  if (bg === "wine") {
-    return (
+  } else if (bg === "wine") {
+    bgEl = (
       <AbsoluteFill style={{ background: "radial-gradient(105% 75% at 50% 34%, #5A1A20 0%, #331014 44%, #14090A 100%)" }}>
         {/* グラスに差す光のにじみ（ごくゆっくり広がる） */}
         <AbsoluteFill style={{ background: "radial-gradient(38% 24% at 50% 30%, rgba(255,214,170,0.20) 0%, transparent 72%)", transform: "scale(" + z + ")" }} />
@@ -338,12 +335,20 @@ export const StoryBgLayer: React.FC<{ bg?: StoryBg; theme?: string; dur?: number
         <Grain opacity={0.1} />
       </AbsoluteFill>
     );
+  } else {
+    bgEl = (
+      <AbsoluteFill style={{ backgroundColor: T.base }}>
+        <WarmGlow /><Grain />
+      </AbsoluteFill>
+    );
   }
-
+  // 烏丸すさび湯(wamodan)は、暗い地の上に屋号の「光背（ハロー）」を敷いてロゴをくっきり見せる。
+  // 洋食・他店(italian/french/neutral)は従来どおり＝ハローなし。
   return (
-    <AbsoluteFill style={{ backgroundColor: T.base }}>
-      <WarmGlow /><Grain />
-    </AbsoluteFill>
+    <>
+      {bgEl}
+      {theme === "wamodan" ? <LogoHalo size={640} y={-40} /> : null}
+    </>
   );
 };
 
@@ -353,6 +358,18 @@ export const BrandMark: React.FC<{ storeName: string; ink: string; size?: number
     : (typoLogo
       ? <Img src={staticFile(typoLogo)} style={{ height: Math.round(size * 0.5), width: "auto", maxWidth: 820, objectFit: "contain" }} />
       : <div style={{ fontFamily: mincho, color: ink, fontSize: Math.round(size * 0.4), fontWeight: 700, letterSpacing: 2 }}>{storeName}</div>)
+);
+
+// 屋号ロゴの後ろに敷く「明るい光背（ハロー）」。暗い地のOP/CLOSEでロゴをくっきり見せる。
+// 烏丸すさび湯(wamodan)専用＝洋食・他店では出さない（theme で分岐して呼ぶ）。
+export const LogoHalo: React.FC<{ size?: number; y?: number }> = ({ size = 620, y = 0 }) => (
+  <AbsoluteFill style={{ display: "flex", alignItems: "center", justifyContent: "center", pointerEvents: "none" }}>
+    <div style={{
+      width: size, height: size, transform: "translateY(" + y + "px)", borderRadius: "50%",
+      background: "radial-gradient(circle, rgba(246,240,224,0.34) 0%, rgba(246,240,224,0.16) 42%, rgba(246,240,224,0) 70%)",
+      filter: "blur(8px)",
+    }} />
+  </AbsoluteFill>
 );
 
 export const StoryOpening: React.FC<{ storeName?: string; theme?: string; bg?: StoryBg }> = ({ storeName = "ナガグツ", theme = "italian", bg = STORY_BG }) => {
