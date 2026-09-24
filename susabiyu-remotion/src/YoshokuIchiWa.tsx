@@ -80,9 +80,9 @@ export const YoshokuIchiWa: React.FC<{ storeName?: string; handle?: string; them
   return (
     <AbsoluteFill style={{ backgroundColor: T.base }}>
       <Audio src={staticFile(typoMusic)} startFrom={Math.round((typoMusicStart || 0) * 30)} volume={(ff) => interpolate(ff, [0, 16, YICHIWA_DUR - 30, YICHIWA_DUR], [0, 0.8, 0.8, 0], clamp)} />
-      <Sequence durationInFrames={IC_OPEN}><StoryOpenV v={9} storeName={storeName} theme={theme} openText={openText} dur={IC_OPEN} /></Sequence>
+      <Sequence durationInFrames={IC_OPEN}><StoryOpenV v={2} storeName={storeName} theme={theme} openText={openText} dur={IC_OPEN} /></Sequence>
       <Sequence from={IC_OPEN} durationInFrames={IC_BODY}><IchiWaBody storeName={storeName} handle={handle} theme={theme} /></Sequence>
-      <Sequence from={IC_OPEN + IC_BODY - STORY_XF} durationInFrames={IC_END + STORY_XF}><StoryEndV v={9} storeName={storeName} handle={handle} theme={theme} /></Sequence>
+      <Sequence from={IC_OPEN + IC_BODY - STORY_XF} durationInFrames={IC_END + STORY_XF}><StoryEndV v={2} storeName={storeName} handle={handle} theme={theme} /></Sequence>
     </AbsoluteFill>
   );
 };

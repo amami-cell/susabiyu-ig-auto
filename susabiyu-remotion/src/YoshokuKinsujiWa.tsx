@@ -75,9 +75,9 @@ export const YoshokuKinsujiWa: React.FC<{ storeName?: string; handle?: string; t
   return (
     <AbsoluteFill style={{ backgroundColor: T.base }}>
       <Audio src={staticFile(typoMusic)} startFrom={Math.round((typoMusicStart || 0) * 30)} volume={(ff) => interpolate(ff, [0, 16, YKINSUJIWA_DUR - 30, YKINSUJIWA_DUR], [0, 0.8, 0.8, 0], clamp)} />
-      <Sequence durationInFrames={KIN_OPEN}><StoryOpenV v={9} storeName={storeName} theme={theme} openText={openText} dur={KIN_OPEN} /></Sequence>
+      <Sequence durationInFrames={KIN_OPEN}><StoryOpenV v={8} storeName={storeName} theme={theme} openText={openText} dur={KIN_OPEN} /></Sequence>
       <Sequence from={KIN_OPEN} durationInFrames={KIN_BODY}><KinsujiWaBody storeName={storeName} handle={handle} theme={theme} /></Sequence>
-      <Sequence from={KIN_OPEN + KIN_BODY - STORY_XF} durationInFrames={KIN_END + STORY_XF}><StoryEndV v={9} storeName={storeName} handle={handle} theme={theme} /></Sequence>
+      <Sequence from={KIN_OPEN + KIN_BODY - STORY_XF} durationInFrames={KIN_END + STORY_XF}><StoryEndV v={8} storeName={storeName} handle={handle} theme={theme} /></Sequence>
     </AbsoluteFill>
   );
 };

@@ -43,12 +43,7 @@ const SumiWaBody: React.FC<{ storeName?: string; handle?: string; theme?: string
       <AbsoluteFill style={{ background: "linear-gradient(180deg, rgba(8,6,4,0.4) 0%, rgba(8,6,4,0) 30%, rgba(8,6,4,0) 55%, rgba(8,6,4,0.8) 100%)" }} />
       <Grain opacity={0.06} />
 
-      {/* 上：鮨処すさび湯（控えめ） */}
-      <div style={{ position: "absolute", top: SAFE.top - 60, left: 0, right: 0, textAlign: "center", opacity: 0.9 * fade(f, 14) }}>
-        <div style={{ fontFamily: mincho, color: "#EFE6D3", fontSize: 25, letterSpacing: 10, textShadow: "0 2px 14px rgba(0,0,0,0.7)" }}>鮨処すさび湯</div>
-      </div>
-
-      {/* 下：料理名＋墨の刷毛＋説明文（左寄せ） */}
+      {/* 下：料理名＋墨の刷毛＋説明文（左寄せ）※上部の店名表記は削除 */}
       <div key={seg.i} style={{ position: "absolute", left: SAFE.side, right: SAFE.side, bottom: 236, ...rise(seg.local, 6, { dist: 16, blur: 6 }) }}>
         <div style={{ fontFamily: serif, color: T.accent, fontSize: 22, letterSpacing: 8, textTransform: "uppercase", marginBottom: 12, opacity: 0.9 }}>{it.sub || "SUSHI"}</div>
         <div style={{ fontFamily: mincho, color: "#FBF5E7", fontSize: nameSize, fontWeight: 500, letterSpacing: 3, whiteSpace: "nowrap", textShadow: "0 2px 20px rgba(0,0,0,0.7)" }}>{one}</div>
@@ -76,9 +71,9 @@ export const YoshokuSumiWa: React.FC<{ storeName?: string; handle?: string; them
   return (
     <AbsoluteFill style={{ backgroundColor: T.base }}>
       <Audio src={staticFile(typoMusic)} startFrom={Math.round((typoMusicStart || 0) * 30)} volume={(ff) => interpolate(ff, [0, 16, YSUMIWA_DUR - 30, YSUMIWA_DUR], [0, 0.8, 0.8, 0], clamp)} />
-      <Sequence durationInFrames={SUMI_OPEN}><StoryOpenV v={9} storeName={storeName} theme={theme} openText={openText} dur={SUMI_OPEN} /></Sequence>
+      <Sequence durationInFrames={SUMI_OPEN}><StoryOpenV v={1} storeName={storeName} theme={theme} openText={openText} dur={SUMI_OPEN} /></Sequence>
       <Sequence from={SUMI_OPEN} durationInFrames={SUMI_BODY}><SumiWaBody storeName={storeName} handle={handle} theme={theme} /></Sequence>
-      <Sequence from={SUMI_OPEN + SUMI_BODY - STORY_XF} durationInFrames={SUMI_END + STORY_XF}><StoryEndV v={9} storeName={storeName} handle={handle} theme={theme} /></Sequence>
+      <Sequence from={SUMI_OPEN + SUMI_BODY - STORY_XF} durationInFrames={SUMI_END + STORY_XF}><StoryEndV v={1} storeName={storeName} handle={handle} theme={theme} /></Sequence>
     </AbsoluteFill>
   );
 };

@@ -44,13 +44,7 @@ const HitoWaBody: React.FC<{ storeName?: string; handle?: string; theme?: string
       <AbsoluteFill style={{ background: "linear-gradient(180deg, rgba(10,8,6,0.58) 0%, rgba(10,8,6,0.08) 28%, rgba(10,8,6,0.1) 52%, rgba(10,8,6,0.78) 100%)" }} />
       <Grain opacity={0.05} />
 
-      {/* 上中央：本日の一皿＋細罫 */}
-      <div style={{ position: "absolute", top: SAFE.top - 66, left: 0, right: 0, display: "flex", flexDirection: "column", alignItems: "center", gap: 14, opacity: fade(f, 12) }}>
-        <div style={{ fontFamily: mincho, color: "#F4EDDD", fontSize: 30, letterSpacing: 12, textShadow: "0 2px 12px rgba(0,0,0,0.6)" }}>本日の一皿</div>
-        <div style={{ width: 64, height: 1, background: T.accent, opacity: 0.8 }} />
-      </div>
-
-      {/* 中央下：落款→料理名→金罫→説明文 */}
+      {/* 中央下：料理名→金罫→説明文（上部の「本日の一皿」表記は削除） */}
       <div key={seg.i} style={{ position: "absolute", left: SAFE.side, right: SAFE.side, bottom: 300, display: "flex", flexDirection: "column", alignItems: "center", ...rise(seg.local, 6, { dist: 20, blur: 5 }) }}>
                 <div style={{ fontFamily: mincho, color: "#FBF5E7", fontSize: nameSize, fontWeight: 500, letterSpacing: 4, lineHeight: 1.2, whiteSpace: "nowrap", textAlign: "center", textShadow: "0 2px 18px rgba(0,0,0,0.55)" }}>{one}</div>
         <div style={{ marginTop: 22, width: 110, height: 1, background: T.accent, opacity: 0.85 * fade(f, 28) }} />
@@ -77,9 +71,9 @@ export const YoshokuHitoWa: React.FC<{ storeName?: string; handle?: string; them
   return (
     <AbsoluteFill style={{ backgroundColor: T.base }}>
       <Audio src={staticFile(typoMusic)} startFrom={Math.round((typoMusicStart || 0) * 30)} volume={(ff) => interpolate(ff, [0, 16, YHITOWA_DUR - 30, YHITOWA_DUR], [0, 0.8, 0.8, 0], clamp)} />
-      <Sequence durationInFrames={HITO_OPEN}><StoryOpenV v={9} storeName={storeName} theme={theme} openText={openText} dur={HITO_OPEN} /></Sequence>
+      <Sequence durationInFrames={HITO_OPEN}><StoryOpenV v={5} storeName={storeName} theme={theme} openText={openText} dur={HITO_OPEN} /></Sequence>
       <Sequence from={HITO_OPEN} durationInFrames={HITO_BODY}><HitoWaBody storeName={storeName} handle={handle} theme={theme} /></Sequence>
-      <Sequence from={HITO_OPEN + HITO_BODY - STORY_XF} durationInFrames={HITO_END + STORY_XF}><StoryEndV v={9} storeName={storeName} handle={handle} theme={theme} /></Sequence>
+      <Sequence from={HITO_OPEN + HITO_BODY - STORY_XF} durationInFrames={HITO_END + STORY_XF}><StoryEndV v={5} storeName={storeName} handle={handle} theme={theme} /></Sequence>
     </AbsoluteFill>
   );
 };
