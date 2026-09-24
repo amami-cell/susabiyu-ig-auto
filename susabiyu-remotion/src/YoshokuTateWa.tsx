@@ -94,6 +94,8 @@ const TateWaBody: React.FC<{ storeName?: string; handle?: string; theme?: string
         <StoreLogo storeName={storeName} height={98} />
         <div style={{ fontFamily: serif, color: T.accent, fontSize: 25, letterSpacing: 4 }}>{handle}</div>
       </div>
+      {/* 1品目の入り：OPからの急な切替を避け、地色からふわ〜っと開く（2品目以降と揃える） */}
+      <AbsoluteFill style={{ backgroundColor: T.base, opacity: interpolate(f, [0, 20], [1, 0], clamp), pointerEvents: "none" }} />
     </AbsoluteFill>
   );
 };
