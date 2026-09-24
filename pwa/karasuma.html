@@ -392,15 +392,30 @@
       });
     }
   </script>
-  <!-- ビルド確認バッジ（どのビルド／何本の見本を読み込んでいるかを可視化＝キャッシュ切り分け用） -->
+  <!-- ビルド確認バッジ＋強制更新ボタン（app.jsに依存しない純インライン＝固まっていても必ず動く） -->
   <script>
     (function () {
       try {
         var n = (window.GIFUYA && window.GIFUYA.SAMPLES && window.GIFUYA.SAMPLES.length) || 0;
         var b = document.createElement("div");
         b.textContent = "build __BUILD__ ・ 見本 " + n + "本";
-        b.style.cssText = "position:fixed;left:6px;bottom:6px;z-index:9999;font:11px/1.4 -apple-system,sans-serif;color:#CBBE9F;background:rgba(20,16,16,.72);padding:3px 8px;border-radius:8px;pointer-events:none;opacity:.85";
+        b.style.cssText = "position:fixed;left:6px;bottom:6px;z-index:99999;font:11px/1.4 -apple-system,sans-serif;color:#CBBE9F;background:rgba(20,16,16,.72);padding:3px 8px;border-radius:8px;pointer-events:none;opacity:.85";
         document.body.appendChild(b);
+
+        // 「最新に更新」：キャッシュ全消去＋SW解除＋強制リロード。どんな固まり状態からも脱出できる。
+        var u = document.createElement("button");
+        u.textContent = "🔄 最新に更新";
+        u.style.cssText = "position:fixed;right:8px;bottom:8px;z-index:99999;font:13px/1 -apple-system,sans-serif;color:#141010;background:#D8B36A;border:none;padding:10px 14px;border-radius:22px;box-shadow:0 4px 14px rgba(0,0,0,.4);font-weight:700";
+        u.onclick = function () {
+          u.textContent = "更新中…";
+          var done = function () { try { location.reload(true); } catch (e) { location.reload(); } };
+          var jobs = [];
+          try { if (window.caches && caches.keys) jobs.push(caches.keys().then(function (ks) { return Promise.all(ks.map(function (k) { return caches.delete(k); })); })); } catch (e) {}
+          try { if (navigator.serviceWorker && navigator.serviceWorker.getRegistrations) jobs.push(navigator.serviceWorker.getRegistrations().then(function (rs) { return Promise.all(rs.map(function (r) { return r.unregister(); })); })); } catch (e) {}
+          Promise.all(jobs).then(done).catch(done);
+          setTimeout(done, 2500);   // 念のため（消去が固まっても必ずリロード）
+        };
+        document.body.appendChild(u);
       } catch (e) {}
     })();
   </script>

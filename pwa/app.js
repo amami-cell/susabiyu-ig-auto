@@ -972,8 +972,7 @@
       haptic(18);
       toastBusy("更新中…");
       var done = function () { haptic(8); toast("✓ 最新にしました"); };
-      // loader() が同期例外を投げても toast を必ず解除する（「更新中」で固まらせない）
-      try { Promise.resolve(loader()).then(done, done); } catch (e) { done(); }
+      Promise.resolve(loader()).then(done, done);
     } else {
       var had = tabHasContent(name);
       switchTo(name);
@@ -1052,8 +1051,7 @@
         busy = false; ptr.classList.remove("spin"); springBack();
         haptic(8); toast("✓ 最新にしました");
       };
-      // loader() が同期例外を投げても busy/toast を必ず解除する（固まり防止）
-      try { Promise.resolve(loaderFor(currentTab)()).then(done, done); } catch (e) { done(); }
+      Promise.resolve(loaderFor(currentTab)()).then(done, done);
     });
   })();
 
