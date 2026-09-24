@@ -48,12 +48,8 @@ const IchiWaBody: React.FC<{ storeName?: string; handle?: string; theme?: string
       <AbsoluteFill style={{ background: "linear-gradient(180deg, rgba(8,6,4,0.28) 0%, rgba(8,6,4,0) 24%, rgba(8,6,4,0) 66%, rgba(8,6,4,0.6) 100%)" }} />
       <Grain opacity={0.045} />
 
-      {/* 上：鮨処すさび湯（極小・左上） */}
-      <div style={{ position: "absolute", top: SAFE.top - 60, left: SAFE.side, opacity: fade(f, 12) }}>
-        <div style={{ fontFamily: mincho, color: "#F4EDDD", fontSize: 23, letterSpacing: 7, textShadow: "0 2px 12px rgba(0,0,0,0.7)" }}>鮨処すさび湯</div>
-      </div>
-
-      {/* 中央左寄り：一行の縦書き（金の短い天点＋名）。1品目が出るまで待たせないよう素早く滑らかに立ち上げる。 */}
+      {/* 中央左寄り：一行の縦書き（金の短い天点＋名）。1品目が出るまで待たせないよう素早く滑らかに立ち上げる。
+          ※左上の屋号表記は削除。 */}
       <div key={seg.i} style={{ position: "absolute", top: 420, left: SAFE.side + 8, ...rise(seg.local, 1, { dist: 14, blur: 3, dur: 20 }) }}>
         <div style={{ width: 8, height: 8, borderRadius: 8, background: T.accent, marginBottom: 20, boxShadow: "0 0 10px rgba(216,179,106,0.6)" }} />
         <div style={{ writingMode: "vertical-rl", fontFamily: mincho, color: "#FCF6E8", fontSize: vsize(one), fontWeight: 500, letterSpacing: 8, lineHeight: 1.2, textShadow: "0 2px 22px rgba(0,0,0,0.7)" }}>{one}</div>

@@ -89,10 +89,10 @@ export const YoshokuWine: React.FC<{ storeName?: string; handle?: string; theme?
       {/* 中央：仕切り線＋丸ロゴ（上下の境目） */}
       <div style={{ position: "absolute", top: HALF - 2, left: 0, right: 0, height: 4, background: theme === "wamodan" ? T.accent : "rgba(224,103,58,0.6)", opacity: midO }} />
       {theme === "wamodan" ? (
-        // 烏丸すさび湯：中心の丸＋縦書き（回転なし）。すさび湯の屋号を円のちょうど中央に。
+        // 烏丸すさび湯：中心の丸（回転なし）の中に屋号ロゴを配置。白ロゴが映えるよう地は濃色。
         <div style={{ position: "absolute", top: HALF - 135, left: 0, right: 0, display: "flex", justifyContent: "center", opacity: midO }}>
-          <div style={{ width: 270, height: 270, borderRadius: "50%", border: "2px solid " + T.accent, background: "#F1E9D8", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 22px 56px rgba(0,0,0,0.6)" }}>
-            <div style={{ writingMode: "vertical-rl", fontFamily: mincho, color: T.slab, fontSize: 34, fontWeight: 700, letterSpacing: 2, lineHeight: 1.2, textAlign: "center" }}>{storeName}</div>
+          <div style={{ width: 270, height: 270, borderRadius: "50%", border: "2px solid " + T.accent, background: T.base + "E6", overflow: "hidden", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 22px 56px rgba(0,0,0,0.6)" }}>
+            <StoreLogo storeName={storeName} height={80} />
           </div>
         </div>
       ) : (

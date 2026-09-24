@@ -58,9 +58,8 @@ const TateWaBody: React.FC<{ storeName?: string; handle?: string; theme?: string
       <AbsoluteFill style={{ background: "linear-gradient(270deg, rgba(10,8,6,0.5) 0%, rgba(10,8,6,0) 42%)" }} />
       <Grain opacity={0.05} />
 
-      {/* マストヘッド（上） */}
-      <div style={{ position: "absolute", top: SAFE.top - 78, left: SAFE.side, right: SAFE.side, display: "flex", justifyContent: "space-between", alignItems: "baseline", opacity: fade(f, 12) }}>
-        <div style={{ fontFamily: mincho, color: "#F4EDDD", fontSize: 27, letterSpacing: 6, textShadow: "0 2px 12px rgba(0,0,0,0.6)" }}>鮨処すさび湯</div>
+      {/* マストヘッド（上）：左上の屋号は削除。右の欧文サインのみ残す。 */}
+      <div style={{ position: "absolute", top: SAFE.top - 78, left: SAFE.side, right: SAFE.side, display: "flex", justifyContent: "flex-end", alignItems: "baseline", opacity: fade(f, 12) }}>
         <div style={{ fontFamily: serif, color: T.accent, fontSize: 22, letterSpacing: 8 }}>SUSHI・KYOTO</div>
       </div>
 
