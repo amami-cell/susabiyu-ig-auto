@@ -792,18 +792,20 @@
     // 店舗ページで振り分け：烏丸=【鮨処】のみ／三条=それ以外のみ。
     // ただし店舗専用configの静的見本(CFG.SAMPLES)は、その店の見本しか入っていないので
     // 振り分けをせず全数表示する（KARの状態で見本が消えるのを防ぐ）。
-    var list;
+    // ※ normal / stored は後段（全再構築ブランチ）でも参照するので必ず両方を定義する。
+    var normal, stored;
     if (CFG.SAMPLES) {
-      list = items.filter(function (it) { return !isOpPat(it); })
-                  .concat(items.filter(isOpPat));   // OP案だけ末尾へ
+      var all = items.filter(function (it) { return !isOpPat(it); })
+                     .concat(items.filter(isOpPat));   // OP案だけ末尾へ
+      normal = all; stored = all;                       // KARの状態に関係なく全数表示
     } else {
-      var normal = items.filter(function (it) { return !isKarPat(it); });
-      var stored = items.filter(isKarPat);
+      normal = items.filter(function (it) { return !isKarPat(it); });
+      stored = items.filter(isKarPat);
       // OP案は末尾へ回す（本編どうしの順番は元のまま）
       normal = normal.filter(function (it) { return !isOpPat(it); })
                      .concat(normal.filter(isOpPat));
-      list = KAR ? stored : normal;
     }
+    var list = KAR ? stored : normal;
 
     // ── 差分更新：既にカードが並んでいるなら丸ごと作り直さない ──
     // （全消し→再構築するとスクロール位置が先頭に戻ってしまうため、
