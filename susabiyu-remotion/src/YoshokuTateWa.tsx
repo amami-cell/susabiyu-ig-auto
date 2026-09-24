@@ -73,8 +73,13 @@ const TateWaBody: React.FC<{ storeName?: string; handle?: string; theme?: string
       <div style={{ position: "absolute", top: SAFE.top + 40, right: SAFE.side, writingMode: "vertical-rl", fontFamily: serif, color: T.accent, fontSize: 20, letterSpacing: 8, textTransform: "uppercase", opacity: fade(f, 16) }}>{it.sub || "SUSHI"}</div>
       {/* 金の縦罫（サブの左・上から引かれる） */}
       <div style={{ position: "absolute", top: SAFE.top + 40, right: SAFE.side + 40, width: 3, height: 360, background: T.accent, opacity: 0.9 * fade(f, 12), transform: "scaleY(" + barGrow + ")", transformOrigin: "top" }} />
-      {/* 縦書き料理名（右起点＝右端固定。長い名前は左へ伸びる＝位置は動かない） */}
-      <div style={{ position: "absolute", top: SAFE.top + 40, right: SAFE.side + 70, writingMode: "vertical-rl", textOrientation: "upright", fontFamily: mincho, color: "#FBF5E7", fontSize: tsz, fontWeight: 500, letterSpacing: 6, lineHeight: 1.5, maxHeight: 1180, textShadow: "0 2px 18px rgba(0,0,0,0.6)", opacity: fade(f, 12) }}>{one}</div>
+      {/* 縦書き料理名：横位置を完全固定する。
+          ・フォントは一定サイズ（料理ごとに変えると縦列の幅＝横中心がズレて「動いて見える」ため）。
+          ・固定幅ボックスの中央に縦列を置く＝文字数/列数が変わっても横中心は不動。
+          ・縦は上固定（長い名前は下へ伸びるだけ）。 */}
+      <div style={{ position: "absolute", top: SAFE.top + 40, right: SAFE.side + 60, width: 132, display: "flex", justifyContent: "center", opacity: fade(f, 12) }}>
+        <div style={{ writingMode: "vertical-rl", textOrientation: "upright", fontFamily: mincho, color: "#FBF5E7", fontSize: 76, fontWeight: 500, letterSpacing: 6, lineHeight: 1.5, maxHeight: 1180, textShadow: "0 2px 18px rgba(0,0,0,0.6)" }}>{one}</div>
+      </div>
 
       {/* 左下：金の短罫＋料理説明文（横・小明朝） */}
       <div style={{ position: "absolute", left: SAFE.side, bottom: 210, maxWidth: 620, opacity: fade(f, 36) }}>
