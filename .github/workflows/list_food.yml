@@ -1,0 +1,39 @@
+name: list-food
+# 料理写真の「ファイル名＝料理名」を全部そのまま一覧化する診断（読み取り専用・投稿しない）。
+# fetch_typo.py と同じサービスアカウントで GENRE_FOOD_ID 配下を走査し、ログに料理名を出す。
+on:
+  workflow_dispatch:
+    inputs:
+      food_id:
+        description: "料理写真の親フォルダID（空=烏丸すさび湯の画像フォルダ）"
+        required: false
+        default: "1EuoC6HqqJS12cKXOsS-W8K5mzcU4lLR6"
+      exclude_cats:
+        description: "料理として扱わないサブフォルダ名（カンマ区切り）"
+        required: false
+        default: "ロゴ,外観,内観,音楽,集合,コース,ドリンク,飲み"
+permissions:
+  contents: read
+jobs:
+  list:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: susabiyu-remotion
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install Python deps
+        run: pip install google-api-python-client google-auth
+      - name: Write creds.json
+        run: echo "$GOOGLE_CREDS_B64" | base64 -d > creds.json
+        env:
+          GOOGLE_CREDS_B64: ${{ secrets.GOOGLE_CREDS_B64 }}
+      - name: 料理名一覧を出力
+        env:
+          GENRE_FOOD_ID: ${{ github.event.inputs.food_id }}
+          GENRE_EXCLUDE_CATS: ${{ github.event.inputs.exclude_cats }}
+        run: python list_food.py creds.json
