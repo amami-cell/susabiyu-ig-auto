@@ -97,9 +97,9 @@ export const YoshokuTateWa: React.FC<{ storeName?: string; handle?: string; them
   return (
     <AbsoluteFill style={{ backgroundColor: T.base }}>
       <Audio src={staticFile(typoMusic)} startFrom={Math.round((typoMusicStart || 0) * 30)} volume={(ff) => interpolate(ff, [0, 16, YTATEWA_DUR - 30, YTATEWA_DUR], [0, 0.8, 0.8, 0], clamp)} />
-      <Sequence durationInFrames={TATE_OPEN}><StoryOpenV v={9} storeName={storeName} theme={theme} openText={openText} dur={TATE_OPEN} /></Sequence>
+      <Sequence durationInFrames={TATE_OPEN}><StoryOpenV v={7} storeName={storeName} theme={theme} openText={openText} dur={TATE_OPEN} /></Sequence>
       <Sequence from={TATE_OPEN} durationInFrames={TATE_BODY}><TateWaBody storeName={storeName} handle={handle} theme={theme} /></Sequence>
-      <Sequence from={TATE_OPEN + TATE_BODY - STORY_XF} durationInFrames={TATE_END + STORY_XF}><StoryEndV v={9} storeName={storeName} handle={handle} theme={theme} /></Sequence>
+      <Sequence from={TATE_OPEN + TATE_BODY - STORY_XF} durationInFrames={TATE_END + STORY_XF}><StoryEndV v={7} storeName={storeName} handle={handle} theme={theme} /></Sequence>
     </AbsoluteFill>
   );
 };

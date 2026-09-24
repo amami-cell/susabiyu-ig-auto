@@ -43,12 +43,7 @@ const HakuWaBody: React.FC<{ storeName?: string; handle?: string; theme?: string
       <AbsoluteFill style={{ background: "linear-gradient(180deg, rgba(10,8,6,0.5) 0%, rgba(10,8,6,0.05) 30%, rgba(10,8,6,0.1) 52%, rgba(10,8,6,0.86) 100%)" }} />
       <Grain opacity={0.05} />
 
-      {/* 上：鮨処すさび湯 */}
-      <div style={{ position: "absolute", top: SAFE.top - 62, left: SAFE.side, opacity: fade(f, 12) }}>
-        <div style={{ fontFamily: mincho, color: "#F4EDDD", fontSize: 25, letterSpacing: 6, textShadow: "0 2px 12px rgba(0,0,0,0.7)" }}>鮨処すさび湯</div>
-      </div>
-
-      {/* 下：金箔の料理名（背景clipで箔＋ツヤ）＋説明文 */}
+      {/* 下：金箔の料理名（背景clipで箔＋ツヤ）＋説明文 ※左上の店名表記は削除 */}
       <div key={seg.i} style={{ position: "absolute", left: SAFE.side, right: SAFE.side, bottom: 244, ...rise(seg.local, 8, { dist: 16, blur: 4 }) }}>
         <div style={{ fontFamily: serif, color: T.accent, fontSize: 22, letterSpacing: 8, textTransform: "uppercase", marginBottom: 12, opacity: 0.9 }}>{it.sub || "SUSHI"}</div>
         <div style={{
@@ -79,9 +74,9 @@ export const YoshokuHakuWa: React.FC<{ storeName?: string; handle?: string; them
   return (
     <AbsoluteFill style={{ backgroundColor: T.base }}>
       <Audio src={staticFile(typoMusic)} startFrom={Math.round((typoMusicStart || 0) * 30)} volume={(ff) => interpolate(ff, [0, 16, YHAKUWA_DUR - 30, YHAKUWA_DUR], [0, 0.8, 0.8, 0], clamp)} />
-      <Sequence durationInFrames={HK_OPEN}><StoryOpenV v={9} storeName={storeName} theme={theme} openText={openText} dur={HK_OPEN} /></Sequence>
+      <Sequence durationInFrames={HK_OPEN}><StoryOpenV v={4} storeName={storeName} theme={theme} openText={openText} dur={HK_OPEN} /></Sequence>
       <Sequence from={HK_OPEN} durationInFrames={HK_BODY}><HakuWaBody storeName={storeName} handle={handle} theme={theme} /></Sequence>
-      <Sequence from={HK_OPEN + HK_BODY - STORY_XF} durationInFrames={HK_END + STORY_XF}><StoryEndV v={9} storeName={storeName} handle={handle} theme={theme} /></Sequence>
+      <Sequence from={HK_OPEN + HK_BODY - STORY_XF} durationInFrames={HK_END + STORY_XF}><StoryEndV v={4} storeName={storeName} handle={handle} theme={theme} /></Sequence>
     </AbsoluteFill>
   );
 };
