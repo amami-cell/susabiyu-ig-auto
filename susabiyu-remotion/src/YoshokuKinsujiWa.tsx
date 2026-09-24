@@ -41,12 +41,7 @@ const KinsujiWaBody: React.FC<{ storeName?: string; handle?: string; theme?: str
       <AbsoluteFill style={{ background: "linear-gradient(180deg, rgba(10,8,6,0.5) 0%, rgba(10,8,6,0) 26%, rgba(10,8,6,0) 52%, rgba(10,8,6,0.82) 100%)" }} />
       <Grain opacity={0.05} />
 
-      {/* 上：鮨処すさび湯 */}
-      <div style={{ position: "absolute", top: SAFE.top - 62, left: SAFE.side, opacity: fade(f, 12) }}>
-        <div style={{ fontFamily: mincho, color: "#F4EDDD", fontSize: 25, letterSpacing: 6, textShadow: "0 2px 12px rgba(0,0,0,0.6)" }}>鮨処すさび湯</div>
-      </div>
-
-      {/* 下：金の細線（左から走る）→ 料理名 → 説明文 */}
+      {/* 下：金の細線（左から走る）→ 料理名 → 説明文 ※左上の店名表記は削除 */}
       <div key={seg.i} style={{ position: "absolute", left: SAFE.side, right: SAFE.side, bottom: 250 }}>
         <div style={{ height: 2, width: (1080 - SAFE.side * 2) * sweep, background: "linear-gradient(90deg," + T.line + "," + T.accent + ")", boxShadow: "0 0 12px rgba(216,179,106,0.5)", marginBottom: 22 }} />
         <div style={{ ...rise(seg.local, 8, { dist: 16, blur: 4 }) }}>
