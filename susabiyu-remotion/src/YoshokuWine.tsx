@@ -6,7 +6,7 @@ import { typoPhotos, typoMusic, typoMusicStart, typoLogoRound } from "./typoData
 import { ytheme } from "./yoshokuTheme";
 import {
   mincho, serif, clamp, SAFE, EASE, fade,
-  Grain, PhotoLayer, fitOneLine,
+  Grain, PhotoLayer, fitOneLine, StoreLogo,
 } from "./yoshokuDesign";
 
 // 6品を上下2品ずつ3ページで紹介する尺。中央の丸ロゴはこの間にレコードのように
@@ -88,28 +88,25 @@ export const YoshokuWine: React.FC<{ storeName?: string; handle?: string; theme?
 
       {/* 中央：仕切り線＋丸ロゴ（上下の境目） */}
       <div style={{ position: "absolute", top: HALF - 2, left: 0, right: 0, height: 4, background: theme === "wamodan" ? T.accent : "rgba(224,103,58,0.6)", opacity: midO }} />
-      <div style={{ position: "absolute", top: HALF - 135, left: 0, right: 0, display: "flex", justifyContent: "center", opacity: midO }}>
-        <div style={{ position: "relative", width: 270, height: 270 }}>
-          {/* 烏丸すさび湯(wamodan)：屋号は静止させ、周りの「太い金の模様円」だけを回す。 */}
-          {theme === "wamodan" ? (
-            <div style={{
-              position: "absolute", inset: -16, borderRadius: "50%", transform: "rotate(" + spin + "deg)",
-              background: "conic-gradient(" + T.accent + " 0 5deg, transparent 5deg 20deg)",
-              WebkitMaskImage: "radial-gradient(farthest-side, transparent calc(100% - 18px), #000 calc(100% - 18px))",
-              maskImage: "radial-gradient(farthest-side, transparent calc(100% - 18px), #000 calc(100% - 18px))",
-              filter: "drop-shadow(0 0 6px rgba(216,179,106,0.55))",
-            }} />
-          ) : null}
-          <div style={{ position: "absolute", inset: 0, borderRadius: "50%", border: (theme === "wamodan" ? 2 : 3) + "px solid " + T.accent, background: theme === "wamodan" ? "#F1E9D8" : T.base + "E6", overflow: "hidden", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 22px 56px rgba(0,0,0,0.6)" }}>
-            {/* wamodanはロゴ静止。他店は従来どおりレコード盤のように1回転。 */}
-            <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center", transform: theme === "wamodan" ? "none" : ("rotate(" + spin + "deg)") }}>
+      {theme === "wamodan" ? (
+        // 烏丸すさび湯：円縁・回転は無し。屋号ロゴ（大きい文字）をちょうど画面中央に置く。
+        <div style={{ position: "absolute", top: HALF - 150, left: 0, right: 0, height: 300, display: "flex", alignItems: "center", justifyContent: "center", opacity: midO }}>
+          <div style={{ filter: "drop-shadow(0 6px 22px rgba(0,0,0,0.6))" }}>
+            <StoreLogo storeName={storeName} height={168} />
+          </div>
+        </div>
+      ) : (
+        // 他店（洋食）：従来どおり丸ロゴがレコード盤のように1回転。
+        <div style={{ position: "absolute", top: HALF - 135, left: 0, right: 0, display: "flex", justifyContent: "center", opacity: midO }}>
+          <div style={{ width: 270, height: 270, borderRadius: "50%", border: "3px solid " + T.accent, background: T.base + "E6", overflow: "hidden", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 22px 56px rgba(0,0,0,0.6)" }}>
+            <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center", transform: "rotate(" + spin + "deg)" }}>
               {typoLogoRound
                 ? <Img src={staticFile(typoLogoRound)} style={{ width: "100%", height: "100%", objectFit: "contain", padding: 10 }} />
                 : <div style={{ fontFamily: serif, fontStyle: "italic", color: T.accent, fontSize: 128, lineHeight: 1 }}>&amp;</div>}
             </div>
           </div>
         </div>
-      </div>
+      )}
 
       <Grain opacity={0.05} />
 
