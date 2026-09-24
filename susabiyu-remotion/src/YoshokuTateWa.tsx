@@ -64,17 +64,17 @@ const TateWaBody: React.FC<{ storeName?: string; handle?: string; theme?: string
         <div style={{ fontFamily: serif, color: T.accent, fontSize: 22, letterSpacing: 8 }}>SUSHI・KYOTO</div>
       </div>
 
-      {/* 右：縦書きの料理名（大明朝）＋金の縦罫
-          ※カットごとに key で作り直すと切替の一瞬だけ名前が消える（＝「途中で消える」）ため、
-            key を外し opacity は最初に一度だけフェードイン。名前はカット境目で文字だけ差し替わり、
-            表示は途切れない。 */}
-      <div style={{ position: "absolute", top: SAFE.top + 40, right: SAFE.side, display: "flex", alignItems: "flex-start", opacity: fade(f, 12) }}>
-        <div style={{ writingMode: "vertical-rl", textOrientation: "upright", fontFamily: mincho, color: "#FBF5E7", fontSize: tsz, fontWeight: 500, letterSpacing: 6, lineHeight: 1.5, maxHeight: 1180, textShadow: "0 2px 18px rgba(0,0,0,0.6)" }}>{one}</div>
-        {/* 金の縦罫（上から引かれる） */}
-        <div style={{ width: 3, marginLeft: 22, height: 360, background: T.accent, opacity: 0.9, transform: "scaleY(" + barGrow + ")", transformOrigin: "top" }} />
-        {/* 欧文サブ（縦罫の外側・上） */}
-        <div style={{ writingMode: "vertical-rl", fontFamily: serif, color: T.accent, fontSize: 20, letterSpacing: 8, marginLeft: 10, textTransform: "uppercase", opacity: fade(f, 16) }}>{it.sub || "SUSHI"}</div>
-      </div>
+      {/* 右：縦書きの料理名（大明朝）＋金の縦罫＋欧文サブ。
+          ※以前は flex 横並び＋右端固定だったため、料理が切り替わると名前の文字数/サイズで
+            横並び全体の幅が変わり、名前の位置がズレていた（＝「途中から名前が動く」）。
+            各要素を独立した絶対配置にし、名前は「右起点」を固定（長い名前は左へ伸びるだけ・不動）。
+            key は付けない＝切替でも消えず、文字だけ差し替わる。 */}
+      {/* 欧文サブ（最右） */}
+      <div style={{ position: "absolute", top: SAFE.top + 40, right: SAFE.side, writingMode: "vertical-rl", fontFamily: serif, color: T.accent, fontSize: 20, letterSpacing: 8, textTransform: "uppercase", opacity: fade(f, 16) }}>{it.sub || "SUSHI"}</div>
+      {/* 金の縦罫（サブの左・上から引かれる） */}
+      <div style={{ position: "absolute", top: SAFE.top + 40, right: SAFE.side + 40, width: 3, height: 360, background: T.accent, opacity: 0.9 * fade(f, 12), transform: "scaleY(" + barGrow + ")", transformOrigin: "top" }} />
+      {/* 縦書き料理名（右起点＝右端固定。長い名前は左へ伸びる＝位置は動かない） */}
+      <div style={{ position: "absolute", top: SAFE.top + 40, right: SAFE.side + 70, writingMode: "vertical-rl", textOrientation: "upright", fontFamily: mincho, color: "#FBF5E7", fontSize: tsz, fontWeight: 500, letterSpacing: 6, lineHeight: 1.5, maxHeight: 1180, textShadow: "0 2px 18px rgba(0,0,0,0.6)", opacity: fade(f, 12) }}>{one}</div>
 
       {/* 左下：金の短罫＋料理説明文（横・小明朝） */}
       <div style={{ position: "absolute", left: SAFE.side, bottom: 210, maxWidth: 620, opacity: fade(f, 36) }}>
