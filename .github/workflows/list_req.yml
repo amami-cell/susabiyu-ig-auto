@@ -1,0 +1,32 @@
+name: list-req
+# 店舗受付（入力用）シートの K〜AA 列（住所・営業時間・アクセス等）を全行ダンプする診断。
+# 読み取り専用・書き込みしない。フッター用の店舗情報がどの行に入っているか確認する口。
+on:
+  workflow_dispatch:
+    inputs:
+      sheet_id:
+        description: "店舗受付シートのID（空=既定の店舗受付シート）"
+        required: false
+        default: "1SyfW4c6HN4urmVHWLrTA-dHUVr5ZT9nqIFboNKn4BuQ"
+permissions:
+  contents: read
+jobs:
+  req:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: susabiyu-remotion
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install Python deps
+        run: pip install google-api-python-client google-auth
+      - name: Write creds.json
+        run: echo "$GOOGLE_CREDS_B64" | base64 -d > creds.json
+        env:
+          GOOGLE_CREDS_B64: ${{ secrets.GOOGLE_CREDS_B64 }}
+      - name: 店舗情報(K〜AA)を全行ダンプ
+        run: python store_master.py reqdump "${{ github.event.inputs.sheet_id }}"
