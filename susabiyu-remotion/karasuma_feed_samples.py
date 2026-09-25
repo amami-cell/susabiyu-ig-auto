@@ -79,7 +79,7 @@ def main():
 
     # ロゴ取得（tatelogo/tateedge の時）：画像フォルダ配下の「ロゴ」の各画像を生成り透過PNG化し、
     # 縦長→KARASUMA_FEED_LOGO / 横長→KARASUMA_FEED_LOGO_H に振り分ける。
-    if os.environ.get("FEED_SET") in ("tatelogo", "tateedge"):
+    if os.environ.get("FEED_SET") in ("tatelogo", "tateedge", "all"):
         try:
             from PIL import Image
             def find_logo(fid, depth=0):
@@ -164,7 +164,7 @@ def main():
         print("\n=== 料理%d: %s | desc=%s ===" % (i + 1, name, desc))
         _set = os.environ.get("FEED_SET")
         design_set = {"tate": fd.TATE_VARIANTS, "tatelogo": fd.TATE_LOGO_VARIANTS,
-                      "tateedge": fd.TATE_EDGE_VARIANTS}.get(_set, fd.DESIGNS)
+                      "tateedge": fd.TATE_EDGE_VARIANTS, "all": fd.ALL_VARIANTS}.get(_set, fd.DESIGNS)
         for key, label, fn in design_set:
             outp = "out/feed_%s_%d.jpg" % (key, i)
             try:

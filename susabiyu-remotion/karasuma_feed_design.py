@@ -479,3 +479,17 @@ TATE_EDGE_VARIANTS = [
     ("logoJ", "①J 縦ロゴ右上大＋商品名を下に横書き", render_tate_j),
     ("edgeK", "①K 地名を右端に特大(四条烏丸)", render_tate_k),
 ]
+
+# 全構成を分かりやすく 01〜10 に通し番号（比較・選定用）。
+ALL_VARIANTS = [
+    ("v01", "01 縦書き軸装(屋号テキスト)", render_tate),
+    ("v02", "02 表紙風(上下金罫・中央屋号)", render_tate_b),
+    ("v03", "03 縦書き＋生成りの足元帯", render_tate_d),
+    ("v04", "04 額装風(四隅の金飾り)", render_tate_e),
+    ("v05", "05 ロゴ軸装＋京都・四条烏丸", render_tate_f),
+    ("v06", "06 ロゴ表紙＋四条烏丸｜完全個室", render_tate_g),
+    ("v07", "07 地名意匠(四条烏丸を金縦書き)", render_tate_h),
+    ("v08", "08 横ロゴ＋商品名を下に横書き", render_tate_i),
+    ("v09", "09 縦ロゴ右上大＋商品名を下に横書き", render_tate_j),
+    ("v10", "10 地名を右端に特大(四条烏丸)", render_tate_k),
+]
