@@ -29,8 +29,7 @@ CREAM = (240, 233, 216)    # 生成りの帯地
 CREAM_INK = (38, 30, 24)   # 帯上の文字（墨）
 
 # 烏丸(上品)は三条の大衆ロゴを使わず、既定は明朝の屋号テキスト。
-# ロゴ画像を使いたい時だけ環境変数 KARASUMA_FEED_LOGO にパスを渡す。
-_LOGO_CANDS = [p for p in [os.environ.get("KARASUMA_FEED_LOGO", "")] if p]
+# ロゴ画像を使いたい時だけ環境変数 KARASUMA_FEED_LOGO にパスを渡す（実行時に参照）。
 
 
 def _mincho(size):
@@ -42,7 +41,8 @@ def _gothic(size):
 
 
 def _logo_white(max_w):
-    for p in _LOGO_CANDS:
+    cands = [p for p in [os.environ.get("KARASUMA_FEED_LOGO", "")] if p]
+    for p in cands:
         if os.path.exists(p):
             try:
                 im = Image.open(p).convert("RGBA")
@@ -300,4 +300,81 @@ TATE_VARIANTS = [
     ("tateB", "①B 表紙風(上下金罫・中央屋号)", render_tate_b),
     ("tateD", "①D 縦書き＋生成り足元帯", render_tate_d),
     ("tateE", "①E 額装風(四隅の金飾り)", render_tate_e),
+]
+
+
+def _logo_at(base, x, y, max_w, center=False):
+    """ロゴ画像(KARASUMA_FEED_LOGO)を置く。無ければ明朝の屋号テキストにフォールバック。
+    戻り値=(下端y, 幅)。"""
+    lg = _logo_white(max_w)
+    if lg is None:
+        if center:
+            ImageDraw.Draw(base).text((x, y), "鮨処すさび湯", font=_mincho(50), fill=INK + (255,), anchor="ma")
+            return (y + 62, 300)
+        _shadow_text(base, (x, y), "鮨処すさび湯", _mincho(52), fill=INK)
+        return (y + 66, 300)
+    base.alpha_composite(lg, (x - lg.width // 2 if center else x, y))
+    return (y + lg.height, lg.width)
+
+
+# ①F ロゴ軸装：左上にロゴ＋金線＋「京都・四条烏丸」／右に縦書き名／左下に説明
+def render_tate_f(src, out, name, desc, sub="SUSHI", badge="四条烏丸｜完全個室", quality=92):
+    from gifuya_design import _draw_vertical
+    base = _prep(src, top_a=155, bot_a=190, right_a=118)
+    d = ImageDraw.Draw(base)
+    yb, _ = _logo_at(base, 60, 54, 340)
+    d.rectangle([62, yb + 12, 62 + 176, yb + 15], fill=ACCENT)
+    _shadow_text(base, (62, yb + 26), "京都・四条烏丸", _gothic(28), fill=ACCENT)
+    d.rectangle([W - 96, 264, W - 93, 264 + 356], fill=ACCENT)
+    _draw_vertical(base, name, right_x=W - 120, top_y=264, font=_vfont(name, 96), fill=INK)
+    d.rectangle([60, H - 300, 168, H - 297], fill=ACCENT)
+    df = _mincho(40); y = H - 268
+    for ln in _wrap(desc, df, W - 380):
+        _shadow_text(base, (60, y), ln, df, fill=(241, 231, 210)); y += 58
+    _shadow_text(base, (60, H - 90), "@susabiyu_kyoto", _gothic(26), fill=ACCENT)
+    base.convert("RGB").save(out, quality=quality)
+    return out
+
+
+# ①G ロゴ表紙：上中央にロゴ＋「四条烏丸｜完全個室」＋上下金罫／右に縦書き名／下中央にキャッチ
+def render_tate_g(src, out, name, desc, sub="SUSHI", badge="四条烏丸｜完全個室", quality=92):
+    from gifuya_design import _draw_vertical
+    base = _prep(src, top_a=180, bot_a=205, right_a=120)
+    d = ImageDraw.Draw(base)
+    yb, _ = _logo_at(base, W // 2, 48, 360, center=True)
+    d.text((W // 2, yb + 8), "四条烏丸｜完全個室", font=_gothic(26), fill=ACCENT + (255,), anchor="ma")
+    d.rectangle([90, yb + 56, W - 90, yb + 59], fill=ACCENT)
+    d.rectangle([90, H - 176, W - 90, H - 173], fill=ACCENT)
+    _draw_vertical(base, name, right_x=W - 96, top_y=max(238, yb + 92), font=_vfont(name, 100), fill=INK)
+    df = _mincho(38)
+    _shadow_text(base, (W // 2, H - 150), _wrap(desc, df, W - 300)[0], df, fill=(241, 231, 210), anchor="ma")
+    base.convert("RGB").save(out, quality=quality)
+    return out
+
+
+# ①H 地名意匠：左上ロゴ／右に縦書き名／左に「四条烏丸」を金の縦書きで意匠化／左下に説明
+def render_tate_h(src, out, name, desc, sub="SUSHI", badge="四条烏丸｜完全個室", quality=92):
+    from gifuya_design import _draw_vertical
+    base = _prep(src, top_a=155, bot_a=190, right_a=122)
+    d = ImageDraw.Draw(base)
+    _logo_at(base, 60, 54, 300)
+    _shadow_text(base, (62, 118), "SUSHI・KYOTO", _gothic(22), fill=ACCENT)
+    d.rectangle([W - 96, 250, W - 93, 250 + 344], fill=ACCENT)
+    _draw_vertical(base, name, right_x=W - 120, top_y=250, font=_vfont(name, 92), fill=INK)
+    # 左に地名を金の縦書きで（意匠）
+    d.rectangle([150, 262, 153, 262 + 176], fill=ACCENT)
+    _draw_vertical(base, "四条烏丸", right_x=150, top_y=270, font=_mincho(44), fill=ACCENT)
+    df = _mincho(38); y = H - 210
+    for ln in _wrap(desc, df, W - 430):
+        _shadow_text(base, (60, y), ln, df, fill=(241, 231, 210)); y += 54
+    _shadow_text(base, (60, H - 92), "@susabiyu_kyoto", _gothic(24), fill=ACCENT)
+    base.convert("RGB").save(out, quality=quality)
+    return out
+
+
+# 案①ロゴ入りファミリー（ロゴ使用＋地名を意匠に）
+TATE_LOGO_VARIANTS = [
+    ("logoF", "①F ロゴ軸装＋京都・四条烏丸", render_tate_f),
+    ("logoG", "①G ロゴ表紙＋四条烏丸｜完全個室", render_tate_g),
+    ("logoH", "①H 地名意匠(四条烏丸を金縦書き)", render_tate_h),
 ]
