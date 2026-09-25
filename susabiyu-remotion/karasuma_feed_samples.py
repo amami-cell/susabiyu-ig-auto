@@ -77,8 +77,9 @@ def main():
 
     os.makedirs("out", exist_ok=True)
 
-    # ロゴ取得（KARASUMA_FEED_LOGO 未設定かつ tatelogo セットの時）：画像フォルダ配下の「ロゴ」から1枚→生成り透過PNG化
-    if os.environ.get("FEED_SET") == "tatelogo" and not os.environ.get("KARASUMA_FEED_LOGO"):
+    # ロゴ取得（tatelogo/tateedge の時）：画像フォルダ配下の「ロゴ」の各画像を生成り透過PNG化し、
+    # 縦長→KARASUMA_FEED_LOGO / 横長→KARASUMA_FEED_LOGO_H に振り分ける。
+    if os.environ.get("FEED_SET") in ("tatelogo", "tateedge"):
         try:
             from PIL import Image
             def find_logo(fid, depth=0):
@@ -92,12 +93,10 @@ def main():
                             if sub:
                                 return sub
                 return None
-            lf = find_logo(LOGO_PARENT)
-            imgs_l = [x for x in (children(lf) if lf else []) if x["mimeType"].startswith("image/")]
-            if imgs_l:
-                pick = sorted(imgs_l, key=short, reverse=True)[0]
+
+            def process_logo(fid, outp):
                 raw = "out/_logo_raw"
-                req = drive.files().get_media(fileId=pick["id"])
+                req = drive.files().get_media(fileId=fid)
                 b = io.FileIO(raw, "wb"); dl = MediaIoBaseDownload(b, req); done = False
                 while not done:
                     _, done = dl.next_chunk()
@@ -119,17 +118,34 @@ def main():
                                 ls += (r * 299 + g * 587 + bl * 114) // 1000; lc += 1
                 avg = (ls / lc) if lc else 255
                 bbox = im.getbbox(); im = im.crop(bbox) if bbox else im
-                if avg < 150:  # 暗ロゴ→生成り単色に（暗背景で映える）
+                if avg < 150:
                     pk = im.load()
                     for y in range(im.size[1]):
                         for x in range(im.size[0]):
                             r, g, bl, a = pk[x, y]
                             if a > 0:
                                 pk[x, y] = (0xF3, 0xEA, 0xD8, a)
-                im.save("out/logo.png")
-                os.environ["KARASUMA_FEED_LOGO"] = os.path.abspath("out/logo.png")
-                print("[FEEDSAMPLE][LOGO] 採用:", pick.get("name"), "avg=%.0f" % avg, "->", os.environ["KARASUMA_FEED_LOGO"])
-            else:
+                im.save(outp)
+                return im.size
+
+            lf = find_logo(LOGO_PARENT)
+            imgs_l = [x for x in (children(lf) if lf else []) if x["mimeType"].startswith("image/")]
+            for i2, lg in enumerate(imgs_l):
+                outp = os.path.abspath("out/logo_%d.png" % i2)
+                w, h = process_logo(lg["id"], outp)
+                ratio = w / h if h else 1.0
+                kind = "横" if ratio >= 1.25 else "縦"
+                if ratio >= 1.25 and not os.environ.get("KARASUMA_FEED_LOGO_H"):
+                    os.environ["KARASUMA_FEED_LOGO_H"] = outp
+                if ratio < 1.25 and not os.environ.get("KARASUMA_FEED_LOGO"):
+                    os.environ["KARASUMA_FEED_LOGO"] = outp
+                print("[FEEDSAMPLE][LOGO] %s(%s) %dx%d ratio=%.2f -> %s" % (lg.get("name"), kind, w, h, ratio, outp))
+            # 片方しか無ければもう片方に流用
+            if not os.environ.get("KARASUMA_FEED_LOGO") and os.environ.get("KARASUMA_FEED_LOGO_H"):
+                os.environ["KARASUMA_FEED_LOGO"] = os.environ["KARASUMA_FEED_LOGO_H"]
+            if not os.environ.get("KARASUMA_FEED_LOGO_H") and os.environ.get("KARASUMA_FEED_LOGO"):
+                os.environ["KARASUMA_FEED_LOGO_H"] = os.environ["KARASUMA_FEED_LOGO"]
+            if not imgs_l:
                 print("[FEEDSAMPLE][LOGO] ロゴが見つからず＝明朝の屋号にフォールバック")
         except Exception as e:
             print("[FEEDSAMPLE][LOGO] スキップ:", repr(e))
@@ -147,7 +163,8 @@ def main():
         buf.close()
         print("\n=== 料理%d: %s | desc=%s ===" % (i + 1, name, desc))
         _set = os.environ.get("FEED_SET")
-        design_set = {"tate": fd.TATE_VARIANTS, "tatelogo": fd.TATE_LOGO_VARIANTS}.get(_set, fd.DESIGNS)
+        design_set = {"tate": fd.TATE_VARIANTS, "tatelogo": fd.TATE_LOGO_VARIANTS,
+                      "tateedge": fd.TATE_EDGE_VARIANTS}.get(_set, fd.DESIGNS)
         for key, label, fn in design_set:
             outp = "out/feed_%s_%d.jpg" % (key, i)
             try:
