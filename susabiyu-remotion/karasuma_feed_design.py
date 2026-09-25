@@ -40,15 +40,16 @@ def _gothic(size):
     return _font(_GOTHIC_PATH, size)
 
 
-def _logo_white(max_w):
+def _logo_white(max_w, max_h=130):
+    """ロゴを幅・高さ両方に収めて返す（縦長ワードマークが巨大化しないよう高さ基準も効かせる）。"""
     cands = [p for p in [os.environ.get("KARASUMA_FEED_LOGO", "")] if p]
     for p in cands:
         if os.path.exists(p):
             try:
                 im = Image.open(p).convert("RGBA")
-                if im.width > max_w:
-                    r = max_w / im.width
-                    im = im.resize((max_w, int(im.height * r)), Image.LANCZOS)
+                r = min(max_w / im.width, max_h / im.height, 1.0)
+                if r < 1.0:
+                    im = im.resize((max(1, int(im.width * r)), max(1, int(im.height * r))), Image.LANCZOS)
                 return im
             except Exception:
                 continue
@@ -357,8 +358,8 @@ def render_tate_h(src, out, name, desc, sub="SUSHI", badge="四条烏丸｜完�
     from gifuya_design import _draw_vertical
     base = _prep(src, top_a=155, bot_a=190, right_a=122)
     d = ImageDraw.Draw(base)
-    _logo_at(base, 60, 54, 300)
-    _shadow_text(base, (62, 118), "SUSHI・KYOTO", _gothic(22), fill=ACCENT)
+    yb, _ = _logo_at(base, 60, 54, 300)
+    _shadow_text(base, (62, yb + 10), "SUSHI・KYOTO", _gothic(22), fill=ACCENT)
     d.rectangle([W - 96, 250, W - 93, 250 + 344], fill=ACCENT)
     _draw_vertical(base, name, right_x=W - 120, top_y=250, font=_vfont(name, 92), fill=INK)
     # 左に地名を金の縦書きで（意匠）
