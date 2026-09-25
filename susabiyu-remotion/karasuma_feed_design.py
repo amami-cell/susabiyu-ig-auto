@@ -379,3 +379,101 @@ TATE_LOGO_VARIANTS = [
     ("logoG", "①G ロゴ表紙＋四条烏丸｜完全個室", render_tate_g),
     ("logoH", "①H 地名意匠(四条烏丸を金縦書き)", render_tate_h),
 ]
+
+
+def _logo_h(max_w, max_h):
+    """横向きロゴ(KARASUMA_FEED_LOGO_H)。無ければ縦ロゴにフォールバック。"""
+    for env in ("KARASUMA_FEED_LOGO_H", "KARASUMA_FEED_LOGO"):
+        p = os.environ.get(env, "")
+        if p and os.path.exists(p):
+            try:
+                im = Image.open(p).convert("RGBA")
+                r = min(max_w / im.width, max_h / im.height, 1.0)
+                if r < 1.0:
+                    im = im.resize((max(1, int(im.width * r)), max(1, int(im.height * r))), Image.LANCZOS)
+                return im
+            except Exception:
+                continue
+    return None
+
+
+def _hname(base, name, x, y, maxw, max_px=96, min_px=44, align="center", color=INK):
+    """料理名を横書きで（1行に収まるようフィット）。戻り値=使用フォントpx。"""
+    d = ImageDraw.Draw(base)
+    sz = max_px
+    while sz > min_px:
+        if d.textbbox((0, 0), name, font=_mincho(sz))[2] <= maxw:
+            break
+        sz -= 3
+    _shadow_text(base, (x, y), name, _mincho(sz), fill=color, anchor=("ma" if align == "center" else "la"))
+    return sz
+
+
+# ①I 横ロゴ：横向きロゴを上部中央に、料理名は下部に横書き（大明朝）
+def render_tate_i(src, out, name, desc, sub="SUSHI", badge="四条烏丸｜完全個室", quality=92):
+    base = _prep(src, top_a=180, bot_a=210, right_a=0)
+    d = ImageDraw.Draw(base)
+    lg = _logo_h(640, 150)
+    if lg is not None:
+        base.alpha_composite(lg, (W // 2 - lg.width // 2, 60)); yb = 60 + lg.height
+    else:
+        d.text((W // 2, 70), "鮨処すさび湯", font=_mincho(56), fill=INK + (255,), anchor="ma"); yb = 140
+    d.text((W // 2, yb + 12), badge, font=_gothic(26), fill=ACCENT + (255,), anchor="ma")
+    # 下部：金の短罫＋料理名（横・大）＋説明
+    d.rectangle([W // 2 - 60, H - 320, W // 2 + 60, H - 317], fill=ACCENT)
+    _hname(base, name, W // 2, H - 288, W - 200, max_px=100, align="center")
+    df = _mincho(38)
+    _shadow_text(base, (W // 2, H - 150), _wrap(desc, df, W - 240)[0], df, fill=(241, 231, 210), anchor="ma")
+    _shadow_text(base, (W // 2, H - 92), "@susabiyu_kyoto", _gothic(24), fill=ACCENT, anchor="ma")
+    base.convert("RGB").save(out, quality=quality)
+    return out
+
+
+# ①J 縦ロゴを右上に大きく＋料理名は下部に横書き
+def render_tate_j(src, out, name, desc, sub="SUSHI", badge="四条烏丸｜完全個室", quality=92):
+    base = _prep(src, top_a=165, bot_a=210, right_a=150)
+    d = ImageDraw.Draw(base)
+    lg = _logo_white(320, 430)
+    if lg is not None:
+        base.alpha_composite(lg, (W - 60 - lg.width, 56))
+    else:
+        _shadow_text(base, (W - 300, 60), "鮨処すさび湯", _mincho(50), fill=INK)
+    _shadow_text(base, (60, 62), "SUSHI・KYOTO", _gothic(26), fill=ACCENT)
+    _shadow_text(base, (60, 104), badge, _gothic(26), fill=INK)
+    # 下部：金の短罫＋料理名（横・大・左寄せ）＋説明＋handle
+    d.rectangle([64, H - 322, 172, H - 319], fill=ACCENT)
+    _hname(base, name, 64, H - 300, W - 128, max_px=104, align="left")
+    df = _mincho(38); y = H - 168
+    for ln in _wrap(desc, df, W - 128)[:1]:
+        _shadow_text(base, (64, y), ln, df, fill=(241, 231, 210))
+    _shadow_text(base, (64, H - 96), "@susabiyu_kyoto", _gothic(24), fill=ACCENT)
+    base.convert("RGB").save(out, quality=quality)
+    return out
+
+
+# ①K 地名を特大で右端に乗せる（四条烏丸の縦書き大）＋左上ロゴ小＋料理名は下横書き
+def render_tate_k(src, out, name, desc, sub="SUSHI", badge="四条烏丸｜完全個室", quality=92):
+    from gifuya_design import _draw_vertical
+    base = _prep(src, top_a=155, bot_a=205, right_a=170)
+    d = ImageDraw.Draw(base)
+    _logo_at(base, 60, 54, 260)
+    # 右端に「四条烏丸」を特大の縦書き（生成り＋金の縦罫）
+    big = _mincho(132)
+    _draw_vertical(base, "四条烏丸", right_x=W - 70, top_y=150, font=big, fill=INK)
+    d.rectangle([W - 150, 156, W - 147, 156 + 132 * 4], fill=ACCENT)
+    # 左下：金の短罫＋料理名（横）＋説明
+    d.rectangle([64, H - 300, 172, H - 297], fill=ACCENT)
+    _hname(base, name, 64, H - 278, W - 260, max_px=84, align="left")
+    df = _mincho(36)
+    _shadow_text(base, (64, H - 168), _wrap(desc, df, W - 300)[0], df, fill=(241, 231, 210))
+    _shadow_text(base, (64, H - 96), "@susabiyu_kyoto", _gothic(24), fill=ACCENT)
+    base.convert("RGB").save(out, quality=quality)
+    return out
+
+
+# 案①：ロゴ向き・地名エッジのバリエーション
+TATE_EDGE_VARIANTS = [
+    ("logoI", "①I 横ロゴ＋商品名を下に横書き", render_tate_i),
+    ("logoJ", "①J 縦ロゴ右上大＋商品名を下に横書き", render_tate_j),
+    ("edgeK", "①K 地名を右端に特大(四条烏丸)", render_tate_k),
+]
