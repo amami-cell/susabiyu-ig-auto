@@ -5,9 +5,13 @@ on:
   workflow_dispatch:
     inputs:
       n_dishes:
-        description: "サンプルに使う料理数（各料理×3案を焼く）"
+        description: "サンプルに使う料理数（各料理×各案を焼く）"
         required: false
         default: "2"
+      feed_set:
+        description: "デザインセット（空=3案 / tate=案①ファミリー）"
+        required: false
+        default: ""
 permissions:
   contents: read
 jobs:
@@ -33,6 +37,7 @@ jobs:
       - name: 3案サンプルを焼いてCDNへ
         env:
           N_DISHES: ${{ github.event.inputs.n_dishes }}
+          FEED_SET: ${{ github.event.inputs.feed_set }}
           GENRE_FOOD_ID: "1viSmFmc2W9fDrfUENffYwTDTf124ekW0"
           GH_MEDIA_TOKEN: ${{ secrets.GH_MEDIA_TOKEN }}
           GH_MEDIA_REPO: ${{ secrets.GH_MEDIA_REPO }}
