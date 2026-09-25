@@ -87,7 +87,8 @@ def main():
             _, done = dl.next_chunk()
         buf.close()
         print("\n=== 料理%d: %s | desc=%s ===" % (i + 1, name, desc))
-        for key, label, fn in fd.DESIGNS:
+        design_set = fd.TATE_VARIANTS if os.environ.get("FEED_SET") == "tate" else fd.DESIGNS
+        for key, label, fn in design_set:
             outp = "out/feed_%s_%d.jpg" % (key, i)
             try:
                 fn(local, outp, name, desc)

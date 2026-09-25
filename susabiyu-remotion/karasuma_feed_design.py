@@ -214,3 +214,90 @@ def render_maru(src, out, name, desc, sub="SUSHI", badge="四条烏丸｜完全�
 DESIGNS = [("tate", "案① 縦書き大明朝(軸装風)", render_tate),
            ("obi", "案② 生成りの帯(献立)", render_obi),
            ("maru", "案③ 円窓(まる窓)", render_maru)]
+
+
+# ── 案①（縦書き大明朝）ベースの構成バリエーション ─────────────────
+def _prep(src, top_a=140, bot_a=180, right_a=110):
+    base = _cover(Image.open(src), W, H).convert("RGBA")
+    base = _grad_top_bottom(base, top=320, top_a=top_a, bot=520, bot_a=bot_a)
+    if right_a:
+        ov = Image.new("L", (W, H), 0); d = ImageDraw.Draw(ov)
+        for x in range(W - 380, W):
+            d.line([(x, 0), (x, H)], fill=int(right_a * ((x - (W - 380)) / 380)))
+        ov = ov.filter(ImageFilter.GaussianBlur(24))
+        base = Image.composite(Image.new("RGB", (W, H), (8, 6, 4)), base, ov).convert("RGBA")
+    return base
+
+
+def _vfont(name, big=96):
+    return _mincho(big if len(name) <= 7 else (int(big * 0.81) if len(name) <= 10 else int(big * 0.65)))
+
+
+# ①B：表紙風（上中央の屋号＋上下の金横罫＋右の縦書き大＋下中央にキャッチ1行）
+def render_tate_b(src, out, name, desc, sub="SUSHI", badge="四条烏丸｜完全個室", quality=92):
+    from gifuya_design import _draw_vertical
+    base = _prep(src, top_a=175, bot_a=205, right_a=120)
+    d = ImageDraw.Draw(base)
+    d.text((W // 2, 58), "鮨処すさび湯", font=_mincho(50), fill=INK + (255,), anchor="ma")
+    d.text((W // 2, 122), "SUSHI・KYOTO", font=_gothic(24), fill=ACCENT + (255,), anchor="ma")
+    d.rectangle([90, 170, W - 90, 173], fill=ACCENT)
+    d.rectangle([90, H - 176, W - 90, H - 173], fill=ACCENT)
+    _draw_vertical(base, name, right_x=W - 96, top_y=214, font=_vfont(name, 104), fill=INK)
+    df = _mincho(38)
+    _shadow_text(base, (W // 2, H - 150), _wrap(desc, df, W - 300)[0], df, fill=(241, 231, 210), anchor="ma")
+    _shadow_text(base, (92, 60), badge, _gothic(24), fill=SUB)
+    base.convert("RGB").save(out, quality=quality)
+    return out
+
+
+# ①D：右の縦書き＋足元に生成りの細帯（説明を墨文字で最も読みやすく）
+def render_tate_d(src, out, name, desc, sub="SUSHI", badge="四条烏丸｜完全個室", quality=92):
+    from gifuya_design import _draw_vertical
+    band = 156
+    base = _prep(src, top_a=140, bot_a=40, right_a=120)
+    d = ImageDraw.Draw(base)
+    _place_logo_or_text(base, 60, 54, 300)
+    _shadow_text(base, (62, 120), "SUSHI・KYOTO", _gothic(22), fill=ACCENT)
+    bf = _gothic(24); bb = d.textbbox((0, 0), badge, font=bf)
+    _shadow_text(base, (W - 60 - (bb[2] - bb[0]), 62), badge, bf, fill=INK)
+    d.rectangle([W - 96, 214, W - 93, 214 + 330], fill=ACCENT)
+    _draw_vertical(base, name, right_x=W - 120, top_y=214, font=_vfont(name, 92), fill=INK)
+    by = H - band
+    d.rectangle([0, by, W, H], fill=CREAM + (255,))
+    d.rectangle([0, by, W, by + 4], fill=ACCENT)
+    df = _mincho(36)
+    d.text((64, by + 34), _wrap(desc, df, W - 128)[0], font=df, fill=CREAM_INK + (255,))
+    d.text((64, by + 92), "鮨処すさび湯　@susabiyu_kyoto", font=_gothic(24), fill=CREAM_INK + (255,))
+    base.convert("RGB").save(out, quality=quality)
+    return out
+
+
+# ①E：額装風（四隅の金L字＋上中央の屋号＋右の縦書き＋左下に金二本罫＋説明）
+def render_tate_e(src, out, name, desc, sub="SUSHI", badge="四条烏丸｜完全個室", quality=92):
+    from gifuya_design import _draw_vertical
+    base = _prep(src, top_a=155, bot_a=195, right_a=110)
+    d = ImageDraw.Draw(base)
+    m, L, t = 46, 74, 6
+    for x, y, dx, dy in [(m, m, 1, 1), (W - m, m, -1, 1), (m, H - m, 1, -1), (W - m, H - m, -1, -1)]:
+        d.line([(x, y), (x + dx * L, y)], fill=ACCENT, width=t)
+        d.line([(x, y), (x, y + dy * L)], fill=ACCENT, width=t)
+    d.text((W // 2, 66), "鮨処すさび湯", font=_mincho(46), fill=INK + (255,), anchor="ma")
+    d.text((W // 2, 124), "SUSHI・KYOTO", font=_gothic(22), fill=ACCENT + (255,), anchor="ma")
+    _draw_vertical(base, name, right_x=W - 104, top_y=210, font=_vfont(name, 92), fill=INK)
+    d.rectangle([84, H - 250, 192, H - 247], fill=ACCENT)
+    d.rectangle([84, H - 236, 192, H - 233], fill=ACCENT)
+    df = _mincho(38)
+    y = H - 206
+    for ln in _wrap(desc, df, W - 360):
+        _shadow_text(base, (84, y), ln, df, fill=(241, 231, 210)); y += 56
+    base.convert("RGB").save(out, quality=quality)
+    return out
+
+
+# 案①ファミリー（ベース＋構成違い）
+TATE_VARIANTS = [
+    ("tateA", "①A 軸装(ベース)", render_tate),
+    ("tateB", "①B 表紙風(上下金罫・中央屋号)", render_tate_b),
+    ("tateD", "①D 縦書き＋生成り足元帯", render_tate_d),
+    ("tateE", "①E 額装風(四隅の金飾り)", render_tate_e),
+]
