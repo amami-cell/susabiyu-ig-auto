@@ -304,10 +304,10 @@ TATE_VARIANTS = [
 ]
 
 
-def _logo_at(base, x, y, max_w, center=False):
+def _logo_at(base, x, y, max_w, center=False, max_h=130):
     """ロゴ画像(KARASUMA_FEED_LOGO)を置く。無ければ明朝の屋号テキストにフォールバック。
     戻り値=(下端y, 幅)。"""
-    lg = _logo_white(max_w)
+    lg = _logo_white(max_w, max_h)
     if lg is None:
         if center:
             ImageDraw.Draw(base).text((x, y), "鮨処すさび湯", font=_mincho(50), fill=INK + (255,), anchor="ma")
@@ -413,9 +413,9 @@ def _hname(base, name, x, y, maxw, max_px=96, min_px=44, align="center", color=I
 def render_tate_i(src, out, name, desc, sub="SUSHI", badge="四条烏丸｜完全個室", quality=92):
     base = _prep(src, top_a=180, bot_a=210, right_a=0)
     d = ImageDraw.Draw(base)
-    lg = _logo_h(640, 150)
+    lg = _logo_h(760, 200)
     if lg is not None:
-        base.alpha_composite(lg, (W // 2 - lg.width // 2, 60)); yb = 60 + lg.height
+        base.alpha_composite(lg, (W // 2 - lg.width // 2, 64)); yb = 64 + lg.height
     else:
         d.text((W // 2, 70), "鮨処すさび湯", font=_mincho(56), fill=INK + (255,), anchor="ma"); yb = 140
     d.text((W // 2, yb + 12), badge, font=_gothic(26), fill=ACCENT + (255,), anchor="ma")
@@ -433,9 +433,9 @@ def render_tate_i(src, out, name, desc, sub="SUSHI", badge="四条烏丸｜完�
 def render_tate_j(src, out, name, desc, sub="SUSHI", badge="四条烏丸｜完全個室", quality=92):
     base = _prep(src, top_a=165, bot_a=210, right_a=150)
     d = ImageDraw.Draw(base)
-    lg = _logo_white(320, 430)
+    lg = _logo_white(380, 500)
     if lg is not None:
-        base.alpha_composite(lg, (W - 60 - lg.width, 56))
+        base.alpha_composite(lg, (W - 56 - lg.width, 52))
     else:
         _shadow_text(base, (W - 300, 60), "鮨処すさび湯", _mincho(50), fill=INK)
     _shadow_text(base, (60, 62), "SUSHI・KYOTO", _gothic(26), fill=ACCENT)
@@ -454,13 +454,15 @@ def render_tate_j(src, out, name, desc, sub="SUSHI", badge="四条烏丸｜完�
 # ①K 地名を特大で右端に乗せる（四条烏丸の縦書き大）＋左上ロゴ小＋料理名は下横書き
 def render_tate_k(src, out, name, desc, sub="SUSHI", badge="四条烏丸｜完全個室", quality=92):
     from gifuya_design import _draw_vertical
-    base = _prep(src, top_a=155, bot_a=205, right_a=170)
+    base = _prep(src, top_a=155, bot_a=205, right_a=175)
     d = ImageDraw.Draw(base)
-    _logo_at(base, 60, 54, 260)
-    # 右端に「四条烏丸」を特大の縦書き（生成り＋金の縦罫）
-    big = _mincho(132)
-    _draw_vertical(base, "四条烏丸", right_x=W - 70, top_y=150, font=big, fill=INK)
-    d.rectangle([W - 150, 156, W - 147, 156 + 132 * 4], fill=ACCENT)
+    _logo_at(base, 60, 50, 360, max_h=175)
+    # 右端に「四条烏丸」を特大の縦書き（生成り）。金の縦罫は“文字列の左”に間隔をあけて置く（重ならない）。
+    big = _mincho(120)
+    col_right = W - 70
+    _draw_vertical(base, "四条烏丸", right_x=col_right, top_y=150, font=big, fill=INK)
+    rule_x = col_right - big.size - 30          # 文字列(左端=col_right-size)よりさらに左
+    d.rectangle([rule_x, 156, rule_x + 3, 156 + int(big.size * 1.15) * 4], fill=ACCENT)
     # 左下：金の短罫＋料理名（横）＋説明
     d.rectangle([64, H - 300, 172, H - 297], fill=ACCENT)
     _hname(base, name, 64, H - 278, W - 260, max_px=84, align="left")
