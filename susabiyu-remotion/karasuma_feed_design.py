@@ -41,13 +41,17 @@ def _gothic(size):
     return _font(_GOTHIC_PATH, size)
 
 
-# 筆書体（毛筆・楷書）＝Google Fonts「Yuji Syuku」。地名の意匠用。実行時に一度だけ取得して使う。
-# 取得できない時は明朝にフォールバック（＝描画は止めない）。
-# 屋号ロゴの筆致に寄せて行書体の毛筆（Yuji Mai）を既定に。KARASUMA_BRUSH_FONT で上書き可。
-_BRUSH_URL = os.environ.get(
-    "KARASUMA_BRUSH_URL",
-    "https://github.com/google/fonts/raw/main/ofl/yujimai/YujiMai-Regular.ttf")
-_BRUSH_CACHE = os.path.join(HERE, "_brush_YujiMai.ttf")
+# 地名の意匠に使う毛筆フォント。屋号ロゴの筆致に寄せて「Yuji Mai（行書）」を既定に。
+# 実行時に一度だけ取得してキャッシュ。取得できない時は明朝にフォールバック（＝描画は止めない）。
+# KARASUMA_BRUSH_FONT（ローカルパス）/ KARASUMA_BRUSH_URLS（カンマ区切りURL）で上書き可。
+_BRUSH_FAMILY = os.environ.get("KARASUMA_BRUSH_FAMILY", "yujimai")   # yujimai / yujiboku / yujisyuku
+_BRUSH_FILE = {"yujimai": "YujiMai-Regular.ttf", "yujiboku": "YujiBoku-Regular.ttf",
+               "yujisyuku": "YujiSyuku-Regular.ttf"}.get(_BRUSH_FAMILY, "YujiMai-Regular.ttf")
+_BRUSH_URLS = [u for u in os.environ.get("KARASUMA_BRUSH_URLS", "").split(",") if u.strip()] or [
+    "https://raw.githubusercontent.com/google/fonts/main/ofl/%s/%s" % (_BRUSH_FAMILY, _BRUSH_FILE),
+    "https://cdn.jsdelivr.net/gh/google/fonts@main/ofl/%s/%s" % (_BRUSH_FAMILY, _BRUSH_FILE),
+]
+_BRUSH_CACHE = os.path.join(HERE, "_brush_%s.ttf" % _BRUSH_FAMILY)
 _BRUSH_PATH = None
 
 
@@ -58,16 +62,28 @@ def _brush_path():
     p = os.environ.get("KARASUMA_BRUSH_FONT", "")
     if p and os.path.exists(p):
         _BRUSH_PATH = p
+        print("[KARASUMA][BRUSH] ローカル指定を使用:", p)
         return _BRUSH_PATH
-    try:
-        if not (os.path.exists(_BRUSH_CACHE) and os.path.getsize(_BRUSH_CACHE) > 10000):
-            req = urllib.request.Request(_BRUSH_URL, headers={"User-Agent": "Mozilla/5.0"})
-            with urllib.request.urlopen(req, timeout=30) as r, open(_BRUSH_CACHE, "wb") as f:
-                f.write(r.read())
-        _BRUSH_PATH = _BRUSH_CACHE if os.path.getsize(_BRUSH_CACHE) > 10000 else ""
-    except Exception as e:
-        print("[KARASUMA][BRUSH] 取得失敗→明朝にフォールバック:", repr(e))
-        _BRUSH_PATH = ""
+    if os.path.exists(_BRUSH_CACHE) and os.path.getsize(_BRUSH_CACHE) > 50000:
+        _BRUSH_PATH = _BRUSH_CACHE
+        print("[KARASUMA][BRUSH] キャッシュ使用:", _BRUSH_CACHE, os.path.getsize(_BRUSH_CACHE), "B")
+        return _BRUSH_PATH
+    for u in _BRUSH_URLS:
+        try:
+            req = urllib.request.Request(u.strip(), headers={"User-Agent": "Mozilla/5.0"})
+            with urllib.request.urlopen(req, timeout=40) as r:
+                data = r.read()
+            if len(data) > 50000 and data[:4] in (b"\x00\x01\x00\x00", b"OTTO", b"true", b"ttcf"):
+                with open(_BRUSH_CACHE, "wb") as f:
+                    f.write(data)
+                _BRUSH_PATH = _BRUSH_CACHE
+                print("[KARASUMA][BRUSH] 取得OK:", u, len(data), "B ->", _BRUSH_CACHE)
+                return _BRUSH_PATH
+            print("[KARASUMA][BRUSH] 不正データ(%dB) skip: %s" % (len(data), u))
+        except Exception as e:
+            print("[KARASUMA][BRUSH] 取得失敗 skip: %s %r" % (u, e))
+    print("[KARASUMA][BRUSH] 全URL失敗→明朝にフォールバック")
+    _BRUSH_PATH = ""
     return _BRUSH_PATH
 
 
