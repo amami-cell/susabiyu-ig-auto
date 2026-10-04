@@ -43,8 +43,11 @@ def _gothic(size):
 
 # 筆書体（毛筆・楷書）＝Google Fonts「Yuji Syuku」。地名の意匠用。実行時に一度だけ取得して使う。
 # 取得できない時は明朝にフォールバック（＝描画は止めない）。
-_BRUSH_URL = "https://github.com/google/fonts/raw/main/ofl/yujisyuku/YujiSyuku-Regular.ttf"
-_BRUSH_CACHE = os.path.join(HERE, "_brush_YujiSyuku.ttf")
+# 屋号ロゴの筆致に寄せて行書体の毛筆（Yuji Mai）を既定に。KARASUMA_BRUSH_FONT で上書き可。
+_BRUSH_URL = os.environ.get(
+    "KARASUMA_BRUSH_URL",
+    "https://github.com/google/fonts/raw/main/ofl/yujimai/YujiMai-Regular.ttf")
+_BRUSH_CACHE = os.path.join(HERE, "_brush_YujiMai.ttf")
 _BRUSH_PATH = None
 
 
