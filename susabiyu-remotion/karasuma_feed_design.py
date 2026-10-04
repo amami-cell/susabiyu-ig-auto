@@ -439,8 +439,9 @@ def render_tate_j(src, out, name, desc, sub="SUSHI", badge="四条烏丸｜完�
         base.alpha_composite(lg, (W - 48 - lg.width, 48))
     else:
         _shadow_text(base, (W - 360, 56), "鮨処すさび湯", _mincho(72), fill=INK)
-    _shadow_text(base, (60, 62), "SUSHI・KYOTO", _gothic(26), fill=ACCENT)
-    _shadow_text(base, (60, 104), badge, _gothic(26), fill=INK)
+    _shadow_text(base, (60, 58), "SUSHI・KYOTO", _gothic(24), fill=ACCENT)
+    # 地名を大きく（「完全個室」は入れない）
+    _shadow_text(base, (60, 96), "四条烏丸", _mincho(84), fill=INK)
     # 下部：金の短罫＋料理名（横・大・左寄せ）＋説明＋handle
     d.rectangle([64, H - 322, 172, H - 319], fill=ACCENT)
     _hname(base, name, 64, H - 300, W - 128, max_px=104, align="left")
@@ -457,7 +458,7 @@ def render_tate_k(src, out, name, desc, sub="SUSHI", badge="四条烏丸｜完�
     from gifuya_design import _draw_vertical
     base = _prep(src, top_a=155, bot_a=205, right_a=175)
     d = ImageDraw.Draw(base)
-    _logo_at(base, 60, 50, 460, max_h=230)
+    _logo_at(base, 60, 48, 620, max_h=330)
     # 右端に「四条烏丸」を特大の縦書き（生成り）。金の縦罫は“文字列の左”に間隔をあけて置く（重ならない）。
     big = _mincho(150)
     col_right = W - 60
