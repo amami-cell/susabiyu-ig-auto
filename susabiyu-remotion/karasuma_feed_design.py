@@ -91,9 +91,16 @@ def _brush(size):
     p = _brush_path()
     if p:
         try:
-            return _font(p, size)
-        except Exception:
-            pass
+            f = _font(p, size)
+            if not getattr(_brush, "_logged", False):
+                try:
+                    print("[KARASUMA][BRUSH] 使用フォント:", f.getname(), "from", p)
+                except Exception:
+                    pass
+                _brush._logged = True
+            return f
+        except Exception as e:
+            print("[KARASUMA][BRUSH] _font失敗→明朝フォールバック:", repr(e), "path=", p)
     return _mincho(size)
 
 
