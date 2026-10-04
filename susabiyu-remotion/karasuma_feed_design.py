@@ -12,6 +12,7 @@
   render_obi("in.jpg", "out.jpg", "まぐろ中とろ", "とろける脂と赤身の甘み、中とろ。", sub="SUSHI")
 """
 import os
+import urllib.request
 from PIL import Image, ImageDraw, ImageFilter, ImageFont
 
 from gifuya_design import _cover, _font, _SERIF_PATH, _GOTHIC_PATH
@@ -38,6 +39,43 @@ def _mincho(size):
 
 def _gothic(size):
     return _font(_GOTHIC_PATH, size)
+
+
+# 筆書体（毛筆・楷書）＝Google Fonts「Yuji Syuku」。地名の意匠用。実行時に一度だけ取得して使う。
+# 取得できない時は明朝にフォールバック（＝描画は止めない）。
+_BRUSH_URL = "https://github.com/google/fonts/raw/main/ofl/yujisyuku/YujiSyuku-Regular.ttf"
+_BRUSH_CACHE = os.path.join(HERE, "_brush_YujiSyuku.ttf")
+_BRUSH_PATH = None
+
+
+def _brush_path():
+    global _BRUSH_PATH
+    if _BRUSH_PATH is not None:
+        return _BRUSH_PATH
+    p = os.environ.get("KARASUMA_BRUSH_FONT", "")
+    if p and os.path.exists(p):
+        _BRUSH_PATH = p
+        return _BRUSH_PATH
+    try:
+        if not (os.path.exists(_BRUSH_CACHE) and os.path.getsize(_BRUSH_CACHE) > 10000):
+            req = urllib.request.Request(_BRUSH_URL, headers={"User-Agent": "Mozilla/5.0"})
+            with urllib.request.urlopen(req, timeout=30) as r, open(_BRUSH_CACHE, "wb") as f:
+                f.write(r.read())
+        _BRUSH_PATH = _BRUSH_CACHE if os.path.getsize(_BRUSH_CACHE) > 10000 else ""
+    except Exception as e:
+        print("[KARASUMA][BRUSH] 取得失敗→明朝にフォールバック:", repr(e))
+        _BRUSH_PATH = ""
+    return _BRUSH_PATH
+
+
+def _brush(size):
+    p = _brush_path()
+    if p:
+        try:
+            return _font(p, size)
+        except Exception:
+            pass
+    return _mincho(size)
 
 
 def _logo_white(max_w, max_h=190):
@@ -440,8 +478,11 @@ def render_tate_j(src, out, name, desc, sub="SUSHI", badge="四条烏丸｜完�
     else:
         _shadow_text(base, (W - 360, 56), "鮨処すさび湯", _mincho(72), fill=INK)
     _shadow_text(base, (60, 58), "SUSHI・KYOTO", _gothic(24), fill=ACCENT)
-    # 地名を大きく（「完全個室」は入れない）
-    _shadow_text(base, (60, 96), "四条烏丸", _mincho(84), fill=INK)
+    # 地名を大きく・筆書体（「完全個室」は入れない）＋真下に金ライン
+    gf = _brush(88)
+    _shadow_text(base, (60, 94), "四条烏丸", gf, fill=INK)
+    gbb = d.textbbox((60, 94), "四条烏丸", font=gf)
+    d.rectangle([60, gbb[3] + 12, gbb[2], gbb[3] + 17], fill=ACCENT)
     # 下部：金の短罫＋料理名（横・大・左寄せ）＋説明＋handle
     d.rectangle([64, H - 322, 172, H - 319], fill=ACCENT)
     _hname(base, name, 64, H - 300, W - 128, max_px=104, align="left")
@@ -460,7 +501,7 @@ def render_tate_k(src, out, name, desc, sub="SUSHI", badge="四条烏丸｜完�
     d = ImageDraw.Draw(base)
     _logo_at(base, 60, 48, 620, max_h=330)
     # 右端に「四条烏丸」を特大の縦書き（生成り）。金の縦罫は“文字列の左”に間隔をあけて置く（重ならない）。
-    big = _mincho(150)
+    big = _brush(150)
     col_right = W - 60
     _draw_vertical(base, "四条烏丸", right_x=col_right, top_y=150, font=big, fill=INK)
     rule_x = col_right - big.size - 30          # 文字列(左端=col_right-size)よりさらに左
