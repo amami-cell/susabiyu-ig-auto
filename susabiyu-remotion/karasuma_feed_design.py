@@ -512,7 +512,7 @@ def render_tate_j(src, out, name, desc, sub="SUSHI", badge="四条烏丸｜完�
     _shadow_text(base, (60, 58), "SUSHI・KYOTO", _gothic(24), fill=ACCENT)
     # 地名を大きく・筆書体（「完全個室」は入れない）＋真下に金ライン
     gf = _brush(88)
-    _shadow_text(base, (60, 94), "四条烏丸", gf, fill=INK)
+    _shadow_text(base, (60, 94), "四条烏丸", gf, fill=(255,0,0))
     gbb = d.textbbox((60, 94), "四条烏丸", font=gf)
     d.rectangle([60, gbb[3] + 12, gbb[2], gbb[3] + 17], fill=ACCENT)
     # 下部：金の短罫＋料理名（横・大・左寄せ）＋説明＋handle
@@ -535,7 +535,7 @@ def render_tate_k(src, out, name, desc, sub="SUSHI", badge="四条烏丸｜完�
     # 右端に「四条烏丸」を特大の縦書き（生成り）。金の縦罫は“文字列の左”に間隔をあけて置く（重ならない）。
     big = _brush(150)
     col_right = W - 60
-    _draw_vertical(base, "四条烏丸", right_x=col_right, top_y=150, font=big, fill=INK)
+    _draw_vertical(base, "四条烏丸", right_x=col_right, top_y=150, font=big, fill=(255,0,0))
     rule_x = col_right - big.size - 30          # 文字列(左端=col_right-size)よりさらに左
     d.rectangle([rule_x, 156, rule_x + 3, 156 + int(big.size * 1.15) * 4], fill=ACCENT)
     # 左下：金の短罫＋料理名（横）＋説明
