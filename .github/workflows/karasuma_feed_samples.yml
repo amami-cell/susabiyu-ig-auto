@@ -12,6 +12,10 @@ on:
         description: "デザインセット（空=3案 / tate=案①ファミリー）"
         required: false
         default: ""
+      brush_family:
+        description: "地名の毛筆書体（yujimai=行書 / yujiboku=行草 / yujisyuku=楷書）"
+        required: false
+        default: "yujimai"
 permissions:
   contents: read
 jobs:
@@ -38,6 +42,7 @@ jobs:
         env:
           N_DISHES: ${{ github.event.inputs.n_dishes }}
           FEED_SET: ${{ github.event.inputs.feed_set }}
+          KARASUMA_BRUSH_FAMILY: ${{ github.event.inputs.brush_family }}
           GENRE_FOOD_ID: "1viSmFmc2W9fDrfUENffYwTDTf124ekW0"
           GH_MEDIA_TOKEN: ${{ secrets.GH_MEDIA_TOKEN }}
           GH_MEDIA_REPO: ${{ secrets.GH_MEDIA_REPO }}

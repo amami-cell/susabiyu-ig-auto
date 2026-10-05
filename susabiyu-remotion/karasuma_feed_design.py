@@ -95,14 +95,8 @@ def _brush(size):
             if not getattr(_brush, "_logged", False):
                 try:
                     print("[KARASUMA][BRUSH] 使用フォント:", f.getname(), "from", p)
-                    import hashlib as _h
-                    for _nm, _ff in (("brush", f), ("mincho", _mincho(size))):
-                        _im = Image.new("L", (520, 160), 0)
-                        ImageDraw.Draw(_im).text((6, 6), "四条烏丸", font=_ff, fill=255)
-                        print("[KARASUMA][BRUSHCHK]", _nm, "ink", sum(_im.getdata()),
-                              "md5", _h.md5(_im.tobytes()).hexdigest()[:10])
-                except Exception as _e:
-                    print("[KARASUMA][BRUSHCHK] err", repr(_e))
+                except Exception:
+                    pass
                 _brush._logged = True
             return f
         except Exception as e:
@@ -511,7 +505,7 @@ def render_tate_j(src, out, name, desc, sub="SUSHI", badge="四条烏丸｜完�
         _shadow_text(base, (W - 360, 56), "鮨処すさび湯", _mincho(72), fill=INK)
     _shadow_text(base, (60, 58), "SUSHI・KYOTO", _gothic(24), fill=ACCENT)
     # 地名を大きく・筆書体（「完全個室」は入れない）＋真下に金ライン
-    gf = _mincho(88)  # DEBUG force mincho
+    gf = _brush(88)
     _shadow_text(base, (60, 94), "四条烏丸", gf, fill=INK)
     gbb = d.textbbox((60, 94), "四条烏丸", font=gf)
     d.rectangle([60, gbb[3] + 12, gbb[2], gbb[3] + 17], fill=ACCENT)
@@ -533,7 +527,7 @@ def render_tate_k(src, out, name, desc, sub="SUSHI", badge="四条烏丸｜完�
     d = ImageDraw.Draw(base)
     _logo_at(base, 60, 48, 620, max_h=330)
     # 右端に「四条烏丸」を特大の縦書き（生成り）。金の縦罫は“文字列の左”に間隔をあけて置く（重ならない）。
-    big = _mincho(150)  # DEBUG force mincho
+    big = _brush(150)
     col_right = W - 60
     _draw_vertical(base, "四条烏丸", right_x=col_right, top_y=150, font=big, fill=INK)
     rule_x = col_right - big.size - 30          # 文字列(左端=col_right-size)よりさらに左
