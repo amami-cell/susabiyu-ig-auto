@@ -95,8 +95,14 @@ def _brush(size):
             if not getattr(_brush, "_logged", False):
                 try:
                     print("[KARASUMA][BRUSH] 使用フォント:", f.getname(), "from", p)
-                except Exception:
-                    pass
+                    import hashlib as _h
+                    for _nm, _ff in (("brush", f), ("mincho", _mincho(size))):
+                        _im = Image.new("L", (520, 160), 0)
+                        ImageDraw.Draw(_im).text((6, 6), "四条烏丸", font=_ff, fill=255)
+                        print("[KARASUMA][BRUSHCHK]", _nm, "ink", sum(_im.getdata()),
+                              "md5", _h.md5(_im.tobytes()).hexdigest()[:10])
+                except Exception as _e:
+                    print("[KARASUMA][BRUSHCHK] err", repr(_e))
                 _brush._logged = True
             return f
         except Exception as e:
