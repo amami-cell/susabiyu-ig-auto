@@ -1,0 +1,59 @@
+{
+ "items": [
+  {
+   "design": "feed_001_j.jpg",
+   "name": "ちくわ磯部天",
+   "title": "ちくわ磯部天",
+   "cap": "磯の香りふわり、ちくわの磯辺揚げ。",
+   "tags": "",
+   "reco": false,
+   "variant": "09"
+  },
+  {
+   "design": "feed_001_k.jpg",
+   "name": "ちくわ磯部天",
+   "title": "ちくわ磯部天",
+   "cap": "磯の香りふわり、ちくわの磯辺揚げ。",
+   "tags": "",
+   "reco": false,
+   "variant": "10"
+  },
+  {
+   "design": "feed_002_j.jpg",
+   "name": "天ぷら盛り合わせ5種",
+   "title": "天ぷら盛り合わせ5種",
+   "cap": "彩り5種の天ぷらを、贅沢に。",
+   "tags": "",
+   "reco": false,
+   "variant": "09"
+  },
+  {
+   "design": "feed_002_k.jpg",
+   "name": "天ぷら盛り合わせ5種",
+   "title": "天ぷら盛り合わせ5種",
+   "cap": "彩り5種の天ぷらを、贅沢に。",
+   "tags": "",
+   "reco": false,
+   "variant": "10"
+  },
+  {
+   "design": "feed_003_j.jpg",
+   "name": "天ぷら盛り合わせ3種",
+   "title": "天ぷら盛り合わせ3種",
+   "cap": "揚げたて3種を、さくっと食べ比べ。",
+   "tags": "",
+   "reco": false,
+   "variant": "09"
+  },
+  {
+   "design": "feed_003_k.jpg",
+   "name": "天ぷら盛り合わせ3種",
+   "title": "天ぷら盛り合わせ3種",
+   "cap": "揚げたて3種を、さくっと食べ比べ。",
+   "tags": "",
+   "reco": false,
+   "variant": "10"
+  }
+ ],
+ "count": 6
+}
