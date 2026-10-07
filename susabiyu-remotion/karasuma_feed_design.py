@@ -41,16 +41,25 @@ def _gothic(size):
     return _font(_GOTHIC_PATH, size)
 
 
-# 地名の意匠に使う毛筆フォント。屋号ロゴの筆致に寄せて「Yuji Mai（行書）」を既定に。
+# 地名の意匠に使う毛筆フォント。屋号ロゴの筆致に寄せて「青柳衡山毛筆（kouzan）」を既定に。
+# Yuji系（行書/行草/楷書）は「四条烏丸」の漢字グリフが全て同一＝切替えても見た目が変わらないため、
+# 本物の筆致に寄せるには別ファミリーが必要。青柳衡山毛筆は apt (fonts-aoyagi-kouzan-t) で導入する。
 # 実行時に一度だけ取得してキャッシュ。取得できない時は明朝にフォールバック（＝描画は止めない）。
 # KARASUMA_BRUSH_FONT（ローカルパス）/ KARASUMA_BRUSH_URLS（カンマ区切りURL）で上書き可。
-_BRUSH_FAMILY = os.environ.get("KARASUMA_BRUSH_FAMILY", "yujimai")   # yujimai / yujiboku / yujisyuku
+_BRUSH_FAMILY = os.environ.get("KARASUMA_BRUSH_FAMILY", "kouzan")   # kouzan / yujimai / yujiboku / yujisyuku
 _BRUSH_FILE = {"yujimai": "YujiMai-Regular.ttf", "yujiboku": "YujiBoku-Regular.ttf",
                "yujisyuku": "YujiSyuku-Regular.ttf"}.get(_BRUSH_FAMILY, "YujiMai-Regular.ttf")
-_BRUSH_URLS = [u for u in os.environ.get("KARASUMA_BRUSH_URLS", "").split(",") if u.strip()] or [
-    "https://raw.githubusercontent.com/google/fonts/main/ofl/%s/%s" % (_BRUSH_FAMILY, _BRUSH_FILE),
-    "https://cdn.jsdelivr.net/gh/google/fonts@main/ofl/%s/%s" % (_BRUSH_FAMILY, _BRUSH_FILE),
-]
+# apt等で入る毛筆フォントのローカル候補（kouzan=青柳衡山毛筆T）。URL取得より先に探す。
+_BRUSH_LOCAL = {
+    "kouzan": [
+        "/usr/share/fonts/truetype/aoyagi-kouzan-t/AoyagiKouzanT.ttf",
+    ],
+}.get(_BRUSH_FAMILY, [])
+_BRUSH_URLS = [u for u in os.environ.get("KARASUMA_BRUSH_URLS", "").split(",") if u.strip()] or (
+    [] if _BRUSH_FAMILY == "kouzan" else [
+        "https://raw.githubusercontent.com/google/fonts/main/ofl/%s/%s" % (_BRUSH_FAMILY, _BRUSH_FILE),
+        "https://cdn.jsdelivr.net/gh/google/fonts@main/ofl/%s/%s" % (_BRUSH_FAMILY, _BRUSH_FILE),
+    ])
 _BRUSH_CACHE = os.path.join(HERE, "_brush_%s.ttf" % _BRUSH_FAMILY)
 _BRUSH_PATH = None
 
@@ -64,6 +73,11 @@ def _brush_path():
         _BRUSH_PATH = p
         print("[KARASUMA][BRUSH] ローカル指定を使用:", p)
         return _BRUSH_PATH
+    for lp in _BRUSH_LOCAL:
+        if os.path.exists(lp) and os.path.getsize(lp) > 50000:
+            _BRUSH_PATH = lp
+            print("[KARASUMA][BRUSH] ローカル候補を使用:", lp, os.path.getsize(lp), "B")
+            return _BRUSH_PATH
     if os.path.exists(_BRUSH_CACHE) and os.path.getsize(_BRUSH_CACHE) > 50000:
         _BRUSH_PATH = _BRUSH_CACHE
         print("[KARASUMA][BRUSH] キャッシュ使用:", _BRUSH_CACHE, os.path.getsize(_BRUSH_CACHE), "B")

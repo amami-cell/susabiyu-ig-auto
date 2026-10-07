@@ -13,9 +13,9 @@ on:
         required: false
         default: ""
       brush_family:
-        description: "地名の毛筆書体（yujimai=行書 / yujiboku=行草 / yujisyuku=楷書）"
+        description: "地名の毛筆書体（kouzan=青柳衡山毛筆 / yujimai=行書 / yujiboku=行草 / yujisyuku=楷書）"
         required: false
-        default: "yujimai"
+        default: "kouzan"
 permissions:
   contents: read
 jobs:
@@ -32,8 +32,8 @@ jobs:
           python-version: '3.12'
       - name: Install Python deps
         run: pip install google-api-python-client google-auth Pillow numpy requests boto3
-      - name: Install 日本語フォント（明朝/ゴシック）
-        run: sudo apt-get update -qq && sudo apt-get install -y -qq fonts-noto-cjk fonts-ipafont-mincho fonts-ipafont-gothic
+      - name: Install 日本語フォント（明朝/ゴシック/青柳衡山毛筆）
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq fonts-noto-cjk fonts-ipafont-mincho fonts-ipafont-gothic fonts-aoyagi-kouzan-t
       - name: Write creds.json
         run: echo "$GOOGLE_CREDS_B64" | base64 -d > creds.json
         env:
