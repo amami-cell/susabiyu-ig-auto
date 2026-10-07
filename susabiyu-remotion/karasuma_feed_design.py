@@ -62,7 +62,13 @@ _FONT_REG = {
     "hina":      ([], "hinamincho", "HinaMincho-Regular.ttf"),
     "kaisei":    ([], "kaiseitokumin", "KaiseiTokumin-Regular.ttf"),
     "klee":      ([], "kleeone", "KleeOne-Regular.ttf"),
-    "notoserif": (["/usr/share/fonts/opentype/noto/NotoSerifCJK-Regular.ttc"], None, None),
+    # notoserif = ぎふや福岡と同じ Noto Serif CJK JP（太め＝Bold優先）。クセのない明朝。
+    "notoserif": ([
+        "/usr/share/fonts/opentype/noto/NotoSerifCJKjp-Bold.otf",
+        "/usr/share/fonts/opentype/noto/NotoSerifCJK-Bold.ttc",
+        "/usr/share/fonts/opentype/noto/NotoSerifCJKjp-Regular.otf",
+        "/usr/share/fonts/opentype/noto/NotoSerifCJK-Regular.ttc",
+    ], None, None),
 }
 
 _name_family = _BRUSH_FAMILY
