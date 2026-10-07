@@ -41,92 +41,104 @@ def _gothic(size):
     return _font(_GOTHIC_PATH, size)
 
 
-# 地名の意匠に使う毛筆フォント。屋号ロゴの筆致に寄せて「青柳衡山毛筆（kouzan）」を既定に。
-# Yuji系（行書/行草/楷書）は「四条烏丸」の漢字グリフが全て同一＝切替えても見た目が変わらないため、
-# 本物の筆致に寄せるには別ファミリーが必要。青柳衡山毛筆は apt (fonts-aoyagi-kouzan-t) で導入する。
-# 実行時に一度だけ取得してキャッシュ。取得できない時は明朝にフォールバック（＝描画は止めない）。
-# KARASUMA_BRUSH_FONT（ローカルパス）/ KARASUMA_BRUSH_URLS（カンマ区切りURL）で上書き可。
-# 地名の書体。毛筆系(kouzan/yuji*)のほか、非毛筆の mincho/gothic も指定可（比較用）。
-_BRUSH_FAMILY = os.environ.get("KARASUMA_BRUSH_FAMILY", "kouzan")   # kouzan / yujimai / yujiboku / yujisyuku / mincho / gothic
-# 地名を太らせるstroke。size比。KARASUMA_BRUSH_STROKE_RATIO=0 で無効。
-_BRUSH_STROKE_RATIO = float(os.environ.get("KARASUMA_BRUSH_STROKE_RATIO", "0.05"))
+# 地名「四条烏丸」の書体。候補を増やして提案できるようにレジストリ化。
+# ・毛筆系: kouzan(青柳衡山毛筆/apt), yujimai(行書), yujiboku(行草), yujisyuku(楷書)
+# ・明朝系: mincho(IPA明朝), shippori(しっぽり明朝), zenold(Zen Old明朝), hina(ひな明朝), kaisei(解星), notoserif(Noto Serif)
+# ・その他: klee(楷書・手書き風), gothic(ゴシック)
+# Yuji系は「四条烏丸」の漢字字形が同一のため見分けが付きにくい点に注意。
+# 既定は自然なウェイト（faux-boldはOFF）。太らせたい時だけ KARASUMA_BRUSH_STROKE_RATIO を上げる。
+_BRUSH_FAMILY = os.environ.get("KARASUMA_BRUSH_FAMILY", "kouzan")
+_BRUSH_STROKE_RATIO = float(os.environ.get("KARASUMA_BRUSH_STROKE_RATIO", "0.0"))
+
+# family -> (localパス候補, GoogleFonts oflディレクトリ, GoogleFontsファイル名)
+# builtin("mincho"/"gothic")は _mincho/_gothic を直接使う。
+_FONT_REG = {
+    "kouzan":    (["/usr/share/fonts/truetype/aoyagi-kouzan-t/AoyagiKouzanT.ttf"], None, None),
+    "yujimai":   ([], "yujimai", "YujiMai-Regular.ttf"),
+    "yujiboku":  ([], "yujiboku", "YujiBoku-Regular.ttf"),
+    "yujisyuku": ([], "yujisyuku", "YujiSyuku-Regular.ttf"),
+    "shippori":  ([], "shipporimincho", "ShipporiMincho-Regular.ttf"),
+    "zenold":    ([], "zenoldmincho", "ZenOldMincho-Regular.ttf"),
+    "hina":      ([], "hinamincho", "HinaMincho-Regular.ttf"),
+    "kaisei":    ([], "kaiseitokumin", "KaiseiTokumin-Regular.ttf"),
+    "klee":      ([], "kleeone", "KleeOne-Regular.ttf"),
+    "notoserif": (["/usr/share/fonts/opentype/noto/NotoSerifCJK-Regular.ttc"], None, None),
+}
+
+_name_family = _BRUSH_FAMILY
+_name_cache = {}   # family -> 解決済みパス("" なら明朝フォールバック)
+
+
+def set_name_font(family):
+    """地名の書体をランタイムで切替（ギャラリー生成用）。"""
+    global _name_family
+    _name_family = family
 
 
 def _bstroke(size):
     return max(0, int(round(size * _BRUSH_STROKE_RATIO)))
-_BRUSH_FILE = {"yujimai": "YujiMai-Regular.ttf", "yujiboku": "YujiBoku-Regular.ttf",
-               "yujisyuku": "YujiSyuku-Regular.ttf"}.get(_BRUSH_FAMILY, "YujiMai-Regular.ttf")
-# apt等で入る毛筆フォントのローカル候補（kouzan=青柳衡山毛筆T）。URL取得より先に探す。
-_BRUSH_LOCAL = {
-    "kouzan": [
-        "/usr/share/fonts/truetype/aoyagi-kouzan-t/AoyagiKouzanT.ttf",
-    ],
-}.get(_BRUSH_FAMILY, [])
-_BRUSH_URLS = [u for u in os.environ.get("KARASUMA_BRUSH_URLS", "").split(",") if u.strip()] or (
-    [] if _BRUSH_FAMILY == "kouzan" else [
-        "https://raw.githubusercontent.com/google/fonts/main/ofl/%s/%s" % (_BRUSH_FAMILY, _BRUSH_FILE),
-        "https://cdn.jsdelivr.net/gh/google/fonts@main/ofl/%s/%s" % (_BRUSH_FAMILY, _BRUSH_FILE),
-    ])
-_BRUSH_CACHE = os.path.join(HERE, "_brush_%s.ttf" % _BRUSH_FAMILY)
-_BRUSH_PATH = None
 
 
-def _brush_path():
-    global _BRUSH_PATH
-    if _BRUSH_PATH is not None:
-        return _BRUSH_PATH
-    p = os.environ.get("KARASUMA_BRUSH_FONT", "")
-    if p and os.path.exists(p):
-        _BRUSH_PATH = p
-        print("[KARASUMA][BRUSH] ローカル指定を使用:", p)
-        return _BRUSH_PATH
-    for lp in _BRUSH_LOCAL:
-        if os.path.exists(lp) and os.path.getsize(lp) > 50000:
-            _BRUSH_PATH = lp
-            print("[KARASUMA][BRUSH] ローカル候補を使用:", lp, os.path.getsize(lp), "B")
-            return _BRUSH_PATH
-    if os.path.exists(_BRUSH_CACHE) and os.path.getsize(_BRUSH_CACHE) > 50000:
-        _BRUSH_PATH = _BRUSH_CACHE
-        print("[KARASUMA][BRUSH] キャッシュ使用:", _BRUSH_CACHE, os.path.getsize(_BRUSH_CACHE), "B")
-        return _BRUSH_PATH
-    for u in _BRUSH_URLS:
-        try:
-            req = urllib.request.Request(u.strip(), headers={"User-Agent": "Mozilla/5.0"})
-            with urllib.request.urlopen(req, timeout=40) as r:
-                data = r.read()
-            if len(data) > 50000 and data[:4] in (b"\x00\x01\x00\x00", b"OTTO", b"true", b"ttcf"):
-                with open(_BRUSH_CACHE, "wb") as f:
-                    f.write(data)
-                _BRUSH_PATH = _BRUSH_CACHE
-                print("[KARASUMA][BRUSH] 取得OK:", u, len(data), "B ->", _BRUSH_CACHE)
-                return _BRUSH_PATH
-            print("[KARASUMA][BRUSH] 不正データ(%dB) skip: %s" % (len(data), u))
-        except Exception as e:
-            print("[KARASUMA][BRUSH] 取得失敗 skip: %s %r" % (u, e))
-    print("[KARASUMA][BRUSH] 全URL失敗→明朝にフォールバック")
-    _BRUSH_PATH = ""
-    return _BRUSH_PATH
+def _resolve_font_path(family):
+    if family in _name_cache:
+        return _name_cache[family]
+    # 既定familyのみ KARASUMA_BRUSH_FONT / KARASUMA_BRUSH_URLS の上書きを尊重
+    path = ""
+    ov = os.environ.get("KARASUMA_BRUSH_FONT", "") if family == _BRUSH_FAMILY else ""
+    if ov and os.path.exists(ov):
+        path = ov
+        print("[KARASUMA][FONT] %s ローカル指定:" % family, ov)
+    reg = _FONT_REG.get(family)
+    if not path and reg:
+        locals_, gfdir, gffile = reg
+        for lp in locals_:
+            if os.path.exists(lp) and os.path.getsize(lp) > 50000:
+                path = lp
+                print("[KARASUMA][FONT] %s ローカル候補:" % family, lp, os.path.getsize(lp), "B")
+                break
+        if not path and gfdir:
+            cache = os.path.join(HERE, "_font_%s.ttf" % family)
+            urls = [u for u in os.environ.get("KARASUMA_BRUSH_URLS", "").split(",")
+                    if u.strip() and family == _BRUSH_FAMILY] or [
+                "https://raw.githubusercontent.com/google/fonts/main/ofl/%s/%s" % (gfdir, gffile),
+                "https://cdn.jsdelivr.net/gh/google/fonts@main/ofl/%s/%s" % (gfdir, gffile),
+            ]
+            if os.path.exists(cache) and os.path.getsize(cache) > 50000:
+                path = cache
+                print("[KARASUMA][FONT] %s キャッシュ:" % family, cache)
+            else:
+                for u in urls:
+                    try:
+                        req = urllib.request.Request(u.strip(), headers={"User-Agent": "Mozilla/5.0"})
+                        with urllib.request.urlopen(req, timeout=40) as r:
+                            data = r.read()
+                        if len(data) > 50000 and data[:4] in (b"\x00\x01\x00\x00", b"OTTO", b"true", b"ttcf"):
+                            with open(cache, "wb") as f:
+                                f.write(data)
+                            path = cache
+                            print("[KARASUMA][FONT] %s 取得OK:" % family, u, len(data), "B")
+                            break
+                        print("[KARASUMA][FONT] %s 不正データ(%dB) skip: %s" % (family, len(data), u))
+                    except Exception as e:
+                        print("[KARASUMA][FONT] %s 取得失敗 skip: %s %r" % (family, u, e))
+    if not path:
+        print("[KARASUMA][FONT] %s 解決できず→明朝フォールバック" % family)
+    _name_cache[family] = path
+    return path
 
 
 def _brush(size):
-    # 非毛筆（比較用）：明朝/ゴシックを直接返す
-    if _BRUSH_FAMILY == "mincho":
+    fam = _name_family
+    if fam == "mincho":
         return _mincho(size)
-    if _BRUSH_FAMILY == "gothic":
+    if fam == "gothic":
         return _gothic(size)
-    p = _brush_path()
+    p = _resolve_font_path(fam)
     if p:
         try:
-            f = _font(p, size)
-            if not getattr(_brush, "_logged", False):
-                try:
-                    print("[KARASUMA][BRUSH] 使用フォント:", f.getname(), "from", p)
-                except Exception:
-                    pass
-                _brush._logged = True
-            return f
+            return _font(p, size)
         except Exception as e:
-            print("[KARASUMA][BRUSH] _font失敗→明朝フォールバック:", repr(e), "path=", p)
+            print("[KARASUMA][FONT] _font失敗→明朝:", repr(e), "path=", p)
     return _mincho(size)
 
 

@@ -79,7 +79,7 @@ def main():
 
     # ロゴ取得（tatelogo/tateedge の時）：画像フォルダ配下の「ロゴ」の各画像を生成り透過PNG化し、
     # 縦長→KARASUMA_FEED_LOGO / 横長→KARASUMA_FEED_LOGO_H に振り分ける。
-    if os.environ.get("FEED_SET") in ("tatelogo", "tateedge", "all"):
+    if os.environ.get("FEED_SET") in ("tatelogo", "tateedge", "all") or os.environ.get("FAMILIES", "").strip():
         try:
             from PIL import Image
             def find_logo(fid, depth=0):
@@ -150,6 +150,10 @@ def main():
         except Exception as e:
             print("[FEEDSAMPLE][LOGO] スキップ:", repr(e))
 
+    # FAMILIES（カンマ区切り）指定時は「地名の書体ギャラリー」モード：
+    # 1料理ぶんを、指定した各書体 × [09(縦ロゴ+地名), 10(地名特大)] で焼いて並べる（1runで多数提案）。
+    families = [x.strip() for x in os.environ.get("FAMILIES", "").split(",") if x.strip()]
+
     picks = imgs[:N_DISHES]
     results = []
     for i, f in enumerate(picks):
@@ -162,6 +166,23 @@ def main():
             _, done = dl.next_chunk()
         buf.close()
         print("\n=== 料理%d: %s | desc=%s ===" % (i + 1, name, desc))
+
+        if families:
+            gallery = [("logoJ", "09 縦ロゴ+地名", fd.render_tate_j),
+                       ("edgeK", "10 地名特大", fd.render_tate_k)]
+            for fam in families:
+                fd.set_name_font(fam)
+                for key, label, fn in gallery:
+                    outp = "out/feed_%s_%s_%d.jpg" % (fam, key, i)
+                    try:
+                        fn(local, outp, name, desc)
+                        url = poster.up(outp, cdn=True)
+                        print("[FEEDSAMPLE][GALLERY] %s / %s (%s) -> %s" % (fam, label, name, url))
+                        results.append({"family": fam, "design": key, "label": label, "dish": name, "url": url})
+                    except Exception as e:
+                        print("[FEEDSAMPLE][ERR] %s %s %s: %r" % (fam, label, name, e))
+            continue
+
         _set = os.environ.get("FEED_SET")
         design_set = {"tate": fd.TATE_VARIANTS, "tatelogo": fd.TATE_LOGO_VARIANTS,
                       "tateedge": fd.TATE_EDGE_VARIANTS, "all": fd.ALL_VARIANTS}.get(_set, fd.DESIGNS)
