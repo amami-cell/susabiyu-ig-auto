@@ -1,0 +1,66 @@
+name: karasuma-feed
+# 鮨処すさび湯（karasuma）：Driveの料理写真から“加工済みフィード投稿画像”を全品ぶん一括生成して
+# pwa/karasuma/ に反映（feed_NN_j/k.jpg＋WebP＋feed.json）。手動実行のみ（cronなし＝無料枠を消費しない）。
+#   意匠は確定版の2案（09=縦ロゴ+地名/yujiboku筆, 10=地名特大/kaisei明朝）を各料理で焼く。
+#   使い方: Actions からこのワークフローを Run（n_dishes 空=全品）。
+on:
+  workflow_dispatch:
+    inputs:
+      n_dishes:
+        description: "生成する料理数（空=全品 / 動作確認は 3 など）"
+        required: false
+        default: ""
+permissions:
+  contents: write
+  actions: write
+concurrency:
+  group: karasuma-feed
+  cancel-in-progress: false
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install deps
+        run: pip install google-api-python-client google-auth Pillow numpy requests
+      - name: Install 日本語フォント（明朝/ゴシック/青柳衡山毛筆）
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq fonts-noto-cjk fonts-ipafont-mincho fonts-ipafont-gothic fonts-aoyagi-kouzan-t
+      - name: Write creds.json
+        run: echo "$GOOGLE_CREDS_B64" | base64 -d > creds.json
+        working-directory: susabiyu-remotion
+        env:
+          GOOGLE_CREDS_B64: ${{ secrets.GOOGLE_CREDS_B64 }}
+      - name: Build karasuma feed images + feed.json
+        working-directory: susabiyu-remotion
+        env:
+          N_DISHES: ${{ github.event.inputs.n_dishes }}
+          GENRE_FOOD_ID: "1viSmFmc2W9fDrfUENffYwTDTf124ekW0"
+        run: python karasuma_build_feed.py creds.json
+      - name: Commit（画像の中身が変わるので ?v を上げ、sw VER も +1）
+        run: |
+          set -e
+          if [ -z "$(git status --porcelain -- pwa/karasuma)" ]; then
+            echo "画像に変更がありません（コミットなし）。"; exit 0
+          fi
+          cur=$(grep -oE 'susabiyu-v[0-9]+' pwa/sw.js | grep -oE '[0-9]+' | head -1)
+          nxt=$((cur + 1))
+          sed -i "s/susabiyu-v$cur/susabiyu-v$nxt/" pwa/sw.js
+          # karasuma_reels.html のメディア ?v= を +1（画像の中身が変わったため）
+          scur=$(grep -oE 'var V = "\?v=[0-9]+"' pwa/karasuma_reels.html | grep -oE '[0-9]+' | head -1)
+          snxt=$((scur + 1))
+          sed -i "s/var V = \"?v=$scur\"/var V = \"?v=$snxt\"/" pwa/karasuma_reels.html
+          echo "cache sw v$cur -> v$nxt / karasuma img ?v=$scur -> ?v=$snxt"
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add pwa/karasuma pwa/sw.js pwa/karasuma_reels.html
+          git commit -m "鮨処すさび湯: 全商品フィード画像を再生成（09=yujiboku筆/10=kaisei明朝）＋sw VER v$nxt"
+          git push origin HEAD:main
+          # GITHUB_TOKEN の push は他ワークフローを起動しないため deploy_pwa を明示発火
+          curl -sS -X POST -H "Authorization: Bearer ${{ github.token }}" \
+            -H "Accept: application/vnd.github+json" \
+            "${{ github.api_url }}/repos/${{ github.repository }}/actions/workflows/deploy_pwa.yml/dispatches" \
+            -d '{"ref":"main"}' && echo "deploy_pwa をトリガーしました。"
