@@ -66,13 +66,26 @@ _FONT_REG = {
 }
 
 _name_family = _BRUSH_FAMILY
+_name_override = None   # ギャラリー等で全意匠を同一書体にしたい時に設定
 _name_cache = {}   # family -> 解決済みパス("" なら明朝フォールバック)
+
+# 確定した地名の書体（意匠ごと）。09(縦ロゴ+地名)=yujiboku(筆) / 10(地名特大)=kaisei(明朝)。
+# 環境変数 KARASUMA_FONT_09 / KARASUMA_FONT_10 で上書き可。
+FONT_TATE_J = os.environ.get("KARASUMA_FONT_09", "yujiboku")
+FONT_TATE_K = os.environ.get("KARASUMA_FONT_10", "kaisei")
 
 
 def set_name_font(family):
-    """地名の書体をランタイムで切替（ギャラリー生成用）。"""
+    """地名の書体をランタイムで全意匠一括切替（ギャラリー生成用）。Noneで解除。"""
+    global _name_override
+    _name_override = family
+
+
+def _brush_for(default_family, size):
+    """意匠ごとの既定書体で地名フォントを返す。ギャラリーoverride中はそちらを優先。"""
     global _name_family
-    _name_family = family
+    _name_family = _name_override or default_family
+    return _brush(size)
 
 
 def _bstroke(size):
@@ -546,7 +559,7 @@ def render_tate_j(src, out, name, desc, sub="SUSHI", badge="四条烏丸｜完�
         _shadow_text(base, (W - 360, 56), "鮨処すさび湯", _mincho(72), fill=INK)
     _shadow_text(base, (60, 58), "SUSHI・KYOTO", _gothic(24), fill=ACCENT)
     # 地名を大きく・筆書体（「完全個室」は入れない）＋真下に金ライン
-    gf = _brush(88)
+    gf = _brush_for(FONT_TATE_J, 88)
     _shadow_text(base, (60, 94), "四条烏丸", gf, fill=INK, stroke=_bstroke(gf.size))
     gbb = d.textbbox((60, 94), "四条烏丸", font=gf)
     d.rectangle([60, gbb[3] + 12, gbb[2], gbb[3] + 17], fill=ACCENT)
@@ -568,7 +581,7 @@ def render_tate_k(src, out, name, desc, sub="SUSHI", badge="四条烏丸｜完�
     d = ImageDraw.Draw(base)
     _logo_at(base, 60, 48, 620, max_h=330)
     # 右端に「四条烏丸」を特大の縦書き（生成り）。金の縦罫は“文字列の左”に間隔をあけて置く（重ならない）。
-    big = _brush(150)
+    big = _brush_for(FONT_TATE_K, 150)
     col_right = W - 60
     _draw_vertical(base, "四条烏丸", right_x=col_right, top_y=150, font=big, fill=INK,
                    stroke_width=_bstroke(big.size))
