@@ -81,7 +81,7 @@ _name_cache = {}   # family -> 解決済みパス("" なら明朝フォールバ
 # 確定した地名の書体（意匠ごと）。09(縦ロゴ+地名)=yujiboku(筆) / 10(地名特大)=kaisei(明朝)。
 # 環境変数 KARASUMA_FONT_09 / KARASUMA_FONT_10 で上書き可。
 FONT_TATE_J = os.environ.get("KARASUMA_FONT_09", "yujiboku")
-FONT_TATE_K = os.environ.get("KARASUMA_FONT_10", "kaisei")
+FONT_TATE_K = os.environ.get("KARASUMA_FONT_10", "notoserif")
 
 
 def set_name_font(family):
