@@ -46,7 +46,14 @@ def _gothic(size):
 # 本物の筆致に寄せるには別ファミリーが必要。青柳衡山毛筆は apt (fonts-aoyagi-kouzan-t) で導入する。
 # 実行時に一度だけ取得してキャッシュ。取得できない時は明朝にフォールバック（＝描画は止めない）。
 # KARASUMA_BRUSH_FONT（ローカルパス）/ KARASUMA_BRUSH_URLS（カンマ区切りURL）で上書き可。
-_BRUSH_FAMILY = os.environ.get("KARASUMA_BRUSH_FAMILY", "kouzan")   # kouzan / yujimai / yujiboku / yujisyuku
+# 地名の書体。毛筆系(kouzan/yuji*)のほか、非毛筆の mincho/gothic も指定可（比較用）。
+_BRUSH_FAMILY = os.environ.get("KARASUMA_BRUSH_FAMILY", "kouzan")   # kouzan / yujimai / yujiboku / yujisyuku / mincho / gothic
+# 地名を太らせるstroke。size比。KARASUMA_BRUSH_STROKE_RATIO=0 で無効。
+_BRUSH_STROKE_RATIO = float(os.environ.get("KARASUMA_BRUSH_STROKE_RATIO", "0.05"))
+
+
+def _bstroke(size):
+    return max(0, int(round(size * _BRUSH_STROKE_RATIO)))
 _BRUSH_FILE = {"yujimai": "YujiMai-Regular.ttf", "yujiboku": "YujiBoku-Regular.ttf",
                "yujisyuku": "YujiSyuku-Regular.ttf"}.get(_BRUSH_FAMILY, "YujiMai-Regular.ttf")
 # apt等で入る毛筆フォントのローカル候補（kouzan=青柳衡山毛筆T）。URL取得より先に探す。
@@ -102,6 +109,11 @@ def _brush_path():
 
 
 def _brush(size):
+    # 非毛筆（比較用）：明朝/ゴシックを直接返す
+    if _BRUSH_FAMILY == "mincho":
+        return _mincho(size)
+    if _BRUSH_FAMILY == "gothic":
+        return _gothic(size)
     p = _brush_path()
     if p:
         try:
@@ -134,12 +146,15 @@ def _logo_white(max_w, max_h=190):
     return None
 
 
-def _shadow_text(img, xy, text, font, fill=INK, anchor=None, sh=(0, 0, 0, 150), off=((2, 2), (3, 3))):
+def _shadow_text(img, xy, text, font, fill=INK, anchor=None, sh=(0, 0, 0, 150), off=((2, 2), (3, 3)), stroke=0):
     d = ImageDraw.Draw(img)
     x, y = xy
+    mfill = fill + (255,) if len(fill) == 3 else fill
     for dx, dy in off:
-        d.text((x + dx, y + dy), text, font=font, fill=sh, anchor=anchor)
-    d.text((x, y), text, font=font, fill=fill + (255,) if len(fill) == 3 else fill, anchor=anchor)
+        d.text((x + dx, y + dy), text, font=font, fill=sh, anchor=anchor,
+               stroke_width=stroke, stroke_fill=sh)
+    d.text((x, y), text, font=font, fill=mfill, anchor=anchor,
+           stroke_width=stroke, stroke_fill=mfill)
 
 
 def _wrap(text, font, max_w):
@@ -520,7 +535,7 @@ def render_tate_j(src, out, name, desc, sub="SUSHI", badge="四条烏丸｜完�
     _shadow_text(base, (60, 58), "SUSHI・KYOTO", _gothic(24), fill=ACCENT)
     # 地名を大きく・筆書体（「完全個室」は入れない）＋真下に金ライン
     gf = _brush(88)
-    _shadow_text(base, (60, 94), "四条烏丸", gf, fill=INK)
+    _shadow_text(base, (60, 94), "四条烏丸", gf, fill=INK, stroke=_bstroke(gf.size))
     gbb = d.textbbox((60, 94), "四条烏丸", font=gf)
     d.rectangle([60, gbb[3] + 12, gbb[2], gbb[3] + 17], fill=ACCENT)
     # 下部：金の短罫＋料理名（横・大・左寄せ）＋説明＋handle
@@ -543,7 +558,8 @@ def render_tate_k(src, out, name, desc, sub="SUSHI", badge="四条烏丸｜完�
     # 右端に「四条烏丸」を特大の縦書き（生成り）。金の縦罫は“文字列の左”に間隔をあけて置く（重ならない）。
     big = _brush(150)
     col_right = W - 60
-    _draw_vertical(base, "四条烏丸", right_x=col_right, top_y=150, font=big, fill=INK)
+    _draw_vertical(base, "四条烏丸", right_x=col_right, top_y=150, font=big, fill=INK,
+                   stroke_width=_bstroke(big.size))
     rule_x = col_right - big.size - 30          # 文字列(左端=col_right-size)よりさらに左
     d.rectangle([rule_x, 156, rule_x + 3, 156 + int(big.size * 1.15) * 4], fill=ACCENT)
     # 左下：金の短罫＋料理名（横）＋説明

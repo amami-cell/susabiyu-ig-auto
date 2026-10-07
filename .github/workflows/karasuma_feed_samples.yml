@@ -13,7 +13,7 @@ on:
         required: false
         default: ""
       brush_family:
-        description: "地名の毛筆書体（kouzan=青柳衡山毛筆 / yujimai=行書 / yujiboku=行草 / yujisyuku=楷書）"
+        description: "地名の書体（kouzan=青柳衡山毛筆 / yujimai=行書 / mincho=明朝(非毛筆) / gothic=ゴシック(非毛筆)）"
         required: false
         default: "kouzan"
 permissions:

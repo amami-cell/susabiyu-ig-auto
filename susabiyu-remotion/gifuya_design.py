@@ -157,8 +157,9 @@ def _blit_vert_rot(img, ch, x_cell, y, size, font, fill):
 
 
 def _draw_vertical(img, text, right_x, top_y, font, line_gap=None, col_gap=None,
-                   fill=(255, 255, 255)):
-    """縦書き（右→左に段を追加）。長音「ー」等は90°回転。段が要る時は均等割り。戻り値=占有幅。"""
+                   fill=(255, 255, 255), stroke_width=0):
+    """縦書き（右→左に段を追加）。長音「ー」等は90°回転。段が要る時は均等割り。戻り値=占有幅。
+    stroke_width>0 で文字を太らせる（既定0＝従来通り、他意匠に影響なし）。"""
     draw = ImageDraw.Draw(img)
     size = font.size
     line_gap = size + (line_gap if line_gap is not None else int(size * 0.10))
@@ -180,8 +181,10 @@ def _draw_vertical(img, text, right_x, top_y, font, line_gap=None, col_gap=None,
                 cw, chh = _char_size(font, ch)
                 cx = x + (size - cw) / 2 - font.getbbox(ch)[0]   # 縦線の中心に寄せる
                 for dx, dy in ((2, 2), (3, 3)):
-                    draw.text((cx + dx, y + dy), ch, font=font, fill=(0, 0, 0, 170))
-                draw.text((cx, y), ch, font=font, fill=fill)
+                    draw.text((cx + dx, y + dy), ch, font=font, fill=(0, 0, 0, 170),
+                              stroke_width=stroke_width, stroke_fill=(0, 0, 0, 170))
+                draw.text((cx, y), ch, font=font, fill=fill,
+                          stroke_width=stroke_width, stroke_fill=fill)
             y += line_gap
         used_left = x
         x -= (size + col_gap)
