@@ -62,12 +62,15 @@ _FONT_REG = {
     "hina":      ([], "hinamincho", "HinaMincho-Regular.ttf"),
     "kaisei":    ([], "kaiseitokumin", "KaiseiTokumin-Regular.ttf"),
     "klee":      ([], "kleeone", "KleeOne-Regular.ttf"),
-    # notoserif = ぎふや福岡と同じ Noto Serif CJK JP（太め＝Bold優先）。クセのない明朝。
+    # notoserif = ぎふや福岡系の Noto Serif CJK JP（クセのない明朝・太め）。
+    # fonts-noto-cjk-extra は weight別ttc(SemiBold/Medium/Black等)で入るためSemiBoldを優先。
     "notoserif": ([
-        "/usr/share/fonts/opentype/noto/NotoSerifCJKjp-Bold.otf",
+        "/usr/share/fonts/opentype/noto/NotoSerifCJK-SemiBold.ttc",
+        "/usr/share/fonts/opentype/noto/NotoSerifCJK-Medium.ttc",
+        "/usr/share/fonts/opentype/noto/NotoSerifCJK-Black.ttc",
         "/usr/share/fonts/opentype/noto/NotoSerifCJK-Bold.ttc",
-        "/usr/share/fonts/opentype/noto/NotoSerifCJKjp-Regular.otf",
         "/usr/share/fonts/opentype/noto/NotoSerifCJK-Regular.ttc",
+        "/usr/share/fonts/opentype/noto/NotoSerifCJKjp-Bold.otf",
     ], None, None),
 }
 
