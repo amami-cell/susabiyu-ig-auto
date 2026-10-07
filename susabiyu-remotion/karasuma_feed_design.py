@@ -62,7 +62,16 @@ _FONT_REG = {
     "hina":      ([], "hinamincho", "HinaMincho-Regular.ttf"),
     "kaisei":    ([], "kaiseitokumin", "KaiseiTokumin-Regular.ttf"),
     "klee":      ([], "kleeone", "KleeOne-Regular.ttf"),
-    "notoserif": (["/usr/share/fonts/opentype/noto/NotoSerifCJK-Regular.ttc"], None, None),
+    # notoserif = ぎふや福岡系の Noto Serif CJK JP（クセのない明朝・太め）。
+    # fonts-noto-cjk-extra は weight別ttc(SemiBold/Medium/Black等)で入るためSemiBoldを優先。
+    "notoserif": ([
+        "/usr/share/fonts/opentype/noto/NotoSerifCJK-SemiBold.ttc",
+        "/usr/share/fonts/opentype/noto/NotoSerifCJK-Medium.ttc",
+        "/usr/share/fonts/opentype/noto/NotoSerifCJK-Black.ttc",
+        "/usr/share/fonts/opentype/noto/NotoSerifCJK-Bold.ttc",
+        "/usr/share/fonts/opentype/noto/NotoSerifCJK-Regular.ttc",
+        "/usr/share/fonts/opentype/noto/NotoSerifCJKjp-Bold.otf",
+    ], None, None),
 }
 
 _name_family = _BRUSH_FAMILY
@@ -72,7 +81,7 @@ _name_cache = {}   # family -> 解決済みパス("" なら明朝フォールバ
 # 確定した地名の書体（意匠ごと）。09(縦ロゴ+地名)=yujiboku(筆) / 10(地名特大)=kaisei(明朝)。
 # 環境変数 KARASUMA_FONT_09 / KARASUMA_FONT_10 で上書き可。
 FONT_TATE_J = os.environ.get("KARASUMA_FONT_09", "yujiboku")
-FONT_TATE_K = os.environ.get("KARASUMA_FONT_10", "kaisei")
+FONT_TATE_K = os.environ.get("KARASUMA_FONT_10", "notoserif")
 
 
 def set_name_font(family):
