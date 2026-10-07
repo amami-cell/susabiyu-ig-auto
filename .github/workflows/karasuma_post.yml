@@ -1,0 +1,102 @@
+name: karasuma-post
+# 鮨処すさび湯（karasuma）：承認待ち_karasuma の該当枠を、そのスロット時刻に本投稿する。
+# 【重要】GitHubのschedule発火は数時間遅れる/たまに間引かれる（実測4〜5.7h遅延）。
+# 1日3回の疎なcronだと、遅延で発火時刻が投稿許容窓(10-22時JST)を飛び越えてしまい
+# 全枠スキップ＝「ストーリーが全然上がらない」状態になる（ナガグツで実際に起きた事故）。
+# → 対策：窓の時間帯を30分おきに“頻繁にポーリング”し、毎回3枠すべてを試す。
+#   post_approved 側のガードが「投稿済み=skip / まだ枠前=skip / 窓外=skip / 大幅遅延=skip」を
+#   判定するので、各枠は窓内で最初に回った実行がちょうど1回だけ投稿する（二重投稿しない）。
+# ※トークンは IG_ACCESS_TOKEN_KARASUMA（または AcctTokens の karasuma 行）を使用。
+#   未設定時は fresh_token_for が空を返して安全にスキップ（既定=三条への誤投稿はしない）。
+on:
+  schedule:
+    # UTC 01:00〜13:30 を30分おき ＝ JST 10:00〜22:30。全枠(11/18/20時JST)を毎回試す。
+    - cron: '*/30 1-13 * * *'
+  workflow_dispatch:
+    inputs:
+      datetime:
+        description: "JST 例 2026-08-10 18:00（空=cronのスロット/実行時刻）"
+        required: false
+        default: ""
+      dry:
+        description: "DRY (1=生成のみ・投稿しない)"
+        required: false
+        default: "0"
+permissions:
+  contents: read
+concurrency:
+  group: karasuma-post
+  cancel-in-progress: false
+jobs:
+  post:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: susabiyu-remotion
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install Python deps
+        run: pip install google-api-python-client google-auth requests jpholiday Pillow boto3 pywebpush numpy
+      - name: Install Node deps
+        run: npm ci
+      - name: Install ffmpeg
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg
+      - name: Write creds.json
+        run: echo "$GOOGLE_CREDS_B64" | base64 -d > creds.json
+        env:
+          GOOGLE_CREDS_B64: ${{ secrets.GOOGLE_CREDS_B64 }}
+      - name: Run post (karasuma, gated)
+        env:
+          STORE_ACCOUNT: karasuma
+          GOOGLE_CREDS_B64: ${{ secrets.GOOGLE_CREDS_B64 }}
+          IG_ACCESS_TOKEN_KARASUMA: ${{ secrets.IG_ACCESS_TOKEN_KARASUMA }}
+          SHEET_ID: ${{ secrets.SHEET_ID }}
+          LINE_CHANNEL_TOKEN: ${{ secrets.LINE_CHANNEL_TOKEN }}
+          R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          R2_BUCKET: ${{ secrets.R2_BUCKET }}
+          R2_PUBLIC_BASE: ${{ secrets.R2_PUBLIC_BASE }}
+          GH_MEDIA_TOKEN: ${{ secrets.GH_MEDIA_TOKEN }}
+          GH_MEDIA_REPO: ${{ secrets.GH_MEDIA_REPO }}
+          VAPID_PRIVATE_KEY: ${{ secrets.VAPID_PRIVATE_KEY }}
+          VAPID_SUBJECT: ${{ secrets.VAPID_SUBJECT }}
+          DRY: ${{ github.event.inputs.dry }}
+          SCHED: ${{ github.event.schedule }}
+          INPUT_DT: ${{ github.event.inputs.datetime }}
+          # 遅延/窓ガード：全枠ループ（INPUT_DT空）では必ずガードON＝未来枠の早出し/窓外/二重を防ぐ。
+          # 深夜投稿の防止は「投稿許容窓 10-22時JST」で担保。許容遅延は窓幅ぶん(600分)確保。
+          # 日時を明示した手動dispatch(INPUT_DTあり)のときだけガードOFF＝その枠を即投稿。
+          POST_SCHED_GUARD: ${{ github.event.inputs.datetime == '' && '1' || '' }}
+          POST_MAX_LATE_MIN: "600"
+        run: |
+          # 手動dispatchで日時指定があればその1枠だけ（従来どおり／DRYもここ）。
+          if [ -n "$INPUT_DT" ]; then
+            echo "対象日時(JST)=$INPUT_DT"
+            python post_approved.py creds.json "$INPUT_DT"
+            exit 0
+          fi
+          # 通常（cron/手動）は本日の全枠(11/18/20時JST)を順に試す。JST日付で枠を作る。
+          D=$(TZ=Asia/Tokyo date +%F)
+          for HH in 11 18 20; do
+            DT="$D ${HH}:00"
+            echo "=== 枠を試行: $DT ==="
+            python post_approved.py creds.json "$DT" || true
+          done
+      - name: 失敗をLINE通知
+        if: failure()
+        env:
+          LINE_CHANNEL_TOKEN: ${{ secrets.LINE_CHANNEL_TOKEN }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          [ -z "$LINE_CHANNEL_TOKEN" ] && exit 0
+          curl -s -X POST https://api.line.me/v2/bot/message/broadcast \
+            -H "Authorization: Bearer $LINE_CHANNEL_TOKEN" -H "Content-Type: application/json" \
+            -d "{\"messages\":[{\"type\":\"text\",\"text\":\"⚠️ 鮨処すさび湯 自動投稿(karasuma-post)が失敗しました。\n確認: $RUN_URL\"}]}" >/dev/null || true
