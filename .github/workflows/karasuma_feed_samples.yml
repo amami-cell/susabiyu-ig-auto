@@ -12,6 +12,18 @@ on:
         description: "デザインセット（空=3案 / tate=案①ファミリー）"
         required: false
         default: ""
+      brush_family:
+        description: "地名の書体（kouzan=青柳衡山毛筆 / yujimai=行書 / mincho=明朝(非毛筆) / gothic=ゴシック(非毛筆)）"
+        required: false
+        default: "kouzan"
+      families:
+        description: "地名書体ギャラリー（カンマ区切り。例: kouzan,yujimai,shippori,zenold,hina,kaisei,klee,mincho,gothic）。指定時は09/10を各書体で焼く"
+        required: false
+        default: ""
+      stroke_ratio:
+        description: "地名の太らせ量（文字サイズ比。0=自然なウェイト / 例: 0.02 で少しだけ太く）"
+        required: false
+        default: "0.0"
 permissions:
   contents: read
 jobs:
@@ -28,8 +40,8 @@ jobs:
           python-version: '3.12'
       - name: Install Python deps
         run: pip install google-api-python-client google-auth Pillow numpy requests boto3
-      - name: Install 日本語フォント（明朝/ゴシック）
-        run: sudo apt-get update -qq && sudo apt-get install -y -qq fonts-noto-cjk fonts-ipafont-mincho fonts-ipafont-gothic
+      - name: Install 日本語フォント（明朝/ゴシック/青柳衡山毛筆）
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq fonts-noto-cjk fonts-ipafont-mincho fonts-ipafont-gothic fonts-aoyagi-kouzan-t
       - name: Write creds.json
         run: echo "$GOOGLE_CREDS_B64" | base64 -d > creds.json
         env:
@@ -38,6 +50,9 @@ jobs:
         env:
           N_DISHES: ${{ github.event.inputs.n_dishes }}
           FEED_SET: ${{ github.event.inputs.feed_set }}
+          KARASUMA_BRUSH_FAMILY: ${{ github.event.inputs.brush_family }}
+          FAMILIES: ${{ github.event.inputs.families }}
+          KARASUMA_BRUSH_STROKE_RATIO: ${{ github.event.inputs.stroke_ratio }}
           GENRE_FOOD_ID: "1viSmFmc2W9fDrfUENffYwTDTf124ekW0"
           GH_MEDIA_TOKEN: ${{ secrets.GH_MEDIA_TOKEN }}
           GH_MEDIA_REPO: ${{ secrets.GH_MEDIA_REPO }}

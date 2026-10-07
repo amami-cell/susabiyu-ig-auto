@@ -12,6 +12,7 @@
   render_obi("in.jpg", "out.jpg", "まぐろ中とろ", "とろける脂と赤身の甘み、中とろ。", sub="SUSHI")
 """
 import os
+import urllib.request
 from PIL import Image, ImageDraw, ImageFilter, ImageFont
 
 from gifuya_design import _cover, _font, _SERIF_PATH, _GOTHIC_PATH
@@ -40,7 +41,121 @@ def _gothic(size):
     return _font(_GOTHIC_PATH, size)
 
 
-def _logo_white(max_w, max_h=130):
+# 地名「四条烏丸」の書体。候補を増やして提案できるようにレジストリ化。
+# ・毛筆系: kouzan(青柳衡山毛筆/apt), yujimai(行書), yujiboku(行草), yujisyuku(楷書)
+# ・明朝系: mincho(IPA明朝), shippori(しっぽり明朝), zenold(Zen Old明朝), hina(ひな明朝), kaisei(解星), notoserif(Noto Serif)
+# ・その他: klee(楷書・手書き風), gothic(ゴシック)
+# Yuji系は「四条烏丸」の漢字字形が同一のため見分けが付きにくい点に注意。
+# 既定は自然なウェイト（faux-boldはOFF）。太らせたい時だけ KARASUMA_BRUSH_STROKE_RATIO を上げる。
+_BRUSH_FAMILY = os.environ.get("KARASUMA_BRUSH_FAMILY", "kouzan")
+_BRUSH_STROKE_RATIO = float(os.environ.get("KARASUMA_BRUSH_STROKE_RATIO", "0.0"))
+
+# family -> (localパス候補, GoogleFonts oflディレクトリ, GoogleFontsファイル名)
+# builtin("mincho"/"gothic")は _mincho/_gothic を直接使う。
+_FONT_REG = {
+    "kouzan":    (["/usr/share/fonts/truetype/aoyagi-kouzan-t/AoyagiKouzanT.ttf"], None, None),
+    "yujimai":   ([], "yujimai", "YujiMai-Regular.ttf"),
+    "yujiboku":  ([], "yujiboku", "YujiBoku-Regular.ttf"),
+    "yujisyuku": ([], "yujisyuku", "YujiSyuku-Regular.ttf"),
+    "shippori":  ([], "shipporimincho", "ShipporiMincho-Regular.ttf"),
+    "zenold":    ([], "zenoldmincho", "ZenOldMincho-Regular.ttf"),
+    "hina":      ([], "hinamincho", "HinaMincho-Regular.ttf"),
+    "kaisei":    ([], "kaiseitokumin", "KaiseiTokumin-Regular.ttf"),
+    "klee":      ([], "kleeone", "KleeOne-Regular.ttf"),
+    "notoserif": (["/usr/share/fonts/opentype/noto/NotoSerifCJK-Regular.ttc"], None, None),
+}
+
+_name_family = _BRUSH_FAMILY
+_name_override = None   # ギャラリー等で全意匠を同一書体にしたい時に設定
+_name_cache = {}   # family -> 解決済みパス("" なら明朝フォールバック)
+
+# 確定した地名の書体（意匠ごと）。09(縦ロゴ+地名)=yujiboku(筆) / 10(地名特大)=kaisei(明朝)。
+# 環境変数 KARASUMA_FONT_09 / KARASUMA_FONT_10 で上書き可。
+FONT_TATE_J = os.environ.get("KARASUMA_FONT_09", "yujiboku")
+FONT_TATE_K = os.environ.get("KARASUMA_FONT_10", "kaisei")
+
+
+def set_name_font(family):
+    """地名の書体をランタイムで全意匠一括切替（ギャラリー生成用）。Noneで解除。"""
+    global _name_override
+    _name_override = family
+
+
+def _brush_for(default_family, size):
+    """意匠ごとの既定書体で地名フォントを返す。ギャラリーoverride中はそちらを優先。"""
+    global _name_family
+    _name_family = _name_override or default_family
+    return _brush(size)
+
+
+def _bstroke(size):
+    return max(0, int(round(size * _BRUSH_STROKE_RATIO)))
+
+
+def _resolve_font_path(family):
+    if family in _name_cache:
+        return _name_cache[family]
+    # 既定familyのみ KARASUMA_BRUSH_FONT / KARASUMA_BRUSH_URLS の上書きを尊重
+    path = ""
+    ov = os.environ.get("KARASUMA_BRUSH_FONT", "") if family == _BRUSH_FAMILY else ""
+    if ov and os.path.exists(ov):
+        path = ov
+        print("[KARASUMA][FONT] %s ローカル指定:" % family, ov)
+    reg = _FONT_REG.get(family)
+    if not path and reg:
+        locals_, gfdir, gffile = reg
+        for lp in locals_:
+            if os.path.exists(lp) and os.path.getsize(lp) > 50000:
+                path = lp
+                print("[KARASUMA][FONT] %s ローカル候補:" % family, lp, os.path.getsize(lp), "B")
+                break
+        if not path and gfdir:
+            cache = os.path.join(HERE, "_font_%s.ttf" % family)
+            urls = [u for u in os.environ.get("KARASUMA_BRUSH_URLS", "").split(",")
+                    if u.strip() and family == _BRUSH_FAMILY] or [
+                "https://raw.githubusercontent.com/google/fonts/main/ofl/%s/%s" % (gfdir, gffile),
+                "https://cdn.jsdelivr.net/gh/google/fonts@main/ofl/%s/%s" % (gfdir, gffile),
+            ]
+            if os.path.exists(cache) and os.path.getsize(cache) > 50000:
+                path = cache
+                print("[KARASUMA][FONT] %s キャッシュ:" % family, cache)
+            else:
+                for u in urls:
+                    try:
+                        req = urllib.request.Request(u.strip(), headers={"User-Agent": "Mozilla/5.0"})
+                        with urllib.request.urlopen(req, timeout=40) as r:
+                            data = r.read()
+                        if len(data) > 50000 and data[:4] in (b"\x00\x01\x00\x00", b"OTTO", b"true", b"ttcf"):
+                            with open(cache, "wb") as f:
+                                f.write(data)
+                            path = cache
+                            print("[KARASUMA][FONT] %s 取得OK:" % family, u, len(data), "B")
+                            break
+                        print("[KARASUMA][FONT] %s 不正データ(%dB) skip: %s" % (family, len(data), u))
+                    except Exception as e:
+                        print("[KARASUMA][FONT] %s 取得失敗 skip: %s %r" % (family, u, e))
+    if not path:
+        print("[KARASUMA][FONT] %s 解決できず→明朝フォールバック" % family)
+    _name_cache[family] = path
+    return path
+
+
+def _brush(size):
+    fam = _name_family
+    if fam == "mincho":
+        return _mincho(size)
+    if fam == "gothic":
+        return _gothic(size)
+    p = _resolve_font_path(fam)
+    if p:
+        try:
+            return _font(p, size)
+        except Exception as e:
+            print("[KARASUMA][FONT] _font失敗→明朝:", repr(e), "path=", p)
+    return _mincho(size)
+
+
+def _logo_white(max_w, max_h=190):
     """ロゴを幅・高さ両方に収めて返す（縦長ワードマークが巨大化しないよう高さ基準も効かせる）。"""
     cands = [p for p in [os.environ.get("KARASUMA_FEED_LOGO", "")] if p]
     for p in cands:
@@ -56,12 +171,15 @@ def _logo_white(max_w, max_h=130):
     return None
 
 
-def _shadow_text(img, xy, text, font, fill=INK, anchor=None, sh=(0, 0, 0, 150), off=((2, 2), (3, 3))):
+def _shadow_text(img, xy, text, font, fill=INK, anchor=None, sh=(0, 0, 0, 150), off=((2, 2), (3, 3)), stroke=0):
     d = ImageDraw.Draw(img)
     x, y = xy
+    mfill = fill + (255,) if len(fill) == 3 else fill
     for dx, dy in off:
-        d.text((x + dx, y + dy), text, font=font, fill=sh, anchor=anchor)
-    d.text((x, y), text, font=font, fill=fill + (255,) if len(fill) == 3 else fill, anchor=anchor)
+        d.text((x + dx, y + dy), text, font=font, fill=sh, anchor=anchor,
+               stroke_width=stroke, stroke_fill=sh)
+    d.text((x, y), text, font=font, fill=mfill, anchor=anchor,
+           stroke_width=stroke, stroke_fill=mfill)
 
 
 def _wrap(text, font, max_w):
@@ -95,13 +213,13 @@ def _grad_top_bottom(base, top=300, top_a=150, bot=460, bot_a=190):
     return Image.composite(black, base, ov).convert("RGBA")
 
 
-def _place_logo_or_text(img, x, y, max_w=300):
-    lg = _logo_white(max_w)
+def _place_logo_or_text(img, x, y, max_w=360):
+    lg = _logo_white(max_w, 200)
     if lg is not None:
         img.alpha_composite(lg, (x, y))
         return y + lg.height
-    _shadow_text(img, (x, y), "鮨処すさび湯", _mincho(52), fill=INK)
-    return y + 66
+    _shadow_text(img, (x, y), "鮨処すさび湯", _mincho(72), fill=INK)
+    return y + 92
 
 
 # ── 案①：縦書き大明朝（軸装風）──────────────────────────────
@@ -117,7 +235,7 @@ def render_tate(src, out, name, desc, sub="SUSHI", badge="四条烏丸｜完全�
 
     d = ImageDraw.Draw(base)
     # 左上：白ロゴ＋SUSHI・KYOTO
-    yb = _place_logo_or_text(base, 60, 56, 300)
+    yb = _place_logo_or_text(base, 60, 56, 380)
     _shadow_text(base, (62, yb + 8), "SUSHI・KYOTO", _gothic(24), fill=ACCENT)
     # 右上：上品バッジ
     bf = _gothic(26)
@@ -155,7 +273,7 @@ def render_obi(src, out, name, desc, sub="SUSHI", badge="四条烏丸｜完全�
     d.rounded_rectangle([W - 96 - (bb[2] - bb[0]), 48, W - 40, 100], radius=8, fill=(16, 12, 10, 210))
     d.text((W - 68 - (bb[2] - bb[0]), 60), badge, font=bf, fill=INK + (255,))
     # 写真左上：白ロゴ
-    _place_logo_or_text(base, 56, 52, 280)
+    _place_logo_or_text(base, 56, 52, 360)
     # 帯の中：欧文サブ → 料理名（明朝・墨・大）→ 説明文 → 罫 → ロゴ的テキスト＋handle
     x = 70
     d.text((x, by + 44), sub, font=_gothic(26), fill=SLAB + (255,))
@@ -192,12 +310,12 @@ def render_maru(src, out, name, desc, sub="SUSHI", badge="四条烏丸｜完全�
         d.ellipse([cx - D // 2 - wgt, cy - D // 2 - wgt, cx + D // 2 + wgt, cy + D // 2 + wgt],
                   outline=col, width=wgt)
     # 上：屋号＋SUSHI・KYOTO（中央）
-    yb = 70
-    lg = _logo_white(300)
+    yb = 60
+    lg = _logo_white(360, 180)
     if lg is not None:
         base.alpha_composite(lg, (cx - lg.width // 2, yb)); yb2 = yb + lg.height + 6
     else:
-        _shadow_text(base, (cx, yb), "鮨処すさび湯", _mincho(48), fill=INK, anchor="ma"); yb2 = yb + 60
+        _shadow_text(base, (cx, yb), "鮨処すさび湯", _mincho(68), fill=INK, anchor="ma"); yb2 = yb + 84
     d.text((cx, yb2), "SUSHI・KYOTO", font=_gothic(24), fill=ACCENT + (255,), anchor="ma")
     # 下：料理名（中央・大明朝）＋説明文＋バッジ
     ny = cy + D // 2 + 44
@@ -239,11 +357,11 @@ def render_tate_b(src, out, name, desc, sub="SUSHI", badge="四条烏丸｜完�
     from gifuya_design import _draw_vertical
     base = _prep(src, top_a=175, bot_a=205, right_a=120)
     d = ImageDraw.Draw(base)
-    d.text((W // 2, 58), "鮨処すさび湯", font=_mincho(50), fill=INK + (255,), anchor="ma")
-    d.text((W // 2, 122), "SUSHI・KYOTO", font=_gothic(24), fill=ACCENT + (255,), anchor="ma")
-    d.rectangle([90, 170, W - 90, 173], fill=ACCENT)
+    d.text((W // 2, 52), "鮨処すさび湯", font=_mincho(72), fill=INK + (255,), anchor="ma")
+    d.text((W // 2, 136), "SUSHI・KYOTO", font=_gothic(24), fill=ACCENT + (255,), anchor="ma")
+    d.rectangle([90, 188, W - 90, 191], fill=ACCENT)
     d.rectangle([90, H - 176, W - 90, H - 173], fill=ACCENT)
-    _draw_vertical(base, name, right_x=W - 96, top_y=214, font=_vfont(name, 104), fill=INK)
+    _draw_vertical(base, name, right_x=W - 96, top_y=230, font=_vfont(name, 100), fill=INK)
     df = _mincho(38)
     _shadow_text(base, (W // 2, H - 150), _wrap(desc, df, W - 300)[0], df, fill=(241, 231, 210), anchor="ma")
     _shadow_text(base, (92, 60), badge, _gothic(24), fill=SUB)
@@ -282,9 +400,9 @@ def render_tate_e(src, out, name, desc, sub="SUSHI", badge="四条烏丸｜完�
     for x, y, dx, dy in [(m, m, 1, 1), (W - m, m, -1, 1), (m, H - m, 1, -1), (W - m, H - m, -1, -1)]:
         d.line([(x, y), (x + dx * L, y)], fill=ACCENT, width=t)
         d.line([(x, y), (x, y + dy * L)], fill=ACCENT, width=t)
-    d.text((W // 2, 66), "鮨処すさび湯", font=_mincho(46), fill=INK + (255,), anchor="ma")
-    d.text((W // 2, 124), "SUSHI・KYOTO", font=_gothic(22), fill=ACCENT + (255,), anchor="ma")
-    _draw_vertical(base, name, right_x=W - 104, top_y=210, font=_vfont(name, 92), fill=INK)
+    d.text((W // 2, 60), "鮨処すさび湯", font=_mincho(68), fill=INK + (255,), anchor="ma")
+    d.text((W // 2, 142), "SUSHI・KYOTO", font=_gothic(22), fill=ACCENT + (255,), anchor="ma")
+    _draw_vertical(base, name, right_x=W - 104, top_y=228, font=_vfont(name, 88), fill=INK)
     d.rectangle([84, H - 250, 192, H - 247], fill=ACCENT)
     d.rectangle([84, H - 236, 192, H - 233], fill=ACCENT)
     df = _mincho(38)
@@ -310,10 +428,10 @@ def _logo_at(base, x, y, max_w, center=False, max_h=130):
     lg = _logo_white(max_w, max_h)
     if lg is None:
         if center:
-            ImageDraw.Draw(base).text((x, y), "鮨処すさび湯", font=_mincho(50), fill=INK + (255,), anchor="ma")
-            return (y + 62, 300)
-        _shadow_text(base, (x, y), "鮨処すさび湯", _mincho(52), fill=INK)
-        return (y + 66, 300)
+            ImageDraw.Draw(base).text((x, y), "鮨処すさび湯", font=_mincho(72), fill=INK + (255,), anchor="ma")
+            return (y + 92, 420)
+        _shadow_text(base, (x, y), "鮨処すさび湯", _mincho(72), fill=INK)
+        return (y + 92, 420)
     base.alpha_composite(lg, (x - lg.width // 2 if center else x, y))
     return (y + lg.height, lg.width)
 
@@ -323,9 +441,9 @@ def render_tate_f(src, out, name, desc, sub="SUSHI", badge="四条烏丸｜完�
     from gifuya_design import _draw_vertical
     base = _prep(src, top_a=155, bot_a=190, right_a=118)
     d = ImageDraw.Draw(base)
-    yb, _ = _logo_at(base, 60, 54, 340)
-    d.rectangle([62, yb + 12, 62 + 176, yb + 15], fill=ACCENT)
-    _shadow_text(base, (62, yb + 26), "京都・四条烏丸", _gothic(28), fill=ACCENT)
+    yb, _ = _logo_at(base, 60, 54, 440, max_h=210)
+    d.rectangle([62, yb + 14, 62 + 300, yb + 18], fill=ACCENT)
+    _shadow_text(base, (62, yb + 30), "京都・四条烏丸", _gothic(46), fill=ACCENT)
     d.rectangle([W - 96, 264, W - 93, 264 + 356], fill=ACCENT)
     _draw_vertical(base, name, right_x=W - 120, top_y=264, font=_vfont(name, 96), fill=INK)
     d.rectangle([60, H - 300, 168, H - 297], fill=ACCENT)
@@ -342,9 +460,9 @@ def render_tate_g(src, out, name, desc, sub="SUSHI", badge="四条烏丸｜完�
     from gifuya_design import _draw_vertical
     base = _prep(src, top_a=180, bot_a=205, right_a=120)
     d = ImageDraw.Draw(base)
-    yb, _ = _logo_at(base, W // 2, 48, 360, center=True)
-    d.text((W // 2, yb + 8), "四条烏丸｜完全個室", font=_gothic(26), fill=ACCENT + (255,), anchor="ma")
-    d.rectangle([90, yb + 56, W - 90, yb + 59], fill=ACCENT)
+    yb, _ = _logo_at(base, W // 2, 46, 480, center=True, max_h=210)
+    d.text((W // 2, yb + 10), "四条烏丸｜完全個室", font=_gothic(38), fill=ACCENT + (255,), anchor="ma")
+    d.rectangle([90, yb + 64, W - 90, yb + 67], fill=ACCENT)
     d.rectangle([90, H - 176, W - 90, H - 173], fill=ACCENT)
     _draw_vertical(base, name, right_x=W - 96, top_y=max(238, yb + 92), font=_vfont(name, 100), fill=INK)
     df = _mincho(38)
@@ -358,13 +476,14 @@ def render_tate_h(src, out, name, desc, sub="SUSHI", badge="四条烏丸｜完�
     from gifuya_design import _draw_vertical
     base = _prep(src, top_a=155, bot_a=190, right_a=122)
     d = ImageDraw.Draw(base)
-    yb, _ = _logo_at(base, 60, 54, 300)
+    yb, _ = _logo_at(base, 60, 54, 380, max_h=200)
     _shadow_text(base, (62, yb + 10), "SUSHI・KYOTO", _gothic(22), fill=ACCENT)
     d.rectangle([W - 96, 250, W - 93, 250 + 344], fill=ACCENT)
     _draw_vertical(base, name, right_x=W - 120, top_y=250, font=_vfont(name, 92), fill=INK)
-    # 左に地名を金の縦書きで（意匠）
-    d.rectangle([150, 262, 153, 262 + 176], fill=ACCENT)
-    _draw_vertical(base, "四条烏丸", right_x=150, top_y=270, font=_mincho(44), fill=ACCENT)
+    # 左に地名を金の縦書きで大きく（意匠）
+    gy = yb + 54
+    d.rectangle([188, gy, 191, gy + 372], fill=ACCENT)
+    _draw_vertical(base, "四条烏丸", right_x=176, top_y=gy, font=_mincho(88), fill=ACCENT)
     df = _mincho(38); y = H - 210
     for ln in _wrap(desc, df, W - 430):
         _shadow_text(base, (60, y), ln, df, fill=(241, 231, 210)); y += 54
@@ -413,12 +532,12 @@ def _hname(base, name, x, y, maxw, max_px=96, min_px=44, align="center", color=I
 def render_tate_i(src, out, name, desc, sub="SUSHI", badge="四条烏丸｜完全個室", quality=92):
     base = _prep(src, top_a=180, bot_a=210, right_a=0)
     d = ImageDraw.Draw(base)
-    lg = _logo_h(760, 200)
+    lg = _logo_h(900, 300)
     if lg is not None:
-        base.alpha_composite(lg, (W // 2 - lg.width // 2, 64)); yb = 64 + lg.height
+        base.alpha_composite(lg, (W // 2 - lg.width // 2, 60)); yb = 60 + lg.height
     else:
-        d.text((W // 2, 70), "鮨処すさび湯", font=_mincho(56), fill=INK + (255,), anchor="ma"); yb = 140
-    d.text((W // 2, yb + 12), badge, font=_gothic(26), fill=ACCENT + (255,), anchor="ma")
+        d.text((W // 2, 66), "鮨処すさび湯", font=_mincho(76), fill=INK + (255,), anchor="ma"); yb = 168
+    d.text((W // 2, yb + 14), badge, font=_gothic(30), fill=ACCENT + (255,), anchor="ma")
     # 下部：金の短罫＋料理名（横・大）＋説明
     d.rectangle([W // 2 - 60, H - 320, W // 2 + 60, H - 317], fill=ACCENT)
     _hname(base, name, W // 2, H - 288, W - 200, max_px=100, align="center")
@@ -433,13 +552,17 @@ def render_tate_i(src, out, name, desc, sub="SUSHI", badge="四条烏丸｜完�
 def render_tate_j(src, out, name, desc, sub="SUSHI", badge="四条烏丸｜完全個室", quality=92):
     base = _prep(src, top_a=165, bot_a=210, right_a=150)
     d = ImageDraw.Draw(base)
-    lg = _logo_white(380, 500)
+    lg = _logo_white(520, 640)
     if lg is not None:
-        base.alpha_composite(lg, (W - 56 - lg.width, 52))
+        base.alpha_composite(lg, (W - 48 - lg.width, 48))
     else:
-        _shadow_text(base, (W - 300, 60), "鮨処すさび湯", _mincho(50), fill=INK)
-    _shadow_text(base, (60, 62), "SUSHI・KYOTO", _gothic(26), fill=ACCENT)
-    _shadow_text(base, (60, 104), badge, _gothic(26), fill=INK)
+        _shadow_text(base, (W - 360, 56), "鮨処すさび湯", _mincho(72), fill=INK)
+    _shadow_text(base, (60, 58), "SUSHI・KYOTO", _gothic(24), fill=ACCENT)
+    # 地名を大きく・筆書体（「完全個室」は入れない）＋真下に金ライン
+    gf = _brush_for(FONT_TATE_J, 88)
+    _shadow_text(base, (60, 94), "四条烏丸", gf, fill=INK, stroke=_bstroke(gf.size))
+    gbb = d.textbbox((60, 94), "四条烏丸", font=gf)
+    d.rectangle([60, gbb[3] + 12, gbb[2], gbb[3] + 17], fill=ACCENT)
     # 下部：金の短罫＋料理名（横・大・左寄せ）＋説明＋handle
     d.rectangle([64, H - 322, 172, H - 319], fill=ACCENT)
     _hname(base, name, 64, H - 300, W - 128, max_px=104, align="left")
@@ -456,11 +579,12 @@ def render_tate_k(src, out, name, desc, sub="SUSHI", badge="四条烏丸｜完�
     from gifuya_design import _draw_vertical
     base = _prep(src, top_a=155, bot_a=205, right_a=175)
     d = ImageDraw.Draw(base)
-    _logo_at(base, 60, 50, 360, max_h=175)
+    _logo_at(base, 60, 48, 620, max_h=330)
     # 右端に「四条烏丸」を特大の縦書き（生成り）。金の縦罫は“文字列の左”に間隔をあけて置く（重ならない）。
-    big = _mincho(120)
-    col_right = W - 70
-    _draw_vertical(base, "四条烏丸", right_x=col_right, top_y=150, font=big, fill=INK)
+    big = _brush_for(FONT_TATE_K, 150)
+    col_right = W - 60
+    _draw_vertical(base, "四条烏丸", right_x=col_right, top_y=150, font=big, fill=INK,
+                   stroke_width=_bstroke(big.size))
     rule_x = col_right - big.size - 30          # 文字列(左端=col_right-size)よりさらに左
     d.rectangle([rule_x, 156, rule_x + 3, 156 + int(big.size * 1.15) * 4], fill=ACCENT)
     # 左下：金の短罫＋料理名（横）＋説明
