@@ -34,5 +34,6 @@ jobs:
           IG_ACCESS_TOKEN_GIFUYATENJIN: ${{ secrets.IG_ACCESS_TOKEN_GIFUYATENJIN }}
           IG_ACCESS_TOKEN_NAGAGUTSU: ${{ secrets.IG_ACCESS_TOKEN_NAGAGUTSU }}
           IG_ACCESS_TOKEN_GOLDPORTA: ${{ secrets.IG_ACCESS_TOKEN_GOLDPORTA }}
+          IG_ACCESS_TOKEN_KARASUMA: ${{ secrets.IG_ACCESS_TOKEN_KARASUMA }}
           LINE_CHANNEL_TOKEN: ${{ secrets.LINE_CHANNEL_TOKEN }}
         run: python token_guard.py creds.json "${{ github.event.inputs.reset }}"
