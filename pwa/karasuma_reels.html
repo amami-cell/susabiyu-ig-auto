@@ -238,7 +238,7 @@
 <script>
 (function(){
   "use strict";
-  var V = "?v=182";  // メディアのキャッシュ更新用
+  var V = "?v=183";  // メディアのキャッシュ更新用
   window.__APPV = "v" + (V.replace("?v=","")||"?");   // 画面下の版数表示用（?v=と同期）
   var CFG = window.GIFUYA || {};
   var LIVE = !!window.GIFUYA_LIVE;               // 専用GAS注入済みなら実データ連携
@@ -293,6 +293,9 @@
   // カード本表示用の中サイズ高品質WebP（<name>.card.webp）。無ければ原寸JPEGへ自動フォールバック。
   // ※実際のInstagram投稿には原寸JPEGを使うので投稿画質は不変。表示だけ軽くする。
   function cardSrc(u){ return String(u||"").replace(/\.(jpe?g|png)(\?.*)?$/i, ".card.webp"); }
+  // メディアURL：絶対URL(http〜)はそのまま／相対は karasuma/ を付けて ?v を足す。
+  // リール動画はCDN(jsDelivr)の絶対URLで来るため、そのまま使う（Pages容量を増やさない）。
+  function MU(u){ u=String(u||""); return /^https?:\/\//.test(u) ? u : ("karasuma/"+u+V); }
   var refreshers=[];  // 全カードのタグ表示を一括更新するための登録先
   function refreshAll(){ for(var i=0;i<refreshers.length;i++){ try{ refreshers[i](); }catch(e){} } }
   var toastEl=document.getElementById("toast"),toastT=null;
@@ -452,7 +455,7 @@
     // caption は本文＋ハッシュタグ＋店舗情報の「完成形」。ハッシュタグはこの中に1回だけ含まれる。
     // 別枠 hashtags には入れない（投稿エンジンが再度末尾に付けて“上にも下にも”重複するのを防ぐ）。
     var caption=fullCaption(it.cap, it.tags);
-    var media=absUrl("karasuma/"+(kind==="feed"?it.img:it.vid));
+    var media=(kind!=="feed" && /^https?:\/\//.test(it.vid)) ? it.vid : absUrl("karasuma/"+(kind==="feed"?it.img:it.vid));
     var params={api:"schedule", kind:(kind==="feed"?"feed":"reel"), name:name, when:when, media:media, caption:caption, hashtags:""};
     // リールは切取位置(秒)を渡す。投稿エンジンが ffmpeg で切り出してから投稿する。
     var card=(slot&&slot.closest)?slot.closest(".card"):null;
@@ -535,8 +538,8 @@
     var c=document.createElement("div"); c.className="card"+(p.reco?" reco":"");
     var _pv=(p.vid||"").replace(/\.mp4$/,"_poster.jpg");
     var media=kind==="feed"
-      ? '<div class="mediaWrap feed"><img loading="lazy" decoding="async" src="karasuma/'+cardSrc(p.img)+V+'" onerror="this.onerror=null;this.src=\'karasuma/'+p.img+V+'\'" alt=""></div>'
-      : '<div class="mediaWrap reel"><video poster="karasuma/'+_pv+V+'" src="karasuma/'+p.vid+V+'" controls playsinline preload="none" webkit-playsinline></video></div>';
+      ? '<div class="mediaWrap feed"><img loading="lazy" decoding="async" src="'+MU(cardSrc(p.img))+'" onerror="this.onerror=null;this.src=\''+MU(p.img)+'\'" alt=""></div>'
+      : '<div class="mediaWrap reel"><video poster="'+MU(p.poster||_pv)+'" src="'+MU(p.vid)+'" controls playsinline preload="none" webkit-playsinline></video></div>';
     var trim=kind==="reel"
       ? '<div class="trim"><div class="trimhd"><span>切り取り（リール用）</span><span><b class="tlen">--</b> / 元<span class="tall">--</span></span></div>'+
         '<div class="rangewrap"><div class="track"></div><div class="sel"></div>'+
@@ -588,7 +591,7 @@
     var hint=document.createElement("div"); hint.className="hint";
     hint.innerHTML = (kind==="feed"
       ? "次に投稿する<b>おすすめを3つ</b>だけ表示（同じジャンル＝串かつ・どて焼きなどが続かないよう自動で分散）。他の料理は「全商品から選ぶ」で。"
-      : "リール候補です（現在は準備中・形のみ）。<b>今すぐ投稿</b> または <b>日時を決めて予約</b>できます。")
+      : "リール候補です。<b>今すぐ投稿</b> または <b>日時を決めて予約</b>できます。")
       + "<br>※鮨処すさび湯（@gold_kyotoporta）" + (LIVE?"：実データ連携中。":"：現在は見本モードです。") + "投稿は毎日11時・18時・20時に自動投稿予定。";
     wrap.appendChild(hint);
     var list = kind==="feed"?FEED:REEL;
@@ -773,9 +776,10 @@
       var el=body.querySelector("#nvPickWrap");
       var html='<div style="font-size:12px;font-weight:800;color:var(--gold);margin:6px 2px">'+(newResv.all?'全商品から選ぶ':'⭐ おすすめ（ジャンル分散）')+'</div><div class="rpick">';
       pool.forEach(function(p){
-        var base=newResv.kind==="feed"? p.img : ((p.vid||"").replace(/\.mp4$/,"_poster.jpg"));
-        var full='karasuma/'+base+V;                 // 原寸（フォールバック用）
-        var th='karasuma/'+thumbSrc(base)+V;         // 軽いWebPサムネ
+        var base=newResv.kind==="feed"? p.img : (p.poster||((p.vid||"").replace(/\.mp4$/,"_poster.jpg")));
+        var _abs=/^https?:\/\//.test(base);
+        var full=_abs? base : ('karasuma/'+base+V);                 // 原寸（フォールバック用）
+        var th=_abs? base : ('karasuma/'+thumbSrc(base)+V);         // 軽いWebPサムネ
         var on=(newResv.pick&&newResv.pick.t===p.t)?" on":"";
         html+='<button class="pk'+on+'" data-t="'+esc(p.t)+'"><img class="th'+(newResv.kind==="feed"?" contain":"")+'" loading="lazy" src="'+th+'" onerror="this.onerror=null;this.src=\''+full+'\'"><div class="nm">'+esc(p.t)+'</div><div class="gtag">'+esc(genreOf(p.t))+'</div></button>';
       });
@@ -806,12 +810,12 @@
     }
     function updateGo(){ var go=body.querySelector("#nvGo"); if(newResv.pick){ go.disabled=false; go.textContent="この内容で予約する（"+fmtDateJ(k)+" "+(body.querySelector("#nvTime").value||"18:00")+"）"; } else { go.disabled=true; go.textContent="投稿を選んでください"; } }
     body.querySelector("#nvFeed").onclick=function(){ newResv.kind="feed";newResv.pick=null;newResv.all=false; this.classList.add("on");body.querySelector("#nvReel").classList.remove("on"); drawPick();drawGridPrev();drawDetail();updateGo(); };
-    body.querySelector("#nvReel").onclick=function(){ newResv.kind="reel";newResv.pick=null;newResv.all=false; this.classList.add("on");body.querySelector("#nvFeed").classList.remove("on"); drawPick();drawGridPrev();drawDetail();updateGo(); toast("リールは準備中です（形だけの表示）"); };
+    body.querySelector("#nvReel").onclick=function(){ newResv.kind="reel";newResv.pick=null;newResv.all=false; this.classList.add("on");body.querySelector("#nvFeed").classList.remove("on"); drawPick();drawGridPrev();drawDetail();updateGo(); };
     body.querySelector("#nvTime").oninput=updateGo;
     body.querySelector("#nvGo").onclick=function(){ if(!newResv.pick)return;
       var tt=body.querySelector("#nvTime").value||"18:00"; var it=newResv.pick, kind=newResv.kind, when=k+" "+tt;
       var caption=fullCaption(it.cap, it.tags);
-      var media=absUrl("karasuma/"+(kind==="feed"?it.img:it.vid));
+      var media=(kind!=="feed" && /^https?:\/\//.test(it.vid)) ? it.vid : absUrl("karasuma/"+(kind==="feed"?it.img:it.vid));
       // 楽観的：即カレンダーに反映＆閉じる→裏で保存→成功で整合／失敗でロールバック
       var opt={token:"tmp"+Date.now(), when:when, kind:kind, media:media, name:it.t||"", caption:caption, hashtags:"", status:"scheduled"};
       SCHED.push(opt); if(schedCb) schedCb(); closeResv(); toast("予約しました（予定時刻に自動投稿）");
@@ -1048,6 +1052,14 @@
       if(!extras.length) return;
       FEED = shuffleFeed(FEED.concat(extras));   // 厳選＋加工済み全料理を日替わり順で
       if(tF.classList.contains("on")) render("feed");
+    }).catch(function(){});
+  })();
+  // リールも外から読む（reel.json）。和モダン・リール(SAMPLES)をCDNのまま確認画面に出す。
+  (function loadReelJson(){
+    fetch("./karasuma/reel.json"+V, {cache:"no-store"}).then(function(r){ return r.ok?r.json():null; }).then(function(d){
+      if(!d || !d.items || !d.items.length) return;
+      REEL = d.items.map(function(it){ return {vid: it.vid, poster: it.poster||"", t: it.t||it.title||"", cap: it.cap||"", tags: it.tags||""}; });
+      if(tR.classList.contains("on")) render("reel");
     }).catch(function(){});
   })();
 })();
