@@ -9,9 +9,12 @@ name: karasuma-post
 # ※トークンは IG_ACCESS_TOKEN_KARASUMA（または AcctTokens の karasuma 行）を使用。
 #   未設定時は fresh_token_for が空を返して安全にスキップ（既定=三条への誤投稿はしない）。
 on:
-  schedule:
-    # UTC 01:00〜13:30 を30分おき ＝ JST 10:00〜22:30。全枠(11/18/20時JST)を毎回試す。
-    - cron: '*/30 1-13 * * *'
+  # 【統合済み】日次自動ストーリーの枠投稿は reservations.yml の karasuma_slots ジョブ
+  # （全店5分ループに相乗り）へ移管した。単独cronはGitHubのschedule間引きに弱く、
+  # 窓(10-22時JST)で1回しか発火せず未投稿になる事故が起きたため schedule は停止。
+  # このワークフローは手動dispatch（即投稿・日時指定）専用として残す。
+  # schedule:
+  #   - cron: '*/30 1-13 * * *'   # 停止：reservations.yml karasuma_slots に統合
   workflow_dispatch:
     inputs:
       datetime:
