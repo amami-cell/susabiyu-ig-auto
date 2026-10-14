@@ -130,7 +130,23 @@ def _u_jsdelivr(path):
     sha = (r.json().get("commit") or {}).get("sha", "")
     if not sha:
         return ""
-    return "https://cdn.jsdelivr.net/gh/%s@%s/%s" % (repo, sha, key)
+    cdn_url = "https://cdn.jsdelivr.net/gh/%s@%s/%s" % (repo, sha, key)
+    # CDNウォームアップ：新SHAのjsDelivr URLは初回アクセス時にGitHubから取得する“コールド”状態で、
+    # 直後にIGが取りに来ると未伝播で取得失敗→コンテナERRORになる（yoshokuhitowa等で実測：
+    # 同一動画が時間を置くとFINISHEDするのにアップ直後は失敗）。ここで200になるまで数回GETして
+    # jsDelivr側にキャッシュさせてから返す＝IGが確実に取得できる状態にする。失敗しても URL は返す。
+    for _w in range(8):
+        try:
+            g = req.get(cdn_url, timeout=30)
+            if g.status_code == 200:
+                if _w:
+                    print("[UPLOAD] jsdelivr warm OK (%d回目)" % (_w + 1))
+                break
+            print("[UPLOAD] jsdelivr warm %s wait（CDN伝播待ち %d/8）" % (g.status_code, _w + 1))
+        except Exception as _e:
+            print("[UPLOAD] jsdelivr warm 例外 %s（%d/8）" % (str(_e)[:60], _w + 1))
+        time.sleep(min(20, 3 * (2 ** _w)))
+    return cdn_url
 
 def up(path, cdn=False):
     # cdn=True: 確認画面で人が何度も見るプレビュー → 永続ホストのみ（jsDelivr→R2）。
