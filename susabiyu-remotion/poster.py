@@ -469,12 +469,13 @@ def ig_post(token, url, is_video):
         print("[POST] media作成ERROR:", c["error"], "| url=", url); return ""
     cid = c["id"]
     for _ in range(30):
-        s = req.get(f"{B}/{cid}", params={"fields": "status_code", "access_token": token}).json()
+        # status だけでなく status(詳細文)も取得＝ERROR時にIGの実エラー(例 2207026 動画仕様NG)を残す。
+        s = req.get(f"{B}/{cid}", params={"fields": "status_code,status", "access_token": token}).json()
         sc = s.get("status_code")
         if sc == "FINISHED":
             break
         if sc == "ERROR":
-            print("[POST] status error"); return ""
+            print("[POST] status error 詳細=", s.get("status"), "| 全体=", s); return ""
         time.sleep(5)
     p = req.post(f"{B}/{uid}/media_publish", data={"creation_id": cid, "access_token": token}).json()
     if "error" in p:
