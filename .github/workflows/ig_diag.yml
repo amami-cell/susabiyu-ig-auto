@@ -1,0 +1,41 @@
+name: ig-story-diag
+# IGストーリー投稿の失敗原因を“公開せずに”診断する（手動専用）。
+# 指定の動画URLで media_type=STORIES のコンテナを作り、status(詳細)をポーリングして
+# IGの実エラー（例 2207026=動画仕様NG）を出力する。media_publish は呼ばない＝投稿しない。
+on:
+  workflow_dispatch:
+    inputs:
+      url:
+        description: "診断する動画URL（jsDelivr等の公開mp4）"
+        required: true
+      account:
+        description: "対象アカウント（既定 karasuma）"
+        required: false
+        default: "karasuma"
+permissions:
+  contents: read
+jobs:
+  diag:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: susabiyu-remotion
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install deps
+        run: pip install google-api-python-client google-auth requests
+      - name: Write creds.json
+        run: echo "$GOOGLE_CREDS_B64" | base64 -d > creds.json
+        env:
+          GOOGLE_CREDS_B64: ${{ secrets.GOOGLE_CREDS_B64 }}
+      - name: Diag (no publish)
+        env:
+          STORE_ACCOUNT: ${{ github.event.inputs.account }}
+          GOOGLE_CREDS_B64: ${{ secrets.GOOGLE_CREDS_B64 }}
+          SHEET_ID: ${{ secrets.SHEET_ID }}
+          IG_ACCESS_TOKEN_KARASUMA: ${{ secrets.IG_ACCESS_TOKEN_KARASUMA }}
+        run: python ig_story_diag.py "${{ github.event.inputs.url }}"
