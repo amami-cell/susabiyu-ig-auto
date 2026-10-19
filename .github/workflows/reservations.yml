@@ -154,3 +154,70 @@ jobs:
             echo "=== 枠を試行: $DT ==="
             python post_approved.py creds.json "$DT" || true
           done
+
+  # ぎふや・ナガグツ・GOLD の日次自動ストーリー（承認待ち_<店>＋post_approved）も、
+  # 同じ5分ループに相乗りさせる＝各店の単独cron(*/30)はGitHubのschedule間引きで窓内に
+  # 1〜2回しか発火せず、夜20:00枠を毎回取りこぼしていた（実測：10-17/10-18の20時が全店未投稿）。
+  # 窓(10-22時JST)を5分おきにポーリングすれば、窓内で最初に回った実行が各枠を1回だけ投稿する。
+  # 1ジョブ内で3店を順に試すだけ＝cron(ワークフロー実行回数)は増やさない＝無料枠のまま。
+  # 各枠は post_approved のガードで「投稿済み=skip／枠前=skip(早出し防止)／窓外(夜間)=skip／
+  # 大幅遅延=skip」を判定。karasuma_slots とは別ジョブで並列＝karasumaの挙動には一切影響しない。
+  other_slots:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: susabiyu-remotion
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install Python deps
+        run: pip install google-api-python-client google-auth requests jpholiday Pillow boto3 pywebpush numpy
+      - name: Install Node deps
+        run: npm ci
+      - name: Install ffmpeg ＋ 日本語フォント
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg fonts-noto-cjk fonts-noto-cjk-extra fonts-aoyagi-kouzan-t
+      - name: Write creds.json
+        run: echo "$GOOGLE_CREDS_B64" | base64 -d > creds.json
+        env:
+          GOOGLE_CREDS_B64: ${{ secrets.GOOGLE_CREDS_B64 }}
+      - name: Run gifuya/nagagutsu/goldporta slots (gated)
+        env:
+          GOOGLE_CREDS_B64: ${{ secrets.GOOGLE_CREDS_B64 }}
+          IG_ACCESS_TOKEN_GIFUYATENJIN: ${{ secrets.IG_ACCESS_TOKEN_GIFUYATENJIN }}
+          IG_ACCESS_TOKEN_NAGAGUTSU: ${{ secrets.IG_ACCESS_TOKEN_NAGAGUTSU }}
+          IG_ACCESS_TOKEN_GOLDPORTA: ${{ secrets.IG_ACCESS_TOKEN_GOLDPORTA }}
+          SHEET_ID: ${{ secrets.SHEET_ID }}
+          LINE_CHANNEL_TOKEN: ${{ secrets.LINE_CHANNEL_TOKEN }}
+          R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          R2_BUCKET: ${{ secrets.R2_BUCKET }}
+          R2_PUBLIC_BASE: ${{ secrets.R2_PUBLIC_BASE }}
+          GH_MEDIA_TOKEN: ${{ secrets.GH_MEDIA_TOKEN }}
+          GH_MEDIA_REPO: ${{ secrets.GH_MEDIA_REPO }}
+          VAPID_PRIVATE_KEY: ${{ secrets.VAPID_PRIVATE_KEY }}
+          VAPID_SUBJECT: ${{ secrets.VAPID_SUBJECT }}
+          # 手動dispatchで mode=dry の時だけ生成のみ。cron/live は実投稿。
+          DRY: ${{ github.event.inputs.mode == 'dry' && '1' || '' }}
+          # 全枠ループは必ずガードON＝早出し/窓外(夜間)/二重を防ぐ。
+          POST_SCHED_GUARD: "1"
+          POST_MAX_LATE_MIN: "600"
+        run: |
+          # 店舗ごとに本日の全枠を順に試す（slots は stores.py 準拠：ぎふや11/17/20・ナガグツ12/18/20・GOLD11/18/20）。
+          D=$(TZ=Asia/Tokyo date +%F)
+          for ENTRY in "gifuyatenjin:11 17 20" "nagagutsu:12 18 20" "goldporta:11 18 20"; do
+            export STORE_ACCOUNT="${ENTRY%%:*}"
+            SLOTS="${ENTRY##*:}"
+            echo "########## 店舗: $STORE_ACCOUNT ##########"
+            for HH in $SLOTS; do
+              DT="$D ${HH}:00"
+              echo "=== 枠を試行: $STORE_ACCOUNT $DT ==="
+              python post_approved.py creds.json "$DT" || true
+            done
+          done

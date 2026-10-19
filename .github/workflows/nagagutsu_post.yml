@@ -7,10 +7,12 @@ name: nagagutsu-post
 #   post_approved 側のガードが「投稿済み=skip / まだ枠前=skip / 窓外=skip / 大幅遅延=skip」を
 #   判定するので、各枠は窓内で最初に回った実行がちょうど1回だけ投稿する（二重投稿しない）。
 on:
-  schedule:
-    # UTC 01:00〜13:30 を30分おき ＝ JST 10:00〜22:30。全枠(12/18/20時JST)を毎回試す。
-    # 疎な発火に頼らず“数打つ”ことで、GitHubのschedule遅延/間引きに強くする。
-    - cron: '*/30 1-13 * * *'
+  # 【統合済み】日次自動ストーリーの枠投稿は reservations.yml の other_slots ジョブ
+  # （全店5分ループに相乗り）へ移管した。単独cron(*/30)はGitHubのschedule間引きに弱く、
+  # 窓(10-22時JST)で1〜2回しか発火できず夜20:00枠を毎回取りこぼしていたため schedule は停止。
+  # このワークフローは手動dispatch（即投稿・日時指定）専用として残す。
+  # schedule:
+  #   - cron: '*/30 1-13 * * *'   # 停止：reservations.yml other_slots に統合
   workflow_dispatch:
     inputs:
       datetime:

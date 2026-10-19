@@ -3,13 +3,12 @@ name: gifuya-post
 # GitHub cron 遅延に強くするため、各cronはスロット時刻(JST)を明示して post_approved に渡す。
 # 承認/差し替え/やめる/作り直しは確認アプリ→GAS→シートに反映済みの状態を尊重して投稿する。
 on:
-  schedule:
-    # 【根本対策】GitHubのschedule発火は数時間遅れる/間引かれる（実測4〜5.7h）。疎なcronだと
-    # 発火が投稿許容窓(10-22時JST)を飛び越えて全枠スキップ＝未投稿になる。→ 窓の時間帯を
-    # 30分おきにポーリングし、毎回“その日の全枠(11/17/20時JST)”を試す。各枠は post_approved の
-    # ガードで「投稿済み/まだ枠前/窓外/大幅遅延」を判定し、窓内で最初に回った実行が1回だけ投稿。
-    # 深夜は窓ガード(10-22時)で絶対に出さない。
-    - cron: '*/30 1-13 * * *'   # UTC 01:00-13:30（＝JST 10:00-22:30）30分おき
+  # 【統合済み】日次自動ストーリーの枠投稿は reservations.yml の other_slots ジョブ
+  # （全店5分ループに相乗り）へ移管した。単独cron(*/30)はGitHubのschedule間引きに弱く、
+  # 窓(10-22時JST)で1〜2回しか発火できず夜20:00枠を毎回取りこぼしていたため schedule は停止。
+  # このワークフローは手動dispatch（即投稿・日時指定）専用として残す。
+  # schedule:
+  #   - cron: '*/30 1-13 * * *'   # 停止：reservations.yml other_slots に統合
   workflow_dispatch:
     inputs:
       datetime:
