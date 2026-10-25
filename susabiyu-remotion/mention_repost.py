@@ -44,6 +44,10 @@ STORES = [
      "logo": os.path.join(_HERE, "assets_nagagutsu_logo_white.png"), "reply": _REPLY},
     {"account": "goldporta", "name": "GOLD京都ポルタ",
      "logo": os.path.join(_HERE, "assets_goldporta_logo_white.png"), "reply": _REPLY},
+    # 烏丸（鮨処すさび湯 京都四条烏丸）も対象に追加。トークンは IG_ACCESS_TOKEN_KARASUMA。
+    # 白ロゴPNG未用意のため logo は当該ファイルが置かれた時だけ焼く（無ければロゴなし＝graceful）。
+    {"account": "karasuma", "name": "鮨処すさび湯(烏丸)",
+     "logo": os.path.join(_HERE, "assets_karasuma_logo_white.png"), "reply": _REPLY},
 ]
 ONLY = (os.environ.get("STORE_ACCOUNT") or "").strip()   # 指定時はその店舗だけ
 
