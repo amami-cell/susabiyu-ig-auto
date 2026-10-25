@@ -986,10 +986,12 @@ function _autoComment_(account) {
 // 新店を足す時だけ スクリプトプロパティ IG_ACCOUNT_MAP({"<igid>":"<account>"}) で上書き/追加。
 var IG_ACCOUNT_BUILTIN = {
   '17841415653304968': 'gifuyatenjin',   // @gifuya_fukuokatenjin
-  '17841478601852970': ''                // @susabiyu_sanjyo（三条＝account空）
-  // ナガグツ(@nagagutsu0427)のIGユーザーIDが判明したら '<igid>': 'nagagutsu' を追記
-  //（暫定は スクリプトプロパティ IG_ACCOUNT_MAP で {"<igid>":"nagagutsu"} を設定でも可）。
-  // GOLD京都ポルタ(@gold_kyotovolta)も同様に '<igid>': 'goldporta' を追記。
+  '17841478601852970': '',               // @susabiyu_sanjyo（三条＝account空）
+  '17841434195474616': 'nagagutsu',      // @nagagutsu0427（ナガグツ）
+  '17841454564284261': 'goldporta',      // @gold_kyotoporta（GOLD京都ポルタ）
+  '17841457789054704': 'karasuma'        // @susabiyu_kyoto（鮨処すさび湯 京都四条烏丸）
+  // 新店を足す時は上に '<igid>': '<account>' を追記（または スクリプトプロパティ IG_ACCOUNT_MAP）。
+  // ↑未マップのIGユーザーIDは メンション__unknown / DM__unknown に隔離され、リポスト対象にならない。
 };
 function _acctFromIgId_(igid) {
   try {
