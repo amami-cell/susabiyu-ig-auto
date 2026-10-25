@@ -21,7 +21,7 @@ concurrency:
 jobs:
   run:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 35
     defaults:
       run:
         working-directory: susabiyu-remotion
@@ -103,7 +103,7 @@ jobs:
   # 窓内で最初に回った実行だけが各枠を1回投稿する（二重投稿しない）。
   karasuma_slots:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 35
     defaults:
       run:
         working-directory: susabiyu-remotion
@@ -164,7 +164,7 @@ jobs:
   # 大幅遅延=skip」を判定。karasuma_slots とは別ジョブで並列＝karasumaの挙動には一切影響しない。
   other_slots:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 35
     defaults:
       run:
         working-directory: susabiyu-remotion

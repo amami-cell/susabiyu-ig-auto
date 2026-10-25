@@ -93,7 +93,7 @@ def _u_r2(path):
     s3.upload_file(path, bkt, key, ExtraArgs={"ContentType": ctype})
     return base + "/" + key
 
-def _u_jsdelivr(path):
+def _u_jsdelivr(path, require_warm=False):
     """公開メディアリポにアップロードし、jsDelivrのCDN URL(コミットSHA固定)を返す。
     GitHub Secrets: GH_MEDIA_TOKEN(contents:write) と GH_MEDIA_REPO("owner/repo")。
     未設定なら "" を返し従来ホストへフォールバック。解像度は一切変えない。"""
@@ -135,31 +135,42 @@ def _u_jsdelivr(path):
     # 直後にIGが取りに来ると未伝播で取得失敗→コンテナERRORになる（yoshokuhitowa等で実測：
     # 同一動画が時間を置くとFINISHEDするのにアップ直後は失敗）。ここで200になるまで数回GETして
     # jsDelivr側にキャッシュさせてから返す＝IGが確実に取得できる状態にする。失敗しても URL は返す。
-    for _w in range(8):
+    # 新SHAのjsDelivr伝播は数分かかることがある（特に重い動画＝yoshokumagazine等）。
+    # 8回(~2分)では足りず全403のままIG投稿→status ERRORで落ちる実測があったため14回(~6分)に延長。
+    warm_ok = False
+    for _w in range(14):
         try:
             g = req.get(cdn_url, timeout=30)
             if g.status_code == 200:
                 if _w:
                     print("[UPLOAD] jsdelivr warm OK (%d回目)" % (_w + 1))
+                warm_ok = True
                 break
-            print("[UPLOAD] jsdelivr warm %s wait（CDN伝播待ち %d/8）" % (g.status_code, _w + 1))
+            print("[UPLOAD] jsdelivr warm %s wait（CDN伝播待ち %d/14）" % (g.status_code, _w + 1))
         except Exception as _e:
-            print("[UPLOAD] jsdelivr warm 例外 %s（%d/8）" % (str(_e)[:60], _w + 1))
-        time.sleep(min(20, 3 * (2 ** _w)))
+            print("[UPLOAD] jsdelivr warm 例外 %s（%d/14）" % (str(_e)[:60], _w + 1))
+        time.sleep(min(30, 4 * (2 ** _w)))
+    if not warm_ok and require_warm:
+        # 投稿用(require_warm)で最後まで200にならなかった＝IGが取りに来ても取得できず
+        # コンテナERRORになる公算大。"" を返して呼び出し側(up)のフォールバック（R2→一時ホスト）へ回す。
+        # ※プレビュー用(require_warm=False)は人が後で見る＝その頃には伝播済みなので従来どおりURLを返す。
+        print("[UPLOAD] jsdelivr warm 最後まで未伝播→投稿はフォールバックへ")
+        return ""
     return cdn_url
 
-def up(path, cdn=False):
+def up(path, cdn=False, require_warm=False):
     # cdn=True: 確認画面で人が何度も見るプレビュー → 永続ホストのみ（jsDelivr→R2）。
     #   一時ホスト(litterbox=最大72h, tmpfiles=1h, 0x0, catbox)は自動削除され
     #   「確認画面から消える」原因になるため、確認用では絶対に使わない。
     # cdn=False: IGが一度だけ取得する投稿用 → 数分で取得完了するので一時ホストでOK。
+    # require_warm=True: 投稿用。jsDelivrが伝播し切らなければ "" を返させ、次ホストへフォールバック。
     if cdn:
         chain = (("jsdelivr", _u_jsdelivr), ("r2", _u_r2))
     else:
         chain = (("litter", _u_litter), ("catbox", _u_catbox), ("tmpfiles", _u_tmpfiles), ("0x0", _u_0x0))
     for name, fn in chain:
         try:
-            u = fn(path)
+            u = fn(path, require_warm=require_warm) if name == "jsdelivr" else fn(path)
         except Exception as e:
             print("[UPLOAD] %s err: %s" % (name, e)); continue
         if isinstance(u, str) and u.startswith("http"):
@@ -607,7 +618,9 @@ def post(media, is_video, phrase="", slot="", pattern="", account=""):
     # 投稿画像はIGサーバが確実に取得できる永続CDN(jsDelivr→R2)を優先。
     # litterbox等の一時ホストはIGが取得に失敗し code1「unknown error」になることがあるため、
     # 永続CDNが全滅した時だけ一時ホストにフォールバックする。
-    url = up(media, cdn=True) or up(media)
+    # require_warm=True：jsDelivrが最後まで伝播しなければ "" を返させ、一時ホストへ確実にフォールバック。
+    # （未伝播のjsDelivr URLをそのままIGへ渡すとコンテナ status=ERROR で落ちる実測があったため）
+    url = up(media, cdn=True, require_warm=True) or up(media)
     pid = ig_post(token, url, is_video)
     if pid:
         kind = "動画ストーリー" if is_video else "画像ストーリー"
