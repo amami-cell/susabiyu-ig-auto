@@ -49,6 +49,7 @@ jobs:
           IG_ACCESS_TOKEN_GIFUYATENJIN: ${{ secrets.IG_ACCESS_TOKEN_GIFUYATENJIN }}
           IG_ACCESS_TOKEN_NAGAGUTSU: ${{ secrets.IG_ACCESS_TOKEN_NAGAGUTSU }}          # ナガグツ
           IG_ACCESS_TOKEN_GOLDPORTA: ${{ secrets.IG_ACCESS_TOKEN_GOLDPORTA }}          # GOLD京都ポルタ
+          IG_ACCESS_TOKEN_KARASUMA: ${{ secrets.IG_ACCESS_TOKEN_KARASUMA }}            # 鮨処すさび湯(烏丸)
           SHEET_ID: ${{ secrets.SHEET_ID }}
           LINE_CHANNEL_TOKEN: ${{ secrets.LINE_CHANNEL_TOKEN }}
           R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
@@ -70,6 +71,7 @@ jobs:
           IG_ACCESS_TOKEN_GIFUYATENJIN: ${{ secrets.IG_ACCESS_TOKEN_GIFUYATENJIN }}
           IG_ACCESS_TOKEN_NAGAGUTSU: ${{ secrets.IG_ACCESS_TOKEN_NAGAGUTSU }}
           IG_ACCESS_TOKEN_GOLDPORTA: ${{ secrets.IG_ACCESS_TOKEN_GOLDPORTA }}
+          IG_ACCESS_TOKEN_KARASUMA: ${{ secrets.IG_ACCESS_TOKEN_KARASUMA }}
           SHEET_ID: ${{ secrets.SHEET_ID }}
           # Web Push（アプリ通知）用。三条と同じVAPID鍵を共用。宛先は各店の購読_<account>。
           VAPID_PRIVATE_KEY: ${{ secrets.VAPID_PRIVATE_KEY }}
