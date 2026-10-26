@@ -1,0 +1,26 @@
+[gd_scene load_steps=4 format=3]
+
+[ext_resource type="Script" path="res://scenes/props/seed.gd" id="1_seed"]
+
+[sub_resource type="SphereMesh" id="SphereMesh_seed"]
+radius = 0.18
+height = 0.36
+radial_segments = 10
+rings = 6
+
+[sub_resource type="SphereShape3D" id="SphereShape3D_seed"]
+radius = 0.7
+
+[node name="Seed" type="Node3D"]
+script = ExtResource("1_seed")
+
+[node name="Mesh" type="MeshInstance3D" parent="."]
+mesh = SubResource("SphereMesh_seed")
+
+[node name="Area" type="Area3D" parent="."]
+collision_layer = 0
+collision_mask = 2
+
+[node name="Shape" type="CollisionShape3D" parent="Area"]
+shape = SubResource("SphereShape3D_seed")
+]

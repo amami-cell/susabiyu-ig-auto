@@ -1,0 +1,128 @@
+extends RefCounted
+class_name UIKit
+## 全UI共通の“絵本テイスト”スタイル。クリーム地・こげ茶文字・やわらかい緑/桃のアクセント、
+## 角丸・影・アイコンで、素っぽいデフォルトUIを可愛く整える。各UIから呼んで適用する。
+
+const CREAM := Color(0.99, 0.96, 0.89, 0.96)   # パネル地（生成り）
+const CREAM_SOLID := Color(0.99, 0.96, 0.89)
+const INK := Color(0.32, 0.25, 0.18)           # 文字（こげ茶）
+const INK_SOFT := Color(0.45, 0.38, 0.3)
+const GREEN := Color(0.53, 0.78, 0.42)         # 回復＝みどり
+const GREEN_DK := Color(0.34, 0.58, 0.3)
+const PINK := Color(0.97, 0.53, 0.58)          # HP
+const GOLD := Color(1.0, 0.82, 0.42)
+const SHADOW := Color(0.2, 0.16, 0.1, 0.28)
+
+
+static func panel(bg: Color, border: Color, radius: int = 18, bw: int = 3, pad: int = 14) -> StyleBoxFlat:
+	var s := StyleBoxFlat.new()
+	s.bg_color = bg
+	s.set_corner_radius_all(radius)
+	s.set_border_width_all(bw)
+	s.border_color = border
+	s.set_content_margin_all(pad)
+	s.shadow_color = SHADOW
+	s.shadow_size = 6
+	s.shadow_offset = Vector2(0, 3)
+	return s
+
+
+static func bar_bg() -> StyleBoxFlat:
+	var s := StyleBoxFlat.new()
+	s.bg_color = Color(0.24, 0.2, 0.16, 0.55)
+	s.set_corner_radius_all(12)
+	s.set_border_width_all(2)
+	s.border_color = Color(1, 1, 1, 0.25)
+	return s
+
+
+static func bar_fill(c: Color) -> StyleBoxFlat:
+	var s := StyleBoxFlat.new()
+	s.bg_color = c
+	s.set_corner_radius_all(12)
+	return s
+
+
+static func style_bar(bar: ProgressBar, fill: Color) -> void:
+	bar.add_theme_stylebox_override("background", bar_bg())
+	bar.add_theme_stylebox_override("fill", bar_fill(fill))
+
+
+## ボタンを“ぷにっと角丸”に。押すと少し沈む色。アイコン＋文字。
+static func style_button(btn: Button, bg: Color, border: Color) -> void:
+	var n := panel(bg, border, 26, 3, 8)
+	n.shadow_size = 8
+	var h := panel(bg.lightened(0.06), border, 26, 3, 8)
+	var p := panel(bg.darkened(0.14), border.darkened(0.1), 26, 3, 8)
+	p.shadow_size = 2
+	p.shadow_offset = Vector2(0, 1)
+	btn.add_theme_stylebox_override("normal", n)
+	btn.add_theme_stylebox_override("hover", h)
+	btn.add_theme_stylebox_override("pressed", p)
+	btn.add_theme_stylebox_override("focus", n)
+	btn.add_theme_color_override("font_color", INK)
+	btn.add_theme_color_override("font_pressed_color", INK)
+	btn.add_theme_color_override("font_hover_color", INK)
+	btn.add_theme_font_size_override("font_size", 22)
+
+
+static func style_label(l: Label, size: int, color: Color = INK, outline: int = 0, ocol: Color = Color(1, 1, 1, 0.9)) -> void:
+	l.add_theme_font_size_override("font_size", size)
+	l.add_theme_color_override("font_color", color)
+	if outline > 0:
+		l.add_theme_constant_override("outline_size", outline)
+		l.add_theme_color_override("font_outline_color", ocol)
+
+
+# ---------------------------------------------------------------- もじの大きさ（アクセシビリティ）
+#
+# 画面全体の2D（UI）を content_scale_factor で拡大＝すべての文字・ボタンが一律で大きくなる。
+# stretch=canvas_items なので 3D の見た目は変えず、UIだけ大きくできる（小さなお子さん・年配の方に）。
+# ふつう1.0 / 大きい1.15 / とても大きい1.3 の3段。user://settings.cfg に保存し次回も復元。
+const _CFG := "user://settings.cfg"
+const UI_SCALES := [1.0, 1.2, 1.45]   # 弱視・幼児にも届くよう上限を拡張（clamp1.6内）
+
+static func apply_ui_scale(scale: float) -> void:
+	var ml := Engine.get_main_loop() as SceneTree
+	if ml != null and ml.root != null:
+		ml.root.content_scale_factor = clampf(scale, 0.8, 1.6)
+
+
+static func load_ui_scale() -> float:
+	var cfg := ConfigFile.new()
+	if cfg.load(_CFG) == OK:
+		return clampf(float(cfg.get_value("display", "ui_scale", 1.0)), 0.8, 1.6)
+	return 1.0
+
+
+static func save_ui_scale(scale: float) -> void:
+	var cfg := ConfigFile.new()
+	cfg.load(_CFG)                       # 音量など他設定は残す
+	cfg.set_value("display", "ui_scale", scale)
+	cfg.save(_CFG)
+	apply_ui_scale(scale)
+
+
+# ------------------------------------------------------------ えんしゅつ ひかえめ（アクセシビリティ）
+#
+# 赤い被弾フラッシュ・画面ゆれ・記号ふぶき等の“強い演出”を弱める。光過敏の子や 刺激に敏感な人へ。
+# 家族・子ども向けだからこそ「誰も脱落しない」を看板に。起動時に読み込み、各所が reduce_fx() を見る。
+static var _reduce_fx := false
+
+static func load_reduce_fx() -> void:
+	var cfg := ConfigFile.new()
+	if cfg.load(_CFG) == OK:
+		_reduce_fx = bool(cfg.get_value("display", "reduce_fx", false))
+
+
+static func save_reduce_fx(on: bool) -> void:
+	_reduce_fx = on
+	var cfg := ConfigFile.new()
+	cfg.load(_CFG)
+	cfg.set_value("display", "reduce_fx", on)
+	cfg.save(_CFG)
+
+
+static func reduce_fx() -> bool:
+	return _reduce_fx
+
