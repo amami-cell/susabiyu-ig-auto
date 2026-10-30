@@ -247,8 +247,9 @@
       .tabs{ gap:8px; }
       .tabs button{ flex:0 0 auto; padding:12px 22px; font-size:14.5px; border-radius:9px 9px 0 0; }
       /* 店舗カード・打ち出し履歴は画面幅に応じて2〜3列で表示（1件ずつが横長になるのを防ぎ、一覧しやすく） */
-      #recruitList{ column-width:392px; column-gap:16px; }
-      #recruitList>*{ break-inside:avoid; }
+      /* 店舗カードだけを多列化（今日の要点・ToDo・アラートは全幅のまま）。.sc-grid でラップ */
+      .sc-grid{ column-width:392px; column-gap:16px; }
+      .sc-grid>*{ break-inside:avoid; }
       #historyList{ column-width:392px; column-gap:16px; }
       #historyList>*{ break-inside:avoid; }
       /* 集計は内部の表・グラフを崩さないよう広めの2列 */
@@ -334,7 +335,7 @@
     body.nav-mini #expandBtn{display:inline-block;position:absolute;right:4px;top:4px;padding:1px 5px;font-size:11px}
     #expandBtn{display:none}
     /* main を右にずらす（左寄せ・ライト基調） */
-    main{ margin-left:240px !important; max-width:1120px !important; margin-right:auto !important; transition:margin-left .2s var(--ease); }
+    main{ margin-left:240px !important; width:auto !important; max-width:1120px !important; margin-right:auto !important; transition:margin-left .2s var(--ease); }
     body.nav-mini main{ margin-left:56px !important; }
     /* モバイル上部バー */
     .mtop{display:none;position:sticky;top:env(safe-area-inset-top,0px);z-index:30;align-items:center;gap:10px;
@@ -826,7 +827,9 @@
         '<button onclick="openSearch()" style="width:100%;margin:0 0 8px;background:var(--card2);color:var(--fg);border:1px solid var(--line);border-radius:10px;padding:11px;font-size:14px;cursor:pointer">🔍 応募者を検索（氏名・店舗・ステータス・媒体）</button>'+
         untreatedAlertHtml()+autoHint+alertHtml()+dormantAlertHtml(dormNoResult);
       if(!active.length && !dormNoResult.length){ el.innerHTML=h+'<div class="empty">現在、募集中の店舗はありません（直近'+RECRUIT_RECENT_DAYS+'日に応募なし）</div>'; return; }
+      h+='<div class="sc-grid">';
       active.forEach(function(r){ h+=storeCard(r); });
+      h+='</div>';
       el.innerHTML=h;
     }
     var RECRUIT_DORMANT_DAYS=14;   // 最終応募からこの日数を超えたら「長期応募なし」＝結果報告未提出へ
