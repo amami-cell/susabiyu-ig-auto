@@ -420,9 +420,9 @@ function dashBuild_() {
   var mediaApps = [];
   try {
     var _ml = (typeof mediaListData_ === 'function') ? mediaListData_() : null;
-    ((_ml && _ml.items) || []).forEach(function (r) {
+    ((_ml && _ml.items) || []).forEach(function (r, i) {
       mediaApps.push({
-        code: 'M_' + (r['key'] || ((r['氏名'] || '') + '_' + (r['応募日時'] || ''))),
+        code: 'M_' + i,  // 安全なID（氏名等に記号が入っても onclick が壊れない。クライアントは毎回再構築）
         name: r['氏名'] || '', kana: r['カナ'] || '', store: r['店舗'] || '', media: r['媒体'] || '',
         status: r['状況/資格'] || '登録', appliedAt: r['応募日時'] || '',
         tel: r['電話'] || '', email: r['メール'] || '', occupation: r['職種'] || '',

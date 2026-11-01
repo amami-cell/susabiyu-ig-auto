@@ -1335,7 +1335,7 @@
         else { toast('変更失敗: '+((r&&r.error)||'')); }
       }).withFailureHandler(function(e){ toast('通信エラー: '+(e&&e.message||'')); }).epSetStatus(applyCd, statusKbn);
     }
-    function atoggle(code){ var el=document.getElementById('ad_'+code); if(!el) return;
+    function atoggle(btn,code){ var card=(btn&&btn.closest)?btn.closest('.ap'):null; var el=card?card.querySelector('.adetail'):document.getElementById('ad_'+code); if(!el) return;
       if(el.hidden){ if(!el.getAttribute('data-built')){ el.innerHTML=appDetail(appByCode[code]); el.setAttribute('data-built','1'); } el.hidden=false; } else el.hidden=true; }
     // 同一連絡先（電話/メール）の応募を検知して二重連絡を防ぐ
     var _dupIndex=null;
@@ -1371,8 +1371,8 @@
       var dup=a.dup?'<span class="tag dup">重複</span>':'';
       var req=isUntreated(a.status)?'<span class="tag req">要対応</span>':'';
       var occ=a.occupation?('💼 '+esc(a.occupation)):'';
-      var stBtn='<button class="pill st" onclick="atoggle(\''+id+'\')">◆ '+esc(a.status||'状況不明')+' ▾</button>';
-      var memoN=summarize(a.memo).length, memoBtn=memoN?('<button class="pill memo" onclick="atoggle(\''+id+'\')">📝 メモ'+memoN+' ▾</button>'):'';
+      var stBtn='<button class="pill st" onclick="atoggle(this,\''+id+'\')">◆ '+esc(a.status||'状況不明')+' ▾</button>';
+      var memoN=summarize(a.memo).length, memoBtn=memoN?('<button class="pill memo" onclick="atoggle(this,\''+id+'\')">📝 メモ'+memoN+' ▾</button>'):'';
       var sms=smsHref(a), mail=mailHref(a);
       var acts='<div class="acts">'+
         (a.telLink?'<a class="btn call" href="'+esc(a.telLink)+'">発信</a>':'<span class="btn off">TELなし</span>')+
@@ -1383,7 +1383,7 @@
         (a.interviewAt&&gcalUrl(a)?'<a class="btn" style="background:var(--card2);color:var(--fg2)" href="'+esc(gcalUrl(a))+'" target="_blank" rel="noopener" onclick="event.stopPropagation()">📅カレンダー</a>':'')+'</div>';
       var memoEdit = writeEnabled ? ('<div class="memoedit" onclick="event.stopPropagation()">'+
         '<input id="memoin_'+id+'" class="memo-in" type="text" maxlength="100" placeholder="メモ（100字以内・EntryPocketへ登録）" value="'+esc(memoNew(a))+'">'+
-        '<button class="memo-save" onclick="saveMemo(\''+id+'\')">登録</button></div>') : '';
+        '<button class="memo-save" onclick="saveMemo(this,\''+id+'\')">登録</button></div>') : '';
       return '<div class="ap'+(isUntreated(a.status)?' new':'')+'"><div class="ap-nm">'+esc(a.name)+metaS+dup+req+dupBadge(a)+'</div>'+
         (occ?'<div class="ap-sub">'+occ+'</div>':'')+
         '<div class="ap-sub">🕒 '+fmtDT(a.appliedAt)+(a.media?('　'+esc(a.media)):'')+'</div>'+
@@ -1415,11 +1415,12 @@
       '</div>';
     }
     function memoNew(a){ return String(a.memo||'').split('【過去メモ】')[0].replace(/\s+/g,' ').trim(); }
-    function saveMemo(code){
-      var el=document.getElementById('memoin_'+code); if(!el) return;
+    function saveMemo(sbtn,code){
+      var card=(sbtn&&sbtn.closest)?sbtn.closest('.ap'):null;
+      var el=card?card.querySelector('.memo-in'):document.getElementById('memoin_'+code); if(!el) return;
       var v=el.value;
       if(!confirm('EntryPocketにメモを登録します。よろしいですか？\n\n'+(v||'(空欄)'))) return;
-      var btn=el.parentNode.querySelector('.memo-save'); if(btn){ btn.disabled=true; btn.textContent='登録中'; }
+      var btn=sbtn||el.parentNode.querySelector('.memo-save'); if(btn){ btn.disabled=true; btn.textContent='登録中'; }
       google.script.run.withSuccessHandler(function(r){
         if(btn){ btn.disabled=false; btn.textContent='登録'; }
         if(r&&r.ok){ toast('メモを登録しました'); var a=appByCode[code]; if(a) a.memo=v; }
@@ -1558,42 +1559,6 @@
       document.getElementById('modal').hidden=false;
     }
     function closeModal(){ document.getElementById('modal').hidden=true; }
-    // 応募者の横断検索（氏名・店舗・ステータス・媒体・職業で部分一致）
-    function openSearch(){
-      document.getElementById('modalTitle').textContent='🔍 応募者検索';
-      document.getElementById('modalBody').innerHTML=
-        '<input id="sq" class="memo-in" style="width:100%;box-sizing:border-box;font-size:16px;padding:10px" placeholder="氏名・店舗・ステータス・媒体で検索" oninput="doSearch()">'+
-        '<div style="display:flex;justify-content:space-between;align-items:center;gap:8px"><div class="lnote" style="margin:0">部分一致でリアルタイム検索（空欄で全件）。</div>'+
-        '<button onclick="exportApplicantsCsv()" style="background:#2f6f4f;color:#fff;border:0;border-radius:8px;padding:7px 11px;font-size:12px;font-weight:700;white-space:nowrap;cursor:pointer">⬇ CSV</button></div>'+
-        '<div id="sres"></div>';
-      document.getElementById('modal').hidden=false;
-      setTimeout(function(){ var el=document.getElementById('sq'); if(el) el.focus(); },60); doSearch();
-    }
-    function doSearch(){
-      var q=((document.getElementById('sq')||{}).value||'').trim().toLowerCase(), res=document.getElementById('sres'); if(!res) return;
-      var list=apps.filter(function(a){ if(!q) return true;
-        return [a.name,a.store,a.status,a.media,a.occupation].some(function(x){ return String(x==null?'':x).toLowerCase().indexOf(q)>=0; }); });
-      list.sort(function(a,b){ var da=toDate(a.appliedAt),db=toDate(b.appliedAt); return (db?db.getTime():0)-(da?da.getTime():0); });
-      if(!list.length){ res.innerHTML='<div class="empty">該当なし</div>'; return; }
-      res.innerHTML='<div class="lnote">'+list.length+'件'+(list.length>60?'（上位60件表示。CSVは全件）':'')+'</div>'+list.slice(0,60).map(appCard).join('');
-    }
-    // 応募者リストのCSV書き出し（現在の検索条件の全件・BOM付きExcel対応）
-    function exportApplicantsCsv(){
-      var q=((document.getElementById('sq')||{}).value||'').trim().toLowerCase();
-      var list=apps.filter(function(a){ if(!q) return true; return [a.name,a.store,a.status,a.media,a.occupation].some(function(x){ return String(x==null?'':x).toLowerCase().indexOf(q)>=0; }); });
-      list.sort(function(a,b){ var da=toDate(a.appliedAt),db=toDate(b.appliedAt); return (db?db.getTime():0)-(da?da.getTime():0); });
-      if(!list.length){ toast('書き出す応募者がいません'); return; }
-      var lines=[['氏名','店舗','ステータス','媒体','職業','性別','年齢','応募日時','面接日時','電話','メール']];
-      list.forEach(function(a){ lines.push([a.name,a.store,a.status,a.media,a.occupation,a.gender,a.age,a.appliedAt,a.interviewAt,a.tel,a.email]); });
-      var csv=lines.map(function(r){ return r.map(function(c){ var s=String(c==null?'':c); return /[",\n]/.test(s)?'"'+s.replace(/"/g,'""')+'"':s; }).join(','); }).join('\r\n');
-      try{
-        var blob=new Blob(['﻿'+csv],{type:'text/csv;charset=utf-8'}), url=URL.createObjectURL(blob), el=document.createElement('a');
-        el.href=url; el.download='応募者リスト_'+(q||'全件')+'.csv'; document.body.appendChild(el); el.click();
-        setTimeout(function(){ document.body.removeChild(el); URL.revokeObjectURL(url); },200);
-        toast(list.length+'件をCSVに書き出しました');
-      }catch(x){ toast('書き出し失敗: '+(x&&x.message||'')); }
-    }
-
     /* ===== 応募者をさがす（常設の検索＋フィルタ・一覧） ===== */
     var apF={q:'',status:'',store:'',media:'',sort:'untreated',period:''};
     var apStatuses=[], apStores=[], apMedias=[];
@@ -1640,7 +1605,7 @@
       var q=apF.q.trim().toLowerCase();
       var list=apps.concat(mediaApps).filter(function(a){
         if(apF.status && String(a.status||'')!==apF.status) return false;
-        if(apF.store && String(a.store||'')!==apF.store) return false;
+        if(apF.store && normStore(a.store)!==normStore(apF.store)) return false;
         if(apF.media && String(a.media||'')!==apF.media) return false;
         if(apF.period){
           var pd=toDate(a.appliedAt); if(!pd) return false;
