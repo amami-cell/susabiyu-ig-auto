@@ -1341,7 +1341,8 @@
     var _dupIndex=null;
     function buildDupIndex(){
       var byTel={}, byMail={};
-      apps.forEach(function(a){ var t=String(a.telRaw||a.tel||'').replace(/[^\d]/g,''); var m=String(a.email||'').trim().toLowerCase();
+      // EP＋他媒体を横断で名寄せ（同一人物の二重応募・二重連絡を検知）
+      apps.concat(mediaApps).forEach(function(a){ var t=String(a.telRaw||a.tel||'').replace(/[^\d]/g,''); var m=String(a.email||'').trim().toLowerCase();
         if(t){ (byTel[t]=byTel[t]||[]).push(a); } if(m){ (byMail[m]=byMail[m]||[]).push(a); } });
       _dupIndex={byTel:byTel, byMail:byMail}; return _dupIndex;
     }
@@ -1350,9 +1351,9 @@
       function add(list){ (list||[]).forEach(function(x){ if(x.code!==a.code && !set[x.code]){ set[x.code]=1; out.push(x); } }); }
       if(t) add(m.byTel[t]); if(em) add(m.byMail[em]); return out; }
     function dupBadge(a){ var peers=dupPeers(a); if(!peers.length) return '';
-      var st={}; peers.forEach(function(p){ if(p.store) st[p.store]=1; }); var sn=Object.keys(st);
-      var label='同連絡先 '+peers.length+'件'+(sn.length?('・'+sn.slice(0,2).join('/')+(sn.length>2?'他':'')):'');
-      return '<span class="tag" style="background:transparent;border:1px solid var(--amber);color:var(--amber)" title="同じ電話/メールの応募が他にもあります。二重連絡にご注意">📇 '+esc(label)+'</span>'; }
+      var md={}; peers.forEach(function(p){ if(p.media) md[p.media]=1; }); var mn=Object.keys(md).filter(function(x){ return x!==a.media; });
+      var label='同一人物の応募 他'+peers.length+'件'+(mn.length?('・'+mn.slice(0,2).join('/')+(mn.length>2?'他':'')+'にも'):'');
+      return '<span class="tag" style="background:transparent;border:1px solid var(--amber);color:var(--amber)" title="同じ電話/メールの応募が他にもあります（EP＋他媒体で名寄せ）。二重連絡にご注意">📇 '+esc(label)+'</span>'; }
     // 面接をGoogleカレンダーに追加するリンク（権限不要・タップで各自のカレンダーに登録）
     function gcalUrl(a){
       var d=toDate(a.interviewAt); if(!d) return '';
@@ -1406,7 +1407,7 @@
         '<button class="btn" style="background:var(--card2);color:var(--fg2)" onclick="event.stopPropagation();copyMsg(\''+id+'\')">📋文面</button>'+
         '<button class="btn" style="background:var(--card2);color:var(--fg2)" onclick="event.stopPropagation();copyCall(\''+id+'\')">📞台本</button>'+
       '</div>';
-      return '<div class="ap"><div class="ap-nm">'+esc(m.name)+metaS+badge+'</div>'+
+      return '<div class="ap"><div class="ap-nm">'+esc(m.name)+metaS+badge+dupBadge(m)+'</div>'+
         (occ?'<div class="ap-sub">'+occ+'</div>':'')+
         '<div class="ap-sub">🕒 '+fmtDT(m.appliedAt)+'　'+esc(m.media||'')+'</div>'+
         '<div class="pills">'+stat+'</div>'+acts+
@@ -1594,11 +1595,13 @@
     }
 
     /* ===== 応募者をさがす（常設の検索＋フィルタ・一覧） ===== */
-    var apF={q:'',status:'',store:'',media:''};
+    var apF={q:'',status:'',store:'',media:'',sort:'untreated',period:''};
     var apStatuses=[], apStores=[], apMedias=[];
     function _uniq(arr){ var s={},o=[]; arr.forEach(function(v){ v=String(v==null?'':v).trim(); if(v&&!s[v]){ s[v]=1; o.push(v); } }); return o; }
     function apSet(kind,i){ var arr=(kind==='status'?apStatuses:kind==='media'?apMedias:apStores); var val=arr[i]; if(val==null) return; apF[kind]=(apF[kind]===val?'':val); renderApplicants(); }
-    function apClear(){ apF={q:'',status:'',store:'',media:''}; renderApplicants(); }
+    function apSetSort(v){ apF.sort=v; renderApplicants(); }
+    function apSetPeriod(v){ apF.period=(apF.period===v?'':v); renderApplicants(); }
+    function apClear(){ apF={q:'',status:'',store:'',media:'',sort:apF.sort,period:''}; renderApplicants(); }
     function renderApplicants(){
       var host=document.getElementById('applicantsBody'); if(!host) return;
       var allAp=apps.concat(mediaApps);
@@ -1611,14 +1614,25 @@
       var mediaChips=apMedias.length>1? apMedias.map(function(m,i){ return chip('media',i,m,false); }).join('') : '';
       var storeSel='<select class="apsel" onchange="apF.store=this.value;renderApplicants()"><option value="">全店舗</option>'+
         apStores.map(function(s){ return '<option value="'+esc(s)+'"'+(apF.store===s?' selected':'')+'>'+esc(s)+'</option>'; }).join('')+'</select>';
-      var active=(apF.q||apF.status||apF.store||apF.media);
+      var active=(apF.q||apF.status||apF.store||apF.media||apF.period);
       host.innerHTML=
         '<div class="apbar">'+
           '<input id="apq" class="apsearch" placeholder="🔍 氏名・店舗・状態・媒体・電話・メールで検索" value="'+esc(apF.q)+'" oninput="apF.q=this.value;renderAppList()">'+
           '<button class="apcsv" onclick="exportApplicantsCsv2()">⬇ CSV</button>'+
         '</div>'+
         '<div class="apchips"><span class="aplabel">状態</span>'+statusChips+'</div>'+
-        '<div class="apchips"><span class="aplabel">店舗</span>'+storeSel+(mediaChips?('<span class="aplabel" style="margin-left:4px">媒体</span>'+mediaChips):'')+(active?'<button class="apchip apclear" onclick="apClear()">× 条件クリア</button>':'')+'</div>'+
+        '<div class="apchips"><span class="aplabel">店舗</span>'+storeSel+(mediaChips?('<span class="aplabel" style="margin-left:4px">媒体</span>'+mediaChips):'')+'</div>'+
+        '<div class="apchips">'+
+          '<span class="aplabel">並び</span>'+
+          '<button class="apchip'+(apF.sort==='untreated'?' on':'')+'" onclick="apSetSort(\'untreated\')">未対応を上に</button>'+
+          '<button class="apchip'+(apF.sort==='interview'?' on':'')+'" onclick="apSetSort(\'interview\')">面接が近い順</button>'+
+          '<button class="apchip'+(apF.sort==='new'?' on':'')+'" onclick="apSetSort(\'new\')">応募が新しい順</button>'+
+          '<span class="aplabel" style="margin-left:8px">期間</span>'+
+          '<button class="apchip'+(apF.period==='m'?' on':'')+'" onclick="apSetPeriod(\'m\')">今月</button>'+
+          '<button class="apchip'+(apF.period==='7'?' on':'')+'" onclick="apSetPeriod(\'7\')">直近7日</button>'+
+          '<button class="apchip'+(apF.period==='30'?' on':'')+'" onclick="apSetPeriod(\'30\')">直近30日</button>'+
+          (active?'<button class="apchip apclear" onclick="apClear()">× 条件クリア</button>':'')+
+        '</div>'+
         '<div id="apList"></div>';
       renderAppList();
     }
@@ -1628,6 +1642,13 @@
         if(apF.status && String(a.status||'')!==apF.status) return false;
         if(apF.store && String(a.store||'')!==apF.store) return false;
         if(apF.media && String(a.media||'')!==apF.media) return false;
+        if(apF.period){
+          var pd=toDate(a.appliedAt); if(!pd) return false;
+          var nowT=Date.now(), tt=pd.getTime();
+          if(apF.period==='7' && (nowT-tt)>7*86400000) return false;
+          if(apF.period==='30' && (nowT-tt)>30*86400000) return false;
+          if(apF.period==='m'){ var nd=new Date(); if(pd.getFullYear()!==nd.getFullYear()||pd.getMonth()!==nd.getMonth()) return false; }
+        }
         if(q){
           var hit=[a.name,a.store,a.status,a.media,a.occupation,a.tel,a.telRaw,a.email].some(function(x){return String(x==null?'':x).toLowerCase().indexOf(q)>=0;});
           if(!hit){ var qd=q.replace(/[^\d]/g,''); if(qd && String(a.tel||a.telRaw||'').replace(/[^\d]/g,'').indexOf(qd)>=0) hit=true; }
@@ -1635,7 +1656,11 @@
         }
         return true;
       });
-      list.sort(function(a,b){ var da=toDate(a.appliedAt),db=toDate(b.appliedAt); return (db?db.getTime():0)-(da?da.getTime():0); });
+      list.sort(function(a,b){
+        if(apF.sort==='untreated'){ var ua=isUntreated(a.status)?0:1, ub=isUntreated(b.status)?0:1; if(ua!==ub) return ua-ub; }
+        else if(apF.sort==='interview'){ var ia=toDate(a.interviewAt),ib=toDate(b.interviewAt); var na=ia?ia.getTime():Infinity, nb=ib?ib.getTime():Infinity; if(na!==nb) return na-nb; }
+        var da=toDate(a.appliedAt),db=toDate(b.appliedAt); return (db?db.getTime():0)-(da?da.getTime():0);
+      });
       return list;
     }
     function renderAppList(){
