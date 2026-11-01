@@ -409,6 +409,7 @@
     function ageGroup(a){ var n=parseInt(String(a==null?'':a).replace(/[^\d]/g,''),10);
       if(!(n>=10&&n<=99)) return '不明'; if(n<20)return'〜19歳'; if(n<30)return'20代'; if(n<40)return'30代'; if(n<50)return'40代'; if(n<60)return'50代'; return'60代〜'; }
     var apps=[], storeManual={}, storePosting={}, postings=[], appByCode={}, RECS=[];
+    var mediaApps=[], mediaByCode={};
     var postByStore={}, appByStore={}, reportUrl='', postById={};
     var STORE_SCOPE=<?!= SCOPE ?>;   // 店長用ビュー時は店舗名（?store=…）。通常は空。
     var DASH={}, LAST=null, statYear='all', statRegion='all', liveShops=[], srMap={}, goalsMap={}, mediaWeeksMap={};
@@ -702,6 +703,7 @@
       var dash=d.dash||{};
       apps=d.apps||[]; storeManual=d.storeManual||{}; storePosting=d.storePosting||{}; postings=d.postings||[]; reportUrl=d.reportUrl||'';
       appByCode={}; postById={}; apps.forEach(function(a){ appByCode[a.code]=a; });
+      mediaApps=d.mediaApps||[]; mediaByCode={}; mediaApps.forEach(function(m){ mediaByCode[m.code]=m; });
       postByStore={}; postings.forEach(function(p){ var k=normStore(p.store); (postByStore[k]=postByStore[k]||[]).push(p); });
       appByStore={}; apps.forEach(function(a){ var k=normStore(a.store); (appByStore[k]=appByStore[k]||[]).push(a); });
 
@@ -1278,8 +1280,8 @@
     // 電話台本（初回連絡用）
     var TPL_CALL='①名乗り：「{store}の採用担当の○○と申します」\n②お礼：「この度はご応募ありがとうございます」\n③用件：「面接日程のご相談でお電話しました」\n④日程：ご都合の良い日時を2〜3候補うかがう\n⑤持ち物・場所：{store}の場所と当日の持ち物を伝える\n⑥締め：「当日お待ちしています」';
     function copyText(t){ if(navigator.clipboard&&navigator.clipboard.writeText){ navigator.clipboard.writeText(t).then(function(){toast('コピーしました');},function(){prompt('コピーしてください',t);}); } else prompt('コピーしてください',t); }
-    function copyMsg(code){ var a=appByCode[code]; if(a) copyText(fillTpl(TPL_SMS,a)); }   // 連絡文（SMS/LINE用）をコピー
-    function copyCall(code){ var a=appByCode[code]; if(a) copyText(fillTpl(TPL_CALL,a)); }  // 電話台本をコピー
+    function copyMsg(code){ var a=appByCode[code]||mediaByCode[code]; if(a) copyText(fillTpl(TPL_SMS,a)); }   // 連絡文（SMS/LINE用）をコピー
+    function copyCall(code){ var a=appByCode[code]||mediaByCode[code]; if(a) copyText(fillTpl(TPL_CALL,a)); }  // 電話台本をコピー
     function smsHref(a){ var num=String(a.telRaw||a.tel||'').replace(/[^\d+]/g,''); return num?('sms:'+num+'?body='+encodeURIComponent(fillTpl(TPL_SMS,a))):null; }
     function mailHref(a){ return a.email?('mailto:'+a.email+'?subject='+encodeURIComponent(fillTpl(TPL_MAIL_SUBJECT,a))+'&body='+encodeURIComponent(fillTpl(TPL_MAIL_BODY,a))):null; }
     function splitEntries(s){ s=String(s||'').trim(); if(!s) return [];
@@ -1366,6 +1368,30 @@
         '<div class="ap-sub">🕒 '+fmtDT(a.appliedAt)+(a.media?('　'+esc(a.media)):'')+'</div>'+
         '<div class="pills">'+stBtn+memoBtn+'</div>'+
         '<div class="adetail" id="ad_'+id+'" hidden></div>'+acts+memoEdit+'</div>';
+    }
+    // 他媒体（飲食店/グルメ）応募者の読み取り専用カード（EntryPocket専用の操作は出さない）
+    function mediaCard(m){
+      var id=esc(m.code);
+      var meta=[ageTxt(m.age),m.gender].filter(Boolean).join('・');
+      var metaS=meta?'<span class="ap-meta">'+esc(meta)+'</span>':'';
+      var occ=m.occupation?('💼 '+esc(m.occupation)):'';
+      var tel=String(m.tel||'').replace(/[^\d+]/g,''), telLink=tel?('tel:'+tel):'';
+      var sms=smsHref(m), mail=mailHref(m);
+      var badge='<span class="tag" style="background:var(--accent2);color:var(--accent);border:1px solid var(--line)">'+esc(m.media||'他媒体')+'</span>';
+      var stat=m.status?('<span class="pill st" style="pointer-events:none">◆ '+esc(m.status)+'</span>'):'';
+      var acts='<div class="acts">'+
+        (telLink?'<a class="btn call" href="'+esc(telLink)+'">発信</a>':'<span class="btn off">TELなし</span>')+
+        (sms?'<a class="btn sms" href="'+esc(sms)+'">SMS</a>':'<span class="btn off">SMS不可</span>')+
+        (mail?'<a class="btn mail" href="'+esc(mail)+'">メール</a>':'<span class="btn off">メール無</span>')+
+        '<button class="btn" style="background:var(--card2);color:var(--fg2)" onclick="event.stopPropagation();copyMsg(\''+id+'\')">📋文面</button>'+
+        '<button class="btn" style="background:var(--card2);color:var(--fg2)" onclick="event.stopPropagation();copyCall(\''+id+'\')">📞台本</button>'+
+      '</div>';
+      return '<div class="ap"><div class="ap-nm">'+esc(m.name)+metaS+badge+'</div>'+
+        (occ?'<div class="ap-sub">'+occ+'</div>':'')+
+        '<div class="ap-sub">🕒 '+fmtDT(m.appliedAt)+'　'+esc(m.media||'')+'</div>'+
+        '<div class="pills">'+stat+'</div>'+acts+
+        '<div class="ap-sub" style="color:var(--muted);font-size:11px;margin-top:6px">※他媒体の応募（閲覧専用）。詳細な選考操作は「他媒体の応募」ページで。</div>'+
+      '</div>';
     }
     function memoNew(a){ return String(a.memo||'').split('【過去メモ】')[0].replace(/\s+/g,' ').trim(); }
     function saveMemo(code){
@@ -1555,9 +1581,11 @@
     function apClear(){ apF={q:'',status:'',store:'',media:''}; renderApplicants(); }
     function renderApplicants(){
       var host=document.getElementById('applicantsBody'); if(!host) return;
-      apStores=_uniq(apps.map(function(a){return a.store;})).sort();
-      apMedias=_uniq(apps.map(function(a){return a.media;}));
-      apStatuses=(statusOrder&&statusOrder.length)? _uniq(statusOrder.map(function(c){return statusMap[c]||c;})) : _uniq(apps.map(function(a){return a.status;}));
+      var allAp=apps.concat(mediaApps);
+      apStores=_uniq(allAp.map(function(a){return a.store;})).sort();
+      apMedias=_uniq(allAp.map(function(a){return a.media;}));
+      var epStatuses=(statusOrder&&statusOrder.length)? statusOrder.map(function(c){return statusMap[c]||c;}) : [];
+      apStatuses=_uniq(epStatuses.concat(allAp.map(function(a){return a.status;})));
       function chip(kind,i,label,un){ return '<button class="apchip'+(un?' un':'')+(apF[kind]===label?' on':'')+'" onclick="apSet(\''+kind+'\','+i+')">'+esc(label)+'</button>'; }
       var statusChips=apStatuses.map(function(s,i){ return chip('status',i,s,isUntreated(s)); }).join('');
       var mediaChips=apMedias.length>1? apMedias.map(function(m,i){ return chip('media',i,m,false); }).join('') : '';
@@ -1576,7 +1604,7 @@
     }
     function apFiltered(){
       var q=apF.q.trim().toLowerCase();
-      var list=apps.filter(function(a){
+      var list=apps.concat(mediaApps).filter(function(a){
         if(apF.status && String(a.status||'')!==apF.status) return false;
         if(apF.store && String(a.store||'')!==apF.store) return false;
         if(apF.media && String(a.media||'')!==apF.media) return false;
@@ -1592,7 +1620,7 @@
       var un=list.filter(function(a){return isUntreated(a.status);}).length;
       if(!list.length){ el.innerHTML='<div class="empty">該当する応募者はいません（条件を変えてお試しください）</div>'; return; }
       el.innerHTML='<div class="lnote" style="margin:2px 2px 9px">'+list.length+'件'+(un?('　🔴 未対応 '+un+'件'):'')+(list.length>80?'（上位80件を表示。CSVは全件）':'')+'</div>'+
-        '<div class="sc-grid">'+list.slice(0,80).map(appCard).join('')+'</div>';
+        '<div class="sc-grid">'+list.slice(0,80).map(function(a){ return a.media_src?mediaCard(a):appCard(a); }).join('')+'</div>';
     }
     function exportApplicantsCsv2(){
       var list=apFiltered(); if(!list.length){ toast('書き出す応募者がいません'); return; }
@@ -2062,8 +2090,8 @@
     }
     // 集計タブの目次＋折りたたみ（描画後に付与）
     function enhanceStatsUI(host){
-      // 上部の"一目で効く"カードは開いたまま、深い分析カードは既定で畳む（初期表示を軽く・見やすく）
-      var KEEP=['経営KPI','会社全体の求人実績','今月の目標','今月の求人費','システム状態'];
+      // 既定では「経営KPI」だけ開き、残りの分析カードは畳む（要対応の警告カードはh2が無いので常に表示）。目次から開く。
+      var KEEP=['経営KPI'];
       var cards=host.querySelectorAll('.card'), toc=[];
       Array.prototype.forEach.call(cards, function(card,i){ if(card.parentNode!==host) return; if(card.className.indexOf('statstoc')>=0) return; var h=card.querySelector('h2'); if(!h) return;
         var id='sec_'+i; card.id=id; var title=h.textContent.replace(/[（(].*$/,'').trim(); if(!title) return; toc.push({id:id,title:title});

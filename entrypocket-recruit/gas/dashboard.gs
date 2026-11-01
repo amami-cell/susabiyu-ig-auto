@@ -415,8 +415,25 @@ function dashBuild_() {
   // 媒体ごとの標準打ち出し週数（master_媒体：媒体｜標準週数）→ 連載終了日の自動セットに使う
   var mediaWeeks = epMediaWeeks_(ss);
 
+  // 他媒体（飲食店ドットコム/グルメキャリー）の応募者も「応募者をさがす」で横断検索できるよう、
+  // アプリ側の応募者と同じ形に簡易正規化して返す（EntryPocket専用の操作は行わない読み取り専用）。
+  var mediaApps = [];
+  try {
+    var _ml = (typeof mediaListData_ === 'function') ? mediaListData_() : null;
+    ((_ml && _ml.items) || []).forEach(function (r) {
+      mediaApps.push({
+        code: 'M_' + (r['key'] || ((r['氏名'] || '') + '_' + (r['応募日時'] || ''))),
+        name: r['氏名'] || '', kana: r['カナ'] || '', store: r['店舗'] || '', media: r['媒体'] || '',
+        status: r['状況/資格'] || '登録', appliedAt: r['応募日時'] || '',
+        tel: r['電話'] || '', email: r['メール'] || '', occupation: r['職種'] || '',
+        age: r['年齢'] || '', gender: r['性別'] || '', pr: r['自己PR'] || '', media_src: true
+      });
+    });
+  } catch (e) { mediaApps = []; }
+
   return { dash: dash, apps: apps, last: last, storeManual: storeManual, storePosting: storePosting, postings: postings, reportUrl: reportUrl,
-    statusMap: statusMap, statusOrder: statusOrder, writeEnabled: writeEnabled, liveShops: liveShops, storeRegion: storeRegion, goals: goals, mediaWeeks: mediaWeeks };
+    statusMap: statusMap, statusOrder: statusOrder, writeEnabled: writeEnabled, liveShops: liveShops, storeRegion: storeRegion, goals: goals, mediaWeeks: mediaWeeks,
+    mediaApps: mediaApps };
 }
 
 /**
