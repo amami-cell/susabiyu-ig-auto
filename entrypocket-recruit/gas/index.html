@@ -1614,7 +1614,7 @@
       var active=(apF.q||apF.status||apF.store||apF.media);
       host.innerHTML=
         '<div class="apbar">'+
-          '<input id="apq" class="apsearch" placeholder="🔍 氏名・店舗・ステータス・媒体で検索" value="'+esc(apF.q)+'" oninput="apF.q=this.value;renderAppList()">'+
+          '<input id="apq" class="apsearch" placeholder="🔍 氏名・店舗・状態・媒体・電話・メールで検索" value="'+esc(apF.q)+'" oninput="apF.q=this.value;renderAppList()">'+
           '<button class="apcsv" onclick="exportApplicantsCsv2()">⬇ CSV</button>'+
         '</div>'+
         '<div class="apchips"><span class="aplabel">状態</span>'+statusChips+'</div>'+
@@ -1628,7 +1628,11 @@
         if(apF.status && String(a.status||'')!==apF.status) return false;
         if(apF.store && String(a.store||'')!==apF.store) return false;
         if(apF.media && String(a.media||'')!==apF.media) return false;
-        if(q && ![a.name,a.store,a.status,a.media,a.occupation].some(function(x){return String(x==null?'':x).toLowerCase().indexOf(q)>=0;})) return false;
+        if(q){
+          var hit=[a.name,a.store,a.status,a.media,a.occupation,a.tel,a.telRaw,a.email].some(function(x){return String(x==null?'':x).toLowerCase().indexOf(q)>=0;});
+          if(!hit){ var qd=q.replace(/[^\d]/g,''); if(qd && String(a.tel||a.telRaw||'').replace(/[^\d]/g,'').indexOf(qd)>=0) hit=true; }
+          if(!hit) return false;
+        }
         return true;
       });
       list.sort(function(a,b){ var da=toDate(a.appliedAt),db=toDate(b.appliedAt); return (db?db.getTime():0)-(da?da.getTime():0); });
