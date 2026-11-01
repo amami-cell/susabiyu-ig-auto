@@ -264,8 +264,7 @@
       /* 店舗カードだけを多列化（今日の要点・ToDo・アラートは全幅のまま）。.sc-grid でラップ */
       .sc-grid{ column-width:392px; column-gap:16px; }
       .sc-grid>*{ break-inside:avoid; }
-      #historyList{ column-width:392px; column-gap:16px; }
-      #historyList>*{ break-inside:avoid; }
+      /* 履歴は絞り込みバー＋1枚のカードで縦積み（多列化しない） */
       /* 集計は内部の表・グラフを崩さないよう広めの2列 */
       #statsBody{ column-width:540px; column-gap:20px; }
       #statsBody>*{ break-inside:avoid; }
@@ -1155,10 +1154,31 @@
           grp.map(function(p){ return '<div class="pr-sub muted" style="font-size:12px">・'+fmtD(p.start)+'〜'+(p.end?fmtD(p.end):'継続')+'　応募'+(has(p.apps)?p.apps:'-')+'/採用'+(has(p.hires)?p.hires:'-')+'</div>'; }).join('')+
         '</div>'; }).join('')+'</div>';
     }
+    var hF={store:'',media:'',state:''}, hStores=[], hMedias=[];
+    function hSet(kind,i){ var arr=(kind==='media'?hMedias:kind==='state'?['募集中','結果未提出','終了']:hStores); var v=arr[i]; if(v==null) return; hF[kind]=(hF[kind]===v?'':v); renderHistory(); }
+    function hClear(){ hF={store:'',media:'',state:''}; renderHistory(); }
     function renderHistory(){
       var el=document.getElementById('historyList');
       if(!postings.length){ el.innerHTML='<div class="empty">打ち出しデータがありません（次の取得で反映）</div>'; return; }
-      el.innerHTML=dupeAlertHtml()+'<div class="card">'+postings.slice(0,300).map(postingRow).join('')+'</div>';
+      hStores=_uniq(postings.map(function(p){return p.store;})).sort();
+      hMedias=_uniq(postings.map(function(p){return p.media;}));
+      var states=['募集中','結果未提出','終了'];
+      function chip(kind,i,label){ return '<button class="apchip'+(hF[kind]===label?' on':'')+'" onclick="hSet(\''+kind+'\','+i+')">'+esc(label)+'</button>'; }
+      var filtered=postings.filter(function(p){
+        if(hF.store && normStore(p.store)!==normStore(hF.store)) return false;
+        if(hF.media && String(p.media||'')!==hF.media) return false;
+        if(hF.state==='募集中' && p.state!=='募集中') return false;
+        if(hF.state==='結果未提出' && !isUnsubmitted(p)) return false;
+        if(hF.state==='終了' && (p.state==='募集中'||isUnsubmitted(p))) return false;
+        return true;
+      });
+      var storeSel='<select class="apsel" onchange="hF.store=this.value;renderHistory()"><option value="">全店舗</option>'+
+        hStores.map(function(s){ return '<option value="'+esc(s)+'"'+(hF.store===s?' selected':'')+'>'+esc(s)+'</option>'; }).join('')+'</select>';
+      var active=(hF.store||hF.media||hF.state);
+      var bar='<div class="apchips"><span class="aplabel">状態</span>'+states.map(function(s,i){ return chip('state',i,s); }).join('')+'</div>'+
+        '<div class="apchips"><span class="aplabel">店舗</span>'+storeSel+(hMedias.length>1?('<span class="aplabel" style="margin-left:4px">媒体</span>'+hMedias.map(function(m,i){ return chip('media',i,m); }).join('')):'')+(active?'<button class="apchip apclear" onclick="hClear()">× クリア</button>':'')+'</div>';
+      el.innerHTML=dupeAlertHtml()+bar+'<div class="lnote" style="margin:2px 2px 8px">'+filtered.length+'件</div>'+
+        (filtered.length?('<div class="card">'+filtered.slice(0,300).map(postingRow).join('')+'</div>'):'<div class="empty">該当する打ち出しはありません</div>');
     }
     function postingRow(p){
       var id='pr'+(postingRow._i=(postingRow._i||0)+1);
@@ -1408,8 +1428,8 @@
 
     /* ===== 面接予定カレンダー ===== */
     var SCHPAL=['#5aa2ff','#3ec17f','#f6c343','#ff8a5c','#b98be0','#4dd0e1','#ff6f91','#a3c644','#e08b4d','#8aa0ff','#5ec7a8','#e6b800'];
-    var schY=null, schM=null, schSel={}, schStores=[], schView='cal';
-    function schSetView(v){ schView=v; renderSchedule(); }
+    var schY=null, schM=null, schSel={}, schStores=[], schView=(function(){ try{ return localStorage.getItem('ep_schview')||'list'; }catch(e){ return 'list'; } })();
+    function schSetView(v){ schView=v; try{ localStorage.setItem('ep_schview',v); }catch(e){} renderSchedule(); }
     function schTime(s){ var m=String(s||'').match(/(\d{1,2}):(\d{2})/); return m?(('0'+m[1]).slice(-2)+':'+m[2]):''; }
     function schColorOf(key){ for(var i=0;i<schStores.length;i++){ if(schStores[i].key===key) return schStores[i].color; } return '#8aa0ff'; }
     // 打ち出し中の店舗 {key:表示名}
