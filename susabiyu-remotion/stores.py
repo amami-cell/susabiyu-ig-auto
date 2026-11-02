@@ -208,9 +208,13 @@ STORES = {
         "sheet_id": SANJO_SHEET_ID,       # 同一スプレッドシートを接尾辞タブで共用
         "tab_suffix": "_komatsubara",
         "folders": {
-            "food": "1HyHZs6VWjBoyFQWlJhxu1_l6P4OATOWn",          # こまつ原「画像データ」フォルダ
-            "music_uptempo": "1iVeGiJQmGf0oQBYJPq_AktvpZ98ib_cl",  # こまつ原「音楽データ」フォルダ
-            "music_normal": "1iVeGiJQmGf0oQBYJPq_AktvpZ98ib_cl",
+            # 【仮】本番画像が未投入のため、業態の近いぎふや天神の写真を一時的に借りて見本を焼く。
+            #   本番画像（Drive投入）が入ったら、下のコメントの“こまつ原本来のID”に戻すだけでよい。
+            #   こまつ原 本来の画像フォルダ : 1HyHZs6VWjBoyFQWlJhxu1_l6P4OATOWn
+            #   こまつ原 本来の音楽フォルダ : 1iVeGiJQmGf0oQBYJPq_AktvpZ98ib_cl
+            "food": "1HUtrzFFJiCuazZOhHBW88RVVdrvyh1Ox",          # 仮：ぎふや天神「画像」フォルダ
+            "music_uptempo": "1pk6Lq_TKK4MRWLYRowOjjRRFUfBbyYh_",  # 仮：ぎふや BGM
+            "music_normal": "1pk6Lq_TKK4MRWLYRowOjjRRFUfBbyYh_",
         },
         "patterns": FOOD_ONLY_PATTERNS,   # 和の大衆テンプレ（食材フォルダのみで完結＝他店フォルダ混入ゼロ）
         # 「画像」配下の非料理サブフォルダは料理として使わない（ロゴ/外観内観/コース集合/ドリンク）。
