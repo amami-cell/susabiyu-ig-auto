@@ -788,11 +788,12 @@
     function todoHtml(){
       var nowD=new Date(), d0=new Date(nowD.getFullYear(),nowD.getMonth(),nowD.getDate()).getTime(), d1=d0+86400000, done=_todoDone();
       var items=[];
-      untreatedList().forEach(function(a){ items.push({id:'u_'+a.code, txt:'📞 連絡: '+(a.name||'(氏名なし)')+'（'+(a.store||'')+'）', click:"schDetail('"+esc(a.code)+"')"}); });
+      // 未対応（初回連絡）の一覧は下の「未対応アラート」に集約。ToDoは当日の面接・結果入力に絞る。
       apps.forEach(function(a){ var di=toDate(a.interviewAt); if(!di) return; var day=new Date(di.getFullYear(),di.getMonth(),di.getDate()).getTime();
         if(day===d0) items.push({id:'iv_'+a.code, txt:'📅 面接: '+(a.name||'')+' '+schTime(a.interviewAt)+'（'+(a.store||'')+'）', click:"schDetail('"+esc(a.code)+"')"}); });
       unsubmittedPostings().forEach(function(p){ items.push({id:'us_'+normStore(p.store)+'_'+(p.start||''), txt:'📋 結果入力: '+(p.store||''), click:''}); });
-      if(!items.length) return '<div class="card" style="padding:12px"><div style="font-size:13px"><b style="color:var(--green)">✅ 今日のToDo</b> <span class="muted" style="font-size:12px">対応が必要なタスクはありません</span></div></div>';
+      if(!items.length){ var unN=untreatedList().length;
+        return '<div class="card" style="padding:12px"><div style="font-size:13px"><b style="color:var(--green)">✅ 今日のToDo</b> <span class="muted" style="font-size:12px">本日の面接・結果入力はありません'+(unN?'（未対応の初回連絡は下の一覧へ）':'')+'</span></div></div>'; }
       var doneN=items.filter(function(it){ return done[it.id]; }).length, pct=Math.round(doneN/items.length*100);
       var rows=items.map(function(it){ return '<div id="td_'+it.id+'" data-todo="'+it.id+'" class="prow" style="display:flex;align-items:center;gap:9px;padding:8px 2px'+(done[it.id]?';opacity:.5':'')+'">'+
         '<span id="tb_'+it.id+'" onclick="todoToggle(\''+it.id+'\')" style="cursor:pointer;font-size:19px;line-height:1">'+(done[it.id]?'✅':'⬜')+'</span>'+
@@ -817,14 +818,14 @@
       un.sort(function(a,b){ var da=toDate(a.appliedAt),db=toDate(b.appliedAt); return (da?da.getTime():0)-(db?db.getTime():0); });
       var od=toDate(un[0].appliedAt), oh=od?Math.floor((now-od.getTime())/3600000):0;
       var age=function(h){ return h>=24?(Math.floor(h/24)+'日'):(h+'時間'); };
-      var rows=un.slice(0,8).map(function(a){ var d=toDate(a.appliedAt), h=d?Math.floor((now-d.getTime())/3600000):0;
+      var rows=un.slice(0,5).map(function(a){ var d=toDate(a.appliedAt), h=d?Math.floor((now-d.getTime())/3600000):0;
         return '<div class="prow" style="cursor:pointer" onclick="schDetail(\''+esc(a.code)+'\')">'+
           '<div class="pr-nm">'+esc(a.name||'(氏名なし)')+' <span class="warnchip" style="background:var(--warnbg);border-color:var(--warnbd);color:var(--amber)">'+age(h)+'</span></div>'+
           '<div class="pr-sub muted" style="font-size:12px">'+esc(a.store||'')+'　'+esc(a.status||'')+(d?'　'+fmtD(d):'')+'</div></div>'; }).join('');
       var lng=untreatedLongCount();
       return '<div class="alert"><div class="al-h">🔴 未対応の応募 '+un.length+'件（最長 '+age(oh)+'放置）</div>'+
         '<div class="al-note">新規/未対応のままの応募です。早めの初回連絡を（タップで詳細）。'+(lng?' <b style="color:var(--red)">⚠️ うち10日超の長期放置 '+lng+'件</b>':'')+'</div>'+rows+
-        (un.length>8?'<div class="rf-hint" style="margin-top:6px">ほか '+(un.length-8)+'件</div>':'')+'</div>';
+        '<div style="margin-top:8px"><button onclick="goUntreated()" style="background:var(--card2);color:var(--fg);border:1px solid var(--line);border-radius:8px;padding:8px 12px;font-size:12.5px;font-weight:700;cursor:pointer">未対応だけを一覧で見る'+(un.length>5?'（全'+un.length+'件）':'')+' ›</button></div></div>';
     }
     // 長期応募なしで結果報告が“まだ無い”店舗＝未提出アラート（タップで結果入力）
     function dormantAlertHtml(list){
@@ -1585,32 +1586,41 @@
     }
     function closeModal(){ document.getElementById('modal').hidden=true; }
     /* ===== 応募者をさがす（常設の検索＋フィルタ・一覧） ===== */
-    var apF={q:'',status:'',store:'',media:'',sort:'untreated',period:''};
+    var apF={q:'',status:'',store:'',media:'',sort:'untreated',period:'',un:false};
+    function goUntreated(){ apF={q:'',status:'',store:'',media:'',sort:'untreated',period:'',un:true}; showTab('applicants'); }
     var apStatuses=[], apStores=[], apMedias=[];
     function _uniq(arr){ var s={},o=[]; arr.forEach(function(v){ v=String(v==null?'':v).trim(); if(v&&!s[v]){ s[v]=1; o.push(v); } }); return o; }
     function apSet(kind,i){ var arr=(kind==='status'?apStatuses:kind==='media'?apMedias:apStores); var val=arr[i]; if(val==null) return; apF[kind]=(apF[kind]===val?'':val); renderApplicants(); }
     function apSetSort(v){ apF.sort=v; renderApplicants(); }
     function apSetPeriod(v){ apF.period=(apF.period===v?'':v); renderApplicants(); }
-    function apClear(){ apF={q:'',status:'',store:'',media:'',sort:apF.sort,period:''}; renderApplicants(); }
+    function apClear(){ apF={q:'',status:'',store:'',media:'',sort:apF.sort,period:'',un:false}; renderApplicants(); }
     function renderApplicants(){
       var host=document.getElementById('applicantsBody'); if(!host) return;
       var allAp=apps.concat(mediaApps);
-      apStores=_uniq(allAp.map(function(a){return a.store;})).sort();
+      // 店舗は表記ゆれ（全角/半角スペース・【】等）をnormStoreで正規化して重複を排除（代表名1つ）
+      var seenS={}; apStores=[];
+      allAp.forEach(function(a){ var nm=String(a.store||'').trim(); if(!nm) return; var k=normStore(nm); if(!seenS[k]){ seenS[k]=1; apStores.push(nm); } });
+      apStores.sort();
       apMedias=_uniq(allAp.map(function(a){return a.media;}));
-      var epStatuses=(statusOrder&&statusOrder.length)? statusOrder.map(function(c){return statusMap[c]||c;}) : [];
-      apStatuses=_uniq(epStatuses.concat(allAp.map(function(a){return a.status;})));
+      // 状態(EntryPocket)＝statusOrder、ステータス(他媒体)＝mediaAppsの選考状況（EP分は除外）
+      var epList=(statusOrder&&statusOrder.length)? statusOrder.map(function(c){return statusMap[c]||c;}) : _uniq(apps.map(function(a){return a.status;}));
+      var epSet={}; epList.forEach(function(s){ epSet[s]=1; });
+      var medList=_uniq(mediaApps.map(function(a){return a.status;})).filter(function(s){ return !epSet[s]; });
       function chip(kind,i,label,un){ return '<button class="apchip'+(un?' un':'')+(apF[kind]===label?' on':'')+'" onclick="apSet(\''+kind+'\','+i+')">'+esc(label)+'</button>'; }
-      var statusChips=apStatuses.map(function(s,i){ return chip('status',i,s,isUntreated(s)); }).join('');
       var mediaChips=apMedias.length>1? apMedias.map(function(m,i){ return chip('media',i,m,false); }).join('') : '';
+      var opts=function(arr){ return arr.map(function(s){ return '<option value="'+esc(s)+'"'+(apF.status===s?' selected':'')+'>'+esc(s)+'</option>'; }).join(''); };
+      var stateSel='<select class="apsel" onchange="apF.status=this.value;renderApplicants()"><option value="">状態（すべて）</option>'+opts(epList)+'</select>';
+      var statusSel=medList.length?('<span class="aplabel" style="margin-left:4px">ステータス</span><select class="apsel" onchange="apF.status=this.value;renderApplicants()"><option value="">ステータス（すべて）</option>'+opts(medList)+'</select>'):'';
       var storeSel='<select class="apsel" onchange="apF.store=this.value;renderApplicants()"><option value="">全店舗</option>'+
         apStores.map(function(s){ return '<option value="'+esc(s)+'"'+(apF.store===s?' selected':'')+'>'+esc(s)+'</option>'; }).join('')+'</select>';
-      var active=(apF.q||apF.status||apF.store||apF.media||apF.period);
+      var active=(apF.q||apF.status||apF.store||apF.media||apF.period||apF.un);
       host.innerHTML=
         '<div class="apbar">'+
           '<input id="apq" class="apsearch" placeholder="🔍 氏名・店舗・状態・媒体・電話・メールで検索" value="'+esc(apF.q)+'" oninput="apF.q=this.value;renderAppList()">'+
           '<button class="apcsv" onclick="exportApplicantsCsv2()">⬇ CSV</button>'+
         '</div>'+
-        '<div class="apchips"><span class="aplabel">状態</span>'+statusChips+'</div>'+
+        '<div class="apchips"><span class="aplabel">状態</span>'+stateSel+statusSel+
+          (apF.un?'<button class="apchip un on" onclick="apF.un=false;renderApplicants()">🔴 未対応のみ ×</button>':'')+'</div>'+
         '<div class="apchips"><span class="aplabel">店舗</span>'+storeSel+(mediaChips?('<span class="aplabel" style="margin-left:4px">媒体</span>'+mediaChips):'')+'</div>'+
         '<div class="apchips">'+
           '<span class="aplabel">並び</span>'+
@@ -1629,6 +1639,7 @@
     function apFiltered(){
       var q=apF.q.trim().toLowerCase();
       var list=apps.concat(mediaApps).filter(function(a){
+        if(apF.un && !isUntreated(a.status)) return false;
         if(apF.status && String(a.status||'')!==apF.status) return false;
         if(apF.store && normStore(a.store)!==normStore(apF.store)) return false;
         if(apF.media && String(a.media||'')!==apF.media) return false;
