@@ -1,0 +1,96 @@
+name: komatsubara-prepare
+# 大衆食堂 こまつ原（komatsubara・大阪梅田小松原）：三条方式の事前生成。対象日の各枠(11/18/20時JST)を
+# 「その日のDrive写真から新規レンダリング」し、承認待ち_komatsubara タブへ pending 登録する。
+# オーナーは確認アプリで承認/作り直し/やめるを操作。投稿は reservations.yml の other_slots
+# ジョブ（全店5分ループ相乗り）が窓(10-22時JST)内で各枠を1回だけ本投稿する。
+# stores.py の komatsubara エントリ（Driveフォルダ・ブランドprops・文言 phrases_komatsubara.json）で動く。
+# ※オープン前（Drive写真が未投入）は生成素材が無いので実質no-op。画像が入れば自動で生成が回り出す。
+on:
+  # 【恒常運用】毎晩 承認待ち_komatsubara に翌々日ぶんの3枠(11/18/20時JST)を自動生成する。
+  # prepare は IGトークン不要（承認待ちを生成するだけ）。他店とcron時刻をずらして負荷分散。
+  schedule:
+    # JST 05:35 / 06:35（＝UTC 20:35 / 21:35 前日）。prepare は冪等なので複数cronは信頼性バックアップ。
+    - cron: '35 20 * * *'
+    - cron: '35 21 * * *'
+  workflow_dispatch:
+    inputs:
+      date:
+        description: "対象日 JST 例 2026-11-20 / 'repair'=一時URL恒久化のみ（空=実行日+2日）"
+        required: false
+        default: ""
+      quiet:
+        description: "1=LINE/Push通知を送らない"
+        required: false
+        default: "0"
+permissions:
+  contents: read
+concurrency:
+  group: komatsubara-prepare
+  cancel-in-progress: false
+jobs:
+  prepare:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    defaults:
+      run:
+        working-directory: susabiyu-remotion
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install Python deps
+        run: pip install google-api-python-client google-auth requests jpholiday Pillow boto3 pywebpush numpy
+      - name: Install Node deps
+        run: npm ci
+      - name: Install ffmpeg (faststartで即再生に)
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg fonts-noto-cjk fonts-noto-cjk-extra fonts-aoyagi-kouzan-t
+      - name: Write creds.json
+        run: echo "$GOOGLE_CREDS_B64" | base64 -d > creds.json
+        env:
+          GOOGLE_CREDS_B64: ${{ secrets.GOOGLE_CREDS_B64 }}
+      - name: Run prepare (komatsubara)
+        env:
+          # 店舗指定。承認待ちタブ・Driveフォルダ・ブランドprops・文言は stores.py が解決する。
+          STORE_ACCOUNT: komatsubara
+          GOOGLE_CREDS_B64: ${{ secrets.GOOGLE_CREDS_B64 }}
+          IG_ACCESS_TOKEN_KOMATSUBARA: ${{ secrets.IG_ACCESS_TOKEN_KOMATSUBARA }}
+          SHEET_ID: ${{ secrets.SHEET_ID }}
+          LINE_CHANNEL_TOKEN: ${{ secrets.LINE_CHANNEL_TOKEN }}
+          R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          R2_BUCKET: ${{ secrets.R2_BUCKET }}
+          R2_PUBLIC_BASE: ${{ secrets.R2_PUBLIC_BASE }}
+          GH_MEDIA_TOKEN: ${{ secrets.GH_MEDIA_TOKEN }}
+          GH_MEDIA_REPO: ${{ secrets.GH_MEDIA_REPO }}
+          VAPID_PRIVATE_KEY: ${{ secrets.VAPID_PRIVATE_KEY }}
+          VAPID_SUBJECT: ${{ secrets.VAPID_SUBJECT }}
+          # PWA_URL は未設定＝stores.py の komatsubara pwa_url を使う（確認アプリへの導線）
+          QUIET_NOTIFY: ${{ github.event.inputs.quiet }}
+          INDATE: ${{ github.event.inputs.date }}
+        run: |
+          # カンマ区切りなら複数日を1回で生成（例 2026-11-20,2026-11-21,2026-11-22）。
+          if printf '%s' "$INDATE" | grep -q ','; then
+            IFS=',' read -ra ARR <<< "$INDATE"
+            for d in "${ARR[@]}"; do
+              d="$(printf '%s' "$d" | xargs)"
+              echo "=========== 生成: $d ==========="
+              python prepare.py creds.json "$d"
+            done
+          else
+            python prepare.py creds.json "$INDATE"
+          fi
+      - name: 失敗をLINE通知
+        if: failure()
+        env:
+          LINE_CHANNEL_TOKEN: ${{ secrets.LINE_CHANNEL_TOKEN }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          [ -z "$LINE_CHANNEL_TOKEN" ] && exit 0
+          curl -s -X POST https://api.line.me/v2/bot/message/broadcast \
+            -H "Authorization: Bearer $LINE_CHANNEL_TOKEN" -H "Content-Type: application/json" \
+            -d "{\"messages\":[{\"type\":\"text\",\"text\":\"⚠️ 大衆食堂こまつ原 動画準備(komatsubara-prepare)が失敗しました。\n確認: $RUN_URL\"}]}" >/dev/null || true

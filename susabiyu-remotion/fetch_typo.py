@@ -195,7 +195,7 @@ def _story_for(caption):
         acct = os.environ.get("STORE_ACCOUNT", "").strip().lower()
         _STORY_FN = (lambda _nm: "")
         try:
-            _mod = {"nagagutsu": "nagagutsu_captions", "goldporta": "goldporta_captions", "karasuma": "karasuma_captions"}.get(acct)
+            _mod = {"nagagutsu": "nagagutsu_captions", "goldporta": "goldporta_captions", "karasuma": "karasuma_captions", "komatsubara": "komatsubara_captions"}.get(acct)
             if _mod:
                 import importlib
                 _nc = importlib.import_module(_mod)
@@ -216,7 +216,7 @@ def _sub_for(caption):
         acct = os.environ.get("STORE_ACCOUNT", "").strip().lower()
         _SUB_FN = (lambda _nm: "")
         try:
-            _mod = {"nagagutsu": "nagagutsu_captions", "goldporta": "goldporta_captions", "karasuma": "karasuma_captions"}.get(acct)
+            _mod = {"nagagutsu": "nagagutsu_captions", "goldporta": "goldporta_captions", "karasuma": "karasuma_captions", "komatsubara": "komatsubara_captions"}.get(acct)
             if _mod:
                 import importlib
                 _nc = importlib.import_module(_mod)
@@ -237,7 +237,7 @@ def _name_disp(caption):
         acct = os.environ.get("STORE_ACCOUNT", "").strip().lower()
         _DISP_FN = (lambda _nm: _nm)
         try:
-            _mod = {"nagagutsu": "nagagutsu_captions", "goldporta": "goldporta_captions", "karasuma": "karasuma_captions"}.get(acct)
+            _mod = {"nagagutsu": "nagagutsu_captions", "goldporta": "goldporta_captions", "karasuma": "karasuma_captions", "komatsubara": "komatsubara_captions"}.get(acct)
             if _mod:
                 import importlib
                 _nc = importlib.import_module(_mod)
@@ -258,7 +258,7 @@ def _desc_for(caption):
         acct = os.environ.get("STORE_ACCOUNT", "").strip().lower()
         _DESC_FN = (lambda _nm: "")
         try:
-            _mod = {"nagagutsu": "nagagutsu_captions", "goldporta": "goldporta_captions", "karasuma": "karasuma_captions"}.get(acct)
+            _mod = {"nagagutsu": "nagagutsu_captions", "goldporta": "goldporta_captions", "karasuma": "karasuma_captions", "komatsubara": "komatsubara_captions"}.get(acct)
             if _mod:
                 import importlib
                 _nc = importlib.import_module(_mod)
@@ -439,7 +439,7 @@ _post_cap = ""
 try:
     _acct = os.environ.get("STORE_ACCOUNT", "").strip().lower()
     # 投稿本文を持つ店：ナガグツ＝元気お姉さん／GOLD＝ソムリエお姉さん。他店は空（従来どおり）。
-    _capmod = {"nagagutsu": "nagagutsu_captions", "goldporta": "goldporta_captions", "karasuma": "karasuma_captions"}.get(_acct)
+    _capmod = {"nagagutsu": "nagagutsu_captions", "goldporta": "goldporta_captions", "karasuma": "karasuma_captions", "komatsubara": "komatsubara_captions"}.get(_acct)
     if _capmod:
         import importlib
         import stores as _st
@@ -456,7 +456,7 @@ lines.append('export const typoHeadline = "%s";' % esc(headline))
 _catch = ""
 try:
     _acct2 = os.environ.get("STORE_ACCOUNT", "").strip().lower()
-    _cmod = {"nagagutsu": "nagagutsu_captions", "goldporta": "goldporta_captions", "karasuma": "karasuma_captions"}.get(_acct2)
+    _cmod = {"nagagutsu": "nagagutsu_captions", "goldporta": "goldporta_captions", "karasuma": "karasuma_captions", "komatsubara": "komatsubara_captions"}.get(_acct2)
     if _cmod and items:
         import importlib
         _ncc = importlib.import_module(_cmod)

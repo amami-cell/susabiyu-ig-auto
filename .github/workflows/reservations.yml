@@ -47,6 +47,7 @@ jobs:
           IG_ACCESS_TOKEN_NAGAGUTSU: ${{ secrets.IG_ACCESS_TOKEN_NAGAGUTSU }}
           IG_ACCESS_TOKEN_GOLDPORTA: ${{ secrets.IG_ACCESS_TOKEN_GOLDPORTA }}
           IG_ACCESS_TOKEN_KARASUMA: ${{ secrets.IG_ACCESS_TOKEN_KARASUMA }}
+          IG_ACCESS_TOKEN_KOMATSUBARA: ${{ secrets.IG_ACCESS_TOKEN_KOMATSUBARA }}
           GH_MEDIA_TOKEN: ${{ secrets.GH_MEDIA_TOKEN }}
           GH_MEDIA_REPO: ${{ secrets.GH_MEDIA_REPO }}
           R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
@@ -71,6 +72,7 @@ jobs:
           IG_ACCESS_TOKEN_NAGAGUTSU: ${{ secrets.IG_ACCESS_TOKEN_NAGAGUTSU }}
           IG_ACCESS_TOKEN_GOLDPORTA: ${{ secrets.IG_ACCESS_TOKEN_GOLDPORTA }}
           IG_ACCESS_TOKEN_KARASUMA: ${{ secrets.IG_ACCESS_TOKEN_KARASUMA }}
+          IG_ACCESS_TOKEN_KOMATSUBARA: ${{ secrets.IG_ACCESS_TOKEN_KOMATSUBARA }}
           GH_MEDIA_TOKEN: ${{ secrets.GH_MEDIA_TOKEN }}
           GH_MEDIA_REPO: ${{ secrets.GH_MEDIA_REPO }}
           R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
@@ -192,6 +194,7 @@ jobs:
           IG_ACCESS_TOKEN_GIFUYATENJIN: ${{ secrets.IG_ACCESS_TOKEN_GIFUYATENJIN }}
           IG_ACCESS_TOKEN_NAGAGUTSU: ${{ secrets.IG_ACCESS_TOKEN_NAGAGUTSU }}
           IG_ACCESS_TOKEN_GOLDPORTA: ${{ secrets.IG_ACCESS_TOKEN_GOLDPORTA }}
+          IG_ACCESS_TOKEN_KOMATSUBARA: ${{ secrets.IG_ACCESS_TOKEN_KOMATSUBARA }}
           SHEET_ID: ${{ secrets.SHEET_ID }}
           LINE_CHANNEL_TOKEN: ${{ secrets.LINE_CHANNEL_TOKEN }}
           R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
@@ -209,9 +212,10 @@ jobs:
           POST_SCHED_GUARD: "1"
           POST_MAX_LATE_MIN: "600"
         run: |
-          # 店舗ごとに本日の全枠を順に試す（slots は stores.py 準拠：ぎふや11/17/20・ナガグツ12/18/20・GOLD11/18/20）。
+          # 店舗ごとに本日の全枠を順に試す（slots は stores.py 準拠：ぎふや11/17/20・ナガグツ12/18/20・GOLD11/18/20・こまつ原11/18/20）。
+          # こまつ原はトークン未設定/承認待ちゼロのうちは post_approved が安全にskip（本番反映はオープン後）。
           D=$(TZ=Asia/Tokyo date +%F)
-          for ENTRY in "gifuyatenjin:11 17 20" "nagagutsu:12 18 20" "goldporta:11 18 20"; do
+          for ENTRY in "gifuyatenjin:11 17 20" "nagagutsu:12 18 20" "goldporta:11 18 20" "komatsubara:11 18 20"; do
             export STORE_ACCOUNT="${ENTRY%%:*}"
             SLOTS="${ENTRY##*:}"
             echo "########## 店舗: $STORE_ACCOUNT ##########"
