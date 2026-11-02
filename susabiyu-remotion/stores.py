@@ -197,6 +197,31 @@ STORES = {
         "slots_holiday": [11, 18, 20],
         "slots_weekday": [11, 18, 20],
     },
+    # ── 大衆食堂 こまつ原（大阪・梅田小松原／居酒屋・食堂・大衆酒場）。ぎふや天神と同じ和の大衆 food-only 方式 ──
+    "komatsubara": {
+        "account": "komatsubara",
+        "store_name": "大衆食堂 こまつ原",
+        "handle": "@taisyuusyokudo.komatsubara",
+        # 営業時間。入力用スプレッドシートから読めなかった時のフォールバック（店舗受付シート こまつ原行より）。
+        "hours": "11:30〜23:00",
+        "region": "梅田・小松原",          # 店舗受付（記入用）シートのエリア＝梅田・小松原（大阪）
+        "sheet_id": SANJO_SHEET_ID,       # 同一スプレッドシートを接尾辞タブで共用
+        "tab_suffix": "_komatsubara",
+        "folders": {
+            "food": "1HyHZs6VWjBoyFQWlJhxu1_l6P4OATOWn",          # こまつ原「画像データ」フォルダ
+            "music_uptempo": "1iVeGiJQmGf0oQBYJPq_AktvpZ98ib_cl",  # こまつ原「音楽データ」フォルダ
+            "music_normal": "1iVeGiJQmGf0oQBYJPq_AktvpZ98ib_cl",
+        },
+        "patterns": FOOD_ONLY_PATTERNS,   # 和の大衆テンプレ（食材フォルダのみで完結＝他店フォルダ混入ゼロ）
+        # 「画像」配下の非料理サブフォルダは料理として使わない（ロゴ/外観内観/コース集合/ドリンク）。
+        "exclude_cats": ["ロゴ", "外観", "内観", "音楽", "集合", "コース", "ドリンク", "飲み"],
+        "food_flat": True,                # 「画像」直下は フード/ドリンク… のサブ構成＝再帰収集
+        "phrases_file": "phrases_komatsubara.json",
+        "fallback_phrase": "昼サケ、夜メシ。梅田・こまつ原で。",
+        "pwa_url": "https://amami-cell.github.io/susabiyu-media/app/komatsubara.html",
+        "slots_holiday": [11, 18, 20],
+        "slots_weekday": [11, 18, 20],
+    },
 }
 
 # fetch_*.py が読む Drive フォルダ環境変数（未設定なら各スクリプトの既定＝三条）。
