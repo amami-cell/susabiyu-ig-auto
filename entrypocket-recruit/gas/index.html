@@ -185,6 +185,11 @@
     .rpg .rpn{ font-weight:800; font-size:15px; }
     .rpcount{ background:var(--red); color:#fff; border-radius:999px; padding:2px 10px; font-size:12px; font-weight:800; }
     .rpmeta{ color:var(--muted); font-size:12px; font-weight:700; }
+    .rpbtn{ margin-left:auto; background:transparent; border:1px solid var(--line2); color:var(--muted); border-radius:8px; padding:5px 11px; font-size:11.5px; font-weight:700; cursor:pointer; white-space:nowrap; }
+    .rpbtn:hover{ border-color:var(--red); color:var(--red); }
+    .rpbtn.ok:hover{ border-color:var(--accent); color:var(--accent); }
+    .rpcount.off{ background:var(--muted); }
+    .rpg-ex{ border-left-color:var(--line2); opacity:.72; }
     .rpg .rpc{ color:var(--fg2); font-size:12.5px; margin-top:5px; word-break:break-all; }
     .rpt{ margin-top:9px; }
     .rprow{ display:flex; gap:10px; padding:6px 2px; border-top:1px solid var(--line); align-items:baseline; }
@@ -721,6 +726,7 @@
       apps=d.apps||[]; storeManual=d.storeManual||{}; storePosting=d.storePosting||{}; postings=d.postings||[]; reportUrl=d.reportUrl||'';
       appByCode={}; postById={}; apps.forEach(function(a){ appByCode[a.code]=a; });
       mediaApps=d.mediaApps||[]; mediaByCode={}; mediaApps.forEach(function(m){ mediaByCode[m.code]=m; });
+      repeatExcluded={}; (d.repeatExcluded||[]).forEach(function(k){ repeatExcluded[k]=1; });
       postByStore={}; postings.forEach(function(p){ var k=normStore(p.store); (postByStore[k]=postByStore[k]||[]).push(p); });
       appByStore={}; apps.forEach(function(a){ var k=normStore(a.store); (appByStore[k]=appByStore[k]||[]).push(a); });
 
@@ -1667,7 +1673,7 @@
     }
 
     /* ===== 繰り返し応募（要注意リスト）：電話/メール/氏名で名寄せし、何度も応募した人を一覧 ===== */
-    var rpMin=2, rpName=true;
+    var rpMin=2, rpName=true, repeatExcluded={}, _rpGroups={}, rpShowExcluded=false;
     function _normName(s){ var t=String(s==null?'':s); try{t=t.normalize('NFKC');}catch(e){} return t.replace(/[\s　]/g,'').toLowerCase(); }
     function _digits(s){ return String(s==null?'':s).replace(/[^\d]/g,''); }
     function rpSetMin(n){ rpMin=n; renderRepeat(); }
@@ -1691,36 +1697,70 @@
       return list;
     }
     function _rpName1(g){ var c={},best='',bn=0; g.forEach(function(a){ var n=String(a.name||'').trim(); if(!n) return; c[n]=(c[n]||0)+1; if(c[n]>bn){ bn=c[n]; best=n; } }); return best||'(氏名なし)'; }
+    // グループの照合キー（電話/メール、無ければ氏名）。除外の突き合わせ・保存に使う。
+    function rpKeys(g){
+      var ks={};
+      g.forEach(function(a){ var t=_digits(a.telRaw||a.tel); if(t.length>=10) ks['t:'+t]=1; var m=String(a.email||'').trim().toLowerCase(); if(m) ks['m:'+m]=1; });
+      if(!Object.keys(ks).length){ var n=_normName(_rpName1(g)); if(n) ks['n:'+n]=1; }
+      return Object.keys(ks);
+    }
+    function rpIsExcluded(g){ return rpKeys(g).some(function(k){ return repeatExcluded[k]; }); }
+    function rpShowExcludedToggle(){ rpShowExcluded=!rpShowExcluded; renderRepeat(); }
+    // 誤検知として除外／解除（サーバの「名寄せ除外」シートに保存＝端末共有・永続）
+    function rpExclude(id,on){
+      var g=_rpGroups[id]; if(!g) return;
+      if(on && !confirm('この人物を「誤検知」として要注意リストから除外します。よろしいですか？\n（端末をまたいで共有・いつでも戻せます）')) return;
+      var keys=rpKeys(g), nm=_rpName1(g);
+      keys.forEach(function(k){ if(on) repeatExcluded[k]=1; else delete repeatExcluded[k]; });   // 楽観更新
+      renderRepeat();
+      google.script.run.withSuccessHandler(function(r){
+        if(r&&r.ok){ repeatExcluded={}; (r.excluded||[]).forEach(function(k){ repeatExcluded[k]=1; }); renderRepeat(); toast(on?'除外しました（誤検知）':'除外を解除しました'); }
+        else toast('保存失敗'+(r&&r.error?': '+r.error:''));
+      }).withFailureHandler(function(e){ toast('通信エラー: '+(e&&e.message||'')); }).epRepeatExclude({ keys:keys, name:nm, on:on });
+    }
+    function _rpCard(id,g,isEx){
+      var nm=_rpName1(g);
+      var tels=_uniq(g.map(function(a){return a.telRaw||a.tel;})), mails=_uniq(g.map(function(a){return a.email;}));
+      var stores=_uniq(g.map(function(a){return a.store;})), medias=_uniq(g.map(function(a){return a.media;}));
+      var contact=[];
+      if(tels.length) contact.push('☎ '+tels.map(esc).join(' / '));
+      if(mails.length) contact.push('✉ '+mails.map(esc).join(' / '));
+      var rows=g.map(function(a){
+        return '<div class="rprow"><span class="d">'+esc(fmtDT(a.appliedAt))+'</span>'+
+          '<span class="s">'+esc(a.store||'(店舗不明)')+'</span>'+
+          '<span class="m">'+esc(a.media||'')+(a.status?('・'+esc(a.status)):'')+'</span></div>';
+      }).join('');
+      var btn = STORE_SCOPE ? '' : (isEx
+        ? '<button class="rpbtn ok" onclick="rpExclude(\''+id+'\',false)">↩ 要注意に戻す</button>'
+        : '<button class="rpbtn" onclick="rpExclude(\''+id+'\',true)">誤検知として除外</button>');
+      return '<div class="rpg'+(isEx?' rpg-ex':'')+'">'+
+        '<div class="rph"><span class="rpn">'+esc(nm)+'</span>'+
+          '<span class="rpcount'+(isEx?' off':'')+'">応募 '+g.length+'回</span>'+
+          '<span class="rpmeta">'+stores.length+'店舗'+(medias.length>1?('・'+medias.length+'媒体'):'')+'</span>'+btn+'</div>'+
+        (contact.length?'<div class="rpc">'+contact.join('　')+'</div>':'')+
+        '<div class="rpt">'+rows+'</div>'+
+      '</div>';
+    }
     function renderRepeat(){
       var host=document.getElementById('repeatBody'); if(!host) return;
-      var list=rpGroups();
+      var all=rpGroups(); _rpGroups={};
+      var shown=[], excluded=[];
+      all.forEach(function(g,i){ var id='g'+i; _rpGroups[id]=g; (rpIsExcluded(g)?excluded:shown).push({id:id,g:g}); });
       var chip=function(n,label){ return '<button class="apchip'+(rpMin===n?' on':'')+'" onclick="rpSetMin('+n+')">'+label+'</button>'; };
-      var bar='<div class="lnote" style="margin:0 2px 8px;line-height:1.5">同じ<b>電話・メール'+(rpName?'・氏名':'')+'</b>で複数回応募した人を、取得済みの全応募データ（EP＋他媒体）から抽出します。初回連絡前の確認にお使いください。</div>'+
+      var bar='<div class="lnote" style="margin:0 2px 8px;line-height:1.5">同じ<b>電話・メール'+(rpName?'・氏名':'')+'</b>で複数回応募した人を、取得済みの全応募データ（EP＋他媒体）から抽出します。誤検知は「除外」で非表示にできます（端末共有・いつでも戻せます）。</div>'+
         '<div class="apchips"><span class="aplabel">最低回数</span>'+chip(2,'2回以上')+chip(3,'3回以上')+chip(5,'5回以上')+
           '<span class="aplabel" style="margin-left:8px">氏名も照合</span><button class="apchip'+(rpName?' on':'')+'" onclick="rpToggleName()">'+(rpName?'ON':'OFF')+'</button>'+
+          (excluded.length?('<button class="apchip'+(rpShowExcluded?' on':'')+'" onclick="rpShowExcludedToggle()">除外済み '+excluded.length+'件</button>'):'')+
           '<button class="apcsv" style="margin-left:auto" onclick="exportRepeatCsv()">⬇ CSV</button></div>';
-      if(!list.length){ host.innerHTML=bar+'<div class="empty">該当者はいません（'+rpMin+'回以上の繰り返し応募なし）</div>'; return; }
-      var html=bar+'<div class="lnote" style="margin:2px 2px 9px">該当 '+list.length+'人</div>';
-      list.forEach(function(g){
-        var nm=_rpName1(g);
-        var tels=_uniq(g.map(function(a){return a.telRaw||a.tel;})), mails=_uniq(g.map(function(a){return a.email;}));
-        var stores=_uniq(g.map(function(a){return a.store;})), medias=_uniq(g.map(function(a){return a.media;}));
-        var contact=[];
-        if(tels.length) contact.push('☎ '+tels.map(esc).join(' / '));
-        if(mails.length) contact.push('✉ '+mails.map(esc).join(' / '));
-        var rows=g.map(function(a){
-          return '<div class="rprow"><span class="d">'+esc(fmtDT(a.appliedAt))+'</span>'+
-            '<span class="s">'+esc(a.store||'(店舗不明)')+'</span>'+
-            '<span class="m">'+esc(a.media||'')+(a.status?('・'+esc(a.status)):'')+'</span></div>';
-        }).join('');
-        html+='<div class="rpg">'+
-          '<div class="rph"><span class="rpn">'+esc(nm)+'</span>'+
-            '<span class="rpcount">応募 '+g.length+'回</span>'+
-            '<span class="rpmeta">'+stores.length+'店舗'+(medias.length>1?('・'+medias.length+'媒体'):'')+'</span></div>'+
-          (contact.length?'<div class="rpc">'+contact.join('　')+'</div>':'')+
-          '<div class="rpt">'+rows+'</div>'+
-        '</div>';
-      });
+      if(!shown.length && !(rpShowExcluded&&excluded.length)){
+        host.innerHTML=bar+'<div class="empty">該当者はいません'+(excluded.length?('（除外済み '+excluded.length+'件は「除外済み」ボタンで表示）'):('（'+rpMin+'回以上の繰り返し応募なし）'))+'</div>'; return;
+      }
+      var html=bar+'<div class="lnote" style="margin:2px 2px 9px">該当 '+shown.length+'人'+(excluded.length?('　／　除外済み '+excluded.length+'件'):'')+'</div>';
+      shown.forEach(function(x){ html+=_rpCard(x.id,x.g,false); });
+      if(rpShowExcluded && excluded.length){
+        html+='<div class="lnote" style="margin:14px 2px 6px;color:var(--muted);font-weight:700">― 除外済み（誤検知） ―</div>';
+        excluded.forEach(function(x){ html+=_rpCard(x.id,x.g,true); });
+      }
       host.innerHTML=html;
     }
     function exportRepeatCsv(){

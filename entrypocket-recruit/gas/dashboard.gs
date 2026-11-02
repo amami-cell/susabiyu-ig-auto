@@ -431,9 +431,12 @@ function dashBuild_() {
     });
   } catch (e) { mediaApps = []; }
 
+  // 繰り返し応募の誤検知 除外キー（端末共有・永続）
+  var repeatExcluded = (typeof repeatExcludeList_ === 'function') ? repeatExcludeList_() : [];
+
   return { dash: dash, apps: apps, last: last, storeManual: storeManual, storePosting: storePosting, postings: postings, reportUrl: reportUrl,
     statusMap: statusMap, statusOrder: statusOrder, writeEnabled: writeEnabled, liveShops: liveShops, storeRegion: storeRegion, goals: goals, mediaWeeks: mediaWeeks,
-    mediaApps: mediaApps };
+    mediaApps: mediaApps, repeatExcluded: repeatExcluded };
 }
 
 /**
