@@ -40,7 +40,17 @@ def run(cmd):
 
 
 def find_row(sh, when_str):
-    data = sh.values().get(spreadsheetId=SHEET_ID, range=APP_TAB + "!A:K").execute().get("values", [])
+    try:
+        data = sh.values().get(spreadsheetId=SHEET_ID, range=APP_TAB + "!A:K").execute().get("values", [])
+    except Exception as e:
+        # 承認待ちタブがまだ存在しない店（新店でprepare未実行＝画像未投入など）は
+        # 「Unable to parse range: 承認待ち_<account>」で400になる。これは“未投稿”ではなく
+        # “処理対象の枠が無い”だけなので、異常終了にせず静かにスキップする（該当枠なし扱い）。
+        msg = str(e)
+        if "Unable to parse range" in msg or "parse range" in msg:
+            print("[SKIP] 承認待ちタブ未作成（%s）＝処理対象枠なし。スキップ: %s" % (APP_TAB, when_str))
+            return None, None
+        raise
     for i, r in enumerate(data):
         if i == 0:
             continue
