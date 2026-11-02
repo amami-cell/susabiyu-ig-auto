@@ -179,6 +179,22 @@
     .apchip.un.on{ background:var(--red); border-color:var(--red); }
     .apchip.apclear{ background:transparent; color:var(--muted); border-style:dashed; }
     .apsel{ border:1px solid var(--line); background:var(--card); color:var(--fg); border-radius:999px; padding:6px 12px; font-size:12.5px; font-weight:700; max-width:220px; }
+    /* 繰り返し応募（要注意リスト） */
+    .rpg{ background:var(--card); border:1px solid var(--line); border-left:3px solid var(--red); border-radius:12px; padding:12px 13px; margin-bottom:10px; }
+    .rpg .rph{ display:flex; align-items:baseline; gap:8px; flex-wrap:wrap; }
+    .rpg .rpn{ font-weight:800; font-size:15px; }
+    .rpcount{ background:var(--red); color:#fff; border-radius:999px; padding:2px 10px; font-size:12px; font-weight:800; }
+    .rpmeta{ color:var(--muted); font-size:12px; font-weight:700; }
+    .rpg .rpc{ color:var(--fg2); font-size:12.5px; margin-top:5px; word-break:break-all; }
+    .rpt{ margin-top:9px; }
+    .rprow{ display:flex; gap:10px; padding:6px 2px; border-top:1px solid var(--line); align-items:baseline; }
+    .rprow .d{ color:var(--muted); white-space:nowrap; min-width:118px; font-variant-numeric:tabular-nums; }
+    .rprow .s{ flex:1; font-weight:700; min-width:40%; }
+    .rprow .m{ color:var(--muted); font-size:12px; margin-left:auto; white-space:nowrap; }
+    @media (max-width:640px){
+      .rprow{ flex-wrap:wrap; }
+      .rprow .m{ flex-basis:100%; margin-left:118px; margin-top:1px; white-space:normal; }
+    }
     .acts{ display:flex; gap:8px; margin-top:11px; }
     .btn{ flex:1; text-align:center; border-radius:10px; padding:11px 5px; text-decoration:none; font-size:13.5px; font-weight:800; white-space:nowrap; }
     .btn:active{ transform:scale(.97); }
@@ -394,6 +410,7 @@
   <main>
     <section id="tab-recruit"><div id="recruitList"><div class="empty">読み込み中…</div></div></section>
     <section id="tab-applicants" hidden><div id="applicantsBody"><div class="empty">読み込み中…</div></div></section>
+    <section id="tab-repeat" hidden><div id="repeatBody"><div class="empty">読み込み中…</div></div></section>
     <section id="tab-schedule" hidden><div id="scheduleBody"><div class="empty">読み込み中…</div></div></section>
     <section id="tab-history" hidden><div id="historyList"><div class="empty">読み込み中…</div></div></section>
     <section id="tab-stats" hidden><div id="statsBody"><div class="empty">読み込み中…</div></div></section>
@@ -652,13 +669,14 @@
       if(/^(1|あり)$/i.test(s)) return 'active'; return null; }
 
     function showTab(t){
-      ['recruit','applicants','schedule','history','stats'].forEach(function(x){
+      ['recruit','applicants','repeat','schedule','history','stats'].forEach(function(x){
         var sec=document.getElementById('tab-'+x); if(sec) sec.hidden=(x!==t);
         var tb=document.getElementById('tb-'+x); if(tb) tb.classList.toggle('on', x===t);
       });
       if(t==='applicants') renderApplicants();
+      if(t==='repeat') renderRepeat();
       Array.prototype.forEach.call(document.querySelectorAll('#navSb .nav-i[data-k]'),function(b){ b.classList.toggle('on', b.getAttribute('data-k')===t); });
-      var NM={recruit:'募集中',applicants:'応募者をさがす',schedule:'面接予定',history:'打ち出し履歴',stats:'集計'};
+      var NM={recruit:'募集中',applicants:'応募者をさがす',repeat:'繰り返し応募',schedule:'面接予定',history:'打ち出し履歴',stats:'集計'};
       var mt=document.getElementById('mTitle'); if(mt&&NM[t]) mt.textContent=NM[t];
       closeMobile();
       window.scrollTo(0,0);
@@ -719,6 +737,7 @@
       renderHistory();
       renderStats();
       var ta=document.getElementById('tab-applicants'); if(ta && !ta.hidden) renderApplicants();
+      var tr=document.getElementById('tab-repeat'); if(tr && !tr.hidden) renderRepeat();
     }
 
     /* ===== 未提出（掲載終了なのに結果が空）===== */
@@ -1647,6 +1666,75 @@
       }catch(x){ toast('書き出し失敗: '+(x&&x.message||'')); }
     }
 
+    /* ===== 繰り返し応募（要注意リスト）：電話/メール/氏名で名寄せし、何度も応募した人を一覧 ===== */
+    var rpMin=2, rpName=true;
+    function _normName(s){ var t=String(s==null?'':s); try{t=t.normalize('NFKC');}catch(e){} return t.replace(/[\s　]/g,'').toLowerCase(); }
+    function _digits(s){ return String(s==null?'':s).replace(/[^\d]/g,''); }
+    function rpSetMin(n){ rpMin=n; renderRepeat(); }
+    function rpToggleName(){ rpName=!rpName; renderRepeat(); }
+    // EP＋他媒体を横断し、電話・メール（任意で氏名）が一致する応募を同一人物にまとめる
+    function rpGroups(){
+      var all=apps.concat(mediaApps);
+      var parent=all.map(function(_,i){return i;});
+      function find(x){ while(parent[x]!==x){ parent[x]=parent[parent[x]]; x=parent[x]; } return x; }
+      function uni(a,b){ a=find(a); b=find(b); if(a!==b) parent[a]=b; }
+      var byTel={}, byMail={}, byName={};
+      all.forEach(function(a,i){
+        var t=_digits(a.telRaw||a.tel); if(t.length>=10){ if(byTel[t]!=null) uni(i,byTel[t]); else byTel[t]=i; }
+        var m=String(a.email||'').trim().toLowerCase(); if(m){ if(byMail[m]!=null) uni(i,byMail[m]); else byMail[m]=i; }
+        if(rpName){ var nm=_normName(a.name); if(nm){ if(byName[nm]!=null) uni(i,byName[nm]); else byName[nm]=i; } }
+      });
+      var groups={}; all.forEach(function(a,i){ var r=find(i); (groups[r]=groups[r]||[]).push(a); });
+      var list=Object.keys(groups).map(function(k){ return groups[k]; }).filter(function(g){ return g.length>=rpMin; });
+      list.forEach(function(g){ g.sort(function(a,b){ var da=toDate(a.appliedAt),db=toDate(b.appliedAt); return (db?db.getTime():0)-(da?da.getTime():0); }); });
+      list.sort(function(a,b){ if(b.length!==a.length) return b.length-a.length; var la=toDate(a[0].appliedAt),lb=toDate(b[0].appliedAt); return (lb?lb.getTime():0)-(la?la.getTime():0); });
+      return list;
+    }
+    function _rpName1(g){ var c={},best='',bn=0; g.forEach(function(a){ var n=String(a.name||'').trim(); if(!n) return; c[n]=(c[n]||0)+1; if(c[n]>bn){ bn=c[n]; best=n; } }); return best||'(氏名なし)'; }
+    function renderRepeat(){
+      var host=document.getElementById('repeatBody'); if(!host) return;
+      var list=rpGroups();
+      var chip=function(n,label){ return '<button class="apchip'+(rpMin===n?' on':'')+'" onclick="rpSetMin('+n+')">'+label+'</button>'; };
+      var bar='<div class="lnote" style="margin:0 2px 8px;line-height:1.5">同じ<b>電話・メール'+(rpName?'・氏名':'')+'</b>で複数回応募した人を、取得済みの全応募データ（EP＋他媒体）から抽出します。初回連絡前の確認にお使いください。</div>'+
+        '<div class="apchips"><span class="aplabel">最低回数</span>'+chip(2,'2回以上')+chip(3,'3回以上')+chip(5,'5回以上')+
+          '<span class="aplabel" style="margin-left:8px">氏名も照合</span><button class="apchip'+(rpName?' on':'')+'" onclick="rpToggleName()">'+(rpName?'ON':'OFF')+'</button>'+
+          '<button class="apcsv" style="margin-left:auto" onclick="exportRepeatCsv()">⬇ CSV</button></div>';
+      if(!list.length){ host.innerHTML=bar+'<div class="empty">該当者はいません（'+rpMin+'回以上の繰り返し応募なし）</div>'; return; }
+      var html=bar+'<div class="lnote" style="margin:2px 2px 9px">該当 '+list.length+'人</div>';
+      list.forEach(function(g){
+        var nm=_rpName1(g);
+        var tels=_uniq(g.map(function(a){return a.telRaw||a.tel;})), mails=_uniq(g.map(function(a){return a.email;}));
+        var stores=_uniq(g.map(function(a){return a.store;})), medias=_uniq(g.map(function(a){return a.media;}));
+        var contact=[];
+        if(tels.length) contact.push('☎ '+tels.map(esc).join(' / '));
+        if(mails.length) contact.push('✉ '+mails.map(esc).join(' / '));
+        var rows=g.map(function(a){
+          return '<div class="rprow"><span class="d">'+esc(fmtDT(a.appliedAt))+'</span>'+
+            '<span class="s">'+esc(a.store||'(店舗不明)')+'</span>'+
+            '<span class="m">'+esc(a.media||'')+(a.status?('・'+esc(a.status)):'')+'</span></div>';
+        }).join('');
+        html+='<div class="rpg">'+
+          '<div class="rph"><span class="rpn">'+esc(nm)+'</span>'+
+            '<span class="rpcount">応募 '+g.length+'回</span>'+
+            '<span class="rpmeta">'+stores.length+'店舗'+(medias.length>1?('・'+medias.length+'媒体'):'')+'</span></div>'+
+          (contact.length?'<div class="rpc">'+contact.join('　')+'</div>':'')+
+          '<div class="rpt">'+rows+'</div>'+
+        '</div>';
+      });
+      host.innerHTML=html;
+    }
+    function exportRepeatCsv(){
+      var list=rpGroups(); if(!list.length){ toast('該当者がいません'); return; }
+      var lines=[['人物','応募回数','電話','メール','応募日時','店舗','媒体','状況']];
+      list.forEach(function(g){ var nm=_rpName1(g); var tels=_uniq(g.map(function(a){return a.telRaw||a.tel;})).join(' / '); var mails=_uniq(g.map(function(a){return a.email;})).join(' / ');
+        g.forEach(function(a){ lines.push([nm,g.length,tels,mails,a.appliedAt,a.store,a.media,a.status]); }); });
+      var csv=lines.map(function(r){ return r.map(function(c){ var s=String(c==null?'':c); return /[",\n]/.test(s)?'"'+s.replace(/"/g,'""')+'"':s; }).join(','); }).join('\r\n');
+      try{ var blob=new Blob(['﻿'+csv],{type:'text/csv;charset=utf-8'}), url=URL.createObjectURL(blob), el=document.createElement('a');
+        el.href=url; el.download='繰り返し応募リスト.csv'; document.body.appendChild(el); el.click();
+        setTimeout(function(){ document.body.removeChild(el); URL.revokeObjectURL(url); },200); toast('CSVに書き出しました');
+      }catch(x){ toast('書き出し失敗: '+(x&&x.message||'')); }
+    }
+
     /* ===== 集計タブ（求人実績の累計・期間選択・店舗別）===== */
     function parseCost(v){ var n=parseFloat(String(v==null?'':v).replace(/[^\d.]/g,'')); return isNaN(n)?0:n; }
     function num(v){ var n=parseInt(String(v==null?'':v).replace(/[^\d]/g,''),10); return isNaN(n)?0:n; }
@@ -2283,11 +2371,13 @@
       chart:_ic('<path d="M3 3v18h18"/><rect x="7" y="12" width="3" height="6"/><rect x="12" y="8" width="3" height="10"/><rect x="17" y="5" width="3" height="13"/>'),
       media:_ic('<path d="M12 2 2 7l10 5 10-5-10-5Z"/><path d="m2 17 10 5 10-5M2 12l10 5 10-5"/>'),
       bell:_ic('<path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10 21a2 2 0 0 0 4 0"/>'),
-      users:_ic('<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/>')
+      users:_ic('<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/>'),
+      flag:_ic('<path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><line x1="4" y1="22" x2="4" y2="15"/>')
     };
     var SB_NAV=[
       {k:'recruit',t:'募集中',ic:'dash',act:"showTab('recruit')"},
       {k:'applicants',t:'応募者をさがす',ic:'users',act:"showTab('applicants')"},
+      {k:'repeat',t:'繰り返し応募',ic:'flag',act:"showTab('repeat')"},
       {k:'schedule',t:'面接予定',ic:'cal',act:"showTab('schedule')"},
       {k:'history',t:'打ち出し履歴',ic:'book',act:"showTab('history')"},
       {k:'stats',t:'集計',ic:'chart',act:"showTab('stats')"},
