@@ -32,5 +32,5 @@ window.SUSABIYU_STORES = [
   { id: "kabukicho",    name: "すさび湯/歌舞伎町店",  full: "すさび湯 歌舞伎町",            short: "", icon: "icons/store_susabiyu.png", initial: "湯", url: "./store.html?id=kabukicho", live: false },
   { id: "ndanda",       name: "んだんだ",             full: "んだんだ",                     short: "", icon: "icons/store_ndanda.png", initial: "ん", url: "./store.html?id=ndanda", live: false },
   { id: "gifuyatenjin", name: "ぎふや 福岡天神",      full: "大衆酒場 ぎふや福岡天神",      short: "稼働中", icon: "icons/store_gifuyatenjin.png", initial: "ぎ", url: "./gifuyatenjin.html", live: true },
-  { id: "komatsubara",  name: "こまつ原",             full: "大衆食堂 こまつ原（梅田・小松原）", short: "11/20開店予定", icon: "icons/store_komatsubara.png", initial: "こ", url: "./store.html?id=komatsubara", live: false },
+  { id: "komatsubara",  name: "こまつ原",             full: "大衆食堂 こまつ原（梅田・小松原）", short: "11/20開店予定", icon: "icons/store_komatsubara.png", initial: "こ", url: "./komatsubara.html", live: false },
 ];
