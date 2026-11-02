@@ -219,9 +219,18 @@ jobs:
             export STORE_ACCOUNT="${ENTRY%%:*}"
             SLOTS="${ENTRY##*:}"
             echo "########## 店舗: $STORE_ACCOUNT ##########"
+            # ★準備ガード（最重要）★：IGトークン未設定の店（新店・オープン前など未整備の店）は
+            # 投稿パス(post_approved=シート読取・生成・投稿)に“一切入れない”。これにより新店をループに
+            # 足しても、既存店の自動投稿に絶対にエラーを波及させない。トークンが入って初めて投稿対象になる。
+            TOKVAR="IG_ACCESS_TOKEN_$(printf '%s' "$STORE_ACCOUNT" | tr '[:lower:]' '[:upper:]')"
+            if [ -z "${!TOKVAR:-}" ]; then
+              echo "[READY-GUARD] $STORE_ACCOUNT はIGトークン未設定＝未整備のためスキップ（既存店に影響させない）"
+              continue
+            fi
             for HH in $SLOTS; do
               DT="$D ${HH}:00"
               echo "=== 枠を試行: $STORE_ACCOUNT $DT ==="
+              # 1店の失敗が他店に波及しないよう各呼び出しは独立（|| true）。既存店の投稿は必ず続行する。
               python post_approved.py creds.json "$DT" || true
             done
           done
