@@ -179,6 +179,24 @@
     .apchip.un.on{ background:var(--red); border-color:var(--red); }
     .apchip.apclear{ background:transparent; color:var(--muted); border-style:dashed; }
     .apsel{ border:1px solid var(--line); background:var(--card); color:var(--fg); border-radius:999px; padding:6px 12px; font-size:12.5px; font-weight:700; max-width:220px; }
+    /* 媒体の成果（スコアカード） */
+    .hgls{ display:flex; flex-wrap:wrap; gap:8px; margin:2px 0 11px; }
+    .hgl{ background:var(--card2); border:1px solid var(--line); border-radius:10px; padding:7px 11px; font-size:12.5px; font-weight:700; }
+    .hgl-l{ color:var(--muted); font-weight:700; font-size:11px; }
+    .scard{ border:1px solid var(--line); border-radius:12px; padding:12px 13px; margin-bottom:10px; background:var(--card); }
+    .scard-h{ display:flex; align-items:baseline; gap:8px; flex-wrap:wrap; margin-bottom:10px; }
+    .scard-nm{ font-weight:800; font-size:15.5px; }
+    .scard-sub{ color:var(--muted); font-size:12px; }
+    .mtag{ font-size:10.5px; font-weight:800; padding:2px 8px; border-radius:999px; }
+    .mtag.green{ background:#dcfce7; color:#166534; } .mtag.blue{ background:#dbeafe; color:#1d4ed8; }
+    :root[data-theme="dark"] .mtag.green{ background:#113524; color:#86efac; }
+    :root[data-theme="dark"] .mtag.blue{ background:#132a46; color:#93c5fd; }
+    .scard-grid{ display:grid; grid-template-columns:repeat(auto-fit,minmax(98px,1fr)); gap:8px; }
+    .s2{ background:var(--card2); border:1px solid var(--line); border-radius:10px; padding:10px 6px; text-align:center; }
+    .s2 .v{ font-size:17px; font-weight:800; font-variant-numeric:tabular-nums; line-height:1.2; }
+    .s2 .l{ font-size:10.5px; color:var(--muted); margin-top:3px; }
+    .s2.g .v{ color:var(--green); } .s2.r .v{ color:var(--red); }
+    .scard-more{ cursor:pointer; color:var(--accent); font-size:12.5px; font-weight:700; }
     /* 他媒体タブ：店舗グループ見出し */
     .grp2{ margin:14px 2px 7px; font-weight:800; font-size:13.5px; color:var(--fg2); display:flex; align-items:center; gap:8px; }
     .grp2 .cnt2{ color:var(--muted); font-weight:700; font-size:12px; }
@@ -1988,7 +2006,7 @@
       var f=DASH.funnel||{}, mx=1; STAGES.forEach(function(s){mx=Math.max(mx,f[s]||0);});
       var funnel='<div class="card"><h2>応募ファネル（現在の全応募者 '+(DASH.total||0)+'名）</h2>'+
         STAGES.map(function(s){ var v=f[s]||0,w=Math.round(v/mx*100); return '<div class="frow"><div class="nm">'+s+'</div><div class="bar s'+s+'" style="width:'+Math.max(w,v?8:0)+'%">'+(v||'')+'</div></div>'; }).join('')+'</div>';
-      host.innerHTML=chips+kpiBoardHtml()+healthScoreHtml()+dataQualityHtml(per)+unmappedStoresHtml()+anomalyHtml()+summary+recommendHtml(per)+goalHtml()+budgetHtml()+nextActionHtml(per)+yoyHtml()+storeRankingHtml(per)+monthlyTrendHtml(per)+mediaAnalysisHtml(per)+mediaCrossHtml(per)+heatmapHtml()+funnelYieldHtml()+leadTimeHtml()+speedAnalysisHtml()+attrAnalysisHtml()+retentionHtml(per)+mediaRetentionHtml(per)+listingAnalysisHtml(per)+stores+funnel+systemStatusHtml();
+      host.innerHTML=chips+kpiBoardHtml()+mediaScorecardHtml(per)+healthScoreHtml()+dataQualityHtml(per)+unmappedStoresHtml()+anomalyHtml()+summary+recommendHtml(per)+goalHtml()+budgetHtml()+nextActionHtml(per)+yoyHtml()+storeRankingHtml(per)+monthlyTrendHtml(per)+mediaAnalysisHtml(per)+mediaCrossHtml(per)+heatmapHtml()+funnelYieldHtml()+leadTimeHtml()+speedAnalysisHtml()+attrAnalysisHtml()+retentionHtml(per)+mediaRetentionHtml(per)+listingAnalysisHtml(per)+stores+funnel+systemStatusHtml();
       enhanceStatsUI(host);
     }
     // ① 見積もり最適化レコメンド（媒体×期間×リスティングの好調な組合せを提案）
@@ -2379,7 +2397,7 @@
     // 集計タブの目次＋折りたたみ（描画後に付与）
     function enhanceStatsUI(host){
       // 既定では「経営KPI」だけ開き、残りの分析カードは畳む（要対応の警告カードはh2が無いので常に表示）。目次から開く。
-      var KEEP=['経営KPI'];
+      var KEEP=['経営KPI','媒体の成果'];
       var cards=host.querySelectorAll('.card'), toc=[];
       Array.prototype.forEach.call(cards, function(card,i){ if(card.parentNode!==host) return; if(card.className.indexOf('statstoc')>=0) return; var h=card.querySelector('h2'); if(!h) return;
         var id='sec_'+i; card.id=id; var title=h.textContent.replace(/[（(].*$/,'').trim(); if(!title) return; toc.push({id:id,title:title});
@@ -2447,6 +2465,49 @@
     }
     // 打ち出し期間（週）
     function pWeeks(p){ var s=toDate(p.start), e=toDate(p.end); if(!s||!e) return 0; var d=Math.round((e.getTime()-s.getTime())/86400000); return d>0?d/7:0; }
+    // 媒体の成果（どの媒体が効く？）：媒体ごとに 応募/採用/採用率/採用単価/退職率 を分かりやすく
+    function _s2(label,val,cls){ return '<div class="s2'+(cls?' '+cls:'')+'"><div class="v">'+val+'</div><div class="l">'+esc(label)+'</div></div>'; }
+    function mediaScorecardHtml(per){
+      var withRes=per.filter(function(p){ return has(p.apps)||has(p.hires); });
+      if(!withRes.length) return '<div class="card"><h2>媒体の成果（どの媒体が効く？）</h2><div class="empty">結果（応募・採用）が入った打ち出しがまだありません</div></div>';
+      var by={}; withRes.forEach(function(p){ var m=String(p.media==null?'':p.media).trim()||'(媒体なし)'; (by[m]=by[m]||[]).push(p); });
+      var keys=Object.keys(by); if(keys.length===1 && keys[0]==='(媒体なし)') return '';
+      var rows=keys.map(function(k){ var l=by[k], c=0,a=0,h=0,q=0;
+        l.forEach(function(p){ c+=parseCost(p.cost); a+=num(p.apps); h+=num(p.hires); q+=num(p.quit); });
+        return {k:k,n:l.length,cost:c,apps:a,hires:h,quit:q,rate:a?h/a*100:0,cph:h?c/h:0,qr:h?q/h*100:0,plans:l};
+      }).sort(function(x,y){ return y.hires-x.hires || y.apps-x.apps; });
+      var wh=rows.filter(function(r){return r.hires>0;});
+      var mostHire=rows.slice().sort(function(x,y){return y.hires-x.hires;})[0];
+      var cheapest=wh.slice().sort(function(x,y){return x.cph-y.cph;})[0];
+      var bestStay=wh.slice().sort(function(x,y){return x.qr-y.qr;})[0];
+      var hchip=function(ic,lab,val){ return '<span class="hgl">'+ic+' <span class="hgl-l">'+lab+'</span> '+val+'</span>'; };
+      var hi='';
+      if(mostHire&&mostHire.hires) hi+=hchip('🥇','採用が多い','<b>'+esc(mostHire.k)+'</b> '+mostHire.hires+'名');
+      if(cheapest&&cheapest.hires) hi+=hchip('💰','採用単価が安い','<b>'+esc(cheapest.k)+'</b> '+yen(cheapest.cph));
+      if(bestStay&&bestStay.hires) hi+=hchip('🌱','定着が良い','<b>'+esc(bestStay.k)+'</b> 退職率'+bestStay.qr.toFixed(0)+'%');
+      var cards=rows.map(function(r){
+        var tags='';
+        if(mostHire&&r.k===mostHire.k&&r.hires) tags+='<span class="mtag blue">採用 最多</span>';
+        if(cheapest&&r.k===cheapest.k&&r.hires) tags+='<span class="mtag green">採用単価 最安</span>';
+        if(bestStay&&r.k===bestStay.k&&r.hires) tags+='<span class="mtag green">定着◎</span>';
+        var tiles='<div class="scard-grid">'+
+          _s2('応募',r.apps+'名')+
+          _s2('採用',r.hires+'名')+
+          _s2('採用率',r.apps?r.rate.toFixed(1)+'%':'—',r.apps?(r.rate>=20?'g':(r.rate<10?'r':'')):'')+
+          _s2('採用単価',r.hires?yen(r.cph):'—')+
+          _s2('退職率',r.hires?r.qr.toFixed(0)+'%':'—',r.hires?(r.qr>=30?'r':(r.qr<=10?'g':'')):'')+
+          _s2('求人費',yen(r.cost))+'</div>';
+        var det='<details style="margin-top:8px"><summary class="scard-more">プラン・店舗別の内訳（'+r.plans.length+'件）</summary>'+
+          ltab(['店舗','商品プラン','応募','採用','採用率','採用単価','退職率'], r.plans.slice().sort(function(a,b){var da=toDate(b.start),db=toDate(a.start);return (da?da.getTime():0)-(db?db.getTime():0);}).map(function(p){
+            var a=num(p.apps),h=num(p.hires),c=parseCost(p.cost),qq=num(p.quit);
+            return [esc(p.store||''), esc(p.plan||'—'), a||'—', h||'—', a?(h/a*100).toFixed(0)+'%':'—', h?yen(c/h):'—', h?(qq/h*100).toFixed(0)+'%':'—'];
+          }))+'</details>';
+        return '<div class="scard"><div class="scard-h"><span class="scard-nm">'+esc(r.k)+'</span><span class="scard-sub">打ち出し '+r.n+'件</span>'+tags+'</div>'+tiles+det+'</div>';
+      }).join('');
+      return '<div class="card"><h2>媒体の成果（どの媒体が効く？）</h2>'+
+        '<div class="lnote">結果入力済みの打ち出しを媒体ごとに集計。<b>採用率</b>＝採用÷応募／<b>採用単価</b>＝求人費÷採用／<b>退職率</b>＝退職÷採用。緑＝良い・赤＝要注意。</div>'+
+        (hi?'<div class="hgls">'+hi+'</div>':'')+cards+'</div>';
+    }
     // 媒体別 集計（打ち出し期間つき・見積もり判断材料）
     function mediaAnalysisHtml(per){
       var by={}; per.forEach(function(p){ var m=String(p.media==null?'':p.media).trim()||'(媒体なし)'; (by[m]=by[m]||[]).push(p); });
