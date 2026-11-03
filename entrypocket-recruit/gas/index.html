@@ -179,6 +179,19 @@
     .apchip.un.on{ background:var(--red); border-color:var(--red); }
     .apchip.apclear{ background:transparent; color:var(--muted); border-style:dashed; }
     .apsel{ border:1px solid var(--line); background:var(--card); color:var(--fg); border-radius:999px; padding:6px 12px; font-size:12.5px; font-weight:700; max-width:220px; }
+    /* 他媒体タブ：店舗グループ見出し */
+    .grp2{ margin:14px 2px 7px; font-weight:800; font-size:13.5px; color:var(--fg2); display:flex; align-items:center; gap:8px; }
+    .grp2 .cnt2{ color:var(--muted); font-weight:700; font-size:12px; }
+    /* 媒体の選考結果バッジ（色＋アイコンで一目で分かる・両テーマ対応） */
+    .mstat{ display:inline-block; font-size:11.5px; padding:2px 9px; border-radius:999px; font-weight:800; white-space:nowrap; }
+    .mstat.ok{ background:#dcfce7; color:#166534; } .mstat.ng{ background:#eef2f7; color:#64748b; }
+    .mstat.un{ background:#fee2e2; color:#b91c1c; } .mstat.done{ background:#ede9fe; color:#6d28d9; }
+    .mstat.mid{ background:#dbeafe; color:#1d4ed8; } .mstat.def{ background:var(--accent2); color:var(--accent); }
+    :root[data-theme="dark"] .mstat.ok{ background:#113524; color:#86efac; }
+    :root[data-theme="dark"] .mstat.ng{ background:#232d3a; color:#9aa6b2; }
+    :root[data-theme="dark"] .mstat.un{ background:#3a1620; color:#ff9aa2; }
+    :root[data-theme="dark"] .mstat.done{ background:#241a3a; color:#c4b5fd; }
+    :root[data-theme="dark"] .mstat.mid{ background:#132a46; color:#93c5fd; }
     /* 繰り返し応募（要注意リスト） */
     .rpg{ background:var(--card); border:1px solid var(--line); border-left:3px solid var(--red); border-radius:12px; padding:12px 13px; margin-bottom:10px; }
     .rpg .rph{ display:flex; align-items:baseline; gap:8px; flex-wrap:wrap; }
@@ -378,6 +391,8 @@
     .mtop .m-ttl{font-weight:800;font-size:14px;flex:1}
     .burger{background:rgba(255,255,255,.15);border:none;color:#fff;border-radius:8px;padding:6px 10px;cursor:pointer;font-size:15px;line-height:1}
     .scrim{display:none;position:fixed;inset:0;background:rgba(15,23,42,.45);z-index:35}
+    .edge{display:none}
+    body.nav-mini .brand-logo{cursor:pointer}
     @media (max-width:768px){
       .sb{transform:translateX(-100%)}
       .sb.open{transform:translateX(0)}
@@ -387,6 +402,11 @@
       .scrim.open{display:block}
       .iconbtn.ghost{display:inline-block}
       #collapseBtn,#expandBtn{display:none !important}
+      /* 左端のつまみ：触れる/タップでメニューを開く（☰以外の導線） */
+      .edge{display:flex;align-items:center;justify-content:center;position:fixed;left:0;top:50%;transform:translateY(-50%);
+        z-index:34;width:20px;height:74px;background:var(--sb-bg);color:var(--gold);border:1px solid var(--sb-line);border-left:0;
+        border-radius:0 13px 13px 0;box-shadow:2px 0 10px rgba(0,0,0,.18);font-size:16px;font-weight:800;cursor:pointer}
+      .sb.open ~ .edge{display:none}
     }
   </style>
 </head>
@@ -394,7 +414,7 @@
   <aside class="sb" id="sb">
     <div class="sb-brand">
       <div><div class="brand-sub">RECRUITING</div><div class="brand-ttl">求人進捗</div></div>
-      <div class="brand-logo">求</div>
+      <div class="brand-logo" onclick="if(document.body.classList.contains('nav-mini'))toggleMini()" title="メニューを開く">求</div>
       <button class="iconbtn" id="collapseBtn" title="メニューを畳む" aria-label="メニューを畳む" onclick="toggleMini()">«</button>
       <button class="iconbtn" id="expandBtn" title="メニューを開く" aria-label="メニューを開く" onclick="toggleMini()">»</button>
       <button class="iconbtn ghost" id="mClose" title="閉じる" aria-label="メニューを閉じる" onclick="closeMobile()">✕</button>
@@ -412,10 +432,12 @@
     <button class="burger" onclick="doRefresh()" title="更新" aria-label="更新">⟳</button>
   </div>
   <div class="scrim" id="scrim" onclick="closeMobile()"></div>
+  <div class="edge" id="edge" onclick="openMobile()" title="メニューを開く" aria-label="メニューを開く">›</div>
   <main>
     <section id="tab-recruit"><div id="recruitList"><div class="empty">読み込み中…</div></div></section>
     <section id="tab-applicants" hidden><div id="applicantsBody"><div class="empty">読み込み中…</div></div></section>
     <section id="tab-repeat" hidden><div id="repeatBody"><div class="empty">読み込み中…</div></div></section>
+    <section id="tab-media" hidden><div id="mediaBody"><div class="empty">読み込み中…</div></div></section>
     <section id="tab-schedule" hidden><div id="scheduleBody"><div class="empty">読み込み中…</div></div></section>
     <section id="tab-history" hidden><div id="historyList"><div class="empty">読み込み中…</div></div></section>
     <section id="tab-stats" hidden><div id="statsBody"><div class="empty">読み込み中…</div></div></section>
@@ -674,14 +696,15 @@
       if(/^(1|あり)$/i.test(s)) return 'active'; return null; }
 
     function showTab(t){
-      ['recruit','applicants','repeat','schedule','history','stats'].forEach(function(x){
+      ['recruit','applicants','repeat','media','schedule','history','stats'].forEach(function(x){
         var sec=document.getElementById('tab-'+x); if(sec) sec.hidden=(x!==t);
         var tb=document.getElementById('tb-'+x); if(tb) tb.classList.toggle('on', x===t);
       });
       if(t==='applicants') renderApplicants();
       if(t==='repeat') renderRepeat();
+      if(t==='media') renderMediaTab();
       Array.prototype.forEach.call(document.querySelectorAll('#navSb .nav-i[data-k]'),function(b){ b.classList.toggle('on', b.getAttribute('data-k')===t); });
-      var NM={recruit:'募集中',applicants:'応募者をさがす',repeat:'繰り返し応募',schedule:'面接予定',history:'打ち出し履歴',stats:'集計'};
+      var NM={recruit:'募集中',applicants:'応募者をさがす',repeat:'繰り返し応募',media:'他媒体の応募',schedule:'面接予定',history:'打ち出し履歴',stats:'集計'};
       var mt=document.getElementById('mTitle'); if(mt&&NM[t]) mt.textContent=NM[t];
       closeMobile();
       window.scrollTo(0,0);
@@ -744,6 +767,7 @@
       renderStats();
       var ta=document.getElementById('tab-applicants'); if(ta && !ta.hidden) renderApplicants();
       var tr=document.getElementById('tab-repeat'); if(tr && !tr.hidden) renderRepeat();
+      var tm=document.getElementById('tab-media'); if(tm && !tm.hidden) renderMediaTab();
     }
 
     /* ===== 未提出（掲載終了なのに結果が空）===== */
@@ -1416,6 +1440,16 @@
         '<div class="pills">'+stBtn+memoBtn+'</div>'+
         '<div class="adetail" id="ad_'+id+'" hidden></div>'+acts+memoEdit+'</div>';
     }
+    // 媒体の選考結果を色＋アイコンで分かりやすく（誰が見ても一目で）
+    function mStatCat(s){ s=String(s||'');
+      if(/採用|内定/.test(s)) return 'ok';
+      if(/見送|不採用|辞退|お断り|キャンセル/.test(s)) return 'ng';
+      if(/未対応|要初回|未読|未返信|新規|登録/.test(s)) return 'un';
+      if(/面接済|面接完了|1次面接済/.test(s)) return 'done';
+      if(/面接|日程|調整|確定|連絡|選考/.test(s)) return 'mid';
+      return 'def'; }
+    function mStatIcon(c){ return ({ok:'✅',ng:'🚫',un:'🔴',done:'☑️',mid:'📅',def:'📌'})[c]||'📌'; }
+    function mStatBadge(s){ s=String(s||'').trim(); if(!s) return ''; var c=mStatCat(s); return '<span class="mstat '+c+'">'+mStatIcon(c)+' '+esc(s)+'</span>'; }
     // 他媒体（飲食店/グルメ）応募者の読み取り専用カード（EntryPocket専用の操作は出さない）
     function mediaCard(m){
       var id=esc(m.code);
@@ -1425,7 +1459,7 @@
       var tel=String(m.tel||'').replace(/[^\d+]/g,''), telLink=tel?('tel:'+tel):'';
       var sms=smsHref(m), mail=mailHref(m);
       var badge='<span class="tag" style="background:var(--accent2);color:var(--accent);border:1px solid var(--line)">'+esc(m.media||'他媒体')+'</span>';
-      var stat=m.status?('<span class="pill st" style="pointer-events:none">◆ '+esc(m.status)+'</span>'):'';
+      var stat=mStatBadge(m.status);
       var acts='<div class="acts">'+
         (telLink?'<a class="btn call" href="'+esc(telLink)+'">発信</a>':'<span class="btn off">TELなし</span>')+
         (sms?'<a class="btn sms" href="'+esc(sms)+'">SMS</a>':'<span class="btn off">SMS不可</span>')+
@@ -1784,6 +1818,102 @@
         el.href=url; el.download='繰り返し応募リスト.csv'; document.body.appendChild(el); el.click();
         setTimeout(function(){ document.body.removeChild(el); URL.revokeObjectURL(url); },200); toast('CSVに書き出しました');
       }catch(x){ toast('書き出し失敗: '+(x&&x.message||'')); }
+    }
+
+    /* ===== 他媒体の応募（アプリ内タブ：応募者＋スカウト/メッセージ。中身は本体と同じUI） ===== */
+    var mtMode='apps', mtMedia='', mtQ='', mtMQ='', mtMsgs=null, mtMsgState='';
+    function mtSetMode(m){ mtMode=m; renderMediaTab(); }
+    function mtSetMedia(i){ var arr=_uniq(mediaApps.map(function(a){return a.media;})); var v=arr[i]; if(v==null) return; mtMedia=(mtMedia===v?'':v); renderMediaTab(); }
+    function renderMediaTab(){
+      var host=document.getElementById('mediaBody'); if(!host) return;
+      var medias=_uniq(mediaApps.map(function(a){return a.media;}));
+      var modeBtn=function(m,label){ return '<button class="apchip'+(mtMode===m?' on':'')+'" onclick="mtSetMode(\''+m+'\')">'+label+'</button>'; };
+      var bar='<div class="lnote" style="margin:0 2px 8px;line-height:1.5">飲食店ドットコム／グルメキャリーの応募者とスカウト・メッセージです（本体と同じ画面で確認できます）。</div>'+
+        '<div class="apchips">'+modeBtn('apps','📋 応募者 '+mediaApps.length+'名')+modeBtn('msgs','💬 スカウト・メッセージ')+'</div>';
+      if(mtMode==='apps'){
+        var mediaChips=medias.length>1?('<div class="apchips"><span class="aplabel">媒体</span>'+medias.map(function(m,i){ return '<button class="apchip'+(mtMedia===m?' on':'')+'" onclick="mtSetMedia('+i+')">'+esc(m)+'</button>'; }).join('')+'</div>'):'';
+        host.innerHTML=bar+mediaChips+
+          '<div class="apbar"><input id="mtq" class="apsearch" placeholder="🔍 氏名・店舗・電話・メール・職種で検索" value="'+esc(mtQ)+'" oninput="mtQ=this.value;mtRenderApps()"></div>'+
+          '<div id="mtList"></div>';
+        mtRenderApps();
+      } else {
+        host.innerHTML=bar+
+          '<div class="apbar"><input id="mtmq" class="apsearch" placeholder="🔍 店舗・本文で検索" value="'+esc(mtMQ)+'" oninput="mtMQ=this.value;mtRenderMsgs()"></div>'+
+          '<div id="mtList"><div class="empty">読み込み中…</div></div>';
+        if(mtMsgs===null) mtLoadMsgs(); else mtRenderMsgs();
+      }
+    }
+    function mtRenderApps(){
+      var el=document.getElementById('mtList'); if(!el) return;
+      var q=mtQ.trim().toLowerCase();
+      var rows=mediaApps.filter(function(a){
+        if(mtMedia && String(a.media||'')!==mtMedia) return false;
+        if(q && ![a.name,a.store,a.tel,a.email,a.occupation,a.status].some(function(x){return String(x==null?'':x).toLowerCase().indexOf(q)>=0;})) return false;
+        return true;
+      });
+      if(!rows.length){ el.innerHTML='<div class="empty">該当する応募者がいません</div>'; return; }
+      var byStore={}, order=[];
+      rows.forEach(function(a){ var s=a.store||'（店舗不明）'; if(!byStore[s]){byStore[s]=[];order.push(s);} byStore[s].push(a); });
+      el.innerHTML='<div class="lnote" style="margin:2px 2px 9px">全'+rows.length+'名</div>'+order.map(function(s){
+        return '<div class="grp2">🏪 '+esc(s)+'<span class="cnt2">'+byStore[s].length+'名</span></div><div class="sc-grid">'+byStore[s].map(mediaCard).join('')+'</div>';
+      }).join('');
+    }
+    function mtLoadMsgs(){
+      try{
+        google.script.run.withSuccessHandler(function(r){ mtMsgs=(r&&r.items)||[]; mtMsgState=(r&&r.error)?('err: '+r.error):''; mtRenderMsgs(); })
+          .withFailureHandler(function(e){ mtMsgs=[]; mtMsgState='読込失敗: '+((e&&e.message)||e); mtRenderMsgs(); })
+          .mediaMsgsPublic();
+      }catch(e){ mtMsgs=[]; mtRenderMsgs(); }
+    }
+    // 本文整形（media.htmlと同等）：返信フォーム除去／「>>」を改行／文末で改行。
+    function mtBeautify(s){
+      s=String(s||'');
+      s=s.replace(/\s*(?:[^\n\s。、！？「」『』（）]{0,14}さんへメッセージを送る|は必須項目です|【記入例】|送信者\s*[:：]?|送信先\s*[:：]?|宛先\s*[:：]?|返信する|返信を送信|返信内容|テンプレート|利用規約|個人情報|運営会社|ページトップへ|このページの先頭|マイページ\s*求人管理トップ|各種サービス比較|飲食店ドットコムサービス|求人飲食店ドットコムとは)[\s\S]*$/,'');
+      s=s.replace(/[ \t　]*[>＞]{1,}[ \t　]*/g,'\n');
+      s=s.replace(/([。！？])(?![\n」』）】])/g,'$1\n');
+      var lines=s.split('\n').map(function(t){return t.replace(/^[ \t　]+|[ \t　]+$/g,'');});
+      while(lines.length && /^(?:※+|件名\s*[:：]?\s*[、,]*|[。・…〜ー\-]+|)$/.test(lines[lines.length-1])) lines.pop();
+      return lines.join('\n').replace(/\n{3,}/g,'\n\n').trim();
+    }
+    function mtParseMsgDetail(raw){
+      raw=String(raw||''); var out={from:'',date:'',subj:'',body:'',ok:false};
+      if(!raw) return out; var m, rest='';
+      m=raw.match(/差出人\s*[:：]?\s*([^\n]*)/); if(m) out.from=m[1].trim();
+      if(/件名|本文|受信日|送信日/.test(out.from) || out.from.length>24) out.from='';
+      m=raw.match(/(?:受信日|送信日)\s*[:：]?\s*([^\n]*)/); if(m) out.date=m[1].trim();
+      if(/件名|本文|差出人/.test(out.date) || out.date.length>40) out.date='';
+      var hasHon=false;
+      m=raw.match(/本文\s*[:：]?\s*([\s\S]*)$/);
+      if(m){ rest=m[1]; hasHon=true; var sm=raw.match(/件名\s*[:：]?\s*([\s\S]*?)\s*(?=本文)/); if(sm) out.subj=sm[1].replace(/\s+/g,' ').trim(); }
+      else { var km=raw.match(/件名\s*[:：]?\s*([\s\S]*)$/); rest = km ? km[1] : raw; }
+      out.body=mtBeautify(rest);
+      if(!hasHon && !out.subj && out.body){ var fl=out.body.split('\n'); var f=(fl[0]||'').trim();
+        if(fl.length>1 && f.length<=60 && /^(?:Re:|RE:|re:|返信|【)/.test(f)){ out.subj=f; out.body=fl.slice(1).join('\n').trim();
+          var pi=out.subj.indexOf('）'); if(pi>0 && pi<out.subj.length-1){ var extra=out.subj.slice(pi+1).trim(); out.subj=out.subj.slice(0,pi+1).trim(); if(extra){ out.body=mtBeautify(extra)+'\n'+out.body; } } } }
+      if(out.subj && out.subj.length>70){ out.body=mtBeautify(out.subj)+'\n'+out.body; out.subj=''; }
+      out.ok=!!(out.from||out.subj||out.body); return out;
+    }
+    function mtRenderMsgs(){
+      var el=document.getElementById('mtList'); if(!el) return;
+      if(mtMsgs===null){ el.innerHTML='<div class="empty">読み込み中…</div>'; return; }
+      var q=mtMQ.trim().toLowerCase();
+      var rows=mtMsgs.filter(function(x){ if(!q) return true; return [x['店舗'],x['本文'],x['種別'],x['本文詳細']].join(' ').toLowerCase().indexOf(q)>=0; });
+      if(!rows.length){ el.innerHTML='<div class="empty">'+(mtMsgs.length===0?'まだスカウト/メッセージはありません（PCの取得時に取り込まれます）':'検索に一致するメッセージがありません')+'</div>'; return; }
+      el.innerHTML='<div class="lnote" style="margin:2px 2px 9px">全'+mtMsgs.length+'件'+(rows.length!==mtMsgs.length?'（表示'+rows.length+'）':'')+'</div><div class="sc-grid">'+rows.map(function(x){
+        var scout=/スカウト|返答/.test(String(x['種別']||'')+String(x['本文']||''));
+        var c='<div class="card" style="margin-bottom:9px">';
+        c+='<div style="display:flex;gap:8px;align-items:baseline;flex-wrap:wrap"><span class="mstat '+(scout?'mid':'def')+'">'+esc(x['種別']||'メッセージ')+'</span><span style="font-weight:800;font-size:13.5px">🏪 '+esc(x['店舗']||'（店舗不明）')+'</span><span style="margin-left:auto;color:var(--muted);font-size:12px">'+esc(x['日時']||'')+'</span></div>';
+        if(x['本文']) c+='<div style="margin-top:6px;white-space:pre-wrap;color:var(--fg2);font-size:13px">'+esc(x['本文'])+'</div>';
+        var d=mtParseMsgDetail(x['本文詳細']);
+        if(d.from||d.subj||d.body){
+          c+='<div style="margin-top:7px;padding:10px 12px;background:var(--card2);border:1px solid var(--line);border-radius:9px;font-size:13px">';
+          if(d.from) c+='<div style="color:var(--muted);font-size:11.5px">差出人：<b style="color:var(--fg)">'+esc(d.from)+'</b></div>';
+          if(d.subj) c+='<div style="color:var(--muted);font-size:11.5px;margin-top:2px">件名：<span style="color:var(--fg2)">'+esc(d.subj)+'</span></div>';
+          if(d.body) c+='<div style="margin-top:7px;padding-top:7px;border-top:1px dashed var(--line);white-space:pre-wrap;overflow-wrap:anywhere;line-height:1.8;color:var(--fg2)">'+esc(d.body)+'</div>';
+          c+='</div>';
+        } else { var r2=mtBeautify(x['本文詳細']); if(r2) c+='<div style="margin-top:7px;padding:9px 11px;background:var(--card2);border:1px solid var(--line);border-radius:9px;font-size:13px;color:var(--fg2);white-space:pre-wrap;overflow-wrap:anywhere;line-height:1.8">💬 '+esc(r2)+'</div>'; }
+        c+='</div>'; return c;
+      }).join('')+'</div>';
     }
 
     /* ===== 集計タブ（求人実績の累計・期間選択・店舗別）===== */
@@ -2431,9 +2561,8 @@
       {k:'repeat',t:'繰り返し応募',ic:'flag',act:"showTab('repeat')"},
       {k:'schedule',t:'面接予定',ic:'cal',act:"showTab('schedule')"},
       {k:'history',t:'打ち出し履歴',ic:'book',act:"showTab('history')"},
+      {k:'media',t:'他媒体の応募',ic:'media',act:"showTab('media')"},
       {k:'stats',t:'集計',ic:'chart',act:"showTab('stats')"},
-      {sec:'他媒体'},
-      {t:'他媒体の応募',ic:'media',act:"openMediaPage()"},
       {sec:'設定'},
       {t:'表示・通知設定',ic:'bell',act:"setToggle()"}
     ];
@@ -2450,6 +2579,17 @@
     }
     function toggleMini(){ var mini=document.body.classList.toggle('nav-mini'); try{ localStorage.setItem('nav-collapsed',mini?'1':'0'); }catch(e){} }
     function openMobile(){ var s=document.getElementById('sb'); if(s)s.classList.add('open'); var sc=document.getElementById('scrim'); if(sc)sc.classList.add('open'); }
+    // 左端スワイプで開く／左スワイプで閉じる（スマホ）
+    (function(){ var sx=null,sy=null;
+      document.addEventListener('touchstart',function(e){ var t=e.touches&&e.touches[0]; if(!t) return; sx=t.clientX; sy=t.clientY; },{passive:true});
+      document.addEventListener('touchmove',function(e){ if(sx==null) return; var t=e.touches&&e.touches[0]; if(!t) return; var dx=t.clientX-sx, dy=t.clientY-sy;
+        if(Math.abs(dx)<Math.abs(dy)){ sx=null; return; }
+        var s=document.getElementById('sb'), open=s&&s.classList.contains('open');
+        if(!open && sx<30 && dx>45){ openMobile(); sx=null; }
+        else if(open && dx<-45){ closeMobile(); sx=null; }
+      },{passive:true});
+      document.addEventListener('touchend',function(){ sx=null; },{passive:true});
+    })();
     function closeMobile(){ var s=document.getElementById('sb'); if(s)s.classList.remove('open'); var sc=document.getElementById('scrim'); if(sc)sc.classList.remove('open'); }
     document.addEventListener('keydown',function(e){ if(e.key==='Escape'){ closeMobile(); var pp=document.getElementById('setPop'); if(pp)pp.parentNode.removeChild(pp); } });
     buildSidebar();
