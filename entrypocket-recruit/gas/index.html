@@ -1858,6 +1858,7 @@
         return '<div class="grp2">🏪 '+esc(s)+'<span class="cnt2">'+byStore[s].length+'名</span></div><div class="sc-grid">'+byStore[s].map(mediaCard).join('')+'</div>';
       }).join('');
     }
+    function mtRetryMsgs(){ mtMsgs=null; mtMsgState=''; renderMediaTab(); }
     function mtLoadMsgs(){
       try{
         google.script.run.withSuccessHandler(function(r){ mtMsgs=(r&&r.items)||[]; mtMsgState=(r&&r.error)?('err: '+r.error):''; mtRenderMsgs(); })
@@ -1898,7 +1899,11 @@
       if(mtMsgs===null){ el.innerHTML='<div class="empty">読み込み中…</div>'; return; }
       var q=mtMQ.trim().toLowerCase();
       var rows=mtMsgs.filter(function(x){ if(!q) return true; return [x['店舗'],x['本文'],x['種別'],x['本文詳細']].join(' ').toLowerCase().indexOf(q)>=0; });
-      if(!rows.length){ el.innerHTML='<div class="empty">'+(mtMsgs.length===0?'まだスカウト/メッセージはありません（PCの取得時に取り込まれます）':'検索に一致するメッセージがありません')+'</div>'; return; }
+      if(!rows.length){
+        var isErr=mtMsgState && /失敗|err/.test(mtMsgState);
+        el.innerHTML='<div class="empty">'+(isErr
+          ? 'メッセージの読み込みに失敗しました。<br><button class="apchip" style="margin-top:8px" onclick="mtRetryMsgs()">↻ 再読み込み</button><div style="font-size:11px;opacity:.6;margin-top:6px">'+esc(mtMsgState)+'</div>'
+          : (mtMsgs.length===0?'まだスカウト/メッセージはありません（PCの取得時に取り込まれます）':'検索に一致するメッセージがありません'))+'</div>'; return; }
       el.innerHTML='<div class="lnote" style="margin:2px 2px 9px">全'+mtMsgs.length+'件'+(rows.length!==mtMsgs.length?'（表示'+rows.length+'）':'')+'</div><div class="sc-grid">'+rows.map(function(x){
         var scout=/スカウト|返答/.test(String(x['種別']||'')+String(x['本文']||''));
         var c='<div class="card" style="margin-bottom:9px">';

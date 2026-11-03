@@ -259,6 +259,7 @@ function dashScope_(o, scope) {
   var mt = function (s) { return epNormStore_(epCleanStore_(String(s || ''))) === k; };
   var out = {}; for (var key in o) out[key] = o[key];   // 浅いコピー
   out.apps = (o.apps || []).filter(function (a) { return mt(a.store); });
+  out.mediaApps = (o.mediaApps || []).filter(function (a) { return mt(a.store); });   // 他媒体も店舗で絞る（店長ビューで他店舗が見えないように）
   out.postings = (o.postings || []).filter(function (p) { return mt(p.store); });
   var sp = {}, spo = o.storePosting || {}; for (var kk in spo) { if (mt(spo[kk].name)) sp[kk] = spo[kk]; } out.storePosting = sp;
   out.writeEnabled = false;   // 店長ビューは閲覧専用
