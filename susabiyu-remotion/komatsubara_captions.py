@@ -233,6 +233,29 @@ def catch(name=""):
     return _pick(pool, _seed(name))
 
 
+def caption_for(name, lunch=False):
+    """フィード生成(nagagutsu_feed.py)が料理ごとに呼ぶ統合ヘルパー。
+    戻り値 dict: title（表示名）/ story（短句）/ cap（焼き込む短い説明）/
+    post（投稿本文）/ tags（スペース区切りのハッシュタグ）。
+    lunch=True は「ランチ」フォルダの昼メニュー（締めの一言だけ昼向けに寄せる）。"""
+    d = clean(name)
+    # ハッシュタグ：料理別タグ＋業態＋ブランド＋エリア（重複除去・上限30）
+    tags = []
+    for t in _dish_tags(name):
+        if t not in tags:
+            tags.append(t)
+    for t in ("#居酒屋 #食堂 " + BASE_TAGS + " " + POI_TAGS).split():
+        if t and t not in tags:
+            tags.append(t)
+    return {
+        "title": name_broken(name) or d,
+        "story": story_for(name),
+        "cap": desc_for(name),
+        "post": post_caption([name]),
+        "tags": " ".join(tags[:30]),
+    }
+
+
 def post_caption(names, handle=""):
     """投稿本文（Instagramキャプション）を組み立てる。先頭料理を主役に、
     挨拶→料理の魅力→締め→フッター→ハッシュタグ。"""
