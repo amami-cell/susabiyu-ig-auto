@@ -232,7 +232,7 @@ def main():
     # 店舗ごとのキャプション体系を使う（ナガグツ＝元気お姉さん／GOLD＝ソムリエお姉さん）。
     # 未定義の店は nagagutsu_captions にフォールバック（従来どおり動く）。
     import importlib
-    _capmod = {"nagagutsu": "nagagutsu_captions", "goldporta": "goldporta_captions"}.get(ACCOUNT, "nagagutsu_captions")
+    _capmod = {"nagagutsu": "nagagutsu_captions", "goldporta": "goldporta_captions", "komatsubara": "komatsubara_captions"}.get(ACCOUNT, "nagagutsu_captions")
     nc = importlib.import_module(_capmod)
 
     limit = 0
