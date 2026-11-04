@@ -2465,18 +2465,41 @@
     }
     // 打ち出し期間（週）
     function pWeeks(p){ var s=toDate(p.start), e=toDate(p.end); if(!s||!e) return 0; var d=Math.round((e.getTime()-s.getTime())/86400000); return d>0?d/7:0; }
-    // 媒体の成果（どの媒体が効く？）：媒体ごとに 応募/採用/採用率/採用単価/退職率 を分かりやすく
+    // 媒体の成果（どの媒体が効く？）：媒体ごと／店舗ごと、並び替え・色（相対）で分かりやすく
+    var scMode='media', scSort='hires';
     function _s2(label,val,cls){ return '<div class="s2'+(cls?' '+cls:'')+'"><div class="v">'+val+'</div><div class="l">'+esc(label)+'</div></div>'; }
-    function mediaScorecardHtml(per){
+    function _mAgg(l){ var c=0,a=0,h=0,q=0,wl=[]; l.forEach(function(p){ c+=parseCost(p.cost); a+=num(p.apps); h+=num(p.hires); q+=num(p.quit); var w=pWeeks(p); if(w>0) wl.push(w); });
+      return {n:l.length,cost:c,apps:a,hires:h,quit:q,rate:a?h/a*100:0,cph:h?c/h:0,cpa:a?c/a:0,qr:h?q/h*100:0,aw:wl.length?wl.reduce(function(x,y){return x+y;},0)/wl.length:0}; }
+    // 相対色：同じ条件の中で一番良い＝緑／一番注意＝赤（3媒体以上かつ差がある時だけ）
+    function _relCls(val,arr,lowerBetter){ if(!arr||arr.length<3) return ''; var mn=Math.min.apply(null,arr), mx=Math.max.apply(null,arr); if(mn===mx) return '';
+      if(lowerBetter){ if(val<=mn) return 'g'; if(val>=mx) return 'r'; } else { if(val>=mx) return 'g'; if(val<=mn) return 'r'; } return ''; }
+    function scPer(){ return postings.filter(function(p){ return (statYear==='all'||postYear(p)==statYear)&&(statRegion==='all'||regionOf(p)===statRegion); }); }
+    function scSetMode(m){ scMode=m; scRe(); }
+    function scSetSort(s){ scSort=s; scRe(); }
+    function scRe(){ var el=document.getElementById('scBody'); if(el) el.innerHTML=scBodyHtml(scPer()); }
+    function scSortChip(s,label){ return '<button class="apchip'+(scSort===s?' on':'')+'" onclick="scSetSort(\''+s+'\')">'+label+'</button>'; }
+    function scBodyHtml(per){
       var withRes=per.filter(function(p){ return has(p.apps)||has(p.hires); });
-      if(!withRes.length) return '<div class="card"><h2>媒体の成果（どの媒体が効く？）</h2><div class="empty">結果（応募・採用）が入った打ち出しがまだありません</div></div>';
+      var lnote='<div class="lnote">結果入力済みの打ち出しを集計。<b>採用率</b>＝採用÷応募／<b>採用単価</b>＝求人費÷採用／<b>退職率</b>＝退職÷採用。色は<b>同じ一覧の中で一番良い＝緑・一番注意＝赤</b>。</div>';
+      var modeBar='<div class="apchips"><span class="aplabel">見方</span>'+
+        '<button class="apchip'+(scMode==='media'?' on':'')+'" onclick="scSetMode(\'media\')">媒体ごと</button>'+
+        '<button class="apchip'+(scMode==='store'?' on':'')+'" onclick="scSetMode(\'store\')">店舗ごと（どの媒体が効くか）</button></div>';
+      if(!withRes.length) return lnote+modeBar+'<div class="empty">結果（応募・採用）が入った打ち出しがまだありません</div>';
+      return lnote+modeBar+(scMode==='store'?scStoreHtml(withRes):scMediaHtml(withRes));
+    }
+    function scMediaHtml(withRes){
       var by={}; withRes.forEach(function(p){ var m=String(p.media==null?'':p.media).trim()||'(媒体なし)'; (by[m]=by[m]||[]).push(p); });
-      var keys=Object.keys(by); if(keys.length===1 && keys[0]==='(媒体なし)') return '';
-      var rows=keys.map(function(k){ var l=by[k], c=0,a=0,h=0,q=0;
-        l.forEach(function(p){ c+=parseCost(p.cost); a+=num(p.apps); h+=num(p.hires); q+=num(p.quit); });
-        return {k:k,n:l.length,cost:c,apps:a,hires:h,quit:q,rate:a?h/a*100:0,cph:h?c/h:0,qr:h?q/h*100:0,plans:l};
-      }).sort(function(x,y){ return y.hires-x.hires || y.apps-x.apps; });
+      var keys=Object.keys(by); if(keys.length===1 && keys[0]==='(媒体なし)') return '<div class="empty">媒体情報がありません</div>';
+      var rows=keys.map(function(k){ var a=_mAgg(by[k]); a.k=k; a.plans=by[k]; return a; });
+      var cmp={hires:function(x,y){return y.hires-x.hires;},
+        cph:function(x,y){return (x.hires?x.cph:9e15)-(y.hires?y.cph:9e15);},
+        rate:function(x,y){return y.rate-x.rate;},
+        qr:function(x,y){return (x.hires?x.qr:9e15)-(y.hires?y.qr:9e15);}}[scSort]||function(x,y){return y.hires-x.hires;};
+      rows.sort(cmp);
       var wh=rows.filter(function(r){return r.hires>0;});
+      var arrRate=rows.filter(function(r){return r.apps>0;}).map(function(r){return r.rate;});
+      var arrCph=wh.map(function(r){return r.cph;}), arrQr=wh.map(function(r){return r.qr;});
+      var arrCpa=rows.filter(function(r){return r.apps>0;}).map(function(r){return r.cpa;});
       var mostHire=rows.slice().sort(function(x,y){return y.hires-x.hires;})[0];
       var cheapest=wh.slice().sort(function(x,y){return x.cph-y.cph;})[0];
       var bestStay=wh.slice().sort(function(x,y){return x.qr-y.qr;})[0];
@@ -2485,6 +2508,7 @@
       if(mostHire&&mostHire.hires) hi+=hchip('🥇','採用が多い','<b>'+esc(mostHire.k)+'</b> '+mostHire.hires+'名');
       if(cheapest&&cheapest.hires) hi+=hchip('💰','採用単価が安い','<b>'+esc(cheapest.k)+'</b> '+yen(cheapest.cph));
       if(bestStay&&bestStay.hires) hi+=hchip('🌱','定着が良い','<b>'+esc(bestStay.k)+'</b> 退職率'+bestStay.qr.toFixed(0)+'%');
+      var sortBar='<div class="apchips"><span class="aplabel">並び</span>'+scSortChip('hires','採用が多い順')+scSortChip('cph','採用単価が安い順')+scSortChip('rate','採用率が高い順')+scSortChip('qr','退職率が低い順')+'</div>';
       var cards=rows.map(function(r){
         var tags='';
         if(mostHire&&r.k===mostHire.k&&r.hires) tags+='<span class="mtag blue">採用 最多</span>';
@@ -2493,9 +2517,11 @@
         var tiles='<div class="scard-grid">'+
           _s2('応募',r.apps+'名')+
           _s2('採用',r.hires+'名')+
-          _s2('採用率',r.apps?r.rate.toFixed(1)+'%':'—',r.apps?(r.rate>=20?'g':(r.rate<10?'r':'')):'')+
-          _s2('採用単価',r.hires?yen(r.cph):'—')+
-          _s2('退職率',r.hires?r.qr.toFixed(0)+'%':'—',r.hires?(r.qr>=30?'r':(r.qr<=10?'g':'')):'')+
+          _s2('採用率',r.apps?r.rate.toFixed(1)+'%':'—',r.apps?_relCls(r.rate,arrRate,false):'')+
+          _s2('採用単価',r.hires?yen(r.cph):'—',r.hires?_relCls(r.cph,arrCph,true):'')+
+          _s2('退職率',r.hires?r.qr.toFixed(0)+'%':'—',r.hires?_relCls(r.qr,arrQr,true):'')+
+          _s2('応募単価',r.apps?yen(r.cpa):'—',r.apps?_relCls(r.cpa,arrCpa,true):'')+
+          _s2('平均期間',r.aw?r.aw.toFixed(1)+'週':'—')+
           _s2('求人費',yen(r.cost))+'</div>';
         var det='<details style="margin-top:8px"><summary class="scard-more">プラン・店舗別の内訳（'+r.plans.length+'件）</summary>'+
           ltab(['店舗','商品プラン','応募','採用','採用率','採用単価','退職率'], r.plans.slice().sort(function(a,b){var da=toDate(b.start),db=toDate(a.start);return (da?da.getTime():0)-(db?db.getTime():0);}).map(function(p){
@@ -2504,9 +2530,29 @@
           }))+'</details>';
         return '<div class="scard"><div class="scard-h"><span class="scard-nm">'+esc(r.k)+'</span><span class="scard-sub">打ち出し '+r.n+'件</span>'+tags+'</div>'+tiles+det+'</div>';
       }).join('');
-      return '<div class="card"><h2>媒体の成果（どの媒体が効く？）</h2>'+
-        '<div class="lnote">結果入力済みの打ち出しを媒体ごとに集計。<b>採用率</b>＝採用÷応募／<b>採用単価</b>＝求人費÷採用／<b>退職率</b>＝退職÷採用。緑＝良い・赤＝要注意。</div>'+
-        (hi?'<div class="hgls">'+hi+'</div>':'')+cards+'</div>';
+      return (hi?'<div class="hgls">'+hi+'</div>':'')+sortBar+cards;
+    }
+    // 店舗ごと：各店舗で「どの媒体が効くか」。採用単価が安い媒体を「おすすめ」表示。
+    function scStoreHtml(withRes){
+      var byStore={}; withRes.forEach(function(p){ var s=String(p.store==null?'':p.store).trim()||'(店舗不明)'; (byStore[s]=byStore[s]||[]).push(p); });
+      var stores=Object.keys(byStore).sort();
+      return stores.map(function(s){
+        var byM={}; byStore[s].forEach(function(p){ var m=String(p.media==null?'':p.media).trim()||'(媒体なし)'; (byM[m]=byM[m]||[]).push(p); });
+        var mrows=Object.keys(byM).map(function(k){ var a=_mAgg(byM[k]); a.k=k; return a; }).sort(function(x,y){return y.hires-x.hires||y.apps-x.apps;});
+        var wh=mrows.filter(function(r){return r.hires>0;});
+        var best=wh.slice().sort(function(x,y){return x.cph-y.cph;})[0];
+        var arrCph=wh.map(function(r){return r.cph;});
+        var head='<div class="scard-h"><span class="scard-nm">🏪 '+esc(s)+'</span><span class="scard-sub">打ち出し '+byStore[s].length+'件</span>'+(best?'<span class="mtag green">おすすめ '+esc(best.k)+'</span>':'')+'</div>';
+        var tab=ltab(['媒体','応募','採用','採用率','採用単価','退職率'], mrows.map(function(r){
+          var c=r.hires?_relCls(r.cph,arrCph,true):'';
+          var cphCell=r.hires?('<b'+(c==='g'?' style="color:var(--green)"':(c==='r'?' style="color:var(--red)"':''))+'>'+yen(r.cph)+'</b>'):'—';
+          return [esc(r.k), r.apps||'—', r.hires||'—', r.apps?r.rate.toFixed(0)+'%':'—', cphCell, r.hires?r.qr.toFixed(0)+'%':'—'];
+        }));
+        return '<div class="scard">'+head+tab+'</div>';
+      }).join('');
+    }
+    function mediaScorecardHtml(per){
+      return '<div class="card"><h2>媒体の成果（どの媒体が効く？）</h2><div id="scBody">'+scBodyHtml(per)+'</div></div>';
     }
     // 媒体別 集計（打ち出し期間つき・見積もり判断材料）
     function mediaAnalysisHtml(per){
