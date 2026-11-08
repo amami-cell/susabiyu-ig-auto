@@ -202,6 +202,10 @@ STORES = {
         "account": "komatsubara",
         "store_name": "大衆食堂 こまつ原",
         "handle": "@taisyuusyokudo.komatsubara",
+        # フィード焼き込みのラテン表記（既定はナガグツの "MEAT BAR"／"NAGAGUTSU · MEAT BAR"）。
+        #   他店表記がこまつ原のフィードに出ないよう、必ず自店の表記で上書きする。
+        "feed_kicker": "TAISHU SHOKUDO",          # 屋号下の小さなキッカー（ヘッダー型A/B/C案）
+        "rail_label": "KOMATSUBARA · UMEDA",      # 左サイドレールの縦書きラベル（E案）
         # 営業時間。入力用スプレッドシートから読めなかった時のフォールバック（店舗受付シート こまつ原行より）。
         "hours": "11:30〜23:00",
         "region": "梅田・小松原",          # 店舗受付（記入用）シートのエリア＝梅田・小松原（大阪）
