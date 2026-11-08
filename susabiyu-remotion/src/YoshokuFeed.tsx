@@ -17,12 +17,12 @@ export const FEED_W = 1080;
 export const FEED_H = 1350;
 export const FEED_DUR = 1; // 静止画（stillで1フレーム抜く）
 
-type P = { storeName?: string; handle?: string; theme?: string; brandLogo?: string; railLabel?: string };
+type P = { storeName?: string; handle?: string; theme?: string; brandLogo?: string; railLabel?: string; kicker?: string };
 // 料理を props で差し込むための型。既定は typoData の1品目(dish())だが、it を渡せばその皿を描く。
 //   これが無いと「料理ごとに1枚ずつ焼く」たびに typoData.ts を書き換えて再バンドルが必要になり、
 //   55品で現実的な時間に収まらない。1回バンドルして props だけ差し替えれば全品を回せる。
 type PF = P & { it?: any };
-const D = { storeName: "ナガグツ", handle: "@nagagutsu0427", theme: "italian" };
+const D = { storeName: "ナガグツ", handle: "@nagagutsu0427", theme: "italian", kicker: "MEAT BAR" };
 export const SIDE = 64;
 
 const EMPTY_DISH = { src: "", caption: "", sub: "", story: "", disp: "", desc: "", cut: "" };
@@ -186,14 +186,14 @@ export const SmallName: React.FC<{ text: string; w: number; color: string; num?:
   };
 
 // ①A フルブリード×ボトム暗幕（定番・最強のデフォルト）
-export const YoshokuFeedA: React.FC<PF> = ({ storeName = D.storeName, handle = D.handle, theme = D.theme, it }) => {
+export const YoshokuFeedA: React.FC<PF> = ({ storeName = D.storeName, handle = D.handle, theme = D.theme, kicker = D.kicker, it }) => {
   const T = ytheme(theme); const d = it || dish();
   return (
     <AbsoluteFill style={{ backgroundColor: T.base }}>
       <Photo src={d.src} />
       {/* 暗幕グラデは一切なし（写真そのまま）。文字は BARE_SHADOW の三段影だけで読ませる。 */}
       <div style={{ position: "absolute", top: 24, left: 26 }}>
-        <Brand storeName={storeName} accent={T.accent} shadow={BARE_SHADOW} />
+        <Brand storeName={storeName} accent={T.accent} kicker={kicker} shadow={BARE_SHADOW} />
       </div>
       <div style={{ position: "absolute", left: SIDE, right: SIDE, bottom: 128 }}>
         <div style={{ width: 84, height: 6, background: T.accent, marginBottom: 20 }} />
@@ -208,7 +208,7 @@ export const YoshokuFeedA: React.FC<PF> = ({ storeName = D.storeName, handle = D
 
 // ②B ボトムバンド・エディトリアル（写真＋モルタル色のベタ帯・清潔で読みやすい）
 // 下の帯は“真っ黒”をやめ、少し明るいモルタル(コンクリート)色に。料理説明も帯の中へ。
-export const YoshokuFeedB: React.FC<PF> = ({ storeName = D.storeName, handle = D.handle, theme = D.theme, it }) => {
+export const YoshokuFeedB: React.FC<PF> = ({ storeName = D.storeName, handle = D.handle, theme = D.theme, kicker = D.kicker, it }) => {
   const T = ytheme(theme); const d = it || dish();
   return (
     <AbsoluteFill style={{ backgroundColor: MORTAR }}>
@@ -219,7 +219,7 @@ export const YoshokuFeedB: React.FC<PF> = ({ storeName = D.storeName, handle = D
       {/* モルタル帯（微かな粒状ムラで“塗り壁”の質感） */}
       <div style={{ position: "absolute", top: 940, left: 0, right: 0, bottom: 0, background: "linear-gradient(180deg, " + MORTAR_HI + " 0%, " + MORTAR + " 60%, " + MORTAR_LO + " 100%)" }} />
       <div style={{ position: "absolute", top: 24, left: 26 }}>
-        <Brand storeName={storeName} accent={T.accent} shadow={BARE_SHADOW} />
+        <Brand storeName={storeName} accent={T.accent} kicker={kicker} shadow={BARE_SHADOW} />
       </div>
       <div style={{ position: "absolute", left: SIDE, right: SIDE, top: 986, display: "flex" }}>
         <div style={{ width: 6, background: T.accent, alignSelf: "stretch" }} />
@@ -237,7 +237,7 @@ export const YoshokuFeedB: React.FC<PF> = ({ storeName = D.storeName, handle = D
 // ③C 雑誌エディトリアル（写真を主役に全面／クリームのキャプション枠を重ねる）
 // 旧版は左のテラコッタ面が大きすぎたので廃止。さらにクリームのキャプション枠も“背景色が目立ちすぎる”
 // ため廃止し、写真の下をやわらかく沈めて文字を直接置く誌面に変更（写真が主役／文字は左の罫で束ねる）。
-export const YoshokuFeedC: React.FC<PF> = ({ storeName = D.storeName, handle = D.handle, theme = D.theme, it }) => {
+export const YoshokuFeedC: React.FC<PF> = ({ storeName = D.storeName, handle = D.handle, theme = D.theme, kicker = D.kicker, it }) => {
   const T = ytheme(theme); const d = it || dish();
   const PANEL_W = 792;
   return (
@@ -245,7 +245,7 @@ export const YoshokuFeedC: React.FC<PF> = ({ storeName = D.storeName, handle = D
       <Photo src={d.src} />
       {/* 暗幕グラデは一切なし（写真そのまま）。文字は BARE_SHADOW の三段影だけで読ませる。 */}
       <div style={{ position: "absolute", top: 24, left: 26 }}>
-        <Brand storeName={storeName} accent={T.accent} shadow={BARE_SHADOW} />
+        <Brand storeName={storeName} accent={T.accent} kicker={kicker} shadow={BARE_SHADOW} />
       </div>
 
       {/* 誌面のキャプション。クリームのベタ枠も下地グラデも使わず、写真の上に直接組む。
@@ -273,7 +273,7 @@ export const YoshokuFeedC: React.FC<PF> = ({ storeName = D.storeName, handle = D
 
 // ④D 縦組み特大明朝×ハーフ・シズル（右に料理／左は暖色の濃色パネルに縦組み名）
 // 料理を右半分にきっちり寄せて左に余白を作る。左は“真っ黒の暗幕”ではなく暖かい濃茶パネル（不気味さ解消）。
-export const YoshokuFeedD: React.FC<P> = ({ storeName = D.storeName, handle = D.handle, theme = D.theme }) => {
+export const YoshokuFeedD: React.FC<P> = ({ storeName = D.storeName, handle = D.handle, theme = D.theme, kicker = D.kicker }) => {
   const T = ytheme(theme); const d = dish(); const PANEL = 424;
   return (
     <AbsoluteFill style={{ backgroundColor: T.base }}>
@@ -287,7 +287,7 @@ export const YoshokuFeedD: React.FC<P> = ({ storeName = D.storeName, handle = D.
       <div style={{ position: "absolute", top: 0, bottom: 0, left: 0, width: PANEL, background: "linear-gradient(155deg, #2d2118 0%, #211710 55%, " + T.base + " 100%)" }} />
       <div style={{ position: "absolute", top: PANEL - 400, left: 0, width: 6, height: 0 }} />
       <div style={{ position: "absolute", top: 24, left: 26 }}>
-        <Brand storeName={storeName} accent={T.accent} shadow={NAME_SHADOW} />
+        <Brand storeName={storeName} accent={T.accent} kicker={kicker} shadow={NAME_SHADOW} />
       </div>
       {d.sub ? <div style={{ position: "absolute", top: 232, left: 40, fontFamily: serif, color: T.accent, fontSize: 24, letterSpacing: 4, textTransform: "uppercase", fontWeight: 600, maxWidth: PANEL - 80 }}>{d.sub}</div> : null}
       <div style={{ position: "absolute", top: 296, left: 46, height: 900 }}>
@@ -340,14 +340,14 @@ export const YoshokuFeedE2: React.FC<PF> = (p) => <EBase {...p} rail="#4E7A3A" /
 export const YoshokuFeedE3: React.FC<PF> = (p) => <EBase {...p} rail="#B58A2E" />;                                      // 深めゴールド
 
 // ⑥F テラコッタ・リボン販促（全面写真＋「本日のおすすめ」ベタ帯＝集客の顔）
-export const YoshokuFeedF: React.FC<P> = ({ storeName = D.storeName, handle = D.handle, theme = D.theme }) => {
+export const YoshokuFeedF: React.FC<P> = ({ storeName = D.storeName, handle = D.handle, theme = D.theme, kicker = D.kicker }) => {
   const T = ytheme(theme); const d = dish();
   return (
     <AbsoluteFill style={{ backgroundColor: T.base }}>
       <Photo src={d.src} />
       {/* 暗幕グラデは一切なし。テラコッタのベタ帯があるので、文字は帯と三段影で読める。 */}
       <div style={{ position: "absolute", top: 24, left: 26 }}>
-        <Brand storeName={storeName} accent={T.accent} shadow={BARE_SHADOW} />
+        <Brand storeName={storeName} accent={T.accent} kicker={kicker} shadow={BARE_SHADOW} />
       </div>
       {/* 「本日のおすすめ」帯と料理名をぎりぎり下へ＝料理を最大限見せる */}
       <div style={{ position: "absolute", left: 0, right: 0, bottom: 214, height: 104, background: T.slab, display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 14px 40px rgba(0,0,0,0.45)" }}>
@@ -363,7 +363,7 @@ export const YoshokuFeedF: React.FC<P> = ({ storeName = D.storeName, handle = D.
 
 // ⑦G センターバンド（全面写真の“上”に帯を渡す。B=下ベタ帯 とは構図が別物）
 // 写真は上下フルブリードのまま、料理名の帯だけが画面を横切る＝グリッドで目を引く割り込み。
-export const YoshokuFeedG: React.FC<P> = ({ storeName = D.storeName, handle = D.handle, theme = D.theme }) => {
+export const YoshokuFeedG: React.FC<P> = ({ storeName = D.storeName, handle = D.handle, theme = D.theme, kicker = D.kicker }) => {
   const T = ytheme(theme); const d = dish();
   const BAND_TOP = 858, BAND_H = 340;
   return (
@@ -371,7 +371,7 @@ export const YoshokuFeedG: React.FC<P> = ({ storeName = D.storeName, handle = D.
       <Photo src={d.src} />
       {/* 暗幕グラデは一切なし。モルタルの帯が下地なので、文字は帯の中で読める。 */}
       <div style={{ position: "absolute", top: 24, left: 26 }}>
-        <Brand storeName={storeName} accent={T.accent} shadow={BARE_SHADOW} />
+        <Brand storeName={storeName} accent={T.accent} kicker={kicker} shadow={BARE_SHADOW} />
       </div>
       {/* 中央を横切るモルタルの帯（上下に細いテラコッタ罫） */}
       <div style={{ position: "absolute", left: 0, right: 0, top: BAND_TOP, height: BAND_H, background: "linear-gradient(180deg, " + MORTAR_HI + "F2 0%, " + MORTAR + "F7 100%)", boxShadow: "0 18px 46px rgba(0,0,0,0.45)" }} />
@@ -397,7 +397,7 @@ const CREAM_D = "#E9D6B4";    // その陰
 const INK_D = "#241A12";      // 濃い焦茶（明るい地の上の文字）
 
 // ⑧H パーチメント×角丸カード（切り抜き風・温かい紙地に料理カードが浮く）
-export const YoshokuFeedH: React.FC<P> = ({ storeName = D.storeName, handle = D.handle, theme = D.theme }) => {
+export const YoshokuFeedH: React.FC<P> = ({ storeName = D.storeName, handle = D.handle, theme = D.theme, kicker = D.kicker }) => {
   const T = ytheme(theme); const d = dish();
   const ghost = (d.sub || "MEAT BAR").split(" ")[0];
   return (
@@ -409,7 +409,7 @@ export const YoshokuFeedH: React.FC<P> = ({ storeName = D.storeName, handle = D.
       {/* 紙の内枠（額のマット） */}
       <div style={{ position: "absolute", inset: 28, border: "1px solid rgba(150,110,70,0.35)" }} />
       <div style={{ position: "absolute", top: 96, left: 0, right: 0, display: "flex", justifyContent: "center" }}>
-        <Brand storeName={storeName} accent={T.slab} tint={INK_D} logoH={124} center />
+        <Brand storeName={storeName} accent={T.slab} tint={INK_D} logoH={124} kicker={kicker} center />
       </div>
 
       {/* 接地影（皿の下にふわりと影）＝紙の上に“置いてある”ように見せる */}
@@ -446,14 +446,14 @@ export const YoshokuFeedH: React.FC<P> = ({ storeName = D.storeName, handle = D.
 };
 
 // ⑧H2 丸皿カット（正円マスク＝“お皿を切り抜いた”感・テラコッタ地に大きく1点）
-export const YoshokuFeedH2: React.FC<P> = ({ storeName = D.storeName, handle = D.handle, theme = D.theme }) => {
+export const YoshokuFeedH2: React.FC<P> = ({ storeName = D.storeName, handle = D.handle, theme = D.theme, kicker = D.kicker }) => {
   const T = ytheme(theme); const d = dish();
   const ghost = (d.sub || "MEAT BAR").split(" ")[0];
   return (
     <AbsoluteFill style={{ background: "radial-gradient(115% 85% at 50% 40%, " + T.accent + " 0%, " + T.slab + " 55%, " + T.base + " 100%)" }}>
       <div style={{ position: "absolute", top: 356, left: -20, right: -20, textAlign: "center", fontFamily: serif, fontStyle: "italic", fontWeight: 700, color: "#FDF6EA", opacity: 0.12, fontSize: 260, lineHeight: 1, whiteSpace: "nowrap", overflow: "hidden" }}>{ghost}</div>
       <div style={{ position: "absolute", top: 104, left: 0, right: 0, display: "flex", justifyContent: "center" }}>
-        <Brand storeName={storeName} accent="#FDF6EA" tint="#FDF6EA" logoH={124} center shadow={NAME_SHADOW} />
+        <Brand storeName={storeName} accent="#FDF6EA" tint="#FDF6EA" logoH={124} kicker={kicker} center shadow={NAME_SHADOW} />
       </div>
       {/* 正円マスク＝丸皿の切り抜き。二重リングで立体感 */}
       {d.cut ? (
@@ -478,7 +478,7 @@ export const YoshokuFeedH2: React.FC<P> = ({ storeName = D.storeName, handle = D
 // 「お店のポスター」の作法で組む：紙の額 → ロゴ → 見出し → 主役1品を大きく →
 // 脇役2品を左右に少し傾けて重ねる → テラコッタのフッター帯で締める。
 // 3品を同じ大きさで並べると“一覧表”になり主役が消えるので、意図的に主従をつける。
-export const YoshokuFeedH3: React.FC<P> = ({ storeName = D.storeName, handle = D.handle, theme = D.theme }) => {
+export const YoshokuFeedH3: React.FC<P> = ({ storeName = D.storeName, handle = D.handle, theme = D.theme, kicker = D.kicker }) => {
   const T = ytheme(theme);
   const [d0, d1, d2] = dishes(3);
   const ghost = (d0.sub || "MEAT BAR").split(" ")[0];
@@ -494,7 +494,7 @@ export const YoshokuFeedH3: React.FC<P> = ({ storeName = D.storeName, handle = D
 
       {/* ロゴ（中央・上） */}
       <div style={{ position: "absolute", top: 74, left: 0, right: 0, display: "flex", justifyContent: "center" }}>
-        <Brand storeName={storeName} accent={T.slab} tint={INK_D} logoH={118} center />
+        <Brand storeName={storeName} accent={T.slab} tint={INK_D} logoH={118} kicker={kicker} center />
       </div>
 
       {/* 見出し帯：左右に罫を引いた「本日のおすすめ」＝ポスターの惹句 */}

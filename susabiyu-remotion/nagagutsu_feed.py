@@ -315,6 +315,13 @@ def main():
         # GOLD京都ポルタ … サイドレールの縦書きラベルを店名に（既定のNAGAGUTSU表記を上書き）。
         if ACCOUNT == "goldporta":
             props["railLabel"] = "GOLD · KYOTO PORTA"
+        # 他店（こまつ原等）… stores.py の表記で上書き。これが無いと既定の
+        #   "NAGAGUTSU · MEAT BAR"（サイドレール・E案）/ "MEAT BAR"（屋号下キッカー・A/B/C案）が
+        #   そのまま焼かれ、他店ブランドがフィードに混入する。
+        if store.get("rail_label"):
+            props["railLabel"] = store["rail_label"]
+        if store.get("feed_kicker"):
+            props["kicker"] = store["feed_kicker"]
         open("out/_feed_props.json", "w", encoding="utf-8").write(
             json.dumps(props, ensure_ascii=False))
         png = "out/nfeed.png"
