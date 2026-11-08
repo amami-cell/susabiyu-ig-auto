@@ -1975,7 +1975,7 @@
       if(!(statRegion==='all'||regs[statRegion])) statRegion='all';   // 年を変えて消えた地域を選んでいたら全体に戻す
       if(rl.length>1){ chips+='<div class="sfil"><button class="sf'+(statRegion==='all'?' on':'')+'" onclick="setRegion(\'all\')">全地域</button>'+
         rl.map(function(r){ return '<button class="sf'+(statRegion===r?' on':'')+'" onclick="setRegion(\''+esc(r)+'\')">'+esc(r)+'</button>'; }).join('')+'</div>'; }
-      var per=perY.filter(function(p){ return statRegion==='all' || regionOf(p)===statRegion; });
+      var per=filterPer();
       var A=aggPostings(per);
       var label=(statYear==='all'?'全期間':statYear+'年')+(statRegion==='all'?'':'・'+statRegion);
       // 採用単価の3指標：加重平均（総額÷総採用）／店舗単純平均／中央値（対象＝採用1名以上の店）
@@ -2299,7 +2299,7 @@
     }
     // 集計をCSVで書き出し（現在の年・地域フィルタの店舗別集計＋合計。ExcelでもUTF-8で開けるようBOM付き）
     function exportCsv(){
-      var per=postings.filter(function(p){ return (statYear==='all'||postYear(p)==statYear) && (statRegion==='all'||regionOf(p)===statRegion); });
+      var per=filterPer();
       if(!per.length){ toast('書き出す集計がありません'); return; }
       var byS={}; per.forEach(function(p){ var k=normStore(p.store); (byS[k]=byS[k]||{name:p.store,list:[]}).list.push(p); });
       var lines=[['店舗','打ち出し件数','応募','採用','採用率(%)','求人費','採用単価','退職','定着率(%)']];
@@ -2472,22 +2472,25 @@
     function _s2(label,val,cls){ return '<div class="s2'+(cls?' '+cls:'')+'"><div class="v">'+val+'</div><div class="l">'+esc(label)+'</div></div>'; }
     function _mAgg(l){ var c=0,a=0,h=0,q=0,wl=[]; l.forEach(function(p){ c+=parseCost(p.cost); a+=num(p.apps); h+=num(p.hires); q+=num(p.quit); var w=pWeeks(p); if(w>0) wl.push(w); });
       return {n:l.length,cost:c,apps:a,hires:h,quit:q,rate:a?h/a*100:0,cph:h?c/h:0,cpa:a?c/a:0,qr:h?q/h*100:0,aw:wl.length?wl.reduce(function(x,y){return x+y;},0)/wl.length:0}; }
-    // 相対色：同じ条件の中で一番良い＝緑／一番注意＝赤（3媒体以上かつ差がある時だけ）
-    function _relCls(val,arr,lowerBetter){ if(!arr||arr.length<3) return ''; var mn=Math.min.apply(null,arr), mx=Math.max.apply(null,arr); if(mn===mx) return '';
+    // 相対色：同じ条件の中で一番良い＝緑／一番注意＝赤（minN件以上かつ差がある時だけ。既定3、店舗内は2）
+    function _relCls(val,arr,lowerBetter,minN){ minN=minN||3; if(!arr||arr.length<minN) return ''; var mn=Math.min.apply(null,arr), mx=Math.max.apply(null,arr); if(mn===mx) return '';
       if(lowerBetter){ if(val<=mn) return 'g'; if(val>=mx) return 'r'; } else { if(val>=mx) return 'g'; if(val<=mn) return 'r'; } return ''; }
     // 実質採用単価＝採用単価×(1+退職率×重み)。安くてもすぐ辞める媒体はペナルティ。重みは弱/標準/強から選べる。
     function _turnW(){ return ({lo:0.5,mid:1,hi:2})[scTurn]||1; }
     function _effCost(r){ return (r&&r.hires)? r.cph*(1+(r.qr||0)/100*_turnW()) : Infinity; }
     function scSetTurn(t){ scTurn=t; scRe(); }
-    function _bestMedia(rows){ var wh=rows.filter(function(r){return r.hires>0;}); if(!wh.length) return null; return wh.slice().sort(function(x,y){return _effCost(x)-_effCost(y);})[0]; }
-    function scPer(){ return postings.filter(function(p){ return (statYear==='all'||postYear(p)==statYear)&&(statRegion==='all'||regionOf(p)===statRegion); }); }
+    // おすすめは「比較できる時だけ」：採用実績のある候補が2つ以上ある時のみ総合1位を返す（1つだけなら比較にならないので出さない）
+    function _bestMedia(rows){ var wh=rows.filter(function(r){return r.hires>0;}); if(wh.length<2) return null; return wh.slice().sort(function(x,y){return _effCost(x)-_effCost(y);})[0]; }
+    // 集計タブ共通の期間＋地域フィルタ（ここ1か所に集約）
+    function filterPer(){ return postings.filter(function(p){ return (statYear==='all'||postYear(p)==statYear)&&(statRegion==='all'||regionOf(p)===statRegion); }); }
+    function scPer(){ return filterPer(); }
     function scSetMode(m){ scMode=m; scRe(); }
     function scSetSort(s){ scSort=s; scRe(); }
     function scRe(){ var el=document.getElementById('scBody'); if(el) el.innerHTML=scBodyHtml(scPer()); }
     function scSortChip(s,label){ return '<button class="apchip'+(scSort===s?' on':'')+'" onclick="scSetSort(\''+s+'\')">'+label+'</button>'; }
     function scBodyHtml(per){
       var withRes=per.filter(function(p){ return has(p.apps)||has(p.hires); });
-      var lnote='<div class="lnote">結果入力済みの打ち出しを集計。<b>採用率</b>＝採用÷応募／<b>採用単価</b>＝求人費÷採用／<b>退職率</b>＝退職÷採用。色は<b>同じ一覧の中で一番良い＝緑・一番注意＝赤</b>。<b>🏆おすすめ</b>＝採用単価×定着（退職率）で総合判定（安くてもすぐ辞める媒体は下げる）。</div>';
+      var lnote='<div class="lnote">結果入力済みの打ち出しを集計。<b>採用率</b>＝採用÷応募／<b>採用単価</b>＝求人費÷採用／<b>退職率</b>＝退職÷採用／<b>平均期間</b>＝掲載終了済みの平均（終了日未入力は「進行中」）。色は<b>同じ一覧の中で一番良い＝緑・一番注意＝赤</b>。<b>🏆おすすめ</b>＝採用単価×定着（退職率）で総合判定（安くてもすぐ辞める媒体は下げる。比較できる媒体が2つ以上ある時だけ表示）。</div>';
       var modeBar='<div class="apchips"><span class="aplabel">見方</span>'+
         '<button class="apchip'+(scMode==='media'?' on':'')+'" onclick="scSetMode(\'media\')">媒体ごと</button>'+
         '<button class="apchip'+(scMode==='store'?' on':'')+'" onclick="scSetMode(\'store\')">店舗ごと（どの媒体が効くか）</button></div>';
@@ -2536,7 +2539,7 @@
           _s2('採用単価',r.hires?yen(r.cph):'—',r.hires?_relCls(r.cph,arrCph,true):'')+
           _s2('退職率',r.hires?r.qr.toFixed(0)+'%':'—',r.hires?_relCls(r.qr,arrQr,true):'')+
           _s2('応募単価',r.apps?yen(r.cpa):'—',r.apps?_relCls(r.cpa,arrCpa,true):'')+
-          _s2('平均期間',r.aw?r.aw.toFixed(1)+'週':'—')+
+          _s2('平均期間',r.aw?r.aw.toFixed(1)+'週':'進行中')+
           _s2('求人費',yen(r.cost))+'</div>';
         var det='<details style="margin-top:8px"><summary class="scard-more">プラン・店舗別の内訳（'+r.plans.length+'件）</summary>'+
           ltab(['店舗','商品プラン','応募','採用','採用率','採用単価','退職率'], r.plans.slice().sort(function(a,b){var da=toDate(b.start),db=toDate(a.start);return (da?da.getTime():0)-(db?db.getTime():0);}).map(function(p){
@@ -2556,12 +2559,16 @@
         var mrows=Object.keys(byM).map(function(k){ var a=_mAgg(byM[k]); a.k=k; return a; }).sort(function(x,y){return y.hires-x.hires||y.apps-x.apps;});
         var wh=mrows.filter(function(r){return r.hires>0;});
         var best=_bestMedia(mrows);
-        var arrCph=wh.map(function(r){return r.cph;});
+        // 店舗内は媒体数が少ないので相対色は2件以上で発火。採用率/採用単価/退職率を媒体ごとビューと同じ基準で色分け。
+        var arrCph=wh.map(function(r){return r.cph;}), arrQr=wh.map(function(r){return r.qr;});
+        var arrRate=mrows.filter(function(r){return r.apps>0;}).map(function(r){return r.rate;});
+        var colCell=function(txt,cls){ return cls==='g'?'<b style="color:var(--green)">'+txt+'</b>':(cls==='r'?'<b style="color:var(--red)">'+txt+'</b>':txt); };
         var head='<div class="scard-h"><span class="scard-nm">🏪 '+esc(s)+'</span><span class="scard-sub">打ち出し '+byStore[s].length+'件</span>'+(best?'<span class="mtag gold" title="採用単価×定着で判定">🏆 おすすめ '+esc(best.k)+'（単価'+yen(best.cph)+'・退職'+best.qr.toFixed(0)+'%）</span>':'')+'</div>';
         var tab=ltab(['媒体','応募','採用','採用率','採用単価','退職率'], mrows.map(function(r){
-          var c=r.hires?_relCls(r.cph,arrCph,true):'';
-          var cphCell=r.hires?('<b'+(c==='g'?' style="color:var(--green)"':(c==='r'?' style="color:var(--red)"':''))+'>'+yen(r.cph)+'</b>'):'—';
-          return [esc(r.k), r.apps||'—', r.hires||'—', r.apps?r.rate.toFixed(0)+'%':'—', cphCell, r.hires?r.qr.toFixed(0)+'%':'—'];
+          return [esc(r.k), r.apps||'—', r.hires||'—',
+            r.apps?colCell(r.rate.toFixed(0)+'%',_relCls(r.rate,arrRate,false,2)):'—',
+            r.hires?colCell(yen(r.cph),_relCls(r.cph,arrCph,true,2)):'—',
+            r.hires?colCell(r.qr.toFixed(0)+'%',_relCls(r.qr,arrQr,true,2)):'—'];
         }));
         return '<div class="scard">'+head+tab+'</div>';
       }).join('');
@@ -2586,7 +2593,7 @@
     function mtile(label,val,big){ return '<div class="mtile'+(big?' big':'')+'"><div class="mv">'+val+'</div><div class="ml">'+esc(label)+'</div></div>'; }
     // ⑥ 月次/期間レポート（印刷・PDF保存できる1枚）。現在の年・地域フィルタで作成。
     function openReport(){
-      var per=postings.filter(function(p){ return (statYear==='all'||postYear(p)==statYear)&&(statRegion==='all'||regionOf(p)===statRegion); });
+      var per=filterPer();
       var A=aggPostings(per), now=new Date();
       var title=(statYear==='all'?'全期間':statYear+'年')+(statRegion==='all'?'':'・'+statRegion);
       var kpi='<div class="mgrid">'+mtile('打ち出し',A.n+'件')+mtile('応募',A.apps+'名')+mtile('採用',A.hires+'名')+
