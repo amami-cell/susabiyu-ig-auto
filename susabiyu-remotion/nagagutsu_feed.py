@@ -290,22 +290,42 @@ def main():
         })
         print("  取得 %-28s 明るさ %.0f%s" % (nm[:28], dishes[-1]["bright"], "  [ランチ]" if is_lunch else ""))
 
-    used = _assign(dishes)   # 内訳（連続箇所・A/Cを当てた写真の明るさ）は _assign 側で出す
-    print("[FEED] デザイン割り当て:", {k.replace("YoshokuFeed", ""): v for k, v in used.items()})
-
-    # バンドルは1回だけ。あとは props を差し替えて全品を焼く（再バンドルしない）。
-    entry = "src/index.ts"
-    try:
-        run("npx remotion bundle --out-dir=out/bundle")
-        if os.path.isdir("out/bundle"):
-            entry = "out/bundle"
-            print("[FEED] バンドル再利用: out/bundle")
-    except Exception as e:
-        print("[FEED] bundle 失敗（毎回バンドルします）:", e)
-
-    os.makedirs("out", exist_ok=True)
     ok = 0
-    for d in dishes:
+    if (store.get("feed_style") or "").strip().lower() == "gifuya":
+        # ── ぎふや型フィード（全面写真＋縦大料理名＋赤下線＋赤リボン・PIL）──
+        #   Remotion(YoshokuFeed)を使わず gifuya_design で焼く。屋号はテキスト、
+        #   リボンは store["feed_ribbon"]（例：梅田・小松原）。他店ロゴは使わない。
+        import gifuya_design as _gd
+        _ribbon = store.get("feed_ribbon") or ""
+        for d in dishes:
+            _src = os.path.join(OUT_DIR, d["img"])          # f_<slug>.jpg（4:5生写真）
+            _dr = "fd_%s.jpg" % d["slug"]
+            try:
+                _gd.render_post(_src, os.path.join(OUT_DIR, _dr),
+                                d.get("disp") or d["title"], subcopy=(d.get("sub") or None),
+                                ribbon=_ribbon, store_name=store["store_name"], quality=92)
+                d["design"] = _dr; ok += 1
+                print("  焼き(ぎふや型) %-28s" % d["name"][:28])
+            except Exception as e:
+                print("  WARN ぎふや型焼き失敗 %s: %s" % (d["name"], e))
+        dishes2 = []   # ぎふや型は以降の Remotion 焼きをスキップ
+    else:
+        used = _assign(dishes)   # 内訳（連続箇所・A/Cを当てた写真の明るさ）は _assign 側で出す
+        print("[FEED] デザイン割り当て:", {k.replace("YoshokuFeed", ""): v for k, v in used.items()})
+
+        # バンドルは1回だけ。あとは props を差し替えて全品を焼く（再バンドルしない）。
+        entry = "src/index.ts"
+        try:
+            run("npx remotion bundle --out-dir=out/bundle")
+            if os.path.isdir("out/bundle"):
+                entry = "out/bundle"
+                print("[FEED] バンドル再利用: out/bundle")
+        except Exception as e:
+            print("[FEED] bundle 失敗（毎回バンドルします）:", e)
+
+        os.makedirs("out", exist_ok=True)
+        dishes2 = dishes
+    for d in dishes2:
         it = {"src": "nfeed/%s.jpg" % d["slug"], "caption": d["name"], "disp": d["disp"],
               "sub": d["sub"], "desc": d["desc"], "story": "", "cut": ""}
         props = {"storeName": store["store_name"], "handle": store["handle"],
@@ -347,7 +367,7 @@ def main():
               "cap": d["cap"], "tags": d["tags"], "reco": False}
         if d.get("design"):
             it["design"] = d["design"]
-            it["design_id"] = d["design_id"]
+            it["design_id"] = d.get("design_id", "")   # ぎふや型(PIL)は design_id を持たない
         items.append(it)
     feed = {"store": ACCOUNT, "count": len(items), "items": items}
     with open(os.path.join(OUT_DIR, "feed.json"), "w", encoding="utf-8") as fp:
