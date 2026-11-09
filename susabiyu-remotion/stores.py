@@ -206,6 +206,10 @@ STORES = {
         #   他店表記がこまつ原のフィードに出ないよう、必ず自店の表記で上書きする。
         "feed_kicker": "TAISHU SHOKUDO",          # 屋号下の小さなキッカー（ヘッダー型A/B/C案）
         "rail_label": "KOMATSUBARA · UMEDA",      # 左サイドレールの縦書きラベル（E案）
+        # 【暫定】本番画像が未投入でぎふや写真を間借り中。料理名がファイル名由来で
+        #   「ぎふやの明太出汁巻き」等と他店名を含むため、表示・キャプションから除去する。
+        #   本番画像（こまつ原のファイル名）が入ったら、この name_strip を削除するだけでよい。
+        "name_strip": [r"ぎふや(?:天神|厳選|特製|自慢|名物|こだわり)?の?"],
         # 営業時間。入力用スプレッドシートから読めなかった時のフォールバック（店舗受付シート こまつ原行より）。
         "hours": "11:30〜23:00",
         "region": "梅田・小松原",          # 店舗受付（記入用）シートのエリア＝梅田・小松原（大阪）
@@ -280,6 +284,21 @@ def apply_fetch_env(store):
         rln = store.get("round_logo_names")
         if rln:
             os.environ["GENRE_LOGO_ROUND_NAMES"] = ",".join(rln)
+
+
+def strip_brand(name, store):
+    """借り物写真の料理名から他店ブランド語を除去する（store["name_strip"] の各パターン）。
+    例：こまつ原がぎふや写真を間借り中、「ぎふやの明太出汁巻き」→「明太出汁巻き」。
+    name_strip 未設定の店は一切変えない（＝既存店に無影響）。除去で空になったら元名を返す。"""
+    pats = store.get("name_strip") or []
+    if not pats:
+        return name
+    import re as _re
+    s = str(name or "")
+    for p in pats:
+        s = _re.sub(p, "", s)
+    s = _re.sub(r"[ 　]{2,}", "　", s).strip(" 　・-")
+    return s or str(name or "")
 
 
 def render_props(store):

@@ -303,7 +303,26 @@ def _clean_caption(nm):
     n = _re_cap.sub(r'[\-_ ]\d{1,3}$', '', n)            # 末尾の連番 _1 -2 等
     n = n.replace("_", "　").replace("＿", "　")
     n = _re_cap.sub(r'[ 　]{2,}', "　", n).strip(" 　_-★☆[]（）()【】｜|・")
+    n = _strip_store_brand(n)   # 借り物写真の他店名（ぎふや等）を料理名から除去
     return n or _o.path.splitext(str(nm or ""))[0]
+
+
+# 借り物写真の料理名に残る他店ブランド語を落とす（store["name_strip"] 駆動）。
+# name_strip 未設定の店は素通し＝既存店に無影響。store 解決は1回だけキャッシュ。
+_NAME_STRIP_STORE = None
+def _strip_store_brand(name):
+    global _NAME_STRIP_STORE
+    if _NAME_STRIP_STORE is None:
+        try:
+            import stores as _st_ns
+            _NAME_STRIP_STORE = _st_ns.get_store(os.environ.get("STORE_ACCOUNT", "").strip())
+        except Exception:
+            _NAME_STRIP_STORE = {}
+    try:
+        import stores as _st_ns2
+        return _st_ns2.strip_brand(name, _NAME_STRIP_STORE)
+    except Exception:
+        return name
 
 
 import usage
