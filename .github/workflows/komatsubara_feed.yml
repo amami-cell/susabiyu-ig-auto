@@ -37,6 +37,11 @@ jobs:
           python-version: '3.12'
       - name: Install Python deps
         run: pip install google-api-python-client google-auth Pillow
+      # ぎふや型フィード(gifuya_design・PIL)は“システムの”和文フォントを使う。
+      # Remotion は自前フォントを同梱するため従来は不要だったが、feed_style=gifuya では
+      # これが無いと _SERIF_PATH=None となり ImageFont.truetype(None) で全焼き失敗する。
+      - name: Install JP fonts (ぎふや型フィード用)
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq fonts-noto-cjk fonts-ipafont-mincho fonts-ipafont-gothic
       - name: Install Node deps
         run: npm ci
         working-directory: susabiyu-remotion
