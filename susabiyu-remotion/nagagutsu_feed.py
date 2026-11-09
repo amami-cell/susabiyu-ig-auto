@@ -253,6 +253,7 @@ def main():
     best = {}
     for f, folder in found:
         nm = _norm_dish(_stem(f.get("name", "")))
+        nm = stores.strip_brand(nm, store)   # 借り物写真の他店名（ぎふや等）を料理名から除去
         if not nm:
             continue
         cur = best.get(nm)
