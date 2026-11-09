@@ -301,8 +301,10 @@ def main():
             _src = os.path.join(OUT_DIR, d["img"])          # f_<slug>.jpg（4:5生写真）
             _dr = "fd_%s.jpg" % d["slug"]
             try:
+                # subcopy は日本語の一言説明（desc_for）＝ぎふやの体裁に合わせる。
+                #   sub（"SHOKUDO"等の英字カテゴリ）ではなく desc を使う。
                 _gd.render_post(_src, os.path.join(OUT_DIR, _dr),
-                                d.get("disp") or d["title"], subcopy=(d.get("sub") or None),
+                                d.get("disp") or d["title"], subcopy=(d.get("desc") or None),
                                 ribbon=_ribbon, store_name=store["store_name"], quality=92)
                 d["design"] = _dr; ok += 1
                 print("  焼き(ぎふや型) %-28s" % d["name"][:28])
