@@ -204,6 +204,12 @@ STORES = {
         "handle": "@taisyuusyokudo.komatsubara",
         # フィード焼き込みのラテン表記（既定はナガグツの "MEAT BAR"／"NAGAGUTSU · MEAT BAR"）。
         #   他店表記がこまつ原のフィードに出ないよう、必ず自店の表記で上書きする。
+        # フィードは「ぎふや型」に寄せる（全面写真＋縦大料理名＋赤下線＋赤リボン・gifuya_design）。
+        #   ストーリーは元からぎふやと同一コンポーネント＝これでフィードも体裁が揃う。
+        "feed_style": "gifuya",
+        "feed_ribbon": "梅田・小松原",             # 右上の赤リボン（ぎふやの「福岡天神店」に相当）
+        # ↓ YoshokuFeed(ナガグツ型)用の表記。feed_style=gifuya では未使用だが、
+        #   将来ナガグツ型へ戻す場合に備えて残置（他店名の既定焼き込みを防ぐ値）。
         "feed_kicker": "TAISHU SHOKUDO",          # 屋号下の小さなキッカー（ヘッダー型A/B/C案）
         "rail_label": "KOMATSUBARA · UMEDA",      # 左サイドレールの縦書きラベル（E案）
         # 【暫定】本番画像が未投入でぎふや写真を間借り中。料理名がファイル名由来で

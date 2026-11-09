@@ -203,19 +203,26 @@ def _draw_ribbon(img, text, font):
     img.paste(tmp, (W - tmp.width + 30, -18), tmp)
 
 
-def render_post(src, out, title, subcopy=None, ribbon="福岡天神店", logo=True, quality=95):
+def render_post(src, out, title, subcopy=None, ribbon="福岡天神店", logo=True, quality=95,
+                store_name=None, logo_path=None):
     src_im = src if isinstance(src, Image.Image) else Image.open(src)
     base = _cover(src_im, W, H)
     base = _scrim(base).convert("RGBA")
 
-    # ロゴ（白・左上）※短冊と同じ大きさ・位置に統一（360・左上角(16,14)）
-    if logo and os.path.exists(LOGO_WHITE):
-        lg = Image.open(LOGO_WHITE).convert("RGBA")
+    draw = ImageDraw.Draw(base)
+
+    # 左上＝ブランド表示。優先順位：
+    #   ① logo_path 指定（店のロゴ画像）→ その画像を置く。
+    #   ② store_name 指定（ロゴ画像を持たない店。例：こまつ原）→ 屋号を明朝テキストで描く。
+    #   ③ 既定（ぎふや）→ LOGO_WHITE（＝従来動作・無変更）。
+    _lg_path = logo_path or LOGO_WHITE
+    if store_name and not logo_path:
+        _text_shadow(draw, (30, 30), store_name, _font(_SERIF_PATH, 58), fill=(255, 255, 255))
+    elif logo and os.path.exists(_lg_path):
+        lg = Image.open(_lg_path).convert("RGBA")
         lw = 360
         lg = lg.resize((lw, int(lg.height * lw / lg.width)), Image.LANCZOS)
         base.alpha_composite(lg, (16, 14))
-
-    draw = ImageDraw.Draw(base)
 
     # 右上リボン
     if ribbon:
