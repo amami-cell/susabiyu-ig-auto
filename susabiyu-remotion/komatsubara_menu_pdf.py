@@ -197,12 +197,13 @@ def new_page(first=False):
         y = MT
 
 
-def catbar(name, n):
+def catbar(name, n, cont=False):
     global y
     draw.rectangle((ML, y, ML + 6, y + CATBAR_H), fill=ACCENT)
     draw.rectangle((ML + 6, y, W - MR, y + CATBAR_H), fill=(243, 236, 224))
-    draw.text((ML + 22, y + 10), name, font=f_cat, fill=INK)
-    bb = draw.textbbox((0, 0), name, font=f_cat)
+    label = name + ("（続き）" if cont else "")
+    draw.text((ML + 22, y + 10), label, font=f_cat, fill=INK)
+    bb = draw.textbbox((0, 0), label, font=f_cat)
     draw.text((ML + 22 + (bb[2] - bb[0]) + 14, y + 20), "%d品" % n, font=f_catn, fill=SUB)
     y += CATBAR_H + 14
 
@@ -222,20 +223,28 @@ def wrap_center(cx, top, text, cell, fnt):
         ty += lh
 
 
+# 横4列固定。カテゴリは連続して詰める（1ページに複数カテゴリOK）。
+# 大きいカテゴリはページを跨ぐ（跨いだ先は見出しを「（続き）」で再掲）。
+C = 4
+CELL = cell_for(C)
+ROW_H = rowh_for(C)
+fnt = f_name_by[C]
+CAT_GAP = 18                      # カテゴリ間の余白
+
 new_page(first=True)
 done = 0
-for idx, (name, d) in enumerate(ordered):
+for name, d in ordered:
     items = d["items"]
     n = len(items)
-    C = choose_cols(n)
-    CELL = cell_for(C)
-    ROW_H = rowh_for(C)
-    fnt = f_name_by[C]
-    if idx > 0:
-        new_page()               # カテゴリは必ず改ページ＝各カテゴリは1ページに収まる
+    # 見出し＋最低1行が入らなければ改ページ（見出しだけがページ末に孤立しない）
+    if y + CATBAR_H + 14 + ROW_H > H - MB:
+        new_page()
     catbar(name, n)
     col = 0
     for it in items:
+        if col == 0 and y + ROW_H > H - MB:   # 行が入らなければ次ページへ（見出し再掲）
+            new_page()
+            catbar(name, n, cont=True)
         x = ML + col * (CELL + GAP)
         draw.rectangle((x, y, x + CELL, y + CELL), fill=CARD, outline=LINE, width=1)
         try:
@@ -252,6 +261,7 @@ for idx, (name, d) in enumerate(ordered):
             y += ROW_H
     if col != 0:
         y += ROW_H
+    y += CAT_GAP
 
 # フッター（最終ページ）
 dr = ImageDraw.Draw(pages[-1])
