@@ -1,0 +1,55 @@
+name: komatsubara-menu-pdf
+# こまつ原「写真付き・1ファイル」料理確認表PDFを生成する（確認用・手動実行）。
+#   サービスアカウント(GOOGLE_CREDS_B64)でDrive写真を取得→PILでA4グリッドPDFを作り、
+#   成果物を Actions artifact と ブランチ assets/komatsubara-menu-pdf に出す。
+on:
+  workflow_dispatch:
+    inputs:
+      root_id:
+        description: "Drive root folder id（空＝既定こまつ原フォルダ）"
+        required: false
+        default: ""
+permissions:
+  contents: write
+concurrency:
+  group: komatsubara-menu-pdf
+  cancel-in-progress: false
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install deps
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq fonts-noto-cjk
+          pip install google-api-python-client google-auth Pillow
+      - name: Build PDF
+        working-directory: susabiyu-remotion
+        env:
+          GOOGLE_CREDS_B64: ${{ secrets.GOOGLE_CREDS_B64 }}
+        run: |
+          echo "$GOOGLE_CREDS_B64" | base64 -d > creds.json
+          python komatsubara_menu_pdf.py creds.json "${{ github.event.inputs.root_id }}" out/komatsubara_menu.pdf
+          rm -f creds.json
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: komatsubara-menu-pdf
+          path: susabiyu-remotion/out/komatsubara_menu.pdf
+          if-no-files-found: error
+      - name: Push PDF to branch
+        run: |
+          set -e
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          mkdir -p out
+          cp susabiyu-remotion/out/komatsubara_menu.pdf out/komatsubara_menu.pdf
+          git checkout -B assets/komatsubara-menu-pdf
+          git add -f out/komatsubara_menu.pdf
+          git commit -m "こまつ原: 写真付き料理確認表PDFを自動生成" || echo "no change"
+          git push -f origin assets/komatsubara-menu-pdf
