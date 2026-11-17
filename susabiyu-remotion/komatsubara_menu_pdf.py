@@ -133,14 +133,16 @@ BLD = ["/usr/share/fonts/opentype/noto/NotoSansCJK-Bold.ttc",
        "/usr/share/fonts/truetype/noto/NotoSansCJK-Bold.ttc"]
 
 # ---- レイアウト（A4 @150dpi）----
+# 方針：1カテゴリは必ず1ページに収める。品数に応じて列数(3〜6)を自動選択し、
+#       収まる範囲で最大の写真サイズにする（続きページは作らない）。
+import math
+
 W, H = 1240, 1754
 MT, MB, ML, MR = 70, 70, 64, 64
-COLS = 4
 GAP = 22
-CELL = (W - ML - MR - GAP * (COLS - 1)) // COLS   # サムネ一辺
-CAP_H = 58                                        # キャプション高さ(2行)
-ROW_H = CELL + CAP_H + 18
+CAP_H = 58                       # キャプション高さ(2行)
 CATBAR_H = 52
+USABLE = H - MT - MB - (CATBAR_H + 14)   # 見出し下、1カテゴリが使える高さ
 
 ACCENT = (156, 42, 42)
 INK = (36, 28, 23)
@@ -149,13 +151,28 @@ BG = (255, 253, 248)
 LINE = (230, 220, 201)
 CARD = (255, 255, 255)
 
-f_name = _font(BLD, 22)
-f_cap = _font(REG, 20)
 f_h1 = _font(BLD, 44)
-f_h2 = _font(BLD, 30)
 f_small = _font(REG, 19)
 f_cat = _font(BLD, 27)
 f_catn = _font(REG, 18)
+# 列数ごとの料理名フォント（列が増える＝セルが小さいほど小さく）
+f_name_by = {3: _font(BLD, 24), 4: _font(BLD, 22), 5: _font(BLD, 20), 6: _font(BLD, 17)}
+
+
+def cell_for(C):
+    return int((W - ML - MR - GAP * (C - 1)) / C)
+
+
+def rowh_for(C):
+    return cell_for(C) + CAP_H + 18
+
+
+def choose_cols(n):
+    for C in (3, 4, 5, 6):
+        if math.ceil(n / C) * rowh_for(C) <= USABLE:
+            return C
+    return 6
+
 
 pages = []
 page = None
@@ -180,69 +197,61 @@ def new_page(first=False):
         y = MT
 
 
-def catbar(name, n, cont=False):
+def catbar(name, n):
     global y
-    if y + CATBAR_H + ROW_H > H - MB:   # 見出しの直後に1行も入らないなら改ページ
-        new_page()
     draw.rectangle((ML, y, ML + 6, y + CATBAR_H), fill=ACCENT)
     draw.rectangle((ML + 6, y, W - MR, y + CATBAR_H), fill=(243, 236, 224))
-    label = name + ("（続き）" if cont else "")
-    draw.text((ML + 22, y + 10), label, font=f_cat, fill=INK)
-    bb = draw.textbbox((0, 0), label, font=f_cat)
+    draw.text((ML + 22, y + 10), name, font=f_cat, fill=INK)
+    bb = draw.textbbox((0, 0), name, font=f_cat)
     draw.text((ML + 22 + (bb[2] - bb[0]) + 14, y + 20), "%d品" % n, font=f_catn, fill=SUB)
     y += CATBAR_H + 14
 
 
-def wrap_center(cx, top, text):
-    # 2行まで、はみ出しは…
-    lines = textwrap.wrap(text, width=9) or [text]
-    lines = lines[:2]
-    if len("".join(textwrap.wrap(text, width=9))) < len(text) and len(lines) == 2:
-        lines[1] = lines[1][:8] + "…"
+def wrap_center(cx, top, text, cell, fnt):
+    sz = getattr(fnt, "size", 20)
+    width = max(5, int(cell / sz))        # 1行あたりの全角文字数の目安
+    lines = textwrap.wrap(text, width=width) or [text]
+    if len(lines) > 2:
+        lines = lines[:2]
+        lines[1] = lines[1][:max(1, width - 1)] + "…"
     ty = top
+    lh = sz + 5
     for ln in lines:
-        bb = draw.textbbox((0, 0), ln, font=f_name)
-        draw.text((cx - (bb[2] - bb[0]) / 2, ty), ln, font=f_name, fill=INK)
-        ty += 26
+        bb = draw.textbbox((0, 0), ln, font=fnt)
+        draw.text((cx - (bb[2] - bb[0]) / 2, ty), ln, font=fnt, fill=INK)
+        ty += lh
 
 
 new_page(first=True)
 done = 0
 for idx, (name, d) in enumerate(ordered):
-    if idx > 0:
-        new_page()               # カテゴリは必ず改ページ（別カテゴリを同ページに詰めない）
     items = d["items"]
-    catbar(name, len(items))
+    n = len(items)
+    C = choose_cols(n)
+    CELL = cell_for(C)
+    ROW_H = rowh_for(C)
+    fnt = f_name_by[C]
+    if idx > 0:
+        new_page()               # カテゴリは必ず改ページ＝各カテゴリは1ページに収まる
+    catbar(name, n)
     col = 0
-    first_row_after_bar = True
-    i = 0
-    while i < len(items):
-        if col == 0:
-            if y + ROW_H > H - MB:
-                new_page()
-                catbar(name, len(items), cont=True)
-                first_row_after_bar = True
-        it = items[i]
+    for it in items:
         x = ML + col * (CELL + GAP)
-        # カード枠
         draw.rectangle((x, y, x + CELL, y + CELL), fill=CARD, outline=LINE, width=1)
         try:
             im = cover(dl(it["id"]), CELL - 2)
             page.paste(im, (x + 1, y + 1))
         except Exception as e:
-            draw.text((x + CELL / 2 - 16, y + CELL / 2 - 10), "写真?", font=f_cap, fill=(180, 165, 150))
+            draw.text((x + CELL / 2 - 16, y + CELL / 2 - 10), "写真?", font=f_small, fill=(180, 165, 150))
             print("  WARN dl失敗 %s: %s" % (it["name"], e))
-        wrap_center(x + CELL / 2, y + CELL + 10, it["name"])
+        wrap_center(x + CELL / 2, y + CELL + 10, it["name"], CELL, fnt)
         done += 1
         col += 1
-        i += 1
-        if col >= COLS:
+        if col >= C:
             col = 0
             y += ROW_H
-            first_row_after_bar = False
-    if col != 0:                     # 端数行を送る
+    if col != 0:
         y += ROW_H
-    # カテゴリは必ず改ページするため、カテゴリ間の余白は不要
 
 # フッター（最終ページ）
 dr = ImageDraw.Draw(pages[-1])
