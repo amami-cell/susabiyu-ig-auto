@@ -105,12 +105,18 @@ def dl(file_id):
     return im
 
 
-def cover(im, size):
+# 個別に「アップ（寄り）」にしたい料理名 → ズーム倍率。
+ZOOM = {
+    "鮭焼きおにぎり": 1.5,
+}
+
+
+def cover(im, size, zoom=1.0):
     w, h = im.size
-    s = max(size / w, size / h)
-    im = im.resize((max(1, int(w * s)), max(1, int(h * s))), Image.LANCZOS)
-    w, h = im.size
-    l, t = (w - size) // 2, (h - size) // 2
+    s = max(size / w, size / h) * zoom     # zoom>1 で中央を寄せて拡大クロップ
+    nw, nh = max(1, int(w * s)), max(1, int(h * s))
+    im = im.resize((nw, nh), Image.LANCZOS)
+    l, t = (nw - size) // 2, (nh - size) // 2
     return im.crop((l, t, l + size, t + size))
 
 
@@ -248,7 +254,7 @@ for name, d in ordered:
         x = ML + col * (CELL + GAP)
         draw.rectangle((x, y, x + CELL, y + CELL), fill=CARD, outline=LINE, width=1)
         try:
-            im = cover(dl(it["id"]), CELL - 2)
+            im = cover(dl(it["id"]), CELL - 2, ZOOM.get(it["name"], 1.0))
             page.paste(im, (x + 1, y + 1))
         except Exception as e:
             draw.text((x + CELL / 2 - 16, y + CELL / 2 - 10), "写真?", font=f_small, fill=(180, 165, 150))
