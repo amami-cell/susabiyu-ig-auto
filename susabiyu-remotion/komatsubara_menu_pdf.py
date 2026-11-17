@@ -67,6 +67,19 @@ def walk(folder_id, cat_name=None, cat_created=None):
 
 
 walk(root_id)
+
+# 「ランチ・コース」フォルダは、名前に「コース」を含む品＝コース、それ以外＝ランチ に分割する。
+#   並び順は ランチ → コース（元フォルダの位置＝末尾付近を維持）。
+if "ランチ・コース" in cats:
+    src = cats.pop("ランチ・コース")
+    base = src["created"]
+    lunch = [it for it in src["items"] if "コース" not in it["name"]]
+    course = [it for it in src["items"] if "コース" in it["name"]]
+    if lunch:
+        cats["ランチ"] = {"created": base, "items": lunch}
+    if course:
+        cats["コース"] = {"created": base + "~", "items": course}  # "~"でランチの直後に並ぶ
+
 # 並び：カテゴリ＝親フォルダ作成時刻昇順、料理＝名前昇順
 ordered = sorted(cats.items(), key=lambda kv: (kv[1]["created"], kv[0]))
 for _, d in ordered:
@@ -195,7 +208,9 @@ def wrap_center(cx, top, text):
 
 new_page(first=True)
 done = 0
-for name, d in ordered:
+for idx, (name, d) in enumerate(ordered):
+    if idx > 0:
+        new_page()               # カテゴリは必ず改ページ（別カテゴリを同ページに詰めない）
     items = d["items"]
     catbar(name, len(items))
     col = 0
@@ -227,7 +242,7 @@ for name, d in ordered:
             first_row_after_bar = False
     if col != 0:                     # 端数行を送る
         y += ROW_H
-    y += 10                          # カテゴリ間の余白
+    # カテゴリは必ず改ページするため、カテゴリ間の余白は不要
 
 # フッター（最終ページ）
 dr = ImageDraw.Draw(pages[-1])
