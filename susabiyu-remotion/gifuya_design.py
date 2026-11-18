@@ -340,7 +340,8 @@ def _pullback_base(im, photo_h):
 
 
 def render_tanzaku(src, out, title, headline=None, ribbon="福岡天神店", logo=True,
-                   pullback=None, quality=95, store_name=None, logo_path=None):
+                   pullback=None, quality=95, store_name=None, logo_path=None,
+                   ribbon_size=50):
     """見本 pattern_tanzaku.jpg の体裁で焼き込む。headline=極太見出し／title=赤下線下の料理名。
     pullback=写真高さ(px)を指定すると『若干引き』（皿全体が収まる）。quality=JPEG保存品質。
     左上ブランドの優先順位：① logo_path 指定→その画像／② store_name 指定（ロゴ画像を持たない
@@ -363,9 +364,10 @@ def render_tanzaku(src, out, title, headline=None, ribbon="福岡天神店", log
         lg = lg.resize((lw, int(lg.height * lw / lg.width)), Image.LANCZOS)
         base.alpha_composite(lg, (16, 14))
 
-    # 右上：赤の縦リボン短冊（福岡天神店）
+    # 右上：赤の縦リボン短冊（福岡天神店）。短い地名（例「梅田」2文字）は既定50だと小さいので
+    #   店側から ribbon_size を上げられる（ぎふや本家は未指定＝50のまま無変更）。
     if ribbon:
-        rib = _vertical_ribbon(ribbon, _font(_GOTHIC_PATH, 50))
+        rib = _vertical_ribbon(ribbon, _font(_GOTHIC_PATH, int(ribbon_size or 50)))
         rib = rib.rotate(-5, expand=True, resample=Image.BICUBIC)
         base.alpha_composite(rib, (W - rib.width - 66, 96))
 

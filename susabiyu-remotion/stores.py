@@ -208,6 +208,7 @@ STORES = {
         #   ストーリーは元からぎふやと同一コンポーネント＝これでフィードも体裁が揃う。
         "feed_style": "gifuya",
         "feed_ribbon": "梅田",                     # 右上の赤短冊リボン（ぎふやの「福岡天神店」に相当）
+        "feed_ribbon_size": 84,                    # 「梅田」2文字は既定50だと小さいので大きめに
         # ↓ YoshokuFeed(ナガグツ型)用の表記。feed_style=gifuya では未使用だが、
         #   将来ナガグツ型へ戻す場合に備えて残置（他店名の既定焼き込みを防ぐ値）。
         "feed_kicker": "TAISHU SHOKUDO",          # 屋号下の小さなキッカー（ヘッダー型A/B/C案）
