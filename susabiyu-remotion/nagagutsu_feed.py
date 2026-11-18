@@ -292,24 +292,28 @@ def main():
 
     ok = 0
     if (store.get("feed_style") or "").strip().lower() == "gifuya":
-        # ── ぎふや型フィード（全面写真＋縦大料理名＋赤下線＋赤リボン・PIL）──
-        #   Remotion(YoshokuFeed)を使わず gifuya_design で焼く。屋号はテキスト、
-        #   リボンは store["feed_ribbon"]（例：梅田・小松原）。他店ロゴは使わない。
+        # ── ぎふや福岡型フィード＝「短冊(tanzaku)」デザイン（極太ゴシックのキャッチ見出し＋
+        #    右上の赤い縦短冊リボン＋赤下線＋料理名）。ぎふや本家 feed と同じ render_tanzaku で焼く。
+        #   屋号はロゴ画像を持たない店（こまつ原）なので明朝テキスト。リボンは store["feed_ribbon"]。
+        #   見出し＝店のブランド一言(catch) + 料理名（ぎふやの「B級グルメ＼nぎふやのとん平焼き。」に相当）。
         import gifuya_design as _gd
         _ribbon = store.get("feed_ribbon") or ""
+        _catch = getattr(nc, "catch", None)
         for d in dishes:
             _src = os.path.join(OUT_DIR, d["img"])          # f_<slug>.jpg（4:5生写真）
             _dr = "fd_%s.jpg" % d["slug"]
+            _name = d.get("disp") or d["title"]
+            # 見出し2行：1行目＝ブランド一言、2行目＝料理名。catch が無い店は料理名のみ。
+            _lead = (_catch(d["name"]).strip() if callable(_catch) else "")
+            _headline = ((_lead + "\n") if _lead else "") + _name
             try:
-                # subcopy は日本語の一言説明（desc_for）＝ぎふやの体裁に合わせる。
-                #   sub（"SHOKUDO"等の英字カテゴリ）ではなく desc を使う。
-                _gd.render_post(_src, os.path.join(OUT_DIR, _dr),
-                                d.get("disp") or d["title"], subcopy=(d.get("desc") or None),
-                                ribbon=_ribbon, store_name=store["store_name"], quality=92)
+                _gd.render_tanzaku(_src, os.path.join(OUT_DIR, _dr),
+                                   _name, headline=_headline,
+                                   ribbon=_ribbon, store_name=store["store_name"], quality=92)
                 d["design"] = _dr; ok += 1
-                print("  焼き(ぎふや型) %-28s" % d["name"][:28])
+                print("  焼き(ぎふや短冊型) %-26s" % d["name"][:26])
             except Exception as e:
-                print("  WARN ぎふや型焼き失敗 %s: %s" % (d["name"], e))
+                print("  WARN ぎふや短冊型焼き失敗 %s: %s" % (d["name"], e))
         dishes2 = []   # ぎふや型は以降の Remotion 焼きをスキップ
     else:
         used = _assign(dishes)   # 内訳（連続箇所・A/Cを当てた写真の明るさ）は _assign 側で出す

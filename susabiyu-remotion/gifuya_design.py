@@ -340,9 +340,11 @@ def _pullback_base(im, photo_h):
 
 
 def render_tanzaku(src, out, title, headline=None, ribbon="福岡天神店", logo=True,
-                   pullback=None, quality=95):
+                   pullback=None, quality=95, store_name=None, logo_path=None):
     """見本 pattern_tanzaku.jpg の体裁で焼き込む。headline=極太見出し／title=赤下線下の料理名。
-    pullback=写真高さ(px)を指定すると『若干引き』（皿全体が収まる）。quality=JPEG保存品質。"""
+    pullback=写真高さ(px)を指定すると『若干引き』（皿全体が収まる）。quality=JPEG保存品質。
+    左上ブランドの優先順位：① logo_path 指定→その画像／② store_name 指定（ロゴ画像を持たない
+    店。例：こまつ原）→屋号を明朝テキストで描く／③ 既定（ぎふや）→ LOGO_WHITE。"""
     src_im = src if isinstance(src, Image.Image) else Image.open(src)
     if pullback:
         base = _pullback_base(src_im, int(pullback))
@@ -350,9 +352,13 @@ def render_tanzaku(src, out, title, headline=None, ribbon="福岡天神店", log
         base = _cover(src_im, W, H)
     base = _scrim(base).convert("RGBA")
 
-    # ロゴ（白・左上の角へ寄せる）※大きめだが料理の中心には被らない位置
-    if logo and os.path.exists(LOGO_WHITE):
-        lg = Image.open(LOGO_WHITE).convert("RGBA")
+    # 左上ブランド表示
+    _lg_path = logo_path or LOGO_WHITE
+    if store_name and not logo_path:
+        _d0 = ImageDraw.Draw(base)
+        _text_shadow(_d0, (30, 30), store_name, _font(_SERIF_PATH, 58), fill=(255, 255, 255))
+    elif logo and os.path.exists(_lg_path):
+        lg = Image.open(_lg_path).convert("RGBA")
         lw = 360
         lg = lg.resize((lw, int(lg.height * lw / lg.width)), Image.LANCZOS)
         base.alpha_composite(lg, (16, 14))
