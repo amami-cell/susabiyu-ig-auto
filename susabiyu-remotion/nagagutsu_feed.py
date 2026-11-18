@@ -298,6 +298,7 @@ def main():
         #   見出し＝店のブランド一言(catch) + 料理名（ぎふやの「B級グルメ＼nぎふやのとん平焼き。」に相当）。
         import gifuya_design as _gd
         _ribbon = store.get("feed_ribbon") or ""
+        _ribbon_size = int(store.get("feed_ribbon_size") or 50)   # 短い地名は大きめに
         _catch = getattr(nc, "catch", None)
         for d in dishes:
             _src = os.path.join(OUT_DIR, d["img"])          # f_<slug>.jpg（4:5生写真）
@@ -309,7 +310,8 @@ def main():
             try:
                 _gd.render_tanzaku(_src, os.path.join(OUT_DIR, _dr),
                                    _name, headline=_headline,
-                                   ribbon=_ribbon, store_name=store["store_name"], quality=92)
+                                   ribbon=_ribbon, ribbon_size=_ribbon_size,
+                                   store_name=store["store_name"], quality=92)
                 d["design"] = _dr; ok += 1
                 print("  焼き(ぎふや短冊型) %-26s" % d["name"][:26])
             except Exception as e:
