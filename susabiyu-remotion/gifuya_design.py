@@ -228,29 +228,10 @@ def render_post(src, out, title, subcopy=None, ribbon="福岡天神店", logo=Tr
     if ribbon:
         _draw_ribbon(base, ribbon, _font(_GOTHIC_PATH, 40))
 
-    # 料理名。「ー」等の横棒を含む名前は縦書きだと崩れるので、横書き（下・大ゴシック＋赤下線）にする。
-    title = (title or "").strip()
-    if any(c in _VERT_ROTATE for c in title):
-        margin = 56
-        hsize = 120
-        hfont = _font(_GOTHIC_PATH, hsize)
-        while hsize > 44 and draw.textlength(title, font=hfont) > W - 2 * margin:
-            hsize -= 4
-            hfont = _font(_GOTHIC_PATH, hsize)
-        ty = H - 258
-        draw.line([(margin, ty - 22), (margin + 230, ty - 22)], fill=RED, width=9)   # 赤下線
-        _text_heavy(draw, (margin, ty - hfont.getbbox(title)[1]),
-                    title, hfont, fill=(255, 255, 255), edge=(20, 12, 8), weight=2, ow=3)
-    else:
-        # 巨大縦書きの料理名（右側）。1段にきれいに収まるよう文字数から自動縮小（上限150・下限64）。
-        n = max(1, len(title))
-        top_y = 250
-        avail = H - top_y - 120                 # 縦に使える高さ
-        vsize = max(64, min(150, int(avail / (1.1 * n))))
-        vfont = _font(_SERIF_PATH, vsize)
-        _draw_vertical(base, title, right_x=W - 60, top_y=top_y, font=vfont)
-
     # 下部：赤下線＋説明文（画像下）。大きめ＋2行対応（\nで改行、無ければ自動折返し）。
+    #   ※横書き料理名（下・大ゴシック）と衝突しないよう、説明文のレイアウトを先に確定して
+    #     上辺(sub_top)を出し、横書き料理名はその上に収める。
+    sub_top = None
     if subcopy:
         sfont = _font(_GOTHIC_PATH, 62)
         margin = 60
@@ -274,9 +255,38 @@ def render_post(src, out, title, subcopy=None, ribbon="福岡天神店", logo=Tr
         lh = int(62 * 1.22)
         total = lh * len(lines)
         sy0 = H - 66 - total
+        sub_top = sy0 - 22                       # 赤下線の位置＝説明文ブロックの上辺
         draw.line([(margin, sy0 - 22), (margin + 260, sy0 - 22)], fill=RED, width=9)
         for i, ln in enumerate(lines):
             _text_shadow(draw, (margin, sy0 + i * lh), ln, sfont, fill=(255, 255, 255))
+
+    # 料理名。「ー」等の横棒を含む名前は縦書きだと崩れるので、横書き（下・大ゴシック＋赤下線）にする。
+    title = (title or "").strip()
+    if any(c in _VERT_ROTATE for c in title):
+        margin = 56
+        hsize = 120
+        hfont = _font(_GOTHIC_PATH, hsize)
+        while hsize > 44 and draw.textlength(title, font=hfont) > W - 2 * margin:
+            hsize -= 4
+            hfont = _font(_GOTHIC_PATH, hsize)
+        bb = hfont.getbbox(title)
+        th = bb[3] - bb[1]
+        # 底辺＝従来 H-138 相当（subcopy 無しなら見た目そのまま）。説明文があればその上に逃がす。
+        baseline = H - 138
+        if sub_top is not None:
+            baseline = min(baseline, sub_top - 26)
+        top = baseline - th
+        draw.line([(margin, top - 22), (margin + 230, top - 22)], fill=RED, width=9)   # 赤下線
+        _text_heavy(draw, (margin, top - bb[1]),
+                    title, hfont, fill=(255, 255, 255), edge=(20, 12, 8), weight=2, ow=3)
+    else:
+        # 巨大縦書きの料理名（右側）。1段にきれいに収まるよう文字数から自動縮小（上限150・下限64）。
+        n = max(1, len(title))
+        top_y = 250
+        avail = H - top_y - 120                 # 縦に使える高さ
+        vsize = max(64, min(150, int(avail / (1.1 * n))))
+        vfont = _font(_SERIF_PATH, vsize)
+        _draw_vertical(base, title, right_x=W - 60, top_y=top_y, font=vfont)
 
     base.convert("RGB").save(out, quality=quality, subsampling=0)
     return out
