@@ -212,28 +212,30 @@ STORES = {
         #   将来ナガグツ型へ戻す場合に備えて残置（他店名の既定焼き込みを防ぐ値）。
         "feed_kicker": "TAISHU SHOKUDO",          # 屋号下の小さなキッカー（ヘッダー型A/B/C案）
         "rail_label": "KOMATSUBARA · UMEDA",      # 左サイドレールの縦書きラベル（E案）
-        # 【暫定】本番画像が未投入でぎふや写真を間借り中。料理名がファイル名由来で
-        #   「ぎふやの明太出汁巻き」等と他店名を含むため、表示・キャプションから除去する。
-        #   本番画像（こまつ原のファイル名）が入ったら、この name_strip を削除するだけでよい。
-        "name_strip": [r"ぎふや(?:天神|厳選|特製|自慢|名物|こだわり)?の?"],
+        # 本番画像（こまつ原のファイル名）が Drive に投入済み（2026-11）。料理名はファイル名そのまま
+        #   クリーン（他店名を含まない）ため、name_strip は不要＝削除済み。
         # 営業時間。入力用スプレッドシートから読めなかった時のフォールバック（店舗受付シート こまつ原行より）。
         "hours": "11:30〜23:00",
         "region": "梅田・小松原",          # 店舗受付（記入用）シートのエリア＝梅田・小松原（大阪）
         "sheet_id": SANJO_SHEET_ID,       # 同一スプレッドシートを接尾辞タブで共用
         "tab_suffix": "_komatsubara",
         "folders": {
-            # 【仮】本番画像が未投入のため、業態の近いぎふや天神の写真を一時的に借りて見本を焼く。
-            #   本番画像（Drive投入）が入ったら、下のコメントの“こまつ原本来のID”に戻すだけでよい。
-            #   こまつ原 本来の画像フォルダ : 1HyHZs6VWjBoyFQWlJhxu1_l6P4OATOWn
-            #   こまつ原 本来の音楽フォルダ : 1iVeGiJQmGf0oQBYJPq_AktvpZ98ib_cl
-            "food": "1HUtrzFFJiCuazZOhHBW88RVVdrvyh1Ox",          # 仮：ぎふや天神「画像」フォルダ
-            "music_uptempo": "1pk6Lq_TKK4MRWLYRowOjjRRFUfBbyYh_",  # 仮：ぎふや BGM
+            # 画像＝こまつ原 本番フォルダ「画像データ（大衆食堂 こまつ原）」。配下は
+            #   小松原フード → カテゴリ（ランチ・コース/名物/麺/焼鳥・串…）→ 料理写真 の2階層ネスト。
+            #   food_flat=True の再帰収集でカテゴリ名＝直上フォルダ名として拾える。
+            "food": "1HyHZs6VWjBoyFQWlJhxu1_l6P4OATOWn",          # こまつ原 本番「画像」フォルダ
+            # 音楽＝こまつ原 本番フォルダ「音楽データ（大衆食堂 こまつ原）」= 1iVeGiJQmGf0oQBYJPq_AktvpZ98ib_cl
+            #   だが現在オーナー未投入で空のため、BGMだけ暫定でぎふやを間借り（無音ストーリー回避）。
+            #   こまつ原の曲が入ったら上記IDへ差し替える。
+            "music_uptempo": "1pk6Lq_TKK4MRWLYRowOjjRRFUfBbyYh_",  # 暫定：ぎふや BGM（こまつ原音楽が空のため）
             "music_normal": "1pk6Lq_TKK4MRWLYRowOjjRRFUfBbyYh_",
         },
         "patterns": FOOD_ONLY_PATTERNS,   # 和の大衆テンプレ（食材フォルダのみで完結＝他店フォルダ混入ゼロ）
-        # 「画像」配下の非料理サブフォルダは料理として使わない（ロゴ/外観内観/コース集合/ドリンク）。
-        "exclude_cats": ["ロゴ", "外観", "内観", "音楽", "集合", "コース", "ドリンク", "飲み"],
-        "food_flat": True,                # 「画像」直下は フード/ドリンク… のサブ構成＝再帰収集
+        # 「画像」配下の非料理サブフォルダは料理として使わない（ロゴ/外観内観/音楽/集合/ドリンク）。
+        #   ※「コース」は除外に入れない：こまつ原の料理カテゴリ「ランチ・コース」が部分一致で
+        #     丸ごと消える（_excluded は部分一致判定）のを防ぐため。コース集合写真の単独フォルダは無い。
+        "exclude_cats": ["ロゴ", "外観", "内観", "音楽", "集合", "ドリンク", "飲み"],
+        "food_flat": True,                # 「画像」直下は 小松原フード→カテゴリ のネスト＝再帰収集
         "phrases_file": "phrases_komatsubara.json",
         "fallback_phrase": "昼サケ、夜メシ。梅田・こまつ原で。",
         "pwa_url": "https://amami-cell.github.io/susabiyu-media/app/komatsubara.html",
