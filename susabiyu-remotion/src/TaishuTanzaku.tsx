@@ -35,7 +35,17 @@ const KabeBg: React.FC = () => (
   </AbsoluteFill>
 );
 
-export const TaishuTanzaku: React.FC<{ storeName?: string; handle?: string; region?: string; regionScale?: number }> = ({ storeName = "すさび湯三条", handle = "@susabiyu_sanjyo", region = "京都・河原町三条", regionScale = 1 }) => {
+// 料理名が長い時に2列（縦書き2行）へ折り返す。max超なら空白位置、無ければ中央で割る。
+//   段落位置は厳密でなくてよい（下まで伸びて切れる/大きすぎるのを防ぐのが目的）。
+const wrapDish = (nm: string, max: number): string => {
+  if (!max || !nm || nm.length <= max) return nm;
+  const sp = nm.search(/[ \u3000]/);
+  if (sp > 0) return nm.slice(0, sp) + "\n" + nm.slice(sp + 1).replace(/^[ \u3000]+/, "");
+  const h = Math.ceil(nm.length / 2);
+  return nm.slice(0, h) + "\n" + nm.slice(h);
+};
+
+export const TaishuTanzaku: React.FC<{ storeName?: string; handle?: string; region?: string; regionScale?: number; nameSize?: number; nameWrap?: number }> = ({ storeName = "すさび湯三条", handle = "@susabiyu_sanjyo", region = "京都・河原町三条", regionScale = 1, nameSize = 40, nameWrap = 0 }) => {
   const f = useCurrentFrame();
   const titleO = interpolate(f, [4, 18], [0, 1], clamp);
   const titleS = interpolate(f, [4, 14], [1.7, 1], { ...clamp, easing: Easing.out(Easing.cubic) });
@@ -86,7 +96,7 @@ export const TaishuTanzaku: React.FC<{ storeName?: string; handle?: string; regi
               boxShadow: "4px 6px 14px rgba(0,0,0,0.45)" }}>
               <div style={{ width: 12, height: 12, borderRadius: "50%", background: "#2c1c0c", marginBottom: 10, boxShadow: "inset 0 2px 3px rgba(255,255,255,0.4)" }} />
               <span style={{ color: AKA, fontFamily: fude, fontSize: 24, marginBottom: 8 }}>{KAN[i] || (i + 1)}</span>
-              <span style={{ color: "#2c1c0c", fontFamily: fude, fontSize: 40, letterSpacing: 3, writingMode: "vertical-rl" } as React.CSSProperties}>{name}</span>
+              <span style={{ color: "#2c1c0c", fontFamily: fude, fontSize: nameSize, letterSpacing: 2, writingMode: "vertical-rl", whiteSpace: "pre-wrap", textAlign: "center", lineHeight: 1.05 } as React.CSSProperties}>{wrapDish(name, nameWrap)}</span>
             </div>
           </div>
         );

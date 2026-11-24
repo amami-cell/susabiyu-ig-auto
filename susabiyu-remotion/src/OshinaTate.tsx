@@ -27,7 +27,17 @@ const TOTAL = INTRO + N * STEP + HOLD;
 const KAN = ["一", "二", "三", "四", "五", "六", "七", "八", "九", "十"];
 const clamp = { extrapolateLeft: "clamp" as const, extrapolateRight: "clamp" as const };
 
-export const OshinaTate: React.FC<{ storeName?: string; handle?: string; region?: string; regionScale?: number }> = ({ storeName = "すさび湯 河原町三条店", handle = "@susabiyu_sanjyo", region = "京都・河原町三条", regionScale = 1 }) => {
+// 料理名が長い時に2列（縦書き2行）へ折り返す。max超なら空白位置、無ければ中央で割る。
+//   段落位置は厳密でなくてよい（下まで伸びて切れる/大きすぎるのを防ぐのが目的）。
+const wrapDish = (nm: string, max: number): string => {
+  if (!max || !nm || nm.length <= max) return nm;
+  const sp = nm.search(/[ \u3000]/);
+  if (sp > 0) return nm.slice(0, sp) + "\n" + nm.slice(sp + 1).replace(/^[ \u3000]+/, "");
+  const h = Math.ceil(nm.length / 2);
+  return nm.slice(0, h) + "\n" + nm.slice(h);
+};
+
+export const OshinaTate: React.FC<{ storeName?: string; handle?: string; region?: string; regionScale?: number; nameSize?: number; nameWrap?: number }> = ({ storeName = "すさび湯 河原町三条店", handle = "@susabiyu_sanjyo", region = "京都・河原町三条", regionScale = 1, nameSize = 40, nameWrap = 0 }) => {
   const f = useCurrentFrame();
   const titleO = interpolate(f, [4, 20], [0, 1], clamp);
   const ruleW = interpolate(f, [12, 32], [0, 1], { ...clamp, easing: Easing.out(Easing.ease) });
@@ -64,7 +74,7 @@ export const OshinaTate: React.FC<{ storeName?: string; handle?: string; region?
             {/* 縦書きの名札（写真の上に） */}
             <div style={{ position: "absolute", top: 16, right: 16, display: "flex", flexDirection: "column", alignItems: "center", padding: "16px 12px", borderRadius: 10, background: "rgba(20,16,12,0.5)" }}>
               <span style={{ color: GOLD, fontFamily: mincho, fontSize: 26, marginBottom: 10 }}>{KAN[i] || (i + 1)}</span>
-              <span style={{ color: "#fff", fontFamily: mincho, fontWeight: 600, fontSize: 40, letterSpacing: 4, writingMode: "vertical-rl", textShadow: "0 2px 8px rgba(0,0,0,0.6)" }}>{name}</span>
+              <span style={{ color: "#fff", fontFamily: mincho, fontWeight: 600, fontSize: nameSize, letterSpacing: 3, writingMode: "vertical-rl", whiteSpace: "pre-wrap", textAlign: "center", lineHeight: 1.05, textShadow: "0 2px 8px rgba(0,0,0,0.6)" } as React.CSSProperties}>{wrapDish(name, nameWrap)}</span>
             </div>
           </div>
         );
