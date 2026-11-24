@@ -2489,7 +2489,11 @@
     function scRe(){ var el=document.getElementById('scBody'); if(el) el.innerHTML=scBodyHtml(scPer()); }
     function scSortChip(s,label){ return '<button class="apchip'+(scSort===s?' on':'')+'" onclick="scSetSort(\''+s+'\')">'+label+'</button>'; }
     function scBodyHtml(per){
-      var withRes=per.filter(function(p){ return has(p.apps)||has(p.hires); });
+      var withRes=per.filter(function(p){
+        // 空行（媒体名なし＆応募・採用ともに0）＝シートの仮置き・未入力行は隠す
+        if(!String(p.media==null?'':p.media).trim() && num(p.apps)===0 && num(p.hires)===0) return false;
+        return has(p.apps)||has(p.hires);
+      });
       var lnote='<div class="lnote">結果入力済みの打ち出しを集計。<b>採用率</b>＝採用÷応募／<b>採用単価</b>＝求人費÷採用／<b>退職率</b>＝退職÷採用／<b>平均期間</b>＝掲載終了済みの平均（終了日未入力は「進行中」）。色は<b>同じ一覧の中で一番良い＝緑・一番注意＝赤</b>。<b>🏆おすすめ</b>＝採用単価×定着（退職率）で総合判定（安くてもすぐ辞める媒体は下げる。比較できる媒体が2つ以上ある時だけ表示）。</div>';
       var modeBar='<div class="apchips"><span class="aplabel">見方</span>'+
         '<button class="apchip'+(scMode==='media'?' on':'')+'" onclick="scSetMode(\'media\')">媒体ごと</button>'+
