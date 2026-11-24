@@ -219,6 +219,8 @@ STORES = {
         "hours": "11:30〜23:00",
         "region": "梅田・小松原",          # 店舗受付（記入用）シートのエリア＝梅田・小松原（大阪）
         "region_scale": 1.6,               # ストーリーの地名「梅田・小松原」を大きく（ユーザー要望）
+        "dish_name_size": 30,              # 縦書き料理名を縮小（短冊/お品書きで大きすぎ・はみ出し対策）
+        "dish_name_wrap": 5,               # 5文字超の料理名は縦2列へ折り返し（下まで伸びて切れるのを防ぐ）
         "sheet_id": SANJO_SHEET_ID,       # 同一スプレッドシートを接尾辞タブで共用
         "tab_suffix": "_komatsubara",
         "folders": {
@@ -327,6 +329,10 @@ def render_props(store):
         "theme": store.get("theme", ""),
         # 地名(region)のフォント倍率。既定1＝他店は従来どおり。長い/小さい地名の店だけ大きくする。
         "regionScale": store.get("region_scale", 1),
+        # 縦書き料理名（短冊/お品書き）のフォントpxと、2列折り返しの閾値（文字数）。
+        #   既定 40 / 0（=折り返さない）＝他店は従来どおり。長い料理名の店だけ縮小＋折返しする。
+        "nameSize": store.get("dish_name_size", 40),
+        "nameWrap": store.get("dish_name_wrap", 0),
     }
 
 
