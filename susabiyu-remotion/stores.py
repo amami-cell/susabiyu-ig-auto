@@ -218,6 +218,7 @@ STORES = {
         # 営業時間。入力用スプレッドシートから読めなかった時のフォールバック（店舗受付シート こまつ原行より）。
         "hours": "11:30〜23:00",
         "region": "梅田・小松原",          # 店舗受付（記入用）シートのエリア＝梅田・小松原（大阪）
+        "region_scale": 1.6,               # ストーリーの地名「梅田・小松原」を大きく（ユーザー要望）
         "sheet_id": SANJO_SHEET_ID,       # 同一スプレッドシートを接尾辞タブで共用
         "tab_suffix": "_komatsubara",
         "folders": {
@@ -324,6 +325,8 @@ def render_props(store):
         "handle": store["handle"],
         "region": store["region"],
         "theme": store.get("theme", ""),
+        # 地名(region)のフォント倍率。既定1＝他店は従来どおり。長い/小さい地名の店だけ大きくする。
+        "regionScale": store.get("region_scale", 1),
     }
 
 
