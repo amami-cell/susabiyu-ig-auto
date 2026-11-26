@@ -1,0 +1,65 @@
+name: verify-brand-logo
+# 【検証用・一時】店別ブランドロゴ注入(brand_logo.py)の結果を目視確認するためだけのワークフロー。
+# 各店について public/logo.png を生成し、pwa/_verify/<店>.png に吐き出してブランチへpushする。
+# 確認後に削除する（mainには入れない）。
+on:
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: susabiyu-remotion
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install deps
+        run: pip install google-api-python-client google-auth Pillow
+      - name: Write creds.json
+        run: echo "$GOOGLE_CREDS_B64" | base64 -d > creds.json
+        env:
+          GOOGLE_CREDS_B64: ${{ secrets.GOOGLE_CREDS_B64 }}
+      - name: Build per-store logo.png
+        env:
+          GOOGLE_CREDS_B64: ${{ secrets.GOOGLE_CREDS_B64 }}
+        run: |
+          python - <<'PY'
+          import os, shutil, hashlib
+          import stores, brand_logo
+          from googleapiclient.discovery import build
+          from google.oauth2 import service_account
+          creds = service_account.Credentials.from_service_account_file(
+              "creds.json", scopes=["https://www.googleapis.com/auth/drive.readonly"])
+          drive = build("drive", "v3", credentials=creds)
+          os.makedirs("../pwa/_verify", exist_ok=True)
+          BASE = open("public/logo.png", "rb").read()
+          base_h = hashlib.md5(BASE).hexdigest()
+          print("baseline(すさび湯) logo.png md5:", base_h[:10])
+          for acct in ["gifuyatenjin", "nagagutsu", "goldporta", "komatsubara", "karasuma", ""]:
+              open("public/logo.png", "wb").write(BASE)       # 毎回すさび湯既定へリセット
+              for k in list(os.environ):
+                  if k.startswith("GENRE_"):
+                      os.environ.pop(k, None)
+              st = stores.get_store(acct); stores.apply_fetch_env(st)
+              food = os.environ.get("GENRE_FOOD_ID", "")
+              ok = brand_logo.ensure_brand_logo(drive, food, acct)
+              data = open("public/logo.png", "rb").read()
+              h = hashlib.md5(data).hexdigest()
+              name = acct or "sanjo"
+              shutil.copyfile("public/logo.png", "../pwa/_verify/%s.png" % name)
+              print("[RESULT] %-13s visible=%s md5=%s same_as_susabiyu=%s" % (name, ok, h[:10], h == base_h))
+          open("public/logo.png", "wb").write(BASE)            # リポのlogo.pngはすさび湯のまま維持
+          PY
+      - name: Commit verify images to branch
+        run: |
+          cd ..
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add pwa/_verify
+          git commit -m "verify: 店別logo.png生成結果（検証用・後で削除）" || echo "no change"
+          git push origin HEAD:claude/epic-maxwell-mj7dkg
