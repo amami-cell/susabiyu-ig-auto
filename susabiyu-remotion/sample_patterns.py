@@ -13,6 +13,19 @@ HEADER = ["pattern", "label", "url", "poster", "blur", "enabled", "updated"]
 # 既定で採用(=投稿に使う)のは基本4種だけ。新パターンは見本で採用されるまで「無し(0)」。
 CORE = {"sushi", "tempo", "typo", "photo"}
 
+# 店別見本：STORE_ACCOUNT を指定すると、その店のDrive写真・ロゴ・文言で焼き、
+# タブも「パターン_<account>」に分ける（三条=account空は従来どおり「パターン」で不変）。
+_ACCT = (os.environ.get("STORE_ACCOUNT") or "").strip()
+if _ACCT:
+    try:
+        import stores as _stores
+        _st = _stores.get_store(_ACCT)
+        _stores.apply_fetch_env(_st)   # GENRE_FOOD_ID 等を店別に（fetch_* 子プロセスへ継承）
+        TAB = "パターン_" + _ACCT
+        print("[SAMPLE] 店別モード account=%s tab=%s" % (_ACCT, TAB))
+    except Exception as _e:
+        print("[SAMPLE] 店別env適用スキップ:", _e)
+
 
 def _ensure_creds():
     if not os.path.exists("creds.json") and os.environ.get("GOOGLE_CREDS_B64"):
