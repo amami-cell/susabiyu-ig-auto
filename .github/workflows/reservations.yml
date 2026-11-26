@@ -211,6 +211,10 @@ jobs:
           # 全枠ループは必ずガードON＝早出し/窓外(夜間)/二重を防ぐ。
           POST_SCHED_GUARD: "1"
           POST_MAX_LATE_MIN: "600"
+          # ★投稿HOLD（最終確認待ち）★：トークンは入っている＝DM監視は動くが、オーナーの
+          # 最終確認が済むまで“実投稿だけ”止めたい店をスペース区切りで列挙する。
+          # 再開するにはこの値から店アカウントを外す（空＝通常運用）。
+          POST_HOLD_ACCOUNTS: "komatsubara"
         run: |
           # 店舗ごとに本日の全枠を順に試す（slots は stores.py 準拠：ぎふや11/17/20・ナガグツ12/18/20・GOLD11/18/20・こまつ原11/18/20）。
           # こまつ原はトークン未設定/承認待ちゼロのうちは post_approved が安全にskip（本番反映はオープン後）。
@@ -227,6 +231,12 @@ jobs:
               echo "[READY-GUARD] $STORE_ACCOUNT はIGトークン未設定＝未整備のためスキップ（既存店に影響させない）"
               continue
             fi
+            # ★HOLDガード★：トークンは入っていてもオーナー最終確認待ちの店は実投稿しない（DM監視は別途動く）。
+            case " ${POST_HOLD_ACCOUNTS:-} " in
+              *" $STORE_ACCOUNT "*)
+                echo "[HOLD] $STORE_ACCOUNT は最終確認待ちのため投稿スキップ（POST_HOLD_ACCOUNTS）"
+                continue;;
+            esac
             for HH in $SLOTS; do
               DT="$D ${HH}:00"
               echo "=== 枠を試行: $STORE_ACCOUNT $DT ==="
