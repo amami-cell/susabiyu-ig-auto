@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>initiate Co., Ltd</title>
+<meta name="description" content="initiate株式会社 総合ページ">
+<link rel="apple-touch-icon" href="./icons/icon-192.png">
+<link rel="icon" href="./icons/icon-192.png">
+<style>
+  :root{
+    --bg:#0f1115; --card:#171c26; --line:#2a303c;
+    --fg:#ffffff; --sub:#b9c0cc; --accent:#e8b35a; --accent2:#7fd1a0;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;background:var(--bg);color:var(--fg);
+    font-family:-apple-system,BlinkMacSystemFont,"Hiragino Sans","Noto Sans JP",sans-serif;
+    -webkit-font-smoothing:antialiased}
+  body{min-height:100svh;display:flex;flex-direction:column}
+  .wrap{width:100%;max-width:760px;margin:0 auto;padding:0 16px;flex:1 0 auto;
+    display:flex;flex-direction:column}
+  /* ヒーロー（イニシエートロゴ） */
+  .hero{padding:64px 0 36px;text-align:center}
+  .hero .logo{width:132px;height:132px;border-radius:30px;display:block;margin:0 auto 22px;
+    box-shadow:0 18px 50px rgba(0,0,0,.5);object-fit:cover}
+  .hero h1{margin:0;font-size:26px;letter-spacing:.06em;font-weight:800}
+  .hero .en{margin:6px 0 0;font-size:13px;letter-spacing:.32em;color:var(--sub);
+    text-transform:uppercase}
+  .rule{height:1px;background:linear-gradient(90deg,transparent,var(--line),transparent);
+    margin:8px 0 30px}
+  /* プレースホルダ：中身は後で差し込む */
+  .ph{background:var(--card);border:1px solid var(--line);border-radius:18px;
+    padding:30px 22px;text-align:center}
+  .ph .badge{display:inline-block;font-size:11px;font-weight:800;letter-spacing:.14em;
+    color:var(--accent);border:1px solid rgba(232,179,90,.4);background:rgba(232,179,90,.08);
+    border-radius:999px;padding:5px 14px;margin-bottom:14px}
+  .ph h2{margin:0 0 8px;font-size:18px;font-weight:800}
+  .ph p{margin:0;color:var(--sub);font-size:14px;line-height:1.8}
+  /* 店舗カードの受け皿（中身が来たら .grid に追加していく） */
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:14px;
+    margin-top:26px}
+  .grid:empty{display:none}
+  footer{flex-shrink:0;text-align:center;color:var(--sub);font-size:12px;
+    padding:30px 16px 34px;letter-spacing:.04em}
+  @media (max-width:420px){ .hero{padding:48px 0 28px} .hero .logo{width:112px;height:112px} }
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <header class="hero">
+      <img class="logo" src="./icons/icon-192.png" alt="initiate Co., Ltd">
+      <h1>initiate 株式会社</h1>
+      <div class="en">initiate&nbsp;Co.,&nbsp;Ltd</div>
+    </header>
+    <div class="rule"></div>
+
+    <!-- ▼▼ ここに総合ページの中身を差し込む（店舗一覧・会社情報など。オーナーから共有後に実装）▼▼ -->
+    <section class="ph" id="content">
+      <span class="badge">準備中</span>
+      <h2>総合ページ 準備中</h2>
+      <p>内容は追って掲載します。<br>（店舗一覧・会社情報などをここに差し込みます）</p>
+    </section>
+    <div class="grid" id="stores"><!-- 店舗カードはここへ --></div>
+    <!-- ▲▲ 差し込みここまで ▲▲ -->
+  </div>
+
+  <footer>© initiate Co., Ltd</footer>
+</body>
+</html>
