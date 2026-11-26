@@ -225,19 +225,27 @@ for i, f in enumerate(picked, 1):
 
 logo_path = os.path.join("public", "logo.png")
 has_logo = False
-try:
-    logos = gather(LOGO_FOLDER)
-    pngs = [x for x in logos if "png" in x["mimeType"]]
-    pick = (pngs or logos)[0] if logos else None
-    if pick:
-        download(pick["id"], logo_path)
+_acct = os.environ.get("STORE_ACCOUNT", "").strip()
+import brand_logo
+if _acct and _acct not in brand_logo.SUSABIYU_ACCOUNTS:
+    # 非すさび湯店：店別ロゴを logo.png に（店舗横断＝すさび湯ロゴ焼き込みを防ぐ）。
+    # 取れなければ完全透過に差し替わり、すさび湯ロゴは出ない。
+    has_logo = brand_logo.ensure_brand_logo(drive, FOOD_FOLDER, _acct)
+else:
+    # すさび湯本体（三条/鮨処）：既定ロゴフォルダ(LOGO_FOLDER=すさび湯)から取得＝従来動作。
+    try:
+        logos = gather(LOGO_FOLDER)
+        pngs = [x for x in logos if "png" in x["mimeType"]]
+        pick = (pngs or logos)[0] if logos else None
+        if pick:
+            download(pick["id"], logo_path)
+            has_logo = True
+            print("LOGO:", pick["name"], "-> public/logo.png")
+    except Exception:
+        print("ロゴはDriveから取得できず。public/logo.png があれば使います。")
+    if not has_logo and os.path.exists(logo_path):
         has_logo = True
-        print("LOGO:", pick["name"], "-> public/logo.png")
-except Exception:
-    print("ロゴはDriveから取得できず。public/logo.png があれば使います。")
-if not has_logo and os.path.exists(logo_path):
-    has_logo = True
-    print("既存の public/logo.png を使用します。")
+        print("既存の public/logo.png を使用します。")
 
 lines = ["export const photos: { src: string; caption: string }[] = ["]
 for src, cap in entries:
