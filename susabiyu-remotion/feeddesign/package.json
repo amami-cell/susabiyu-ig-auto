@@ -1,0 +1,7 @@
+{
+  "name": "komatsubara-feeddesign",
+  "private": true,
+  "version": "1.0.0",
+  "description": "こまつ原フィード画像(Q1-Q5)をPlaywrightで焼く",
+  "dependencies": { "playwright": "1.48.2" }
+}

@@ -56,6 +56,32 @@ jobs:
           if [ -n "${{ github.event.inputs.limit }}" ]; then LIM="--limit ${{ github.event.inputs.limit }}"; fi
           python nagagutsu_feed.py creds.json $LIM
           rm -f creds.json
+      # ── Q1〜Q5（グルメ投稿風オーバーレイ）を Playwright で焼いて fd_*.jpg を上書きする。
+      #    PIL(ぎふや短冊)版の fd_ はここで上書きされる。feed.json の design/ design_id も更新。
+      #    専用フォント(ZenKaku Black / しっぽり明朝Bold)はCIでDL（リポジトリに同梱しない）。
+      #    Noto Serif CJK JP は上の fonts-noto-cjk を使う。
+      - name: Install feed-design deps (Playwright + 専用フォント)
+        working-directory: susabiyu-remotion/feeddesign
+        run: |
+          mkdir -p fonts
+          curl -sSL --retry 3 -o fonts/ZenKakuGothicNew-Black.ttf https://raw.githubusercontent.com/google/fonts/main/ofl/zenkakugothicnew/ZenKakuGothicNew-Black.ttf
+          curl -sSL --retry 3 -o fonts/ShipporiMincho-Bold.ttf https://raw.githubusercontent.com/google/fonts/main/ofl/shipporimincho/ShipporiMincho-Bold.ttf
+          npm i
+          npx playwright install --with-deps chromium
+      - name: Render Q1-Q5 feed design (fd_*.jpg を上書き)
+        working-directory: susabiyu-remotion
+        env:
+          FD_LIMIT: ${{ github.event.inputs.limit }}
+        run: |
+          node feeddesign/render.js ../pwa/komatsubara
+          python -c "import make_thumbs; make_thumbs.main('../pwa/komatsubara')"
+      - name: (test) upload sample fd images
+        if: ${{ github.event.inputs.limit != '' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: fd-samples
+          path: pwa/komatsubara/fd_*.jpg
+          retention-days: 3
       - name: Commit changes + deploy
         run: |
           set -e
