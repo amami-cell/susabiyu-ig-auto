@@ -35,7 +35,46 @@ const KabeBg: React.FC = () => (
   </AbsoluteFill>
 );
 
-export const TaishuTanzaku: React.FC<{ storeName?: string; handle?: string; region?: string }> = ({ storeName = "すさび湯三条", handle = "@susabiyu_sanjyo", region = "京都・河原町三条" }) => {
+// 料理名が長い時に縦書き2列へ折り返す。段落(割れ位置)が不自然にならないよう:
+//   ①空白があればそこで割る ②メニュー語尾(焼き/揚げ/うどん/コロッケ/フライ/巻き/餃子…)の
+//   手前で割る ③漢字/かな/カタカナの境目を優先 ④カタカナ語の途中では割らない ⑤小文字(ー・ッ等)で
+//   列頭を始めない ⑥なるべく中央。辞書は使わず語尾リスト＋文字種のヒューリスティック。
+const _SMALL = "ーャュョッンァィゥェォ・ぁぃぅぇぉっゃゅょゎん々ゝヽｰ";
+const _SUF = ["焼きおにぎり","おにぎり","焼きそば","うどん","そば","コロッケ","フライ","サラダ",
+  "スライス","キャベツ","チーズ巻き","チーズ","コース","セット","ライス","カレー","バター","ぽん酢",
+  "唐揚げ","天ぷら","たまご","焼売","餃子","巻き","揚げ","炒め","漬け","焼き","盛り","煮","造り",
+  "団子","わさび","合わせ"];
+const _scr = (c: string): string => {
+  const o = c.charCodeAt(0);
+  if (o >= 0x3040 && o <= 0x309F) return "H";
+  if (o >= 0x30A0 && o <= 0x30FF) return "K";
+  if (o >= 0x4E00 && o <= 0x9FFF) return "J";
+  return "O";
+};
+const wrapDish = (nm: string, max: number): string => {
+  if (!max || !nm || nm.length <= max) return nm;
+  const sp = nm.search(/[ \u3000]/);
+  if (sp > 0) {
+    const a = nm.slice(0, sp).replace(/[ \u3000]+$/, "");
+    const b = nm.slice(sp + 1).replace(/^[ \u3000]+/, "");
+    if (a && b) return a + "\n" + b;
+  }
+  const n = nm.length, mid = n / 2;
+  let best = -1, bs = -1e9;
+  for (let i = 2; i <= n - 2; i++) {
+    if (_SMALL.indexOf(nm[i]) >= 0) continue;
+    const issuf = _SUF.some((s) => nm.slice(i) === s);
+    let sc = -Math.abs(i - mid);
+    if (_scr(nm[i - 1]) !== _scr(nm[i])) sc += 1;
+    if (issuf) sc += 3;
+    if (!issuf && _scr(nm[i - 1]) === "K" && _scr(nm[i]) === "K") sc -= 5;
+    if (sc > bs) { bs = sc; best = i; }
+  }
+  if (best < 0) best = Math.ceil(n / 2);
+  return nm.slice(0, best) + "\n" + nm.slice(best);
+};
+
+export const TaishuTanzaku: React.FC<{ storeName?: string; handle?: string; region?: string; regionScale?: number; nameSize?: number; nameWrap?: number }> = ({ storeName = "すさび湯三条", handle = "@susabiyu_sanjyo", region = "京都・河原町三条", regionScale = 1, nameSize = 40, nameWrap = 0 }) => {
   const f = useCurrentFrame();
   const titleO = interpolate(f, [4, 18], [0, 1], clamp);
   const titleS = interpolate(f, [4, 14], [1.7, 1], { ...clamp, easing: Easing.out(Easing.cubic) });
@@ -86,7 +125,7 @@ export const TaishuTanzaku: React.FC<{ storeName?: string; handle?: string; regi
               boxShadow: "4px 6px 14px rgba(0,0,0,0.45)" }}>
               <div style={{ width: 12, height: 12, borderRadius: "50%", background: "#2c1c0c", marginBottom: 10, boxShadow: "inset 0 2px 3px rgba(255,255,255,0.4)" }} />
               <span style={{ color: AKA, fontFamily: fude, fontSize: 24, marginBottom: 8 }}>{KAN[i] || (i + 1)}</span>
-              <span style={{ color: "#2c1c0c", fontFamily: fude, fontSize: 40, letterSpacing: 3, writingMode: "vertical-rl" } as React.CSSProperties}>{name}</span>
+              <span style={{ color: "#2c1c0c", fontFamily: fude, fontSize: nameSize, letterSpacing: 2, writingMode: "vertical-rl", whiteSpace: "pre-wrap", textAlign: "center", lineHeight: 1.05 } as React.CSSProperties}>{wrapDish(name, nameWrap)}</span>
             </div>
           </div>
         );
@@ -95,7 +134,7 @@ export const TaishuTanzaku: React.FC<{ storeName?: string; handle?: string; regi
       {/* 屋号 */}
       <div style={{ position: "absolute", bottom: 78, left: 0, width: "100%", textAlign: "center", opacity: footO }}>
         <div style={{ color: SHIRO, fontFamily: fude, fontSize: 40, letterSpacing: 4, marginBottom: 10, ...fuchi(KURO, 5) }}>{storeName}</div>
-        <div style={{ color: SHIRO, fontFamily: goshi, fontSize: 26, letterSpacing: 2, ...fuchi(KURO, 4) }}>{region}　{handle}</div>
+        <div style={{ color: SHIRO, fontFamily: goshi, fontSize: 26, letterSpacing: 2, ...fuchi(KURO, 4) }}><span style={{ fontSize: Math.round(26 * regionScale) }}>{region}</span>　{handle}</div>
       </div>
     </AbsoluteFill>
   );
