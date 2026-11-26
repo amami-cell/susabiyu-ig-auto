@@ -45,6 +45,7 @@ jobs:
           IG_ACCESS_TOKEN_GIFUYATENJIN: ${{ secrets.IG_ACCESS_TOKEN_GIFUYATENJIN }}
           IG_ACCESS_TOKEN_NAGAGUTSU: ${{ secrets.IG_ACCESS_TOKEN_NAGAGUTSU }}
           IG_ACCESS_TOKEN_GOLDPORTA: ${{ secrets.IG_ACCESS_TOKEN_GOLDPORTA }}
+          IG_ACCESS_TOKEN_KOMATSUBARA: ${{ secrets.IG_ACCESS_TOKEN_KOMATSUBARA }}
           # 通知（Web Push）用。三条と同じVAPID鍵を共用。
           VAPID_PRIVATE_KEY: ${{ secrets.VAPID_PRIVATE_KEY }}
           VAPID_SUBJECT: ${{ secrets.VAPID_SUBJECT }}
