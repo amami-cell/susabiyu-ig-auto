@@ -6,6 +6,10 @@ on:
         description: "対象パターンkey（空=全動画パターン）例: sushi tempo typo photo"
         required: false
         default: ""
+      account:
+        description: "店舗アカウント（空=三条）。例 komatsubara ＝その店のDrive写真/ロゴ/文言で焼き、パターン_<account>タブへ"
+        required: false
+        default: ""
 jobs:
   samples:
     runs-on: ubuntu-latest
@@ -34,6 +38,7 @@ jobs:
       - name: Render pattern samples
         env:
           USAGE_SKIP: "1"
+          STORE_ACCOUNT: ${{ github.event.inputs.account }}
           GOOGLE_CREDS_B64: ${{ secrets.GOOGLE_CREDS_B64 }}
           IG_ACCESS_TOKEN: ${{ secrets.IG_ACCESS_TOKEN }}
           SHEET_ID: ${{ secrets.SHEET_ID }}
