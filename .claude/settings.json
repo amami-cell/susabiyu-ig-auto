@@ -1,0 +1,27 @@
+{
+  "permissions": {
+    "defaultMode": "acceptEdits",
+    "allow": [
+      "Bash",
+      "Read",
+      "Edit",
+      "Write",
+      "Glob",
+      "Grep",
+      "WebFetch",
+      "WebSearch",
+      "mcp__Google_Drive__*",
+      "mcp__Google_Sheets__*",
+      "mcp__Google_Docs__*",
+      "mcp__Google_Calendar__*",
+      "mcp__github__*",
+      "mcp__Claude_Code_Remote__*",
+      "mcp__Canva__*"
+    ],
+    "deny": [
+      "Bash(rm -rf /*)",
+      "Bash(git push --force*)",
+      "Bash(git push -f *)"
+    ]
+  }
+}
