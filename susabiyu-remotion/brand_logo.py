@@ -17,6 +17,10 @@
 import os, io
 
 PUB_LOGO = os.path.join("public", "logo.png")
+# storelogo_white.png も“すさび湯の白ロゴ”がリポ同梱でハードコード参照される（noren/taishunoren/
+# gridzoom/taishukaiten/taishuoshi/taishugrid/taishutempo/beat/cinereel/TaishuImgAn 等）。
+# これも店別の白ロゴへ差し替える（＝第2の店舗横断経路を塞ぐ）。
+PUB_STORELOGO = os.path.join("public", "storelogo_white.png")
 # すさび湯本体（既定ロゴ＝すさび湯でそのまま正しい店）。ここは触らない。
 SUSABIYU_ACCOUNTS = {"", "karasuma"}
 
@@ -143,11 +147,23 @@ def _build_store_logo(drive, food_folder, account):
                     pk[x, y] = (CR, CG, CB, a)
         print("[BRAND] 暗ロゴ→生成りに整えました (avg=%.0f)" % avg)
     im_k.save(PUB_LOGO)
+    # storelogo_white.png（ハードコード参照）用の白ロゴ。logo_color 店（GOLD等）は色付きのまま。
+    if color_only:
+        im_c.save(PUB_STORELOGO)
+    else:
+        im_w = im_c.copy()
+        pw = im_w.load(); ww, hh = im_w.size
+        for y in range(hh):
+            for x in range(ww):
+                r, g, b, a = pw[x, y]
+                if a > 0:
+                    pw[x, y] = (255, 255, 255, a)
+        im_w.save(PUB_STORELOGO)
     try:
         os.remove(raw)
     except Exception:
         pass
-    print("[BRAND] public/logo.png を店別ロゴに差し替え (%s) %r" % (account, im_k.size))
+    print("[BRAND] 店別ロゴに差し替え (%s) logo.png+storelogo_white.png %r" % (account, im_k.size))
     return True
 
 
@@ -160,15 +176,16 @@ _TRANSPARENT_PNG = (
 
 
 def _write_transparent_placeholder():
-    """非すさび湯店で店ロゴが取れない時、すさび湯ロゴを絶対に出さないための完全透過 logo.png。
-    ファイル自体は残すので、logo.png を無条件参照するテンプレでもレンダーは壊れない（ロゴは不可視）。"""
+    """非すさび湯店で店ロゴが取れない時、すさび湯ロゴを絶対に出さないための完全透過画像。
+    logo.png / storelogo_white.png の両方を透過に（無条件参照テンプレでもレンダーは壊れない・ロゴ不可視）。"""
     os.makedirs("public", exist_ok=True)
-    try:
-        from PIL import Image
-        Image.new("RGBA", (8, 8), (0, 0, 0, 0)).save(PUB_LOGO)
-    except Exception:
-        with open(PUB_LOGO, "wb") as fp:
-            fp.write(_TRANSPARENT_PNG)
+    for path in (PUB_LOGO, PUB_STORELOGO):
+        try:
+            from PIL import Image
+            Image.new("RGBA", (8, 8), (0, 0, 0, 0)).save(path)
+        except Exception:
+            with open(path, "wb") as fp:
+                fp.write(_TRANSPARENT_PNG)
 
 
 def ensure_brand_logo(drive, food_folder, account):

@@ -36,6 +36,10 @@ if not creds_path:
 scopes = ["https://www.googleapis.com/auth/drive.readonly"]
 creds = service_account.Credentials.from_service_account_file(creds_path, scopes=scopes)
 drive = build("drive", "v3", credentials=creds)
+# 店別ブランドロゴを public/logo.png + storelogo_white.png に用意（店舗横断＝すさび湯ロゴ焼き込みを防ぐ）。
+# ※noren/taishunoren 等が storelogo_white.png（すさび湯白ロゴ）をハードコード参照するため必須。
+import brand_logo
+brand_logo.ensure_brand_logo(drive, FOOD_FOLDER, os.environ.get("STORE_ACCOUNT", ""))
 
 import io as _io_ms
 from googleapiclient.http import MediaIoBaseDownload as _MIBD_ms

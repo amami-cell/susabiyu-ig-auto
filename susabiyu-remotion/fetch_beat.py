@@ -39,6 +39,9 @@ if not creds_path:
 scopes = ["https://www.googleapis.com/auth/drive.readonly"]
 creds = service_account.Credentials.from_service_account_file(creds_path, scopes=scopes)
 drive = build("drive", "v3", credentials=creds)
+# 店別ブランドロゴを public/logo.png + storelogo_white.png に用意（店舗横断＝すさび湯ロゴ焼き込みを防ぐ）。
+import brand_logo
+brand_logo.ensure_brand_logo(drive, FOOD_FOLDER, os.environ.get("STORE_ACCOUNT", ""))
 
 def list_children(fid):
     out = []
