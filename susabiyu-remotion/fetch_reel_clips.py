@@ -101,6 +101,12 @@ def _from_sheet(creds_path):
 
 def main():
     drive, creds_path = _drive_and_creds()
+    # 店別ブランドロゴを public/logo.png + storelogo_white.png に用意（CineReel が storelogo_white を参照）。
+    try:
+        import brand_logo
+        brand_logo.ensure_brand_logo(drive, os.environ.get("GENRE_FOOD_ID", ""), os.environ.get("STORE_ACCOUNT", ""))
+    except Exception as e:
+        print("[CLIP] brand_logo skip:", e)
     clips = _from_drive(drive) + _from_sheet(creds_path)
     clips = clips[:MAX_CLIPS]
     music = "bgm.mp3"
