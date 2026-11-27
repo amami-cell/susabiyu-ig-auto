@@ -252,6 +252,18 @@
     var fresh = [];
     STORES.forEach(function (s) { if (!seen[s.id]) fresh.push({ t: "s", id: s.id }); });
     if (fresh.length) layout.items = fresh.concat(layout.items);
+    // 「イニシエート総合（本部）」は常に先頭に固定＝必ず1ページ目の先頭に出す
+    // （保存済みで末尾やフォルダ内にあっても毎回先頭へ引き上げる）。
+    (function () {
+      var want = "initiate";
+      if (!BYID[want]) return;
+      for (var i = layout.items.length - 1; i >= 0; i--) {
+        var it = layout.items[i];
+        if (it.t === "s" && it.id === want) { layout.items.splice(i, 1); }
+        else if (it.t === "f") { var k = it.ids.indexOf(want); if (k >= 0) it.ids.splice(k, 1); }
+      }
+      layout.items.unshift({ t: "s", id: want });
+    })();
     (layout.hidden || []).forEach(pullFromFolders); // 非表示の店はフォルダに残さない
     normalize();
   }
