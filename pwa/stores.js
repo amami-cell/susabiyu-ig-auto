@@ -8,6 +8,7 @@
 // url:     店舗ページ（準備中の店は共通の store.html?id=◯◯ に飛ぶ）
 // live:    true=稼働中 / false=準備中バッジを出す
 window.SUSABIYU_STORES = [
+  { id: "initiate",     name: "イニシエート総合",     full: "イニシエート SNS投稿 総合管理", short: "本部", icon: "icons/store_initiate.png", initial: "総", url: "./initiate.html", live: true },
   { id: "sanjo",        name: "すさび湯三条店",       full: "すさび湯 河原町三条店",       short: "稼働中", icon: "icons/store_susabiyu.png", initial: "湯", url: "./index.html",    live: true },
   { id: "taishusushi",  name: "すさび湯/梅田",        full: "大衆寿司酒場すさび湯",         short: "", icon: "icons/store_susabiyu.png", initial: "湯", url: "./store.html?id=taishusushi", live: false },
   { id: "hiyoko",       name: "ひよこ飯店",           full: "ひよこ飯店",                   short: "", icon: "icons/store_hiyoko.png", initial: "ひ", url: "./store.html?id=hiyoko", live: false },
