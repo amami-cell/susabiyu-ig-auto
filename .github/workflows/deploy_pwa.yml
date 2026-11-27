@@ -25,6 +25,10 @@ on:
   push:
     branches: [ main ]
     paths: [ 'pwa/**', '.github/workflows/deploy_pwa.yml' ]
+# 同時実行を直列化（site ブランチの Pages ビルドが次の実行で巻き込まれないように）
+concurrency:
+  group: deploy-pwa
+  cancel-in-progress: false
 jobs:
   deploy:
     runs-on: ubuntu-latest
@@ -144,6 +148,39 @@ jobs:
           done
           [ -n "$pushed" ] || { echo "ERROR: push retried but still failing"; exit 1; }
           echo "Deployed. Pages URL (after enabling Pages): https://${MEDIA_REPO%%/*}.github.io/${MEDIA_REPO#*/}/app/"
+      - name: 軽量Pages（app/ だけの site ブランチへ公開＋Pagesソース切替）
+        # 公開先リポは約20GB（見本mp4/jpgの蓄積）でGitHub Pages上限(約1GB)を超過し、
+        # mainをソースにしたPagesビルドが失敗/キャンセルされ続けて凍結していた。
+        # app/(約861MB=1GB未満) だけを 'site' ブランチへ置き、Pagesソースをそこへ切替える。
+        # site は app-deploy しか push しないので頻繁なmain push(写真同期等)にキャンセルされない。
+        env:
+          TOKEN: ${{ secrets.GH_MEDIA_TOKEN }}
+          MEDIA_REPO: ${{ secrets.GH_MEDIA_REPO }}
+        run: |
+          [ -n "$TOKEN" ] && [ -n "$MEDIA_REPO" ] || { echo "skip (no token/repo)"; exit 0; }
+          [ -d _site/.git ] || { echo "ERROR: _site clone missing"; exit 1; }
+          cd _site
+          # 直近の app/ ツリー（mainへpush済み＝サーバに存在）だけで軽量ルートを合成（blob再UPなし）
+          APPTREE=$(git rev-parse HEAD:app)
+          EMPTY=$(printf '' | git hash-object -w --stdin)
+          ROOT=$(printf '040000 tree %s\tapp\n100644 blob %s\t.nojekyll\n' "$APPTREE" "$EMPTY" | git mktree)
+          COMMIT=$(git commit-tree "$ROOT" -m "deploy app to site branch (lightweight Pages, <1GB)")
+          git push -f "https://x-access-token:${TOKEN}@github.com/${MEDIA_REPO}.git" "$COMMIT":refs/heads/site
+          echo "site branch updated (app/ only)."
+          # Pages のソースを site ブランチへ切替（PUT。未作成なら POST で作成）
+          code=$(curl -s -o /tmp/pages.json -w "%{http_code}" -X PUT \
+            -H "Authorization: token ${TOKEN}" -H "Accept: application/vnd.github+json" \
+            "https://api.github.com/repos/${MEDIA_REPO}/pages" \
+            -d '{"source":{"branch":"site","path":"/"}}')
+          echo "pages source PUT: $code"; cat /tmp/pages.json 2>/dev/null; echo
+          if [ "$code" = "404" ]; then
+            code=$(curl -s -o /tmp/pages.json -w "%{http_code}" -X POST \
+              -H "Authorization: token ${TOKEN}" -H "Accept: application/vnd.github+json" \
+              "https://api.github.com/repos/${MEDIA_REPO}/pages" \
+              -d '{"source":{"branch":"site","path":"/"}}')
+            echo "pages source POST: $code"; cat /tmp/pages.json 2>/dev/null; echo
+          fi
+          echo "Pages は site ブランチ(app/ のみ, <1GB)から配信されます。URLは従来どおり /${MEDIA_REPO#*/}/app/"
       - name: 予約LPを店舗中立ドメインのGitHub Pagesへ公開（publish_lp=1のときだけ）
         # 例: yoyaku-pocket.github.io/susabiyu/ 。全店で共通の頭「yoyaku-pocket」＝予約用と分かる。
         # 組織の user/org pages リポ <owner>.github.io に、店ごとのサブフォルダで置く。
