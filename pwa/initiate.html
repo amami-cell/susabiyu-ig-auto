@@ -569,7 +569,7 @@ function planCard(id,it,i){
     <div class="grid grid-cols-[108px_1fr] gap-0">
       <div class="relative bg-slate-50 border-r border-slate-100">
         ${isStory?'<span class="absolute top-1 left-1 z-10 text-[9px] font-bold text-white bg-fuchsia-500 rounded px-1">ストーリー</span>':''}
-        <button onclick="alert('写真を選び直す（モーダル）は順次実装です。')" class="block w-full" title="写真を選び直す">${img}</button>
+        <button onclick="pickPlanPhoto('${id}',${i})" class="block w-full" title="写真を選び直す">${img}</button>
         <div class="px-1.5 py-1 text-[18px] text-slate-500 bg-white">♡ 💬 ➤</div>
       </div>
       <div class="p-2.5">
@@ -887,7 +887,12 @@ function openCompose(){ const connected=STORE_MASTER.filter(s=>s.connected); con
         <div><div class="text-[12px] font-bold text-slate-500 mb-1">1. 店</div><select id="cStore" class="w-full border border-slate-300 rounded-lg px-2 py-2 text-sm">${opts}</select></div>
         <div><div class="text-[12px] font-bold text-slate-500 mb-1">2. 画像</div>
           <div class="flex gap-1.5 text-[12px]"><button class="ratio px-2 py-1 rounded-lg bg-[var(--btn)] text-white" data-r="45">縦4:5</button><button class="ratio px-2 py-1 rounded-lg bg-slate-100" data-r="11">正方形</button><button class="ratio px-2 py-1 rounded-lg bg-slate-100" data-r="st">ストーリー</button></div>
-          <div class="mt-2 text-[12px] text-slate-500">📁端末から（カルーセル対応）／📷店の写真・媒体／🎨販促画像で作る（順次実装）</div>
+          <div class="mt-2 flex flex-wrap gap-1.5 text-[12px]">
+            <label class="cursor-pointer px-2 py-1 rounded-lg bg-slate-100 hover:bg-slate-200">📁端末から<input id="cFile" type="file" accept="image/*" multiple hidden></label>
+            <button type="button" id="cFromStore" class="px-2 py-1 rounded-lg bg-slate-100 hover:bg-slate-200">📷店の写真・媒体</button>
+            <button type="button" id="cDesign" class="px-2 py-1 rounded-lg bg-slate-100 hover:bg-slate-200">🎨販促画像で作る</button>
+            <span id="cImgNote" class="text-[11px] text-emerald-600 self-center"></span>
+          </div>
           <div id="cOverlay" hidden class="mt-2"><input placeholder="写真に重ねる見出し（14字）" class="w-full border border-slate-300 rounded-lg px-2 py-1 text-sm mb-1"><input placeholder="一言（24字）" class="w-full border border-slate-300 rounded-lg px-2 py-1 text-sm"></div>
         </div>
         <div><div class="text-[12px] font-bold text-slate-500 mb-1">3. 文</div>
@@ -916,6 +921,11 @@ function openCompose(){ const connected=STORE_MASTER.filter(s=>s.connected); con
   const upd=()=>{ const sid=document.getElementById('cStore').value; const s=STORE_MASTER.find(x=>x.id===sid); document.getElementById('pName').textContent=s?s.handle:''; const body=document.getElementById('cBody').value; document.getElementById('pBody').textContent=body; document.getElementById('cLen').textContent=body.length; document.getElementById('cTag').textContent=(body.match(/#/g)||[]).length; };
   document.getElementById('cStore').addEventListener('change',upd); document.getElementById('cBody').addEventListener('input',upd);
   document.querySelectorAll('.ratio').forEach(b=>b.onclick=()=>{ document.querySelectorAll('.ratio').forEach(x=>x.className='ratio px-2 py-1 rounded-lg bg-slate-100'); b.className='ratio px-2 py-1 rounded-lg bg-[var(--btn)] text-white'; const r=b.dataset.r,img=document.getElementById('pImg'); img.className='w-full bg-slate-100 grid place-items-center text-slate-300 text-sm '+(r==='11'?'aspect-square':r==='st'?'aspect-[9/16]':'aspect-[4/5]'); document.getElementById('cOverlay').hidden = r!=='st'; });
+  // 画像ソース配線
+  const curStore=()=>document.getElementById('cStore').value;
+  document.getElementById('cFromStore').onclick=()=>openPhotoPicker(curStore(),(src)=>setComposeImg(src));
+  document.getElementById('cDesign').onclick=()=>{ const tell=document.getElementById('cTell').value||document.getElementById('cBody').value.slice(0,20); openDesignEditor({ storeId:curStore(), tell, onDone:(url)=>{ openCompose(); setTimeout(()=>{ if(url) setComposeImg(url); },60); } }); };
+  document.getElementById('cFile').onchange=e=>{ const f=e.target.files[0]; if(!f) return; const rd=new FileReader(); rd.onload=()=>setComposeImg(rd.result,'端末'); rd.readAsDataURL(f); };
   document.getElementById('cAI').onclick=()=>{ const tell=document.getElementById('cTell').value||'今日のおすすめ'; const out=document.getElementById('cAIout'); out.innerHTML='<div class="text-[12px] text-slate-400">書いています…</div>';
     setTimeout(()=>{ const sid=document.getElementById('cStore').value; const s=STORE_MASTER.find(x=>x.id===sid);
       const cands=[`こんにちは😊${s.name}です‼️\n${tell}をご用意しました。\nご予約はプロフィール欄のネットからどうぞ🙇🏻‍♂️\n#${s.id} #グルメ #今夜ごはん #乾杯 #おすすめ`,`【${tell}】\n${s.name}の自慢の一皿、今だけ。\n画像をチェック👀\n#${s.id} #居酒屋 #ディナー #食べスタグラム #地元グルメ`,`${tell}✨\n仕事終わりの一杯に。\nお待ちしています🍶\n#${s.id} #今日のごはん #晩酌 #名物 #予約受付中`];
@@ -927,7 +937,9 @@ function openCompose(){ const connected=STORE_MASTER.filter(s=>s.connected); con
   document.getElementById('composeBg').addEventListener('click',(e)=>{ if(e.target.id==='composeBg'){ const body=document.getElementById('cBody').value; if(body.trim() && !confirm('下書きを破棄しますか？')) return; closeCompose(); } });
   upd();
 }
-window.closeCompose=function(){ document.getElementById('modalRoot').innerHTML=''; };
+window.closeCompose=function(){ document.getElementById('modalRoot').innerHTML=''; document.onkeydown=null; };
+function setComposeImg(src,note){ const img=document.getElementById('pImg'); if(!img) return; img.style.backgroundImage=`url('${src}')`; img.style.backgroundSize='cover'; img.style.backgroundPosition='center'; img.textContent=''; const n=document.getElementById('cImgNote'); if(n) n.textContent=note?'付けました':'付けました'; }
+window.setComposeImg=setComposeImg;
 
 /* ====== 使い方ツアー（9ステップ） ====== */
 const TOUR=[
@@ -947,6 +959,142 @@ function drawTour(){ const r=document.getElementById('tourRoot'); r.innerHTML=`<
 window.tourStep=d=>{ tourI+=d; if(tourI>8){ closeTour(); try{localStorage.setItem('tour:sns','1');}catch(e){} return;} drawTour(); };
 window.closeTour=()=>{ document.getElementById('tourRoot').innerHTML=''; };
 
+/* ====== 写真選びモーダル（5-2・compose＆提案カード共通） ====== */
+const PHOTO_FOLDERS=['すべて','231024 料理','230919 内観外観','231105 コース','231201 ドリンク'];
+function mockStorePhotos(sid){ const r=mulberry32(hashStr(sid||'x')+3); const a=[]; for(let i=0;i<18;i++){ a.push({ name:'DSC_'+(3000+Math.floor(r()*900))+'.jpg', folder:PHOTO_FOLDERS[1+Math.floor(r()*4)], thumb:svgThumb((sid||'x')+'ph'+i,'📷') }); } return a; }
+function mockMediaPhotos(sid){ const r=mulberry32(hashStr(sid||'y')+9); const a=[]; for(let i=0;i<10;i++){ a.push({ src:(i%2?'ホットペッパー':'ぐるなび'), thumb:svgThumb((sid||'y')+'md'+i,'媒') }); } return a; }
+const PICK_UI={ tab:'store', folder:'すべて' };
+function openPhotoPicker(sid, onPick){
+  PICK_UI.tab='store'; PICK_UI.folder='すべて';
+  const root=document.getElementById('modalRoot2')||(()=>{ const d=document.createElement('div'); d.id='modalRoot2'; document.body.appendChild(d); return d; })();
+  function draw(){
+    const s=STORE_MASTER.find(x=>x.id===sid);
+    const tabBtn=(k,l)=>`<button onclick="PICK_UI.tab='${k}';window.__pickDraw()" class="text-[12px] font-semibold px-2.5 py-1 rounded-lg ${PICK_UI.tab===k?'bg-[var(--btn)] text-white':'bg-slate-100 text-slate-600'}">${l}</button>`;
+    let body='';
+    if(PICK_UI.tab==='store'){
+      const photos=mockStorePhotos(sid).filter(p=>PICK_UI.folder==='すべて'||p.folder===PICK_UI.folder);
+      const chips=PHOTO_FOLDERS.map(f=>`<button onclick="PICK_UI.folder='${f}';window.__pickDraw()" class="text-[11px] px-2 py-0.5 rounded-full ${PICK_UI.folder===f?'bg-[var(--btn)] text-white':'bg-slate-100 text-slate-500'}">${f}</button>`).join('');
+      body=`<div class="flex flex-wrap gap-1 mb-2">${chips}</div><div class="grid grid-cols-3 sm:grid-cols-5 gap-2">${photos.map((p,i)=>`<button onclick="window.__pickPhoto(${i})" class="group"><img src="${p.thumb}" class="aspect-square w-full rounded-lg object-cover ring-1 ring-slate-200 group-hover:ring-2 group-hover:ring-indigo-400"><div class="text-[9px] text-slate-400 truncate">${p.name}</div></button>`).join('')}</div>`;
+      window.__pickPhoto=i=>{ onPick(photos[i].thumb, photos[i].name); closePick(); };
+    } else if(PICK_UI.tab==='media'){
+      const photos=mockMediaPhotos(sid);
+      body=`<div class="text-[11px] text-slate-400 mb-2">ホットペッパー・ぐるなびの店ページから取り込み</div><div class="grid grid-cols-3 sm:grid-cols-5 gap-2">${photos.map((p,i)=>`<button onclick="window.__pickMedia(${i})" class="group relative"><img src="${p.thumb}" class="aspect-square w-full rounded-lg object-cover ring-1 ring-slate-200 group-hover:ring-2 group-hover:ring-indigo-400"><span class="absolute bottom-0 inset-x-0 text-[8px] text-white bg-red-500/80 rounded-b-lg text-center">${p.src}</span></button>`).join('')}</div>`;
+      window.__pickMedia=i=>{ onPick(photos[i].thumb, photos[i].src); closePick(); };
+    } else {
+      body=`<label class="block border-2 border-dashed border-slate-300 rounded-xl p-8 text-center cursor-pointer hover:bg-slate-50"><div class="text-3xl mb-1">📁</div><div class="text-[13px] text-slate-500">端末から画像を選ぶ（複数可＝カルーセル）</div><input id="pickFile" type="file" accept="image/*" multiple hidden></label>`;
+    }
+    root.innerHTML=`<div class="fixed inset-0 z-[55] bg-black/40 grid place-items-center p-3" id="pickBg"><div class="bg-white w-full max-w-[640px] max-h-[86vh] overflow-auto rounded-2xl shadow-2xl">
+      <div class="flex items-center gap-2 px-4 py-3 border-b border-slate-100 sticky top-0 bg-white"><div class="flex gap-1.5">${tabBtn('store','📷店の写真')}${tabBtn('media','🌐媒体から')}${tabBtn('file','📁端末から')}</div><div class="flex-1"></div><span class="text-[11px] text-slate-400">${s?s.name:''}</span><a href="#" onclick="event.preventDefault();alert('Driveフォルダを開く（モック）')" class="text-[12px] text-sky-600">↗</a><button onclick="closePick()" class="w-8 h-8 grid place-items-center rounded-lg hover:bg-slate-100">✕</button></div>
+      <div class="p-4">${body}</div></div></div>`;
+    document.getElementById('pickBg').addEventListener('click',e=>{ if(e.target.id==='pickBg') closePick(); });
+    const pf=document.getElementById('pickFile'); if(pf) pf.onchange=e=>{ const f=e.target.files[0]; if(!f) return; const rd=new FileReader(); rd.onload=()=>{ onPick(rd.result,f.name); closePick(); }; rd.readAsDataURL(f); };
+  }
+  window.__pickDraw=draw; draw();
+}
+window.closePick=function(){ const r=document.getElementById('modalRoot2'); if(r) r.innerHTML=''; };
+window.pickPlanPhoto=(id,i)=>{ const pl=PLANS[id]; openPhotoPicker(id,(src,name)=>{ pl.items[i].thumb=src; pl.items[i].photoName=name; renderPlanDetail(id); }); };
+
+/* ====== 販促画像エディタ（5-3・機能版） ====== */
+const DZ_PAL=[['墨と生成り','#1f2937','#f8f4e8','#b5372e'],['紺と白','#1e3a5f','#ffffff','#e3b24c'],['赤提灯','#7f1d1d','#fde68a','#fca5a5'],['クラフト紙','#d8c3a5','#3b2f2f','#8a5a2b'],['深緑','#14432a','#eafaf0','#d4af37'],['白黒に赤','#111111','#ffffff','#e11d48'],['黒と金','#0b0b0b','#f7e39c','#caa43a'],['淡い桜','#fde2e8','#7a2e3a','#e08a9b']];
+const DZ_TYPES=['写真＋帯','余白と縦書き','手書きPOP','クーポン券','色面と写真','文字だけ','額縁','雑誌風','数字どーん','黒板'];
+let DZ=null;
+function dzSnapshot(){ return JSON.stringify({bg:DZ.bg,els:DZ.els}); }
+function dzPush(){ DZ.hist=DZ.hist.slice(0,DZ.hi+1); DZ.hist.push(dzSnapshot()); DZ.hi=DZ.hist.length-1; }
+function openDesignEditor(opts){
+  opts=opts||{}; const s=STORE_MASTER.find(x=>x.id===opts.storeId);
+  DZ={ W:1080,H:1350,S:0.33, bg:'#1f2937', fg:'#f8f4e8', ac:'#b5372e', els:[], sel:-1, hist:[], hi:-1, onDone:opts.onDone };
+  // 初期レイアウト（伝えたいことから）
+  const title=opts.tell||'本日のおすすめ';
+  DZ.els=[ {type:'rect',x:60,y:900,w:960,h:300,rot:0,bg:'rgba(0,0,0,.35)'},
+    {type:'text',x:90,y:940,w:900,h:120,rot:0,text:title,color:DZ.fg,size:92,weight:800},
+    {type:'text',x:90,y:1080,w:900,h:60,rot:0,text:(s?s.name:'')+'　ご予約はプロフィールから',color:DZ.fg,size:40,weight:600} ];
+  dzPush();
+  const root=document.getElementById('modalRoot');
+  root.innerHTML=`<div class="fixed inset-0 z-[55] bg-slate-900/90 flex flex-col" id="dzBg">
+    <div class="flex items-center gap-2 px-3 py-2 bg-slate-800 text-white text-[12px]">
+      <input id="dzTitle" value="${title.replace(/"/g,'&quot;')}" class="bg-slate-700 rounded px-2 py-1 text-[12px] w-[200px]">
+      <span class="text-slate-400">店名・Instagram投稿（縦4:5）（1080×1350）</span>
+      <div class="flex-1"></div>
+      <button onclick="dzUndo()" class="px-2 py-1 bg-slate-700 rounded">戻す</button>
+      <button onclick="dzRedo()" class="px-2 py-1 bg-slate-700 rounded">やり直し</button>
+      <button onclick="dzExport('jpg')" class="px-2 py-1 bg-slate-700 rounded">画像にする(JPG)</button>
+      <button onclick="dzExport('png')" class="px-2 py-1 bg-slate-700 rounded">PNG</button>
+      <button onclick="dzToInsta()" class="px-2 py-1 bg-emerald-600 rounded font-bold">📸Instagramへ</button>
+      <button onclick="closeCompose()" class="px-2 py-1 bg-slate-700 rounded">閉じる</button>
+    </div>
+    <div class="flex-1 flex min-h-0">
+      <div class="w-[220px] bg-slate-800 text-white overflow-auto p-2 text-[12px] space-y-2">
+        <div><div class="font-bold text-slate-300 mb-1">③型</div><div class="grid grid-cols-2 gap-1">${DZ_TYPES.map((t,i)=>`<button onclick="dzType(${i})" class="px-1.5 py-1 bg-slate-700 rounded text-[11px] hover:bg-slate-600">${t}</button>`).join('')}</div></div>
+        <div><div class="font-bold text-slate-300 mb-1">配色</div><div class="grid grid-cols-2 gap-1">${DZ_PAL.map((p,i)=>`<button onclick="dzPal(${i})" class="flex items-center gap-1 px-1.5 py-1 bg-slate-700 rounded text-[11px] hover:bg-slate-600"><span class="w-3 h-3 rounded-full" style="background:${p[1]}"></span>${p[0]}</button>`).join('')}</div><button onclick="dzRandom()" class="mt-1 w-full px-1.5 py-1 bg-indigo-600 rounded text-[11px]">🎲おまかせ</button></div>
+        <div><div class="font-bold text-slate-300 mb-1">④文言（AI3通り）</div><div class="space-y-1">${['落ち着き','元気','手書きPOP'].map((t,i)=>`<button onclick="dzTone(${i})" class="w-full px-1.5 py-1 bg-slate-700 rounded text-[11px] text-left hover:bg-slate-600">${t}</button>`).join('')}</div></div>
+        <div><div class="font-bold text-slate-300 mb-1">⑤追加</div><div class="grid grid-cols-2 gap-1"><button onclick="dzAdd('text')" class="px-1.5 py-1 bg-slate-700 rounded text-[11px]">＋文字</button><button onclick="dzAddPhoto()" class="px-1.5 py-1 bg-slate-700 rounded text-[11px]">＋写真</button><button onclick="dzAdd('rect')" class="px-1.5 py-1 bg-slate-700 rounded text-[11px]">＋四角</button><button onclick="dzAdd('circle')" class="px-1.5 py-1 bg-slate-700 rounded text-[11px]">＋丸</button><button onclick="dzAdd('line')" class="px-1.5 py-1 bg-slate-700 rounded text-[11px]">＋線</button></div></div>
+      </div>
+      <div class="flex-1 grid place-items-center overflow-auto p-4" id="dzStage"></div>
+      <div class="w-[160px] bg-slate-800 text-white overflow-auto p-2 text-[12px]"><div class="font-bold text-slate-300 mb-1">レイヤー</div><div id="dzLayers" class="space-y-1"></div><div class="mt-2 text-[10px] text-slate-400">選択中：Deleteで削除／Ctrl+Dで複製／矢印で微調整</div></div>
+    </div></div>`;
+  document.getElementById('dzTitle').oninput=e=>{ const t=DZ.els.find(x=>x.type==='text'); if(t){ t.text=e.target.value; dzRender(); } };
+  dzRender();
+  document.onkeydown=dzKey;
+}
+function dzRender(){
+  const stage=document.getElementById('dzStage'); if(!stage) return; const S=DZ.S;
+  let html=`<div id="dzCanvas" style="position:relative;width:${DZ.W*S}px;height:${DZ.H*S}px;background:${DZ.bg};box-shadow:0 10px 40px rgba(0,0,0,.5);overflow:hidden">`;
+  DZ.els.forEach((el,i)=>{ const sel=i===DZ.sel; const base=`position:absolute;left:${el.x*S}px;top:${el.y*S}px;width:${el.w*S}px;height:${el.h*S}px;transform:rotate(${el.rot||0}deg);transform-origin:center;cursor:move;${sel?'outline:2px solid #6366f1;':''}`;
+    if(el.type==='text') html+=`<div data-i="${i}" style="${base}display:flex;align-items:center;color:${el.color};font-weight:${el.weight||700};font-size:${el.size*S}px;line-height:1.1;overflow:hidden;white-space:pre-wrap">${(el.text||'').replace(/</g,'&lt;')}</div>`;
+    else if(el.type==='rect') html+=`<div data-i="${i}" style="${base}background:${el.bg||'#000'}"></div>`;
+    else if(el.type==='circle') html+=`<div data-i="${i}" style="${base}background:${el.bg||'#000'};border-radius:9999px"></div>`;
+    else if(el.type==='line') html+=`<div data-i="${i}" style="${base}background:${el.bg||'#fff'};height:${Math.max(2,4*S)}px"></div>`;
+    else if(el.type==='image') html+=`<div data-i="${i}" style="${base}background-image:url('${el.src}');background-size:cover;background-position:center"></div>`;
+    if(sel) html+=`<div data-rs="${i}" style="position:absolute;left:${(el.x+el.w)*S-6}px;top:${(el.y+el.h)*S-6}px;width:12px;height:12px;background:#6366f1;border-radius:3px;cursor:nwse-resize;z-index:99"></div><div data-rot="${i}" style="position:absolute;left:${(el.x+el.w/2)*S-6}px;top:${el.y*S-20}px;width:12px;height:12px;background:#10b981;border-radius:9999px;cursor:grab;z-index:99"></div>`;
+  });
+  html+=`</div>`; stage.innerHTML=html;
+  // layers
+  document.getElementById('dzLayers').innerHTML=DZ.els.map((el,i)=>`<button onclick="DZ.sel=${i};dzRender()" class="w-full text-left px-1.5 py-1 rounded text-[11px] ${i===DZ.sel?'bg-indigo-600':'bg-slate-700'}">${i+1}. ${el.type==='text'?('文字「'+(el.text||'').slice(0,6)+'」'):el.type}</button>`).reverse().join('');
+  dzBindDrag();
+}
+function dzBindDrag(){
+  const canvas=document.getElementById('dzCanvas'); if(!canvas) return; const S=DZ.S;
+  canvas.querySelectorAll('[data-i]').forEach(node=>{ node.onmousedown=e=>{ e.preventDefault(); const i=+node.dataset.i; DZ.sel=i; const el=DZ.els[i]; const sx=e.clientX,sy=e.clientY,ox=el.x,oy=el.y;
+    const mv=ev=>{ el.x=ox+(ev.clientX-sx)/S; el.y=oy+(ev.clientY-sy)/S; dzRender(); }; const up=()=>{ document.removeEventListener('mousemove',mv); document.removeEventListener('mouseup',up); dzPush(); }; document.addEventListener('mousemove',mv); document.addEventListener('mouseup',up); }; });
+  const rs=canvas.querySelector('[data-rs]'); if(rs) rs.onmousedown=e=>{ e.preventDefault();e.stopPropagation(); const i=+rs.dataset.rs; const el=DZ.els[i]; const sx=e.clientX,sy=e.clientY,ow=el.w,oh=el.h;
+    const mv=ev=>{ el.w=Math.max(20,ow+(ev.clientX-sx)/S); el.h=Math.max(20,oh+(ev.clientY-sy)/S); if(el.type==='text') el.size=Math.max(16,el.h*0.7); dzRender(); }; const up=()=>{ document.removeEventListener('mousemove',mv); document.removeEventListener('mouseup',up); dzPush(); }; document.addEventListener('mousemove',mv); document.addEventListener('mouseup',up); };
+  const rot=canvas.querySelector('[data-rot]'); if(rot) rot.onmousedown=e=>{ e.preventDefault();e.stopPropagation(); const i=+rot.dataset.rot; const el=DZ.els[i]; const cx=(el.x+el.w/2)*S, cy=(el.y+el.h/2)*S; const rect=canvas.getBoundingClientRect();
+    const mv=ev=>{ const dx=(ev.clientX-rect.left)-cx, dy=(ev.clientY-rect.top)-cy; el.rot=Math.round(Math.atan2(dy,dx)*180/Math.PI+90); dzRender(); }; const up=()=>{ document.removeEventListener('mousemove',mv); document.removeEventListener('mouseup',up); dzPush(); }; document.addEventListener('mousemove',mv); document.addEventListener('mouseup',up); };
+}
+function dzKey(e){ if(!DZ||DZ.sel<0) return; const el=DZ.els[DZ.sel]; if(e.target && (e.target.tagName==='INPUT'||e.target.tagName==='TEXTAREA')) return;
+  if(e.key==='Delete'||e.key==='Backspace'){ DZ.els.splice(DZ.sel,1); DZ.sel=-1; dzRender(); dzPush(); e.preventDefault(); }
+  else if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='d'){ const c=JSON.parse(JSON.stringify(el)); c.x+=20;c.y+=20; DZ.els.push(c); DZ.sel=DZ.els.length-1; dzRender(); dzPush(); e.preventDefault(); }
+  else if(e.key.startsWith('Arrow')){ const d=e.shiftKey?10:2; if(e.key==='ArrowLeft')el.x-=d; if(e.key==='ArrowRight')el.x+=d; if(e.key==='ArrowUp')el.y-=d; if(e.key==='ArrowDown')el.y+=d; dzRender(); e.preventDefault(); } }
+window.dzType=i=>{ const t=DZ_TYPES[i]; const title=(DZ.els.find(x=>x.type==='text')||{}).text||'本日のおすすめ'; const sub=(DZ.els[2]||{}).text||'ご予約はプロフィールから';
+  if(t==='余白と縦書き'){ DZ.els=[{type:'text',x:760,y:120,w:200,h:900,rot:0,text:title.split('').join('\n'),color:DZ.fg,size:80,weight:800}]; }
+  else if(t==='文字だけ'){ DZ.els=[{type:'text',x:90,y:520,w:900,h:160,rot:0,text:title,color:DZ.fg,size:120,weight:800},{type:'text',x:90,y:720,w:900,h:60,rot:0,text:sub,color:DZ.fg,size:40,weight:600}]; }
+  else if(t==='数字どーん'){ DZ.els=[{type:'text',x:90,y:300,w:900,h:400,rot:0,text:'¥980',color:DZ.ac,size:300,weight:800},{type:'text',x:90,y:760,w:900,h:60,rot:0,text:title,color:DZ.fg,size:52,weight:700}]; }
+  else if(t==='クーポン券'){ DZ.els=[{type:'rect',x:90,y:450,w:900,h:450,rot:0,bg:DZ.ac},{type:'text',x:120,y:520,w:840,h:120,rot:0,text:title,color:'#fff',size:72,weight:800},{type:'text',x:120,y:720,w:840,h:60,rot:0,text:sub,color:'#fff',size:40,weight:600}]; }
+  else { DZ.els=[{type:'rect',x:60,y:900,w:960,h:300,rot:0,bg:'rgba(0,0,0,.4)'},{type:'text',x:90,y:940,w:900,h:120,rot:0,text:title,color:DZ.fg,size:92,weight:800},{type:'text',x:90,y:1080,w:900,h:60,rot:0,text:sub,color:DZ.fg,size:40,weight:600}]; }
+  DZ.sel=-1; dzRender(); dzPush(); };
+window.dzPal=i=>{ const p=DZ_PAL[i]; DZ.bg=p[1]; DZ.fg=p[2]; DZ.ac=p[3]; DZ.els.forEach(el=>{ if(el.type==='text'&&el.color!==DZ.ac) el.color=DZ.fg; }); dzRender(); dzPush(); };
+window.dzRandom=()=>{ dzType(Math.floor(Math.random()*DZ_TYPES.length)); dzPal(Math.floor(Math.random()*DZ_PAL.length)); };
+window.dzTone=i=>{ const t=DZ.els.find(x=>x.type==='text'); if(!t) return; const base=document.getElementById('dzTitle').value||'本日のおすすめ'; t.text=[`${base}`,`${base}🔥今だけ！`,`★${base}★`][i]; dzRender(); dzPush(); };
+window.dzAdd=type=>{ const el=type==='text'?{type:'text',x:200,y:200,w:600,h:100,rot:0,text:'テキスト',color:DZ.fg,size:72,weight:700}:type==='line'?{type:'line',x:200,y:300,w:600,h:8,rot:0,bg:DZ.fg}:{type,x:300,y:300,w:300,h:300,rot:0,bg:DZ.ac}; DZ.els.push(el); DZ.sel=DZ.els.length-1; dzRender(); dzPush(); };
+window.dzAddPhoto=()=>{ openPhotoPicker(DZ.onDone?null:null,(src)=>{ DZ.els.push({type:'image',x:140,y:140,w:800,h:800,rot:0,src}); DZ.sel=DZ.els.length-1; dzRender(); dzPush(); }); };
+window.dzUndo=()=>{ if(DZ.hi>0){ DZ.hi--; const o=JSON.parse(DZ.hist[DZ.hi]); DZ.bg=o.bg; DZ.els=o.els; DZ.sel=-1; dzRender(); } };
+window.dzRedo=()=>{ if(DZ.hi<DZ.hist.length-1){ DZ.hi++; const o=JSON.parse(DZ.hist[DZ.hi]); DZ.bg=o.bg; DZ.els=o.els; DZ.sel=-1; dzRender(); } };
+async function dzToCanvas(){ const cv=document.createElement('canvas'); cv.width=DZ.W; cv.height=DZ.H; const ctx=cv.getContext('2d'); ctx.fillStyle=DZ.bg; ctx.fillRect(0,0,DZ.W,DZ.H);
+  for(const el of DZ.els){ ctx.save(); ctx.translate(el.x+el.w/2, el.y+el.h/2); ctx.rotate((el.rot||0)*Math.PI/180); ctx.translate(-el.w/2,-el.h/2);
+    if(el.type==='rect'){ ctx.fillStyle=el.bg||'#000'; ctx.fillRect(0,0,el.w,el.h); }
+    else if(el.type==='circle'){ ctx.fillStyle=el.bg||'#000'; ctx.beginPath(); ctx.ellipse(el.w/2,el.h/2,el.w/2,el.h/2,0,0,7); ctx.fill(); }
+    else if(el.type==='line'){ ctx.fillStyle=el.bg||'#fff'; ctx.fillRect(0,el.h/2-2,el.w,4); }
+    else if(el.type==='text'){ ctx.fillStyle=el.color||'#fff'; ctx.font=`${el.weight||700} ${el.size}px "Noto Sans JP",sans-serif`; ctx.textBaseline='top'; (el.text||'').split('\n').forEach((ln,k)=>ctx.fillText(ln,0,k*el.size*1.1)); }
+    else if(el.type==='image'){ if((el.src||'').startsWith('data:image/svg')){ ctx.fillStyle=DZ.ac; ctx.fillRect(0,0,el.w,el.h); } else { try{ const img=await new Promise((res,rej)=>{ const im=new Image(); im.onload=()=>res(im); im.onerror=rej; im.src=el.src; }); ctx.drawImage(img,0,0,el.w,el.h); }catch(e){ ctx.fillStyle='#ccc'; ctx.fillRect(0,0,el.w,el.h); } } }
+    ctx.restore(); }
+  return cv; }
+window.dzExport=async(fmt)=>{ const cv=await dzToCanvas(); let url; try{ url=cv.toDataURL(fmt==='png'?'image/png':'image/jpeg',0.92); }catch(e){ alert('画像化に失敗しました（写真の取り込み元によっては書き出せません）'); return; } const a=document.createElement('a'); a.href=url; a.download='promo.'+(fmt==='png'?'png':'jpg'); a.click(); };
+window.dzToInsta=async()=>{ const cv=await dzToCanvas(); let url; try{ url=cv.toDataURL('image/jpeg',0.92); }catch(e){ url=''; } const done=DZ.onDone; closeCompose(); document.onkeydown=null; if(done) done(url); else { openCompose(); setTimeout(()=>{ if(url) setComposeImg(url); },50); } };
+
+/* ====== 更新監視（軽量ポーリング・initiate_version.json） ====== */
+function startVersionPolling(){ let last=null; async function check(){ try{ const r=await fetch('./initiate_version.json?_='+Date.now(),{cache:'no-store'}); if(!r.ok) return; const j=await r.json(); if(last!==null && j.latest && j.latest!==last){ const b=document.getElementById('updateBanner'); if(b) b.hidden=false; } if(j.latest) last=j.latest; }catch(e){} }
+  check(); setInterval(()=>{ if(!document.hidden) check(); }, 30000); }
+
 /* ====== ルーター ====== */
 const VIEWS={sns:'view-sns',plan:'view-plan',posts:'view-posts',seika:'view-seika',accounts:'view-accounts'};
 let CURRENT='sns';
@@ -962,7 +1110,7 @@ function rerenderActive(){ renderDeptChips(); renderActive(); }
 window.addEventListener('hashchange',route);
 
 /* ====== 起動 ====== */
-(async function init(){ MON=await loadMonitor(); PLANS=buildPlans(); RES=buildReservations(); renderDeptChips(); route();
+(async function init(){ MON=await loadMonitor(); PLANS=buildPlans(); RES=buildReservations(); renderDeptChips(); route(); startVersionPolling();
   try{ if(localStorage.getItem('tour:sns')!=='1'){ /* 初回はツアーを促すだけ（自動では出さない） */ } }catch(e){}
 })();
 </script>
