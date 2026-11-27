@@ -1,0 +1,60 @@
+name: initiate-insights
+# イニシエートの未収集3店（GOLD京都ポルタ / 鮨処すさび湯 / こまつ原）のInstagramインサイトを
+# 1プロセス・1ループでまとめて日次収集する（店舗が増えても実行回数は増えない＝無料枠方針）。
+#   - insights.py collect が インサイト日次_<店> / インサイト投稿_<店> タブへ蓄積（タブは自動作成）。
+#   - 読み取り＋シート書き込みのみ。本番Instagramへ出す処理は一切しない。
+#   - → initiate_monitor.yml がこのデータを読んで総合ページの実数値にする。
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: "collect（収集） / check（権限確認）"
+        required: false
+        default: "collect"
+  schedule:
+    - cron: '50 15 * * *'   # 毎日 00:50 JST（他店の収集と時刻をずらす）
+concurrency:
+  group: initiate-insights
+  cancel-in-progress: false
+jobs:
+  collect:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    defaults:
+      run:
+        working-directory: susabiyu-remotion
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install deps
+        run: pip install google-api-python-client google-auth requests Pillow boto3 pywebpush cryptography
+      - name: Write creds.json
+        run: echo "$GOOGLE_CREDS_B64" | base64 -d > creds.json
+        env:
+          GOOGLE_CREDS_B64: ${{ secrets.GOOGLE_CREDS_B64 }}
+      - name: Collect 3 stores (1 loop)
+        env:
+          MODE: ${{ github.event.inputs.mode }}
+          GOOGLE_CREDS_B64: ${{ secrets.GOOGLE_CREDS_B64 }}
+          SHEET_ID: ${{ secrets.SHEET_ID }}
+          GH_MEDIA_TOKEN: ${{ secrets.GH_MEDIA_TOKEN }}
+          GH_MEDIA_REPO: ${{ secrets.GH_MEDIA_REPO }}
+          R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          R2_BUCKET: ${{ secrets.R2_BUCKET }}
+          R2_PUBLIC_BASE: ${{ secrets.R2_PUBLIC_BASE }}
+          # 各店のトークン（未設定の店は insights.py が AcctTokens シートの延命トークンへフォールバック）
+          IG_ACCESS_TOKEN_GOLDPORTA: ${{ secrets.IG_ACCESS_TOKEN_GOLDPORTA }}
+          IG_ACCESS_TOKEN_KARASUMA: ${{ secrets.IG_ACCESS_TOKEN_KARASUMA }}
+          IG_ACCESS_TOKEN_KOMATSUBARA: ${{ secrets.IG_ACCESS_TOKEN_KOMATSUBARA }}
+        run: |
+          M="${MODE:-collect}"
+          [ -z "$M" ] && M="collect"
+          for acct in goldporta karasuma komatsubara; do
+            echo "::group::insights $M $acct"
+            STORE_ACCOUNT="$acct" python insights.py "$M" || echo "[WARN] $acct 失敗（継続）"
+            echo "::endgroup::"
+          done
