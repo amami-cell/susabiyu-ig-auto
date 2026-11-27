@@ -171,6 +171,24 @@ const STORE_MASTER = [
 const DEPTS = ['全社','第一','第二','第三','第五','第六','第七','第八','イニシエート','HASSIN','HARE','MITOMO','KOIFUKU','プロペルインターナショナル'];
 const ACTIVE_DEPTS = new Set(['全社','イニシエート']); // 本アプリに実在する営業部
 
+/* 多店舗共有GAS(/exec)。deploy_pwa が GAS_EXEC_URL を注入（未注入＝ローカル等では予約作成は無効）。
+   ②のOK→この api=schedule で「予約投稿」タブに作成→ post_reservations.py が予約時刻に本番投稿（分離エンジン・本番パイプライン影響ゼロ）。 */
+const GAS_URL = "PASTE_YOUR_GAS_EXEC_URL_HERE";
+function jsonp(params){
+  return new Promise((resolve,reject)=>{
+    if(!GAS_URL || GAS_URL.indexOf('PASTE_')===0){ reject(new Error('GAS_URL未設定（デプロイ後に有効）')); return; }
+    const cb='__ig_cb_'+Date.now()+Math.floor(Math.random()*1000);
+    const q=Object.keys(params).map(k=>encodeURIComponent(k)+'='+encodeURIComponent(params[k])).join('&');
+    const s=document.createElement('script'); let done=false;
+    const cleanup=()=>{ try{delete window[cb];}catch(e){window[cb]=undefined;} if(s.parentNode) s.parentNode.removeChild(s); };
+    window[cb]=(data)=>{ done=true; resolve(data); cleanup(); };
+    s.onerror=()=>{ if(!done){ cleanup(); reject(new Error('通信失敗')); } };
+    s.src=GAS_URL+(GAS_URL.indexOf('?')<0?'?':'&')+q+'&callback='+cb;
+    document.body.appendChild(s);
+    setTimeout(()=>{ if(!done){ cleanup(); reject(new Error('タイムアウト')); } },15000);
+  });
+}
+
 /* ---------- 日付ユーティリティ（JST） ---------- */
 const JST_OFF = 9*3600*1000;
 function nowJST(){ return new Date(Date.now()+JST_OFF); }
@@ -611,7 +629,20 @@ function planCard(id,it,i){
       </div>
     </div></div>`;
 }
-window.planMark=(id,i,m)=>{ const it=PLANS[id].items[i]; if(it.booked) return; it.mark = it.mark===m? '' : m; renderPlanDetail(id); refreshPlanCounts(); };
+window.planMark=(id,i,m)=>{ const it=PLANS[id].items[i]; if(it.booked) return;
+  if(MON && !MON._mock && m==='ok'){ return planScheduleReal(id,i); }
+  it.mark = it.mark===m? '' : m; renderPlanDetail(id); refreshPlanCounts(); };
+/* ②OK→本番の予約投稿へ作成（予約時刻に自動投稿）。実データ時のみ。 */
+function planScheduleReal(id,i){
+  const it=PLANS[id].items[i]; const s=STORE_MASTER.find(x=>x.id===id); if(!s) return;
+  const whenTxt=(it.at||'').slice(0,16).replace('T',' ');   // "YYYY-MM-DD HH:MM"(JST)
+  if(!confirm(`この提案を予約します。\n店：${s.name}\n日時：${whenTxt}\n\n⚠ 予約時刻に本番Instagramへ自動投稿されます。よろしいですか？`)) return;
+  const acct = (id==='sanjo') ? '' : id;   // 予約投稿タブ J列（空=三条）
+  jsonp({ api:'schedule', account:acct, when:whenTxt, kind:'feed', media:(it.thumb||''), caption:(it.caption||''), hashtags:'', name:(it.theme||'') })
+    .then(r=>{ if(r && r.ok){ it.booked=true; it.mark='ok'; renderPlanDetail(id); refreshPlanCounts();
+        alert('予約しました。'+whenTxt+' に自動投稿されます。（③予約・投稿に反映されます）'); }
+      else { alert('予約に失敗しました：'+((r&&r.error)||'不明')); } })
+    .catch(e=>alert('予約に失敗しました：'+e.message+'\n（デプロイ後に有効になります）')); }
 window.planAllOk=(id)=>{ PLANS[id].items.forEach(it=>{ if(!it.booked && it.mark==='') it.mark='ok'; }); renderPlanDetail(id); refreshPlanCounts(); };
 window.planBook=(id)=>{ const n=PLANS[id].items.filter(it=>it.mark==='ok'&&!it.booked).length; if(!n) return;
   PLANS[id].items.forEach(it=>{ if(it.mark==='ok'&&!it.booked){ it.booked=true; } });

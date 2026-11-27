@@ -165,6 +165,42 @@ def read_ops(sh, suf):
     return other + posted
 
 
+def read_resv(sh):
+    """予約投稿タブ（②OK＝api=schedule で作成される分離エンジンの予約）を account 別に ops 形へ。"""
+    try:
+        rows = sh.values().get(spreadsheetId=poster.SHEET_ID, range="予約投稿!A2:M2000").execute().get("values", [])
+    except Exception as e:
+        print("[RESV] 予約投稿 読めず: %s" % str(e)[:100])
+        return {}
+    now = datetime.datetime.now(JST)
+    out = {}
+    for r in rows:
+        g = lambda k: (r[k] if len(r) > k else "")
+        when = str(g(1)).strip()
+        if not when:
+            continue
+        try:
+            t = datetime.datetime.strptime(when[:16], "%Y-%m-%d %H:%M").replace(tzinfo=JST)
+        except Exception:
+            continue
+        status = (str(g(6)).strip() or "scheduled")
+        acct = str(g(9)).strip()
+        if status == "posted":
+            state = "posted"
+        elif status == "failed":
+            state = "failed"
+        elif status in ("canceled", "expired") or status.endswith("_hidden"):
+            continue
+        elif t > now:
+            state = "reserved"
+        else:
+            continue
+        out.setdefault(acct, []).append({"id": "resv_" + str(g(0)), "at": t.isoformat(),
+                                         "caption": str(g(4)), "thumb": str(g(3)).strip(),
+                                         "kind": "post", "state": state})
+    return out
+
+
 _THEME_JP = {"generic": "本日のおすすめ", "atmosphere": "店の雰囲気", "sushi": "握りたて",
              "food": "自慢の一皿", "drink": "今夜の一杯", "course": "宴会・コース",
              "lunch": "ランチ", "noren": "暖簾くぐり", "season": "季節の旬"}
@@ -238,6 +274,7 @@ def main():
     if sh is None:
         raise SystemExit("シート接続に失敗（creds.json / SHEET_ID を確認）")
 
+    RESV = read_resv(sh)   # 予約投稿（②OKで作成）を account 別に
     now = datetime.datetime.now(JST)
     nowiso = now.isoformat()
     tm = now.strftime("%Y-%m")
@@ -245,7 +282,7 @@ def main():
     for sid_ui, suf in STORE_MAP:
         posts, stories = read_posts(sh, suf)
         fol, mon = read_daily(sh, suf)
-        ops = read_ops(sh, suf)
+        ops = read_ops(sh, suf) + RESV.get(suf, [])
         mf = [p for p in posts if p["at"][:7] == tm]
         ms = [p for p in stories if p["at"][:7] == tm]
         hist = {tm: {"n": len(mf), "sn": len(ms),
