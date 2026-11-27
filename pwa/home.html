@@ -248,7 +248,10 @@
       });
       return it.ids.length > 0;
     });
-    STORES.forEach(function (s) { if (!seen[s.id]) layout.items.push({ t: "s", id: s.id }); });
+    // 新しく増えた店/総合タイルは「末尾（最終ページ送り）」ではなく先頭に出す＝開いてすぐ見える。
+    var fresh = [];
+    STORES.forEach(function (s) { if (!seen[s.id]) fresh.push({ t: "s", id: s.id }); });
+    if (fresh.length) layout.items = fresh.concat(layout.items);
     (layout.hidden || []).forEach(pullFromFolders); // 非表示の店はフォルダに残さない
     normalize();
   }
