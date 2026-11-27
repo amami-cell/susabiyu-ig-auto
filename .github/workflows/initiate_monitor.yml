@@ -1,0 +1,50 @@
+name: initiate-monitor
+# イニシエート総合ページ(pwa/initiate.html)用の実データ monitor JSON を生成する。
+#   - 既存の insights 収集シート（インサイト投稿_<店>/インサイト日次_<店>）を読むだけ（読み取り専用）。
+#   - Instagram API は叩かない・本番投稿も一切しない。
+#   - 1プロセスで全店まとめて処理（店舗が増えても実行回数は増えない＝無料枠方針）。
+#   - 出力 pwa/initiate_monitor.json / pwa/initiate_version.json を main にコミット→ deploy_pwa が配信。
+on:
+  workflow_dispatch:
+  schedule:
+    # JST 10:35〜22:35 の毎時（UTC 1-13時台）。中身が変わった時だけコミット＝無駄な配信をしない。
+    - cron: '35 1-13 * * *'
+permissions:
+  contents: write
+concurrency:
+  group: initiate-monitor
+  cancel-in-progress: false
+jobs:
+  gen:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install deps
+        run: pip install google-api-python-client google-auth requests
+      - name: Write creds.json
+        working-directory: susabiyu-remotion
+        run: echo "$GOOGLE_CREDS_B64" | base64 -d > creds.json
+        env:
+          GOOGLE_CREDS_B64: ${{ secrets.GOOGLE_CREDS_B64 }}
+      - name: Generate monitor JSON (read-only)
+        working-directory: susabiyu-remotion
+        env:
+          GOOGLE_CREDS_B64: ${{ secrets.GOOGLE_CREDS_B64 }}
+          SHEET_ID: ${{ secrets.SHEET_ID }}
+        run: python initiate_monitor.py
+      - name: Commit if changed
+        run: |
+          set -e
+          rm -f susabiyu-remotion/creds.json
+          if [ -z "$(git status --porcelain -- pwa/initiate_monitor.json pwa/initiate_version.json)" ]; then
+            echo "変更なし（コミットなし）。"; exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add pwa/initiate_monitor.json pwa/initiate_version.json
+          git commit -m "initiate: 総合ページの実データ(monitor.json)を更新"
+          git push origin HEAD:main
