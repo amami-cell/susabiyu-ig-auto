@@ -122,6 +122,49 @@ def read_daily(sh, suf):
     return fol, mon
 
 
+def read_ops(sh, suf):
+    """承認待ち_<店>（＝予約・投稿の実体）を読み、予約/投稿済み/失敗の運用アイテムを返す。
+    我々の系は pending＝これから自動投稿される枠 / posted＝投稿済み / error＝失敗。
+    列: B予定日時 C スロット D パターン E プレビューURL F キャプション G 種別 H ステータス"""
+    tab = "承認待ち" + (("_" + suf) if suf else "")
+    try:
+        rows = sh.values().get(spreadsheetId=poster.SHEET_ID, range=tab + "!B2:H3000").execute().get("values", [])
+    except Exception as e:
+        print("[OPS] %s 読めず: %s" % (tab, str(e)[:100]))
+        return []
+    now = datetime.datetime.now(JST)
+    items = []
+    for r in rows:
+        g = lambda k: (r[k] if len(r) > k else "")
+        dt = str(g(0)).strip()
+        if not dt:
+            continue
+        try:
+            t = datetime.datetime.strptime(dt[:16], "%Y-%m-%d %H:%M").replace(tzinfo=JST)
+        except Exception:
+            continue
+        status = (str(g(6)).strip() or "pending")
+        cap = str(g(4))
+        prev = str(g(3)).strip()
+        kind = "story" if (str(g(5)).strip().lower() in ("", "still", "image", "video", "story")) else "post"
+        future = t > now
+        if status == "posted":
+            state = "posted"
+        elif status == "error":
+            state = "failed"
+        elif status in ("rejected", "ng"):
+            continue
+        elif future:
+            state = "reserved"            # pending/ok/approved の未来枠＝これから自動投稿
+        else:
+            continue                      # 過去の未投稿（スキップ枠）は出さない
+        items.append({"id": dt.replace(" ", "_"), "at": t.isoformat(), "caption": cap,
+                      "thumb": prev, "kind": kind, "state": state})
+    posted = sorted([x for x in items if x["state"] == "posted"], key=lambda x: x["at"], reverse=True)[:30]
+    other = [x for x in items if x["state"] != "posted"]
+    return other + posted
+
+
 def main():
     if not os.path.exists("creds.json") and os.environ.get("GOOGLE_CREDS_B64"):
         open("creds.json", "wb").write(base64.b64decode(os.environ["GOOGLE_CREDS_B64"]))
@@ -139,6 +182,7 @@ def main():
     for sid_ui, suf in STORE_MAP:
         posts, stories = read_posts(sh, suf)
         fol, mon = read_daily(sh, suf)
+        ops = read_ops(sh, suf)
         mf = [p for p in posts if p["at"][:7] == tm]
         ms = [p for p in stories if p["at"][:7] == tm]
         hist = {tm: {"n": len(mf), "sn": len(ms),
@@ -146,10 +190,11 @@ def main():
                      "saved": sum(p["saved"] for p in mf), "views": sum(p.get("views", 0) for p in mf),
                      "sviews": sum(p["views"] for p in ms), "comments": sum(p["comments"] for p in mf)}}
         stores[sid_ui] = {"at": nowiso, "err": "", "savedOk": True, "connected": True,
-                          "posts": posts, "stories": stories,
+                          "posts": posts, "stories": stories, "ops": ops,
                           "stat": {"fol": fol, "mon": mon, "hist": hist, "monErr": None}}
-        print("[MON] %-12s(%-12s) posts=%3d stories=%3d fol=%3d mon=%d%s" % (
-            sid_ui, (suf or "三条"), len(posts), len(stories), len(fol), len(mon),
+        _rsv = len([x for x in ops if x["state"] == "reserved"])
+        print("[MON] %-12s(%-12s) posts=%3d stories=%3d fol=%3d mon=%d 予約%d%s" % (
+            sid_ui, (suf or "三条"), len(posts), len(stories), len(fol), len(mon), _rsv,
             "" if (posts or stories or fol) else "  ← データ無し（insights未収集）"))
 
     # bench（直近28日の本数で3群・1店あたり平均）
