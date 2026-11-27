@@ -247,18 +247,17 @@ def build_proposals(sid_ui, suf, stats, posts):
     r = random.Random(hash(sid_ui) & 0xffffffff)
     thumbs = [p["thumb"] for p in posts if p.get("thumb")][:10]
     items = []
-    count = 6
+    # 毎日1フィードの下書き案を最大1ヶ月(30日)分。画面側で「1週間(7)」「1ヶ月(30)」を選べる。
+    count = 30
+    feed_hour = slots[len(slots) // 2] if slots else 18   # 日次フィードの投稿時刻（店の中央スロット＝概ね18時）
     for i in range(count):
         cat = cats[i % len(cats)]
         p = r.choice(ph[cat])
-        is_story = (i == count - 1)
-        dayoff = 1 + i // max(1, len(slots))
-        hh = slots[i % len(slots)]
-        at = now.replace(hour=hh, minute=0, second=0, microsecond=0) + datetime.timedelta(days=dayoff)
+        at = now.replace(hour=feed_hour, minute=0, second=0, microsecond=0) + datetime.timedelta(days=i + 1)
         tag = "#%s #グルメ #今夜ごはん #乾杯 #おすすめ" % sid_ui
-        cap = p if is_story else (p + "\n" + store_name + " でお待ちしています。\nご予約はプロフィールから。\n\n" + tag)
+        cap = p + "\n" + store_name + " でお待ちしています。\nご予約はプロフィールから。\n\n" + tag
         items.append({"id": "prop_%s_%d" % (sid_ui, i), "at": at.isoformat(),
-                      "kind": "story" if is_story else "post",
+                      "kind": "post",
                       "theme": _THEME_JP.get(cat, cat), "why": why[i % len(why)],
                       "caption": cap, "thumb": thumbs[i % len(thumbs)] if thumbs else ""})
     return items
