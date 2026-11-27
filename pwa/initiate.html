@@ -461,7 +461,7 @@ function updateBadges(rows){ const plan=rows.reduce((a,r)=>a+r.planN,0); const p
 document.addEventListener('click',(e)=>{ if(e.target.id==='btnSelectStalled'){ const ids=(e.target.dataset.ids||'').split(',').filter(Boolean); ids.forEach(id=>UI.selected.add(id)); renderSNS(); } });
 document.getElementById('chkAll').addEventListener('change',(e)=>{ const rows=computeAll(); if(e.target.checked) rows.forEach(r=>{ if(r.connected) UI.selected.add(r.store.id); }); else UI.selected.clear(); renderSNS(); });
 document.getElementById('btnRefresh').addEventListener('click',doRefresh);
-async function doRefresh(){ const b=document.getElementById('btnRefresh'); if(b) b.classList.add('animate-spin'); MON=await loadMonitor(); setTimeout(()=>{ if(b)b.classList.remove('animate-spin'); rerenderActive(); },300); }
+async function doRefresh(){ const b=document.getElementById('btnRefresh'); if(b) b.classList.add('animate-spin'); MON=await loadMonitor(); PLANS=(MON&&!MON._mock)?{}:buildPlans(); RES=buildReservations(); setTimeout(()=>{ if(b)b.classList.remove('animate-spin'); rerenderActive(); },300); }
 window.doRefresh=doRefresh;
 document.getElementById('btnMakePlans').addEventListener('click',()=>{ if(UI.selected.size===0) return; PLAN_BULK=[...UI.selected]; location.hash='#sns/plan'; });
 document.getElementById('btnCompose').addEventListener('click',openCompose);
@@ -472,8 +472,23 @@ document.getElementById('bannerReload').addEventListener('click',()=>{ document.
 /* ====== ② 提案（本実装） ====== */
 let PLAN_SELECT=null, PLAN_BULK=null;
 const PLAN_UI={ filter:'linked', period:14, count:6, hint:'' };
+function planRealPanel(){
+  const inSet=new Set(STORE_MASTER.filter(inDept).map(s=>s.id));
+  const upcoming=(RES||[]).filter(r=>r.state==='reserved' && inSet.has(r.storeId)).sort((a,b)=>new Date(a.at)-new Date(b.at));
+  const byStore={}; upcoming.forEach(r=>{ (byStore[r.storeId]=byStore[r.storeId]||[]).push(r); });
+  const cards=Object.keys(byStore).map(sid=>{ const s=STORE_MASTER.find(x=>x.id===sid); const items=byStore[sid];
+    return `<div class="bg-white border border-slate-200 rounded-xl p-3"><div class="font-bold text-[13px] mb-1.5">${s.name} <span class="text-[11px] font-normal text-slate-400">これから自動投稿 ${items.length}枠</span></div>
+      <div class="space-y-1">${items.slice(0,10).map(r=>`<div class="flex items-center gap-2 text-[12px]"><img src="${r.thumb}" class="w-7 h-7 rounded object-cover border border-slate-200 shrink-0"><span class="tnum text-slate-500 shrink-0 w-[108px]">${fmtJP(new Date(r.at).getTime())}</span><span class="truncate flex-1">${(r.caption||'（無題）').replace(/</g,'&lt;')}</span></div>`).join('')}</div></div>`;
+  }).join('') || '<div class="text-slate-400 text-sm p-4">これから自動投稿される枠はありません。</div>';
+  return `<div class="bg-amber-50 border border-amber-200 rounded-xl p-4 mb-3">
+      <div class="font-bold text-[14px] mb-1">② 提案 ＝ このプロジェクトでは「確認アプリで承認」方式</div>
+      <p class="text-[13px] text-slate-600 leading-7">NexusGroupの「AIが提案 → OK/NG」とは異なり、このプロジェクトは <b>レンダー → 確認アプリで承認/却下 → 予約時刻に自動投稿</b> の運用です。そのため②のAI提案キューはありません。<br>下は <b>これから自動投稿される枠（確認待ち）</b> です。承認・却下は各店の<b>確認アプリ</b>で、投稿状況は <button onclick="location.hash='#sns/posts'" class="underline font-semibold text-indigo-600">③予約・投稿</button> で確認できます。</p>
+    </div>
+    <div class="grid md:grid-cols-2 gap-3">${cards}</div>`;
+}
 function renderPlan(){
   const root=document.getElementById('planRoot');
+  if(MON && !MON._mock){ root.innerHTML=planRealPanel(); return; }
   const rows=computeAll();
   const withPlan=rows.filter(r=>planStats(r.store.id).has);
   // フィルタ件数
@@ -619,6 +634,16 @@ function refreshPlanCounts(){ // ①や上部サマリーの数字と連動
 function stub(title,lines){ return `<div class="bg-white border border-slate-200 rounded-xl p-6 shadow-sm"><div class="inline-block text-[11px] font-bold tracking-wider text-fuchsia-600 border border-fuchsia-200 bg-fuchsia-50 rounded-full px-3 py-1 mb-3">実装中</div><h2 class="text-lg font-bold mb-1">${title}</h2><p class="text-sm text-slate-500 leading-7">${lines}</p></div>`; }
 /* ---- 予約データ（モック。②の予約済みと連動） ---- */
 function buildReservations(){
+  // 実データ：monitor の ops（承認待ち由来）があればそれを使う
+  if(MON && !MON._mock){
+    const res=[];
+    Object.keys(MON.stores||{}).forEach(sid=>{
+      const st=MON.stores[sid]; const ops=(st&&st.ops)||[]; const s=STORE_MASTER.find(x=>x.id===sid); if(!s) return;
+      ops.forEach((o,i)=>{ const img=(o.thumb && /\.(jpg|jpeg|png|webp)(\?|$)/i.test(o.thumb))? o.thumb : svgThumb(sid+(o.id||i), s.name);
+        res.push({ id:'res_'+sid+'_'+(o.id||i), storeId:sid, at:o.at, kind:o.kind||'story', caption:o.caption||'', by:'自動投稿', state:o.state, reason:o.state==='failed'?'投稿に失敗（ログ要確認）':'', thumb:img, url:'https://www.instagram.com/'+s.handle+'/' }); });
+    });
+    return res;
+  }
   const res=[];
   Object.values(PLANS||{}).forEach(pl=>{ pl.items.forEach(it=>{ if(it.booked){ const t=new Date(it.at).getTime();
     res.push({ id:'res_'+it.id, storeId:pl.store.id, at:it.at, kind:it.kind, caption:it.caption, by:pl.by.replace('（まとめて）',''), state: t>Date.now()?'reserved':'posted', reason:'', thumb: it.thumb||svgThumb(it.id,pl.store.name), url:'https://www.instagram.com/'+pl.store.handle+'/' }); } }); });
@@ -1110,7 +1135,7 @@ function rerenderActive(){ renderDeptChips(); renderActive(); }
 window.addEventListener('hashchange',route);
 
 /* ====== 起動 ====== */
-(async function init(){ MON=await loadMonitor(); PLANS=buildPlans(); RES=buildReservations(); renderDeptChips(); route(); startVersionPolling();
+(async function init(){ MON=await loadMonitor(); PLANS=(MON && !MON._mock)?{}:buildPlans(); RES=buildReservations(); renderDeptChips(); route(); startVersionPolling();
   try{ if(localStorage.getItem('tour:sns')!=='1'){ /* 初回はツアーを促すだけ（自動では出さない） */ } }catch(e){}
 })();
 </script>
