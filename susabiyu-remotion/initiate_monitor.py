@@ -34,6 +34,7 @@ STORE_MAP = [
     ("komatsubara",  "komatsubara"),
     ("gifuyatenjin", "gifuyatenjin"),
     ("arata",        "arata"),
+    ("kadoma",       "kadoma"),
 ]
 
 # インサイト投稿タブの列（insights.py POST_HEADER と一致）
