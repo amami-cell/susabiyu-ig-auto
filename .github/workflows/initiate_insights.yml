@@ -51,10 +51,12 @@ jobs:
           IG_ACCESS_TOKEN_KARASUMA: ${{ secrets.IG_ACCESS_TOKEN_KARASUMA }}
           IG_ACCESS_TOKEN_KOMATSUBARA: ${{ secrets.IG_ACCESS_TOKEN_KOMATSUBARA }}
           IG_ACCESS_TOKEN_ARATA: ${{ secrets.IG_ACCESS_TOKEN_ARATA }}
+          # kadoma は Secret名のブレ（KADOMA / KADOMA_LARGO）どちらでも拾えるようにする
+          IG_ACCESS_TOKEN_KADOMA: ${{ secrets.IG_ACCESS_TOKEN_KADOMA || secrets.IG_ACCESS_TOKEN_KADOMA_LARGO }}
         run: |
           M="${MODE:-collect}"
           [ -z "$M" ] && M="collect"
-          for acct in goldporta karasuma komatsubara arata; do
+          for acct in goldporta karasuma komatsubara arata kadoma; do
             echo "::group::insights $M $acct"
             STORE_ACCOUNT="$acct" python insights.py "$M" || echo "[WARN] $acct 失敗（継続）"
             echo "::endgroup::"
