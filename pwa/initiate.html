@@ -183,8 +183,8 @@ const STORE_MASTER = [
   { id:'kabukicho',    name:'すさび湯 歌舞伎町',   handle:'', area:'東京・歌舞伎町', dept:'initiate', connected:false },
   { id:'ndanda',       name:'んだんだ',            handle:'', area:'大阪',       dept:'initiate', connected:false },
 ];
-const DEPTS = ['全社','第一','第二','第三','第五','第六','第七','第八','イニシエート','HASSIN','HARE','MITOMO','KOIFUKU','プロペルインターナショナル'];
-const ACTIVE_DEPTS = new Set(['全社','イニシエート']); // 本アプリに実在する営業部
+const DEPTS = ['イニシエート'];                 // この総合ページはイニシエート専用（他営業部は出さない）
+const ACTIVE_DEPTS = new Set(['イニシエート']); // 本アプリに実在する営業部
 
 /* 多店舗共有GAS(/exec)。deploy_pwa が GAS_EXEC_URL を注入（未注入＝ローカル等では予約作成は無効）。
    ②のOK→この api=schedule で「予約投稿」タブに作成→ post_reservations.py が予約時刻に本番投稿（分離エンジン・本番パイプライン影響ゼロ）。 */
@@ -319,7 +319,7 @@ async function loadMonitor(){
 /* ---------- 集計 ---------- */
 function windowDays(n){ const nJ=nowJST(); const base=Date.UTC(nJ.getUTCFullYear(),nJ.getUTCMonth(),nJ.getUTCDate()); const a=[]; for(let i=n-1;i>=0;i--){ const ms=base-i*86400000; a.push({ms,str:ymd(jstDate(ms)),dow:jstDate(ms).getUTCDay()}); } return a; }
 function planStats(id){ const pl=PLANS[id]; if(!pl) return {open:0,ok:0,booked:0,ng:0,has:false};
-  let open=0,ok=0,booked=0,ng=0; pl.items.forEach(it=>{ if(it.booked){booked++;} else if(it.mark==='ok'){ok++;} else if(it.mark==='ng'){ng++;} else {open++;} }); return {open,ok,booked,ng,has:true}; }
+  let open=0,ok=0,booked=0,ng=0; pl.items.slice(0,PLAN_SPAN).forEach(it=>{ if(it.booked){booked++;} else if(it.mark==='ok'){ok++;} else if(it.mark==='ng'){ng++;} else {open++;} }); return {open,ok,booked,ng,has:true}; }
 function computeStore(s){
   const raw=MON.stores[s.id]||{connected:false,posts:[],stories:[],stat:{},err:''};
   const connected=raw.connected!==false&&s.connected;
@@ -514,6 +514,9 @@ document.getElementById('bannerReload').addEventListener('click',()=>{ document.
 
 /* ====== ② 提案（本実装） ====== */
 let PLAN_SELECT=null, PLAN_BULK=null;
+let PLAN_SPAN=7;  // 提案の表示/予約の期間：7=1週間 / 30=1ヶ月（毎日1フィード）
+window.planSpan=n=>{ PLAN_SPAN=n; renderPlan(); };
+function planSpanItems(id){ const pl=PLANS[id]; return pl?pl.items.slice(0,PLAN_SPAN):[]; }
 const PLAN_UI={ filter:'linked', period:14, count:6, hint:'' };
 function planRealPanel(){
   const rows=computeAll().filter(r=>r.connected);
@@ -601,11 +604,14 @@ function renderPlanDetail(id){
       ${REAL?'<div class="text-[12px] text-slate-400 mt-2">次回の自動生成（文例）で下書きが入ります。</div>':`<button onclick="planCreateOne('${id}')" id="planOneBtn" class="mt-3 text-[13px] font-bold text-white bg-[var(--btn)] rounded-lg px-4 py-2">✨この店だけすぐ作る</button><div class="text-[11px] text-slate-400 mt-2">実測：1店・1週6本で約50秒・17円</div>`}</div>`; return; }
   const ps=planStats(id); const at=jstDate(new Date(pl.at).getTime());
   const chip=(l,n,cls)=>`<span class="text-[11px] font-bold rounded-full px-2 py-0.5 ${cls} tnum">${l} ${n}</span>`;
-  const cards=pl.items.map((it,i)=>planCard(id,it,i)).join('');
+  const cards=pl.items.slice(0,PLAN_SPAN).map((it,i)=>planCard(id,it,i)).join('');
+  const spanBtn=(n,l)=>`<button onclick="planSpan(${n})" class="rounded-md px-2.5 py-1 text-[12px] font-bold ${PLAN_SPAN===n?'bg-white text-slate-900 shadow-sm':'text-slate-500 hover:text-slate-800'}">${l}</button>`;
+  const spanSeg=`<div class="inline-flex rounded-lg bg-slate-100 p-0.5" title="毎日1フィード。予約する期間を選びます">${spanBtn(7,'1週間')}${spanBtn(30,'1ヶ月（毎日）')}</div>`;
   host.innerHTML=`<div class="bg-white border border-slate-200 rounded-xl shadow-sm p-3.5">
       <div class="flex flex-wrap items-center gap-2 mb-1">
         <span class="font-bold">${s.name}</span><span class="text-[12px] text-emerald-600 font-semibold">● @${s.handle}</span>
-        <span class="text-[11px] text-slate-400">${at.getUTCMonth()+1}/${at.getUTCDate()}(${WK[at.getUTCDay()]}) ${String(at.getUTCHours()).padStart(2,'0')}:${String(at.getUTCMinutes()).padStart(2,'0')}・📷${pl.photos}枚から</span>
+        <span class="text-[11px] text-slate-400">毎日1フィード・${PLAN_SPAN===7?'1週間':'1ヶ月'}（${PLAN_SPAN}日分）</span>
+        ${spanSeg}
         <div class="flex-1"></div>
         ${chip('OK',ps.ok,'bg-emerald-100 text-emerald-700')}${chip('NG',ps.ng,'bg-rose-100 text-rose-700')}${chip('未定',ps.open,'bg-slate-100 text-slate-600')}${chip('予約済',ps.booked,'bg-sky-100 text-sky-700')}
         ${REAL?'':`<button onclick="planCreateOne('${id}')" class="text-[12px] font-semibold text-slate-600 border border-slate-200 rounded-lg px-2 py-1 hover:bg-slate-100" title="この店だけ、すぐ作る（1〜2分）。NG にした案は避けます">↻作り直す</button>`}
@@ -658,9 +664,9 @@ function planScheduleReal(id,i){
         alert('予約しました。'+whenTxt+' に自動投稿されます。（③予約・投稿に反映されます）'); }
       else { alert('予約に失敗しました：'+((r&&r.error)||'不明')); } })
     .catch(e=>alert('予約に失敗しました：'+e.message+'\n（デプロイ後に有効になります）')); }
-window.planAllOk=(id)=>{ PLANS[id].items.forEach(it=>{ if(!it.booked && it.mark==='') it.mark='ok'; }); renderPlanDetail(id); refreshPlanCounts(); };
-window.planBook=(id)=>{ const n=PLANS[id].items.filter(it=>it.mark==='ok'&&!it.booked).length; if(!n) return;
-  PLANS[id].items.forEach(it=>{ if(it.mark==='ok'&&!it.booked){ it.booked=true; } });
+window.planAllOk=(id)=>{ PLANS[id].items.slice(0,PLAN_SPAN).forEach(it=>{ if(!it.booked && it.mark==='') it.mark='ok'; }); renderPlanDetail(id); refreshPlanCounts(); };
+window.planBook=(id)=>{ const n=PLANS[id].items.slice(0,PLAN_SPAN).filter(it=>it.mark==='ok'&&!it.booked).length; if(!n) return;
+  PLANS[id].items.slice(0,PLAN_SPAN).forEach(it=>{ if(it.mark==='ok'&&!it.booked){ it.booked=true; } });
   RES=buildReservations();
   alert(`【テスト・予約】${PLANS[id].store.name} の ${n}件を予約しました。\n※モックです。実際のInstagram予約はしていません。`);
   renderPlanDetail(id); refreshPlanCounts(); };
