@@ -39,6 +39,8 @@ jobs:
         run: |
           if [ -n "$GAS_EXEC_URL" ]; then
             sed -i "s#PASTE_YOUR_GAS_EXEC_URL_HERE#${GAS_EXEC_URL}#" pwa/config.js
+            # イニシエート総合ページ（②OK→予約投稿の作成に使う多店舗共有GAS）
+            sed -i "s#PASTE_YOUR_GAS_EXEC_URL_HERE#${GAS_EXEC_URL}#" pwa/initiate.html || true
             echo "GAS URL injected."
           else
             echo "WARNING: GAS_EXEC_URL secret is empty; app will not connect until set."
