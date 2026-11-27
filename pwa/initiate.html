@@ -264,6 +264,16 @@ function buildPlans(){
 }
 
 /* ---------- 読み込み ---------- */
+function buildPlansFromMON(){
+  const plans={};
+  Object.keys((MON&&MON.stores)||{}).forEach(sid=>{
+    const st=MON.stores[sid]; const props=(st&&st.proposals)||[]; if(!props.length) return;
+    const s=STORE_MASTER.find(x=>x.id===sid); if(!s) return;
+    plans[sid]={ store:s, at:(st.at||new Date().toISOString()), by:'自動下書き（文例）', yen:0, days:7, count:props.length, photos:0, hint:'',
+      items: props.map((p,i)=>({ id:p.id||('prop_'+sid+'_'+i), at:p.at, kind:p.kind||'post', theme:p.theme||'提案', why:p.why||'', caption:p.caption||'', photoName:'', thumb:p.thumb||'', mark:'', booked:false })) };
+  });
+  return plans;
+}
 let MON=null, PLANS=null, RES=null;
 /* 検索の正規化：NFKC→小文字→カタカナをひらがなに（GOLD/gold・スサビ/すさび・半角カナを吸収） */
 function norm(s){ s=(s||'').normalize('NFKC').toLowerCase(); return s.replace(/[ァ-ヶ]/g,c=>String.fromCharCode(c.charCodeAt(0)-0x60)); }
@@ -461,7 +471,7 @@ function updateBadges(rows){ const plan=rows.reduce((a,r)=>a+r.planN,0); const p
 document.addEventListener('click',(e)=>{ if(e.target.id==='btnSelectStalled'){ const ids=(e.target.dataset.ids||'').split(',').filter(Boolean); ids.forEach(id=>UI.selected.add(id)); renderSNS(); } });
 document.getElementById('chkAll').addEventListener('change',(e)=>{ const rows=computeAll(); if(e.target.checked) rows.forEach(r=>{ if(r.connected) UI.selected.add(r.store.id); }); else UI.selected.clear(); renderSNS(); });
 document.getElementById('btnRefresh').addEventListener('click',doRefresh);
-async function doRefresh(){ const b=document.getElementById('btnRefresh'); if(b) b.classList.add('animate-spin'); MON=await loadMonitor(); PLANS=(MON&&!MON._mock)?{}:buildPlans(); RES=buildReservations(); setTimeout(()=>{ if(b)b.classList.remove('animate-spin'); rerenderActive(); },300); }
+async function doRefresh(){ const b=document.getElementById('btnRefresh'); if(b) b.classList.add('animate-spin'); MON=await loadMonitor(); PLANS=(MON&&!MON._mock)?buildPlansFromMON():buildPlans(); RES=buildReservations(); setTimeout(()=>{ if(b)b.classList.remove('animate-spin'); rerenderActive(); },300); }
 window.doRefresh=doRefresh;
 document.getElementById('btnMakePlans').addEventListener('click',()=>{ if(UI.selected.size===0) return; PLAN_BULK=[...UI.selected]; location.hash='#sns/plan'; });
 document.getElementById('btnCompose').addEventListener('click',openCompose);
@@ -473,22 +483,26 @@ document.getElementById('bannerReload').addEventListener('click',()=>{ document.
 let PLAN_SELECT=null, PLAN_BULK=null;
 const PLAN_UI={ filter:'linked', period:14, count:6, hint:'' };
 function planRealPanel(){
-  const inSet=new Set(STORE_MASTER.filter(inDept).map(s=>s.id));
-  const upcoming=(RES||[]).filter(r=>r.state==='reserved' && inSet.has(r.storeId)).sort((a,b)=>new Date(a.at)-new Date(b.at));
-  const byStore={}; upcoming.forEach(r=>{ (byStore[r.storeId]=byStore[r.storeId]||[]).push(r); });
-  const cards=Object.keys(byStore).map(sid=>{ const s=STORE_MASTER.find(x=>x.id===sid); const items=byStore[sid];
-    return `<div class="bg-white border border-slate-200 rounded-xl p-3"><div class="font-bold text-[13px] mb-1.5">${s.name} <span class="text-[11px] font-normal text-slate-400">これから自動投稿 ${items.length}枠</span></div>
-      <div class="space-y-1">${items.slice(0,10).map(r=>`<div class="flex items-center gap-2 text-[12px]"><img src="${r.thumb}" class="w-7 h-7 rounded object-cover border border-slate-200 shrink-0"><span class="tnum text-slate-500 shrink-0 w-[108px]">${fmtJP(new Date(r.at).getTime())}</span><span class="truncate flex-1">${(r.caption||'（無題）').replace(/</g,'&lt;')}</span></div>`).join('')}</div></div>`;
-  }).join('') || '<div class="text-slate-400 text-sm p-4">これから自動投稿される枠はありません。</div>';
-  return `<div class="bg-amber-50 border border-amber-200 rounded-xl p-4 mb-3">
-      <div class="font-bold text-[14px] mb-1">② 提案 ＝ このプロジェクトでは「確認アプリで承認」方式</div>
-      <p class="text-[13px] text-slate-600 leading-7">NexusGroupの「AIが提案 → OK/NG」とは異なり、このプロジェクトは <b>レンダー → 確認アプリで承認/却下 → 予約時刻に自動投稿</b> の運用です。そのため②のAI提案キューはありません。<br>下は <b>これから自動投稿される枠（確認待ち）</b> です。承認・却下は各店の<b>確認アプリ</b>で、投稿状況は <button onclick="location.hash='#sns/posts'" class="underline font-semibold text-indigo-600">③予約・投稿</button> で確認できます。</p>
-    </div>
-    <div class="grid md:grid-cols-2 gap-3">${cards}</div>`;
+  const rows=computeAll().filter(r=>r.connected);
+  const withPlan=rows.filter(r=>planStats(r.store.id).has);
+  const selId = PLAN_SELECT || (withPlan[0]||rows[0]||{store:{}}).store.id; PLAN_SELECT=selId;
+  const listHtml=rows.map(r=>{ const ps=planStats(r.store.id); const sel=r.store.id===selId;
+    return `<button onclick="planSelect('${r.store.id}')" class="w-full flex items-center gap-2 px-1.5 py-2 text-left ${sel?'bg-violet-50':''} hover:bg-slate-50 rounded-lg">
+      <span class="w-2 h-2 rounded-full bg-emerald-500 shrink-0"></span>
+      <span class="flex-1 font-semibold text-[13px] text-slate-700 truncate">${r.store.name}</span>
+      <span class="text-[11px] font-bold text-slate-600 tnum">${ps.has?ps.open:'—'}</span></button>`;
+  }).join('');
+  return `<div class="bg-amber-50 border border-amber-200 rounded-xl p-3.5 mb-3 text-[13px] text-slate-600 leading-7">
+      <b>② 提案（自動下書き・無料の文例エンジン）</b>：各店の<b>実数値＋店別文例</b>から投稿の下書き案を自動生成します。
+      <b class="text-rose-600">OK/NGは“確認のみ”で、本番Instagramには投稿しません</b>（実投稿は従来の レンダー→確認アプリ→自動投稿）。この下書きを参考に確認アプリで承認してください。</div>
+    <div class="grid lg:grid-cols-[300px_1fr] gap-3">
+      <div class="bg-white border border-slate-200 rounded-xl shadow-sm p-2.5"><div class="yscroll max-h-[560px] divide-y divide-slate-100">${listHtml}</div></div>
+      <div id="planDetail"></div>
+    </div>`;
 }
 function renderPlan(){
   const root=document.getElementById('planRoot');
-  if(MON && !MON._mock){ root.innerHTML=planRealPanel(); return; }
+  if(MON && !MON._mock){ root.innerHTML=planRealPanel(); renderPlanDetail(PLAN_SELECT); return; }
   const rows=computeAll();
   const withPlan=rows.filter(r=>planStats(r.store.id).has);
   // フィルタ件数
@@ -548,10 +562,10 @@ window.planSelect=id=>{ PLAN_SELECT=id; renderPlan(); };
 function renderPlanDetail(id){
   const host=document.getElementById('planDetail'); if(!host) return;
   const s=STORE_MASTER.find(x=>x.id===id); const pl=PLANS[id];
+  const REAL=!!(MON&&!MON._mock);
   if(!pl){ host.innerHTML=`<div class="bg-white border border-slate-200 rounded-xl shadow-sm p-8 text-center">
       <div class="text-5xl mb-2">✨</div><div class="font-bold">${s?s.name:''} の提案はまだありません</div>
-      <button onclick="planCreateOne('${id}')" id="planOneBtn" class="mt-3 text-[13px] font-bold text-white bg-[var(--btn)] rounded-lg px-4 py-2">✨この店だけすぐ作る</button>
-      <div class="text-[11px] text-slate-400 mt-2">実測：1店・1週6本で約50秒・17円</div></div>`; return; }
+      ${REAL?'<div class="text-[12px] text-slate-400 mt-2">次回の自動生成（文例）で下書きが入ります。</div>':`<button onclick="planCreateOne('${id}')" id="planOneBtn" class="mt-3 text-[13px] font-bold text-white bg-[var(--btn)] rounded-lg px-4 py-2">✨この店だけすぐ作る</button><div class="text-[11px] text-slate-400 mt-2">実測：1店・1週6本で約50秒・17円</div>`}</div>`; return; }
   const ps=planStats(id); const at=jstDate(new Date(pl.at).getTime());
   const chip=(l,n,cls)=>`<span class="text-[11px] font-bold rounded-full px-2 py-0.5 ${cls} tnum">${l} ${n}</span>`;
   const cards=pl.items.map((it,i)=>planCard(id,it,i)).join('');
@@ -561,13 +575,13 @@ function renderPlanDetail(id){
         <span class="text-[11px] text-slate-400">${at.getUTCMonth()+1}/${at.getUTCDate()}(${WK[at.getUTCDay()]}) ${String(at.getUTCHours()).padStart(2,'0')}:${String(at.getUTCMinutes()).padStart(2,'0')}・📷${pl.photos}枚から</span>
         <div class="flex-1"></div>
         ${chip('OK',ps.ok,'bg-emerald-100 text-emerald-700')}${chip('NG',ps.ng,'bg-rose-100 text-rose-700')}${chip('未定',ps.open,'bg-slate-100 text-slate-600')}${chip('予約済',ps.booked,'bg-sky-100 text-sky-700')}
-        <button onclick="planCreateOne('${id}')" class="text-[12px] font-semibold text-slate-600 border border-slate-200 rounded-lg px-2 py-1 hover:bg-slate-100" title="この店だけ、すぐ作る（1〜2分）。NG にした案は避けます">↻作り直す</button>
+        ${REAL?'':`<button onclick="planCreateOne('${id}')" class="text-[12px] font-semibold text-slate-600 border border-slate-200 rounded-lg px-2 py-1 hover:bg-slate-100" title="この店だけ、すぐ作る（1〜2分）。NG にした案は避けます">↻作り直す</button>`}
       </div>
       <div class="grid xl:grid-cols-2 gap-3 mt-2">${cards}</div>
       <div class="flex items-center gap-2 mt-3 pt-3 border-t border-slate-100 sticky bottom-0 bg-white">
         <button onclick="planAllOk('${id}')" class="text-[12px] font-semibold text-slate-600 border border-slate-200 rounded-lg px-3 py-1.5 hover:bg-slate-100">未定を全部 OK</button>
         <div class="flex-1"></div>
-        <button onclick="planBook('${id}')" class="text-[13px] font-bold text-white bg-emerald-600 disabled:bg-slate-200 disabled:text-slate-400 rounded-lg px-4 py-2" ${ps.ok?'':'disabled'}>🕒 OK の ${ps.ok}件を予約</button>
+        ${REAL?`<span class="text-[11px] text-slate-400">OK/NG は確認のみ・本番投稿はしません（承認は確認アプリで）</span>`:`<button onclick="planBook('${id}')" class="text-[13px] font-bold text-white bg-emerald-600 disabled:bg-slate-200 disabled:text-slate-400 rounded-lg px-4 py-2" ${ps.ok?'':'disabled'}>🕒 OK の ${ps.ok}件を予約</button>`}
       </div></div>`;
 }
 function planCard(id,it,i){
@@ -1135,7 +1149,7 @@ function rerenderActive(){ renderDeptChips(); renderActive(); }
 window.addEventListener('hashchange',route);
 
 /* ====== 起動 ====== */
-(async function init(){ MON=await loadMonitor(); PLANS=(MON && !MON._mock)?{}:buildPlans(); RES=buildReservations(); renderDeptChips(); route(); startVersionPolling();
+(async function init(){ MON=await loadMonitor(); PLANS=(MON && !MON._mock)?buildPlansFromMON():buildPlans(); RES=buildReservations(); renderDeptChips(); route(); startVersionPolling();
   try{ if(localStorage.getItem('tour:sns')!=='1'){ /* 初回はツアーを促すだけ（自動では出さない） */ } }catch(e){}
 })();
 </script>

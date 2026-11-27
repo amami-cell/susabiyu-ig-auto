@@ -165,6 +165,69 @@ def read_ops(sh, suf):
     return other + posted
 
 
+_THEME_JP = {"generic": "本日のおすすめ", "atmosphere": "店の雰囲気", "sushi": "握りたて",
+             "food": "自慢の一皿", "drink": "今夜の一杯", "course": "宴会・コース",
+             "lunch": "ランチ", "noren": "暖簾くぐり", "season": "季節の旬"}
+
+
+def _phrases(suf):
+    fn = "phrases.json" if not suf else ("phrases_" + suf + ".json")
+    try:
+        with open(fn, encoding="utf-8") as f:
+            return json.load(f)
+    except Exception:
+        return {}
+
+
+def _store_meta(suf):
+    try:
+        import stores as _s
+        st = _s.get_store(suf)
+        return (st.get("store_name") or suf or "三条"), (st.get("slots_weekday") or [11, 18, 20])
+    except Exception:
+        return (suf or "三条"), [11, 18, 20]
+
+
+def build_proposals(sid_ui, suf, stats, posts):
+    """無料の文例エンジン：店別 phrases＋実数値から投稿の下書き案を作る（OKは確認のみ・予約しない）。"""
+    import random
+    ph = _phrases(suf)
+    cats = [k for k, v in ph.items() if isinstance(v, list) and v]
+    if not cats:
+        return []
+    store_name, slots = _store_meta(suf)
+    now = datetime.datetime.now(JST)
+    why = []
+    hl = stats.get("hLikes")
+    if hl is not None and hl < 10:
+        why.append("14日の平均♥%.1f。まず反応の取れる定番で底上げ" % hl)
+    ds = stats.get("daysSince")
+    if ds is not None and ds >= 2:
+        why.append("最終フィードから%d日。来店理由を思い出してもらう" % ds)
+    fi = stats.get("folInc")
+    if fi is not None:
+        why.append("フォロワー%+d/28日。認知を広げて新規を呼ぶ" % fi)
+    why.append("定番の訴求で安定した反応を狙う")
+    r = random.Random(hash(sid_ui) & 0xffffffff)
+    thumbs = [p["thumb"] for p in posts if p.get("thumb")][:10]
+    items = []
+    count = 6
+    for i in range(count):
+        cat = cats[i % len(cats)]
+        p = r.choice(ph[cat])
+        is_story = (i == count - 1)
+        dayoff = 1 + i // max(1, len(slots))
+        hh = slots[i % len(slots)]
+        at = now.replace(hour=hh, minute=0, second=0, microsecond=0) + datetime.timedelta(days=dayoff)
+        tag = "#%s #グルメ #今夜ごはん #乾杯 #おすすめ" % sid_ui
+        cap = p if is_story else (p + "\n" + store_name + " でお待ちしています。\nご予約はプロフィールから。\n\n" + tag)
+        items.append({"id": "prop_%s_%d" % (sid_ui, i), "at": at.isoformat(),
+                      "kind": "story" if is_story else "post",
+                      "theme": _THEME_JP.get(cat, cat), "why": why[i % len(why)],
+                      "caption": cap, "thumb": thumbs[i % len(thumbs)] if thumbs else ""})
+    return items
+
+
 def main():
     if not os.path.exists("creds.json") and os.environ.get("GOOGLE_CREDS_B64"):
         open("creds.json", "wb").write(base64.b64decode(os.environ["GOOGLE_CREDS_B64"]))
@@ -189,8 +252,19 @@ def main():
                      "likes": sum(p["likes"] for p in mf), "reach": sum(p["reach"] for p in mf),
                      "saved": sum(p["saved"] for p in mf), "views": sum(p.get("views", 0) for p in mf),
                      "sviews": sum(p["views"] for p in ms), "comments": sum(p["comments"] for p in mf)}}
+        # 提案（自動下書き・文例）用の簡易stats＋生成
+        since14 = (now - datetime.timedelta(days=14)).isoformat()
+        f14 = [p for p in posts if p["at"] >= since14]
+        _hl = (sum(p["likes"] for p in f14) / len(f14)) if f14 else None
+        try:
+            _ds = (now - datetime.datetime.fromisoformat(posts[0]["at"])).days if posts else None
+        except Exception:
+            _ds = None
+        _ks = sorted(fol.keys())
+        _fi = (fol[_ks[-1]] - fol[_ks[0]]) if len(_ks) >= 2 else None
+        proposals = build_proposals(sid_ui, suf, {"hLikes": _hl, "daysSince": _ds, "folInc": _fi}, posts)
         stores[sid_ui] = {"at": nowiso, "err": "", "savedOk": True, "connected": True,
-                          "posts": posts, "stories": stories, "ops": ops,
+                          "posts": posts, "stories": stories, "ops": ops, "proposals": proposals,
                           "stat": {"fol": fol, "mon": mon, "hist": hist, "monErr": None}}
         _rsv = len([x for x in ops if x["state"] == "reserved"])
         print("[MON] %-12s(%-12s) posts=%3d stories=%3d fol=%3d mon=%d 予約%d%s" % (
