@@ -264,7 +264,10 @@ function buildPlans(){
 }
 
 /* ---------- 読み込み ---------- */
-let MON=null, PLANS=null;
+let MON=null, PLANS=null, RES=null;
+/* 検索の正規化：NFKC→小文字→カタカナをひらがなに（GOLD/gold・スサビ/すさび・半角カナを吸収） */
+function norm(s){ s=(s||'').normalize('NFKC').toLowerCase(); return s.replace(/[ァ-ヶ]/g,c=>String.fromCharCode(c.charCodeAt(0)-0x60)); }
+function andMatch(hay,q){ const n=norm(hay); return norm(q).split(/\s+/).filter(Boolean).every(t=>n.includes(t)); }
 async function loadMonitor(){
   try{ const res=await fetch('./initiate_monitor.json',{cache:'no-store'}); if(res.ok){ const j=await res.json(); if(j&&j.stores) return j; } }catch(e){}
   return buildMock();
@@ -293,7 +296,7 @@ function computeStore(s){
   stories.forEach(p=>{ const k=ymd(jstDate(new Date(p.at).getTime())); if(dayMap[k]) dayMap[k].story.push(p); });
   const ps=planStats(s.id);
   return { store:s, connected, err, posts, stories, feed14, st14, win, dayMap, lastMs, bucket, hLikes, hSaved, hCom,
-    reserveN: connected? ps.booked:0, planN: connected? ps.open:0, planOK: connected? ps.ok:0 };
+    reserveN: connected? reservedFuture(s.id):0, planN: connected? ps.open:0, planOK: connected? ps.ok:0 };
 }
 function computeAll(){ return STORE_MASTER.filter(inDept).map(computeStore); }
 function inDept(s){ if(UI.dept==='全社') return true; return s.dept==='initiate' && UI.dept==='イニシエート'; }
@@ -583,6 +586,7 @@ window.planMark=(id,i,m)=>{ const it=PLANS[id].items[i]; if(it.booked) return; i
 window.planAllOk=(id)=>{ PLANS[id].items.forEach(it=>{ if(!it.booked && it.mark==='') it.mark='ok'; }); renderPlanDetail(id); refreshPlanCounts(); };
 window.planBook=(id)=>{ const n=PLANS[id].items.filter(it=>it.mark==='ok'&&!it.booked).length; if(!n) return;
   PLANS[id].items.forEach(it=>{ if(it.mark==='ok'&&!it.booked){ it.booked=true; } });
+  RES=buildReservations();
   alert(`【テスト・予約】${PLANS[id].store.name} の ${n}件を予約しました。\n※モックです。実際のInstagram予約はしていません。`);
   renderPlanDetail(id); refreshPlanCounts(); };
 window.planEditTime=(id,i)=>{ const it=PLANS[id].items[i]; const cur=new Date(new Date(it.at).getTime()+JST_OFF); const pad=n=>String(n).padStart(2,'0');
@@ -613,9 +617,265 @@ function refreshPlanCounts(){ // ①や上部サマリーの数字と連動
 
 /* ====== ③④アカウント（順次実装・枠） ====== */
 function stub(title,lines){ return `<div class="bg-white border border-slate-200 rounded-xl p-6 shadow-sm"><div class="inline-block text-[11px] font-bold tracking-wider text-fuchsia-600 border border-fuchsia-200 bg-fuchsia-50 rounded-full px-3 py-1 mb-3">実装中</div><h2 class="text-lg font-bold mb-1">${title}</h2><p class="text-sm text-slate-500 leading-7">${lines}</p></div>`; }
-function renderPosts(){ document.getElementById('postsRoot').innerHTML=stub('③ 予約・投稿','状態タブ（予約/投稿済み/失敗/すべて）、一覧（サムネ/日時/店/本文/予約者/状態）、詳細ポップアップ、「直す」モーダル、これからの14日棒グラフ、予約が無い店を次に実装します。本番IG発火はモックです。'); }
-function renderSeika(){ document.getElementById('seikaRoot').innerHTML=stub('④ 成果','見られた数の大カード、KPI4枚、週ごとの棒グラフ、本数別の比較（benchmark）、♥が多かった投稿、店ごとの表、月ごとグラフを実装します。'); }
-function renderAccounts(){ document.getElementById('accountsRoot').innerHTML=stub('アカウント（本部向け）','Instagram連携の管理（自動で結ぶ/手動割り当て/トークン管理）。店名列幅・画像崩れ・重い再描画の不具合も直します。'); }
+/* ---- 予約データ（モック。②の予約済みと連動） ---- */
+function buildReservations(){
+  const res=[];
+  Object.values(PLANS||{}).forEach(pl=>{ pl.items.forEach(it=>{ if(it.booked){ const t=new Date(it.at).getTime();
+    res.push({ id:'res_'+it.id, storeId:pl.store.id, at:it.at, kind:it.kind, caption:it.caption, by:pl.by.replace('（まとめて）',''), state: t>Date.now()?'reserved':'posted', reason:'', thumb: it.thumb||svgThumb(it.id,pl.store.name), url:'https://www.instagram.com/'+pl.store.handle+'/' }); } }); });
+  STORE_MASTER.filter(s=>s.connected).forEach(s=>{ (MON.stores[s.id].posts||[]).slice(0,2).forEach((p,i)=>{ res.push({ id:'res_p_'+s.id+i, storeId:s.id, at:p.at, kind:'post', caption:p.caption, by:'自動投稿', state:'posted', reason:'', thumb:p.thumb, url:p.url }); }); });
+  const fs=STORE_MASTER.filter(s=>s.connected);
+  if(fs[1]) res.push({ id:'res_fail1', storeId:fs[1].id, at:new Date(Date.now()-6*3600000).toISOString(), kind:'post', caption:'週末のおすすめコース、金土で満席予想です。', by:'天見　真悟', state:'failed', reason:'画像の縦横比がInstagramの条件外', thumb:svgThumb('fail1',fs[1].name), url:'' });
+  return res;
+}
+function reservedFuture(id){ if(!RES) return planStats(id).booked; return RES.filter(r=>r.storeId===id && r.state==='reserved' && new Date(r.at).getTime()>Date.now()).length; }
+function windowDaysFuture(n){ const nJ=nowJST(); const base=Date.UTC(nJ.getUTCFullYear(),nJ.getUTCMonth(),nJ.getUTCDate()); const a=[]; for(let i=0;i<n;i++){ const ms=base+i*86400000; a.push({ms,str:ymd(jstDate(ms)),dow:jstDate(ms).getUTCDay()}); } return a; }
+function storeName(id){ const s=STORE_MASTER.find(x=>x.id===id); return s?s.name:id; }
+function storeHandle(id){ const s=STORE_MASTER.find(x=>x.id===id); return s?s.handle:''; }
+
+const POSTS_UI={ tab:'reserved', q:'', sort:'at', dir:'asc' };
+function renderPosts(){
+  const root=document.getElementById('postsRoot');
+  const inSet=new Set(STORE_MASTER.filter(inDept).map(s=>s.id));
+  const all=RES.filter(r=>inSet.has(r.storeId));
+  const cnt={reserved:0,posted:0,failed:0}; all.forEach(r=>{ if(cnt[r.state]!==undefined)cnt[r.state]++; });
+  let list = POSTS_UI.tab==='all'? all.slice() : all.filter(r=>r.state===POSTS_UI.tab);
+  if(POSTS_UI.q.trim()){ list=list.filter(r=>andMatch(storeName(r.storeId)+' '+r.by+' '+r.caption+' '+(r.kind==='story'?'ストーリー':'フィード投稿'), POSTS_UI.q)); }
+  list.sort((a,b)=>{ let d; if(POSTS_UI.sort==='store') d=storeName(a.storeId).localeCompare(storeName(b.storeId),'ja'); else d=new Date(a.at)-new Date(b.at); return POSTS_UI.dir==='asc'?d:-d; });
+  const tabBtn=(k,l,n)=>`<button onclick="postsTab('${k}')" class="text-[12px] font-semibold px-2.5 py-1 rounded-lg ${POSTS_UI.tab===k?'bg-[var(--btn)] text-white':'bg-slate-100 text-slate-600 hover:bg-slate-200'}">${l} ${n}</button>`;
+  const arrow=k=> POSTS_UI.sort===k? (POSTS_UI.dir==='asc'?'▲':'▼') : '↕';
+  // 行
+  const rowsHtml = list.map(r=>{
+    const past=new Date(r.at).getTime()<Date.now();
+    const pill = r.state==='reserved'?'<span class="text-[11px] font-bold bg-sky-100 text-sky-700 rounded-full px-2 py-0.5">予約</span>'
+      : r.state==='posted'?'<span class="text-[11px] font-bold bg-emerald-100 text-emerald-700 rounded-full px-2 py-0.5">投稿済み</span>'
+      : `<span class="text-[11px] font-bold bg-red-100 text-red-700 rounded-full px-2 py-0.5" title="${r.reason}">失敗</span>`;
+    let ops='';
+    if(r.state==='reserved') ops=`<button onclick="event.stopPropagation(); resNow('${r.id}')" class="text-[11px] font-bold text-white bg-emerald-600 rounded-md px-1.5 py-0.5">今すぐ</button><button onclick="event.stopPropagation(); openEditRes('${r.id}')" class="text-[11px] font-semibold text-slate-600 border border-slate-200 rounded-md px-1.5 py-0.5">直す</button><button onclick="event.stopPropagation(); resDelete('${r.id}')" class="text-slate-400 px-1">✕</button>`;
+    else if(r.state==='posted') ops=`<a href="${r.url}" target="_blank" rel="noreferrer" onclick="event.stopPropagation()" class="text-slate-500 px-1" title="Instagram で見る">↗</a><button onclick="event.stopPropagation(); resDelete('${r.id}')" class="text-slate-400 px-1" title="消す">✕</button>`;
+    else ops=`<button onclick="event.stopPropagation(); openEditRes('${r.id}')" class="text-[11px] font-semibold text-slate-600 border border-slate-200 rounded-md px-1.5 py-0.5">直す</button><button onclick="event.stopPropagation(); resDelete('${r.id}')" class="text-slate-400 px-1">✕</button>`;
+    return `<tr class="border-b border-slate-100 hover:bg-slate-50 cursor-pointer" onclick="openResDetail('${r.id}')">
+      <td class="px-2 py-2"><img src="${r.thumb}" class="w-8 h-8 rounded-[7px] object-cover border border-slate-200"></td>
+      <td class="px-2 py-2 tnum text-[12px] whitespace-nowrap">${fmtJP(new Date(r.at).getTime())}</td>
+      <td class="px-2 py-2 font-semibold text-slate-700 text-[12px] whitespace-nowrap">${storeName(r.storeId)}</td>
+      <td class="px-2 py-2 text-[12px] text-slate-600"><div class="truncate max-w-[340px]">${(r.caption||'').replace(/\n/g,' ').replace(/</g,'&lt;')}</div>${r.state==='failed'?`<div class="text-[11px] text-red-600">理由：${r.reason}</div>`:''}</td>
+      <td class="px-2 py-2 text-[12px] text-slate-500 whitespace-nowrap">${r.by}</td>
+      <td class="px-2 py-2 whitespace-nowrap">${pill}</td>
+      <td class="px-2 py-2 whitespace-nowrap"><div class="flex items-center gap-1 justify-end">${ops}</div></td>
+    </tr>`;
+  }).join('') || `<tr><td colspan="7" class="text-center text-slate-400 py-8 text-[13px]">${POSTS_UI.q?'該当なし（—）':'ありません'}</td></tr>`;
+  // これからの14日
+  const fdays=windowDaysFuture(14); const byDay={}; fdays.forEach(d=>byDay[d.str]=0);
+  all.filter(r=>r.state==='reserved').forEach(r=>{ const k=ymd(jstDate(new Date(r.at).getTime())); if(byDay[k]!==undefined) byDay[k]++; });
+  const maxB=Math.max(1,...Object.values(byDay));
+  const bars=fdays.map(d=>{ const v=byDay[d.str]; const dj=jstDate(d.ms); const col=d.dow===6?'text-sky-500':(d.dow===0||isHoliday(d.str))?'text-rose-500':'text-slate-400';
+    return `<div class="flex flex-col items-center gap-1 flex-1 min-w-0"><div class="text-[10px] font-bold tnum ${v?'text-indigo-600':'text-slate-300'}">${v||''}</div><div class="w-full max-w-[16px] bg-indigo-400 rounded-t" style="height:${v?Math.round(v/maxB*52)+4:2}px"></div><div class="text-[9px] ${col} tnum">${dj.getUTCDate()}</div></div>`; }).join('');
+  // 予約が無い店
+  const noRes=STORE_MASTER.filter(s=>inDept(s)&&s.connected&&reservedFuture(s.id)===0);
+
+  root.innerHTML=`
+   <div class="bg-white border border-slate-200 rounded-xl shadow-sm">
+     <div class="flex flex-wrap items-center gap-2 px-3 py-2.5 border-b border-slate-100">
+       ${tabBtn('reserved','予約',cnt.reserved)}${tabBtn('posted','投稿済み',cnt.posted)}${tabBtn('failed','失敗',cnt.failed)}${tabBtn('all','すべて',all.length)}
+       <div class="flex-1"></div>
+       <input id="postsSearch" value="${POSTS_UI.q.replace(/"/g,'&quot;')}" type="search" placeholder="店名・予約した人・本文" class="border border-slate-300 rounded-lg px-2.5 py-1.5 text-sm w-[220px] max-w-full">
+     </div>
+     <div class="xscroll">
+       <table class="w-full border-collapse text-[13px]">
+         <thead><tr class="text-left text-[11px] text-slate-400 border-b border-slate-100">
+           <th class="px-2 py-1.5 font-semibold"></th>
+           <th class="px-2 py-1.5 font-semibold cursor-pointer select-none" onclick="postsSort('at')">日時 ${arrow('at')}</th>
+           <th class="px-2 py-1.5 font-semibold cursor-pointer select-none" onclick="postsSort('store')">店 ${arrow('store')}</th>
+           <th class="px-2 py-1.5 font-semibold">本文</th>
+           <th class="px-2 py-1.5 font-semibold">予約した人</th>
+           <th class="px-2 py-1.5 font-semibold">状態</th>
+           <th class="px-2 py-1.5 font-semibold text-right">操作</th>
+         </tr></thead>
+         <tbody>${rowsHtml}</tbody>
+       </table>
+     </div>
+   </div>
+
+   <div class="grid lg:grid-cols-[1fr_300px] gap-3 mt-3">
+     <div class="bg-white border border-slate-200 rounded-xl shadow-sm p-3.5">
+       <div class="text-[12px] font-bold text-slate-500 mb-2">これからの14日（予約本数）</div>
+       <div class="flex items-end gap-1 h-[76px]">${bars}</div>
+     </div>
+     <div class="bg-white border border-slate-200 rounded-xl shadow-sm p-3.5">
+       <div class="flex items-center justify-between mb-2"><div class="text-[12px] font-bold text-slate-500">予約が無い店 ${noRes.length}</div><button onclick="UI.selected=new Set(${JSON.stringify(noRes.map(s=>s.id))}); location.hash='#sns/plan'" class="text-[11px] font-bold text-white bg-[var(--btn)] rounded-lg px-2 py-1">✨提案へ</button></div>
+       <div class="yscroll max-h-[180px] space-y-1">${noRes.map(s=>`<div class="flex items-center gap-2 text-[13px]"><span class="w-2 h-2 rounded-full bg-amber-400"></span><span class="truncate">${s.name}</span></div>`).join('')||'<div class="text-slate-400 text-[12px]">なし（すべて予約あり）</div>'}</div>
+     </div>
+   </div>`;
+  const si=document.getElementById('postsSearch'); if(si){ si.oninput=e=>{ const p=e.target.selectionStart; POSTS_UI.q=e.target.value; renderPosts(); const n=document.getElementById('postsSearch'); if(n){ n.focus(); try{n.setSelectionRange(p,p);}catch(_){} } }; }
+}
+window.postsTab=t=>{ POSTS_UI.tab=t; renderPosts(); };
+window.postsSort=k=>{ if(POSTS_UI.sort===k){ POSTS_UI.dir=POSTS_UI.dir==='asc'?'desc':'asc'; } else { POSTS_UI.sort=k; POSTS_UI.dir='asc'; } renderPosts(); };
+window.resNow=id=>{ const r=RES.find(x=>x.id===id); if(!r) return; alert(`【テスト・今すぐ出す】${storeName(r.storeId)}\n※モックです。実際のInstagramには投稿していません。`); };
+window.resDelete=id=>{ const r=RES.find(x=>x.id===id); if(!r) return; if(!confirm(`この${r.state==='posted'?'記録':'予約'}を消しますか？`)) return; RES=RES.filter(x=>x.id!==id); closeCompose(); renderActive(); };
+window.openResDetail=id=>{ const r=RES.find(x=>x.id===id); if(!r) return; const s=STORE_MASTER.find(x=>x.id===r.storeId); const past=new Date(r.at).getTime()<Date.now();
+  const pill=r.state==='reserved'?'<span class="text-[11px] font-bold bg-sky-100 text-sky-700 rounded-full px-2 py-0.5">予約</span>':r.state==='posted'?'<span class="text-[11px] font-bold bg-emerald-100 text-emerald-700 rounded-full px-2 py-0.5">投稿済み</span>':'<span class="text-[11px] font-bold bg-red-100 text-red-700 rounded-full px-2 py-0.5">失敗</span>';
+  document.getElementById('modalRoot').innerHTML=`<div class="fixed inset-0 z-50 bg-black/40 grid place-items-center p-3" id="composeBg"><div class="bg-white w-full max-w-[640px] rounded-2xl shadow-2xl overflow-hidden">
+    <div class="flex items-center justify-between px-4 py-3 border-b border-slate-100"><h3 class="font-bold text-[14px]">予約・投稿の詳細</h3><button onclick="closeCompose()" class="w-8 h-8 grid place-items-center rounded-lg hover:bg-slate-100">✕</button></div>
+    <div class="grid sm:grid-cols-2 gap-0">
+      <div class="p-4 bg-slate-50 grid place-items-center"><img src="${r.thumb}" class="w-full max-w-[220px] ${r.kind==='story'?'aspect-[9/16]':'aspect-square'} object-cover rounded-xl ring-1 ring-slate-200"></div>
+      <div class="p-4 space-y-2">
+        <div class="flex items-center gap-2"><span class="w-7 h-7 rounded-full ig-grad"></span><div><div class="text-[12px] font-semibold">@${s.handle}</div><div class="text-[11px] text-slate-500">${s.name}</div></div></div>
+        <div class="${past&&r.state!=='reserved'?'bg-slate-100 text-slate-600':'bg-slate-800 text-white'} rounded-lg px-2 py-1 text-[12px] tnum inline-block">${fmtJP(new Date(r.at).getTime())}</div>
+        <div>${pill}${r.state==='failed'?`<span class="text-[11px] text-red-600 ml-1">理由：${r.reason}</span>`:''}</div>
+        <div class="text-[12px] text-slate-500">👤 ${r.by}</div>
+        <div class="text-[12px] text-slate-700 whitespace-pre-wrap leading-relaxed border-t border-slate-100 pt-2"><b>${s.handle}</b> ${(r.caption||'').replace(/</g,'&lt;')}</div>
+      </div>
+    </div>
+    <div class="flex items-center gap-2 px-4 py-3 border-t border-slate-100">
+      ${r.state==='reserved'?`<button onclick="resNow('${r.id}')" class="text-[13px] font-bold text-white bg-emerald-600 rounded-lg px-3 py-1.5">今すぐ出す</button><button onclick="openEditRes('${r.id}')" class="text-[13px] font-semibold text-slate-600 border border-slate-200 rounded-lg px-3 py-1.5">直す</button>`:''}
+      ${r.state==='posted'?`<a href="${r.url}" target="_blank" rel="noreferrer" class="text-[13px] font-semibold text-slate-600 border border-slate-200 rounded-lg px-3 py-1.5">↗ Instagramで見る</a>`:''}
+      ${r.state==='failed'?`<button onclick="openEditRes('${r.id}')" class="text-[13px] font-semibold text-slate-600 border border-slate-200 rounded-lg px-3 py-1.5">直す</button>`:''}
+      <div class="flex-1"></div>
+      <button onclick="resDelete('${r.id}')" class="text-[13px] font-semibold text-slate-500 bg-slate-100 rounded-lg px-3 py-1.5">消す</button>
+    </div></div></div>`;
+  document.getElementById('composeBg').addEventListener('click',e=>{ if(e.target.id==='composeBg') closeCompose(); });
+};
+window.openEditRes=id=>{ const r=RES.find(x=>x.id===id); if(!r) return; const s=STORE_MASTER.find(x=>x.id===r.storeId);
+  const cur=new Date(new Date(r.at).getTime()+JST_OFF); const pad=n=>String(n).padStart(2,'0'); const dval=`${cur.getUTCFullYear()}-${pad(cur.getUTCMonth()+1)}-${pad(cur.getUTCDate())}T${pad(cur.getUTCHours())}:${pad(cur.getUTCMinutes())}`;
+  document.getElementById('modalRoot').innerHTML=`<div class="fixed inset-0 z-50 bg-black/40 grid place-items-center p-3" id="composeBg"><div class="bg-white w-full max-w-[560px] rounded-2xl shadow-2xl overflow-hidden">
+    <div class="flex items-center justify-between px-4 py-3 border-b border-slate-100"><h3 class="font-bold text-[14px]">予約を直す <span class="text-[11px] text-amber-600 font-semibold">（テスト）</span></h3><button onclick="closeCompose()" class="w-8 h-8 grid place-items-center rounded-lg hover:bg-slate-100">✕</button></div>
+    <div class="p-4 space-y-3">
+      <div class="text-[12px]"><span class="text-slate-400">店（変更不可）：</span><b>${s.name}</b> <span class="text-emerald-600">● @${s.handle}</span></div>
+      <div><div class="text-[12px] font-bold text-slate-500 mb-1">日時</div><input id="eDate" type="datetime-local" step="900" value="${dval}" class="border border-slate-300 rounded-lg px-2 py-1.5 text-sm"></div>
+      <div><div class="text-[12px] font-bold text-slate-500 mb-1">本文</div><textarea id="eBody" rows="6" class="w-full border border-slate-300 rounded-lg px-2 py-2 text-sm">${(r.caption||'').replace(/</g,'&lt;')}</textarea></div>
+    </div>
+    <div class="flex items-center gap-2 px-4 py-3 border-t border-slate-100"><div class="flex-1"></div><button onclick="saveEditRes('${r.id}')" class="text-[13px] font-bold text-white bg-[var(--btn)] rounded-lg px-4 py-2">予約する</button></div>
+  </div></div>`;
+  document.getElementById('composeBg').addEventListener('click',e=>{ if(e.target.id==='composeBg') closeCompose(); });
+};
+window.saveEditRes=id=>{ const r=RES.find(x=>x.id===id); if(!r) return; const d=document.getElementById('eDate').value; const b=document.getElementById('eBody').value;
+  if(d){ const dt=new Date(d+':00+09:00'); if(!isNaN(dt)){ r.at=dt.toISOString(); if(r.state==='failed') r.state='reserved'; } } r.caption=b;
+  closeCompose(); renderActive(); };
+/* ====== ④ 成果 ====== */
+const SEIKA_UI={ sort:'grow' };
+function aggWin(r,from,to){ const f=r.posts.filter(p=>{const t=+new Date(p.at);return t>=from&&t<to;}); const s=r.stories.filter(p=>{const t=+new Date(p.at);return t>=from&&t<to;});
+  return { n:f.length, sn:s.length, likes:f.reduce((a,p)=>a+p.likes,0), reach:f.reduce((a,p)=>a+p.reach,0), views:f.reduce((a,p)=>a+(p.views||0),0), posts:f }; }
+function folInc(r,fromDays){ const fol=(MON.stores[r.store.id].stat||{}).fol||{}; const ks=Object.keys(fol).sort(); if(ks.length<2) return 0;
+  const now=Date.now(); const cut=ymd(jstDate(now-fromDays*864e5)); const within=ks.filter(k=>k>=cut); if(within.length<2) return fol[ks[ks.length-1]]-fol[ks[0]]; return fol[within[within.length-1]]-fol[within[0]]; }
+function hbar(v,max,cls){ const w=max>0?Math.round(v/max*100):0; return `<span class="inline-block align-middle h-2 rounded-full ${cls}" style="width:${Math.max(2,w)}%"></span>`; }
+function renderSeika(){
+  const rows=computeAll().filter(r=>r.connected); const nJ=nowJST(); const now=Date.now();
+  const tm=nJ.getUTCFullYear()+'-'+String(nJ.getUTCMonth()+1).padStart(2,'0');
+  const pmD=new Date(Date.UTC(nJ.getUTCFullYear(),nJ.getUTCMonth()-1,1)); const pmk=pmD.getUTCFullYear()+'-'+String(pmD.getUTCMonth()+1).padStart(2,'0');
+  let viewsTM=0,viewsPM=0; rows.forEach(r=>{ const mon=(MON.stores[r.store.id].stat||{}).mon||{}; viewsTM+=mon[tm]||0; viewsPM+=mon[pmk]||0; });
+  const pctPrev=viewsPM?Math.round(viewsTM/viewsPM*100):0; const dayOfMonth=nJ.getUTCDate();
+  // 14d vs prev14d
+  const d14=now-14*864e5,d28=now-28*864e5; let cur={n:0,sn:0,likes:0,reach:0},prev={n:0,sn:0,likes:0,reach:0};
+  rows.forEach(r=>{ const c=aggWin(r,d14,now),p=aggWin(r,d28,d14); ['n','sn','likes','reach'].forEach(k=>{cur[k]+=c[k];prev[k]+=p[k];}); });
+  let folC=0; rows.forEach(r=>folC+=folInc(r,28));
+  const pill=(c,p)=>{ if(!p) return ''; const d=Math.round((c-p)/p*100); const up=d>=0; return `<span class="text-[11px] font-bold rounded-full px-1.5 ${up?'bg-emerald-100 text-emerald-700':'bg-red-100 text-red-700'}">${up?'+':''}${d}%</span>`; };
+  const kpi=(label,val,sub,extra)=>`<div class="bg-white border border-slate-200 rounded-xl px-3 py-2.5"><div class="text-[11px] font-semibold text-slate-400">${label}</div><div class="flex items-center gap-1.5 mt-0.5"><div class="text-xl font-extrabold tnum">${val}<span class="text-xs font-bold text-slate-400">${sub||''}</span></div>${extra||''}</div></div>`;
+  // 週ごと（4週）
+  const weeks=[]; for(let w=3;w>=0;w--){ const to=now-w*7*864e5, from=now-(w+1)*7*864e5; let n=0,likes=0; rows.forEach(r=>{ const a=aggWin(r,from,to); n+=a.n; likes+=a.likes; }); weeks.push({n,likes,label:`${w+1}週前`}); }
+  weeks.reverse(); // 直近が右
+  const wN=Math.max(1,...weeks.map(w=>w.n)), wL=Math.max(1,...weeks.map(w=>w.likes));
+  const weekBars=weeks.map(w=>`<div class="flex-1 flex flex-col items-center gap-1"><div class="flex items-end gap-1 h-[90px]"><div class="w-4 bg-sky-400 rounded-t" style="height:${Math.round(w.n/wN*80)+4}px" title="本数 ${w.n}"></div><div class="w-4 bg-rose-400 rounded-t" style="height:${Math.round(w.likes/wL*80)+4}px" title="♥ ${w.likes}"></div></div><div class="text-[10px] text-slate-500 tnum">${w.n}本/♥${w.likes}</div></div>`).join('');
+  // 本数別（28日）
+  const groups={lo:{st:0,likes:0,reach:0,fol:0},mid:{st:0,likes:0,reach:0,fol:0},hi:{st:0,likes:0,reach:0,fol:0}};
+  rows.forEach(r=>{ const a=aggWin(r,d28,now); const perWeek=a.n/4; const g=perWeek<1?'lo':perWeek<3?'mid':'hi'; groups[g].st++; groups[g].likes+=a.likes/4; groups[g].reach+=a.reach/4; groups[g].fol+=folInc(r,28); });
+  const gAvg=g=>({ likes:g.st?g.likes/g.st:0, reach:g.st?g.reach/g.st:0, fol:g.st?g.fol/g.st:0 });
+  const GA={lo:gAvg(groups.lo),mid:gAvg(groups.mid),hi:gAvg(groups.hi)};
+  const maxGL=Math.max(1,GA.lo.likes,GA.mid.likes,GA.hi.likes), maxGR=Math.max(1,GA.lo.reach,GA.mid.reach,GA.hi.reach), maxGF=Math.max(1,GA.lo.fol,GA.mid.fol,GA.hi.fol);
+  const grow=(key,label,cls)=>{ const a=GA[key],g=groups[key]; return `<div class="flex items-center gap-2 text-[12px] py-1"><span class="w-20 shrink-0"><span class="font-semibold">${label}</span> <span class="text-slate-400">${g.st}店</span></span>
+     <span class="flex-1 flex items-center gap-1"><span class="w-10 text-right text-rose-500 tnum">♥${a.likes.toFixed(0)}</span>${hbar(a.likes,maxGL,'bg-rose-400')}</span></div>`; };
+  // 人気投稿28日
+  const allP=[]; rows.forEach(r=>{ aggWin(r,d28,now).posts.forEach(p=>allP.push({p,s:r.store})); }); allP.sort((a,b)=>b.p.likes-a.p.likes);
+  const top8=allP.slice(0,8);
+  // 店別表（14日）
+  const srows=rows.map(r=>{ const c=aggWin(r,d14,now),p=aggWin(r,d28,d14); const mon=(MON.stores[r.store.id].stat||{}).mon||{}; const growV=p.likes?Math.round((c.likes-p.likes)/p.likes*100):0;
+    return { r, name:r.store.name, viewsM:mon[tm]||0, n:c.n+c.sn, likes:c.likes, grow:growV, reach:c.reach, fol:folInc(r,28), perWeek:aggWin(r,d28,now).n/4 }; });
+  const sortKey={views:'viewsM',grow:'grow',likes:'likes',n:'n',fol:'fol'}[SEIKA_UI.sort];
+  srows.sort((a,b)=>b[sortKey]-a[sortKey]);
+  const mV=Math.max(1,...srows.map(x=>x.viewsM)),mN=Math.max(1,...srows.map(x=>x.n)),mL=Math.max(1,...srows.map(x=>x.likes));
+  const gcol=pw=>pw<1?'bg-slate-300':pw<3?'bg-indigo-400':'bg-rose-500';
+  const sortBtn=(k,l)=>`<button onclick="seikaSort('${k}')" class="text-[11px] font-semibold px-2 py-0.5 rounded-full ${SEIKA_UI.sort===k?'bg-[var(--btn)] text-white':'bg-slate-100 text-slate-500'}">${l}</button>`;
+  const tableRows=srows.map(x=>`<tr class="border-b border-slate-100">
+    <td class="px-2 py-1.5"><div class="flex items-center gap-1.5"><span class="w-2 h-2 rounded-full ${gcol(x.perWeek)}"></span><span class="font-semibold text-slate-700 text-[12px] truncate max-w-[150px]">${x.name}</span></div></td>
+    <td class="px-2 py-1.5"><div class="flex items-center gap-1.5"><span class="tnum text-[11px] w-12 text-right">${x.viewsM.toLocaleString()}</span>${hbar(x.viewsM,mV,'bg-slate-400')}</div></td>
+    <td class="px-2 py-1.5"><div class="flex items-center gap-1.5"><span class="tnum text-[11px] w-6 text-right">${x.n}</span>${hbar(x.n,mN,'bg-sky-400')}</div></td>
+    <td class="px-2 py-1.5"><div class="flex items-center gap-1.5"><span class="tnum text-[11px] w-10 text-right text-rose-500">${x.likes}</span>${hbar(x.likes,mL,'bg-rose-400')}</div></td>
+    <td class="px-2 py-1.5 text-[11px] font-bold ${x.grow>=0?'text-emerald-600':'text-red-600'} tnum">${x.grow>=0?'↑':'↓'}${Math.abs(x.grow)}%</td>
+    <td class="px-2 py-1.5 tnum text-[11px] text-slate-600">${x.reach.toLocaleString()}</td>
+    <td class="px-2 py-1.5 tnum text-[11px] ${x.fol>=0?'text-emerald-600':'text-red-600'}">${x.fol>=0?'+':''}${x.fol}</td></tr>`).join('');
+  // 月ごと
+  const monKeys=[]; for(let m=5;m>=0;m--){ const d=new Date(Date.UTC(nJ.getUTCFullYear(),nJ.getUTCMonth()-m,1)); monKeys.push(d.getUTCFullYear()+'-'+String(d.getUTCMonth()+1).padStart(2,'0')); }
+  const monViews=monKeys.map(k=>{ let v=0; rows.forEach(r=>{ v+=((MON.stores[r.store.id].stat||{}).mon||{})[k]||0; }); return v; });
+  const monN=monKeys.map(k=>{ let v=0; rows.forEach(r=>{ v+=r.posts.filter(p=>p.at.slice(0,7)===k).length; }); return v; });
+  const mvMax=Math.max(1,...monViews), mnMax=Math.max(1,...monN);
+  const monBars=monKeys.map((k,i)=>`<div class="flex-1 flex flex-col items-center gap-0.5"><div class="flex items-end gap-0.5 h-[64px]"><div class="w-3 bg-slate-400 rounded-t" style="height:${Math.round(monViews[i]/mvMax*56)+2}px" title="見られた数 ${monViews[i].toLocaleString()}"></div><div class="w-3 bg-sky-400 rounded-t" style="height:${Math.round(monN[i]/mnMax*56)+2}px" title="本数 ${monN[i]}"></div></div><div class="text-[9px] text-slate-400">${k.slice(5)}月</div></div>`).join('');
+
+  document.getElementById('seikaRoot').innerHTML=`
+   <div class="bg-white border border-slate-200 rounded-xl shadow-sm p-4" title="投稿・ストーリーズ・リール・プロフィールが見られた回数の合計（Instagramのインサイト）">
+     <div class="flex items-end gap-3 flex-wrap">
+       <div><div class="text-[12px] font-semibold text-slate-400">👁 ${tm.slice(5)}月 見られた数</div><div class="text-3xl font-extrabold tnum">${viewsTM.toLocaleString()}<span class="text-base font-bold text-slate-400">回</span></div></div>
+       <div class="text-[12px] text-slate-400 mb-1">前月 ${viewsPM.toLocaleString()}回</div>
+       <div class="flex-1 min-w-[160px]"><div class="h-2 bg-slate-100 rounded-full overflow-hidden"><span class="block h-full bg-indigo-500" style="width:${Math.min(100,pctPrev)}%"></span></div><div class="text-[11px] text-slate-400 mt-1">先月の${pctPrev}%（今月はまだ${dayOfMonth}日目）</div></div>
+     </div>
+   </div>
+   <div class="grid grid-cols-2 lg:grid-cols-4 gap-2 mt-3">
+     ${kpi('📷 投稿（14日）',cur.n,'＋ST'+cur.sn,pill(cur.n,prev.n))}
+     ${kpi('♥ いいね（14日）',cur.likes.toLocaleString(),'',pill(cur.likes,prev.likes))}
+     ${kpi('👁 見た人（14日）',cur.reach.toLocaleString(),'',pill(cur.reach,prev.reach))}
+     ${kpi('👤 フォロワー（28日）',(folC>=0?'+':'')+folC,'',`<span class="text-[11px] font-bold rounded-full px-1.5 ${folC>=0?'bg-emerald-100 text-emerald-700':'bg-red-100 text-red-700'}">28日</span>`)}
+   </div>
+   <div class="grid lg:grid-cols-2 gap-3 mt-3">
+     <div class="bg-white border border-slate-200 rounded-xl shadow-sm p-3.5"><div class="text-[12px] font-bold text-slate-500 mb-2">週ごと（本数=青・♥=赤）</div><div class="flex items-end gap-3">${weekBars}</div></div>
+     <div class="bg-white border border-slate-200 rounded-xl shadow-sm p-3.5"><div class="text-[12px] font-bold text-slate-500 mb-1">出す本数で、こう変わる（1店あたり28日平均）</div>${grow('lo','週1未満')}${grow('mid','週1〜2')}${grow('hi','週3以上')}<div class="text-[11px] text-slate-400 mt-1">💡 本数の多い店は♥が大きい傾向</div></div>
+   </div>
+   <div class="bg-white border border-slate-200 rounded-xl shadow-sm p-3.5 mt-3">
+     <div class="text-[12px] font-bold text-slate-500 mb-2">♥が多かった投稿（28日）</div>
+     <div class="grid grid-cols-4 sm:grid-cols-8 gap-2">${top8.map((o,i)=>`<a href="${o.p.url}" target="_blank" rel="noreferrer" class="group relative" title="${o.s.name}"><img src="${o.p.thumb}" class="aspect-square w-full rounded-lg object-cover ring-1 ring-slate-200">${i<3?`<span class="absolute -top-1 -left-1 w-4 h-4 grid place-items-center text-[9px] font-bold text-white rounded-full ${i===0?'bg-amber-400':i===1?'bg-slate-400':'bg-orange-700'}">${i+1}</span>`:''}<div class="text-[10px] text-center text-rose-500 font-bold tnum">♥${o.p.likes}</div><div class="text-[9px] text-center text-slate-400 truncate">${o.s.name}</div></a>`).join('')}</div>
+   </div>
+   <div class="bg-white border border-slate-200 rounded-xl shadow-sm p-3.5 mt-3">
+     <div class="flex items-center gap-2 mb-2"><div class="text-[12px] font-bold text-slate-500">店ごと（14日）</div><div class="flex-1"></div>${sortBtn('views','👁今月')}${sortBtn('grow','♥の伸び')}${sortBtn('likes','♥')}${sortBtn('n','本数')}${sortBtn('fol','フォロワー増')}</div>
+     <div class="xscroll"><table class="w-full text-[12px]"><thead><tr class="text-left text-[11px] text-slate-400 border-b border-slate-100"><th class="px-2 py-1 font-semibold">店</th><th class="px-2 py-1 font-semibold">今月の見られた数</th><th class="px-2 py-1 font-semibold">本数</th><th class="px-2 py-1 font-semibold">♥</th><th class="px-2 py-1 font-semibold">伸び</th><th class="px-2 py-1 font-semibold">👁見た人</th><th class="px-2 py-1 font-semibold">👤</th></tr></thead><tbody>${tableRows}</tbody></table></div>
+   </div>
+   <div class="bg-white border border-slate-200 rounded-xl shadow-sm p-3.5 mt-3"><div class="text-[12px] font-bold text-slate-500 mb-2">月ごと（見られた数=灰・本数=青）</div><div class="flex items-end gap-3">${monBars}</div></div>`;
+}
+window.seikaSort=k=>{ SEIKA_UI.sort=k; renderSeika(); };
+
+/* ====== アカウント（本部向け） ====== */
+const ACC_UI={ q:'', onlyUn:false, settings:false };
+const UNASSIGNED=['susabiyu_umeda','gold_ohatsu','gifuya_temma','hiyoko_hanten','arata_osaka','ndanda_bar'];
+const AUTO_LINKED={ komatsubara:'11/23' };
+function renderAccounts(){
+  const root=document.getElementById('accountsRoot');
+  let stores=STORE_MASTER.filter(inDept);
+  if(ACC_UI.onlyUn) stores=stores.filter(s=>!s.connected);
+  if(ACC_UI.q.trim()) stores=stores.filter(s=>andMatch(s.name+' '+s.area+' '+s.handle, ACC_UI.q));
+  const conn=STORE_MASTER.filter(s=>inDept(s)&&s.connected).length, total=STORE_MASTER.filter(inDept).length;
+  const autoN=Object.keys(AUTO_LINKED).length;
+  const unOpts=`<option value="">Instagram を選ぶ</option>`+UNASSIGNED.map(h=>`<option>@${h}</option>`).join('');
+  const rowsHtml=stores.map(s=>{
+    const ig = s.connected
+      ? `<div class="flex items-center gap-1.5"><span class="w-6 h-6 rounded-full ig-grad shrink-0"></span><span class="text-[12px] font-semibold text-emerald-600">@${s.handle}</span>${AUTO_LINKED[s.id]?`<span class="text-[10px] font-bold text-sky-600 bg-sky-50 rounded px-1">🆕自動 ${AUTO_LINKED[s.id]}</span>`:''}<button onclick="alert('【テスト】連携を外す（モック）')" class="text-[11px] text-slate-400 border border-slate-200 rounded px-1.5 ml-1">外す</button></div>`
+      : `<div class="flex items-center gap-1.5"><span class="text-[11px] font-semibold text-slate-400">○未接続</span><select class="border border-slate-300 rounded-lg px-1.5 py-1 text-[12px]" onchange="if(this.value)alert('【テスト】'+this.value+' を割り当て（モック）')">${unOpts}</select></div>`;
+    return `<tr class="border-b border-slate-100"><td class="px-3 py-2 font-semibold text-slate-700 text-[13px]" style="min-width:160px">${s.name}</td><td class="px-3 py-2 text-[12px] text-slate-500 whitespace-nowrap">${s.area||'—'}</td><td class="px-3 py-2">${ig}</td></tr>`;
+  }).join('');
+  root.innerHTML=`
+   <div class="bg-white border border-slate-200 rounded-xl shadow-sm p-3.5">
+     <div class="flex flex-wrap items-center gap-2">
+       <input id="accSearch" value="${ACC_UI.q.replace(/"/g,'&quot;')}" type="search" placeholder="店名で絞る" class="border border-slate-300 rounded-lg px-2.5 py-1.5 text-sm w-[180px]">
+       <label class="inline-flex items-center gap-1.5 text-[12px] font-semibold text-slate-600"><input type="checkbox" ${ACC_UI.onlyUn?'checked':''} onchange="ACC_UI.onlyUn=this.checked; renderAccounts()" class="rounded border-slate-300">○未接続だけ</label>
+       <button onclick="alert('【テスト】店名で自動で結ぶ（モック）')" class="text-[12px] font-bold text-white bg-emerald-600 rounded-lg px-2.5 py-1.5">🔗店名で自動で結ぶ</button>
+       <button onclick="ACC_UI.settings=!ACC_UI.settings; renderAccounts()" class="text-[12px] font-semibold px-2.5 py-1.5 rounded-lg ${ACC_UI.settings?'bg-[var(--btn)] text-white':'bg-slate-100 text-slate-600'}">⚙設定</button>
+     </div>
+     ${ACC_UI.settings?`<div class="mt-2 bg-slate-50 border border-slate-200 rounded-lg p-3"><div class="text-[11px] font-semibold text-slate-500 mb-1">予備：グラフ API エクスプローラのトークンを直接入れる（本部のみ）</div><div class="flex gap-2"><input placeholder="Facebook のトークンを貼る" class="flex-1 border border-slate-300 rounded-lg px-2 py-1.5 text-sm"><button onclick="alert('【テスト】トークン登録（モック）')" class="text-[12px] font-bold text-white bg-[var(--btn)] rounded-lg px-3">入れる</button></div></div>`:''}
+     <div class="flex flex-wrap items-center gap-x-4 gap-y-1 mt-2.5 text-[12px] text-slate-500">
+       <span>● 新しい店を自動で結ぶ（最終 ${fmtJP(Date.now()-3*864e5)}）</span><span>🔗自動で結んだ店 <b class="text-slate-700 tnum">${autoN}</b></span><span>接続の残り <b class="text-slate-700 tnum">48</b>日</span><span class="text-emerald-600 font-semibold">✓投稿の接続は期限なし</span>
+       <button onclick="alert('【テスト】Facebookから読み直す（モック）')" class="text-sky-600 font-semibold">↻Facebookから読み直す</button><button onclick="alert('【テスト】Facebookでつなぎ直す（モック）')" class="text-sky-600 font-semibold">fFacebookでつなぎ直す</button>
+     </div>
+   </div>
+   <div class="bg-white border border-slate-200 rounded-xl shadow-sm mt-3">
+     <div class="flex items-center gap-2 px-3 py-2 border-b border-slate-100"><span class="font-bold text-[13px] text-slate-700">${UI.dept}</span><span class="h-1.5 w-24 rounded-full bg-slate-200 overflow-hidden"><span class="block h-full bg-emerald-500" style="width:${Math.round(conn/total*100)}%"></span></span><span class="text-[11px] font-semibold text-slate-500 tnum">${conn} / ${total}</span></div>
+     <div class="xscroll"><table class="w-full"><thead><tr class="text-left text-[11px] text-slate-400 border-b border-slate-100"><th class="px-3 py-1.5 font-semibold">店</th><th class="px-3 py-1.5 font-semibold">エリア</th><th class="px-3 py-1.5 font-semibold">Instagram</th></tr></thead><tbody>${rowsHtml||'<tr><td colspan="3" class="text-center text-slate-400 py-6 text-[13px]">該当なし</td></tr>'}</tbody></table></div>
+   </div>`;
+  const si=document.getElementById('accSearch'); if(si) si.oninput=e=>{ const p=e.target.selectionStart; ACC_UI.q=e.target.value; renderAccounts(); const n=document.getElementById('accSearch'); if(n){ n.focus(); try{n.setSelectionRange(p,p);}catch(_){} } };
+}
 
 /* ====== 投稿作成モーダル（モック） ====== */
 function openCompose(){ const connected=STORE_MASTER.filter(s=>s.connected); const opts=connected.map(s=>`<option value="${s.id}">${s.name}（@${s.handle}）</option>`).join('');
@@ -702,7 +962,7 @@ function rerenderActive(){ renderDeptChips(); renderActive(); }
 window.addEventListener('hashchange',route);
 
 /* ====== 起動 ====== */
-(async function init(){ MON=await loadMonitor(); PLANS=buildPlans(); renderDeptChips(); route();
+(async function init(){ MON=await loadMonitor(); PLANS=buildPlans(); RES=buildReservations(); renderDeptChips(); route();
   try{ if(localStorage.getItem('tour:sns')!=='1'){ /* 初回はツアーを促すだけ（自動では出さない） */ } }catch(e){}
 })();
 </script>
