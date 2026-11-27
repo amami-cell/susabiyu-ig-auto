@@ -12,10 +12,25 @@
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Noto+Sans+JP:wght@400;500;700;800&display=swap" rel="stylesheet">
 <script src="https://cdn.tailwindcss.com/3.4.16"></script>
 <script>
-  tailwind.config = { theme: { extend: { fontFamily: { sans: ['Inter','"Noto Sans JP"','system-ui','sans-serif'] } } } };
+  // 元システム(SNS投稿)の独自カラー：slate=中立グレー(--n) / indigo=紺(--a) / violet=青(--a2)。
+  // これに合わせると、画面中の slate/indigo/violet クラスが一括で本物の色になる。
+  const _mk = (p) => Object.fromEntries([50,100,200,300,400,500,600,700,800,900].map(s=>[s,`rgb(var(--${p}-${s})/<alpha-value>)`]));
+  tailwind.config = { theme: { extend: {
+    fontFamily: { sans: ['Inter','"Noto Sans JP"','ui-sans-serif','system-ui','sans-serif'] },
+    colors: { slate: _mk('n'), indigo: _mk('a'), violet: _mk('a2') },
+  } } };
 </script>
 <style>
-  :root{ --ink:#26303F; --panel:#F7F9FB; --nav:#111722; --btn:#16202C; }
+  :root{
+    --ink:#26303F; --panel:#F7F9FB; --nav:#111722; --btn:#16202C;
+    /* 元システム(SNS投稿)のデザイントークン */
+    --n-50:247 249 251; --n-100:238 242 246; --n-200:226 232 239; --n-300:203 213 224; --n-400:148 163 180;
+    --n-500:100 116 139; --n-600:74 85 104; --n-700:55 65 81; --n-800:38 48 63; --n-900:22 32 44;
+    --a-50:238 243 249; --a-100:217 230 242; --a-200:185 208 230; --a-300:143 178 212; --a-400:91 138 184;
+    --a-500:51 104 158; --a-600:30 75 122; --a-700:24 61 99; --a-800:20 50 81; --a-900:15 37 64;
+    --a2-50:238 244 250; --a2-100:219 232 243; --a2-200:190 214 234; --a2-300:150 188 219; --a2-400:97 152 197;
+    --a2-500:61 124 178; --a2-600:47 107 163; --a2-700:39 90 138; --a2-800:31 72 111; --a2-900:24 55 85;
+  }
   html,body{ background:var(--panel); color:var(--ink); }
   body{ font-family:Inter,"Noto Sans JP",system-ui,sans-serif; -webkit-font-smoothing:antialiased; }
   .tnum{ font-variant-numeric: tabular-nums; }
@@ -53,16 +68,16 @@
         <span class="font-bold text-[15px] sm:text-base tracking-tight truncate">SNS投稿</span>
       </div>
       <div class="flex-1"></div>
-      <button id="btnTour" class="hidden sm:inline-flex items-center gap-1 text-xs font-semibold text-slate-500 hover:text-slate-800 px-2 py-1 rounded-lg hover:bg-slate-100">？使い方</button>
-      <a href="#" id="btnManual" class="hidden sm:inline-flex items-center gap-1 text-xs font-semibold text-slate-500 hover:text-slate-800 px-2 py-1 rounded-lg hover:bg-slate-100">📘マニュアル</a>
-      <button id="btnCompose" class="inline-flex items-center gap-1 bg-[var(--btn)] text-white text-xs sm:text-[13px] font-semibold px-3 py-1.5 rounded-lg hover:bg-black shadow-sm">＋投稿を作る</button>
+      <button id="btnTour" class="rounded-lg border border-indigo-300 bg-indigo-50 px-3 py-1.5 text-sm font-semibold text-indigo-700 hover:bg-indigo-100">？<span class="hidden sm:inline"> 使い方</span></button>
+      <a href="#" id="btnManual" class="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm font-semibold text-slate-700 hover:bg-slate-50">📘<span class="hidden sm:inline"> マニュアル</span></a>
+      <button id="btnCompose" class="h-9 rounded-lg bg-slate-900 px-3 font-bold text-white hover:bg-slate-700 md:px-4">＋<span class="hidden sm:inline"> 投稿を作る</span></button>
     </div>
-    <nav id="tabs" class="flex items-center gap-1 overflow-x-auto xscroll -mb-px">
-      <a data-tab="sns"      href="#sns"          class="tab whitespace-nowrap px-3 py-2 text-[13px] font-semibold border-b-2 flex items-center gap-1.5">① 投稿状況</a>
-      <a data-tab="plan"     href="#sns/plan"     class="tab whitespace-nowrap px-3 py-2 text-[13px] font-semibold border-b-2 flex items-center gap-1.5">② 提案 <span data-badge="plan" class="hidden"></span></a>
-      <a data-tab="posts"    href="#sns/posts"    class="tab whitespace-nowrap px-3 py-2 text-[13px] font-semibold border-b-2 flex items-center gap-1.5">③ 予約・投稿 <span data-badge="posts" class="hidden"></span></a>
-      <a data-tab="seika"    href="#sns/seika"    class="tab whitespace-nowrap px-3 py-2 text-[13px] font-semibold border-b-2 flex items-center gap-1.5">④ 成果</a>
-      <a data-tab="accounts" href="#sns/accounts" class="tab whitespace-nowrap px-3 py-2 text-[13px] font-semibold border-b-2 flex items-center gap-1.5">アカウント <span data-badge="accounts" class="text-[11px] font-bold text-slate-400"></span></a>
+    <nav id="tabs" class="flex overflow-x-auto xscroll rounded-lg bg-slate-100 p-0.5 mb-1" role="tablist">
+      <a data-tab="sns"      href="#sns"          class="tab shrink-0 whitespace-nowrap rounded-md px-2.5 py-1.5 text-[13px] font-bold md:px-4 flex items-center gap-1.5">① 投稿状況</a>
+      <a data-tab="plan"     href="#sns/plan"     class="tab shrink-0 whitespace-nowrap rounded-md px-2.5 py-1.5 text-[13px] font-bold md:px-4 flex items-center gap-1.5">② 提案 <span data-badge="plan" class="hidden rounded-full bg-violet-600 px-1.5 text-[11px] text-white tnum"></span></a>
+      <a data-tab="posts"    href="#sns/posts"    class="tab shrink-0 whitespace-nowrap rounded-md px-2.5 py-1.5 text-[13px] font-bold md:px-4 flex items-center gap-1.5">③ 予約・投稿 <span data-badge="posts" class="hidden rounded-full bg-indigo-600 px-1.5 text-[11px] text-white tnum"></span></a>
+      <a data-tab="seika"    href="#sns/seika"    class="tab shrink-0 whitespace-nowrap rounded-md px-2.5 py-1.5 text-[13px] font-bold md:px-4 flex items-center gap-1.5">④ 成果</a>
+      <a data-tab="accounts" href="#sns/accounts" class="tab shrink-0 whitespace-nowrap rounded-md px-2.5 py-1.5 text-[13px] font-bold md:px-4 flex items-center gap-1.5">アカウント <span data-badge="accounts" class="text-[11px] font-bold text-slate-400"></span></a>
     </nav>
   </div>
 </header>
@@ -109,7 +124,7 @@
         </label>
         <button id="btnSelectStalled" class="text-[12px] font-semibold text-amber-700 border border-amber-300 bg-amber-50 hover:bg-amber-100 px-2.5 py-1 rounded-lg">予約が無い・止まっている店を選ぶ <span id="stalledN" class="tnum">0</span></button>
         <div class="flex-1"></div>
-        <button id="btnMakePlans" class="text-[12px] font-bold text-white bg-[var(--btn)] disabled:bg-slate-200 disabled:text-slate-400 px-3 py-1.5 rounded-lg" disabled>✨選んだ<span id="selN" class="tnum">0</span>店の提案を作る →</button>
+        <button id="btnMakePlans" class="text-[12px] font-bold text-white bg-violet-700 hover:bg-violet-800 disabled:opacity-40 px-4 py-1.5 rounded-lg" disabled>✨選んだ<span id="selN" class="tnum">0</span>店の提案を作る →</button>
       </div>
       <div class="xscroll">
         <table class="w-full border-collapse text-[13px]" id="snsTable">
@@ -411,7 +426,7 @@ function renderSummary(){
        </div>
        <!-- 要注意の店 -->
        <div class="bg-slate-50 border border-slate-200 rounded-xl p-3">
-         <div class="flex items-center justify-between mb-2"><div class="text-[12px] font-bold text-slate-500">要注意の店（古い順）</div><button onclick="selectDangerAndPlan()" class="text-[11px] font-bold text-white bg-[var(--btn)] rounded-lg px-2 py-1">まとめて提案を作る</button></div>
+         <div class="flex items-center justify-between mb-2"><div class="text-[12px] font-bold text-slate-500">要注意の店（古い順）</div><button onclick="selectDangerAndPlan()" class="text-[11px] font-bold text-white bg-violet-700 hover:bg-violet-800 rounded-lg px-2 py-1">まとめて提案を作る</button></div>
          <div class="space-y-1 text-[13px]">${danger.map(r=>{const l=relPosted(r.lastMs); return `<div class="flex items-center gap-2 bg-white border border-slate-200 rounded-lg px-2.5 py-1"><span class="truncate flex-1 font-semibold text-slate-700">${r.store.name}</span><span class="text-[11px] font-bold rounded-full px-2 py-0.5 ${l.cls}">${l.t}</span></div>`;}).join('')||'<div class="text-slate-400 text-[12px]">なし</div>'}</div>
        </div>
        <!-- 反応が良かった投稿 -->
@@ -610,8 +625,8 @@ function planCard(id,it,i){
   const markCls = it.booked? '' : it.mark==='ok'?'ring-2 ring-emerald-400':it.mark==='ng'?'opacity-40':'';
   const okBtn = it.booked
     ? `<div class="flex-1 text-center text-[12px] font-bold text-sky-700 bg-sky-50 rounded-lg py-1.5">✔ 予約済</div>`
-    : `<button onclick="planMark('${id}',${i},'ok')" class="flex-1 text-[12px] font-bold rounded-lg py-1.5 ${it.mark==='ok'?'bg-emerald-600 text-white':'bg-emerald-50 text-emerald-700 hover:bg-emerald-100'}">👍 OK</button>
-       <button onclick="planMark('${id}',${i},'ng')" class="flex-1 text-[12px] font-bold rounded-lg py-1.5 ${it.mark==='ng'?'bg-rose-600 text-white':'bg-rose-50 text-rose-700 hover:bg-rose-100'}">👎 NG</button>`;
+    : `<button onclick="planMark('${id}',${i},'ok')" class="flex-1 text-[13px] font-bold rounded-lg py-1.5 ${it.mark==='ok'?'bg-emerald-600 text-white':'border border-emerald-300 text-emerald-700 hover:bg-emerald-50'}">👍 OK</button>
+       <button onclick="planMark('${id}',${i},'ng')" class="flex-1 text-[13px] font-bold rounded-lg py-1.5 ${it.mark==='ng'?'bg-rose-600 text-white':'border border-rose-200 text-rose-600 hover:bg-rose-50'}">👎 NG</button>`;
   return `<div class="border border-slate-200 rounded-xl overflow-hidden ${markCls}">
     <div class="grid grid-cols-[108px_1fr] gap-0">
       <div class="relative bg-slate-50 border-r border-slate-100">
@@ -1172,7 +1187,7 @@ function route(){ let h=location.hash.replace(/^#/,'')||'sns'; let tab='sns';
   if(h==='sns/plan')tab='plan'; else if(h==='sns/posts')tab='posts'; else if(h==='sns/seika')tab='seika'; else if(h==='sns/accounts')tab='accounts'; else tab='sns';
   CURRENT=tab;
   document.querySelectorAll('.view').forEach(v=>v.hidden=true); document.getElementById(VIEWS[tab]).hidden=false;
-  document.querySelectorAll('.tab').forEach(a=>{ const on=a.dataset.tab===tab; a.classList.toggle('border-[var(--btn)]',on); a.classList.toggle('text-slate-900',on); a.classList.toggle('border-transparent',!on); a.classList.toggle('text-slate-500',!on); });
+  document.querySelectorAll('.tab').forEach(a=>{ const on=a.dataset.tab===tab; a.setAttribute('aria-selected',on?'true':'false'); a.classList.toggle('bg-white',on); a.classList.toggle('text-slate-900',on); a.classList.toggle('shadow-sm',on); a.classList.toggle('text-slate-500',!on); a.classList.toggle('hover:text-slate-800',!on); });
   renderActive();
 }
 function renderActive(){ renderSummary(); if(CURRENT==='sns')renderSNS(); else if(CURRENT==='plan')renderPlan(); else if(CURRENT==='posts')renderPosts(); else if(CURRENT==='seika')renderSeika(); else renderAccounts(); }
