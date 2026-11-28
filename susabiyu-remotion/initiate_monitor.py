@@ -48,6 +48,9 @@ STORE_MAP = [
     ("hiyoko",       "hiyoko"),
     ("umami",        "umami"),
     ("taidai",       "taidai"),
+    ("kabukicho",    "kabukicho"),
+    ("ndanda",       "ndanda"),
+    ("goldyokohama", "goldyokohama"),
 ]
 
 # インサイト投稿タブの列（insights.py POST_HEADER と一致）
