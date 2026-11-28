@@ -45,6 +45,9 @@ STORE_MAP = [
     ("lucua",        "lucua"),
     ("kumatori",     "kumatori"),
     ("taishusushi",  "taishusushi"),
+    ("hiyoko",       "hiyoko"),
+    ("umami",        "umami"),
+    ("taidai",       "taidai"),
 ]
 
 # インサイト投稿タブの列（insights.py POST_HEADER と一致）
