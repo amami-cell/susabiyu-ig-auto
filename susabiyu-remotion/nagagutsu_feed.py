@@ -40,7 +40,7 @@ MIN_SIDE = 700                                           # これ未満の小さ
 # ・ナガグツ … ユーザー指定で「サイドレール(左オビ)3色＝テラコッタ/オリーブ/ゴールド」に統一。
 #   左上は店ロゴ画像(nagagutsu_logo.png)、左オビ＋料理名の体裁を全品で揃える（グリッドが1トーンに）。
 # ・その他(GOLD等) … 従来の6案のまま。
-if ACCOUNT in ("nagagutsu", "goldporta"):
+if ACCOUNT in ("nagagutsu", "goldporta", "arata", "umami"):
     # ナガグツ／GOLD京都ポルタ … サイドレール3種に統一（グリッドが1トーンで揃う・全部下地あり）。
     DESIGNS = ["YoshokuFeedE", "YoshokuFeedE2", "YoshokuFeedE3"]
     NO_SCRIM = set()   # サイドレール案は下地(左オビ+下グラデ)があるので明るさ制約は不要
