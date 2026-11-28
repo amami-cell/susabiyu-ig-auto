@@ -224,22 +224,42 @@ _THEME_JP = {"generic": "本日のおすすめ", "atmosphere": "店の雰囲気"
              "lunch": "ランチ", "noren": "暖簾くぐり", "season": "季節の旬"}
 
 
+# 新店（stores.py 未登録・phrases 未整備）の日本語表示名。提案キャプションで英字IDを出さないため。
+STORE_NAME_JP = {
+    "sannomiya": "すさび湯 三宮", "gold": "GOLD梅田", "goldohatsu": "GOLDお初天神",
+    "gifuya": "ぎふや 天満橋", "shinjuku": "すさび湯 新宿東口", "chachan": "ちゃーちゃん",
+    "tanukiya": "味のたぬきや", "kumatori": "熊の鳥焼", "lucua": "ルクアLargo",
+    "taishusushi": "大衆寿司酒場すさび湯", "kadoma": "門真Largo", "hiyoko": "ひよこ飯店",
+    "umami": "CRAFTMAN UMAMI", "taidai": "料理と酒 たいだい",
+    "kabukicho": "すさび湯 歌舞伎町", "ndanda": "んだんだ", "goldyokohama": "GOLD横浜ジョイナス",
+}
+
+
 def _phrases(suf):
     fn = "phrases.json" if not suf else ("phrases_" + suf + ".json")
     try:
         with open(fn, encoding="utf-8") as f:
             return json.load(f)
     except Exception:
-        return {}
+        # 店別ファイルが無い新店は、場所・業態に依存しない汎用文例へフォールバック
+        try:
+            with open("phrases_generic.json", encoding="utf-8") as f:
+                return json.load(f)
+        except Exception:
+            return {}
 
 
 def _store_meta(suf):
+    # 新店（STORE_NAME_JP に有る）は正しい日本語名を最優先。
+    # stores.get_store() は未登録sufに三条をフォールバック返しするため、それより先に当てる。
+    jp = STORE_NAME_JP.get(suf)
     try:
         import stores as _s
         st = _s.get_store(suf)
-        return (st.get("store_name") or suf or "三条"), (st.get("slots_weekday") or [11, 18, 20])
+        nm = jp or st.get("store_name") or suf or "三条"
+        return nm, (st.get("slots_weekday") or [11, 18, 20])
     except Exception:
-        return (suf or "三条"), [11, 18, 20]
+        return (jp or suf or "三条"), [11, 18, 20]
 
 
 def build_proposals(sid_ui, suf, stats, posts):
