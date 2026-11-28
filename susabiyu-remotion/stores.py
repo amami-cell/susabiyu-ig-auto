@@ -134,6 +134,52 @@ STORES = {
         "slots_holiday": [12, 18, 20],
         "slots_weekday": [12, 18, 20],
     },
+    # ── ARATA（大阪・梅田）。ナガグツ方式の洋食おしゃれテンプレ。※料理写真の投入待ち（ロゴは有り）──
+    "arata": {
+        "account": "arata",
+        "store_name": "ARATA",
+        "handle": "@arata_umeda",
+        "region": "大阪・梅田",
+        "theme": "italian",               # ナガグツと同じ温かみ生成り（とりあえず。業態確定後に調整可）
+        "sheet_id": SANJO_SHEET_ID,
+        "tab_suffix": "_arata",
+        "folders": {
+            "food": "1pW7KYmF2GCp7gp_lfubuFU_NcUwdXlvx",         # 「ARATA 画像」（CI読取可／ロゴは配下ロゴフォルダ。料理写真は投入待ち）
+            "music_uptempo": "1t0WsEon0ZGzB1q_C_U7CtVF_0303G2l0",  # 音楽はナガグツと共用
+            "music_normal": "1t0WsEon0ZGzB1q_C_U7CtVF_0303G2l0",
+        },
+        "patterns": YOSHOKU_PATTERNS,
+        "exclude_cats": ["ロゴ", "外観", "内観", "音楽", "集合", "コース", "ドリンク", "飲み"],
+        "food_flat": True,
+        "phrases_file": "phrases_arata.json",
+        "fallback_phrase": "今宵は、ARATAで一杯を。",
+        "pwa_url": "https://amami-cell.github.io/susabiyu-media/app/arata.html",
+        "slots_holiday": [11, 18, 20],
+        "slots_weekday": [11, 18, 20],
+    },
+    # ── CRAFTMAN UMAMI（中崎町／クラフトビール・ビストロ）。ナガグツ方式。※料理写真の投入待ち（ロゴは有り）──
+    "umami": {
+        "account": "umami",
+        "store_name": "CRAFTMAN UMAMI",
+        "handle": "@craftman_umami",
+        "region": "中崎町",
+        "theme": "italian",               # 温かみ生成り（とりあえず。確定後に調整可）
+        "sheet_id": SANJO_SHEET_ID,
+        "tab_suffix": "_umami",
+        "folders": {
+            "food": "1-y6UxIoQ0qO2u5udvq5rr8J-NmNFBzOb",         # 「CRAFTMAN UMAMI 画像」（CI読取可／料理写真は投入待ち）
+            "music_uptempo": "1t0WsEon0ZGzB1q_C_U7CtVF_0303G2l0",
+            "music_normal": "1t0WsEon0ZGzB1q_C_U7CtVF_0303G2l0",
+        },
+        "patterns": YOSHOKU_PATTERNS,
+        "exclude_cats": ["ロゴ", "外観", "内観", "音楽", "集合", "コース", "ドリンク", "飲み"],
+        "food_flat": True,
+        "phrases_file": "phrases_umami.json",
+        "fallback_phrase": "今宵は、UMAMIでクラフトビールを。",
+        "pwa_url": "https://amami-cell.github.io/susabiyu-media/app/umami.html",
+        "slots_holiday": [11, 18, 20],
+        "slots_weekday": [11, 18, 20],
+    },
     # ── GOLD京都ポルタ（フレンチ酒場）。ぎふや天神と同じ food-only 方式 ──
     "goldporta": {
         "account": "goldporta",
