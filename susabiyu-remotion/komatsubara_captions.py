@@ -266,7 +266,9 @@ def post_caption(names, handle=""):
     lead = names[0]
     s = _seed(lead)
     opener = _pick(_OPENERS, s)
-    body = (desc_for(lead) + " " + _appeal_for(lead)).strip()
+    # 本文は _appeal_for の一文のみ。desc_for は画像に焼く説明文なので、本文で繰り返すと
+    # 同カテゴリで言い回しが重複する（例「香ばしく焼き上げた…」が2回）。重複回避のため外す。
+    body = _appeal_for(lead).strip()
     closer = _pick(_CLOSERS, s // 2)
     head = "\n\n".join([p for p in (opener, body, closer) if p])
 
