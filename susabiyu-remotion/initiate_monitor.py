@@ -35,6 +35,15 @@ STORE_MAP = [
     ("gifuyatenjin", "gifuyatenjin"),
     ("arata",        "arata"),
     ("kadoma",       "kadoma"),
+    ("chachan",      "chachan"),
+    ("tanukiya",     "tanukiya"),
+    ("shinjuku",     "shinjuku"),
+    ("gifuya",       "gifuya"),
+    ("goldohatsu",   "goldohatsu"),
+    ("sannomiya",    "sannomiya"),
+    ("gold",         "gold"),
+    ("lucua",        "lucua"),
+    ("kumatori",     "kumatori"),
 ]
 
 # インサイト投稿タブの列（insights.py POST_HEADER と一致）

@@ -53,10 +53,20 @@ jobs:
           IG_ACCESS_TOKEN_ARATA: ${{ secrets.IG_ACCESS_TOKEN_ARATA }}
           # kadoma は Secret名のブレ（KADOMA / KADOMA_LARGO）どちらでも拾えるようにする
           IG_ACCESS_TOKEN_KADOMA: ${{ secrets.IG_ACCESS_TOKEN_KADOMA || secrets.IG_ACCESS_TOKEN_KADOMA_LARGO }}
+          # オン10店（Secret名は「店ID」か「IGユーザー名ベース」どちらで登録されていても拾う）
+          IG_ACCESS_TOKEN_CHACHAN: ${{ secrets.IG_ACCESS_TOKEN_CHACHAN || secrets.IG_ACCESS_TOKEN_CHACHAN_UMEDA }}
+          IG_ACCESS_TOKEN_TANUKIYA: ${{ secrets.IG_ACCESS_TOKEN_TANUKIYA || secrets.IG_ACCESS_TOKEN_AJINO_TANUKIYA }}
+          IG_ACCESS_TOKEN_SHINJUKU: ${{ secrets.IG_ACCESS_TOKEN_SHINJUKU || secrets.IG_ACCESS_TOKEN_SUSABIYU_SHINJYUKU }}
+          IG_ACCESS_TOKEN_GIFUYA: ${{ secrets.IG_ACCESS_TOKEN_GIFUYA || secrets.IG_ACCESS_TOKEN_GIHUYA_TENMABASHI }}
+          IG_ACCESS_TOKEN_GOLDOHATSU: ${{ secrets.IG_ACCESS_TOKEN_GOLDOHATSU || secrets.IG_ACCESS_TOKEN_GOLD_OHATSUTENJIN }}
+          IG_ACCESS_TOKEN_SANNOMIYA: ${{ secrets.IG_ACCESS_TOKEN_SANNOMIYA || secrets.IG_ACCESS_TOKEN_SUSABIYU_SANNOMIYA }}
+          IG_ACCESS_TOKEN_GOLD: ${{ secrets.IG_ACCESS_TOKEN_GOLD || secrets.IG_ACCESS_TOKEN_FURENCHISAKABA_GOLD }}
+          IG_ACCESS_TOKEN_LUCUA: ${{ secrets.IG_ACCESS_TOKEN_LUCUA || secrets.IG_ACCESS_TOKEN_LARGO_LUCUA }}
+          IG_ACCESS_TOKEN_KUMATORI: ${{ secrets.IG_ACCESS_TOKEN_KUMATORI || secrets.IG_ACCESS_TOKEN_KUMA_TORIYAKI }}
         run: |
           M="${MODE:-collect}"
           [ -z "$M" ] && M="collect"
-          for acct in goldporta karasuma komatsubara arata kadoma; do
+          for acct in goldporta karasuma komatsubara arata kadoma chachan tanukiya shinjuku gifuya goldohatsu sannomiya gold lucua kumatori; do
             echo "::group::insights $M $acct"
             STORE_ACCOUNT="$acct" python insights.py "$M" || echo "[WARN] $acct 失敗（継続）"
             echo "::endgroup::"
