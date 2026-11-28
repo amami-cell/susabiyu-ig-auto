@@ -235,6 +235,45 @@ STORE_NAME_JP = {
 }
 
 
+# 店ごとの定番ハッシュタグ（②提案キャプション末尾に付与）。店名・エリア・業態に沿った実用タグ。
+STORE_TAGS = {
+    # 既存店
+    "sanjo": "#すさび湯 #すさび湯三条 #河原町グルメ #京都グルメ #大衆酒場 #寿司",
+    "karasuma": "#鮨処すさび湯 #四条烏丸グルメ #京都グルメ #寿司 #和食",
+    "goldporta": "#フレンチ酒場GOLD #京都駅グルメ #京都グルメ #フレンチ #ワイン",
+    "nagagutsu": "#ナガグツ #梅田グルメ #イタリアン #ワイン #東通り",
+    "komatsubara": "#大衆食堂こまつ原 #梅田グルメ #大衆酒場 #堂山グルメ #小松原グルメ #梅田ランチ",
+    "gifuyatenjin": "#ぎふや #ぎふや福岡天神店 #大衆酒場 #天神グルメ #福岡グルメ #串かつ",
+    # 新店
+    "arata": "#ARATA #梅田グルメ #大阪グルメ #居酒屋",
+    "chachan": "#ちゃーちゃん #梅田居酒屋 #大阪居酒屋 #東通りグルメ #梅田グルメ",
+    "tanukiya": "#味のたぬきや #梅田グルメ #大阪居酒屋 #居酒屋",
+    "kumatori": "#熊の鳥焼 #梅田グルメ #焼き鳥 #やきとり #大阪グルメ",
+    "lucua": "#ルクアLargo #ルクア #梅田カフェ #スイーツ #パフェ",
+    "gold": "#フレンチ酒場GOLD #GOLD梅田 #梅田グルメ #フレンチ #ワイン",
+    "sannomiya": "#すさび湯三宮 #三宮グルメ #神戸グルメ #寿司 #大衆寿司",
+    "kadoma": "#門真Largo #門真グルメ #大阪カフェ #スイーツ",
+    "goldohatsu": "#GOLDお初天神 #お初天神グルメ #梅田グルメ #フレンチ #ワイン",
+    "gifuya": "#ぎふや天満橋 #天満橋グルメ #大阪グルメ #串かつ #大衆酒場",
+    "shinjuku": "#すさび湯新宿 #新宿グルメ #新宿東口 #寿司 #大衆寿司",
+    "kabukicho": "#すさび湯歌舞伎町 #歌舞伎町グルメ #新宿グルメ #寿司 #大衆寿司",
+    "ndanda": "#んだんだ #新宿グルメ #新宿居酒屋 #居酒屋",
+    "goldyokohama": "#フレンチ酒場GOLD横浜ジョイナス #横浜グルメ #横浜駅グルメ #フレンチ #ワイン",
+    "taishusushi": "#大衆寿司すさび湯 #梅田グルメ #東通りグルメ #寿司 #大衆寿司",
+    "hiyoko": "#ひよこ飯店 #梅田グルメ #中華 #町中華 #大阪グルメ",
+    "umami": "#CRAFTMANUMAMI #中崎町グルメ #クラフトビール #梅田グルメ #ビストロ",
+    "taidai": "#料理と酒たいだい #梅田グルメ #大阪居酒屋 #居酒屋",
+}
+
+
+def _store_tags(sid_ui):
+    t = STORE_TAGS.get(sid_ui)
+    if t:
+        return t
+    nm = STORE_NAME_JP.get(sid_ui, sid_ui).replace(" ", "").replace("　", "")
+    return "#%s #グルメ #今夜ごはん #おすすめ" % nm
+
+
 # 店→業態。店別 phrases ファイルが無い店は、業態テンプレ（phrases_type_<業態>.json）を使う。
 STORE_TYPE = {
     "taishusushi": "sushi", "sannomiya": "sushi", "shinjuku": "sushi", "kabukicho": "sushi",
@@ -310,7 +349,7 @@ def build_proposals(sid_ui, suf, stats, posts):
         cat = cats[i % len(cats)]
         p = r.choice(ph[cat])
         at = now.replace(hour=feed_hour, minute=0, second=0, microsecond=0) + datetime.timedelta(days=i + 1)
-        tag = "#%s #グルメ #今夜ごはん #乾杯 #おすすめ" % sid_ui
+        tag = _store_tags(sid_ui)
         cap = p + "\n" + store_name + " でお待ちしています。\nご予約はプロフィールから。\n\n" + tag
         items.append({"id": "prop_%s_%d" % (sid_ui, i), "at": at.isoformat(),
                       "kind": "post",
