@@ -14,7 +14,6 @@ window.SUSABIYU_STORES = [
   { id: "hiyoko",       name: "ひよこ飯店",           full: "ひよこ飯店",                   short: "", icon: "icons/store_hiyoko.png", initial: "ひ", url: "./store.html?id=hiyoko", live: false },
   { id: "arata",        name: "ARATA",                full: "ARATA",                        short: "", icon: "icons/store_arata.png", initial: "A", url: "./store.html?id=arata", live: false },
   { id: "chachan",      name: "ちゃーちゃん",         full: "ちゃーちゃん",                 short: "", icon: "icons/store_chachan.png", initial: "ち", url: "./store.html?id=chachan", live: false },
-  { id: "awakurai",     name: "泡喰ライ",             full: "大衆酒場 曲ル角ニハ泡喰ライ",  short: "", icon: "icons/store_awakurai.png", initial: "泡", url: "./store.html?id=awakurai", live: false },
   { id: "umami",        name: "UMAMI",                full: "CRAFTMAN UMAMI",               short: "", icon: "icons/store_umami.png", initial: "U", url: "./store.html?id=umami", live: false },
   { id: "taidai",       name: "たいだい",             full: "料理と酒 たいだい",            short: "", icon: "icons/store_taidai.png", initial: "た", url: "./store.html?id=taidai", live: false },
   { id: "nagagutsu",    name: "ナガグツ",             full: "ナガグツ（イタリアン・肉バル）", short: "稼働中", icon: "icons/store_nagagutsu.png", initial: "ナ", url: "./nagagutsu.html", live: true },
