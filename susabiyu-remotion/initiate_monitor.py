@@ -44,6 +44,7 @@ STORE_MAP = [
     ("gold",         "gold"),
     ("lucua",        "lucua"),
     ("kumatori",     "kumatori"),
+    ("taishusushi",  "taishusushi"),
 ]
 
 # インサイト投稿タブの列（insights.py POST_HEADER と一致）
