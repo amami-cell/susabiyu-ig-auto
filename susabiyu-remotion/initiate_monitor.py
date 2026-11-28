@@ -235,18 +235,36 @@ STORE_NAME_JP = {
 }
 
 
+# 店→業態。店別 phrases ファイルが無い店は、業態テンプレ（phrases_type_<業態>.json）を使う。
+STORE_TYPE = {
+    "taishusushi": "sushi", "sannomiya": "sushi", "shinjuku": "sushi", "kabukicho": "sushi",
+    "gold": "french", "goldohatsu": "french", "goldyokohama": "french",
+    "lucua": "cafe", "kadoma": "cafe",
+    "hiyoko": "chinese", "kumatori": "yakitori", "gifuya": "kushikatsu", "umami": "craftbeer",
+    "chachan": "izakaya", "tanukiya": "izakaya", "taidai": "izakaya", "ndanda": "izakaya",
+}
+
+
 def _phrases(suf):
     fn = "phrases.json" if not suf else ("phrases_" + suf + ".json")
     try:
         with open(fn, encoding="utf-8") as f:
             return json.load(f)
     except Exception:
-        # 店別ファイルが無い新店は、場所・業態に依存しない汎用文例へフォールバック
+        pass
+    # 店別ファイルが無ければ 業態テンプレ → 汎用 の順でフォールバック
+    t = STORE_TYPE.get(suf)
+    if t:
         try:
-            with open("phrases_generic.json", encoding="utf-8") as f:
+            with open("phrases_type_%s.json" % t, encoding="utf-8") as f:
                 return json.load(f)
         except Exception:
-            return {}
+            pass
+    try:
+        with open("phrases_generic.json", encoding="utf-8") as f:
+            return json.load(f)
+    except Exception:
+        return {}
 
 
 def _store_meta(suf):
